@@ -1,6 +1,6 @@
 # Agent
 
-A chat thread can be the agent's. opencode, bundled in the installer and started by Electron, then answers it in steps: it finds passages with SurfSense's search, reads a folder of the workspace's extracted text with its own tools, cites what it found as a chat answer does, starts Studio jobs, writes what it produces to an output folder, reaches every model through SurfSense, and asks the user before every shell command. Which engine a thread gets is decided when the thread opens. No model is on the tested list yet, so only a developer switch lets one in.
+A chat thread can be the agent's. opencode, started by Electron, then answers it in steps: it finds passages with SurfSense's search, reads a folder of the workspace's extracted text with its own tools, cites what it found as a chat answer does, starts Studio jobs, writes what it produces to an output folder, reaches every model through SurfSense, and asks the user before every shell command. Which engine a thread gets is decided when the thread opens. No model is on the tested list yet, so opencode is off: no installer or dev run carries it unless `SURFSENSE_LOCAL_OPENCODE_ENABLED=1` is set when it is staged, and even then only a developer switch lets a model in.
 
 **Code:** [`surfsense_local/backend/modules/agent/`](../../surfsense_local/backend/modules/agent/), [`surfsense_local/electron/src/main/sidecars/opencode.ts`](../../surfsense_local/electron/src/main/sidecars/opencode.ts), [`surfsense_local/electron/scripts/opencode/`](../../surfsense_local/electron/scripts/opencode/), [`surfsense_local/frontend/src/features/agent/`](../../surfsense_local/frontend/src/features/agent/)
 **Decisions:** [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md). The remaining work is in the [agent proposal](../proposals/agent/README.md).
@@ -9,7 +9,7 @@ A chat thread can be the agent's. opencode, bundled in the installer and started
 
 | Part | Where | Does |
 |---|---|---|
-| Staging | `electron/scripts/opencode/` | `pnpm build:opencode` fetches opencode `1.18.34` and ripgrep `15.1.0`, each checked against its SHA-256, into `electron/opencode/` ([packaging](packaging.md)) |
+| Staging | `electron/scripts/opencode/` | `pnpm build:opencode` fetches opencode `1.18.34` and ripgrep `15.1.0`, each checked against its SHA-256, into `electron/opencode/` ([packaging](packaging.md)), only when [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs) says opencode is on |
 | Process | `electron/src/main/sidecars/opencode.ts`, `opencode-home.ts`, `opencode-leftovers.ts`, `watchAgentConfig` in `index.ts` | starts, stops and cleans up `opencode serve` ([overview](overview.md)) |
 | Engine choice | `backend/modules/agent/engine_choice.py` | whether a thread opened now is the agent's |
 | Configuration | `opencode_config.py`, `prompts/agent.md` | the file opencode runs with |
@@ -27,7 +27,7 @@ A new thread is the agent's when the selected text model is in `TESTED_MODELS`, 
 
 ## From a thread to a running opencode
 
-1. **Electron, at boot.** Where an opencode is staged, Electron picks its port and a random password, passes both to the API alone, and removes any `agent/opencode.json` the last run left. opencode does not start yet.
+1. **Electron, at boot.** Where an opencode is staged, Electron picks its port and a random password, passes both to the API alone, and removes any `agent/opencode.json` the last run left. opencode does not start yet. Where none is staged, Electron passes nothing, and the API mounts none of the routes opencode calls or that answer it: the model endpoint, the tool endpoint and the permission answer.
 2. **The API, when a thread first needs the agent.** `ready_opencode()` reads the selected model's window: what llama-server loaded a local model with, or the `context` the remote catalog records, else 32,768. It writes `<data>/agent/opencode.json`, readable by this user only, and only when its contents change.
 3. **Electron, on that file.** Checked every 2 seconds: opencode starts once the file exists and stops when it goes. A crash restarts it, at most once every 10 seconds. A rewrite does not restart it.
 4. **The API, until opencode serves it.** opencode reads its configuration per folder, the first time the folder is used, and keeps what it read. So the API checks the running server's version is `1.18.34`, reads `GET /config`, and calls `POST /global/dispose` once if what is loaded is not the launch key and window just written. It returns when they match, or after 60 seconds with "not ready". Every call has a timeout, because opencode accepts a connection a moment before it answers it.
@@ -103,8 +103,8 @@ opencode needs no host beyond loopback: its model is the model endpoint, and its
 
 ## Tests
 
-- **Backend:** [`tests/integration/agent/`](../../surfsense_local/backend/tests/integration/agent/) and [`tests/unit/agent/`](../../surfsense_local/backend/tests/unit/agent/). The client, readiness and thread tests start the staged opencode against a scripted model, and the thread tests also run the real API on a port. The tool endpoint tests drive the app in-process, as opencode's MCP client calls it. They skip where `pnpm build:opencode` has not staged a build.
-- **Electron:** the sidecar tests in [`electron/src/main/sidecars/`](../../surfsense_local/electron/src/main/sidecars/) and the pins test in `electron/scripts/opencode/`.
+- **Backend:** [`tests/integration/agent/`](../../surfsense_local/backend/tests/integration/agent/) and [`tests/unit/agent/`](../../surfsense_local/backend/tests/unit/agent/). The client, readiness and thread tests start the staged opencode against a scripted model, and the thread tests also run the real API on a port. The tool endpoint tests drive the app in-process, as opencode's MCP client calls it. They skip where `pnpm build:opencode` has not staged a build. Each builds the app as Electron starts it beside an opencode; `test_routes_without_opencode.py` builds it without one.
+- **Electron:** the sidecar tests in [`electron/src/main/sidecars/`](../../surfsense_local/electron/src/main/sidecars/) and the pins and switch tests in `electron/scripts/opencode/`.
 - **Frontend:** [`features/agent/agent-thread.test.tsx`](../../surfsense_local/frontend/src/features/agent/agent-thread.test.tsx), on the real dashboard against a stream that waits for the test's answer.
 
 ## Known gaps
@@ -123,4 +123,4 @@ opencode needs no host beyond loopback: its model is the model endpoint, and its
 - A shell command the agent runs inherits opencode's environment, `OPENCODE_SERVER_PASSWORD` included, so a command the user approved can call opencode's own API, approval replies among it. The approval prompt shows the command in full.
 - When SurfSense's data folder sits inside a git repository, such as a home folder kept in git, opencode counts the repository's root as its project. Nothing detects it.
 - No test runs opencode with every connection beyond loopback refused to check that it opens none.
-- The installers have not been measured or tried with opencode: its size, a notarized build on macOS, and a signed build under Defender on Windows.
+- No signed installer has carried opencode: a notarized build on macOS and a signed build under Defender on Windows are untried. It adds about 180 MB unpacked.

@@ -88,6 +88,18 @@ class _Handler(BaseHTTPRequestHandler):
         """Keep the request log out of the test output."""
 
 
+@pytest.fixture(autouse=True)
+def beside_an_opencode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Build every app here as Electron starts one beside an opencode, so it has the agent's routes.
+
+    Nothing listens on port 9; a test that runs opencode sets its own address.
+    """
+    monkeypatch.setattr(get_agent_settings(), "opencode_url", "http://127.0.0.1:9")
+    monkeypatch.setattr(
+        get_agent_settings(), "opencode_password", "not-a-running-opencode"
+    )
+
+
 @pytest.fixture
 def model_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[StubModel]:
     """A real model server on a real port, which llama-server's address points at."""
