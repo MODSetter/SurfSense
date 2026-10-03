@@ -68,9 +68,7 @@ export const metadata: Metadata = {
 		url: canonicalUrl,
 		siteName: "SurfSense",
 		type: "website",
-		images: [
-			{ url: "/og-image.png", width: 1200, height: 630, alt: "Private AI for business" },
-		],
+		images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Private AI for business" }],
 	},
 	twitter: {
 		card: "summary_large_image",
@@ -158,8 +156,8 @@ export default function PrivateAiForBusinessPage() {
 					    you have the file, the deliverable comes out here, nothing is
 					    uploaded, so there is no copy for anyone to reach. */}
 					<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
-						You already have the file. The deliverable comes out on the same machine it went in
-						on: nothing is uploaded, so there is no vendor copy of your client's contract, your
+						You already have the file. The deliverable comes out on the same machine it went in on:
+						nothing is uploaded, so there is no vendor copy of your client's contract, your
 						patient's notes or your firm's numbers, and nothing for anyone to subpoena from us.
 					</p>
 					<p className="ss-home-body mx-auto mt-5 max-w-2xl text-sm">
@@ -216,8 +214,8 @@ export default function PrivateAiForBusinessPage() {
 
 				<div className="ss-home-rule ss-home-pad py-8">
 					<p className="ss-home-body max-w-4xl text-sm">
-						Every one of them also exports to PDF. What goes in is the file you already have:
-						PDF, Word, PowerPoint, Excel, HTML, CSV, Markdown, plain text and images.
+						Every one of them also exports to PDF. What goes in is the file you already have: PDF,
+						Word, PowerPoint, Excel, HTML, CSV, Markdown, plain text and images.
 					</p>
 				</div>
 			</section>
@@ -259,15 +257,17 @@ export default function PrivateAiForBusinessPage() {
 			<section className="ss-home-rule">
 				<div className="ss-home-head ss-home-head-plain">
 					<p className="ss-home-eyebrow">Compliance</p>
-					<h2 className="ss-home-h2 mt-2">Compliance depends on your controls, not on our software</h2>
+					<h2 className="ss-home-h2 mt-2">
+						Compliance depends on your controls, not on our software
+					</h2>
 				</div>
 
 				<div className="ss-home-pad pb-12">
 					<div className="ss-home-body flex max-w-3xl flex-col gap-4">
 						<p>
-							Whether a workflow is HIPAA, GDPR or SRA compliant depends on the controls around
-							it, and those are yours to establish. No piece of software carries that property on
-							its own.
+							Whether a workflow is HIPAA, GDPR or SRA compliant depends on the controls around it,
+							and those are yours to establish. No piece of software carries that property on its
+							own.
 						</p>
 						<p>
 							What we can tell you is narrower and checkable. The index and every prompt stay on

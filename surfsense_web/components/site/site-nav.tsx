@@ -43,9 +43,7 @@ function Wordmark() {
 				priority
 				className="size-6 dark:invert"
 			/>
-			<span className="ss-home-wordmark text-lg text-[color:var(--foreground)]">
-				SurfSense
-			</span>
+			<span className="ss-home-wordmark text-lg text-[color:var(--foreground)]">SurfSense</span>
 		</Link>
 	);
 }

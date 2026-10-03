@@ -1,8 +1,8 @@
 "use client";
 
 import type { InteractionProps } from "@microlink/react-json-view";
-import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import { useCallback, useMemo } from "react";
 
 // @microlink/react-json-view reads `document` at module-eval time, which throws
