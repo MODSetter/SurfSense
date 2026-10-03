@@ -223,7 +223,7 @@ jobs:
 
       - name: Fetch the audio.cpp build
         if: runner.os != 'macOS'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: audiocpp-${{ runner.os }}
           path: surfsense_local/electron
@@ -236,7 +236,7 @@ jobs:
 
       - name: Fetch the sd.cpp build
         if: runner.os != 'Windows'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: sdcpp-${{ runner.os }}
           path: surfsense_local/electron
@@ -339,7 +339,7 @@ jobs:
           test -f "$DIR/stable-diffusion.cpp.txt"
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surfsense-local-${{ matrix.os }}
           path: |
