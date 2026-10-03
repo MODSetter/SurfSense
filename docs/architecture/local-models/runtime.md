@@ -271,7 +271,8 @@ with a small `max_tokens` returns nothing. Measured against Qwen3 1.7B at
 `finish_reason: length`, and a full `reasoning_content`.
 
 A caller that wants no reasoning passes `reasoning=False`; title generation and
-every Studio model call do. The chat provider then adds `THINKING_OFF`, two fields
+every Studio model call do, and so does a chat turn sent with `thinking: false`
+([`chat.md`](../chat.md#the-thinking-switch)). The chat provider then adds `THINKING_OFF`, two fields
 defined in `thinking.py`, to that one request,
 because each covers the other's blind spot and both were measured to work:
 

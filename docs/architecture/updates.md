@@ -9,7 +9,7 @@ How to cut a release is in [`surfsense_local/RELEASE.md`](../../surfsense_local/
 
 ## Consent
 
-Updates are the one call the app is designed to make on its own, so they are off until the user turns them on. The spellchecker's dictionary download is a known exception ([egress](egress.md)).
+Updates are the one call the app is designed to make on its own, so they are off until the user turns them on.
 
 - The preference is `updates.json` in Electron's user data: `automatic`, false by default, and `lastCheckedAt`, which Settings › Network shows as the App updates row's last call.
 - The check at launch runs only when `automatic` is on.

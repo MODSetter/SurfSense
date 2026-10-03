@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { ServerIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
+import type { ModelType } from "../model-type"
 import type { Connection } from "../remote/connections/api"
 import { ConnectionDialog } from "../remote/connections/connection-dialog"
 
@@ -13,8 +14,10 @@ import { ConnectionDialog } from "../remote/connections/connection-dialog"
  * can show its models.
  */
 export function ServerCard({
+  modelType,
   onConnected,
 }: {
+  modelType: ModelType
   onConnected: (connection: Connection) => void
 }) {
   const [connecting, setConnecting] = useState(false)
@@ -62,6 +65,7 @@ export function ServerCard({
       </div>
       <ConnectionDialog
         open={connecting}
+        modelType={modelType}
         onOpenChange={setConnecting}
         onCreated={onConnected}
       />

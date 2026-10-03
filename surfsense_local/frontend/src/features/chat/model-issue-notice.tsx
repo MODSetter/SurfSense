@@ -23,6 +23,15 @@ function reason({ model, code, host }: ModelIssue): string {
         },
         { model }
       )
+    case "sign_in_required":
+      return intl.formatMessage(
+        {
+          id: "chat_model_issue_sign_in_body",
+          defaultMessage:
+            "Couldn’t use {model}, its ChatGPT account has to sign in again.",
+        },
+        { model }
+      )
     case "provider_unreachable":
       return intl.formatMessage(
         {

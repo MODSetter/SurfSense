@@ -5,13 +5,15 @@ import json
 from collections.abc import Awaitable, Callable
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 
 from modules.chat.models import ChatThread
+from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from tests.integration.agent.conftest import AgentAPI
+from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
 
@@ -99,6 +101,34 @@ async def test_a_message_streams_the_agents_reply(agent_api: AgentAPI) -> None:
     assert frames[-1] == {"type": "done"}
 
 
+async def test_a_thread_cannot_continue_with_a_model_that_cannot_call_tools(
+    agent_api: AgentAPI,
+) -> None:
+    """The thread stays the agent's, and opencode would take no step with that model."""
+    thread = await open_thread(agent_api)
+    current = (await agent_api.http.get("/llm/selection/text_gen")).json()
+    chosen = await agent_api.http.put(
+        "/llm/selection/text_gen",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": current["connection_id"],
+            "name": "gpt-3.5-turbo",
+            "allow_unlisted": True,
+        },
+    )
+    chosen.raise_for_status()
+
+    reply = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "What happened in Q3?"}
+    )
+
+    assert reply.status_code == 409
+    assert "new chat" in reply.json()["detail"]
+    assert agent_api.model.requests == []
+    turns = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+    assert turns.json() == []
+
+
 async def test_the_sources_are_in_the_folder_before_the_turn(
     agent_api: AgentAPI,
 ) -> None:
@@ -122,6 +152,83 @@ async def test_the_sources_are_in_the_folder_before_the_turn(
 
     source = working_folder(agent_api.workspace_id) / "sources" / f"Plan [{note_id}].md"
     assert source.read_text(encoding="utf-8") == "Ship on Friday."
+
+
+def ingest_note(
+    engine: Engine, workspace_id: int, title: str, text: str
+) -> tuple[int, int]:
+    """A note taken through ingestion to ready: its id and its first chunk's."""
+    with create_session_factory(engine)() as session:
+        note = Document(
+            workspace_id=workspace_id,
+            title=title,
+            document_type=DocumentType.NOTE,
+            content=text,
+        )
+        session.add(note)
+        session.commit()
+        note_id = note.id
+    run(note_id)
+    with create_session_factory(engine)() as session:
+        chunk_id = session.scalars(
+            select(Chunk.id).where(Chunk.document_id == note_id)
+        ).first()
+    assert chunk_id is not None
+    return note_id, chunk_id
+
+
+SEARCH = (
+    "call",
+    json.dumps(
+        {"name": "surfsense_search_sources", "arguments": {"query": "ship date"}}
+    ),
+)
+
+
+async def test_the_agent_searches_the_sources_through_surfsense(
+    agent_api: AgentAPI, engine: Engine, real_model: object
+) -> None:
+    """The model is offered SurfSense's search, calls it, and reads what it found."""
+    ingest_note(
+        engine, agent_api.workspace_id, "Plan 2026", "We ship on Friday 14 November."
+    )
+    agent_api.model.replies = [SEARCH, ("text", "On Friday.")]
+    thread = await open_thread(agent_api)
+
+    await send(agent_api, thread["id"], "When do we ship?")
+
+    offered, answered = agent_api.model.requests[:2]
+    assert "surfsense_search_sources" in [
+        tool["function"]["name"] for tool in offered["tools"]
+    ]
+    results = [m for m in answered["messages"] if m["role"] == "tool"]
+    assert "We ship on Friday 14 November." in json.dumps(results)
+
+
+async def test_a_cited_passage_becomes_a_citation_and_an_invented_one_is_dropped(
+    agent_api: AgentAPI, engine: Engine, real_model: object
+) -> None:
+    """Only a label the search returned may point at a source, as in a chat answer."""
+    note_id, chunk_id = ingest_note(
+        engine, agent_api.workspace_id, "Plan 2026", "We ship on Friday 14 November."
+    )
+    agent_api.model.replies = [
+        SEARCH,
+        ("text", f"We ship on Friday [{chunk_id}]. Costs fell [999999]."),
+    ]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "When do we ship?")
+    listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+
+    text = of_type(frames, "completed")[0]["text"]
+    assert f"We ship on Friday [citation:{chunk_id}]." in text
+    assert "999999" not in text
+    (cited,) = of_type(frames, "citations")[0]["items"]
+    assert (cited["chunk_id"], cited["document_id"]) == (chunk_id, note_id)
+    reply = listed.json()[-1]
+    assert reply["content"]["text"] == text
+    assert [c["chunk_id"] for c in reply["content"]["citations"]] == [chunk_id]
 
 
 async def test_a_shell_command_waits_for_the_users_yes(agent_api: AgentAPI) -> None:

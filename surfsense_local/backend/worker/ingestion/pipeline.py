@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from modules.documents.models import Document, DocumentStatus
+from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import require_active_index
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
@@ -47,8 +47,12 @@ def _ingest(session: Session, document: Document) -> None:
         raise_if_cancelled(session, document)
         indexing.replace_chunks(session, document, index, passages, vectors)
 
-        document.content = markdown
-        if not finish_job(session, document, DocumentStatus.READY):
+        # A file's text is what ingest extracted; a note's is the user's, only
+        # read here, so writing it back would undo an edit made mid-ingest.
+        produced = (
+            {"content": markdown} if document.document_type is DocumentType.FILE else {}
+        )
+        if not finish_job(session, document, DocumentStatus.READY, **produced):
             return
         notify_document_updates(document)
     except JobCancelledError:

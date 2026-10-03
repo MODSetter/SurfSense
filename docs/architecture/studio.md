@@ -9,7 +9,7 @@ The tables, `artifacts` and `artifact_files`, are in [`data-model.md`](data-mode
 
 ## The job seam
 
-[`service.py`](../../surfsense_local/backend/modules/artifacts/service.py)`::create_artifact_job(session, workspace, payload, *, tool_call_id=None)` is the one entry for every trigger. The REST route passes no `tool_call_id`; a chat tool would pass its own, and nothing else would differ. Explicit now, agentic later, same code. No chat tool calls it yet.
+[`service.py`](../../surfsense_local/backend/modules/artifacts/service.py)`::create_artifact_job(session, workspace, payload, *, tool_call_id=None)` is the one entry for every trigger. The REST route passes no `tool_call_id`, and neither does the agent's `surfsense_create_artifact`, whose call reaches SurfSense without one ([agent](agent.md#surfsenses-tools)). Explicit or agentic, same code.
 
 1. Look the format up in the catalog (`422` if unknown) and check that it is available (`409` with the reason if not).
 2. Resolve the sources: at least one (`422`), all in this workspace (`422`) and all `ready` (`409`).

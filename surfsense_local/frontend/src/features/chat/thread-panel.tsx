@@ -90,6 +90,8 @@ export function ThreadPanel({
   autoNamingThreadId,
   onRename,
   onDelete,
+  onUploadSources,
+  isUploadingSources,
 }: {
   runtime: AssistantRuntime
   thread: ChatThread | null
@@ -110,6 +112,8 @@ export function ThreadPanel({
   autoNamingThreadId: number | null
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
+  onUploadSources?: (files: File[]) => void
+  isUploadingSources?: boolean
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const headingId = useId()
@@ -141,6 +145,8 @@ export function ThreadPanel({
       onModelSelected={onModelSelected}
       readsImages={model?.reads_images === true}
       describedBy={thread == null ? undefined : headingId}
+      onUploadSources={onUploadSources}
+      isUploadingSources={isUploadingSources}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined

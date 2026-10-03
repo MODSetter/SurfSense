@@ -12,8 +12,6 @@ import {
 } from "./about-links"
 import { CopyVersionButton } from "./copy-version-button"
 import { ExternalLink } from "./external-link"
-import { ReportIssueButton } from "./report-issue-button"
-import { Troubleshooting } from "./troubleshooting"
 import { useAppDetails } from "./use-app-details"
 
 function AppIdentity({ version }: { version?: string }) {
@@ -103,7 +101,6 @@ export function AboutSettings() {
               defaultMessage: "Community on Discord",
             })}
           </ExternalLink>
-          {details ? <ReportIssueButton /> : null}
         </div>
       </div>
 
@@ -128,8 +125,6 @@ export function AboutSettings() {
           })}
         </ExternalLink>
       </div>
-
-      {details ? <Troubleshooting details={details} /> : null}
     </SettingsSection>
   )
 }

@@ -30,6 +30,13 @@ import {
   type ConnectionWrite,
   type RemoteProvider,
 } from "./api"
+import type { ModelType } from "../../model-type"
+import {
+  CHATGPT_PROVIDER,
+  getSignInOption,
+  signInOptionQueryKey,
+} from "./chatgpt/api"
+import { ChatGPTSignIn } from "./chatgpt/chatgpt-sign-in"
 import { fillTemplate } from "./provider-url"
 
 // A local server's port is whatever its owner set, so nothing is filled in:
@@ -92,10 +99,13 @@ function messageFrom(error: unknown) {
  */
 export function ConnectionForm({
   connection,
+  modelType,
   onCancel,
   onSaved,
 }: {
   connection?: Connection
+  /** The slot being filled; a way to connect that cannot fill it is not offered. */
+  modelType?: ModelType
   onCancel: () => void
   onSaved: (connection: Connection) => void
 }) {
@@ -107,7 +117,9 @@ export function ConnectionForm({
   const [label, setLabel] = useState(connection?.label ?? "")
   const [baseUrl, setBaseUrl] = useState(connection?.base_url ?? "")
   const [providerId, setProviderId] = useState(
-    connection?.catalog_provider ?? CUSTOM_PROVIDER
+    connection?.auth_kind === "chatgpt"
+      ? CHATGPT_PROVIDER
+      : (connection?.catalog_provider ?? CUSTOM_PROVIDER)
   )
   const [accountValues, setAccountValues] = useState<Record<string, string>>({})
   const providers = useQuery({
@@ -130,8 +142,46 @@ export function ConnectionForm({
     keywords: ["local", "custom"],
     disabled: false,
   }
+  const signIn = useQuery({
+    queryKey: signInOptionQueryKey,
+    queryFn: ({ signal }) => getSignInOption(signal),
+    staleTime: Infinity,
+  })
+  const signInServes = signIn.data?.serves ?? []
+  const editingChatGPT = connection?.auth_kind === "chatgpt"
+  // The backend says what a ChatGPT connection fills; offered only where it can.
+  const offerChatGPT =
+    editingChatGPT ||
+    (signIn.isSuccess && (!modelType || signInServes.includes(modelType)))
+  const chatgptOption: ProviderOption = {
+    value: CHATGPT_PROVIDER,
+    label: intl.formatMessage({
+      id: "models_connection_form_chatgpt_provider_label",
+      defaultMessage: "ChatGPT subscription",
+    }),
+    hint:
+      signInServes.length === 1
+        ? intl.formatMessage(
+            {
+              id: "models_connection_form_chatgpt_provider_only_body",
+              defaultMessage:
+                "{type, select, text_gen {Chat only} image_gen {Images only} image_edit {Image editing only} video_gen {Video only} audio_gen {Audio only} other {Some models only}}, sign in with your ChatGPT account",
+            },
+            { type: signInServes[0] }
+          )
+        : intl.formatMessage({
+            id: "models_connection_form_chatgpt_provider_body",
+            defaultMessage: "Sign in with your ChatGPT account",
+          }),
+    keywords: ["chatgpt", "openai", "plus", "pro", "subscription"],
+    // An existing key connection cannot become a sign-in, nor the reverse.
+    disabled: Boolean(connection && connection.auth_kind !== "chatgpt"),
+  }
   const providerGroups: ProviderGroup[] = [
-    { label: null, items: [customOption] },
+    {
+      label: null,
+      items: offerChatGPT ? [customOption, chatgptOption] : [customOption],
+    },
     {
       label: intl.formatMessage({
         id: "models_connection_form_providers_label",
@@ -147,12 +197,20 @@ export function ConnectionForm({
     },
   ]
   const selectedOption =
-    providerGroups[1].items.find((option) => option.value === providerId) ??
-    customOption
+    providerGroups
+      .flatMap((group) => group.items)
+      .find((option) => option.value === providerId) ?? customOption
+  const isChatGPT = providerId === CHATGPT_PROVIDER
 
   const choose = (option: ProviderOption | null) => {
     if (!option) return
     setAccountValues({})
+    if (option.value === CHATGPT_PROVIDER) {
+      setProviderId(CHATGPT_PROVIDER)
+      setBaseUrl("")
+      if (!label.trim()) setLabel(option.label)
+      return
+    }
     if (option.value === CUSTOM_PROVIDER) {
       setProviderId(CUSTOM_PROVIDER)
       setBaseUrl("")
@@ -214,89 +272,108 @@ export function ConnectionForm({
     }
   }
 
+  const fields = (
+    <>
+      <div ref={setPopupHost} className="absolute" />
+      <Field>
+        <FieldLabel htmlFor={`${fieldId}-name`}>
+          {intl.formatMessage({
+            id: "models_connection_form_name_label",
+            defaultMessage: "Name",
+          })}
+        </FieldLabel>
+        <Input
+          id={`${fieldId}-name`}
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          placeholder={intl.formatMessage({
+            id: "models_connection_form_name_placeholder",
+            defaultMessage: "Engineering vLLM",
+          })}
+          disabled={busy}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${fieldId}-provider`}>
+          {intl.formatMessage({
+            id: "models_connection_form_provider_label",
+            defaultMessage: "Provider",
+          })}
+        </FieldLabel>
+        <Combobox
+          items={providerGroups}
+          value={selectedOption}
+          onValueChange={choose}
+          isItemEqualToValue={(item, value) => item.value === value.value}
+          filter={matchesProvider}
+          disabled={busy || connection?.auth_kind === "chatgpt"}
+        >
+          <ComboboxInput
+            id={`${fieldId}-provider`}
+            disabled={busy || connection?.auth_kind === "chatgpt"}
+            placeholder={intl.formatMessage({
+              id: "models_connection_form_provider_placeholder",
+              defaultMessage: "Search providers",
+            })}
+          />
+          <ComboboxContent container={popupHost}>
+            <ComboboxEmpty>
+              {intl.formatMessage({
+                id: "models_connection_form_provider_empty",
+                defaultMessage: "No provider found",
+              })}
+            </ComboboxEmpty>
+            <ComboboxList>
+              {(group: ProviderGroup) => (
+                <ComboboxGroup
+                  key={group.label ?? "custom"}
+                  items={group.items}
+                >
+                  {group.label ? (
+                    <ComboboxLabel>{group.label}</ComboboxLabel>
+                  ) : null}
+                  <ComboboxCollection>
+                    {(option: ProviderOption) => (
+                      <ComboboxItem
+                        key={option.value}
+                        value={option}
+                        disabled={option.disabled}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {option.label}
+                          <span className="ml-1.5 text-muted-foreground">
+                            {option.hint}
+                          </span>
+                        </span>
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxGroup>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </Field>
+    </>
+  )
+
+  if (isChatGPT) {
+    return (
+      <ChatGPTSignIn
+        fields={fields}
+        label={label}
+        connection={connection}
+        onBusyChange={setBusy}
+        onCancel={onCancel}
+        onSaved={onSaved}
+      />
+    )
+  }
+
   return (
     <>
       <FieldGroup className="relative">
-        <div ref={setPopupHost} className="absolute" />
-        <Field>
-          <FieldLabel htmlFor={`${fieldId}-name`}>
-            {intl.formatMessage({
-              id: "models_connection_form_name_label",
-              defaultMessage: "Name",
-            })}
-          </FieldLabel>
-          <Input
-            id={`${fieldId}-name`}
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            placeholder={intl.formatMessage({
-              id: "models_connection_form_name_placeholder",
-              defaultMessage: "Engineering vLLM",
-            })}
-            disabled={busy}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${fieldId}-provider`}>
-            {intl.formatMessage({
-              id: "models_connection_form_provider_label",
-              defaultMessage: "Provider",
-            })}
-          </FieldLabel>
-          <Combobox
-            items={providerGroups}
-            value={selectedOption}
-            onValueChange={choose}
-            isItemEqualToValue={(item, value) => item.value === value.value}
-            filter={matchesProvider}
-            disabled={busy}
-          >
-            <ComboboxInput
-              id={`${fieldId}-provider`}
-              disabled={busy}
-              placeholder={intl.formatMessage({
-                id: "models_connection_form_provider_placeholder",
-                defaultMessage: "Search providers",
-              })}
-            />
-            <ComboboxContent container={popupHost}>
-              <ComboboxEmpty>
-                {intl.formatMessage({
-                  id: "models_connection_form_provider_empty",
-                  defaultMessage: "No provider found",
-                })}
-              </ComboboxEmpty>
-              <ComboboxList>
-                {(group: ProviderGroup) => (
-                  <ComboboxGroup
-                    key={group.label ?? "custom"}
-                    items={group.items}
-                  >
-                    {group.label ? (
-                      <ComboboxLabel>{group.label}</ComboboxLabel>
-                    ) : null}
-                    <ComboboxCollection>
-                      {(option: ProviderOption) => (
-                        <ComboboxItem
-                          key={option.value}
-                          value={option}
-                          disabled={option.disabled}
-                        >
-                          <span className="min-w-0 flex-1 truncate">
-                            {option.label}
-                            <span className="ml-1.5 text-muted-foreground">
-                              {option.hint}
-                            </span>
-                          </span>
-                        </ComboboxItem>
-                      )}
-                    </ComboboxCollection>
-                  </ComboboxGroup>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </Field>
+        {fields}
         {chosen?.connect.status === "needs_account_details"
           ? chosen.connect.account_fields.map((field) => (
               <Field key={field.name}>

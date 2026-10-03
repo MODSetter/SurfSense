@@ -58,6 +58,8 @@ function serve() {
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
       if (path === "/llm/catalog/remote") return Response.json(PROVIDERS)
+      if (path === "/llm/connections/chatgpt")
+        return Response.json({ serves: ["text_gen"], hosts: [] })
       if (path === "/llm/connections" && init?.method === "POST") {
         return Response.json({ id: 9, ...JSON.parse(String(init.body)) })
       }
@@ -175,5 +177,36 @@ describe("connection form", () => {
         catalog_provider: "custom",
       })
     )
+  })
+
+  it("offers a ChatGPT sign-in only where the backend says it can serve", async () => {
+    serve()
+    const user = userEvent.setup()
+    const video = render(
+      <ConnectionForm
+        modelType="video_gen"
+        onCancel={vi.fn()}
+        onSaved={vi.fn()}
+      />
+    )
+    await user.click(screen.getByLabelText("Provider"))
+    await screen.findByRole("option", { name: /^Local or custom server/ })
+    expect(
+      screen.queryByRole("option", { name: /^ChatGPT subscription/ })
+    ).toBeNull()
+    video.unmount()
+
+    render(
+      <ConnectionForm
+        modelType="text_gen"
+        onCancel={vi.fn()}
+        onSaved={vi.fn()}
+      />
+    )
+    await user.click(screen.getByLabelText("Provider"))
+    const option = await screen.findByRole("option", {
+      name: /^ChatGPT subscription/,
+    })
+    expect(option.textContent).toContain("Chat only")
   })
 })

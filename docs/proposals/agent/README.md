@@ -30,7 +30,7 @@ Every fact here links to where it was checked: this repo, opencode `v1.18.34` (c
 | **Workflows** | [`04-workflows.md`](04-workflows.md) | Studio's structured output, the formatting pass, the text fallback | nothing; can start now |
 | **Sources folder** | [`05-sources-folder.md`](05-sources-folder.md) | linking a folder on disk as the Sources root | nothing; independent |
 
-opencode came first, on its own file tools over the sources folder: what runs is in [agent](../../architecture/agent.md). Next are SurfSense's tools ([`02-tools.md`](02-tools.md)) and the engine choice's tool-support check ([`01-which-engine.md`](01-which-engine.md)), then the workflows and the linked sources folder, in parallel.
+opencode came first, for a model known to call tools ([`01-which-engine.md`](01-which-engine.md)), on its own file tools over the sources folder and SurfSense's search and Studio over MCP ([`02-tools.md`](02-tools.md)): what runs is in [agent](../../architecture/agent.md). Next are the workflows and the linked sources folder, in parallel.
 
 ## Locked decisions
 

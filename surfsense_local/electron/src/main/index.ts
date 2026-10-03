@@ -58,6 +58,7 @@ import {
   type Sidecars,
 } from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
+import { refuseSpellcheckDownloads } from "./spellcheck.ts"
 import {
   attachUpdater,
   readUpdatePrefs,
@@ -711,6 +712,9 @@ app.commandLine.appendSwitch(
   "enable-features",
   "OverlayScrollbar,FluentScrollbar,FluentOverlayScrollbars"
 )
+
+// Also before whenReady(): the default session is created with the app.
+refuseSpellcheckDownloads(app)
 
 // one app, one set of sidecars: a second instance would fight over the SQLite
 // file and the port, so hand off to the primary window and quit

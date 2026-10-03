@@ -105,6 +105,7 @@ export async function streamMessage(
   text: string,
   images: ImageUpload[],
   documentIds: number[],
+  thinking: boolean,
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
 ): Promise<void> {
@@ -119,6 +120,8 @@ export async function streamMessage(
       document_ids: documentIds,
       // Only when there are some, so a text turn sends exactly what it did.
       ...(images.length > 0 ? { images } : {}),
+      // Only when off, for the same reason: on is the API's default.
+      ...(thinking ? {} : { thinking: false }),
     }),
     signal,
   })

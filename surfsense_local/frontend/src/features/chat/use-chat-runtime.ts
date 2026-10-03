@@ -35,6 +35,7 @@ import {
 } from "./image-attachments"
 import { chatKeys } from "./query-keys"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
+import { readThinkingOn } from "./thinking-preference"
 
 export type ChatTurnError = {
   kind: ChatErrorKind
@@ -203,6 +204,7 @@ export function useChatRuntime({
   canSend,
   selectedDocumentIds,
   readsImages,
+  canSkipThinking,
   onModelRequired,
 }: {
   workspaceId: number
@@ -211,6 +213,8 @@ export function useChatRuntime({
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
+  // Whether the selected model can be told not to think; no other is asked to.
+  canSkipThinking: boolean
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -474,6 +478,7 @@ export function useChatRuntime({
           text,
           images,
           selectedDocumentIds,
+          !canSkipThinking || readThinkingOn(),
           controller.signal,
           (event) => {
             if (requestVersion.current !== version) {
@@ -738,6 +743,7 @@ export function useChatRuntime({
     },
     [
       canSend,
+      canSkipThinking,
       conversationView,
       createThreadMutation,
       isRunning,

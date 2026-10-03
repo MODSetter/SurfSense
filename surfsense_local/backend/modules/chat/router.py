@@ -19,7 +19,7 @@ from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
 from modules.agent.agent_threads.turn import agent_turn
 from modules.agent.dependencies import LaunchKeyDep
-from modules.agent.engine_choice import agent_answers
+from modules.agent.engine_choice import selected_model_can_run_agent
 from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error, empty_reply_error
@@ -76,7 +76,7 @@ async def create_thread(
     Chosen here and kept: the thread's turns live with whichever engine got it.
     """
     thread = await transact(session, _new_thread, workspace.id, payload.title)
-    if await transact(session, agent_answers):
+    if await selected_model_can_run_agent(session):
         session_id = await open_agent_session(session, thread, launch_key)
         if session_id is not None:
             await transact(session, _give_to_agent, thread, session_id)
@@ -260,7 +260,11 @@ async def send_message(
         try:
             try:
                 async for delta in generator.chat_deltas(
-                    selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
+                    selected.name,
+                    messages,
+                    max_tokens=answer_max_tokens(n_ctx),
+                    # None leaves the model to its own default.
+                    reasoning=None if payload.thinking else False,
                 ):
                     if delta.progress is not None:
                         yield _frame(

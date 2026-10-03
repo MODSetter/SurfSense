@@ -18,6 +18,7 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | open source | オープンソース † | 오픈소스 | 开源 | ओपन सोर्स | Open Source † | código abierto | open source | código aberto | открытый исходный код |
 | privacy | プライバシー | 프라이버시 | 隐私 | गोपनीयता | Datenschutz † | privacidad | confidentialité | privacidade | конфиденциальность |
 | source (an added file or folder) | ソース | 소스 | 来源 | स्रोत | Quelle | fuente | source | fonte | источник |
+| note (a source the user writes) | メモ | 메모 | 笔记 | नोट | Notiz | nota | note | nota | заметка |
 | thinking (a model reasoning before it answers) | 考え中 / 考えました | 생각 | 思考 | सोचना | nachdenken | pensar | réflexion | pensar | размышления |
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
@@ -53,6 +54,9 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | session log | セッションログ | 세션 로그 | 会话日志 | सेशन लॉग | Sitzungsprotokoll | registro de la sesión | journal de session | log da sessão | журнал сеанса |
 | clipboard | クリップボード | 클립보드 | 剪贴板 | क्लिपबोर्ड | Zwischenablage | portapapeles | presse-papiers | área de transferência | буфер обмена |
 | embedding (the model that turns the library into vectors) | 埋め込み | 임베딩 | 嵌入 | एम्बेडिंग | Embedding | embedding | embedding | embedding | эмбеддинг |
+| sign in (to a ChatGPT account) | サインイン | 로그인 | 登录 | साइन इन | anmelden | iniciar sesión | se connecter | entrar | войти |
+| plan (a ChatGPT plan, Plus or Pro) | プラン | 플랜 | 套餐 | प्लान | Plan | plan | forfait | plano | план |
+| subscription (using a ChatGPT plan instead of a key) | サブスクリプション | 구독 | 订阅 | सब्सक्रिप्शन | Abo | suscripción | abonnement | assinatura | подписка |
 
 ## What the English means
 

@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from modules.chat.errors import ChatErrorKind, classify_chat_error
+from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from shared.secrets import UnreadableSecretError
 
 pytestmark = pytest.mark.unit
@@ -118,3 +119,19 @@ def test_a_remote_provider_500_is_still_temporary() -> None:
     exc = httpx.HTTPStatusError("500", request=request, response=response)
 
     assert classify_chat_error(exc, "openai")[0] is ChatErrorKind.PROVIDER_UNAVAILABLE
+
+
+def test_a_chatgpt_account_that_must_sign_in_again_says_so() -> None:
+    """Not `provider_auth`, whose fix is a new key a ChatGPT connection never has."""
+    kind, message = classify_chat_error(SignInRequiredError(), "openai_compatible")
+
+    assert kind is ChatErrorKind.SUBSCRIPTION_SIGN_IN
+    assert "sign in" in message.casefold()
+
+
+def test_a_reached_plan_limit_is_not_a_moment_to_retry() -> None:
+    """Not `provider_rate_limited`, whose text says to try again in a moment."""
+    kind, message = classify_chat_error(PlanLimitError("Limit."), "openai_compatible")
+
+    assert kind is ChatErrorKind.SUBSCRIPTION_LIMIT
+    assert "limit" in message.casefold()

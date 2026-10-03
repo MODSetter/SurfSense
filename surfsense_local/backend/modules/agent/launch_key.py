@@ -1,7 +1,8 @@
-"""The key opencode presents to the model endpoint, made fresh by each API process.
+"""The key opencode presents to the agent's endpoints, made fresh by each API process.
 
-Loopback is open to every process on the machine, and this route spends the
-user's remote API keys, so only the opencode SurfSense configured may call it.
+Loopback is open to every process on the machine; the model endpoint spends the
+user's remote API keys and the tool endpoint reads their sources, so only the
+opencode SurfSense configured may call them.
 """
 
 import hmac

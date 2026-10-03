@@ -9,6 +9,7 @@ import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
 
 import { errorToast } from "./error-toast"
+import { useHelpMenuReport } from "./help-menu-report"
 import { IssueReportDialog } from "./issue-report-dialog"
 import { openIssueReport } from "./issue-report-state"
 
@@ -103,6 +104,41 @@ describe("issue report", () => {
     expect(
       await screen.findByRole("dialog", { name: "Report an issue" })
     ).toBeTruthy()
+  })
+
+  it("hands the Help menu to whoever claims it, and takes it back after", async () => {
+    stubBridge()
+    let reportIssue = () => {}
+    window.surfsense!.help = {
+      onReportIssue: (listener) => {
+        reportIssue = listener
+        return () => {}
+      },
+    }
+    const openSettingsTab = vi.fn()
+    function Claimant() {
+      useHelpMenuReport(openSettingsTab)
+      return null
+    }
+    const view = render(
+      <>
+        <IssueReportDialog />
+        <Claimant />
+      </>
+    )
+
+    act(() => reportIssue())
+
+    expect(openSettingsTab).toHaveBeenCalledOnce()
+    expect(screen.queryByRole("dialog", { name: "Report an issue" })).toBeNull()
+
+    view.rerender(<IssueReportDialog />)
+    act(() => reportIssue())
+
+    expect(
+      await screen.findByRole("dialog", { name: "Report an issue" })
+    ).toBeTruthy()
+    expect(openSettingsTab).toHaveBeenCalledOnce()
   })
 
   it("keeps the draft when the dialog it opened over closes", async () => {

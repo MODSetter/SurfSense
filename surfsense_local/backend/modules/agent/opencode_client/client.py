@@ -137,6 +137,30 @@ class OpencodeClient:
         )
         answered.raise_for_status()
 
+    async def add_tool_server(
+        self, directory: Path, name: str, url: str, headers: dict[str, str]
+    ) -> str:
+        """Point the folder's opencode at a remote MCP server; its status once it tried to connect.
+
+        Kept by that folder's instance alone, and forgotten when opencode reloads.
+        """
+        added = await self._http.post(
+            "/mcp",
+            params=_in(directory),
+            json={
+                "name": name,
+                "config": {
+                    "type": "remote",
+                    "url": url,
+                    "headers": headers,
+                    # Otherwise a refused key starts OAuth discovery against SurfSense.
+                    "oauth": False,
+                },
+            },
+        )
+        added.raise_for_status()
+        return added.json().get(name, {}).get("status", "unknown")
+
     def events(self, directory: Path) -> AsyncIterator[Event]:
         """The folder's event stream, until it drops or falls silent."""
         return read_events(self._http, directory)

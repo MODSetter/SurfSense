@@ -12,11 +12,13 @@ from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.catalog.remote.rows import CUSTOM
 from modules.llm.connections.discovery_failure import discovery_failure
+from modules.llm.connections.listing import connection_models
+from modules.llm.connections.serves import connection_serves
 from modules.llm.connections.service import (
-    discover_models,
     normalize_base_url,
     probe_connection,
 )
+from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
@@ -26,6 +28,10 @@ from modules.llm.providers.openai_compatible import (
 from modules.llm.providers.openai_compatible.speech import (
     NonRetryableSpeechError,
     RemoteSpeech,
+)
+from modules.llm.providers.openai_responses import (
+    PlanLimitError,
+    SignInRequiredError,
 )
 from modules.llm.providers.protocols import SpokenTurn
 from modules.llm.providers.types import Message
@@ -37,6 +43,9 @@ from modules.llm.schemas import (
     ModelTestWrite,
 )
 from modules.llm.selectable import selectable_for
+from modules.llm.subscriptions.chatgpt.account import CHATGPT
+from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
+from modules.llm.subscriptions.chatgpt.tokens import read_tokens
 
 router = APIRouter(prefix="/connections")
 
@@ -53,6 +62,7 @@ CHAT_TEST_MAX_CHARS = 600
 
 
 def _read(connection: ProviderConnection) -> ConnectionRead:
+    tokens = read_tokens(connection) if connection.auth_kind == CHATGPT else None
     return ConnectionRead(
         id=connection.id,
         label=connection.label,
@@ -60,9 +70,21 @@ def _read(connection: ProviderConnection) -> ConnectionRead:
         base_url=connection.base_url,
         catalog_provider=connection.catalog_provider,
         has_api_key=connection.api_key_ciphertext is not None,
+        auth_kind=connection.auth_kind,
+        signed_in=tokens is not None,
+        account_email=tokens.email if tokens is not None else None,
+        serves=list(connection_serves(connection)),
         created_at=connection.created_at,
         updated_at=connection.updated_at,
     )
+
+
+def _require_serves(connection: ProviderConnection, model_type: ModelType) -> None:
+    if model_type not in connection_serves(connection):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"this connection does not serve {model_type.value}",
+        )
 
 
 def _candidate(payload: ConnectionWrite) -> tuple[str, str, str | None]:
@@ -182,6 +204,8 @@ async def update_connection(
     connection_id: int, payload: ConnectionWrite, session: SessionDep
 ) -> ConnectionRead:
     connection = await transact(session, _stored, connection_id)
+    if connection.auth_kind == CHATGPT:
+        return await transact(session, _rename, connection, payload)
     label, base_url, submitted_key = _candidate(payload)
     api_key = (
         submitted_key if "api_key" in payload.model_fields_set else connection.api_key
@@ -193,6 +217,19 @@ async def update_connection(
     connection.catalog_provider = payload.catalog_provider
     connection.api_key = api_key
     return await transact(session, _save, connection)
+
+
+def _rename(
+    session: Session, connection: ProviderConnection, payload: ConnectionWrite
+) -> ConnectionRead:
+    """A ChatGPT connection's address and sign-in are the app's; only its name is the user's."""
+    label = payload.label.strip()
+    if not label:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "label must not be empty"
+        )
+    connection.label = label
+    return _save(session, connection)
 
 
 @router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -212,7 +249,9 @@ async def list_connection_models(
 ) -> list[ConnectionModelRead]:
     connection = await transact(session, allowed_connection, connection_id)
     try:
-        models = await discover_models(connection)
+        models = await connection_models(session, connection)
+    except SignInRequiredError as error:
+        raise _sign_in_required(error) from error
     except httpx.HTTPError as error:
         raise discovery_failure(error) from error
     except ValueError as error:
@@ -242,7 +281,11 @@ async def test_connection_chat(
     """Answer once with this model, so a chat pick can be seen before it is made."""
     connection = await transact(session, allowed_connection, connection_id)
     model = _requested_model(payload)
-    provider = OpenAICompatibleChatProvider(connection.base_url, connection.api_key)
+    provider = (
+        plan_generator(session.get_bind(), connection)
+        if connection.auth_kind == CHATGPT
+        else OpenAICompatibleChatProvider(connection.base_url, connection.api_key)
+    )
     reply = ""
     try:
         # Closed explicitly: breaking on the cap leaves the stream open otherwise.
@@ -257,6 +300,13 @@ async def test_connection_chat(
                 reply += delta
                 if len(reply) >= CHAT_TEST_MAX_CHARS:
                     break
+    except SignInRequiredError as error:
+        raise _sign_in_required(error) from error
+    except PlanLimitError as error:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"code": "plan_limit", "message": str(error)},
+        ) from error
     except httpx.HTTPError as error:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"chat request failed: {error}"
@@ -281,6 +331,7 @@ async def test_connection_image(
     connection_id: int, payload: ModelTestWrite, session: SessionDep
 ) -> Response:
     connection = await transact(session, allowed_connection, connection_id)
+    _require_serves(connection, ModelType.IMAGE_GEN)
 
     async def allow_url_host(url: str) -> None:
         # A 403 like the connection's own, so the renderer asks about this host.
@@ -315,6 +366,7 @@ async def test_connection_speech(
     """One line in the typed voice, or the server's default, so an audio model
     can be heard before it is chosen."""
     connection = await transact(session, allowed_connection, connection_id)
+    _require_serves(connection, ModelType.AUDIO_GEN)
     model = _requested_model(payload)
     speech = RemoteSpeech(
         model,
@@ -333,4 +385,12 @@ async def test_connection_speech(
         content=audio.content,
         media_type=audio.media_type,
         headers={"Cache-Control": "no-store"},
+    )
+
+
+def _sign_in_required(error: SignInRequiredError) -> HTTPException:
+    """409 like `unreadable_secret`: the request is fine, the stored sign-in is not."""
+    return HTTPException(
+        status.HTTP_409_CONFLICT,
+        detail={"code": "sign_in_required", "message": str(error)},
     )

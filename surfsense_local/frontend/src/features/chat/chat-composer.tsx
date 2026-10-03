@@ -7,10 +7,11 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
-import { AttachImagesButton } from "./attach-images-button"
 import { ComposerImage } from "./attached-image"
+import { ComposerAddMenu } from "./composer-add-menu"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
 import { QUESTION_MAX_CHARS } from "./question-limit"
+import { canSkipThinking } from "./thinking-preference"
 
 function ModelControl({
   model,
@@ -127,6 +128,8 @@ export function ChatComposer({
   onModelSelected,
   readsImages,
   describedBy,
+  onUploadSources,
+  isUploadingSources = false,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -143,6 +146,8 @@ export function ChatComposer({
   readsImages: boolean
   // The conversation the composer writes into, named for a screen reader.
   describedBy?: string
+  onUploadSources?: (files: File[]) => void
+  isUploadingSources?: boolean
 }) {
   // Said only once the cap is reached: that is the moment typing, or the tail
   // of a paste, stops landing, and the one moment it needs explaining.
@@ -158,6 +163,15 @@ export function ChatComposer({
         { max: QUESTION_MAX_CHARS }
       )
     : null
+  const addMenu = (className: string) => (
+    <ComposerAddMenu
+      readsImages={readsImages}
+      thinking={model ? { canSkip: canSkipThinking(model) } : undefined}
+      onUploadSources={onUploadSources}
+      isUploadingSources={isUploadingSources}
+      className={className}
+    />
+  )
   return (
     <div
       className="relative mx-auto w-full max-w-xl"
@@ -181,12 +195,7 @@ export function ChatComposer({
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
-        {placement === "bottom" ? (
-          <AttachImagesButton
-            readsImages={readsImages}
-            className="-mr-1.5 mb-0.5"
-          />
-        ) : null}
+        {placement === "bottom" ? addMenu("-mr-1.5 mb-0.5") : null}
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
@@ -231,10 +240,7 @@ export function ChatComposer({
         />
         {placement === "center" ? (
           <>
-            <AttachImagesButton
-              readsImages={readsImages}
-              className="absolute bottom-2 left-1.5"
-            />
+            {addMenu("absolute bottom-2 left-1.5")}
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
               <SourceCount count={sourceCount} />
               <ModelControl
@@ -281,11 +287,13 @@ export function ChatComposer({
               })
             )}
           </p>
-          <ModelControl
-            model={model}
-            onModelSetup={onModelSetup}
-            onModelSelected={onModelSelected}
-          />
+          <div className="flex min-w-0 items-center gap-1">
+            <ModelControl
+              model={model}
+              onModelSetup={onModelSetup}
+              onModelSelected={onModelSelected}
+            />
+          </div>
         </div>
       ) : null}
     </div>

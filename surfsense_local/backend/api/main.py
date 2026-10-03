@@ -12,8 +12,9 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from api.config import Settings, get_settings
 from modules.agent.agent_threads.router import router as agent_threads_router
-from modules.agent.model_endpoint.launch_key import mint_launch_key
+from modules.agent.launch_key import mint_launch_key
 from modules.agent.model_endpoint.router import router as agent_model_router
+from modules.agent.tool_endpoint.router import router as agent_tools_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
@@ -171,6 +172,7 @@ def create_app() -> FastAPI:
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
     app.include_router(agent_model_router)
+    app.include_router(agent_tools_router)
     app.include_router(agent_threads_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(EmbeddingNotChosenError, embedding_not_chosen)

@@ -99,6 +99,7 @@ class ProviderConnection(Base):
     __tablename__ = "provider_connections"
     __table_args__ = (
         CheckConstraint("provider = 'openai_compatible'", name="provider"),
+        CheckConstraint("auth_kind IN ('api_key', 'chatgpt')", name="auth_kind"),
         UniqueConstraint("label"),
     )
 
@@ -110,6 +111,12 @@ class ProviderConnection(Base):
     # provider's own entries; `custom` for anything the manifest does not list.
     catalog_provider: Mapped[str] = mapped_column(server_default="custom")
     api_key_ciphertext: Mapped[bytes | None]
+    # `chatgpt` signs in with a ChatGPT account: no key, OAuth tokens instead.
+    auth_kind: Mapped[str] = mapped_column(server_default="api_key")
+    # Encrypted JSON of the token set; NULL on a `chatgpt` row means signed out.
+    oauth_ciphertext: Mapped[bytes | None]
+    # Bumped by every refresh, so a process that lost the race uses the winner's.
+    token_version: Mapped[int] = mapped_column(server_default="0")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
