@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           # The scripts need Node only, not the app's pnpm install.
           package-manager-cache: false
 

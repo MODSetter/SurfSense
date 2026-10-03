@@ -3,6 +3,9 @@
 	"version": "0.0.40",
 	"private": true,
 	"packageManager": "pnpm@10.26.0",
+	"engines": {
+		"node": "24.x"
+	},
 	"description": "SurfSense Frontend",
 	"scripts": {
 		"dev": "next dev --turbopack",
@@ -171,7 +174,7 @@
 		"@types/canvas-confetti": "^1.9.0",
 		"@types/gapi": "^0.0.47",
 		"@types/google.picker": "^0.0.52",
-		"@types/node": "^20.19.9",
+		"@types/node": "^24",
 		"@types/pg": "^8.15.5",
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
