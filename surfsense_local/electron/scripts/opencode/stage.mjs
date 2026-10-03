@@ -8,6 +8,7 @@ import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { download, unpack } from "../pinned-download.mjs"
+import { renameWhenUnlocked } from "../windows-locks/rename-when-unlocked.mjs"
 import { HOSTS, OPENCODE_LICENCE, RIPGREP_VERSION, VERSION } from "./pins.mjs"
 
 const OUT = fileURLToPath(new URL("../../opencode", import.meta.url))
@@ -95,7 +96,7 @@ async function main() {
     rmSync(backup, { recursive: true, force: true })
     if (existsSync(OUT)) renameSync(OUT, backup)
     try {
-      renameSync(stage, OUT)
+      await renameWhenUnlocked(stage, OUT)
     } catch (error) {
       if (existsSync(backup)) renameSync(backup, OUT)
       throw error
