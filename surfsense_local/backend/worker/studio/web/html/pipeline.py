@@ -6,6 +6,7 @@ from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
+from worker.studio.web.html.schema import REPLY
 
 MIME = "text/html"
 # The frontier prompt leaves the count to the material, so the ceiling is kept here.
@@ -15,9 +16,10 @@ SECTIONS = 10
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
-    return build(
-        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
+    raw = generate.run_model(
+        model, prompt(model.tier, user_prompt), sources, json_schema=REPLY
     )
+    return build(raw, sources)
 
 
 def prompt(tier: Tier, user_prompt: str | None) -> str:

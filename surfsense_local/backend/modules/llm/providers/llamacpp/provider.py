@@ -233,31 +233,14 @@ class LlamaCppProvider:
         shaped = for_template(messages, await self.capabilities(model))
         if temperature is None and self._publisher_temperature is not None:
             temperature = self._publisher_temperature(model, reasoning)
-        try:
-            async for delta in self._chat.chat_deltas(
-                model,
-                shaped,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                reasoning=reasoning,
-                json_schema=json_schema,
-            ):
-                yield delta
-        except httpx.HTTPStatusError as error:
-            # llama.cpp issue #29006: json_schema on the chat endpoint returns
-            # 400 for some templates, though the model itself is fine. Losing a
-            # whole Studio format to a template quirk is worse than falling back
-            # to an unconstrained answer, which the parser can still repair.
-            if json_schema is None or error.response.status_code != 400:
-                raise
-            logger.warning(
-                "%s rejected a json_schema request; retrying unconstrained", model
-            )
-            async for delta in self._chat.chat_deltas(
-                model,
-                shaped,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                reasoning=reasoning,
-            ):
-                yield delta
+        # A schema the template refuses (llama.cpp issue #29006) falls back to an
+        # unconstrained answer inside the OpenAI-compatible client.
+        async for delta in self._chat.chat_deltas(
+            model,
+            shaped,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning=reasoning,
+            json_schema=json_schema,
+        ):
+            yield delta
