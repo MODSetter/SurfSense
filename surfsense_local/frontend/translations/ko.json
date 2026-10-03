@@ -151,6 +151,7 @@
   "chat_rename_dialog_saving_status": "저장 중...",
   "chat_rename_dialog_title": "채팅 이름 변경",
   "chat_rename_dialog_untitled_label": "새 채팅",
+  "chat_reply_finished_status": "응답이 완료되었습니다",
   "chat_runtime_approval_toast": "에이전트에 답변을 보내지 못했습니다",
   "chat_runtime_delete_toast": "채팅을 삭제하지 못했습니다",
   "chat_runtime_image_question_body": "이 이미지에 무엇이 있습니까?",

@@ -151,6 +151,7 @@
   "chat_rename_dialog_saving_status": "Сохранение…",
   "chat_rename_dialog_title": "Переименовать чат",
   "chat_rename_dialog_untitled_label": "Новый чат",
+  "chat_reply_finished_status": "Ответ готов",
   "chat_runtime_approval_toast": "Не удалось отправить ваш ответ агенту",
   "chat_runtime_delete_toast": "Не удалось удалить чат",
   "chat_runtime_image_question_body": "Что на этом изображении?",

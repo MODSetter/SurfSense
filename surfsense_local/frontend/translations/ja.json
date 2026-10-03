@@ -151,6 +151,7 @@
   "chat_rename_dialog_saving_status": "保存中...",
   "chat_rename_dialog_title": "チャットの名前を変更",
   "chat_rename_dialog_untitled_label": "新しいチャット",
+  "chat_reply_finished_status": "返信が完了しました",
   "chat_runtime_approval_toast": "エージェントに回答を送信できませんでした",
   "chat_runtime_delete_toast": "チャットを削除できませんでした",
   "chat_runtime_image_question_body": "この画像には何が写っていますか？",
