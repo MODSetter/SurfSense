@@ -137,10 +137,11 @@ jobs:
           # Both desktop trees pin the same pnpm; the root one is the web app's.
           package_json_file: surfsense_local/electron/package.json
 
+      # Node 24, as desktop-tests: the Node that Electron 44 embeds.
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: |
             surfsense_local/frontend/pnpm-lock.yaml
