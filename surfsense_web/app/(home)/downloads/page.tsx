@@ -25,9 +25,7 @@ export default async function DownloadsPage() {
 			<section className="ss-home-hero ss-home-pad">
 				<div className="mx-auto max-w-2xl text-center">
 					<h1 className="ss-home-display">Download SurfSense</h1>
-					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
-						One installer, no account, no cloud.
-					</p>
+					<p className="ss-home-lede mx-auto mt-6 max-w-xl">One installer, no account, no cloud.</p>
 					<TrialForm label="Download" note="" />
 				</div>
 			</section>
