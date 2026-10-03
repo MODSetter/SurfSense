@@ -215,6 +215,7 @@ jobs:
         working-directory: surfsense_local/electron
         run: node scripts/fetch-llamacpp.mjs
 
+      # Stages nothing while opencode is off (scripts/opencode/enabled.mjs).
       - name: Stage opencode
         working-directory: surfsense_local/electron
         run: node scripts/opencode/stage.mjs

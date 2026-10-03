@@ -116,6 +116,10 @@ class AgentSettings(BaseSettings):
     # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1.
     agent_untested_models: bool = False
 
+    def has_opencode(self) -> bool:
+        """Whether Electron runs an opencode beside this API: it passes both only then."""
+        return bool(self.opencode_url and self.opencode_password)
+
 
 @lru_cache
 def get_agent_settings() -> AgentSettings:
