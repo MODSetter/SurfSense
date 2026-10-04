@@ -508,11 +508,11 @@ describe("an agent thread", () => {
               {
                 id: "prt_7",
                 tool: "surfsense_render_document",
-                // The tool hands the error back to the model as its result.
-                status: "completed",
+                // The tool's error result: opencode ends the step in error.
+                status: "error",
                 title: "",
                 input: { title: "Client proposal", format: "docx" },
-                output: failure,
+                error: failure,
                 artifact: null,
               },
             ],

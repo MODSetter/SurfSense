@@ -15,6 +15,10 @@ from modules.agent.opencode_client import OpencodeClient
 
 # The tools reach the model as `<server>_<tool>`: surfsense_search_sources.
 SERVER = "surfsense"
+# Unset, a tool call gets the MCP SDK's 60 s (opencode's own 30 s default covers
+# connecting and listing only). A render waits up to 150 s for its job, then up
+# to 30 s for a Word preview, inside render_document.CALL_SECONDS.
+TOOL_CALL_SECONDS = 200
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,11 @@ async def register_workspace_tools(
     url = f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
     try:
         status = await client.add_tool_server(
-            folder, SERVER, url, {"Authorization": f"Bearer {launch_key}"}
+            folder,
+            SERVER,
+            url,
+            {"Authorization": f"Bearer {launch_key}"},
+            timeout_seconds=TOOL_CALL_SECONDS,
         )
     except httpx.HTTPError:
         logger.warning(

@@ -138,11 +138,18 @@ class OpencodeClient:
         answered.raise_for_status()
 
     async def add_tool_server(
-        self, directory: Path, name: str, url: str, headers: dict[str, str]
+        self,
+        directory: Path,
+        name: str,
+        url: str,
+        headers: dict[str, str],
+        *,
+        timeout_seconds: int,
     ) -> str:
         """Point the folder's opencode at a remote MCP server; its status once it tried to connect.
 
         Kept by that folder's instance alone, and forgotten when opencode reloads.
+        A call to one of its tools fails after `timeout_seconds`.
         """
         added = await self._http.post(
             "/mcp",
@@ -155,6 +162,7 @@ class OpencodeClient:
                     "headers": headers,
                     # Otherwise a refused key starts OAuth discovery against SurfSense.
                     "oauth": False,
+                    "timeout": timeout_seconds * 1000,
                 },
             },
         )

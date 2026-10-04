@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 import pytest
 import pytest_asyncio
+from sqlalchemy import Engine
 
 from api.config import get_settings
 from modules.agent.opencode_client import OpencodeClient
@@ -17,6 +18,7 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
+from shared.queue import studio_queue
 from tests.integration.agent.opencode_harness import (
     MODEL,
     RunningOpencode,
@@ -28,6 +30,7 @@ from tests.integration.agent.opencode_harness import (
     start_opencode,
     wait_until_healthy,
 )
+from tests.integration.agent.tool_endpoint_client import ToolEndpoint, endpoint_over
 
 # The catalog records it as calling tools for the provider the connection names,
 # so a thread opened with it is the agent's; the scripted model answers in its place.
@@ -218,3 +221,30 @@ async def agent_api(
                 password,
                 workspace.json()["id"],
             )
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
+    """A fresh app on this test's database, its tool endpoint driven in-process."""
+    async with endpoint_over(engine) as endpoint:
+        yield endpoint
+
+
+@pytest.fixture
+def studio_worker() -> Iterator[None]:
+    """The worker's Studio consumer, on a thread: a render runs its script while the tool waits."""
+    stopping = threading.Event()
+
+    def consume() -> None:
+        while not stopping.is_set():
+            task = studio_queue.dequeue()
+            if task is None:
+                stopping.wait(0.05)
+            else:
+                studio_queue.execute(task)
+
+    thread = threading.Thread(target=consume, daemon=True)
+    thread.start()
+    yield
+    stopping.set()
+    thread.join(timeout=30)

@@ -23,22 +23,42 @@ RESERVE_FLOOR = 8_192
 # enough that a model which hangs mid-reply still ends the turn.
 CHUNK_TIMEOUT_MS = 30 * 60 * 1000
 
-# The last matching rule wins, so each allow follows the deny it narrows.
-PERMISSION: dict[str, Any] = {
-    "bash": "ask",
-    # opencode matches an edit's path relative to the project root, which for a
-    # folder outside git is "/", so the rule names the folder from any root.
-    "edit": {"*": "deny", "*/agent/outputs/*": "allow"},
-    "external_directory": "deny",
-    "webfetch": "deny",
-    "websearch": "deny",
-    # Child sessions would wait on the same single llama-server slot.
-    "task": "deny",
-    # Asks through a form SurfSense does not show in this phase.
-    "question": "deny",
-    # SurfSense ships no skills.
-    "skill": "deny",
-}
+# The one skill SurfSense ships: how to write a document script (ADR 0039).
+DOCUMENTS_SKILL = "surfsense-documents"
+
+
+def skills_folder() -> Path:
+    """The shipped skills, inside the API's own files when frozen too."""
+    return Path(files("modules.agent").joinpath("skills"))
+
+
+def _permission(skills: Path) -> dict[str, Any]:
+    """What the agent may do; the last matching rule wins, so each allow follows the deny it narrows."""
+    return {
+        # Document scripts reach the runner through a SurfSense tool (ADR 0039).
+        "bash": "deny",
+        # opencode matches an edit's path relative to the project root, which for a
+        # folder outside git is "/", so the rule names the folder from any root.
+        "edit": {"*": "deny", "*/agent/outputs/*": "allow"},
+        # Only the skills folder, which a skill may point into. On macOS and Linux
+        # opencode checks an absolute path as written, so "<skills>/../.." would
+        # match the allow without the ".." deny. opencode's own folder for long
+        # tool output stays open too: it allows that folder after these rules
+        # unless one denies it by name (agent/agent.ts), so no rule here covers it.
+        "external_directory": {
+            "*": "deny",
+            str(skills / "*"): "allow",
+            "*/../*": "deny",
+        },
+        "webfetch": "deny",
+        "websearch": "deny",
+        # Child sessions would wait on the same single llama-server slot.
+        "task": "deny",
+        # Asks through a form SurfSense does not show in this phase.
+        "question": "deny",
+        # Not opencode's built-in skills, nor any the user installed for their own opencode.
+        "skill": {"*": "deny", DOCUMENTS_SKILL: "allow"},
+    }
 
 
 @dataclass(frozen=True)
@@ -55,6 +75,8 @@ def opencode_config(setup: AgentSetup) -> dict[str, Any]:
     """The whole configuration, from what the API knows about the selected model."""
     output = min(setup.window // 4, OUTPUT_CAP)
     model_ref = f"{PROVIDER}/{setup.model}"
+    skills = skills_folder().resolve()
+    permission = _permission(skills)
     return {
         "$schema": "https://opencode.ai/config.json",
         "share": "disabled",
@@ -92,13 +114,14 @@ def opencode_config(setup: AgentSetup) -> dict[str, Any]:
                 },
             }
         },
-        "permission": PERMISSION,
+        "skills": {"paths": [str(skills)]},
+        "permission": permission,
         "agent": {
             AGENT: {
                 "mode": "primary",
                 "description": "Works on the user's sources in SurfSense",
                 "prompt": agent_prompt(),
-                "permission": PERMISSION,
+                "permission": permission,
             }
         },
     }

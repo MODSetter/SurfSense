@@ -231,32 +231,37 @@ async def test_a_cited_passage_becomes_a_citation_and_an_invented_one_is_dropped
     assert [c["chunk_id"] for c in reply["content"]["citations"]] == [chunk_id]
 
 
-async def test_a_shell_command_waits_for_the_users_yes(agent_api: AgentAPI) -> None:
-    """The command runs only after the user's answer reaches opencode through the API."""
-    agent_api.model.replies = [("bash", "echo approved"), ("text", "It printed.")]
+# A step that makes the same call three times is the one thing opencode still
+# asks about, now the shell is denied.
+GLOB = {"name": "glob", "arguments": {"pattern": "sources/*.md"}}
+REPEATED = ("calls", json.dumps([GLOB] * 3))
+
+
+async def test_an_approval_waits_for_the_users_yes(agent_api: AgentAPI) -> None:
+    """The call goes on only after the user's answer reaches opencode through the API."""
+    agent_api.model.replies = [REPEATED, ("text", "Listed.")]
     thread = await open_thread(agent_api)
+    asked: list[Frame] = []
 
     async def approve(frame: Frame) -> None:
         if frame["type"] == "permission-request":
-            assert frame["command"] == "echo approved"
+            asked.append(frame)
             reply = await agent_api.http.post(
                 f"/chat/threads/{thread['id']}/permissions/{frame['id']}",
                 json={"reply": "once"},
             )
             assert reply.status_code == 204
 
-    frames = await send(agent_api, thread["id"], "Run it", approve)
+    frames = await send(agent_api, thread["id"], "List them", approve)
 
-    steps = of_type(frames, "agent-step")
-    assert steps[-1]["tool"] == "bash"
-    assert steps[-1]["status"] == "completed"
-    assert steps[-1]["output"].strip() == "approved"
-    assert of_type(frames, "completed")[0]["text"] == "It printed."
+    assert [(f["permission"], f["command"]) for f in asked] == [("doom_loop", None)]
+    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
+    assert of_type(frames, "completed")[0]["text"] == "Listed."
 
 
-async def test_a_refused_shell_command_never_runs(agent_api: AgentAPI) -> None:
-    """A refusal fails the call and ends the turn, which still closes cleanly."""
-    agent_api.model.replies = [("bash", "echo refused")]
+async def test_a_refused_approval_ends_the_turn(agent_api: AgentAPI) -> None:
+    """Nothing it was asked about runs, and the stream still closes cleanly."""
+    agent_api.model.replies = [REPEATED]
     thread = await open_thread(agent_api)
 
     async def refuse(frame: Frame) -> None:
@@ -266,33 +271,28 @@ async def test_a_refused_shell_command_never_runs(agent_api: AgentAPI) -> None:
                 json={"reply": "reject"},
             )
 
-    frames = await send(agent_api, thread["id"], "Run it", refuse)
+    frames = await send(agent_api, thread["id"], "List them", refuse)
 
-    assert of_type(frames, "agent-step")[-1]["status"] == "error"
     assert frames[-1] == {"type": "done"}
+    assert not [f for f in of_type(frames, "agent-step") if f["status"] == "completed"]
+    # The turn ended at the refusal: the model was not asked to go on.
+    assert len(agent_api.model.requests) == 1
 
 
 async def test_listing_the_thread_reads_its_turns_from_opencode(
     agent_api: AgentAPI,
 ) -> None:
     """One reply per turn, however many steps the agent took to write it."""
-    agent_api.model.replies = [("bash", "echo listed"), ("text", "Listed.")]
+    agent_api.model.replies = [("call", json.dumps(GLOB)), ("text", "Listed.")]
     thread = await open_thread(agent_api)
 
-    async def approve(frame: Frame) -> None:
-        if frame["type"] == "permission-request":
-            await agent_api.http.post(
-                f"/chat/threads/{thread['id']}/permissions/{frame['id']}",
-                json={"reply": "once"},
-            )
-
-    await send(agent_api, thread["id"], "List it", approve)
+    await send(agent_api, thread["id"], "List it")
     reply = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
 
     user, assistant = reply.json()
     assert (user["role"], user["content"]["text"]) == ("user", "List it")
     assert (assistant["role"], assistant["content"]["text"]) == ("assistant", "Listed.")
-    assert [step["tool"] for step in assistant["content"]["steps"]] == ["bash"]
+    assert [step["tool"] for step in assistant["content"]["steps"]] == ["glob"]
 
 
 async def test_closing_the_stream_stops_the_turn(agent_api: AgentAPI) -> None:

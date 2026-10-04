@@ -1,62 +1,19 @@
 """SurfSense's tools as opencode's MCP client reaches them: one route per workspace."""
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import Engine, select
 
-from api.main import create_app
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from shared.db import create_session_factory
+from tests.integration.agent.tool_endpoint_client import ToolEndpoint, endpoint_over
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
-
-
-@dataclass
-class ToolEndpoint:
-    """The app as opencode's MCP client reaches it, with the key it was launched with."""
-
-    client: AsyncClient
-    launch_key: str
-
-    async def workspace(self) -> int:
-        """A new workspace, made the way the app makes one."""
-        reply = await self.client.post("/workspaces", json={"name": "Research"})
-        reply.raise_for_status()
-        return reply.json()["id"]
-
-    async def post(
-        self, workspace_id: int, message: dict[str, Any], **headers: str
-    ) -> Response:
-        """One JSON-RPC message, sent with the headers opencode's client sends."""
-        return await self.client.post(
-            f"/agent/tools/workspaces/{workspace_id}",
-            json=message,
-            headers={
-                "Authorization": f"Bearer {self.launch_key}",
-                "Accept": "application/json, text/event-stream",
-                **headers,
-            },
-        )
-
-    async def request(
-        self, workspace_id: int, method: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """A request's JSON-RPC reply."""
-        message = {"jsonrpc": "2.0", "id": 1, "method": method}
-        if params is not None:
-            message["params"] = params
-        reply = await self.post(workspace_id, message)
-        assert reply.status_code == 200, reply.text
-        return reply.json()
 
 
 def ingest(
@@ -117,23 +74,6 @@ def create_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
     return {"name": "create_artifact", "arguments": arguments}
 
 
-@pytest.fixture
-async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
-    """A fresh app on this test's database, driven in-process."""
-    async with _endpoint_over(engine) as endpoint:
-        yield endpoint
-
-
-@asynccontextmanager
-async def _endpoint_over(engine: Engine) -> AsyncIterator[ToolEndpoint]:
-    """The tool endpoint of a fresh app on `engine`'s database."""
-    app = create_app()
-    app.state.session_factory = create_session_factory(engine)
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield ToolEndpoint(client, app.state.agent_launch_key)
-
-
 async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> None:
     """Small local models garble a schema that refers to definitions, so none does."""
     workspace_id = await tools.workspace()
@@ -141,10 +81,20 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     reply = await tools.request(workspace_id, "tools/list")
 
     listed = {tool["name"]: tool["inputSchema"] for tool in reply["result"]["tools"]}
-    assert list(listed) == ["search_sources", "create_artifact"]
+    assert list(listed) == [
+        "search_sources",
+        "create_artifact",
+        "render_document",
+        "read_document",
+        "list_images",
+    ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
     assert "quiz" in listed["create_artifact"]["properties"]["format"]["enum"]
+    assert listed["render_document"]["required"] == ["title", "format", "script"]
+    assert listed["render_document"]["properties"]["format"]["enum"] == ["docx", "pdf"]
+    assert listed["read_document"]["required"] == ["artifact_id"]
+    assert listed["list_images"]["required"] == ["source_ids"]
     for schema in listed.values():
         assert schema["type"] == "object"
         assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
@@ -344,7 +294,7 @@ async def test_a_search_before_onboarding_says_why_it_cannot_run(
     unlocked_engine: Engine,
 ) -> None:
     """Until an embedder is chosen nothing is indexed; the model can still grep."""
-    async with _endpoint_over(unlocked_engine) as tools:
+    async with endpoint_over(unlocked_engine) as tools:
         workspace_id = await tools.workspace()
 
         reply = await tools.request(

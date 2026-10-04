@@ -3,15 +3,27 @@
 from typing import Any
 
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
 from modules.agent.tool_endpoint import replies
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
+from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
+from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 
+# In a fixed order, so a local model's prompt cache holds from turn to turn.
 TOOLS: dict[str, Tool] = {
-    tool.listing["name"]: tool for tool in (SEARCH_SOURCES, CREATE_ARTIFACT)
+    tool.listing["name"]: tool
+    for tool in (
+        SEARCH_SOURCES,
+        CREATE_ARTIFACT,
+        RENDER_DOCUMENT,
+        READ_DOCUMENT,
+        LIST_IMAGES,
+    )
 }
 
 
@@ -31,7 +43,10 @@ async def call(
         )
     arguments = params.get("arguments") or {}
     try:
-        text = await transact(session, tool.run, workspace_id, arguments)
+        if tool.waits:
+            text = await run_in_threadpool(tool.run, session, workspace_id, arguments)
+        else:
+            text = await transact(session, tool.run, workspace_id, arguments)
     except ToolCallError as refused:
         return replies.result(message, _content(str(refused), is_error=True))
     return replies.result(message, _content(text, is_error=False))
