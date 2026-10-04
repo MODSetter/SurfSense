@@ -212,6 +212,20 @@ async def test_a_failed_revocation_still_signs_out_here(
     assert (await client.get("/llm/connections")).json()[0]["signed_in"] is False
 
 
+async def test_a_malformed_sign_in_url_still_signs_out_here(
+    client: AsyncClient, fake_openai: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A configured URL that does not parse costs the revocation, not the sign-out."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    monkeypatch.setattr(get_endpoints(), "auth_url", "http://[::1")
+
+    signed_out = await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    assert signed_out.status_code == 204
+    assert (await client.get("/llm/connections")).json()[0]["signed_in"] is False
+    assert fake_openai.revocations == []
+
+
 async def test_a_label_already_taken_is_refused_before_the_browser_opens(
     client: AsyncClient, fake_openai: FakeOpenAI
 ) -> None:

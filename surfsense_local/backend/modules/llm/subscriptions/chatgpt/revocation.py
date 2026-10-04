@@ -17,10 +17,11 @@ REVOKE_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
 
 def may_revoke(session: Session) -> bool:
     """Only while the sign-in host is still allowed: a host the person turned
-    off is not called, even to sign out."""
+    off is not called, even to sign out. A configured URL that does not parse
+    skips the call rather than the sign-out."""
     try:
         egress.require(session, egress.host_destination(get_endpoints().auth_url))
-    except EgressDeniedError:
+    except (EgressDeniedError, ValueError):
         return False
     return True
 
