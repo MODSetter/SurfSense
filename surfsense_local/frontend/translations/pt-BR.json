@@ -151,6 +151,7 @@
   "chat_rename_dialog_saving_status": "Salvando...",
   "chat_rename_dialog_title": "Renomear chat",
   "chat_rename_dialog_untitled_label": "Novo chat",
+  "chat_reply_finished_status": "Resposta concluída",
   "chat_runtime_approval_toast": "Não foi possível enviar sua resposta ao agente",
   "chat_runtime_delete_toast": "Não foi possível excluir o chat",
   "chat_runtime_image_question_body": "O que há nesta imagem?",

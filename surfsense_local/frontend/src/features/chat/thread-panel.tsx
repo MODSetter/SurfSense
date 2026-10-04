@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import { ChevronDownIcon, PencilIcon, Trash2Icon } from "@/components/ui/icons"
 
 import {
@@ -116,6 +116,7 @@ export function ThreadPanel({
   isUploadingSources?: boolean
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const headingId = useId()
   const ignoreMenuFocusRef = useRef(false)
   const [editingThreadId, setEditingThreadId] = useState<number | null>(null)
   const [draft, setDraft] = useState("")
@@ -143,6 +144,7 @@ export function ThreadPanel({
       onModelSetup={onModelSetup}
       onModelSelected={onModelSelected}
       readsImages={model?.reads_images === true}
+      describedBy={thread == null ? undefined : headingId}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
     />
@@ -187,6 +189,14 @@ export function ThreadPanel({
           defaultMessage: "Conversation",
         })}
       >
+        {/* The title control is a button that renames, so the heading is its
+            own element. Focus stays on the composer, which it describes. A
+            new chat has no conversation to name yet. */}
+        {thread == null ? null : (
+          <h2 id={headingId} className="sr-only">
+            {title}
+          </h2>
+        )}
         <header className="flex h-14 shrink-0 items-center px-5">
           {thread == null ? null : editing ? (
             <Input

@@ -151,6 +151,7 @@
   "chat_rename_dialog_saving_status": "保存中…",
   "chat_rename_dialog_title": "重命名对话",
   "chat_rename_dialog_untitled_label": "新对话",
+  "chat_reply_finished_status": "回复已完成",
   "chat_runtime_approval_toast": "无法将你的回复发送给智能体",
   "chat_runtime_delete_toast": "无法删除对话",
   "chat_runtime_image_question_body": "这张图像里有什么？",

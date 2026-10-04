@@ -159,6 +159,7 @@ function withStep(steps: AgentStep[] | undefined, step: AgentStep) {
 function toRuntimeMessage(
   message: ChatMessage,
   chatErrors: Record<string, ChatTurnError>,
+  stoppedReplies: ReadonlySet<string>,
   threadId: number | null
 ): ThreadMessageLike {
   const value =
@@ -178,7 +179,10 @@ function toRuntimeMessage(
     ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
     ...(error
       ? { status: { type: "incomplete", reason: "error", error } as const }
-      : {}),
+      : stoppedReplies.has(String(message.id))
+        ? // Without it assistant-ui calls a stopped reply complete.
+          { status: { type: "incomplete", reason: "cancelled" } as const }
+        : {}),
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
@@ -228,6 +232,11 @@ export function useChatRuntime({
   const [chatErrors, setChatErrors] = useState<Record<string, ChatTurnError>>(
     {}
   )
+  // Replies the person stopped, so none of them reads as finished.
+  const [stoppedReplies, setStoppedReplies] = useState<ReadonlySet<string>>(
+    () => new Set()
+  )
+  const inFlightReply = useRef<string | null>(null)
   // The agent's requests waiting for the user, oldest first.
   const [approvals, setApprovals] = useState<PermissionRequest[]>([])
   const streamController = useRef<AbortController | null>(null)
@@ -278,6 +287,7 @@ export function useChatRuntime({
       rememberThread(workspaceId, threadId)
       setLiveMessages(null)
       setChatErrors({})
+      setStoppedReplies(new Set())
       setApprovals([])
       setIsRunning(false)
       setAutoNamingThreadId(null)
@@ -300,6 +310,7 @@ export function useChatRuntime({
     rememberThread(workspaceId, null)
     setLiveMessages(null)
     setChatErrors({})
+    setStoppedReplies(new Set())
     setApprovals([])
     setIsRunning(false)
     setAutoNamingThreadId(null)
@@ -412,6 +423,7 @@ export function useChatRuntime({
       // remapped these to real ids.
       let userId: number | string = `optimistic-user-${version}`
       let assistantId: number | string = `optimistic-assistant-${version}`
+      inFlightReply.current = String(assistantId)
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
@@ -481,6 +493,7 @@ export function useChatRuntime({
               assistantMessageId = nextAssistantId
               userId = nextUserId
               assistantId = nextAssistantId
+              inFlightReply.current = String(nextAssistantId)
               setLiveMessages(
                 (current) =>
                   current?.map((message) => {
@@ -757,6 +770,10 @@ export function useChatRuntime({
   )
 
   const cancel = useCallback(async () => {
+    const stopped = inFlightReply.current
+    if (stopped !== null) {
+      setStoppedReplies((current) => new Set(current).add(stopped))
+    }
     streamController.current?.abort()
     setIsRunning(false)
     setAutoNamingThreadId(null)
@@ -827,7 +844,7 @@ export function useChatRuntime({
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages: threadMessages,
     convertMessage: (message) =>
-      toRuntimeMessage(message, chatErrors, activeThreadId),
+      toRuntimeMessage(message, chatErrors, stoppedReplies, activeThreadId),
     adapters,
     onNew,
     isRunning,
