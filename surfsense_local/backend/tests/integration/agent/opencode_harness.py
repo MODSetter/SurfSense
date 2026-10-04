@@ -26,6 +26,22 @@ STAGED = (
 )
 MODEL = "stub-model"
 
+# What Electron's launch passes on from the system (sidecars/opencode.ts); on
+# Windows the Bun binary dies at start (0xC0000409) without SYSTEMROOT.
+FROM_THE_SYSTEM = (
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TZ",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+)
+
 
 def needs_staged_opencode() -> None:
     """Skip unless the pinned opencode is staged in electron/opencode/."""
@@ -40,8 +56,9 @@ class ScriptedModel:
     """An OpenAI-compatible model that plays its replies in order, one per request.
 
     A reply is ("text", words), ("bash", command) for one shell call,
-    ("call", JSON of {"name", "arguments"}) for any other tool call, or
-    ("stall", words), which sends its words and then waits until released.
+    ("call", JSON of {"name", "arguments"}) for any other tool call, ("calls",
+    a JSON list of them) for several in one step, or ("stall", words), which
+    sends its words and then waits until released.
     """
 
     url: str = ""
@@ -74,23 +91,33 @@ class ScriptedHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        if kind in ("bash", "call"):
-            name, arguments = (
-                ("bash", json.dumps({"command": value, "description": "Run it"}))
+        if kind in ("bash", "call", "calls"):
+            wanted = (
+                [
+                    {
+                        "name": "bash",
+                        "arguments": {"command": value, "description": "Run it"},
+                    }
+                ]
                 if kind == "bash"
-                else (
-                    json.loads(value)["name"],
-                    json.dumps(json.loads(value)["arguments"]),
-                )
+                else json.loads(value)
             )
-            call = {
-                "index": 0,
-                "id": "call_1",
-                "type": "function",
-                "function": {"name": name, "arguments": arguments},
-            }
+            calls = [
+                {
+                    "index": index,
+                    "id": f"call_{index + 1}",
+                    "type": "function",
+                    "function": {
+                        "name": call["name"],
+                        "arguments": json.dumps(call["arguments"]),
+                    },
+                }
+                for index, call in enumerate(
+                    wanted if isinstance(wanted, list) else [wanted]
+                )
+            ]
             self._send(
-                _chunk({"role": "assistant", "tool_calls": [call]}),
+                _chunk({"role": "assistant", "tool_calls": calls}),
                 _chunk({}, "tool_calls"),
             )
         else:
@@ -154,8 +181,10 @@ def start_opencode(agent_dir: Path, port: int, password: str) -> RunningOpencode
     (config_folder / "package-lock.json").write_text(json.dumps(lock))
     nowhere = "http://127.0.0.1:9"
     env = {
+        **{name: os.environ[name] for name in FROM_THE_SYSTEM if name in os.environ},
         "PATH": f"{STAGED.parent}{os.pathsep}{os.environ.get('PATH', '')}",
         "HOME": str(home),
+        "USERPROFILE": str(home),
         "OPENCODE_TEST_HOME": str(home),
         "XDG_CONFIG_HOME": str(home / "config"),
         "XDG_DATA_HOME": str(home / "data"),
