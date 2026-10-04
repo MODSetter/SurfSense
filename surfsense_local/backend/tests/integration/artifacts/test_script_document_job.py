@@ -195,6 +195,25 @@ def test_a_file_that_is_not_a_word_file_fails_the_job_without_a_retry(
     )
 
 
+def test_a_script_document_that_fails_after_its_run_is_not_retried_either(
+    session: Session, workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The agent already read FAILED and moved on; a retry turning this version
+    READY behind it would leave the user a version the chat never announced."""
+
+    def embedder_down(*_args: Any) -> list[list[float]]:
+        raise RuntimeError("the embedder could not be loaded")
+
+    monkeypatch.setattr("modules.embedding.encoder.embed", embedder_down)
+    artifact = _create(session, workspace)
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == "the embedder could not be loaded"
+
+
 def test_regenerate_runs_the_stored_script_again_with_no_chat_model_chosen(
     session: Session, workspace: Workspace
 ) -> None:

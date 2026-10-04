@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
-from modules.artifacts.script_documents.spec import DocumentScript, document_script
+from modules.artifacts.script_documents.spec import (
+    DocumentScript,
+    document_script,
+    spec_kind,
+)
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
@@ -115,15 +119,15 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
             document.error_message,
         )
-        # A retry would repeat minutes of drafting, or run the same script, and
-        # fail the same way.
+        # A retry would repeat minutes of drafting and fail the same way.
         if isinstance(
             failure,
-            NonRetryableImageError
-            | NonRetryableSpeechError
-            | NotEnoughMemoryError
-            | ScriptRunFailedError,
+            NonRetryableImageError | NonRetryableSpeechError | NotEnoughMemoryError,
         ):
+            return
+        # A script document is never retried: its agent reads this FAILED and
+        # renders a fix as a new version, which a retry turning READY would race.
+        if spec_kind(artifact.artifact_metadata) == "python":
             return
         raise  # Huey retries; a later success clears the message.
 
