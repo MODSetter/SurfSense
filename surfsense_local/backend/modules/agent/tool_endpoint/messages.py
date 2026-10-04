@@ -10,10 +10,11 @@ from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint import offered_tools, replies
 from modules.agent.tool_endpoint.protocol_version import initialized
+from modules.agent.tool_endpoint.turn_scope import TurnScope
 
 
 async def answer(
-    message: dict[str, Any], session: Session, workspace_id: int
+    message: dict[str, Any], session: Session, scope: TurnScope
 ) -> dict[str, Any] | None:
     """The reply to one message; None for a notification, which gets none."""
     if "id" not in message:
@@ -25,7 +26,7 @@ async def answer(
     if method == "tools/list":
         return replies.result(message, {"tools": offered_tools.listings()})
     if method == "tools/call":
-        return await offered_tools.call(message, params, session, workspace_id)
+        return await offered_tools.call(message, params, session, scope)
     if method == "ping":
         return replies.result(message, {})
     return replies.error(message, replies.UNKNOWN_METHOD, f"no method {method!r}")

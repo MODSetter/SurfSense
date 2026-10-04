@@ -31,12 +31,16 @@ async def open_thread(api: AgentAPI, title: str = "New chat") -> dict:
 
 
 async def send(
-    api: AgentAPI, thread_id: int, text: str, on_frame: OnFrame | None = None
+    api: AgentAPI,
+    thread_id: int,
+    text: str,
+    on_frame: OnFrame | None = None,
+    **fields: object,
 ) -> list[Frame]:
-    """Send one message and read its stream to the end; every frame, in order."""
+    """Send one message, with any other fields of the request, and read its stream to the end."""
     frames: list[Frame] = []
     async with api.http.stream(
-        "POST", f"/chat/threads/{thread_id}/messages", json={"text": text}
+        "POST", f"/chat/threads/{thread_id}/messages", json={"text": text, **fields}
     ) as reply:
         assert reply.status_code == 200, await reply.aread()
         async for line in reply.aiter_lines():

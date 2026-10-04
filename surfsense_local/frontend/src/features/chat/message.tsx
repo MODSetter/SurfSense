@@ -13,7 +13,8 @@ import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
 import { AgentSteps } from "@/features/agent/agent-steps"
-import type { AgentStep } from "@/features/agent/api"
+import type { AgentStep, SourceScope } from "@/features/agent/api"
+import { WorkingFrom } from "@/features/agent/working-from"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -128,6 +129,18 @@ function MessageSteps() {
   return <AgentSteps steps={steps} />
 }
 
+function scopeFrom(custom: unknown): SourceScope | null {
+  if (typeof custom === "object" && custom !== null && "scope" in custom) {
+    return (custom.scope as SourceScope | null) ?? null
+  }
+  return null
+}
+
+function MessageScope() {
+  const scope = useAuiState(({ message }) => scopeFrom(message.metadata.custom))
+  return <WorkingFrom scope={scope} />
+}
+
 function MessageTimestamp() {
   const createdAt = useAuiState(({ message }) => message.createdAt)
 
@@ -229,6 +242,9 @@ export function UserMessage() {
       </div>
       <div className="max-w-[78%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-primary-foreground">
         <MessagePrimitive.Parts />
+      </div>
+      <div className="mt-1.5 flex w-full justify-end empty:hidden">
+        <MessageScope />
       </div>
       <MessageActions className="top-1" />
     </MessagePrimitive.Root>

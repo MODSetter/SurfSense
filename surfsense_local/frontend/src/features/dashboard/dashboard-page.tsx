@@ -124,10 +124,15 @@ function WorkspaceDashboard({
     workspace.id,
     `${selection ? modelKey(selection) : "none"}:${modelsVisited}`
   )
+  const selectedSourceTitles = sources.includedDocumentIds.map(
+    (id) =>
+      sources.documents.find((document) => document.id === id)?.title ?? ""
+  )
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
     selectedDocumentIds: sources.includedDocumentIds,
+    selectedSourceTitles,
     readsImages: selection?.reads_images === true,
     canSkipThinking: canSkipThinking(selection),
     onModelRequired,

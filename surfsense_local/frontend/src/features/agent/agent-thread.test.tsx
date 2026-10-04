@@ -75,6 +75,7 @@ function pausedStream(first: unknown[], gate: Promise<void>, rest: unknown[]) {
 
 type Backend = {
   answers: { requestId: string; reply: string }[]
+  sent: { document_ids?: number[] }[]
 }
 
 // The version a completed render made, as the API reads it back.
@@ -105,8 +106,9 @@ function backend({
   waitFor: waiting = [] as string[],
   stored = [] as unknown[],
   storedAfter = null as unknown[] | null,
+  documents = [] as unknown[],
 } = {}): Backend {
-  const state: Backend = { answers: [] }
+  const state: Backend = { answers: [], sent: [] }
   let sent = false
   let release: () => void = () => {}
   const gate = new Promise<void>((resolve) => {
@@ -122,7 +124,9 @@ function backend({
           { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
-      if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+      if (path.startsWith("/workspaces/1/documents")) {
+        return Response.json(documents)
+      }
       if (path === "/workspaces/1/chat/threads") return Response.json([thread])
       if (path === "/artifacts/40") return Response.json(PROPOSAL)
       const answer = path.match(/^\/chat\/threads\/10\/permissions\/(.+)$/)
@@ -138,6 +142,7 @@ function backend({
       }
       if (path === "/chat/threads/10/messages" && init?.method === "POST") {
         sent = true
+        state.sent.push(JSON.parse(String(init.body)))
         return new Response(pausedStream(first, gate, rest), {
           headers: { "Content-Type": "text/event-stream" },
         })
@@ -291,6 +296,55 @@ describe("an agent thread", () => {
         "Denying also denies 1 other request waiting in this chat."
       )
     ).toBeTruthy()
+  })
+
+  it("shows the sources a turn works from as it is sent", async () => {
+    const state = backend({
+      first: [ACCEPTED],
+      waitFor: ["never"],
+      documents: [
+        {
+          id: 5,
+          title: "Plan.pdf",
+          document_type: "FILE",
+          mime_type: "application/pdf",
+          status: "ready",
+          error_message: null,
+          created_at: "2026-10-01T00:00:00Z",
+          updated_at: "2026-10-01T00:00:00Z",
+        },
+      ],
+    })
+    renderAgentThread()
+    await screen.findByText("Plan.pdf")
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Working from Plan.pdf")).toBeTruthy()
+    expect(state.sent[0].document_ids).toEqual([5])
+  })
+
+  it("shows the sources a stored turn worked from", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: {
+            text: "Compare them",
+            scope: {
+              document_ids: [1, 2, 3, 4],
+              titles: ["Plan", "Budget", "Memo", "Contract"],
+            },
+          },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("Compare them")).toBeTruthy()
+    expect(screen.getByText("Working from 4 sources")).toBeTruthy()
   })
 
   it("shows the steps a stored reply took", async () => {

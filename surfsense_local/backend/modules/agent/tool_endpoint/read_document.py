@@ -11,6 +11,7 @@ from modules.agent.tool_endpoint.script_page import (
     page_of,
 )
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.spec import document_script
@@ -46,8 +47,12 @@ LISTING: dict[str, Any] = {
 }
 
 
-def read(session: Session, workspace_id: int, arguments: dict[str, Any]) -> str:
-    """The newest version's number, title, format and script, whichever version was named."""
+def read(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
+    """The newest version's number, title, format and script, whichever version was named.
+
+    An artifact is the agent's output, not a source, so any turn may read it.
+    """
+    workspace_id = scope.workspace_id
     artifact_id = arguments.get("artifact_id")
     if not isinstance(artifact_id, int) or isinstance(artifact_id, bool):
         raise ToolCallError("Give the artifact_id of a document you rendered.")

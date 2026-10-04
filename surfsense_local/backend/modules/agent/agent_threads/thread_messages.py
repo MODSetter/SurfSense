@@ -8,6 +8,7 @@ from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.ready_renders import link_ready_renders
 from modules.agent.agent_threads.replies import thread_turns
+from modules.agent.agent_threads.scope_note import name_scopes
 from modules.agent.opencode_client import OpencodeVersionError
 from modules.agent.opencode_runtime import AgentUnavailableError, ready_opencode
 from modules.chat.models import ChatThread
@@ -45,4 +46,5 @@ async def agent_thread_messages(
     )
     turns = thread_turns(messages, citations)
     await transact(session, link_ready_renders, thread.workspace_id, turns)
+    await transact(session, name_scopes, thread.workspace_id, turns)
     return turns

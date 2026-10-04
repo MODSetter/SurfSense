@@ -27,6 +27,14 @@ export type AgentStep = {
   artifact?: RenderedArtifact | null
 }
 
+/** The sources an agent turn was allowed to use: those ticked when it was
+ *  sent, each id beside its title. Absent when the turn named no selection,
+ *  which gives the agent the whole workspace. */
+export type SourceScope = {
+  document_ids: number[]
+  titles: string[]
+}
+
 /** Something the agent wants to do that waits for the user's answer. */
 export type PermissionRequest = {
   id: string

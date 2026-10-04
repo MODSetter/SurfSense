@@ -190,6 +190,7 @@ function toRuntimeMessage(
             }
           : null,
         progress: message.content.progress ?? null,
+        scope: message.content.scope ?? null,
       },
     },
   }
@@ -199,6 +200,7 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  selectedSourceTitles,
   readsImages,
   canSkipThinking,
   onModelRequired,
@@ -206,6 +208,8 @@ export function useChatRuntime({
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // Each selected source's title, in the order of `selectedDocumentIds`.
+  selectedSourceTitles: string[]
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
@@ -405,6 +409,8 @@ export function useChatRuntime({
 
       let threadId =
         conversationView.status === "active" ? conversationView.threadId : null
+      let usesAgent =
+        threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
       let userMessageId: number | string | null = null
       let assistantMessageId: number | string | null = null
       // Declared here (not inside the try) so the catch block below can still
@@ -423,6 +429,7 @@ export function useChatRuntime({
             return
           }
           threadId = thread.id
+          usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(
             chatKeys.threads(workspaceId),
             (current = []) => [
@@ -448,6 +455,15 @@ export function useChatRuntime({
             content: {
               text,
               ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
+              // The agent works from these alone; a chat's turn shows no line.
+              ...(usesAgent
+                ? {
+                    scope: {
+                      document_ids: selectedDocumentIds,
+                      titles: selectedSourceTitles,
+                    },
+                  }
+                : {}),
             },
             created_at: null,
             completed_at: null,
@@ -737,6 +753,8 @@ export function useChatRuntime({
       onModelRequired,
       queryClient,
       selectedDocumentIds,
+      selectedSourceTitles,
+      threads,
       workspaceId,
     ]
   )

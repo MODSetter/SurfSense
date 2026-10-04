@@ -7,12 +7,19 @@ from sqlalchemy.orm import Session
 from modules.agent.sources_folder import SOURCES, source_file_names
 from modules.agent.tool_endpoint.passage_label import opening, without_passage_tags
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from shared.search import Hit, retrieve
 
 # Before onboarding chooses an embedder, or while its files are missing.
 _NOT_READY = (
-    f"SurfSense's search is not ready on this computer. Use grep on {SOURCES}/ instead."
+    "SurfSense's search is not ready on this computer. Use grep on {files} instead."
+)
+_NO_MATCH = "No passage matched. Try other words, or grep {files}."
+
+_NOTHING_SELECTED = (
+    "No sources are selected for this request, so there is nothing to search. "
+    "Ask the user to select the sources to use."
 )
 
 # Written out flat: small local models garble a schema that refers to definitions.
@@ -36,25 +43,36 @@ LISTING: dict[str, Any] = {
 }
 
 
-def search(session: Session, workspace_id: int, arguments: dict[str, Any]) -> str:
-    """The passages that best match the query, among the files the agent can read."""
+def search(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
+    """The passages that best match the query, among the files the turn may read."""
     query = arguments.get("query")
     if not isinstance(query, str) or not query.strip():
         raise ToolCallError("Give a query: the words or the question to look for.")
+    selected = scope.selected()
+    if selected is not None and not selected:
+        return _NOTHING_SELECTED
     # Keep numpy/onnxruntime lazy, as the chat does.
     from modules.embedding.encoder import missing_files
 
     try:
         index = require_active_index(session)
     except EmbeddingNotChosenError as error:
-        raise ToolCallError(_NOT_READY) from error
+        raise ToolCallError(_NOT_READY.format(files=_grep_in(selected))) from error
     if missing_files(index.spec):
-        raise ToolCallError(_NOT_READY)
-    files = source_file_names(session, workspace_id)
-    hits = retrieve(session, workspace_id, query, document_ids=list(files))
+        raise ToolCallError(_NOT_READY.format(files=_grep_in(selected)))
+    files = source_file_names(session, scope.workspace_id)
+    searched = [i for i in files if selected is None or i in selected]
+    hits = retrieve(session, scope.workspace_id, query, document_ids=searched)
     if not hits:
-        return f"No passage matched. Try other words, or grep the files in {SOURCES}/."
+        return _NO_MATCH.format(files=_grep_in(selected))
     return "\n\n".join(_passage(hit, files[hit.document_id]) for hit in hits)
+
+
+def _grep_in(selected: frozenset[int] | None) -> str:
+    """Where the model may grep instead: never the files of sources it may not use."""
+    if selected is None:
+        return f"the files in {SOURCES}/"
+    return f"the selected sources' files in {SOURCES}/"
 
 
 def _passage(hit: Hit, source_file: str) -> str:

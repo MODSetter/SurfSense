@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, Response, status
+from fastapi import APIRouter, Body, Depends, Query, Response, status
 from fastapi.responses import JSONResponse
 
 from api.dependencies import SessionDep
@@ -10,6 +10,7 @@ from modules.agent.launch_key import require_launch_key
 from modules.agent.tool_endpoint.allowed_callers import refuse_web_pages
 from modules.agent.tool_endpoint.messages import answer
 from modules.agent.tool_endpoint.protocol_version import refuse_unknown_protocol
+from modules.agent.tool_endpoint.turn_scope import PARAMETER, turn_scope
 from modules.workspaces.dependencies import WorkspaceDep
 
 router = APIRouter(
@@ -28,9 +29,10 @@ async def answer_tools(
     workspace: WorkspaceDep,
     message: Annotated[dict[str, Any], Body()],
     session: SessionDep,
+    scope: Annotated[str | None, Query(alias=PARAMETER)] = None,
 ) -> Response:
-    """One JSON-RPC message in, its reply out; the workspace scopes every tool."""
-    reply = await answer(message, session, workspace.id)
+    """One JSON-RPC message in, its reply out; the workspace and the turn's sources scope every tool."""
+    reply = await answer(message, session, turn_scope(scope, workspace.id))
     if reply is None:
         return Response(status_code=status.HTTP_202_ACCEPTED)
     return JSONResponse(reply)

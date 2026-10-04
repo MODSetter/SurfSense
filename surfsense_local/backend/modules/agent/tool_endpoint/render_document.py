@@ -25,6 +25,7 @@ from modules.agent.tool_endpoint.rendered_label import (
     queued_line,
 )
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.script_error import is_script_error
@@ -35,6 +36,7 @@ from modules.artifacts.script_documents.service import (
 from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS
 from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
+from modules.documents.source_figures import parse_figure_name
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import is_locked
@@ -125,11 +127,17 @@ class _Started:
     title: str
 
 
-def render(session: Session, workspace_id: int, arguments: dict[str, Any]) -> str:
-    """Create the version in one short transaction, wait for its job, and say how it went."""
+def render(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
+    """Create the version in one short transaction, wait for its job, and say how it went.
+
+    Continuing a document needs no scope, since it is the agent's output; placing
+    a source's image does.
+    """
     began = time.monotonic()
     deadline = began + CALL_SECONDS
     request = _request(arguments)
+    _refuse_unselected_images(scope, request.images)
+    workspace_id = scope.workspace_id
     started = _start(session, workspace_id, request)
     wait = min(WAIT_SECONDS, deadline - time.monotonic())
     outcome = wait_for_outcome(session, started.artifact_id, wait)
@@ -179,6 +187,24 @@ def _request(arguments: dict[str, Any]) -> _Request:
             "images must be a list of names from surfsense_list_images, or left out."
         )
     return _Request(title, arguments.get("format"), script, base, images)
+
+
+def _refuse_unselected_images(scope: TurnScope, images: list[str]) -> None:
+    """An image is its source's content: one from a source the turn may not use is refused."""
+    if not images:
+        return
+    selected = scope.selected()
+    if selected is None:
+        return
+    for name in images:
+        parsed = parse_figure_name(name)
+        # A name no source has is the service's to refuse, as before.
+        if parsed is not None and parsed[0] not in selected:
+            raise ToolCallError(
+                f'Image "{name}" comes from source {parsed[0]}, which is not '
+                "selected for this request. Place only images from the selected "
+                "sources, or ask the user to select that one."
+            )
 
 
 def _start(session: Session, workspace_id: int, request: _Request) -> _Started:

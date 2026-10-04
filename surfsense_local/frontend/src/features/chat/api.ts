@@ -1,4 +1,4 @@
-import type { AgentStep } from "@/features/agent/api"
+import type { AgentStep, SourceScope } from "@/features/agent/api"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import { parseSseStream, type ChatStreamEvent, type Citation } from "./sse"
@@ -32,6 +32,8 @@ export type MessageContent = {
   images?: StoredImage[]
   // An agent reply's tool calls, in the order it made them.
   steps?: AgentStep[]
+  // An agent turn's sources, on the user's message.
+  scope?: SourceScope
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.

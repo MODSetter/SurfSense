@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from modules.agent.agent_threads.compaction import is_summary, turn_openers
+from modules.agent.agent_threads.scope_note import is_scope_note, noted_scope
 from modules.agent.agent_threads.steps import step_of
 from modules.chat.prompt import Citation, resolve_citations
 
@@ -48,7 +49,7 @@ def thread_turns(
             {
                 "id": info["id"],
                 "role": "user",
-                "content": {"text": _text(message["parts"])},
+                "content": _user_content(message["parts"]),
                 "created_at": created,
                 "completed_at": created,
             }
@@ -101,6 +102,20 @@ def turn_reply(
         "created_at": iso_from_ms(times[0].get("created")),
         "completed_at": iso_from_ms(times[-1].get("completed")),
     }
+
+
+def _user_content(parts: list[dict[str, Any]]) -> dict[str, Any]:
+    """The user's own words, and the sources the turn was given, without the note naming them.
+
+    `scope` holds the ticked ids; the thread's reader names them.
+    """
+    content: dict[str, Any] = {
+        "text": _text([part for part in parts if not is_scope_note(part)])
+    }
+    scope = noted_scope(parts)
+    if scope is not None:
+        content["scope"] = {"document_ids": scope}
+    return content
 
 
 def _text(parts: list[dict[str, Any]]) -> str:

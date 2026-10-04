@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from modules.agent.sources_folder import FIGURES, SOURCES, show_figure
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.documents.models import Document
 from modules.documents.source_figures import (
     FiguresPending,
@@ -46,7 +47,7 @@ LISTING: dict[str, Any] = {
 }
 
 
-def list_images(session: Session, workspace_id: int, arguments: dict[str, Any]) -> str:
+def list_images(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     """Each named source's images, or why it has none to give yet."""
     source_ids = arguments.get("source_ids")
     if (
@@ -61,6 +62,8 @@ def list_images(session: Session, workspace_id: int, arguments: dict[str, Any]) 
             "Name at least one source: the number in brackets at the end of its "
             f"file name in {SOURCES}/."
         )
+    scope.refuse_unselected(source_ids)
+    workspace_id = scope.workspace_id
     listed = [
         _source_images(session, workspace_id, source_id)
         for source_id in dict.fromkeys(source_ids)

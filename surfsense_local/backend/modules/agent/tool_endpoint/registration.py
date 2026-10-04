@@ -1,17 +1,21 @@
 """Telling opencode where one workspace's tools are, before each turn there.
 
-opencode names no workspace when it calls a tool, so each workspace's folder is
-given its own address; opencode forgets it on every reload, so it is given again
-before every turn.
+opencode names neither workspace nor turn when it calls a tool, so each turn
+gives its workspace's folder an address of its own, carrying the turn's scope;
+opencode forgets it on every reload, so it is given again before every turn.
+Two turns running at once in one workspace share the address registered last.
 """
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
+from urllib.parse import urlencode
 
 import httpx
 
 from api.config import get_settings
 from modules.agent.opencode_client import OpencodeClient
+from modules.agent.tool_endpoint.turn_scope import PARAMETER, remember_turn_scope
 
 # The tools reach the model as `<server>_<tool>`: surfsense_search_sources.
 SERVER = "surfsense"
@@ -24,11 +28,23 @@ logger = logging.getLogger(__name__)
 
 
 async def register_workspace_tools(
-    client: OpencodeClient, folder: Path, workspace_id: int, launch_key: str
+    client: OpencodeClient,
+    folder: Path,
+    workspace_id: int,
+    launch_key: str,
+    document_ids: Sequence[int] | None,
 ) -> None:
-    """Give the folder's opencode this workspace's tools; a turn goes on without them if it cannot."""
+    """Give the folder's opencode this workspace's tools, kept to the turn's ticked sources.
+
+    `document_ids` None is the whole workspace. A turn goes on without the
+    tools if they cannot be given.
+    """
     api = get_settings()
-    url = f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
+    token = remember_turn_scope(workspace_id, document_ids)
+    url = (
+        f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
+        f"?{urlencode({PARAMETER: token})}"
+    )
     try:
         status = await client.add_tool_server(
             folder,

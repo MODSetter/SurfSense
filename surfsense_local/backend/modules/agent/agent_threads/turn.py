@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from pathlib import Path
 
 import anyio
@@ -21,6 +22,7 @@ from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.ready_renders import link_live_render
 from modules.agent.agent_threads.replies import turn_reply
+from modules.agent.agent_threads.scope_note import scope_note
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.engine_choice import selected_model_can_run_agent
 from modules.agent.opencode_client import OpencodeVersionError
@@ -46,6 +48,15 @@ TITLE_CHARS = 60
 _DONE = b"data: [DONE]\n\n"
 
 
+@dataclass(frozen=True)
+class _Sending:
+    """The user's words, the scope note sent beside them, and the thread's new name if any."""
+
+    text: str
+    note: str | None
+    title: str | None
+
+
 async def agent_turn(
     session: Session, thread: ChatThread, payload: MessageCreate, launch_key: str
 ) -> StreamingResponse:
@@ -58,6 +69,14 @@ async def agent_turn(
             status.HTTP_409_CONFLICT,
             "The agent does not read attached images yet. Send the text alone.",
         )
+    # Ticked sources are the turn's whole scope; none named is the whole workspace, as in a chat.
+    note = (
+        None
+        if payload.document_ids is None
+        else await transact(
+            session, scope_note, thread.workspace_id, payload.document_ids
+        )
+    )
     try:
         ready = await ready_opencode(session, launch_key=launch_key)
     except ModelResolutionError as error:
@@ -74,15 +93,14 @@ async def agent_turn(
         )
     folder = await transact(session, sync_sources_folder, thread.workspace_id)
     await register_workspace_tools(
-        ready.client, folder, thread.workspace_id, launch_key
+        ready.client, folder, thread.workspace_id, launch_key, payload.document_ids
     )
     title = _first_title(thread, payload.text)
     if title is not None:
         await transact(session, _rename, thread, title)
+    sending = _Sending(payload.text, note, title)
     return StreamingResponse(
-        _stream(
-            session, thread.workspace_id, ready, folder, session_id, payload.text, title
-        ),
+        _stream(session, thread.workspace_id, ready, folder, session_id, sending),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -98,10 +116,10 @@ async def _stream(
     ready: ReadyAgent,
     folder: Path,
     session_id: str,
-    text: str,
-    title: str | None,
+    sending: _Sending,
 ) -> AsyncIterator[bytes]:
     """The turn's frames, from the message sent to the reply stored."""
+    title = sending.title
     client = ready.client
     turn = TurnFrames(session_id)
     sent = False
@@ -115,7 +133,11 @@ async def _stream(
                         # Opened before sending, so not one of the turn's events is missed.
                         if not sent:
                             await client.send_turn(
-                                folder, session_id, text, model=ready.model
+                                folder,
+                                session_id,
+                                sending.text,
+                                model=ready.model,
+                                note=sending.note,
                             )
                             sent = True
                         elif await client.status(folder, session_id) == "idle":

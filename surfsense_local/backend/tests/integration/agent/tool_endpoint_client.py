@@ -9,7 +9,11 @@ from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import Engine
 
 from api.main import create_app
+from modules.agent.tool_endpoint.turn_scope import remember_turn_scope
 from shared.db import create_session_factory
+
+# A call made as a turn with no `document_ids` makes it: over the whole workspace.
+WHOLE_WORKSPACE = object()
 
 
 @dataclass
@@ -26,11 +30,22 @@ class ToolEndpoint:
         return reply.json()["id"]
 
     async def post(
-        self, workspace_id: int, message: dict[str, Any], **headers: str
+        self,
+        workspace_id: int,
+        message: dict[str, Any],
+        *,
+        token: object = WHOLE_WORKSPACE,
+        **headers: str,
     ) -> Response:
-        """One JSON-RPC message, sent with the headers opencode's client sends."""
+        """One JSON-RPC message, sent as opencode's client sends it to a turn's address.
+
+        `token` is the turn's scope token, None for an address without one.
+        """
+        if token is WHOLE_WORKSPACE:
+            token = remember_turn_scope(workspace_id, None)
         return await self.client.post(
             f"/agent/tools/workspaces/{workspace_id}",
+            params={} if token is None else {"scope": token},
             json=message,
             headers={
                 "Authorization": f"Bearer {self.launch_key}",
@@ -40,22 +55,35 @@ class ToolEndpoint:
         )
 
     async def request(
-        self, workspace_id: int, method: str, params: dict[str, Any] | None = None
+        self,
+        workspace_id: int,
+        method: str,
+        params: dict[str, Any] | None = None,
+        *,
+        token: object = WHOLE_WORKSPACE,
     ) -> dict[str, Any]:
         """A request's JSON-RPC reply."""
         message = {"jsonrpc": "2.0", "id": 1, "method": method}
         if params is not None:
             message["params"] = params
-        reply = await self.post(workspace_id, message)
+        reply = await self.post(workspace_id, message, token=token)
         assert reply.status_code == 200, reply.text
         return reply.json()
 
     async def call(
-        self, workspace_id: int, name: str, arguments: dict[str, Any]
+        self,
+        workspace_id: int,
+        name: str,
+        arguments: dict[str, Any],
+        *,
+        token: object = WHOLE_WORKSPACE,
     ) -> tuple[str, bool]:
         """One tool call's text and whether it is an error, as the model reads it."""
         reply = await self.request(
-            workspace_id, "tools/call", {"name": name, "arguments": arguments}
+            workspace_id,
+            "tools/call",
+            {"name": name, "arguments": arguments},
+            token=token,
         )
         (content,) = reply["result"]["content"]
         return content["text"], reply["result"]["isError"]

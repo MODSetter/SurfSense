@@ -5,6 +5,7 @@ import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -15,6 +16,7 @@ from modules.agent.tool_endpoint.registration import (
     TOOL_CALL_SECONDS,
     register_workspace_tools,
 )
+from modules.agent.tool_endpoint.turn_scope import turn_scope
 
 pytestmark = pytest.mark.integration
 
@@ -54,13 +56,40 @@ async def test_a_tool_call_may_run_as_long_as_a_render_waits(
     async with OpencodeClient(
         f"http://127.0.0.1:{opencode.server_port}", "pw"
     ) as client:
-        await register_workspace_tools(client, tmp_path, 7, "launch-key")
+        await register_workspace_tools(client, tmp_path, 7, "launch-key", None)
 
     (sent,) = opencode.sent  # type: ignore[attr-defined]
     config = sent["config"]
     assert (sent["name"], config["type"]) == ("surfsense", "remote")
-    assert config["url"].endswith("/agent/tools/workspaces/7")
+    assert urlsplit(config["url"]).path.endswith("/agent/tools/workspaces/7")
     assert config["timeout"] == TOOL_CALL_SECONDS * 1000  # in milliseconds
+
+
+async def _registered_scope(
+    opencode: ThreadingHTTPServer, folder: Path, document_ids: list[int] | None
+) -> tuple[int, frozenset[int] | None, bool]:
+    """What the address a turn registered tells the tools about that turn."""
+    async with OpencodeClient(
+        f"http://127.0.0.1:{opencode.server_port}", "pw"
+    ) as client:
+        await register_workspace_tools(client, folder, 7, "launch-key", document_ids)
+    url = opencode.sent[-1]["config"]["url"]  # type: ignore[attr-defined]
+    (token,) = parse_qs(urlsplit(url).query)["scope"]
+    scope = turn_scope(token, 7)
+    return scope.workspace_id, scope.document_ids, scope.known
+
+
+async def test_each_turn_registers_an_address_carrying_its_ticked_sources(
+    opencode: ThreadingHTTPServer, tmp_path: Path
+) -> None:
+    """A tool call names no turn, so the address it is made to says which sources it may use."""
+    ticked = await _registered_scope(opencode, tmp_path, [3, 5])
+    nothing = await _registered_scope(opencode, tmp_path, [])
+    unsaid = await _registered_scope(opencode, tmp_path, None)
+
+    assert ticked == (7, frozenset({3, 5}), True)
+    assert nothing == (7, frozenset(), True)
+    assert unsaid == (7, None, True)
 
 
 def test_a_render_answers_before_opencode_gives_up_on_the_call() -> None:
