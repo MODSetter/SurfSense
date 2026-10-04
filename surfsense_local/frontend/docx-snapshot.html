@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      Electron's hidden snapshot window (electron/src/main/docx-snapshot/):
+      it lays out one Word file and prints it to PDF for the agent's previews.
+      No app styles, so only the document's own look reaches the page.
+
+      The document is untrusted. Its styles are inline and its images and
+      fonts data URLs; the only fetch is the Word file from the API on
+      loopback. connect-src has no 'self': packaged, that is file://, and a
+      script that got in could read any local file. vite.config.ts adds it in
+      development for Vite's client.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src http://127.0.0.1:*; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Word snapshot</title>
+  </head>
+  <body>
+    <script type="module" src="/src/features/docx-snapshot/main.ts"></script>
+  </body>
+</html>

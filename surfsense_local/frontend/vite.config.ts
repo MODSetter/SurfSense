@@ -3,7 +3,22 @@ import { fileURLToPath, URL } from "node:url"
 import formatjs from "@formatjs/unplugin/vite"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
+
+// The Word snapshot page's policy (docx-snapshot.html) leaves 'self' out of
+// connect-src, since packaged it is file://. Served by Vite, its origin is the
+// dev server, and Vite's client needs its websocket there: refused, its errors
+// come first in the console and stand in for why the page failed to start.
+function snapshotPageReachesDevServer(): Plugin {
+  return {
+    name: "docx-snapshot-dev-policy",
+    apply: "serve",
+    transformIndexHtml: (html, { path }) =>
+      path === "/docx-snapshot.html"
+        ? html.replace(/(content="[^"]*connect-src)/, "$1 'self'")
+        : html,
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -15,6 +30,7 @@ export default defineConfig({
     formatjs({ removeDefaultMessage: true }),
     react(),
     tailwindcss(),
+    snapshotPageReachesDevServer(),
   ],
   resolve: {
     alias: {
@@ -23,6 +39,17 @@ export default defineConfig({
       // parser is dead weight at run time (FormatJS performance guide).
       "@formatjs/icu-messageformat-parser":
         "@formatjs/icu-messageformat-parser/no-parser.js",
+    },
+  },
+  build: {
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        // Electron prints Word files for the agent's previews from this page.
+        "docx-snapshot": fileURLToPath(
+          new URL("./docx-snapshot.html", import.meta.url)
+        ),
+      },
     },
   },
   test: {

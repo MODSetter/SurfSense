@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import {
   app,
@@ -22,6 +23,8 @@ import {
   nameDevBuild,
 } from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
+import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
+import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
 import { allowedExternalUrl } from "./external-url.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
@@ -103,11 +106,12 @@ app.setPath("userData", join(DATA_DIR, "electron"))
 let sidecars: Sidecars | null = null
 let mainWindow: BrowserWindow | null = null
 let shuttingDown = false
+let stopDocxSnapshots: (() => void) | null = null
 
 function onSidecarCrash(name: string, code: number | null): void {
   process.stderr.write(`[main] sidecar ${name} crashed (code=${code})\n`)
   // best-effort: let the renderer show an error instead of hanging
-  BrowserWindow.getAllWindows()[0]?.webContents.send("sidecar:crashed", {
+  mainWindow?.webContents.send("sidecar:crashed", {
     name,
     code,
   })
@@ -250,6 +254,19 @@ function watchAgentConfig(ctx: SidecarContext): void {
   timer.unref()
 }
 
+// The agent looks at the pages of a Word document it made, and only Electron can
+// lay one out (docx-snapshot/). The API has the routes only beside an opencode.
+function serveWordPreviews(ctx: SidecarContext): void {
+  if (ctx.opencodeBinariesDir == null) return
+  const page = app.isPackaged
+    ? pathToFileURL(join(app.getAppPath(), "..", "frontend", "dist", "docx-snapshot.html"))
+    : new URL("/docx-snapshot.html", DEV_RENDERER_URL)
+  stopDocxSnapshots = serveDocxSnapshots({
+    apiUrl: `http://${ctx.host}:${ctx.apiPort}`,
+    print: printInHiddenWindow(page),
+  })
+}
+
 /** Size and mtime, which is enough to notice a rewrite and costs no read. */
 function presetStamp(path: string): string {
   try {
@@ -358,6 +375,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   watchGenerationPreset(ctx)
   watchAudioModels(ctx)
   watchAgentConfig(ctx)
+  serveWordPreviews(ctx)
 
   // gate on the API only; fail fast if it dies during startup. llama-server is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
@@ -597,6 +615,8 @@ function createWindow(apiUrl: string): void {
   mainWindow = win
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null
+    // A hidden Word snapshot window is not the app's; it must not keep the app running.
+    app.quit()
   })
   // Its info level is React's and Vite's development chatter.
   win.webContents.on("console-message", ({ level, message }) => {
@@ -624,6 +644,7 @@ function createWindow(apiUrl: string): void {
 async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
+  stopDocxSnapshots?.()
   withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
 }
@@ -683,8 +704,7 @@ function main(): void {
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
       app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0)
-          createWindow(boot.apiUrl)
+        if (mainWindow === null) createWindow(boot.apiUrl)
       })
     })
     .catch((err: unknown) => {
@@ -720,10 +740,10 @@ refuseSpellcheckDownloads(app)
 // file and the port, so hand off to the primary window and quit
 if (app.requestSingleInstanceLock()) {
   app.on("second-instance", () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return
-    if (win.isMinimized()) win.restore()
-    win.focus()
+    // Not getAllWindows()[0]: that is the newest, which may be a hidden Word snapshot window.
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
   })
   main()
 } else {
