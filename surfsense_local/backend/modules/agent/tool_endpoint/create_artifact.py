@@ -6,9 +6,12 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from modules.agent.sources_folder import SOURCES
+from modules.agent.tool_endpoint.registration import SERVER
+from modules.agent.tool_endpoint.rendered_label import TOOL_NAME as RENDER_TOOL
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY
 from modules.artifacts.schemas import StudioJobCreate
+from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS
 from modules.artifacts.service import create_artifact_job
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from modules.workspaces.models import Workspace
@@ -16,7 +19,8 @@ from modules.workspaces.models import Workspace
 # Studio's own cap on a request's instructions (StudioJobCreate.prompt).
 INSTRUCTIONS_CHARS = 2000
 
-_KEYS = [fmt.key for fmt in FORMATS]
+# Word and PDF are scripts the agent renders: Studio's draft keeps none to edit.
+_KEYS = [fmt.key for fmt in FORMATS if fmt.key not in DOCUMENT_FORMATS]
 
 # Written out flat, and the same on every turn, so a local model's prompt cache holds.
 LISTING: dict[str, Any] = {
@@ -33,8 +37,7 @@ LISTING: dict[str, Any] = {
                 "type": "string",
                 "enum": _KEYS,
                 "description": (
-                    "What to make. docx is a Word document, pptx slides, xlsx a "
-                    "spreadsheet, html a web page."
+                    "What to make. pptx is slides, xlsx a spreadsheet, html a web page."
                 ),
             },
             "source_ids": {
@@ -61,7 +64,12 @@ LISTING: dict[str, Any] = {
 def start(session: Session, workspace_id: int, arguments: dict[str, Any]) -> str:
     """Start the job as Studio's own route would; Studio's reason when it cannot."""
     key = arguments.get("format")
-    fmt = FORMATS_BY_KEY.get(key) if isinstance(key, str) else None
+    if key in DOCUMENT_FORMATS:
+        raise ToolCallError(
+            f"Make a Word document or a PDF with {SERVER}_{RENDER_TOOL}, after "
+            "loading the surfsense-documents skill."
+        )
+    fmt = FORMATS_BY_KEY.get(key) if key in _KEYS else None
     if fmt is None:
         raise ToolCallError(f"Name a format, one of: {', '.join(_KEYS)}.")
     source_ids = arguments.get("source_ids")

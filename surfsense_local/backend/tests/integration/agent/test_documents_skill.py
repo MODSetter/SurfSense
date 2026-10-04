@@ -30,6 +30,22 @@ def test_the_skill_names_itself_as_opencode_finds_it() -> None:
     assert "description: " in frontmatter
 
 
+def test_the_skill_says_what_the_agent_can_look_at_and_what_previews_leave_out() -> (
+    None
+):
+    """A source's figures can be opened, and a Word preview hides headers and footers."""
+    text = (skills_folder() / DOCUMENTS_SKILL / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "sources/figures/" in text
+    assert "headers and footers" in text
+    # Most local models read no images: opencode answers their `read` with an error.
+    assert (
+        "If `read` cannot show you the image, place that figure with its caption "
+        "and tell the user" in text
+    )
+    assert "When `read` cannot show you the previews" in text
+
+
 def test_the_word_example_renders_a_document_with_its_table_and_chart() -> None:
     """A model copies the example's habits, so the example itself must run."""
     result = run_document_script(

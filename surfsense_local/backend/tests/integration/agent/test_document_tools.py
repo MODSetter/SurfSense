@@ -220,6 +220,7 @@ async def test_a_pdf_render_counts_its_pages_and_lists_previews_to_open(
     for preview in previews:
         assert f"- {preview}" in text
         assert (folder / preview).is_file()
+    assert "headers and footers" not in text
 
 
 async def test_a_word_render_without_the_desktop_app_says_why_it_has_no_previews(
@@ -232,6 +233,27 @@ async def test_a_word_render_without_the_desktop_app_says_why_it_has_no_previews
 
     assert is_error is False, text
     assert "No page previews: Word pages are drawn by the SurfSense desktop app" in text
+
+
+async def test_word_previews_say_they_leave_out_headers_and_footers(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A header logo the preview cannot show is not a missing image to render again for."""
+    workspace_id = await tools.workspace()
+    folder = get_storage_settings().agent_working_dir(workspace_id)
+
+    def previews_for(artifact: Artifact, time_left: float) -> Previews:
+        return Previews(
+            [folder / "outputs" / "previews" / f"{artifact.id}-v1" / "page-1.png"]
+        )
+
+    monkeypatch.setattr(render_document, "previews_for", previews_for)
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    assert is_error is False, text
+    assert "-v1/page-1.png" in text
+    assert "Word previews leave out headers and footers" in text
 
 
 async def test_a_page_too_long_and_thin_to_draw_is_named_beside_the_others(
@@ -518,6 +540,24 @@ async def test_a_sources_images_are_listed_with_their_captions_and_sizes(
     assert f"- {report}-2: 1200x800 px, page 5, no caption" in text
 
 
+async def test_a_listed_image_can_be_opened_from_the_sources_folder(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """The agent looks at a chart, to read its values, before it draws a new one."""
+    workspace_id = await tools.workspace()
+    report = _report_source(engine, workspace_id)
+    storage = get_storage_settings()
+
+    text, _ = await tools.call(workspace_id, "list_images", {"source_ids": [report]})
+
+    kept = figures_dir(storage.document_dir(workspace_id, report))
+    shown = storage.agent_working_dir(workspace_id) / "sources" / "figures"
+    for n in (1, 2):
+        assert f"sources/figures/{report}-{n}.png" in text
+        copied = (shown / f"{report}-{n}.png").read_bytes()
+        assert copied == (kept / f"{n}.png").read_bytes()
+
+
 async def test_an_image_source_is_its_own_image(
     tools: ToolEndpoint, engine: Engine
 ) -> None:
@@ -566,6 +606,8 @@ async def test_listing_says_which_sources_have_no_images_or_are_not_here(
     assert f"Source {note}" in text and "no images" in text
     assert f"Source {foreign}: not a source in this workspace." in text
     assert f"{foreign}-1" not in text
+    shown = get_storage_settings().agent_working_dir(workspace_id) / "sources"
+    assert not (shown / "figures").exists()
 
 
 async def test_listing_without_sources_says_what_to_name(tools: ToolEndpoint) -> None:

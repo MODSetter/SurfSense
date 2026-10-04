@@ -57,8 +57,11 @@ class ScriptedModel:
 
     A reply is ("text", words), ("bash", command) for one shell call,
     ("call", JSON of {"name", "arguments"}) for any other tool call, ("calls",
-    a JSON list of them) for several in one step, or ("stall", words), which
-    sends its words and then waits until released.
+    a JSON list of them) for several in one step, ("call-filling-the-window",
+    JSON as for "call"), whose usage says the context is full so opencode
+    compacts before the next step, ("stall", words), which sends its words
+    and then waits until released, or ("too-long", ""), which refuses the
+    request as llama-server does one larger than its context.
     """
 
     url: str = ""
@@ -67,16 +70,17 @@ class ScriptedModel:
     release: threading.Event = field(default_factory=threading.Event)
 
 
-def _chunk(delta: dict, finish: str | None = None) -> str:
+# More tokens than any window SurfSense configures, so opencode's overflow check trips.
+_FULL_WINDOW_TOKENS = 2_000_000
+
+
+def _chunk(delta: dict, finish: str | None = None, usage: dict | None = None) -> str:
     """One streamed chat completion chunk, as an OpenAI-compatible server sends it."""
     choice = {"index": 0, "delta": delta, "finish_reason": finish}
-    return (
-        "data: "
-        + json.dumps(
-            {"id": "c1", "object": "chat.completion.chunk", "choices": [choice]}
-        )
-        + "\n\n"
-    )
+    chunk = {"id": "c1", "object": "chat.completion.chunk", "choices": [choice]}
+    if usage is not None:
+        chunk["usage"] = usage
+    return "data: " + json.dumps(chunk) + "\n\n"
 
 
 class ScriptedHandler(BaseHTTPRequestHandler):
@@ -88,10 +92,13 @@ class ScriptedHandler(BaseHTTPRequestHandler):
             json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         )
         kind, value = model.replies.pop(0) if model.replies else ("text", "Done.")
+        if kind == "too-long":
+            self._refuse_as_too_long()
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        if kind in ("bash", "call", "calls"):
+        if kind in ("bash", "call", "calls", "call-filling-the-window"):
             wanted = (
                 [
                     {
@@ -116,9 +123,18 @@ class ScriptedHandler(BaseHTTPRequestHandler):
                     wanted if isinstance(wanted, list) else [wanted]
                 )
             ]
+            usage = (
+                {
+                    "prompt_tokens": _FULL_WINDOW_TOKENS,
+                    "completion_tokens": 10,
+                    "total_tokens": _FULL_WINDOW_TOKENS + 10,
+                }
+                if kind == "call-filling-the-window"
+                else None
+            )
             self._send(
                 _chunk({"role": "assistant", "tool_calls": calls}),
-                _chunk({}, "tool_calls"),
+                _chunk({}, "tool_calls", usage),
             )
         else:
             self._send(_chunk({"role": "assistant", "content": value}))
@@ -126,6 +142,24 @@ class ScriptedHandler(BaseHTTPRequestHandler):
                 model.release.wait(timeout=30)
             self._send(_chunk({}, "stop"))
         self._send("data: [DONE]\n\n")
+
+    def _refuse_as_too_long(self) -> None:
+        """llama-server's answer to a request larger than its context (b11050)."""
+        body = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "request (40960 tokens) exceeds the available "
+                    "context size (32768 tokens), try increasing it",
+                    "type": "exceed_context_size_error",
+                }
+            }
+        ).encode()
+        self.send_response(400)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _send(self, *frames: str) -> None:
         """Write and flush, as a model streaming token by token does."""

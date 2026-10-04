@@ -9,6 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from api.config import get_settings
+from modules.agent.model_reads_images import selected_model_reads_images
 from modules.agent.model_window import selected_model_window
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import PROVIDER, AgentSetup, write_opencode_config
@@ -47,7 +48,11 @@ async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
 
     model, window = await selected_model_window(session)
     setup = AgentSetup(
-        model=model, window=window, endpoint_url=_endpoint_url(), launch_key=launch_key
+        model=model,
+        window=window,
+        reads_images=await selected_model_reads_images(session),
+        endpoint_url=_endpoint_url(),
+        launch_key=launch_key,
     )
     await run_in_threadpool(
         write_opencode_config, get_storage_settings().agent_dir / CONFIG_FILE, setup
@@ -103,10 +108,11 @@ async def _until_serving(client: OpencodeClient, setup: AgentSetup) -> None:
 
 
 def _serves(config: dict[str, Any], setup: AgentSetup) -> bool:
-    """Whether a loaded configuration is this one: the launch key and the model's window."""
+    """Whether a loaded configuration is this one: the launch key, the model's window and image input."""
     provider = config.get("provider", {}).get(PROVIDER, {})
     model = provider.get("models", {}).get(setup.model, {})
     return (
         provider.get("options", {}).get("apiKey") == setup.launch_key
         and model.get("limit", {}).get("context") == setup.window
+        and model.get("attachment", False) == setup.reads_images
     )

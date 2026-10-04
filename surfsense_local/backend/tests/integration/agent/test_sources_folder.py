@@ -57,6 +57,7 @@ def texts(folder: Path) -> dict[str, str]:
     return {
         file.name: file.read_text(encoding="utf-8")
         for file in (folder / "sources").iterdir()
+        if file.is_file()
     }
 
 
@@ -161,3 +162,21 @@ def test_the_agents_outputs_survive_a_sync(session: Session) -> None:
     sync_sources_folder(session, workspace_id)
 
     assert (folder / "outputs" / "summary.md").read_text(encoding="utf-8") == "Done."
+
+
+def test_a_deleted_sources_figures_leave_with_it(session: Session) -> None:
+    """A figure the agent was shown goes when its source does, like the source's text."""
+    workspace_id = workspace(session)
+    kept = source(session, workspace_id, "report.pdf", "Q3", kind=DocumentType.FILE)
+    gone = source(session, workspace_id, "old.pdf", "Q2", kind=DocumentType.FILE)
+    folder = sync_sources_folder(session, workspace_id)
+    figures = folder / "sources" / "figures"
+    figures.mkdir()
+    for document in (kept, gone):
+        (figures / f"{document.id}-1.png").write_bytes(b"a figure")
+
+    session.delete(gone)
+    session.commit()
+    sync_sources_folder(session, workspace_id)
+
+    assert [file.name for file in figures.iterdir()] == [f"{kept.id}-1.png"]

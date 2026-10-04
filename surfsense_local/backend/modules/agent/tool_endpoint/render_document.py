@@ -45,6 +45,12 @@ WAIT_SECONDS = 150
 CALL_SECONDS = TOOL_CALL_SECONDS - 10
 # Enough of the text for the model to see the document took the shape it meant.
 TEXT_CHARS = 1500
+# The snapshot page lays Word out with docx-preview, told to skip both
+# (frontend/src/features/docx-snapshot/snapshot-page.ts).
+WORD_PREVIEWS_LEAVE_OUT = (
+    "Word previews leave out headers and footers: a logo or page number placed "
+    "there is in the document even though no preview shows it."
+)
 STOP_RULE = (
     "If this is your third failed run for this request, stop and tell the user "
     "what failed."
@@ -242,7 +248,10 @@ def _previews(artifact: Artifact, workspace_id: int, deadline: float) -> str:
     folder = get_storage_settings().agent_working_dir(workspace_id)
     pages = [f"- {_relative(page, folder)}" for page in previews.pages]
     missing = [previews.reason] if previews.reason else []
-    return "\n".join(["Page previews to check with `read`:", *pages, *missing])
+    left_out = [WORD_PREVIEWS_LEAVE_OUT] if artifact.format == "docx" else []
+    return "\n".join(
+        ["Page previews to check with `read`:", *pages, *missing, *left_out]
+    )
 
 
 def _relative(page: Path, folder: Path) -> str:

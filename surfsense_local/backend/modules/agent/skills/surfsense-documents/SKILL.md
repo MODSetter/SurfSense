@@ -13,6 +13,7 @@ You make a document by writing a Python script and passing it to `surfsense_rend
 - Use only Python's standard library, python-docx (Word), ReportLab (PDF), matplotlib (charts), Pillow and numpy. Do not use the network.
 - The script runs alone, from an empty folder, for at most 120 seconds. It cannot read the user's sources: write the content into the script, from what you found in them.
 - To place an image from the sources, find its name with `surfsense_list_images`, list every name you use in the call's `images`, and open it at `os.path.join(os.environ["IMAGES_DIR"], name + ".png")`.
+- To look at a source image yourself, open the copy `surfsense_list_images` names, `sources/figures/<name>.png`, with `read`. These copies are read-only.
 - Save a chart or any other intermediate file in the working folder, then place it.
 
 ## Clean documents
@@ -29,7 +30,7 @@ You make a document by writing a Python script and passing it to `surfsense_rend
 
 Draw with matplotlib, save a PNG, close the figure, then place the PNG like any image. Give the chart a title and labelled axes, and save at `dpi=200` so it stays sharp.
 
-A drawn chart in a source rarely leaves its numbers in the source's text. When the numbers the user wants charted are only in a source's figure, as its caption from `surfsense_list_images` shows, place that figure with its caption instead of drawing a chart from other numbers, and tell the user you did. If the document already holds that figure, keep it and say so.
+A drawn chart in a source rarely leaves its numbers in the source's text. When the numbers the user wants charted are only in a source's figure, as its caption from `surfsense_list_images` shows, open the figure with `read` and chart the values it labels. If `read` cannot show you the image, place that figure with its caption and tell the user you could not read its values. When it labels none you can read exactly, place that figure with its caption instead of drawing a chart from other numbers, and tell the user you did. If the document already holds that figure, keep it and say so.
 
 ## Editing a document you made
 
@@ -40,7 +41,7 @@ A drawn chart in a source rarely leaves its numbers in the source's text. When t
 
 ## Checking what you made
 
-A successful render lists page previews under `outputs/previews/`. Open them with `read` after the first version and after any change to the layout, and look for tables that run off the page, squashed columns, images missing or out of place, empty pages, unreadable charts and leftover placeholder text. When something is wrong, fix the script and render again. When the result says there are no previews, check the text it returned instead.
+A successful render lists page previews under `outputs/previews/`. Open them with `read` after the first version and after any change to the layout, and look for tables that run off the page, squashed columns, images missing or out of place, empty pages, unreadable charts and leftover placeholder text. When something is wrong, fix the script and render again. Word previews leave out headers and footers, so a logo or page number placed there does not show in them; that is not a fault to fix. When the result says there are no previews, check the text it returned instead. When `read` cannot show you the previews, check the script against the list above and the text the result returned, and do not open them again.
 
 ## When a run fails
 

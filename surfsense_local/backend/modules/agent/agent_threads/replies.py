@@ -1,13 +1,15 @@
 """A session's messages as the thread's turns: the user's, then one reply per turn.
 
 opencode starts a new assistant message for every step of a turn; the thread
-shows them as one reply, with its text and the steps taken to write it.
+shows them as one reply, with its text and the steps taken to write it. A
+compaction's own messages fold into the turn it happened in.
 """
 
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
 
+from modules.agent.agent_threads.compaction import is_summary, turn_openers
 from modules.agent.agent_threads.steps import step_of
 from modules.chat.prompt import Citation, resolve_citations
 
@@ -33,9 +35,10 @@ def thread_turns(
 ) -> list[dict[str, Any]]:
     """Each user message followed by the reply its steps make up, oldest first."""
     turns: list[dict[str, Any]] = []
+    openers = turn_openers(messages)
     for message in messages:
         info = message["info"]
-        if info["role"] != "user":
+        if info["role"] != "user" or openers[info["id"]] != info["id"]:
             continue
         created = iso_from_ms(info.get("time", {}).get("created"))
         turns.append(
@@ -61,11 +64,17 @@ def turn_reply(
     Its labels become citations as a chat answer's do; one the session's searches
     never returned is dropped.
     """
+    in_turn = {
+        message_id
+        for message_id, opener in turn_openers(messages).items()
+        if opener == user_message_id
+    }
     steps = [
         m
         for m in messages
         if m["info"]["role"] == "assistant"
-        and m["info"].get("parentID") == user_message_id
+        and m["info"].get("parentID") in in_turn
+        and not is_summary(m["info"])
     ]
     if not steps:
         return None

@@ -67,6 +67,8 @@ class AgentSetup:
 
     model: str
     window: int
+    # Declared to opencode, which otherwise swaps each image `read` returns for an error text.
+    reads_images: bool
     endpoint_url: str
     launch_key: str
 
@@ -100,18 +102,7 @@ def opencode_config(setup: AgentSetup) -> dict[str, Any]:
                     "headerTimeout": False,
                     "chunkTimeout": CHUNK_TIMEOUT_MS,
                 },
-                "models": {
-                    setup.model: {
-                        "name": setup.model,
-                        "tool_call": True,
-                        # With input set, compaction honours `reserved`; without it, it does not.
-                        "limit": {
-                            "context": setup.window,
-                            "input": setup.window,
-                            "output": output,
-                        },
-                    }
-                },
+                "models": {setup.model: _model_entry(setup, output)},
             }
         },
         "skills": {"paths": [str(skills)]},
@@ -125,6 +116,20 @@ def opencode_config(setup: AgentSetup) -> dict[str, Any]:
             }
         },
     }
+
+
+def _model_entry(setup: AgentSetup, output: int) -> dict[str, Any]:
+    """The one model opencode may use, with what it accepts and its limits."""
+    entry: dict[str, Any] = {
+        "name": setup.model,
+        "tool_call": True,
+        # With input set, compaction honours `reserved`; without it, it does not.
+        "limit": {"context": setup.window, "input": setup.window, "output": output},
+    }
+    if setup.reads_images:
+        entry["modalities"] = {"input": ["text", "image"], "output": ["text"]}
+        entry["attachment"] = True
+    return entry
 
 
 def agent_prompt() -> str:

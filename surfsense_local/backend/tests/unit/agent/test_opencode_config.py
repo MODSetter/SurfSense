@@ -15,10 +15,16 @@ pytestmark = pytest.mark.unit
 ENDPOINT = "http://127.0.0.1:8123/agent/model/v1"
 
 
-def setup(window: int = 32768, model: str = "Qwen3-8B-UD-Q4_K_XL") -> AgentSetup:
+def setup(
+    window: int = 32768, model: str = "Qwen3-8B-UD-Q4_K_XL", reads_images: bool = False
+) -> AgentSetup:
     """What the API knows when it first needs the agent."""
     return AgentSetup(
-        model=model, window=window, endpoint_url=ENDPOINT, launch_key="launch-key"
+        model=model,
+        window=window,
+        reads_images=reads_images,
+        endpoint_url=ENDPOINT,
+        launch_key="launch-key",
     )
 
 
@@ -54,6 +60,28 @@ def test_every_request_names_the_selected_model_titles_included(tmp_path: Path) 
         config["provider"]["surfsense"]["models"]["Qwen3-8B-UD-Q4_K_XL"]["tool_call"]
         is True
     )
+
+
+def test_a_model_that_reads_images_is_shown_the_pages_the_agent_opens(
+    tmp_path: Path,
+) -> None:
+    """Without image input declared, opencode swaps each image `read` returns for an error text."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup(reads_images=True))
+
+    model = next(iter(written(path)["provider"]["surfsense"]["models"].values()))
+    assert model["modalities"] == {"input": ["text", "image"], "output": ["text"]}
+    assert model["attachment"] is True
+
+
+def test_a_model_that_reads_no_images_declares_none(tmp_path: Path) -> None:
+    """opencode then tells the model it cannot see the image, rather than sending one it refuses."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup(reads_images=False))
+
+    model = next(iter(written(path)["provider"]["surfsense"]["models"].values()))
+    assert "modalities" not in model
+    assert "attachment" not in model
 
 
 @pytest.mark.parametrize(

@@ -1,15 +1,17 @@
 """The images tool: the figures SurfSense kept from the agent's sources, by the names scripts use."""
 
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from modules.agent.sources_folder import SOURCES
+from modules.agent.sources_folder import FIGURES, SOURCES, show_figure
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.documents.models import Document
 from modules.documents.source_figures import (
     FiguresPending,
     SourceFigure,
+    figure_file,
     list_figures,
 )
 
@@ -18,8 +20,11 @@ LISTING: dict[str, Any] = {
     "description": (
         "List the images SurfSense kept from sources: figures and charts from "
         "PDFs and Office files, and image files themselves. Each has the name to "
-        "pass in surfsense_render_document's images, its size in pixels, and its "
-        "page and caption when known."
+        "pass in surfsense_render_document's images, its size in pixels, its "
+        "page and caption when known, and a copy under "
+        f"{SOURCES}/{FIGURES}/ to open with read, for example to read a chart's "
+        "values. If read cannot show it to you, place the image with its caption "
+        "rather than guess what it shows."
     ),
     "inputSchema": {
         "type": "object",
@@ -72,18 +77,30 @@ def _source_images(session: Session, workspace_id: int, source_id: int) -> str:
     title = _one_line(session.get(Document, source_id).title)
     if not figures:
         return f'Source {source_id} ("{title}"): no images.'
-    return "\n".join(
-        [f'Source {source_id} ("{title}"):', *(_line(figure) for figure in figures)]
-    )
+    lines = [
+        _line(figure, show_figure(workspace_id, figure.name, png))
+        for figure in figures
+        if (png := _kept_png(session, workspace_id, figure)) is not None
+    ]
+    return "\n".join([f'Source {source_id} ("{title}"):', *lines])
 
 
-def _line(figure: SourceFigure) -> str:
-    """One image: its name, its size, then where it is and what it shows when known."""
+def _kept_png(session: Session, workspace_id: int, figure: SourceFigure) -> Path | None:
+    """The figure's file; None when it left the disk after it was listed."""
+    try:
+        return figure_file(session, workspace_id, figure.name)
+    except LookupError:
+        return None
+
+
+def _line(figure: SourceFigure, shown_at: str) -> str:
+    """One image: its name, its size, where it is and what it shows when known, and its copy."""
     parts = [f"{figure.width}x{figure.height} px"]
     if figure.page is not None:
         parts.append(f"page {figure.page}")
     caption = _one_line(figure.caption or "")
     parts.append(f'caption "{caption}"' if caption else "no caption")
+    parts.append(f"at {shown_at}")
     return f"- {figure.name}: {', '.join(parts)}"
 
 

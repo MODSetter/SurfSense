@@ -1,8 +1,10 @@
 """The folder of extracted text the agent reads: one Markdown file per ready source.
 
 opencode's own read, grep and glob work on files, so each source's Docling text
-is laid out as one. `sources/` is rebuilt from the database before each turn and
-is SurfSense's; `outputs/` beside it is the agent's and is never touched here.
+is laid out as one, and a figure the agent listed is copied to
+`sources/figures/<name>.png` for `read` to show it. `sources/` is rebuilt from
+the database before each turn and is SurfSense's; `outputs/` beside it is the
+agent's and is never touched here.
 """
 
 import os
@@ -14,9 +16,11 @@ from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.source_figures import parse_figure_name
 from shared.config import get_storage_settings
 
 SOURCES = "sources"
+FIGURES = "figures"
 OUTPUTS = "outputs"
 
 # An artifact is an output, not a source; it reaches the agent through Studio.
@@ -39,10 +43,14 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
     (folder / OUTPUTS).mkdir(exist_ok=True)
 
     # Every source's text is read to compare, on every turn (agent.md, Known gaps).
-    wanted = {
-        file_name(document.title, document.id): document.content.encode("utf-8")
+    ready = [
+        document
         for document in _ready_sources(session, workspace_id)
         if document.content is not None
+    ]
+    wanted = {
+        file_name(document.title, document.id): document.content.encode("utf-8")
+        for document in ready
     }
     for existing in sources.iterdir():
         if existing.is_file() and existing.name not in wanted:
@@ -51,7 +59,19 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
         path = sources / name
         if not _holds(path, text):
             _write_whole(path, text)
+    _drop_figures_of_others(sources / FIGURES, {document.id for document in ready})
     return folder
+
+
+def show_figure(workspace_id: int, name: str, png: Path) -> str:
+    """Copy a source's figure where the agent can open it; its path from the agent's folder."""
+    figures = get_storage_settings().agent_working_dir(workspace_id) / SOURCES / FIGURES
+    figures.mkdir(parents=True, exist_ok=True)
+    data = png.read_bytes()
+    path = figures / f"{name}.png"
+    if not _holds(path, data):
+        _write_whole(path, data)
+    return f"{SOURCES}/{FIGURES}/{path.name}"
 
 
 def file_name(title: str, document_id: int) -> str:
@@ -81,6 +101,16 @@ def _ready_source(workspace_id: int) -> tuple[ColumnElement[bool], ...]:
         Document.document_type.in_(_SOURCE_TYPES),
         Document.content.is_not(None),
     )
+
+
+def _drop_figures_of_others(figures: Path, source_ids: set[int]) -> None:
+    """A figure leaves with its source, as the source's text does."""
+    if not figures.is_dir():
+        return
+    for existing in figures.iterdir():
+        parsed = parse_figure_name(existing.stem)
+        if existing.suffix != ".png" or parsed is None or parsed[0] not in source_ids:
+            existing.unlink()
 
 
 def _holds(path: Path, text: bytes) -> bool:

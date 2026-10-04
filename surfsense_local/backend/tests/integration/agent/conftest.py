@@ -143,6 +143,7 @@ def opencode(
     setup = AgentSetup(
         model=MODEL,
         window=32768,
+        reads_images=False,
         endpoint_url=f"{scripted_model.url}/v1",
         launch_key="launch-key",
     )

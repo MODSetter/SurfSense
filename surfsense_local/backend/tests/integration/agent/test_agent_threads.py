@@ -295,6 +295,55 @@ async def test_listing_the_thread_reads_its_turns_from_opencode(
     assert [step["tool"] for step in assistant["content"]["steps"]] == ["glob"]
 
 
+SUMMARY = "## Objective\nList the sources.\n\n## Next Move\nAnswer."
+
+
+async def test_a_compaction_mid_turn_is_not_the_reply(agent_api: AgentAPI) -> None:
+    """opencode summarises the session for itself when the window fills; the user sees the answer."""
+    agent_api.model.replies = [
+        ("call-filling-the-window", json.dumps(GLOB)),
+        ("text", SUMMARY),
+        ("text", "Listed."),
+    ]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "List it")
+
+    # The summary was asked for, so the compaction really happened.
+    assert len(agent_api.model.requests) == 3
+    assert "".join(f["text"] for f in of_type(frames, "delta")) == "Listed."
+    assert of_type(frames, "completed")[0]["text"] == "Listed."
+    stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
+    assert [(turn["role"], turn["content"]["text"]) for turn in stored] == [
+        ("user", "List it"),
+        ("assistant", "Listed."),
+    ]
+    assert [step["tool"] for step in stored[1]["content"]["steps"]] == ["glob"]
+
+
+async def test_a_request_the_model_refuses_as_too_long_is_compacted_not_failed(
+    agent_api: AgentAPI,
+) -> None:
+    """opencode reports the overflow, summarises, sends the user's message again and answers."""
+    agent_api.model.replies = [
+        ("too-long", ""),
+        ("text", SUMMARY),
+        ("text", "Listed."),
+    ]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "List it")
+
+    assert len(agent_api.model.requests) == 3
+    assert of_type(frames, "error") == []
+    assert of_type(frames, "completed")[0]["text"] == "Listed."
+    stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
+    assert [(turn["role"], turn["content"]["text"]) for turn in stored] == [
+        ("user", "List it"),
+        ("assistant", "Listed."),
+    ]
+
+
 async def test_closing_the_stream_stops_the_turn(agent_api: AgentAPI) -> None:
     """Leaving the thread is the stop button: the agent must not keep working unseen."""
     agent_api.model.replies = [("stall", "Thinking about")]

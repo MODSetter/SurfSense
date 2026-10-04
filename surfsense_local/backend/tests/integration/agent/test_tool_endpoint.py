@@ -90,11 +90,18 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
-    assert "quiz" in listed["create_artifact"]["properties"]["format"]["enum"]
+    studio_formats = listed["create_artifact"]["properties"]["format"]
+    assert "quiz" in studio_formats["enum"]
+    # Word and PDF are scripts the agent renders, kept as versions it can edit.
+    assert not {"docx", "pdf"} & set(studio_formats["enum"])
+    assert "docx" not in studio_formats["description"]
     assert listed["render_document"]["required"] == ["title", "format", "script"]
     assert listed["render_document"]["properties"]["format"]["enum"] == ["docx", "pdf"]
     assert listed["read_document"]["required"] == ["artifact_id"]
     assert listed["list_images"]["required"] == ["source_ids"]
+    images = next(t for t in reply["result"]["tools"] if t["name"] == "list_images")
+    # A model that reads no images is told what to do instead of charting guesses.
+    assert "If read cannot show it to you" in images["description"]
     for schema in listed.values():
         assert schema["type"] == "object"
         assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
@@ -385,6 +392,27 @@ async def test_a_source_from_another_workspace_is_refused(
     )
 
     assert reply["result"]["isError"] is True
+    listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
+    assert listed == []
+
+
+@pytest.mark.parametrize("format", ["docx", "pdf"])
+async def test_a_word_or_pdf_job_is_sent_to_the_render_tool(
+    tools: ToolEndpoint, engine: Engine, format: str
+) -> None:
+    """A Studio draft keeps no script, so the agent could never edit it."""
+    workspace_id = await tools.workspace()
+    note_id = ready_note(engine, workspace_id)
+    choose_chat_model(engine)
+
+    reply = await tools.request(
+        workspace_id,
+        "tools/call",
+        create_artifact({"format": format, "source_ids": [note_id]}),
+    )
+
+    assert reply["result"]["isError"] is True
+    assert "surfsense_render_document" in reply["result"]["content"][0]["text"]
     listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
     assert listed == []
 
