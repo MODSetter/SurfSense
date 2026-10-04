@@ -15,12 +15,19 @@ dependencies = [
     "gguf==0.19.0",
     "httpx>=0.28.1",
     "huey>=3.3.4",
+    # Charts in document scripts (worker/document_script/): a script draws one
+    # and places the PNG in its Word file or PDF.
+    "matplotlib>=3.11.2",
     "onnxruntime>=1.20",
     # Chat images are normalised before they are stored or sent
     # (modules/chat/images). Docling brings it too; named so it cannot vanish.
     "pillow>=12",
     "pathvalidate>=3.2",
     "pydantic-settings>=2.7.0",
+    # Reads the text of a PDF a document script wrote
+    # (worker/studio/script_document). Docling brings it too; named so it
+    # cannot vanish.
+    "pypdfium2>=5.13.0",
     # Stops a plugin and every process it started (modules/plugins/runner).
     "psutil>=7",
     "python-docx>=1.2.0",

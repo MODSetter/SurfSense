@@ -76,12 +76,24 @@ datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += ["modules.documents.tasks", "modules.artifacts.tasks"]
 
+# Document scripts (worker/document_script/) draw charts, and nothing imports
+# matplotlib statically. Naming pyplot runs PyInstaller's own hooks, which add
+# mpl-data and the backend chosen below. savefig to .pdf or .svg, and PdfPages,
+# import their canvas by name, which the hooks do not follow.
+hiddenimports += [
+    "matplotlib.pyplot",
+    "matplotlib.backends.backend_pdf",
+    "matplotlib.backends.backend_svg",
+]
+
 a = Analysis(
     [str(BACKEND / "worker.py")],
     pathex=[str(BACKEND)],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
+    # Scripts run with MPLBACKEND=Agg; the default would also freeze Tk's GUI.
+    hooksconfig={"matplotlib": {"backends": "Agg"}},
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="worker", console=True)
