@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, 
 from pydantic import BaseModel, Field
 
 from modules.agent.previews import docx_snapshots
+from modules.agent.previews.snapshot_key import require_snapshot_key
 from modules.agent.tool_endpoint.allowed_callers import refuse_web_pages
 
 # Four pages of a document script's output are far below this; a body past it
@@ -15,8 +16,9 @@ PDF_BYTES = 50 * 1024 * 1024
 router = APIRouter(
     prefix="/agent/previews/docx-snapshots",
     tags=["agent"],
-    # Electron's main process sends no Origin; a page sharing loopback does.
-    dependencies=[Depends(refuse_web_pages)],
+    # A page sharing loopback sends an Origin; another local process sends
+    # none, and only Electron holds the key.
+    dependencies=[Depends(refuse_web_pages), Depends(require_snapshot_key)],
 )
 
 

@@ -1,7 +1,8 @@
 """Page images of a rendered document, for the agent to check what it made.
 
 PDF pages are drawn in the API. Word pages come back as a PDF from Electron,
-which a stand-in plays here over the real routes on a real port.
+which a stand-in plays here over the real routes on a real port, holding the
+key Electron hands the API at launch.
 """
 
 import asyncio
@@ -22,7 +23,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from api.main import create_app
-from modules.agent.previews import Previews, docx_snapshots, previews_for
+from modules.agent.previews import Previews, docx_snapshots, previews_for, snapshot_key
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
@@ -33,6 +34,8 @@ pytestmark = pytest.mark.integration
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PREVIEWS = "/agent/previews/docx-snapshots"
+SNAPSHOT_KEY = "the-key-electron-minted"
+ELECTRON = {"Authorization": f"Bearer {SNAPSHOT_KEY}"}
 
 
 @pytest.fixture(autouse=True)
@@ -41,6 +44,14 @@ def fresh_snapshots(monkeypatch: pytest.MonkeyPatch) -> docx_snapshots.DocxSnaps
     fresh = docx_snapshots.DocxSnapshots()
     monkeypatch.setattr(docx_snapshots, "snapshots", fresh)
     return fresh
+
+
+@pytest.fixture(autouse=True)
+def electron_launched_the_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The API was started by Electron, which chose the snapshot key."""
+    monkeypatch.setattr(
+        snapshot_key.get_snapshot_key_settings(), "docx_snapshot_key", SNAPSHOT_KEY
+    )
 
 
 @pytest.fixture
@@ -310,7 +321,7 @@ class StandInForElectron:
         self._thread.join(timeout=5)
 
     def _run(self) -> None:
-        with httpx.Client(base_url=self.base_url, timeout=10) as http:
+        with httpx.Client(base_url=self.base_url, headers=ELECTRON, timeout=10) as http:
             while not self._stop.is_set():
                 reply = http.get(f"{PREVIEWS}/next")
                 self.polled.set()
@@ -372,8 +383,8 @@ async def test_a_failure_electron_reports_becomes_the_reason(
 
 @pytest.fixture
 def http(base_url: str) -> Iterator[httpx.Client]:
-    """A client on the real API's port."""
-    with httpx.Client(base_url=base_url, timeout=10) as client:
+    """A client on the real API's port, holding Electron's key."""
+    with httpx.Client(base_url=base_url, headers=ELECTRON, timeout=10) as client:
         yield client
 
 
@@ -404,6 +415,62 @@ async def test_a_web_page_may_not_call_the_snapshot_routes(
     )
 
     assert reply.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("method", "route", "body"),
+    [
+        ("GET", "next", None),
+        ("POST", "some-request/pdf", b"%PDF-1.7"),
+        ("POST", "some-request/failure", b'{"reason": "no"}'),
+    ],
+)
+@pytest.mark.parametrize(
+    "authorization",
+    [None, "Bearer a-guess", SNAPSHOT_KEY],
+    ids=["no key", "another key", "the key without its scheme"],
+)
+async def test_a_caller_without_electrons_key_may_not_call_the_snapshot_routes(
+    base_url: str,
+    method: str,
+    route: str,
+    body: bytes | None,
+    authorization: str | None,
+) -> None:
+    """Another process on this machine sends no Origin either, so the key is what tells."""
+    headers = {} if authorization is None else {"Authorization": authorization}
+    with httpx.Client(base_url=base_url, timeout=10) as http:
+        reply = http.request(
+            method, f"{PREVIEWS}/{route}", content=body, headers=headers
+        )
+
+    assert reply.status_code == 401
+
+
+async def test_a_refused_poll_does_not_count_as_electron_running(
+    base_url: str, ready_artifact: Callable[..., Artifact]
+) -> None:
+    """A process polling without the key gets no request, and the API still says the app is not running."""
+    with httpx.Client(base_url=base_url, timeout=10) as http:
+        assert http.get(f"{PREVIEWS}/next").status_code == 401
+
+    artifact = ready_artifact("docx", _docx(), DOCX_MIME)
+    previews = await asyncio.to_thread(previews_for, artifact)
+
+    assert previews.pages == []
+    assert "desktop app" in (previews.reason or "")
+
+
+@pytest.mark.parametrize("no_key", [None, ""])
+async def test_an_api_electron_gave_no_key_refuses_every_caller(
+    http: httpx.Client, monkeypatch: pytest.MonkeyPatch, no_key: str | None
+) -> None:
+    """Started by hand beside an opencode, the API has no key to check, so nothing is let in."""
+    monkeypatch.setattr(
+        snapshot_key.get_snapshot_key_settings(), "docx_snapshot_key", no_key
+    )
+
+    assert http.get(f"{PREVIEWS}/next").status_code == 401
 
 
 async def test_an_answer_to_no_waiting_request_is_not_found(http: httpx.Client) -> None:

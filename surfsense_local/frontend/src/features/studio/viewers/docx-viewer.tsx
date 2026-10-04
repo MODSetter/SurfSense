@@ -14,6 +14,46 @@ const MIN_ZOOM = 0.25
 const MAX_ZOOM = 3
 const ZOOM_STEP = 1.1
 
+// The frame's own rules: it reaches nothing outside the file. A Word file's
+// styles are written into CSS as they come, so a font name can close its rule
+// and add one that loads a web image; this stops the load.
+const PAGES_POLICY =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
+
+/**
+ * The frame's document, readied for a Word file's pages. The frame keeps the
+ * file's CSS out of the app's window and runs no script; its policy comes
+ * first so it covers every style the file brings. Its base is its own
+ * address, so a link to a place in the file scrolls there instead of loading
+ * the app's address into the frame.
+ */
+function readyPages(frame: HTMLIFrameElement): Document | null {
+  const pages = frame.contentDocument
+  if (!pages || pages.head.querySelector("meta[http-equiv]")) return pages
+  const policy = pages.createElement("meta")
+  policy.httpEquiv = "Content-Security-Policy"
+  policy.content = PAGES_POLICY
+  const base = pages.createElement("base")
+  base.href = "about:blank"
+  pages.head.prepend(policy, base)
+  pages.body.style.margin = "0"
+  pages.body.style.background = "white"
+  return pages
+}
+
+/**
+ * A Word file's links come as written, so one can be a javascript: URL. Keep
+ * links to places in the file and drop the rest: the app opens no web page a
+ * document names.
+ */
+function disarmLinks(body: HTMLElement): void {
+  for (const link of body.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+    if (!link.getAttribute("href")?.startsWith("#")) {
+      link.removeAttribute("href")
+    }
+  }
+}
+
 export function DocxViewer({
   artifact,
   actionsContainer,
@@ -22,8 +62,7 @@ export function DocxViewer({
   actionsContainer: HTMLElement | null
 }) {
   const primary = artifact.files.find((file) => file.role === "primary")
-  const containerRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
   const [loading, setLoading] = useState(() => primary != null)
   const [error, setError] = useState<unknown>(null)
   const [retryKey, setRetryKey] = useState(0)
@@ -32,15 +71,15 @@ export function DocxViewer({
 
   useEffect(() => {
     void retryKey
-    const container = containerRef.current
-    const body = bodyRef.current
-    if (!container || !body || !primary) return
+    const frame = frameRef.current
+    const pages = frame && readyPages(frame)
+    if (!frame || !pages || !primary) return
 
     let cancelled = false
     setLoading(true)
     setError(null)
     setHasContent(false)
-    body.replaceChildren()
+    pages.body.replaceChildren()
 
     void (async () => {
       try {
@@ -84,23 +123,33 @@ export function DocxViewer({
         // new size, so the scroll area actually matches what's visible;
         // it's non-standard outside Chromium, which is fine since this is
         // an Electron-only app.
-        await renderAsync(buffer, body, body, {
+        // Each run lays out apart and goes in only if still current: a run
+        // cancelled mid-render still finishes, and must not replace a later
+        // version's pages. No altChunks: docx-preview puts their HTML in an
+        // unsandboxed iframe, where a script the file carries would run. Data
+        // URLs, the only images and fonts the frame's policy lets in.
+        const rendered = pages.createElement("div")
+        await renderAsync(buffer, rendered, rendered, {
           inWrapper: true,
           ignoreWidth: false,
           ignoreHeight: false,
+          renderAltChunks: false,
+          useBase64URL: true,
         })
         if (cancelled) return
+        disarmLinks(rendered)
+        pages.body.replaceChildren(rendered)
 
         // docx-preview's own injected styles set `.docx-wrapper`'s
         // background to gray (the padding around each white page) — an
         // inline style here beats that class rule's specificity.
-        const wrapper = body.querySelector<HTMLElement>(".docx-wrapper")
+        const wrapper = rendered.querySelector<HTMLElement>(".docx-wrapper")
         if (wrapper) wrapper.style.background = "white"
 
-        const page = body.querySelector<HTMLElement>(".docx")
+        const page = rendered.querySelector<HTMLElement>(".docx")
         const pageWidth = page?.offsetWidth
         if (pageWidth) {
-          const fit = container.clientWidth / pageWidth
+          const fit = frame.clientWidth / pageWidth
           setZoom(Math.min(1, Math.max(MIN_ZOOM, fit)))
         }
         setHasContent(true)
@@ -117,8 +166,14 @@ export function DocxViewer({
   }, [artifact.id, primary, retryKey])
 
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    const body = frameRef.current?.contentDocument?.body
+    body?.style.setProperty("zoom", String(zoom))
+  }, [zoom])
+
+  // The pages fill the frame, so Ctrl+wheel lands in its document.
+  useEffect(() => {
+    const pages = frameRef.current?.contentDocument
+    if (!pages) return
 
     const handleWheel = (event: WheelEvent) => {
       if (!event.ctrlKey) return
@@ -134,8 +189,8 @@ export function DocxViewer({
       )
     }
 
-    container.addEventListener("wheel", handleWheel, { passive: false })
-    return () => container.removeEventListener("wheel", handleWheel)
+    pages.addEventListener("wheel", handleWheel, { passive: false })
+    return () => pages.removeEventListener("wheel", handleWheel)
   }, [])
 
   const zoomIn = useCallback(() => {
@@ -178,11 +233,16 @@ export function DocxViewer({
   )
 
   return (
-    <div ref={containerRef} className="relative h-full overflow-auto bg-white">
+    <div className="relative h-full bg-white">
       {hasContent && actionsContainer
         ? createPortal(zoomControls, actionsContainer)
         : null}
-      <div ref={bodyRef} style={{ zoom }} />
+      <iframe
+        ref={frameRef}
+        title={artifact.title}
+        sandbox="allow-same-origin"
+        className="block h-full w-full border-0 bg-white"
+      />
       {loading ? (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
           <Spinner className="size-6" />

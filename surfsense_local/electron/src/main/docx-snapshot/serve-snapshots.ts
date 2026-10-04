@@ -2,6 +2,8 @@
 // has no Word converter: Electron lays the file out with the in-app viewer's
 // library and prints it. The API queues each request and waits; Electron polls
 // for them, as it polls for the image runtime, so the API needs no way in here.
+// Every call carries the key Electron handed the API at launch: any process on
+// the machine can reach loopback, and only Electron may take or answer a request.
 
 const ROUTES = "/agent/previews/docx-snapshots"
 
@@ -24,9 +26,13 @@ export type PrintDocx = (fileUrl: string, signal: AbortSignal) => Promise<Uint8A
 
 type SnapshotRequest = { id: string; file_url: string }
 
+type Api = { url: string; authorization: string; requestMs: number }
+
 /** Poll the API for Word documents to print until the returned stop is called. */
 export function serveDocxSnapshots(options: {
   apiUrl: string
+  /** The snapshot key the API was started with (SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY). */
+  key: string
   print: PrintDocx
   pollMs?: number
   printMs?: number
@@ -34,11 +40,13 @@ export function serveDocxSnapshots(options: {
 }): () => void {
   const {
     apiUrl,
+    key,
     print,
     pollMs = POLL_MS,
     printMs = PRINT_MS,
     requestMs = REQUEST_MS,
   } = options
+  const api: Api = { url: apiUrl, authorization: `Bearer ${key}`, requestMs }
   let stopped = false
   let timer: NodeJS.Timeout | undefined
   let printing = 0
@@ -47,12 +55,12 @@ export function serveDocxSnapshots(options: {
     let took = false
     if (printing < PRINTS_AT_ONCE) {
       try {
-        const request = await takeNext(apiUrl, requestMs)
+        const request = await takeNext(api)
         if (request) {
           took = true
           printing += 1
           // Not awaited: a request queued behind a slow print would outlive the API's wait.
-          void serve(apiUrl, request, print, printMs, requestMs)
+          void serve(api, request, print, printMs)
             .catch(() => {
               // The API is down or restarting; its waiter gives up on its own.
             })
@@ -77,28 +85,28 @@ export function serveDocxSnapshots(options: {
   }
 }
 
-async function takeNext(apiUrl: string, requestMs: number): Promise<SnapshotRequest | null> {
-  const reply = await fetch(`${apiUrl}${ROUTES}/next`, {
-    signal: AbortSignal.timeout(requestMs),
+async function takeNext(api: Api): Promise<SnapshotRequest | null> {
+  const reply = await fetch(`${api.url}${ROUTES}/next`, {
+    headers: { authorization: api.authorization },
+    signal: AbortSignal.timeout(api.requestMs),
   })
   if (reply.status !== 200) return null
   return (await reply.json()) as SnapshotRequest
 }
 
 async function serve(
-  apiUrl: string,
+  api: Api,
   request: SnapshotRequest,
   print: PrintDocx,
   printMs: number,
-  requestMs: number,
 ): Promise<void> {
-  const answer = `${apiUrl}${ROUTES}/${encodeURIComponent(request.id)}`
+  const answer = `${api.url}${ROUTES}/${encodeURIComponent(request.id)}`
   const fail = (reason: string) =>
     fetch(`${answer}/failure`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { authorization: api.authorization, "content-type": "application/json" },
       body: JSON.stringify({ reason: reason.slice(0, REASON_CHARS) || "unknown error" }),
-      signal: AbortSignal.timeout(requestMs),
+      signal: AbortSignal.timeout(api.requestMs),
     })
 
   const signal = AbortSignal.timeout(printMs)
@@ -110,7 +118,7 @@ async function serve(
   timedOut.catch(() => {})
   let pdf: Uint8Array
   try {
-    pdf = await Promise.race([print(new URL(request.file_url, apiUrl).href, signal), timedOut])
+    pdf = await Promise.race([print(new URL(request.file_url, api.url).href, signal), timedOut])
   } catch (error) {
     await fail(
       signal.aborted
@@ -123,9 +131,9 @@ async function serve(
   }
   const delivered = await fetch(`${answer}/pdf`, {
     method: "POST",
-    headers: { "content-type": "application/pdf" },
+    headers: { authorization: api.authorization, "content-type": "application/pdf" },
     body: pdf,
-    signal: AbortSignal.timeout(requestMs),
+    signal: AbortSignal.timeout(api.requestMs),
   })
   // 404: no one waits for it any more. Any other refusal would leave the waiter
   // sitting out its full time with no reason.

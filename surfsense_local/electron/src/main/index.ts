@@ -257,12 +257,13 @@ function watchAgentConfig(ctx: SidecarContext): void {
 // The agent looks at the pages of a Word document it made, and only Electron can
 // lay one out (docx-snapshot/). The API has the routes only beside an opencode.
 function serveWordPreviews(ctx: SidecarContext): void {
-  if (ctx.opencodeBinariesDir == null) return
+  if (ctx.docxSnapshotKey == null) return
   const page = app.isPackaged
     ? pathToFileURL(join(app.getAppPath(), "..", "frontend", "dist", "docx-snapshot.html"))
     : new URL("/docx-snapshot.html", DEV_RENDERER_URL)
   stopDocxSnapshots = serveDocxSnapshots({
     apiUrl: `http://${ctx.host}:${ctx.apiPort}`,
+    key: ctx.docxSnapshotKey,
     print: printInHiddenWindow(page),
   })
 }
@@ -349,6 +350,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     ctx.opencodeBinariesDir = opencodeBinariesDir
     ctx.opencodePort = await getFreePort(host)
     ctx.opencodePassword = randomBytes(32).toString("base64url")
+    ctx.docxSnapshotKey = randomBytes(32).toString("base64url")
     ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
     ctx.agentDir = join(dataDir, "agent")
     mkdirSync(ctx.agentDir, { recursive: true })

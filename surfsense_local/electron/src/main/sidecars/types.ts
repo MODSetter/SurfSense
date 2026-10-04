@@ -70,4 +70,9 @@ export interface SidecarContext {
   opencodeUrl?: string
   /** `<dataDir>/agent`: the config the API writes, and opencode's own home. */
   agentDir?: string
+  /**
+   * The key Electron presents on the API's Word snapshot routes, made at boot
+   * beside opencode's password: those routes exist only beside an opencode.
+   */
+  docxSnapshotKey?: string
 }

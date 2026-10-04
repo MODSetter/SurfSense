@@ -9,6 +9,7 @@ import {
   type MockInstance,
 } from "vitest"
 
+import { LETTER_WITH_HEADER_AND_FOOTER } from "./fixtures/letter-with-header-and-footer"
 import { LETTER_WITH_LOGO } from "./fixtures/letter-with-logo"
 import { REPORT_WITH_ALT_CHUNK } from "./fixtures/report-with-alt-chunk"
 import { layOutSnapshot } from "./snapshot-page"
@@ -106,6 +107,23 @@ describe("layOutSnapshot", () => {
     expect(failure).toBeNull()
     expect(document.body.textContent).toContain("Quarterly report")
     expect(document.body.querySelector("iframe")).toBeNull()
+  })
+
+  it("leaves out headers and footers, as the agent is told it does", async () => {
+    // Under print pagination docx-preview's header shows once, clipped, on the
+    // first page and its footer only after the last line, so a logo there
+    // would look misplaced. render_document tells the model they are left out.
+    serve(new Response(LETTER_WITH_HEADER_AND_FOOTER))
+
+    const failure = await layOutSnapshot(
+      `?file=${encodeURIComponent(FILE_URL)}`,
+      document
+    )
+
+    expect(failure).toBeNull()
+    expect(document.body.textContent).toContain("Client proposal")
+    expect(document.body.textContent).not.toContain("Acme letterhead")
+    expect(document.body.textContent).not.toContain("Confidential footer")
   })
 
   it("says why when the Word file cannot be fetched", async () => {

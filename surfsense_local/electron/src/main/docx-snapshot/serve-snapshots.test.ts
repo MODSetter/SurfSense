@@ -6,10 +6,15 @@ import test from "node:test"
 import { serveDocxSnapshots, type PrintDocx } from "./serve-snapshots.ts"
 
 const ROUTES = "/agent/previews/docx-snapshots"
+// The key Electron made at launch and handed to the API.
+const KEY = "snapshot-key"
 
 type Received = { method: string; path: string; type: string; body: Buffer }
 
-/** The API's snapshot routes: hands out `waiting` once each and records what comes back. */
+/**
+ * The API's snapshot routes: hands out `waiting` once each and records what
+ * comes back. Like the API, it refuses a call without the launch's key.
+ */
 async function fakeApi(
   waiting: { id: string; file_url: string }[],
   options: { port?: number; pdfStatus?: number; unansweredPolls?: number } = {},
@@ -21,6 +26,7 @@ async function fakeApi(
     const chunks: Buffer[] = []
     req.on("data", (chunk: Buffer) => chunks.push(chunk))
     req.on("end", () => {
+      if (req.headers.authorization !== `Bearer ${KEY}`) return res.writeHead(401).end()
       received.push({
         method: req.method ?? "",
         path: req.url ?? "",
@@ -71,6 +77,7 @@ test("with nothing waiting it keeps polling and prints nothing", async () => {
   let printed = 0
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: async () => {
       printed += 1
       return new Uint8Array()
@@ -93,7 +100,7 @@ test("a waiting document is printed from its file URL and the PDF posted back", 
     printedUrls.push(fileUrl)
     return new TextEncoder().encode("%PDF-1.7 two pages")
   }
-  const stop = serveDocxSnapshots({ apiUrl: api.url, print, pollMs: 5 })
+  const stop = serveDocxSnapshots({ apiUrl: api.url, key: KEY, print, pollMs: 5 })
 
   await until(() => api.answers().length === 1)
   stop()
@@ -110,6 +117,7 @@ test("a print that throws is reported as the request's failure", async () => {
   const api = await fakeApi([{ id: "req-2", file_url: "/artifacts/3/files/primary" }])
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: async () => {
       throw new Error("docx-preview could not read the file")
     },
@@ -133,6 +141,7 @@ test("a print past its time box is aborted and reported, so the API stops waitin
   let aborted = false
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     // Never settles, as a window torn down mid-print may not: the poller moves on anyway.
     print: (_fileUrl, signal) => {
       signal.addEventListener("abort", () => {
@@ -160,6 +169,7 @@ test("a reason too long for the API is cut to its 500 characters", async () => {
   const api = await fakeApi([{ id: "req-4", file_url: "/artifacts/3/files/primary" }])
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: async () => {
       throw new Error("x".repeat(2000))
     },
@@ -180,6 +190,7 @@ test("an API that is down is polled again until it answers", async () => {
   await down.close()
   const stop = serveDocxSnapshots({
     apiUrl: down.url,
+    key: KEY,
     print: async () => new TextEncoder().encode("%PDF-1.7"),
     pollMs: 5,
   })
@@ -201,6 +212,7 @@ test("a PDF the API refuses as too large is reported as the request's failure", 
   })
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: async () => new TextEncoder().encode("%PDF-1.7 eighty pages of charts"),
     pollMs: 5,
   })
@@ -224,6 +236,7 @@ test("a request waiting behind a slow print is printed at once, not after it", a
   let finishSlow = () => {}
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: (fileUrl) =>
       fileUrl.endsWith("/artifacts/1/files/primary")
         ? new Promise((resolve) => {
@@ -251,6 +264,7 @@ test("no more than three Word files are printed at once", async () => {
   const finish: (() => void)[] = []
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: () =>
       new Promise((resolve) => {
         finish.push(() => resolve(new TextEncoder().encode("%PDF-1.7")))
@@ -275,6 +289,7 @@ test("a poll the API never answers is given up, and polling goes on", async () =
   })
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
+    key: KEY,
     print: async () => new TextEncoder().encode("%PDF-1.7"),
     pollMs: 5,
     requestMs: 50,
@@ -285,4 +300,25 @@ test("a poll the API never answers is given up, and polling goes on", async () =
   await api.close()
 
   assert.equal(api.answers()[0].path, `${ROUTES}/req-7/pdf`)
+})
+
+test("a poll with another key is refused, and nothing is printed", async () => {
+  const api = await fakeApi([{ id: "req-8", file_url: "/artifacts/3/files/primary" }])
+  let printed = 0
+  const stop = serveDocxSnapshots({
+    apiUrl: api.url,
+    key: "a-key-from-an-earlier-launch",
+    print: async () => {
+      printed += 1
+      return new TextEncoder().encode("%PDF-1.7")
+    },
+    pollMs: 5,
+  })
+
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  stop()
+  await api.close()
+
+  assert.equal(printed, 0)
+  assert.deepEqual(api.received, [])
 })
