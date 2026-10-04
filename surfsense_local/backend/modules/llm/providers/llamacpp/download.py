@@ -20,6 +20,18 @@ TIMEOUT = httpx.Timeout(600.0, connect=10.0)
 _CHUNK = 1024 * 1024
 
 
+class ChecksumMismatchError(ValueError):
+    """A downloaded file's sha256 is not the one it was pinned to."""
+
+    def __init__(self, url: str, name: str, expected: str, actual: str) -> None:
+        self.url = url
+        self.expected = expected
+        self.actual = actual
+        super().__init__(
+            f"checksum mismatch for {name}: expected {expected}, got {actual}"
+        )
+
+
 async def download_gguf(
     url: str,
     destination: Path,
@@ -38,9 +50,12 @@ async def download_gguf(
     already = partial.stat().st_size if partial.exists() else 0
 
     headers = {"Range": f"bytes={already}-"} if already else {}
-    async with httpx.AsyncClient(
-        timeout=TIMEOUT, transport=transport, follow_redirects=True
-    ) as client, client.stream("GET", url, headers=headers) as reply:
+    async with (
+        httpx.AsyncClient(
+            timeout=TIMEOUT, transport=transport, follow_redirects=True
+        ) as client,
+        client.stream("GET", url, headers=headers) as reply,
+    ):
         reply.raise_for_status()
         resumed = reply.status_code == 206
         total = already + int(reply.headers.get("content-length", 0))
@@ -59,10 +74,7 @@ async def download_gguf(
         actual = _digest(partial)
         if actual != sha256:
             partial.unlink(missing_ok=True)
-            raise ValueError(
-                f"checksum mismatch for {destination.name}: "
-                f"expected {sha256}, got {actual}"
-            )
+            raise ChecksumMismatchError(url, destination.name, sha256, actual)
 
     partial.replace(destination)
     yield DownloadProgress("complete", completed=done, total=total)
