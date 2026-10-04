@@ -20,7 +20,12 @@ from modules.agent.agent_threads.thread_messages import agent_thread_messages
 from modules.agent.agent_threads.turn import agent_turn
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import selected_model_can_run_agent
-from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
+from modules.chat.budget import (
+    IMAGE_TOKENS,
+    answer_max_tokens,
+    history_budget,
+    image_room,
+)
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error, empty_reply_error
 from modules.chat.history import TokenCounter, build_messages
@@ -195,7 +200,7 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
-    _refuse_images_past_window(len(images), n_ctx)
+    _refuse_images_past_window(len(images), n_ctx, len(context) + len(payload.text))
     found = await _source_images(session, hits, sees, n_ctx, len(images))
     messages = await build_messages(
         context,
@@ -409,19 +414,25 @@ async def _accepted_images(
         ) from error
 
 
-def _refuse_images_past_window(attached: int, n_ctx: int | None) -> None:
-    """Refuse before anything is stored: trimming history cannot make room
-    for the turn's own images, so the model would only fail it later as
-    `context_too_long`. An unknown window lets the turn through."""
-    if n_ctx is None:
+def _refuse_images_past_window(
+    attached: int, n_ctx: int | None, text_chars: int
+) -> None:
+    """Refuse before anything is stored a turn whose images no projector could
+    fit: trimming history cannot make room for them, so the model would only
+    fail it later as `context_too_long`."""
+    room = image_room(n_ctx, text_chars)
+    if room is None or attached <= room:
         return
-    room = history_budget(n_ctx) // IMAGE_TOKENS
-    if attached > room:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"This model's context window has room for {room} images. "
-            "Send fewer, or choose a model with a larger window.",
+    raise HTTPException(
+        status.HTTP_409_CONFLICT,
+        (
+            "This model's context window has no room for images."
+            if room == 0
+            else f"This model's context window has room for at most {room} "
+            + ("image." if room == 1 else "images.")
         )
+        + " Send fewer, or choose a model with a larger window.",
+    )
 
 
 async def _source_images(

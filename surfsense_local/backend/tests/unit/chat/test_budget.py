@@ -9,8 +9,10 @@ from modules.chat.budget import (
     DEFAULT_HISTORY_TOKENS,
     QUESTION_CHARS,
     QUESTION_TOKENS,
+    SMALLEST_IMAGE_TOKENS,
     answer_max_tokens,
     history_budget,
+    image_room,
 )
 from modules.chat.schemas import MessageCreate
 
@@ -55,3 +57,32 @@ def test_the_question_cannot_exceed_its_share() -> None:
     MessageCreate(text="x" * QUESTION_CHARS + "   ")  # whitespace is stripped first
     with pytest.raises(ValidationError):
         MessageCreate(text="x" * (QUESTION_CHARS + 1))
+
+
+def test_image_room_is_unknown_without_a_window() -> None:
+    """A remote endpoint that reports no window is never refused on its images."""
+    assert image_room(None, 0) is None
+
+
+def test_three_images_fit_an_8192_window_at_the_cheapest_projector() -> None:
+    """Gemma 3 spends 256 per image: three cost 768, which a floor window holds."""
+    assert image_room(8192, len("what are these?")) >= 3
+
+
+def test_image_room_is_a_lower_bound_not_the_history_price() -> None:
+    """Only the reserve and the turn's own text are taken: a refusal must be sure."""
+    assert (
+        image_room(2048, 0) == (2048 - ANSWER_RESERVE_TOKENS) // SMALLEST_IMAGE_TOKENS
+    )
+
+
+def test_the_turns_own_text_takes_room_from_its_images() -> None:
+    """Long excerpts leave fewer images room."""
+    excerpts = 400 * CHARS_PER_TOKEN
+
+    assert image_room(2048, excerpts) < image_room(2048, 0)
+
+
+def test_a_window_smaller_than_the_reserve_has_no_room() -> None:
+    """Floors at zero rather than going negative."""
+    assert image_room(512, 0) == 0
