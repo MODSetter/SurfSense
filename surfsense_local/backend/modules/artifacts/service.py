@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
+from modules.artifacts.script_documents.spec import document_script
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
@@ -94,17 +95,20 @@ def create_artifact_job(
 
 
 def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
-    """Run a finished or failed artifact's job again: same sources and prompt.
+    """Run a finished or failed artifact's job again: same sources and prompt,
+    or the same document script.
 
-    The artifact_metadata that created it (sources, prompt, options) is still
+    The artifact_metadata that created it (sources, prompt, options, spec) is still
     there, so this resets the backing document and re-enqueues — no new row.
     """
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
         raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
-    available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
-    if not available:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    # A document script runs as stored: its format's models are never asked.
+    if document_script(artifact.artifact_metadata) is None:
+        available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
+        if not available:
+            raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
     document.status = DocumentStatus.PENDING
     document.error_message = None

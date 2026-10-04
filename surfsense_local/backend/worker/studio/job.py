@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
+from modules.artifacts.script_documents.spec import DocumentScript, document_script
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
@@ -26,7 +27,10 @@ from shared.db import create_db_engine, create_session_factory
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
+from worker.studio.script_document import pipeline as script_document
+from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist
+from worker.studio.shared.artifact import Built
 
 logger = logging.getLogger(__name__)
 
@@ -62,32 +66,11 @@ def _generate(session: Session, artifact: Artifact) -> None:
     notify_artifact_updates(artifact)
 
     try:
-        meta = artifact.artifact_metadata or {}
-        prompt = meta.get("prompt")
-        kind = job_router.Kind(artifact.format)
-        fmt = FORMATS_BY_KEY[kind]
-        # The prompt is what to search for, where the format reads passages.
-        query = prompt if fmt.grounding is Grounding.PASSAGES else None
-        sources = gather.gather(session, meta.get("source_document_ids", []), query)
-        logger.info(
-            "studio: artifact %s gathered %s sources (%s chars)",
-            artifact.id,
-            len(sources),
-            sum(len(source.content) for source in sources),
-        )
-        models = [
-            _choose_model(session, model_type)
-            for model_type in fmt.requires_model_types
-        ]
-        # Options were checked at job creation; only formats that take them get them.
-        extras = [meta.get("options")] if fmt.validate_options else []
-        # Generation runs for minutes; the write lock must not be held across it.
-        session.commit()
-        raise_if_cancelled(session, document)
-
-        # A cancel hangs up on a model mid-reply; other stages still finish first.
-        with cancellation.watching(lambda: raise_if_cancelled(session, document)):
-            built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        script = document_script(artifact.artifact_metadata)
+        if script is None:
+            built = _draft(session, artifact, document)
+        else:
+            built = _run_script(session, artifact, document, script)
         raise_if_cancelled(session, document)
 
         logger.info(
@@ -132,17 +115,70 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
             document.error_message,
         )
-        # A retry would repeat minutes of drafting and fail the same way.
+        # A retry would repeat minutes of drafting, or run the same script, and
+        # fail the same way.
         if isinstance(
             failure,
-            NonRetryableImageError | NonRetryableSpeechError | NotEnoughMemoryError,
+            NonRetryableImageError
+            | NonRetryableSpeechError
+            | NotEnoughMemoryError
+            | ScriptRunFailedError,
         ):
             return
         raise  # Huey retries; a later success clears the message.
 
 
+def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
+    """The format's pipeline: gather the sources, ask the model, build the file."""
+    meta = artifact.artifact_metadata or {}
+    prompt = meta.get("prompt")
+    kind = job_router.Kind(artifact.format)
+    fmt = FORMATS_BY_KEY[kind]
+    # The prompt is what to search for, where the format reads passages.
+    query = prompt if fmt.grounding is Grounding.PASSAGES else None
+    sources = gather.gather(session, meta.get("source_document_ids", []), query)
+    logger.info(
+        "studio: artifact %s gathered %s sources (%s chars)",
+        artifact.id,
+        len(sources),
+        sum(len(source.content) for source in sources),
+    )
+    models = [
+        _choose_model(session, model_type) for model_type in fmt.requires_model_types
+    ]
+    # Options were checked at job creation; only formats that take them get them.
+    extras = [meta.get("options")] if fmt.validate_options else []
+    # Generation runs for minutes; the write lock must not be held across it.
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    # A cancel hangs up on a model mid-reply; other stages still finish first.
+    with cancellation.watching(lambda: raise_if_cancelled(session, document)):
+        return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+
+
+def _run_script(
+    session: Session, artifact: Artifact, document: Document, script: DocumentScript
+) -> Built:
+    """The stored script runs as it is; no model is asked and no source is gathered."""
+    images = script_document.images_for(session, artifact.workspace_id, script)
+    title = document.title
+    # The script may run for two minutes; the write lock must not be held across it.
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    # A cancel kills the script and everything it started.
+    with cancellation.watching(lambda: raise_if_cancelled(session, document)):
+        return script_document.render(title, script, images)
+
+
 def _reason(failure: Exception) -> str:
-    """The one line the user reads in the tooltip; the traceback goes to the log."""
+    """The line the user reads in the tooltip; the traceback goes to the log.
+
+    A document script's traceback is the exception: the agent fixes its script from it.
+    """
+    if isinstance(failure, ScriptRunFailedError):
+        return failure.reason(MESSAGE_CHARS)
     if isinstance(failure, httpx.HTTPError):
         return f"The model could not be reached: {failure}"[:MESSAGE_CHARS]
     first_line = str(failure).strip().splitlines()[:1]

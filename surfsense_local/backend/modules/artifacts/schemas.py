@@ -9,6 +9,8 @@ from modules.artifacts.flashcard_progress import (
 )
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
+from modules.artifacts.script_documents.spec import SpecKind, spec_kind
+from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
 
 Prompt = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
@@ -99,6 +101,14 @@ class FlashcardOrderUpdate(BaseModel):
     order: list[CardIndex]
 
 
+class ArtifactVersionRead(BaseModel):
+    """Which version of a document an artifact is; the list shows each root once."""
+
+    root_id: int
+    number: int
+    parent_id: int | None
+
+
 class ArtifactRead(BaseModel):
     """An artifact and the state of its underlying ARTIFACT document."""
 
@@ -111,6 +121,9 @@ class ArtifactRead(BaseModel):
     error_message: str | None
     created_at: datetime
     updated_at: datetime
+    # None for an artifact Studio drafted: it keeps no spec and has no versions.
+    version: ArtifactVersionRead | None = None
+    spec_kind: SpecKind | None = None
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactRead":
@@ -125,6 +138,8 @@ class ArtifactRead(BaseModel):
             error_message=document.error_message,
             created_at=artifact.created_at,
             updated_at=artifact.updated_at,
+            version=_version(artifact),
+            spec_kind=spec_kind(artifact.artifact_metadata),
         )
 
 
@@ -154,6 +169,15 @@ class ArtifactDetail(ArtifactRead):
             quiz_state=_quiz_state(artifact),
             flashcard_state=_flashcard_state(artifact),
         )
+
+
+def _version(artifact: Artifact) -> ArtifactVersionRead | None:
+    version = version_of(artifact.artifact_metadata)
+    if version is None:
+        return None
+    return ArtifactVersionRead(
+        root_id=version.root, number=version.number, parent_id=version.parent
+    )
 
 
 def _quiz_state(artifact: Artifact) -> QuizStateRead | None:
