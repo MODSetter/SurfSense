@@ -486,7 +486,10 @@ async def _citation_titles(
     for payload in payloads:
         if not _CHUNK_ID_RE.fullmatch(payload):
             continue
-        chunk_id = int(payload)
+        try:
+            chunk_id = int(payload)
+        except ValueError:  # past Python's int-string digit limit
+            continue
         if _INT32_MIN <= chunk_id <= _INT32_MAX:
             chunk_ids.append(chunk_id)
     if not chunk_ids:

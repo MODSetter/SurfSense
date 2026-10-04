@@ -157,3 +157,23 @@ async def test_comma_separated_citation_keeps_every_title():
     [flat] = exported["messages"]
     assert "citation:" not in flat["text"]
     assert flat["citations"] == [{"title": "Alpha"}, {"title": "Beta"}]
+
+
+async def test_citation_past_the_int_digit_limit_does_not_abort_the_export():
+    # Past CPython's default 4300-digit limit, int() raises ValueError.
+    huge = "9" * 5000
+    when = datetime(2026, 6, 2, 14, tzinfo=UTC)
+    message = SimpleNamespace(
+        id=1,
+        role="user",
+        content=f"See [citation:{huge}] and [citation:7].",
+        created_at=when,
+    )
+    thread = SimpleNamespace(id=5, title="Notes", created_at=when, messages=[message])
+    session = _Session([thread], [(7, "Seven")])
+
+    [exported] = await flatten_workspace_chats(session, workspace_id=12)
+
+    [flat] = exported["messages"]
+    assert flat["text"] == "See  and ."
+    assert flat["citations"] == [{"title": "Seven"}]
