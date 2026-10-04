@@ -30,4 +30,10 @@ The user's sources are untrusted input, and a document can carry instructions ai
 
 ## Where the code stands
 
-Nothing is built. `bash` is `ask` in [`opencode_config.py`](../../surfsense_local/backend/modules/agent/opencode_config.py), Studio's Office code runs with `exec()` in [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py), and [`worker.py`](../../surfsense_local/backend/worker.py) has no script mode. The work is planned in [the create-and-edit slice](../proposals/file-agent/07-create-and-edit-mvp.md).
+The runner and the agent's side are built on `dev_mod` ([the create-and-edit slice](../proposals/file-agent/07-create-and-edit-mvp.md)):
+
+- **The runner.** [`worker/document_script/`](../../surfsense_local/backend/worker/document_script/) runs a script in a process of its own: the frozen worker binary in its `--run-document-script` mode when packaged, [`worker.py`](../../surfsense_local/backend/worker.py) on the backend's Python in development. It gives the script an empty folder, one output path, the images the call names and an environment built from a few system variables, with no key or secret. At 120 seconds, or on a cancel, it kills the script and everything it started: a job object holds them on Windows, a process group elsewhere ([studio](../architecture/studio.md#script-documents)).
+- **Kept with its version.** An agent's Word document or PDF is a script document: its script is the artifact's spec, each edit is a new version, and the next edit reads and changes that script.
+- **No shell.** `bash` is `deny` in [`opencode_config.py`](../../surfsense_local/backend/modules/agent/opencode_config.py), and the agent reaches the runner only through `surfsense_render_document` ([agent](../architecture/agent.md#documents-the-agent-makes)).
+
+Not yet: Studio's own Office formats still run with `exec()` in [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py), and nothing blocks a script's network access or the processes it starts.

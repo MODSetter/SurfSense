@@ -1,15 +1,15 @@
 # Studio
 
-Studio turns a selection of sources into a deliverable: a summary, a Word document, slides, a spreadsheet, a web page, a PDF, a mind map, flashcards, a quiz, a podcast, an image or an infographic. The user picks a format and sources and may add a prompt; a background job has the selected model write the content, and the app renders it, as a file for ten of the twelve formats. DOCX, PPTX, XLSX and PDF are rendered by model-written code instead (Known gaps). Each result is an ordinary `ARTIFACT` document, searchable and citable like any source, with a sidecar row for the format and the bytes.
+Studio turns a selection of sources into a deliverable: a summary, a Word document, slides, a spreadsheet, a web page, a PDF, a mind map, flashcards, a quiz, a podcast, an image or an infographic. The user picks a format and sources and may add a prompt; a background job has the selected model write the content, and the app renders it, as a file for ten of the twelve formats. DOCX, PPTX, XLSX and PDF are rendered by model-written code instead (Known gaps). Each result is an ordinary `ARTIFACT` document, searchable and citable like any source, with a sidecar row for the format and the bytes. The agent's Word documents and PDFs are Studio artifacts too: [script documents](#script-documents), each version a script that SurfSense keeps and runs in a separate process.
 
-**Code:** [`modules/artifacts/`](../../surfsense_local/backend/modules/artifacts/), [`worker/studio/`](../../surfsense_local/backend/worker/studio/), [`frontend/src/features/studio/`](../../surfsense_local/frontend/src/features/studio/)
-**Decisions:** [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0010](../adr/0010-studio-builders-not-sandboxes.md), [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md)
+**Code:** [`modules/artifacts/`](../../surfsense_local/backend/modules/artifacts/), [`worker/studio/`](../../surfsense_local/backend/worker/studio/), [`worker/document_script/`](../../surfsense_local/backend/worker/document_script/), [`frontend/src/features/studio/`](../../surfsense_local/frontend/src/features/studio/)
+**Decisions:** [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0010](../adr/0010-studio-builders-not-sandboxes.md), [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md), [ADR 0039](../adr/0039-document-scripts-run-without-approval.md)
 
 The tables, `artifacts` and `artifact_files`, are in [`data-model.md`](data-model.md#artifacts-and-artifact_files).
 
 ## The job seam
 
-[`service.py`](../../surfsense_local/backend/modules/artifacts/service.py)`::create_artifact_job(session, workspace, payload, *, tool_call_id=None)` is the one entry for every trigger. The REST route passes no `tool_call_id`, and neither does the agent's `surfsense_create_artifact`, whose call reaches SurfSense without one ([agent](agent.md#surfsenses-tools)). Explicit or agentic, same code.
+[`service.py`](../../surfsense_local/backend/modules/artifacts/service.py)`::create_artifact_job(session, workspace, payload, *, tool_call_id=None)` is the one entry for every format Studio drafts. The REST route passes no `tool_call_id`, and neither does the agent's `surfsense_create_artifact`, whose call reaches SurfSense without one ([agent](agent.md#surfsenses-tools)). Explicit or agentic, same code. A script document has its own entry, below.
 
 1. Look the format up in the catalog (`422` if unknown) and check that it is available (`409` with the reason if not).
 2. Resolve the sources: at least one (`422`), all in this workspace (`422`) and all `ready` (`409`).
@@ -46,7 +46,7 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 
 ## The builder rule, and where it is broken
 
-The rule ([ADR 0010](../adr/0010-studio-builders-not-sandboxes.md)): the model writes structured content, and a committed builder for that format renders it. Nothing the model wrote executes on the user's machine, so a bad reply is malformed JSON rather than arbitrary code, and there is no sandbox, no Docker and no receipt to verify. That is what lets Studio fit an offline app with weak local models. [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md) has since allowed model-written code to run on the user's machine without a sandbox; the builder rule still describes the eight formats below.
+The rule ([ADR 0010](../adr/0010-studio-builders-not-sandboxes.md)): the model writes structured content, and a committed builder for that format renders it. Nothing the model wrote executes on the user's machine, so a bad reply is malformed JSON rather than arbitrary code, and there is no sandbox, no Docker and no receipt to verify. That is what lets Studio fit an offline app with weak local models. [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md) has since allowed model-written code to run on the user's machine without a sandbox, and [ADR 0039](../adr/0039-document-scripts-run-without-approval.md) runs a model-written document script without asking in a process of its own; the builder rule still describes the eight formats below.
 
 Eight formats follow it:
 
@@ -61,7 +61,40 @@ Eight formats follow it:
 
 Four formats break it. DOCX, PPTX, XLSX and PDF go through `office/`: the tier prompt asks the model to "write one standalone Python script" for the format's library (python-docx, python-pptx, xlsxwriter or ReportLab), with a `SKILL.md` of authoring guidance beside each format, and [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py) runs the reply with `exec()` on a thread in the worker process. The script must leave the file's bytes in `output_bytes` and may set `title` and `summary`. A failing script goes back to the model with its error, for up to three attempts. The 120-second limit is a `thread.join`: it bounds how long the job waits, but it cannot stop a thread that ignores it, and the code runs with the worker's privileges. The module says so and names an out-of-process sandbox runner as the way up.
 
-There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is one `audio/wav` joined from each turn's WAV, or one `audio/mpeg` from a server that sends only MP3.
+Studio uses no Electron `printToPDF`, which only draws the agent's Word previews ([agent](agent.md#previews)), and there is no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path or a script document, and a podcast is one `audio/wav` joined from each turn's WAV, or one `audio/mpeg` from a server that sends only MP3.
+
+## Script documents
+
+The agent makes a Word document or a PDF by writing a Python script that SurfSense runs and keeps ([agent](agent.md#documents-the-agent-makes)). Studio's own Word and PDF buttons do not: they draft through `office/` as above.
+
+**The spec and the versions.** [`script_documents/service.py`](../../surfsense_local/backend/modules/artifacts/script_documents/service.py)`::create_script_document()` refuses a title outside 1 to 200 characters, a script outside 1 to 200,000, a format other than `docx` or `pdf`, an image name no source in the workspace has, and a base artifact outside the workspace or not a script document of the same format, each in a sentence the agent reads. It creates the `ARTIFACT` document, `pending` and titled as asked, and the `artifacts` row with that format and this `artifact_metadata`:
+
+```json
+{
+  "spec": {"kind": "python", "text": "<the script>", "format": "docx", "images": ["12-1"]},
+  "version": {"root": 40, "number": 2, "parent": 40},
+  "source_document_ids": [12],
+  "prompt": null
+}
+```
+
+Each version is its own artifact. v1 is its own root; a version made from another takes that one's root and the root's highest number plus one, and names it as its parent. Nothing is migrated: the keys live in `artifact_metadata`, and the `artifact_versions` table the [file agent proposal](../proposals/file-agent/03-editable-artifacts.md) designs replaces them later. The service commits, then enqueues `studio_job`. `ArtifactRead` and the detail carry `version` (`{root_id, number, parent_id}`) and `spec_kind`, both `null` for an artifact Studio drafted.
+
+**The job.** When the spec's kind is `python`, the job skips `job_router` and asks no model ([`script_document/pipeline.py`](../../surfsense_local/backend/worker/studio/script_document/pipeline.py)). It copies the PNG of each named source figure ([documents](documents.md#figures)) and runs the script through the runner with `OUTPUT_PATH` named `document.docx` or `document.pdf`. A file that does not open as its format fails the run ("the script wrote a file that is not a valid .docx"). The body is the file's text: a Word file's paragraphs and table rows in order, with headings marked, through python-docx, or a PDF's text layer through pypdfium2. The stored file is named after the title, with the characters no system accepts dropped. Status, cancellation and persisting are shared with every other job.
+
+**No retry.** A failed script document is never retried by Huey, whatever failed: running the same script fails the same way, and its agent reads the failure and renders the fix as the next version, which a retry turning the old one ready would race. Its reason is the error and as many of the traceback's last lines as fit in 500 characters. Regenerate on a ready one runs the same script again.
+
+**The runner** ([`document_script/run.py`](../../surfsense_local/backend/worker/document_script/run.py)) runs one script in its own process, because only a process can be stopped at its limit ([ADR 0039](../adr/0039-document-scripts-run-without-approval.md)):
+
+- **The folder.** A fresh `<data>/tmp/document-scripts/<uuid>/` holds `script.py` and `images/<name>.png`, and is removed afterwards. The script SurfSense stored is the spec, so a script that rewrites its own file changes nothing kept.
+- **The process.** The worker in its `--run-document-script <folder>` mode, which loads no queue, database or settings: the frozen worker binary when packaged, `worker.py` on the backend's Python in development. The child changes into the folder and runs `script.py` as `__main__`; a failure prints the traceback without the runner's own frames and exits 1.
+- **Its environment** is built, not inherited: `PATH`, plus `SYSTEMROOT`, `WINDIR`, `TEMP` and `TMP` on Windows or `HOME` and `LANG` elsewhere, then `OUTPUT_PATH`, `IMAGES_DIR`, `MPLBACKEND=Agg`, `MPLCONFIGDIR` inside the folder, `PYTHONUTF8=1` and `PYTHONDONTWRITEBYTECODE=1`. No key, secret or `OPENCODE_*` variable reaches it.
+- **The limit** is 120 seconds, and a cancelled job stops its script within a second. Either way the script and everything it started are killed: on Windows a job object holds them from the start and dies with the worker too; elsewhere the script leads its own process group, which it kills when the worker's end of its stdin closes.
+- **The result** is the file's bytes, or one line the agent can act on ("SyntaxError: …", "timed out after 120 s", "the script wrote no file at OUTPUT_PATH") and the last 30 lines of the traceback.
+
+The libraries a script may use are the worker's: python-docx, ReportLab, matplotlib, Pillow and numpy ([packaging](packaging.md)).
+
+**In Studio.** The list shows each document once, as its newest version with a "v3" badge, and opens the newest version that finished while the next one is still being made ([`artifact-versions.ts`](../../surfsense_local/frontend/src/features/studio/artifact-versions.ts)). The viewer has a version switcher, and a newer version of the open document opens itself when it appears. A failed version offers no Retry. Deleting the document deletes every version, after a dialog that counts them, and is refused while one is being made. An artifact without a version looks as it always has.
 
 ## Voicing a podcast
 
@@ -107,6 +140,7 @@ worker/studio/
 ├── shared/           gather, generate, persist, artifact (Source, Built), text parsing
 ├── content/          summary, mindmap, flashcards, quiz
 ├── office/           docx, pptx, xlsx, pdf: a spec and SKILL.md each, plus prompt and runner
+├── script_document/  a script document's run through worker/document_script/, and its text
 ├── web/html/
 └── media/
     ├── audio/podcast/    outline, draft, roster
@@ -121,7 +155,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - A job ([`job.py`](../../surfsense_local/backend/worker/studio/job.py)) marks the document `processing` unless it was cancelled, gathers the sources, resolves one model per required model type, and commits before rendering, so no write lock is held across a generation that can take minutes. It checks for a cancel before and after rendering.
 - [`persist.py`](../../surfsense_local/backend/worker/studio/shared/persist.py) sets the document's title and markdown, then chunks, embeds and indexes that body with the ingest code, so the artifact is searchable and citable. If the format has a file, it clears the artifact's folder and file rows and writes the file named by its role, recording its size and SHA-256. No pipeline writes a `preview` yet.
 - The document is created without a `dedup_key`, so it is never deduplicated against another document.
-- A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error, since the endpoint may already have generated, and billed, an image, and a podcast refused for memory, since a retry would draft the episode again and refuse again.
+- A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error, since the endpoint may already have generated, and billed, an image, a podcast refused for memory, since a retry would draft the episode again and refuse again, and any failure of a script document ([above](#script-documents)).
 - **Cancel** marks the document `cancelled` and revokes a queued copy. A running job stops at its next check. During a model call it checks every second, while tokens stream and while the model is still reading the prompt, and hangs up; closing the request stops llama-server within 1.5 seconds, measured through the router ([`generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py)). A podcast checks before voicing each turn, so the rest of the episode is never sent, and an office job checks before each attempt, so a cancelled job asks the model for no retry. The check is a context variable ([`shared/cancellation.py`](../../surfsense_local/backend/shared/cancellation.py)), in `shared/` because the audio.cpp provider reads it too.
 - Every Studio model call turns thinking off. Measured on Qwen3 1.7B: with it on, a mindmap over a 12,000-token prompt thought past 15,000 tokens without answering, holding the runtime's only slot so chat queued behind it.
 - **A job the app quit in the middle of** is failed with `interrupted when the app closed` when the Studio worker next starts, before it takes a job ([`interrupted_documents.py`](../../surfsense_local/backend/worker/interrupted_documents.py)): Huey dropped the job as it started it, so nothing else would end it, and Regenerate would refuse it forever.
@@ -159,7 +193,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 | Format | Viewer |
 |---|---|
 | `summary` | the markdown, rendered with Streamdown |
-| `docx` | rendered in the app with docx-preview |
+| `docx` | rendered in the app with docx-preview, inside a frame whose policy loads nothing but the file's own data-URL images and fonts and runs no script; no altChunk is rendered, and a link to anywhere but a place in the file is dropped |
 | `pptx` | rendered in the app with `@aiden0z/pptx-renderer` |
 | `xlsx` | parsed with ExcelJS |
 | `pdf` | pdf.js |
@@ -177,7 +211,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - Studio lives in the right rail: pick a format, pick sources, add an optional prompt, generate. The source picker is the same included set as the sources panel, so chat and Studio share one selection. An unavailable format shows the API's reason.
 - A podcast waits for its brief: the panel loads `GET .../studio/podcast/brief` and renders a form for style, duration and speakers before the job can be submitted.
-- The artifact list shows each artifact with its status, and each row can be opened, regenerated, cancelled or deleted.
+- The artifact list shows each artifact with its status, and each row can be opened, regenerated, cancelled or deleted. A script document's versions share one row ([above](#script-documents)).
 
 ## The image path
 
@@ -189,6 +223,9 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 ## Known gaps
 
-- Outside a model call, a cancel stops a job only between steps. The podcast turn being voiced, an office script already running and ingest's parsing and embedding run to their end first, because jobs are threads that cannot be killed; stopping a step in flight means running each job in a process the worker can kill.
-- DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread.
+- Outside a model call, a cancel stops a job only between steps. The podcast turn being voiced, an office script already running and ingest's parsing and embedding run to their end first, because jobs are threads that cannot be killed; stopping a step in flight means running each job in a process the worker can kill, as a script document's run already is.
+- Studio's own DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread. [ADR 0039](../adr/0039-document-scripts-run-without-approval.md) moves them onto the runner, which only script documents use so far.
+- A document script runs with the user's privileges: the runner gives it a clean environment and a time limit, but it can read any file the user can and open network connections ([ADR 0039](../adr/0039-document-scripts-run-without-approval.md)).
+- Persisting an artifact opens the write transaction, through `require_active_index()`, before it embeds the body, so the database's write lock is held for as long as embedding takes. The agent's render tool waits it out; any other writer gives up after SQLite's 5-second busy wait.
+- A failed script's stored reason repeats the run folder's absolute path in every traceback frame, about 130 characters each against its 500, so a long traceback keeps few of its lines for the agent.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.
