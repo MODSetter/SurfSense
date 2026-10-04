@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, 네트워크와 분리해 쓰는 오픈소스 NotebookLM 대안" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="Studio를 열고 Qwen을 선택한 SurfSense 데스크톱 앱. 로컬 자료를 결과물로 바꾸고 있다" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="Studio를 열고 Qwen을 선택한 SurfSense 데스크톱 앱. 로컬 자료를 결과물로 바꾸고 있다" />
 </p>
 
 SurfSense는 이미 가진 문서를 위한 무료 오픈소스 데스크톱 앱입니다. 끌어다 놓고 질문하면, 출처를 밝히는 답이 돌아옵니다. 같은 문서로 브리핑, 슬라이드, 보고서, 학습 가이드, 팟캐스트도 만듭니다. 전부 내 컴퓨터에서 돌아갑니다. 색인은 디스크에 있고, 모델은 내가 고르며, 앱은 아무것도 업로드하지 않습니다. 만들 계정도 없습니다.

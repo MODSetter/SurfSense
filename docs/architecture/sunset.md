@@ -1,6 +1,6 @@
 # Hosted sunset
 
-The hosted service went export-only on 18 Sep 2026 (T-0), and its user data is purged once the export window closes on 18 Oct 2026 (T+30). Every sunset behaviour sits behind flags read at runtime, because the same `surfsense_backend` and `surfsense_web` code is also the self-host stack, the scraper API and the license portal: with the flags unset nothing changes, and on the backend the flag takes effect only on a `DEPLOYMENT_MODE=cloud` deployment. Writes are refused and app routes redirect to `/sunset`, while reads, sign-in, export, the license business, PATs and the scraper API keep working.
+The hosted service went export-only on 18 Sep 2026 (T-0), and its user data is purged once the export window closes on 18 Oct 2026 (T+30). Every sunset behaviour sits behind flags read at runtime, because the same `surfsense_backend` and `surfsense_web` code is also the self-host stack, the scraper API and the license portal: with the flags unset nothing changes, and the flag takes effect only on a `DEPLOYMENT_MODE=cloud` deployment. Writes are refused and app routes redirect to `/sunset`, while reads, sign-in, export, the license business, PATs and the scraper API keep working.
 
 **Code:** [`surfsense_backend/app/sunset.py`](../../surfsense_backend/app/sunset.py), [`surfsense_web/proxy.ts`](../../surfsense_web/proxy.ts), [`surfsense_web/lib/sunset.ts`](../../surfsense_web/lib/sunset.ts), [`surfsense_backend/scripts/purge_hosted_accounts.py`](../../surfsense_backend/scripts/purge_hosted_accounts.py)
 **Decisions:** [ADR 0023](../adr/0023-sunset-behind-flags.md)
@@ -11,7 +11,11 @@ The operational steps are in the [sunset runbook](../../plans/community-local/su
 
 `is_sunset_mode()` reads `SUNSET_MODE` from the environment on every call, so throwing it takes a restart, never a rebuild or a deploy. It accepts `1`, `true`, `yes` and `on` in any case, because the switch is thrown once under time pressure, and a spelling that silently read as false would leave the service running with nothing to show it had failed. It returns false unless `DEPLOYMENT_MODE=cloud` ([PR #1815](https://github.com/MODSetter/SurfSense/pull/1815)), so a stray `SUNSET_MODE=1` copied into a self-hosted `.env` is a no-op rather than an outage. Production sets `DEPLOYMENT_MODE=cloud`.
 
-The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` on every request. It is deliberately not `NEXT_PUBLIC_SUNSET_MODE`: `NEXT_PUBLIC_*` values are inlined at build time, and nothing reads that name. So one variable is set in two places, the backend's `.env` and the web app's, and setting only one gives a half-sunset: a backend refusing writes behind an app that still looks open, or the reverse.
+The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` on every request. Like the backend, it counts only when `DEPLOYMENT_MODE` is `cloud`, resolved the way the runtime config resolves it: the runtime `DEPLOYMENT_MODE`, falling back to the build-time `NEXT_PUBLIC_DEPLOYMENT_MODE`. It is deliberately not `NEXT_PUBLIC_SUNSET_MODE`: `NEXT_PUBLIC_*` values are inlined at build time, and nothing reads that name. So one variable is set in two places, the backend's `.env` and the web app's, and setting only one gives a half-sunset: a backend refusing writes behind an app that still looks open, or the reverse.
+
+## Scheduled background work
+
+Celery Beat keeps its entries registered during the wind-down. The connector-indexing check (`check_periodic_schedules`), scheduled automation selector (`automation_schedule_select`), knowledge-store reindex sweep (`reindex_drifted_workspaces`) and drift check (`check_knowledge_store_drift`) return without starting user work when `is_sunset_mode()` is true. The same tasks keep their normal behavior when `is_sunset_mode()` is false and on self-hosted deployments. Billing reconciliation, gateway inbox/health/retention, queued-deliverable recovery, model-compatibility checks, stale-notification cleanup, refresh-token purging, cache eviction and knowledge-store working-copy pruning continue to run.
 
 ## Refusing writes
 
@@ -25,7 +29,7 @@ The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` 
 | `/api/v1/pats*` | PATs keep working until the T+30 purge, for MCP clients among others |
 | `/api/v1/workspaces/<id>/scrapers/` | the scraper API outlives the wind-down |
 
-Reads are never refused. That is why the middleware checks the method rather than listing every route that mutates something: export is a `GET`. The refusal's body is `{"detail": "SurfSense is export-only while the hosted service winds down. Your data is still available to export."}`.
+Reads are never refused. That is why the middleware checks the method rather than listing every route that mutates something: export is a `GET`. The refusal's body is `{"detail": "SurfSense is export-only while the hosted service winds down. Your data is still available to export.", "sunset_url": "https://surfsense.com/sunset"}`, where `sunset_url` comes from the same `sunset_url()` that `GET /health` reads, so setting `SUNSET_URL` changes both.
 
 ## Telling clients
 
@@ -48,12 +52,6 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 
 ## Known gaps
 
-- The web redirect is not gated on `DEPLOYMENT_MODE`: a self-hosted web app with `SUNSET_MODE` set redirects to `/sunset`.
-- The 410 body carries no `sunset_url`.
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
-- The purge script has no test.
-- Celery beat keeps scheduling its periodic tasks, connector indexing checks and automation triggers among them, and none checks `is_sunset_mode()`; the middleware covers HTTP only.
 - The synchronous export has no size warning and no timeout.
-- The web app's unit tests, `tests/unit/sunset-redirect.test.ts` among them, are not run in CI.
-- The runbooks do not mention `DEPLOYMENT_MODE`, which the flag and therefore the purge script both depend on.
-- `/sunset` has the export button, download links and import steps, but not the deletion date (18 Oct 2026), the refund-or-discount offer or the change for MCP users, which the launch plan put on it.
+- `/sunset` has the export button, the deletion date, download links and import steps, but not the refund-or-discount offer or the change for MCP users, which the launch plan put on it.

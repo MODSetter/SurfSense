@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from modules.license.models import LicenseState
-from modules.license.verify import MAX_CLOCK_DRIFT, Verified, verify
+from modules.license.verify import MAX_CLOCK_DRIFT, Verified, verify, verify_signature
 
 State = Literal["none", "active", "license_expired", "clock_untrusted"]
 
@@ -42,7 +42,9 @@ def status(session: Session) -> LicenseStatus:
     row = _row(session, instant)
     if row.certificate is None:
         return LicenseStatus(state="none")
-    return _status(row, verify(row.certificate, instant), instant)
+    # Only an import runs the clock checks. On a read, a clock behind
+    # `meta.issued` is the watermark's clock_untrusted below, not a rejection.
+    return _status(row, verify_signature(row.certificate), instant)
 
 
 def _status(row: LicenseState, verified: Verified, instant: datetime) -> LicenseStatus:

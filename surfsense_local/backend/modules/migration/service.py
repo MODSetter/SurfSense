@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.documents.models import Document, DocumentType
+from modules.documents.original_file import stored_name
 from modules.documents.storage import stream_upload, validate_upload
 from modules.documents.tasks import ingest_document
 from modules.migration.schemas import (
@@ -129,7 +130,9 @@ def _import_document(
 
     destination = storage.document_dir(workspace_id, document.id)
     destination.mkdir(parents=True, exist_ok=True)
-    streamed.path.replace(destination / f"original{path.suffix}")
+    streamed.path.replace(
+        destination / stored_name(exported.title, path.suffix.lower())
+    )
     session.commit()
     ingest_document(document.id)
 

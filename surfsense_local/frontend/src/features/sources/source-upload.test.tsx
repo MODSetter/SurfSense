@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
@@ -20,10 +26,18 @@ const pendingDocument = {
   id: 7,
   title: "guide.txt",
   document_type: "FILE" as const,
+  mime_type: null,
   status: "pending" as const,
   error_message: null,
   created_at: "2026-09-05T00:00:00Z",
   updated_at: "2026-09-05T00:00:00Z",
+}
+
+const pendingPdf = {
+  ...pendingDocument,
+  id: 9,
+  title: "report.pdf",
+  mime_type: "application/pdf",
 }
 
 function SourceHarness() {
@@ -51,9 +65,15 @@ function SourceHarness() {
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentIncluded}
         onToggleAll={sources.toggleAllIncluded}
+        onDropFiles={(files) => void sources.upload(files)}
       />
     </TooltipProvider>
   )
+}
+
+/** A drag carrying these files, as Chromium reports one from the desktop. */
+function carrying(files: File[]) {
+  return { dataTransfer: { types: ["Files"], files } }
 }
 
 beforeEach(() => {
@@ -78,6 +98,41 @@ afterEach(() => {
 })
 
 describe("source upload", () => {
+  it("previews a PDF source before ingestion finishes", async () => {
+    const user = userEvent.setup()
+    const onPreview = vi.fn()
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[pendingPdf]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onPreview={onPreview}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: "report.pdf" }))
+    expect(onPreview).toHaveBeenCalledWith(9)
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for report.pdf" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Preview" }))
+    expect(onPreview).toHaveBeenCalledTimes(2)
+  })
+
   it("uses selection, processing, and retry controls in the icon slot", () => {
     const ready = {
       ...pendingDocument,
@@ -395,11 +450,23 @@ describe("source upload", () => {
     )
   })
 
-  it("uploads multipart files, reports duplicates, and polls until ready", async () => {
+  it("uploads multipart files, reports duplicates, and shows the source ready when the workspace reports it", async () => {
     let uploaded = false
+    let events!: ReadableStreamDefaultController<Uint8Array>
+    const stream = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          events = controller
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } }
+    )
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
+        if (path === "/workspaces/1/events") {
+          return stream
+        }
         if (
           path ===
             "/workspaces/1/documents?document_type=FILE&document_type=NOTE" &&
@@ -453,6 +520,14 @@ describe("source upload", () => {
     expect(
       await screen.findByRole("status", { name: "Processing guide.txt" })
     ).toBeTruthy()
+    events.enqueue(
+      new TextEncoder().encode(
+        `: connected\n\nevent: documents\ndata: ${JSON.stringify({
+          ids: [pendingDocument.id],
+          status: "ready",
+        })}\n\n`
+      )
+    )
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("1 source added", {
         id: "source-upload-outcome",
@@ -480,6 +555,65 @@ describe("source upload", () => {
         ).toBe("true"),
       { timeout: 3000 }
     )
+  })
+
+  it("puts a new upload at the top before the list is refetched", async () => {
+    const existing = {
+      ...pendingDocument,
+      id: 3,
+      title: "old.txt",
+      status: "ready" as const,
+    }
+    const second = { ...pendingDocument, id: 8, title: "second.txt" }
+    let listed = 0
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (
+          path === "/workspaces/1/documents/upload" &&
+          init?.method === "POST"
+        ) {
+          return Response.json(
+            {
+              created: [pendingDocument, second],
+              duplicates: [],
+              rejected: [],
+            },
+            { status: 201 }
+          )
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          listed += 1
+          // Only the first load answers; a refetch never lands, so what shows
+          // after the upload is the panel's own update alone.
+          return listed === 1
+            ? Response.json([existing])
+            : new Promise<Response>(() => {})
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<SourceHarness />)
+    await screen.findByText("old.txt")
+    await user.upload(screen.getByLabelText("Upload source files"), [
+      new File(["a"], "guide.txt", { type: "text/plain" }),
+      new File(["b"], "second.txt", { type: "text/plain" }),
+    ])
+
+    await screen.findByText("second.txt")
+    const titles = screen
+      .getAllByRole("listitem")
+      .map((row) => row.textContent ?? "")
+    // Newest first, as the server lists them: the batch's later id leads.
+    expect(titles.findIndex((t) => t.includes("second.txt"))).toBe(0)
+    expect(titles.findIndex((t) => t.includes("guide.txt"))).toBe(1)
+    expect(titles.findIndex((t) => t.includes("old.txt"))).toBe(2)
   })
 
   it("rejects unsupported selections before uploading", async () => {
@@ -561,5 +695,82 @@ describe("source upload", () => {
     await user.click(firstCheckbox)
     expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
+  })
+
+  it("adds files dropped on the panel as sources", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (
+          String(input) === "/workspaces/1/documents/upload" &&
+          init?.method === "POST"
+        ) {
+          return Response.json(
+            { created: [pendingDocument], duplicates: [], rejected: [] },
+            { status: 201 }
+          )
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    render(<SourceHarness />)
+    await screen.findByText("No sources yet")
+    const panel = screen.getByRole("region", { name: "Sources" })
+    const file = new File(["local research"], "guide.txt", {
+      type: "text/plain",
+    })
+
+    fireEvent.dragEnter(panel, carrying([file]))
+    expect(screen.getByText("Drop files to add them as sources")).toBeTruthy()
+    fireEvent.drop(panel, carrying([file]))
+
+    await waitFor(() => {
+      const upload = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/workspaces/1/documents/upload" && init?.method === "POST"
+      )
+      expect((upload?.[1]?.body as FormData).get("files")).toBe(file)
+    })
+    expect(screen.queryByText("Drop files to add them as sources")).toBeNull()
+  })
+
+  it("ignores a drag that carries no files", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    render(<SourceHarness />)
+    await screen.findByText("No sources yet")
+
+    fireEvent.dragEnter(screen.getByRole("region", { name: "Sources" }), {
+      dataTransfer: { types: ["text/plain"], files: [] },
+    })
+
+    expect(screen.queryByText("Drop files to add them as sources")).toBeNull()
+  })
+
+  it("refuses an unsupported dropped file before uploading", async () => {
+    const fetchMock = vi.fn(async () => Response.json([]))
+    vi.stubGlobal("fetch", fetchMock)
+    render(<SourceHarness />)
+    await screen.findByText("No sources yet")
+
+    fireEvent.drop(
+      screen.getByRole("region", { name: "Sources" }),
+      carrying([new File(["content"], "unsupported.exe")])
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t add your source",
+        expect.objectContaining({
+          description: "Unsupported file type: unsupported.exe",
+        })
+      )
+    )
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/workspaces/1/documents/upload",
+      expect.anything()
+    )
   })
 })

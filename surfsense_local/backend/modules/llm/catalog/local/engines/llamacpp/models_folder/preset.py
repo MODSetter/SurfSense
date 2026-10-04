@@ -2,6 +2,7 @@
 reachable: Electron restarts the router on every change.
 """
 
+import configparser
 import logging
 from collections.abc import Sequence
 from pathlib import Path
@@ -20,6 +21,16 @@ from modules.llm.providers.llamacpp import PRESET_FILE, ModelPreset, write_prese
 logger = logging.getLogger(__name__)
 
 
+def preset_model_ids(models_dir: Path) -> frozenset[str]:
+    """The models already named in the runtime preset."""
+    parser = configparser.ConfigParser(interpolation=None, default_section="")
+    try:
+        parser.read(models_dir / PRESET_FILE)
+    except configparser.Error:
+        return frozenset()
+    return frozenset(parser.sections())
+
+
 def write_preset(
     models_dir: Path,
     installed: Sequence[DownloadedModel],
@@ -33,7 +44,7 @@ def write_preset(
             # runtime dead over a file nobody asked it to load.
             logger.warning("skipping unreadable model %s", model.path.name)
             continue
-        projector = model.projector if _pairs(model) else None
+        projector = model.projector if pairs_projector(model) else None
         mmproj_bytes = projector.stat().st_size if projector else 0
         plan = plan_load(
             model.shape,
@@ -55,7 +66,7 @@ def write_preset(
     write_presets(models_dir / PRESET_FILE, presets)
 
 
-def _pairs(model: DownloadedModel) -> bool:
+def pairs_projector(model: DownloadedModel) -> bool:
     """The recorded or name-matched projector, only when it sees and fits."""
     return (
         model.projector is not None

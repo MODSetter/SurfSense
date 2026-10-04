@@ -1,4 +1,4 @@
-import { requestJson, requestVoid } from "@/lib/api"
+import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 
 export type DocumentStatus =
   "pending" | "processing" | "ready" | "failed" | "cancelled"
@@ -7,6 +7,7 @@ export type WorkspaceDocument = {
   id: number
   title: string
   document_type: "FILE" | "NOTE"
+  mime_type: string | null
   status: DocumentStatus
   error_message: string | null
   created_at: string
@@ -94,6 +95,13 @@ export function listDocuments(
   )
 }
 
+export function originalDocumentUrl(
+  workspaceId: number,
+  documentId: number
+): string {
+  return apiUrl(`/workspaces/${workspaceId}/documents/${documentId}/original`)
+}
+
 export function retryDocument(
   workspaceId: number,
   documentId: number,
@@ -137,5 +145,49 @@ export function uploadDocuments(
   return requestJson<UploadOutcome>(
     `/workspaces/${workspaceId}/documents/upload`,
     { method: "POST", body, signal }
+  )
+}
+
+/** One document with its body: what the note editor reopens. */
+export type DocumentWithContent = WorkspaceDocument & { content: string | null }
+
+export function getDocument(
+  workspaceId: number,
+  documentId: number,
+  signal?: AbortSignal
+): Promise<DocumentWithContent> {
+  return requestJson<DocumentWithContent>(
+    `/workspaces/${workspaceId}/documents/${documentId}`,
+    { signal }
+  )
+}
+
+export function createNote(
+  workspaceId: number,
+  note: { title: string; content: string }
+): Promise<WorkspaceDocument> {
+  return requestJson<WorkspaceDocument>(
+    `/workspaces/${workspaceId}/documents`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(note),
+    }
+  )
+}
+
+/** Unset fields are left alone; only a note takes `content`. */
+export function updateDocument(
+  workspaceId: number,
+  documentId: number,
+  changes: { title?: string; content?: string }
+): Promise<WorkspaceDocument> {
+  return requestJson<WorkspaceDocument>(
+    `/workspaces/${workspaceId}/documents/${documentId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    }
   )
 }

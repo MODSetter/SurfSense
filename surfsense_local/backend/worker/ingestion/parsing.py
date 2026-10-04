@@ -3,9 +3,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import psutil
+
 from modules.documents.models import Document, DocumentType
-from modules.documents.storage import original_path
+from modules.documents.original_file import original_path
 from shared.config import get_storage_settings
+from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 
 # Already text: read off disk rather than round-trip through Docling.
@@ -18,41 +21,57 @@ def markdown_for(document: Document) -> str:
         return document.content or ""
 
     path = original_path(document)
-    if not path.is_file():
+    if path is None:
         raise FileNotFoundError("the uploaded file is no longer on disk")
 
-    markdown = _markdown_from(path)
-    # Kept beside the original so a reindex costs no re-parsing.
-    (path.parent / "extracted.md").write_text(markdown, encoding="utf-8")
-    return markdown
+    return _markdown_from(path)
 
 
 def _markdown_from(path: Path) -> str:
-    if path.suffix.lower() in TEXT_SUFFIXES:
+    suffix = path.suffix.lower()
+    if suffix in TEXT_SUFFIXES:
         return path.read_text(encoding="utf-8", errors="replace")
 
-    return _converter().convert(path).document.export_to_markdown()
+    # First: it sets the environment docling reads as it is imported.
+    converter = _converter()
+    source = as_page(path) if suffix in IMAGE_SUFFIXES else path
+    return converter.convert(source).document.export_to_markdown()
 
 
 @lru_cache(maxsize=1)
 def _converter() -> Any:
-    """Built once per process: the constructor loads the layout models."""
+    """Built once per process; the first conversion then loads the models."""
     # Docling otherwise writes weights into site-packages, read-only in a
     # frozen bundle. Set before docling is imported.
     os.environ.setdefault("HF_HOME", str(get_storage_settings().models_dir))
+    pack_ready = not missing_parser_folders()
+    if pack_ready:
+        # huggingface_hub reads this once, when docling first imports it.
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
     # Lazy: the import costs seconds and pulls in torch, which the API never needs.
+    from docling.datamodel.accelerator_options import AcceleratorOptions
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
-    from docling.document_converter import DocumentConverter, PdfFormatOption
+    from docling.document_converter import (
+        DocumentConverter,
+        ImageFormatOption,
+        PdfFormatOption,
+    )
 
     options = PdfPipelineOptions()
     options.do_ocr = True
     options.do_table_structure = True
-    if not missing_parser_folders():
+    # Docling's default is 4 threads; one per physical core parsed 1.4x faster
+    # on 8 cores. At most 8, as for audio.cpp, since chat may share the CPU.
+    options.accelerator_options = AcceleratorOptions(
+        num_threads=min(8, psutil.cpu_count(logical=False) or 4)
+    )
+    if pack_ready:
         options.artifacts_path = parser_dir()
-        options.ocr_options = RapidOcrOptions()
-        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        # The line classifier turns upright lines of a noisy scan 180 degrees,
+        # which then read as garbage; it cut scan error rates 8x to drop it.
+        options.ocr_options = RapidOcrOptions(use_cls=False)
 
     return DocumentConverter(
         allowed_formats=[
@@ -65,5 +84,10 @@ def _converter() -> Any:
             InputFormat.MD,
             InputFormat.IMAGE,
         ],
-        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)},
+        # The same options object: images read the pack too, and share the
+        # PDF pipeline instead of loading a second copy of every model.
+        format_options={
+            InputFormat.PDF: PdfFormatOption(pipeline_options=options),
+            InputFormat.IMAGE: ImageFormatOption(pipeline_options=options),
+        },
     )

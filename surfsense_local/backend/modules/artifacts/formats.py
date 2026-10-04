@@ -1,10 +1,20 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
 
 from sqlalchemy.orm import Session
 
 from modules.artifacts.podcast import brief
 from modules.llm.model_type import ModelType
+
+
+class Grounding(StrEnum):
+    """How a selection larger than the budget is cut down for a format."""
+
+    # The passages that best match the user's prompt, from every document.
+    PASSAGES = "passages"
+    # Each document from its start: the format reads a document's shape.
+    WHOLE = "whole"
 
 
 @dataclass(frozen=True)
@@ -18,18 +28,19 @@ class Format:
     # Checks and fills the request's options, or raises ValueError with why.
     # Formats without one take no options.
     validate_options: Callable[[Session, dict | None], dict] | None = None
+    grounding: Grounding = Grounding.PASSAGES
 
 
 # worker/studio/job_router.py must name every key here and nothing else
 # (asserted in tests/unit/worker).
 FORMATS: tuple[Format, ...] = (
-    Format("summary", "Summary"),
+    Format("summary", "Summary", grounding=Grounding.WHOLE),
     Format("docx", "Word"),
     Format("pptx", "Slides"),
     Format("xlsx", "Spreadsheet"),
     Format("html", "Web page"),
     Format("pdf", "PDF"),
-    Format("mindmap", "Mind map"),
+    Format("mindmap", "Mind map", grounding=Grounding.WHOLE),
     Format("flashcards", "Flashcards"),
     Format("quiz", "Quiz"),
     Format(

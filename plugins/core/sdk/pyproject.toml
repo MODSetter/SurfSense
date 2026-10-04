@@ -1,0 +1,65 @@
+[project]
+name = "surfsense-plugin-sdk"
+# Never published: the app ships it beside the plugin interpreter, so it moves
+# with the app's own version.
+version = "0.0.0"
+description = "What a SurfSense plugin imports to run inside the app: its actions, secrets, data folder, HTTP and the app's documents."
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+# None, ever: every plugin's own dependencies share its interpreter.
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.8", "pyright>=1.1.400"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["surfsense_plugin_sdk"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+markers = [
+    "unit: runs a plugin against a stub app, never the real one",
+    "contract: runs the SDK against the real app, started for the test",
+    "covers(verb): the public verb a contract test calls, such as document.add",
+]
+
+[tool.pyright]
+include = ["surfsense_plugin_sdk"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "RUF",
+    # Every package, public class, method and function says what it is for.
+    # Private helpers are held to the same in review: pydocstyle skips them.
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+]
+# Exceptions are named for what happened, as the protocol's HostNotDeclared is.
+ignore = ["N818"]
+
+[tool.ruff.format]
+quote-style = "double"

@@ -8,13 +8,10 @@ import {
   DOCS_URL,
   GITHUB_URL,
   LICENSE_URL,
-  bugReportUrl,
   releaseNotesUrl,
 } from "./about-links"
 import { CopyVersionButton } from "./copy-version-button"
 import { ExternalLink } from "./external-link"
-import { systemInfo } from "./system-info"
-import { Troubleshooting } from "./troubleshooting"
 import { useAppDetails } from "./use-app-details"
 
 function AppIdentity({ version }: { version?: string }) {
@@ -31,7 +28,7 @@ function AppIdentity({ version }: { version?: string }) {
         }}
       />
       <div className="flex flex-col">
-        <span className="font-heading text-lg font-medium">SurfSense</span>
+        <span className="brand-wordmark text-xl">SurfSense</span>
         {version ? (
           <div className="flex items-center gap-1">
             <span className="text-sm text-muted-foreground tabular-nums">
@@ -104,16 +101,6 @@ export function AboutSettings() {
               defaultMessage: "Community on Discord",
             })}
           </ExternalLink>
-          {details ? (
-            <ExternalLink
-              href={bugReportUrl(`\n\n---\n${systemInfo(details)}`)}
-            >
-              {intl.formatMessage({
-                id: "about_report_issue_link",
-                defaultMessage: "Report an issue",
-              })}
-            </ExternalLink>
-          ) : null}
         </div>
       </div>
 
@@ -138,8 +125,6 @@ export function AboutSettings() {
           })}
         </ExternalLink>
       </div>
-
-      {details ? <Troubleshooting details={details} /> : null}
     </SettingsSection>
   )
 }

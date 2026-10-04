@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, JsonValue, StringConstraints
 
 from modules.documents.models import DocumentStatus, DocumentType
 
@@ -13,8 +13,11 @@ DocumentTitle = Annotated[
 class NoteCreate(BaseModel):
     """A document the user writes directly, with no file behind it."""
 
+    model_config = ConfigDict(extra="forbid")
+
     title: DocumentTitle
     content: str
+    document_metadata: dict[str, JsonValue] | None = None
 
 
 class DocumentUpdate(BaseModel):
@@ -32,6 +35,7 @@ class DocumentRead(BaseModel):
     id: int
     title: str
     document_type: DocumentType
+    mime_type: str | None
     status: DocumentStatus
     error_message: str | None
     created_at: datetime
@@ -42,6 +46,7 @@ class DocumentDetail(DocumentRead):
     """One document, including the text that was extracted from it."""
 
     content: str | None
+    document_metadata: dict[str, JsonValue] | None
 
 
 class ChunkRead(BaseModel):

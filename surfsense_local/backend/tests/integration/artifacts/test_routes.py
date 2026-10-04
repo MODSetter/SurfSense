@@ -11,9 +11,11 @@ from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
-from shared.config import get_llm_settings
+from shared.config import get_llm_settings, get_storage_settings
 from shared.db import create_session_factory
 from shared.queue import studio_queue
+from tests.integration.llm import conftest as speech_server
+from tests.integration.llm.conftest import openai_server  # noqa: F401
 
 pytestmark = pytest.mark.integration
 
@@ -124,14 +126,11 @@ async def test_podcast_is_gated_on_an_audio_model(
     assert podcast["requires_model_types"] == ["text_gen", "audio_gen"]
 
 
-async def test_a_podcast_voices_only_on_this_computer(
-    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
-) -> None:
-    """A server's audio model can be chosen, but nothing calls a remote speech
-    endpoint yet, so the podcast says where the model must run."""
+def choose_server_voice(engine: Engine, base_url: str, name: str = "kokoro") -> None:
+    """A server's audio model as the podcast's voice."""
     with create_session_factory(engine)() as session:
         server = ProviderConnection(
-            label="speech server", provider="openai_compatible", base_url="http://tts"
+            label="speech server", provider="openai_compatible", base_url=base_url
         )
         session.add(server)
         session.flush()
@@ -140,16 +139,114 @@ async def test_a_podcast_voices_only_on_this_computer(
                 model_type=ModelType.AUDIO_GEN,
                 provider="openai_compatible",
                 connection_id=server.id,
-                name="tts-1",
+                name=name,
             )
         )
         session.commit()
 
+
+def podcast_job(engine: Engine, workspace_id: int, *voices: str) -> dict:
+    """A podcast job whose speakers take `voices`, one each, written in French."""
+    speakers = [
+        {"name": name, "role": "host", "voice": voice}
+        for name, voice in zip(("Ana", "Ben"), voices, strict=False)
+    ]
+    return {
+        "format": "podcast",
+        "document_ids": [make_ready_source(engine, workspace_id)],
+        "options": {"language": "fr", "speakers": speakers},
+    }
+
+
+async def test_a_server_that_lists_its_voices_fills_the_brief(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    openai_server: str,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Asked of the server, as Kokoro-FastAPI answers: its ids fill the picker,
+    and only they voice a job. It states no language, so any script one goes."""
+    monkeypatch.setattr(speech_server, "AUDIO_VOICES", ["af_heart", "am_adam"])
+    choose_server_voice(engine, openai_server)
+
+    brief_url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+    opened = (await client.get(brief_url)).json()
+    assert opened["voices_source"] == "server"
+    assert opened["voiced_by"] == {"server": "speech server", "model": "kokoro"}
+    assert [v["id"] for v in opened["voices"]] == ["af_heart", "am_adam"]
+    assert {v["gender"] for v in opened["voices"]} == {None}
+    assert "fr" in opened["languages"]
+    assert [s["voice"] for s in opened["brief"]["speakers"]] == ["af_heart", "am_adam"]
+
+    url = f"/workspaces/{workspace_id}/studio/jobs"
+    unlisted = await client.post(url, json=podcast_job(engine, workspace_id, "bf_emma"))
+    assert unlisted.status_code == 422
+    created = await client.post(
+        url, json=podcast_job(engine, workspace_id, "af_heart", "am_adam")
+    )
+    assert created.status_code == 201, created.text
+
+
+async def test_a_server_that_lists_no_voices_takes_the_ones_added_for_it(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    openai_server: str,  # noqa: F811
+) -> None:
+    """None is guessed: until voices are added in Settings the brief has none
+    and a job is refused; then they are its picker."""
+    choose_server_voice(engine, openai_server)
+    brief_url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+    url = f"/workspaces/{workspace_id}/studio/jobs"
+
+    opened = (await client.get(brief_url)).json()
+    assert (opened["voices_source"], opened["voices"]) == ("saved", [])
+    refused = await client.post(url, json=podcast_job(engine, workspace_id, "alloy"))
+    assert refused.status_code == 422
+    assert "Settings" in refused.json()["detail"]
+
+    for voice in ("alloy", "echo"):
+        added = await client.post("/llm/selection/audio_gen/voices", json={"voice": voice})
+        assert added.status_code == 201, added.text
+
+    opened = (await client.get(brief_url)).json()
+    assert [v["id"] for v in opened["voices"]] == ["alloy", "echo"]
+    created = await client.post(
+        url, json=podcast_job(engine, workspace_id, "alloy", "echo")
+    )
+    assert created.status_code == 201, created.text
+
+
+async def test_a_server_not_yet_allowed_is_not_asked(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """The format list reaches no server, and the brief asks one only once its
+    host is allowed: until then only the added voices stand."""
+    choose_server_voice(engine, "https://tts.example.com/v1")
+
     url = f"/workspaces/{workspace_id}/studio/formats"
     podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+    assert podcast["available"] is True
 
-    assert podcast["available"] is False
-    assert podcast["unavailable_reason"] == "Needs an audio model on this computer"
+    brief_url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+    opened = (await client.get(brief_url)).json()
+    assert (opened["voices_source"], opened["voices"]) == ("saved", [])
+
+
+async def test_a_model_on_this_computer_voices_from_its_roster(
+    client: AsyncClient,
+    workspace_id: int,
+    choose_model: None,
+    local_voice: None,
+) -> None:
+    """Nothing on a server: no line saying who voices it, grouped by gender."""
+    brief_url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+    opened = (await client.get(brief_url)).json()
+
+    assert (opened["voices_source"], opened["voiced_by"]) == ("local", None)
 
 
 KOKORO = ("kokoro-82m-q8_0", "Q8_0")
@@ -436,6 +533,30 @@ async def test_an_artifact_can_be_deleted(
 
     gone = await client.get(f"/artifacts/{artifact_id}")
     assert gone.status_code == 404
+
+
+async def test_deleting_an_artifact_through_its_document_takes_its_files(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """The sources list deletes a Studio output as a document; its blobs go too."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+    document_id = created.json()["document_id"]
+    with create_session_factory(engine)() as session:
+        session.get(Document, document_id).status = DocumentStatus.READY
+        session.commit()
+    directory = get_storage_settings().artifact_dir(workspace_id, artifact_id)
+    directory.mkdir(parents=True)
+    (directory / "summary.md").write_text("Saturn has rings.")
+
+    deleted = await client.delete(f"/workspaces/{workspace_id}/documents/{document_id}")
+
+    assert deleted.status_code == 204
+    assert not directory.exists()
 
 
 async def test_a_failed_artifact_can_be_regenerated(

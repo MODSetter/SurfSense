@@ -5,14 +5,17 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.embedding.choose import lock_chosen
 from modules.llm.catalog.local.dependencies import get_local_catalog
-from modules.llm.connections import discover_models
+from modules.llm.connections.listing import connection_models
 from modules.llm.connections.router import allowed_connection
+from modules.llm.connections.serves import connection_serves
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.profile import Fingerprint, from_name
 from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
+from modules.llm.providers.openai_responses import SignInRequiredError
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.selectable import selectable_for
 
@@ -110,6 +113,13 @@ def _store(
     if selected is None:
         selected = SelectedModel(model_type=model_type, name=model_name)
         session.add(selected)
+    elif (selected.provider, selected.connection_id, selected.name) != (
+        provider_name,
+        connection_id,
+        model_name,
+    ):
+        # Settings are the model's own; another model starts without them.
+        selected.settings = None
     selected.provider = provider_name
     selected.connection_id = connection_id
     selected.name = model_name
@@ -122,12 +132,13 @@ def _store(
     return selected
 
 
-def complete_onboarding(session: Session) -> bool:
+def complete_onboarding(session: Session, embedding_model: str | None = None) -> bool:
     if session.get(SelectedModel, ModelType.TEXT_GEN) is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "chat model required",
         )
+    lock_chosen(session, embedding_model)
     if session.get(OnboardingCompletion, 1) is None:
         session.add(OnboardingCompletion())
         session.flush()
@@ -226,9 +237,15 @@ async def _validate_remote(
             "remote selections require a connection",
         )
     connection = await transact(session, allowed_connection, connection_id)
+    # Before the unlisted override: no confirmation fills a slot it cannot serve.
+    if model_type not in connection_serves(connection):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"this connection does not serve {model_type.value}",
+        )
     try:
-        models = await discover_models(connection)
-    except (httpx.HTTPError, ValueError) as error:
+        models = await connection_models(session, connection)
+    except (httpx.HTTPError, ValueError, SignInRequiredError) as error:
         if not allow_unlisted:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -243,6 +260,14 @@ async def _validate_remote(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not listed by this connection: {model_name}",
+        )
+    # The same override as an unlisted model: a deliberate confirmation, never
+    # the default, keeps a model the manifest cannot call reachable on purpose.
+    if model.unusable_reason and not allow_unlisted:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"model cannot be used through this connection: {model_name}: "
+            f"{model.unusable_reason}; confirm manual selection to choose it anyway",
         )
     if model_type not in selectable_for(model.types, model.capability_known):
         raise HTTPException(

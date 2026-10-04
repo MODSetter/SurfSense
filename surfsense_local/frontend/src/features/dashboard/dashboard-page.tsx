@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
+import { ApprovalDialog } from "@/features/agent/approval-dialog"
 import { toast } from "sonner"
 import {
-  BugIcon,
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
@@ -26,10 +26,11 @@ import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
-import { openIssueReport } from "@/features/feedback/issue-report-state"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
+import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
+import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
@@ -47,6 +48,8 @@ import {
   SourcesPanel,
 } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { getFileViewer } from "@/features/file-viewers/registry"
+import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { StudioPanel } from "@/features/studio/studio-panel"
@@ -56,7 +59,12 @@ import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
-import { readRightPanelOpen, writeRightPanelOpen } from "./chrome-prefs"
+import {
+  readRightPanelOpen,
+  readSourcePreview,
+  writeRightPanelOpen,
+  writeSourcePreview,
+} from "./chrome-prefs"
 import { LeftSidebar } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
@@ -71,6 +79,9 @@ type Inspect =
   | { kind: "artifact"; artifactId: number }
   | null
 
+// The left sidebar's resting width, w-68.
+const SIDEBAR_WIDTH = 272
+
 function WorkspaceDashboard({
   workspace,
   selection,
@@ -82,6 +93,7 @@ function WorkspaceDashboard({
   onModelRequired,
   onModelSelected,
   onOpenLicense,
+  onOpenAudioSettings,
   modelsVisited,
 }: {
   workspace: Workspace
@@ -94,10 +106,14 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
+  onOpenAudioSettings: () => void
   modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
+  const [sourcePreviewId, setSourcePreviewId] = useState<number | null>(() =>
+    readSourcePreview(workspace.id)
+  )
   const sources = useSources(workspace.id)
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
@@ -111,13 +127,41 @@ function WorkspaceDashboard({
     workspaceId: workspace.id,
     canSend: providerAvailable,
     selectedDocumentIds: sources.includedDocumentIds,
+    readsImages: selection?.reads_images === true,
+    canSkipThinking: canSkipThinking(selection),
     onModelRequired,
   })
+  const sourcePreview = sources.documents.find(
+    (document) => document.id === sourcePreviewId
+  )
+  const sourcePreviewOpen =
+    sourcePreview?.document_type === "FILE" &&
+    getFileViewer(sourcePreview.mime_type) !== null
+
+  useEffect(() => {
+    if (sourcePreviewId === null || sources.isLoading) return
+    if (
+      !sourcePreview ||
+      sourcePreview.document_type !== "FILE" ||
+      !getFileViewer(sourcePreview.mime_type)
+    ) {
+      writeSourcePreview(workspace.id, null)
+    }
+  }, [sourcePreview, sourcePreviewId, sources.isLoading, workspace.id])
 
   const composerHold =
     modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
 
   const closeInspect = () => setInspect(null)
+  const closeSourcePreview = () => {
+    setSourcePreviewId(null)
+    writeSourcePreview(workspace.id, null)
+  }
+  const toggleSourcePreview = (documentId: number) => {
+    const next = sourcePreviewId === documentId ? null : documentId
+    setSourcePreviewId(next)
+    writeSourcePreview(workspace.id, next)
+  }
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -176,102 +220,133 @@ function WorkspaceDashboard({
         </div>
       </div>
       <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
-        <div className="flex h-full min-h-0 w-68 min-w-58 shrink-0 flex-col">
-          <LeftSidebar
-            threads={chat.threads}
-            activeThreadId={chat.activeThreadId}
-            autoNamingThreadId={chat.autoNamingThreadId}
-            animatingTitleThreadId={chat.animatingTitleThreadId}
-            isLoadingThreads={chat.isLoadingThreads}
-            onNewChat={() => {
-              closeInspect()
-              chat.startNewChat()
-            }}
-            onSelectThread={(threadId) => {
-              if (threadId !== chat.activeThreadId) closeInspect()
-              chat.selectThread(threadId)
-            }}
-            onRenameThread={chat.rename}
-            onDeleteThread={async (threadId) => {
-              if (threadId === chat.activeThreadId) closeInspect()
-              await chat.removeThread(threadId)
-            }}
-            onTitleAnimationComplete={chat.finishTitleAnimation}
-            actions={[
-              {
-                key: "plugins",
-                label: intl.formatMessage({
-                  id: "dashboard_sidebar_plugins_button",
-                  defaultMessage: "Plugins",
-                }),
-                icon: UnplugIcon,
-                badge: intl.formatMessage({
-                  id: "dashboard_sidebar_plugins_soon_label",
-                  defaultMessage: "Coming soon",
-                }),
-                // TODO: open the plugins panel once it exists.
-                onClick: () =>
-                  toast.info(
-                    intl.formatMessage({
-                      id: "dashboard_plugins_soon_toast",
-                      defaultMessage: "Plugins are coming soon",
-                    }),
-                    {
-                      description: intl.formatMessage({
-                        id: "dashboard_plugins_soon_body",
-                        defaultMessage:
-                          "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+        {/* A preview takes over the left column and widens it, as an
+            inspected artifact does the right one; the right panel stays put.
+            It shrinks, down to the sidebar's width, before the chat or the
+            right panel lose room on a narrow window. */}
+        <div
+          className="flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
+          style={{
+            width: sourcePreviewOpen ? DETAIL_RAIL_WIDTH : SIDEBAR_WIDTH,
+          }}
+        >
+          {sourcePreviewOpen && sourcePreview ? (
+            <SourcePreviewPanel
+              workspaceId={workspace.id}
+              document={sourcePreview}
+              onOpen={() => void sources.openOriginal(sourcePreview.id)}
+              onClose={closeSourcePreview}
+            />
+          ) : null}
+          {/* Hidden, not unmounted, so the sources list keeps its scroll. */}
+          <div
+            hidden={sourcePreviewOpen}
+            className="flex h-full min-h-0 flex-col"
+          >
+            <LeftSidebar
+              threads={chat.threads}
+              activeThreadId={chat.activeThreadId}
+              autoNamingThreadId={chat.autoNamingThreadId}
+              animatingTitleThreadId={chat.animatingTitleThreadId}
+              isLoadingThreads={chat.isLoadingThreads}
+              onNewChat={() => {
+                closeInspect()
+                chat.startNewChat()
+              }}
+              onSelectThread={(threadId) => {
+                if (threadId !== chat.activeThreadId) closeInspect()
+                chat.selectThread(threadId)
+              }}
+              onRenameThread={chat.rename}
+              onDeleteThread={async (threadId) => {
+                if (threadId === chat.activeThreadId) closeInspect()
+                await chat.removeThread(threadId)
+              }}
+              onTitleAnimationComplete={chat.finishTitleAnimation}
+              actions={[
+                {
+                  key: "plugins",
+                  label: intl.formatMessage({
+                    id: "dashboard_sidebar_plugins_button",
+                    defaultMessage: "Plugins",
+                  }),
+                  icon: UnplugIcon,
+                  badge: intl.formatMessage({
+                    id: "dashboard_sidebar_plugins_soon_label",
+                    defaultMessage: "Coming soon",
+                  }),
+                  // TODO: open the plugins panel once it exists.
+                  onClick: () =>
+                    toast.info(
+                      intl.formatMessage({
+                        id: "dashboard_plugins_soon_toast",
+                        defaultMessage: "Plugins are coming soon",
                       }),
+                      {
+                        description: intl.formatMessage({
+                          id: "dashboard_plugins_soon_body",
+                          defaultMessage:
+                            "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+                        }),
+                      }
+                    ),
+                },
+              ]}
+              sources={
+                <aside
+                  id={LEFT_SOURCES_ID}
+                  aria-label={intl.formatMessage({
+                    id: "dashboard_sources_aria",
+                    defaultMessage: "Workspace sources",
+                  })}
+                  className="flex h-full min-h-0 min-w-0 flex-col"
+                >
+                  <SourcesPanel
+                    documents={sources.documents}
+                    selectedDocumentIds={sources.includedDocumentIds}
+                    highlightedDocumentId={null}
+                    isLoading={sources.isLoading}
+                    isDeleting={sources.isDeleting}
+                    error={sources.error}
+                    addAction={
+                      <SourcesAddButton
+                        isUploading={sources.isUploading}
+                        onUpload={(files) => void sources.upload(files)}
+                      />
                     }
-                  ),
-              },
-              {
-                key: "report-issue",
-                label: intl.formatMessage({
-                  id: "dashboard_sidebar_report_issue_button",
-                  defaultMessage: "Report issue",
-                }),
-                icon: BugIcon,
-                onClick: () => openIssueReport(),
-              },
-            ]}
-            sources={
-              <aside
-                id={LEFT_SOURCES_ID}
-                aria-label={intl.formatMessage({
-                  id: "dashboard_sources_aria",
-                  defaultMessage: "Workspace sources",
-                })}
-                className="flex h-full min-h-0 min-w-0 flex-col"
-              >
-                <SourcesPanel
-                  documents={sources.documents}
-                  selectedDocumentIds={sources.includedDocumentIds}
-                  highlightedDocumentId={null}
-                  isLoading={sources.isLoading}
-                  isDeleting={sources.isDeleting}
-                  error={sources.error}
-                  addAction={
-                    <SourcesAddButton
-                      isUploading={sources.isUploading}
-                      onUpload={(files) => void sources.upload(files)}
-                    />
-                  }
-                  onOpen={(id) => void sources.openOriginal(id)}
-                  onReveal={(id) => void sources.revealOriginal(id)}
-                  onRetry={(id) => void sources.retry(id)}
-                  onCancel={(id) => void sources.cancel(id)}
-                  onDelete={(id) => void sources.deleteOne(id)}
-                  onDeleteSelected={() => void sources.deleteSelected()}
-                  onSelectionChange={sources.setDocumentIncluded}
-                  onToggleAll={sources.toggleAllIncluded}
-                />
-              </aside>
-            }
-            footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
-          />
+                    onDropFiles={
+                      sources.isUploading
+                        ? undefined
+                        : (files) => void sources.upload(files)
+                    }
+                    onOpen={(id) => void sources.openOriginal(id)}
+                    onPreview={toggleSourcePreview}
+                    onReveal={(id) => void sources.revealOriginal(id)}
+                    onRetry={(id) => void sources.retry(id)}
+                    onCancel={(id) => void sources.cancel(id)}
+                    onDelete={(id) => void sources.deleteOne(id)}
+                    onDeleteSelected={() => void sources.deleteSelected()}
+                    onSelectionChange={sources.setDocumentIncluded}
+                    onToggleAll={sources.toggleAllIncluded}
+                    onRename={sources.rename}
+                    notes={{
+                      write: sources.writeNote,
+                      load: sources.loadNote,
+                      edit: sources.editNote,
+                    }}
+                  />
+                </aside>
+              }
+              footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
+            />
+          </div>
         </div>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          <ApprovalDialog
+            request={chat.approvals[0] ?? null}
+            othersWaiting={Math.max(0, chat.approvals.length - 1)}
+            onAnswer={chat.answerApproval}
+          />
           <ThreadPanel
             runtime={chat.runtime}
             thread={chat.activeThread}
@@ -279,7 +354,6 @@ function WorkspaceDashboard({
             model={selection}
             isLoading={chat.isLoadingMessages}
             isRunning={chat.isRunning}
-            isUploading={sources.isUploading}
             animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
             providerAvailable={providerAvailable}
             notice={
@@ -299,8 +373,9 @@ function WorkspaceDashboard({
             onModelSetup={onModelRequired}
             onModelSelected={onModelSelected}
             onRetry={chat.retry}
-            onUpload={(files) => void sources.upload(files)}
             sourceCount={sources.includedDocumentIds.length}
+            onUploadSources={(files) => void sources.upload(files)}
+            isUploadingSources={sources.isUploading}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}
             onRename={chat.rename}
@@ -343,6 +418,7 @@ function WorkspaceDashboard({
                   isCreating={studio.isCreating}
                   error={studio.error}
                   onGenerate={studio.create}
+                  onSetUpVoices={onOpenAudioSettings}
                 />
               }
               artifacts={
@@ -472,6 +548,12 @@ export function DashboardPage({
     setSettingsSection(section)
     setSettingsOpen(true)
   }
+  // The menu has Settings to go to here, once a workspace renders it;
+  // otherwise it opens the dialog.
+  useHelpMenuReport(
+    () => openSettings("report-issue"),
+    Boolean(workspaces.activeWorkspace)
+  )
 
   // Checked when the model changes, when settings close (a key entered again,
   // egress switched, a connection edited) and after egress is allowed.
@@ -560,6 +642,7 @@ export function DashboardPage({
         onModelRequired={() => openSettings("chat-models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}
+        onOpenAudioSettings={() => openSettings("audio-models")}
         modelsVisited={modelsVisited}
       />
       <SettingsDialog

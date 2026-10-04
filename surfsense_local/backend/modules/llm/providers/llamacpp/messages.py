@@ -6,6 +6,7 @@ told is a property of the model, and belongs here.
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 from modules.llm.providers.llamacpp.capabilities import Capabilities
 from modules.llm.providers.types import Message
@@ -21,6 +22,10 @@ def for_template(
     model answers without the sources or the citation format and sounds exactly
     as confident as it would have otherwise.
     """
+    if not capabilities.can_see:
+        # A thread keeps its pictures after a switch to a text model and goes on
+        # as text; llama-server would refuse the whole turn otherwise.
+        messages = [replace(m, images=()) if m.images else m for m in messages]
     if capabilities.system_role:
         return list(messages)
 
@@ -31,5 +36,5 @@ def for_template(
 
     preamble = "\n\n".join(m.content for m in system)
     first, *later = rest
-    folded = Message(first.role, f"{preamble}\n\n{first.content}")
+    folded = replace(first, content=f"{preamble}\n\n{first.content}")
     return [folded, *later]

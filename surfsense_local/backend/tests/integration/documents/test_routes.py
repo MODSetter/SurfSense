@@ -32,6 +32,31 @@ async def test_an_unknown_workspace_is_not_an_empty_list(client: AsyncClient) ->
     assert response.status_code == 404
 
 
+async def test_documents_are_listed_newest_first(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A fresh upload, still indexing, sits at the top of the sources list.
+
+    One batch shares its second of `created_at`, so the id breaks the tie and
+    the batch keeps the order it was uploaded in, reversed with the rest.
+    """
+    await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("first.txt", b"alpha", "text/plain")},
+    )
+    await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("second.txt", b"beta", "text/plain")),
+            ("files", ("third.txt", b"gamma", "text/plain")),
+        ],
+    )
+
+    listed = (await client.get(f"/workspaces/{workspace_id}/documents")).json()
+
+    assert [d["title"] for d in listed] == ["third.txt", "second.txt", "first.txt"]
+
+
 async def test_a_note_starts_pending(client: AsyncClient, workspace_id: int) -> None:
     """A note needs no parsing, but it is not searchable until the worker indexes it."""
     response = await client.post(
@@ -43,6 +68,110 @@ async def test_a_note_starts_pending(client: AsyncClient, workspace_id: int) -> 
     assert response.json()["document_type"] == "NOTE"
     assert response.json()["status"] == "pending"
     assert response.json()["content"] == "# Kickoff\n\nagreed to ship"
+
+
+PLUGIN_NOTE_METADATA = {
+    "plugin_id": "example",
+    "plugin_version": None,
+    "action": "count-words",
+    "run_id": 41,
+}
+
+
+async def test_a_note_keeps_the_document_metadata_it_was_written_with(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A plugin names itself on the notes it adds, and reading the note gives it back."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={
+            "title": "Word count #1",
+            "content": "a b a",
+            "document_metadata": PLUGIN_NOTE_METADATA,
+        },
+    )
+
+    read = await client.get(
+        f"/workspaces/{workspace_id}/documents/{created.json()['id']}"
+    )
+
+    assert created.status_code == 201
+    assert read.json()["document_metadata"] == PLUGIN_NOTE_METADATA
+
+
+async def test_a_note_written_without_document_metadata_has_none(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A note the user writes in the app says nothing about where it came from."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "x"},
+    )
+
+    read = await client.get(
+        f"/workspaces/{workspace_id}/documents/{created.json()['id']}"
+    )
+
+    assert read.json()["document_metadata"] is None
+
+
+async def test_document_rows_expose_file_mime_type_but_not_note_metadata(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Only a FILE's server-validated MIME type may select its viewer."""
+    uploaded = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    note = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={
+            "title": "Note",
+            "content": "text",
+            "document_metadata": {"mime_type": "application/pdf"},
+        },
+    )
+
+    assert uploaded.json()["created"][0]["mime_type"] == "application/pdf"
+    assert note.json()["mime_type"] is None
+
+
+async def test_editing_a_note_keeps_its_document_metadata(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """The note still came from the plugin after its text changes."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={
+            "title": "Word count #1",
+            "content": "a b a",
+            "document_metadata": PLUGIN_NOTE_METADATA,
+        },
+    )
+    document_id = created.json()["id"]
+
+    await client.patch(
+        f"/workspaces/{workspace_id}/documents/{document_id}",
+        json={"title": "Word count #2", "content": "b a b"},
+    )
+    read = await client.get(f"/workspaces/{workspace_id}/documents/{document_id}")
+
+    assert read.json()["document_metadata"] == PLUGIN_NOTE_METADATA
+
+
+async def test_a_note_with_a_field_the_app_does_not_know_is_refused(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A client and the app that disagree on a name find out at once, not by losing it."""
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "x", "metadata": {"plugin_id": "x"}},
+    )
+    listed = await client.get(f"/workspaces/{workspace_id}/documents")
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "metadata"]
+    assert listed.json() == []
 
 
 async def test_the_list_omits_document_content(
@@ -183,6 +312,84 @@ async def test_a_cited_chunk_returns_its_document_window(
     assert missing.status_code == 404
 
 
+async def test_a_note_reads_back_by_id(client: AsyncClient, workspace_id: int) -> None:
+    """Reopening a note the user wrote yesterday reads its body from the row."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "# Kickoff\n\nagreed to ship"},
+    )
+    document_id = created.json()["id"]
+
+    response = await client.get(f"/workspaces/{workspace_id}/documents/{document_id}")
+
+    assert response.status_code == 200
+    assert response.json()["document_type"] == "NOTE"
+    assert response.json()["content"] == "# Kickoff\n\nagreed to ship"
+
+
+async def test_a_document_is_not_reachable_from_another_workspace(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """One workspace's id must not read another workspace's document."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "x"},
+    )
+    other = (await client.post("/workspaces", json={"name": "Other"})).json()["id"]
+
+    response = await client.get(f"/workspaces/{other}/documents/{created.json()['id']}")
+
+    assert response.status_code == 404
+
+
+async def test_a_file_reads_back_with_its_extracted_body(
+    client: AsyncClient, workspace_id: int, engine: Engine
+) -> None:
+    """A file's body is what the worker extracted; a fresh upload has none yet.
+
+    An artifact is an ordinary document (ADR 0003) and comes back the same way.
+    """
+    with engine.begin() as connection:
+        for row in (
+            {
+                "id": 1,
+                "title": "report.pdf",
+                "status": DocumentStatus.READY,
+                "content": "extracted",
+            },
+            {
+                "id": 2,
+                "title": "fresh.pdf",
+                "status": DocumentStatus.PENDING,
+                "content": None,
+            },
+        ):
+            connection.execute(
+                insert(Document).values(
+                    workspace_id=workspace_id, document_type=DocumentType.FILE, **row
+                )
+            )
+        connection.execute(
+            insert(Document).values(
+                id=3,
+                workspace_id=workspace_id,
+                title="Summary",
+                document_type=DocumentType.ARTIFACT,
+                status=DocumentStatus.READY,
+                content="# Summary",
+            )
+        )
+
+    ready = await client.get(f"/workspaces/{workspace_id}/documents/1")
+    pending = await client.get(f"/workspaces/{workspace_id}/documents/2")
+    artifact = await client.get(f"/workspaces/{workspace_id}/documents/3")
+
+    assert (ready.status_code, ready.json()["content"]) == (200, "extracted")
+    assert pending.status_code == 200
+    assert (pending.json()["status"], pending.json()["content"]) == ("pending", None)
+    assert (artifact.status_code, artifact.json()["content"]) == (200, "# Summary")
+
+
 async def test_a_processing_document_cannot_be_deleted(
     client: AsyncClient, workspace_id: int, engine: Engine
 ) -> None:
@@ -269,7 +476,8 @@ async def test_the_list_is_paged(client: AsyncClient, workspace_id: int) -> None
 
     page = await client.get(f"/workspaces/{workspace_id}/documents?limit=2&offset=2")
 
-    assert [document["title"] for document in page.json()] == ["note 2", "note 3"]
+    # Newest first: notes 4 and 3 fill the first page.
+    assert [document["title"] for document in page.json()] == ["note 2", "note 1"]
 
 
 async def test_a_failed_document_carries_its_reason(

@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+# surfsense-plugins invoke installs a plugin's dependencies here, and gives it
+# dev-data as its data folder; packaging builds its own.
+/*/site-packages/
+/*/dev-data/

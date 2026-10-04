@@ -20,6 +20,7 @@ __all__ = ["ENDPOINTS", "Fixed", "Unreachable", "stale_endpoints"]
 # Where the first seven were verified: the connection form's presets, in use
 # since 2.0 against each provider's live /models.
 _PRESET = "SurfSense 2.0 connection preset"
+_ANTHROPIC_OPENAI_SDK = "https://docs.claude.com/en/api/openai-sdk"
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,8 @@ ENDPOINTS: dict[str, Fixed | Unreachable] = {
     "xai": Fixed("https://api.x.ai/v1", _PRESET),
     "togetherai": Fixed("https://api.together.xyz/v1", _PRESET),
     "cerebras": Fixed("https://api.cerebras.ai/v1", _PRESET),
+    # Anthropic's SDK has its URL built in; this is its OpenAI compatibility layer.
+    "anthropic": Fixed("https://api.anthropic.com/v1", _ANTHROPIC_OPENAI_SDK),
     "amazon-bedrock": Unreachable("Signs requests with AWS credentials, not an API key"),
     "google-vertex": Unreachable("Needs a Google Cloud sign-in, not an API key"),
     "google-vertex-anthropic": Unreachable(

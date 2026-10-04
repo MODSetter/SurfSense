@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.documents.models import Document
+from modules.embedding.active import require_active_index
 from shared.config import get_storage_settings
-from worker.ingestion import chunking, embedding, indexing
+from worker.ingestion import chunking, indexing
 from worker.studio.shared.artifact import Built
 
 logger = logging.getLogger(__name__)
@@ -42,10 +43,10 @@ def persist(
 
 
 def _index(session: Session, document: Document, markdown: str) -> None:
+    index = require_active_index(session)
     passages = chunking.chunk(markdown)
-    texts = [passage.text for passage in passages]
-    vectors = embedding.embed(texts) if texts else []
-    indexing.replace_chunks(session, document, passages, vectors)
+    vectors = indexing.embed_passages(index, passages)
+    indexing.replace_chunks(session, document, index, passages, vectors)
 
 
 def _write_files(session: Session, artifact: Artifact, built: Built) -> None:

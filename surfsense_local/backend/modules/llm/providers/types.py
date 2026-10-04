@@ -18,19 +18,39 @@ class Model:
 
 
 @dataclass(frozen=True)
+class Image:
+    """An image a turn carries, already in a format every endpoint decodes."""
+
+    mime: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class Message:
     """One turn of a conversation handed to a generator."""
 
     role: str
     content: str
+    # Beside the text, not inside it, so every reader of `content` stays a str.
+    images: tuple[Image, ...] = ()
+
+
+@dataclass(frozen=True)
+class PromptProgress:
+    """How much of the prompt the model has read, in tokens it had left to read."""
+
+    processed: int
+    total: int
 
 
 @dataclass(frozen=True)
 class Delta:
-    """One streamed piece of a reply: answer text, or the model's reasoning."""
+    """One streamed piece of a reply: answer text, the model's reasoning, or,
+    with no text, how far it has read the prompt."""
 
     text: str
     reasoning: bool = False
+    progress: PromptProgress | None = None
 
 
 @dataclass(frozen=True)

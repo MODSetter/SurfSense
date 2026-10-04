@@ -17,6 +17,10 @@ export type ConnectionModel = {
   capability_source: CapabilitySource
   /** The slots the backend says this model can fill; pickers never decide it. */
   selectable_for: ModelType[]
+  /** From the catalog, the same answer the chat composer gets on selection. */
+  reads_images: boolean
+  /** Why the manifest says it cannot be called through this provider; it then fills no slot. */
+  unusable_reason?: string | null
 }
 
 export function getConnectionModels(
@@ -43,6 +47,28 @@ export async function testConnectionChat(
     }
   )
   return reply
+}
+
+/** `text` spoken once. `voice` is sent only when typed; without one the
+ *  server speaks in its own default, where it has one. */
+export async function testConnectionSpeech(
+  id: number,
+  model: string,
+  voice: string,
+  text: string,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const typed = voice.trim()
+  const body = typed
+    ? { model, voice: typed, prompt: text }
+    : { model, prompt: text }
+  const response = await request(`/llm/connections/${id}/speech-test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  })
+  return response.blob()
 }
 
 export async function testConnectionImage(

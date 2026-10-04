@@ -414,12 +414,103 @@
 	pointer-events: none;
 }
 
+.ss-home-features-tab-chevron {
+	display: none;
+}
+
+/* Mobile accordion. The list and the panel stack dissolve (`display: contents`)
+ * so triggers and panels become siblings, interleaved by their inline `order`.
+ * The trigger already shows the story heading, so the H2 is visually hidden
+ * rather than removed: the SEO brief still needs it in the markup. */
+@media (max-width: 767px) {
+	.ss-home-features {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		background-color: var(--border);
+	}
+
+	.ss-home-features-tablist,
+	.ss-home-features-panels {
+		display: contents;
+	}
+
+	.ss-home-features-tab {
+		flex-direction: row;
+		align-items: center;
+		gap: 0.875rem;
+		width: 100%;
+		padding-block: 1rem;
+		border-top: 0;
+		border-left: 2px solid transparent;
+		background-color: var(--background);
+		white-space: normal;
+	}
+
+	.ss-home-features-tab[data-state="active"] {
+		border-left-color: var(--home-accent);
+	}
+
+	.ss-home-features-tab-title {
+		flex: 1;
+	}
+
+	.ss-home-features-tab-chevron {
+		display: block;
+		flex-shrink: 0;
+		color: var(--muted-foreground);
+		transition: transform 150ms ease-out;
+	}
+
+	.ss-home-features-tab[data-state="active"] .ss-home-features-tab-chevron {
+		transform: rotate(180deg);
+	}
+
+	.ss-home-features-panels > * {
+		margin-top: 0;
+	}
+
+	.ss-home-features-panels > [data-state="inactive"] {
+		display: none;
+	}
+
+	.ss-home-features .ss-home-statement {
+		/* The hidden H2 leaves the body's own mt-5 as the top gap. */
+		padding-block: 0 1.5rem;
+	}
+
+	.ss-home-features-heading {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ss-home-features-tab-chevron {
+		transition: none;
+	}
+}
+
 /* ---------------------------------------------------------------------------
  * Type
  *
  * Negative tracking on display sizes, near-zero on body — type that changes
  * shape with size rather than one tracking value everywhere.
  * ------------------------------------------------------------------------ */
+
+/* The product name only, matching the desktop app's brand-wordmark. */
+.ss-home-wordmark {
+	font-family: var(--font-brand), serif;
+	font-weight: 600;
+	font-optical-sizing: auto;
+	font-variation-settings:
+		"SOFT" 75,
+		"WONK" 0;
+}
 
 .ss-home-display {
 	font-size: clamp(2.25rem, 6vw, 3.75rem);
@@ -997,18 +1088,32 @@
 	background-color: var(--background);
 }
 
+/* Equal side columns keep the links on the bar's true center, whatever the
+ * wordmark or star count measure. */
 .ss-home-nav-bar {
 	margin-inline: auto;
 	width: 100%;
 	max-width: var(--home-max);
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	height: 3.25rem;
 	align-items: center;
-	justify-content: space-between;
 	gap: 1rem;
 	padding-inline: 1rem;
 	border-inline: 1px solid var(--border);
 	border-bottom: 1px solid var(--border);
+}
+
+/* Pinned to the last column: below md the links are hidden and would
+ * otherwise pull this group into the middle one. */
+.ss-home-nav-actions {
+	grid-column: 3;
+	justify-self: end;
+}
+
+/* Keeps the wordmark's hover and focus box to its content, not the column. */
+.ss-home-nav-bar > :first-child {
+	justify-self: start;
 }
 
 .ss-home-nav-link {
@@ -1161,6 +1266,101 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * Mobile menu motion
+ *
+ * How the drawer, its scrim and the toggle's icon move between closed and
+ * open. Everything here is a transition between two states rather than a
+ * keyframe, so a tap mid-animation reverses from where it is instead of
+ * snapping. The drawer and scrim stay mounted in `site-nav.tsx` for this.
+ * ------------------------------------------------------------------------ */
+
+/* Drawer and scrim. Closing is quicker and travels less than opening: focus is
+ * already moving on. `visibility` flips at the end of a close, so the closed
+ * drawer takes no taps. */
+.ss-home-nav-drawer,
+.ss-home-nav-scrim {
+	transition:
+		opacity 150ms ease-out,
+		translate 150ms ease-out,
+		visibility 0s linear 150ms;
+}
+
+.ss-home-nav-drawer[data-state="closed"],
+.ss-home-nav-scrim[data-state="closed"] {
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.ss-home-nav-drawer[data-state="closed"] {
+	translate: 0 -0.25rem;
+}
+
+.ss-home-nav-drawer[data-state="open"],
+.ss-home-nav-scrim[data-state="open"] {
+	transition:
+		opacity 220ms cubic-bezier(0.2, 0, 0, 1),
+		translate 220ms cubic-bezier(0.2, 0, 0, 1),
+		visibility 0s;
+}
+
+/* The toggle's bars morph between menu and close in two steps. Opening, the
+ * outer bars first slide to the middle, then turn into a cross; closing runs
+ * the same steps backwards. Each state names the transitions that lead *into*
+ * it, which is what gives the two directions their opposite order. */
+.ss-home-nav-burger line {
+	transform-origin: 12px 12px;
+	transition:
+		rotate 140ms cubic-bezier(0.2, 0, 0, 1),
+		translate 140ms cubic-bezier(0.2, 0, 0, 1) 120ms,
+		opacity 0s linear 120ms;
+}
+
+.ss-home-nav-toggle[data-state="open"] .ss-home-nav-burger line {
+	transition:
+		translate 140ms cubic-bezier(0.2, 0, 0, 1),
+		rotate 140ms cubic-bezier(0.2, 0, 0, 1) 120ms,
+		opacity 0s linear 120ms;
+}
+
+/* Each outer bar turns about its own centre, so the slide lands it exactly on
+ * the middle bar's line. */
+.ss-home-nav-burger line:nth-child(1) {
+	transform-origin: 12px 6px;
+}
+
+.ss-home-nav-burger line:nth-child(3) {
+	transform-origin: 12px 18px;
+}
+
+.ss-home-nav-toggle[data-state="open"] .ss-home-nav-burger line:nth-child(1) {
+	translate: 0 6px;
+	rotate: 45deg;
+}
+
+.ss-home-nav-toggle[data-state="open"] .ss-home-nav-burger line:nth-child(2) {
+	opacity: 0;
+}
+
+.ss-home-nav-toggle[data-state="open"] .ss-home-nav-burger line:nth-child(3) {
+	translate: 0 -6px;
+	rotate: -45deg;
+}
+
+/* Reduced motion: keep the state change, drop the movement. The drawer still
+ * fades, since opacity alone does not move anything. */
+@media (prefers-reduced-motion: reduce) {
+	.ss-home-nav-burger line,
+	.ss-home-nav-toggle[data-state="open"] .ss-home-nav-burger line {
+		transition: none;
+	}
+
+	.ss-home-nav-drawer[data-state="closed"] {
+		translate: none;
+	}
+}
+
+/* ---------------------------------------------------------------------------
  * Footer
  *
  * The footer paints its own dark fluted-glass panel and its own text colours in
@@ -1269,14 +1469,19 @@
 	outline-offset: 4px;
 }
 
-/* A plus that becomes a minus. The rotation is decorative; the open state is
- * already exposed by details/summary itself, so assistive technology and a
- * reduced-motion visitor both still get the state. */
+/* A plus that turns into a close cross. The rotation is decorative; the open
+ * state is already exposed by details/summary itself, so assistive technology
+ * and a reduced-motion visitor both still get the state. */
 .ss-home-faq-marker {
 	position: relative;
 	flex: none;
 	width: 0.75rem;
 	height: 0.75rem;
+	transition: transform 150ms ease-out;
+}
+
+.ss-home-faq[open] .ss-home-faq-marker {
+	transform: rotate(45deg);
 }
 
 .ss-home-faq-marker::before,
@@ -1286,15 +1491,10 @@
 	inset: 50% 0 auto;
 	height: 1px;
 	background: currentColor;
-	transition: transform 150ms ease-out;
 }
 
 .ss-home-faq-marker::after {
 	transform: rotate(90deg);
-}
-
-.ss-home-faq[open] .ss-home-faq-marker::after {
-	transform: rotate(0deg);
 }
 
 /* ---------------------------------------------------------------------------

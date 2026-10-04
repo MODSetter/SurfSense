@@ -103,7 +103,7 @@ function InlineEmailField({
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 				required
-				className="w-64 rounded-(--radius) border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+				className="w-64 max-w-full rounded-(--radius) border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 			/>
 		</>
 	);
@@ -231,7 +231,7 @@ export function TrialForm({
 
 	return (
 		<div className="mt-10 flex flex-col items-center gap-5">
-			<form onSubmit={handleSubmit} className="flex items-center gap-2">
+			<form onSubmit={handleSubmit} className="flex flex-wrap items-center justify-center gap-2">
 				<InlineEmailField id={`trial-email-${id}`} value={email} onChange={setEmail} />
 				<HomeButton type="submit" size="xl" disabled={busy} className="relative shrink-0">
 					<span className={busy ? "opacity-0" : ""}>{label}</span>

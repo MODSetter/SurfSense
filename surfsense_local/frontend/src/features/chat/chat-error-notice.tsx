@@ -11,6 +11,7 @@ type Action = "model-setup" | "retry" | "none"
 function actionFor(error: ChatTurnError): Action {
   switch (error.kind) {
     case "provider_auth":
+    case "subscription_sign_in":
     case "provider_not_found":
     case "model_cannot_run":
       return "model-setup"
@@ -18,6 +19,8 @@ function actionFor(error: ChatTurnError): Action {
       // A bad base URL is a Model setup fix; a local runtime that isn't
       // running isn't — there's no settings action that starts it.
       return error.provider === "llamacpp" ? "none" : "model-setup"
+    // A reached plan limit: retrying cannot help until the plan's window resets.
+    case "subscription_limit":
     case "context_too_long":
       // The notice text already says to start a new chat or pick a model
       // with a larger window — Retry would resend the same overlong turn.

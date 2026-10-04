@@ -268,9 +268,9 @@ The script is tested against recorded Hugging Face responses, so a change in how
 | URL stated, OpenAI protocol | `api` with an OpenAI-style package, 184 of 223 providers | `ready`, `base_url_origin: models.dev` |
 | URL stated, another protocol | `api` with `@ai-sdk/anthropic` or a vendor package: MiniMax, Subconscious and six more | `unreachable`: "Speaks Anthropic's API, which SurfSense does not" |
 | URL is a template | `${VAR}` in `api` (Databricks, Cloudflare Workers AI, Infomaniak and two more) | `needs_account_details`, `account_fields` from the variables |
-| No URL, one fixed endpoint | own SDK, OpenAI-compatible endpoint verified (OpenAI, Groq, Mistral, xAI, Together, Cerebras, Gemini) | `ready` from the reviewed table, `base_url_origin: reviewed`: 7 providers |
+| No URL, one fixed endpoint | own SDK, OpenAI-compatible endpoint verified (OpenAI, Groq, Mistral, xAI, Together, Cerebras, Gemini, Anthropic) | `ready` from the reviewed table, `base_url_origin: reviewed`: 8 providers |
 | Not a bearer key | Amazon Bedrock (AWS signing), Google Vertex (Cloud sign-in) | `unreachable`, with the reason, from the reviewed table |
-| No URL and no entry | Azure, SAP AI Core, watsonx, and endpoints not yet verified such as Anthropic, DeepInfra and Perplexity: 16 providers | `needs_url`: the user enters it |
+| No URL and no entry | Azure, SAP AI Core, watsonx, and endpoints not yet verified such as DeepInfra and Perplexity: 15 providers | `needs_url`: the user enters it |
 | Loopback URL | LM Studio and three more | `key: none`, `local: true` |
 
 `npm` is not a reachability test on its own: Groq, Mistral, xAI and Together have their own package and serve the OpenAI API. The reviewed table is where a person decides it, once per provider, in a pull request.

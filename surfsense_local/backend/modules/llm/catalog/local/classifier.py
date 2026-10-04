@@ -145,7 +145,7 @@ GROUPS: dict[str, Group] = {
     **dict.fromkeys(
         _EMBEDDING,
         Group(
-            _NONE,
+            (ModelType.EMBEDDING,),
             (
                 "This model turns text into numbers for search. It cannot answer "
                 "questions, and SurfSense already has its own."

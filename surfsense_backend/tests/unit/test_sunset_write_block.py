@@ -139,6 +139,24 @@ def test_writes_are_refused_with_410(client, sunset_on, method):
     assert "export" in response.json()["detail"].lower()
 
 
+def test_the_refusal_points_at_the_sunset_page(client, sunset_on, monkeypatch):
+    monkeypatch.delenv("SUNSET_URL", raising=False)
+
+    response = client.post("/api/v1/documents")
+
+    assert response.status_code == 410
+    assert response.json()["sunset_url"] == "https://surfsense.com/sunset"
+
+
+def test_the_refusal_follows_a_custom_sunset_url(client, sunset_on, monkeypatch):
+    """The 410 and ``GET /health`` must hand back the same URL."""
+    monkeypatch.setenv("SUNSET_URL", "https://example.test/goodbye")
+
+    response = client.post("/api/v1/documents")
+
+    assert response.json()["sunset_url"] == "https://example.test/goodbye"
+
+
 @pytest.mark.parametrize("path", _PATHS)
 def test_reads_are_never_refused(client, sunset_on, path):
     """Export is a GET, which is what makes this a method check.

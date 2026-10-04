@@ -34,7 +34,6 @@ export function ModelCard({
   row,
   installs,
   actionsDisabled,
-  runtimeAvailable,
   onAction,
   onCancel,
   onDelete,
@@ -42,7 +41,6 @@ export function ModelCard({
   row: LocalRow
   installs: readonly InstallJob[]
   actionsDisabled: boolean
-  runtimeAvailable: boolean
   onAction: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
   onDelete?: (build: LocalBuild) => void
@@ -127,7 +125,6 @@ export function ModelCard({
               label={row.name}
               installs={installs}
               disabled={actionsDisabled}
-              runtimeAvailable={runtimeAvailable}
               onAction={onAction}
             />
           ) : null}
@@ -236,7 +233,6 @@ export function ModelCard({
                         label={row.name}
                         installs={installs}
                         disabled={actionsDisabled}
-                        runtimeAvailable={runtimeAvailable}
                         onAction={onAction}
                       />
                     </div>
@@ -252,15 +248,6 @@ export function ModelCard({
             </ul>
           ) : null}
         </div>
-      ) : null}
-
-      {!runtimeAvailable ? (
-        <p className="mt-2 text-xs text-destructive">
-          {intl.formatMessage({
-            id: "models_model_card_runtime_unavailable_error",
-            defaultMessage: "The local runtime is unavailable.",
-          })}
-        </p>
       ) : null}
     </article>
   )

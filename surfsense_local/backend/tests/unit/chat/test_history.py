@@ -2,9 +2,10 @@
 
 import pytest
 
-from modules.chat.budget import DEFAULT_HISTORY_TOKENS
+from modules.chat.budget import DEFAULT_HISTORY_TOKENS, IMAGE_TOKENS
 from modules.chat.history import build_messages
 from modules.chat.models import ChatMessage, MessageRole
+from modules.llm.providers.types import Image
 
 pytestmark = pytest.mark.unit
 
@@ -86,3 +87,22 @@ async def test_a_counter_that_fails_falls_back_to_the_heuristic_for_that_turn() 
     # The heuristic prices this turn at DEFAULT_HISTORY_TOKENS, over a budget
     # of 10, so it is still dropped: the fallback ran, not a free pass.
     assert kept == []
+
+
+async def test_this_turns_images_are_paid_for_out_of_history() -> None:
+    """A picture takes window like text does; history shrinks to make room
+    instead of the prompt outgrowing the window."""
+    history = [_turn("a", 500), _turn("b", 500)]
+    picture = Image("image/png", b"\x89PNG")
+
+    kept = (
+        await build_messages(
+            "SYSTEM", history, "ask", images=[picture], history_budget=999 + IMAGE_TOKENS
+        )
+    )[1:-1]
+    without = (
+        await build_messages("SYSTEM", history, "ask", history_budget=999 + IMAGE_TOKENS)
+    )[1:-1]
+
+    assert [m.content[0] for m in without] == ["a", "b"]
+    assert [m.content[0] for m in kept] == ["b"]

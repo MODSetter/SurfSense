@@ -156,7 +156,6 @@ export function DownloadImageModels({
                 row={row}
                 installs={installs}
                 actionsDisabled={busy}
-                runtimeAvailable
                 onAction={act}
                 onCancel={cancel}
                 onDelete={(build) => {

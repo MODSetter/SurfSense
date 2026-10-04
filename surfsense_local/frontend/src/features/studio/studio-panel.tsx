@@ -25,9 +25,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
-import { cn } from "@/lib/utils"
-import type { ModelType } from "@/features/models/model-type"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
@@ -99,55 +98,20 @@ const FORMAT_HINTS: Record<string, () => string> = {
 }
 
 function catalogFormats(formats: StudioFormat[]) {
-  const catalog = studioCatalog()
-  if (formats.length === 0) return catalog
-  const loaded = new Map(formats.map((entry) => [entry.key, entry]))
-  return catalog.map((entry) => loaded.get(entry.key) ?? entry)
-}
-
-// Only for the catalog painted before the API answers; the backend's own
-// reason replaces it.
-const NEEDED_MODEL: Record<ModelType, () => string> = {
-  text_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_chat_model_label",
-      defaultMessage: "a chat model",
-    }),
-  image_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_image_model_label",
-      defaultMessage: "an image model",
-    }),
-  image_edit: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_image_edit_model_label",
-      defaultMessage: "an image editing model",
-    }),
-  video_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_video_model_label",
-      defaultMessage: "a video model",
-    }),
-  audio_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_audio_model_label",
-      defaultMessage: "an audio model",
-    }),
+  return formats.length === 0 ? studioCatalog() : formats
 }
 
 function unavailableReason(entry: StudioFormat) {
   if (entry.unavailable_reason != null) return entry.unavailable_reason
-  const models = intl.formatList(
-    entry.requires_model_types.map((type) => NEEDED_MODEL[type]()),
-    { type: "conjunction" }
-  )
-  return intl.formatMessage(
-    {
-      id: "studio_format_unavailable_tooltip",
-      defaultMessage: "Needs {models}",
-    },
-    { models }
-  )
+  return entry.requires_model_types.includes("image_gen")
+    ? intl.formatMessage({
+        id: "studio_format_unavailable_chat_image_tooltip",
+        defaultMessage: "Needs a chat model and an image model.",
+      })
+    : intl.formatMessage({
+        id: "studio_format_unavailable_chat_tooltip",
+        defaultMessage: "Needs a chat model.",
+      })
 }
 
 function formatHint(entry: StudioFormat) {
@@ -177,6 +141,7 @@ function Composer({
   onToggleAll,
   isCreating,
   onGenerate,
+  onSetUpVoices,
 }: {
   workspaceId: number
   format: string
@@ -186,6 +151,7 @@ function Composer({
   onToggleAll: () => void
   isCreating: boolean
   onGenerate: (job: StudioJobCreate) => void
+  onSetUpVoices: () => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
   const selected = new Set(selectedDocumentIds)
@@ -197,7 +163,12 @@ function Composer({
   const toggle = (id: number) => onSelectionChange(id, !selected.has(id))
 
   // A podcast is generated from its reviewed brief, so it waits for the brief.
-  const briefReady = format !== "podcast" || podcast.brief != null
+  // A server model with no voices yet can voice nothing: set them up first.
+  const needsVoices =
+    podcast.opened?.voices_source === "saved" &&
+    podcast.opened.voices.length === 0
+  const briefReady =
+    format !== "podcast" || (podcast.brief != null && !needsVoices)
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
@@ -213,10 +184,14 @@ function Composer({
       >
         <div className="space-y-3">
           {format === "podcast" ? (
-            podcast.brief ? (
+            podcast.brief && podcast.opened ? (
               <PodcastBriefForm
                 brief={podcast.brief}
-                voices={podcast.voices}
+                voices={podcast.opened.voices}
+                languages={podcast.opened.languages}
+                voicesSource={podcast.opened.voices_source}
+                voicedBy={podcast.opened.voiced_by}
+                onSetUpVoices={onSetUpVoices}
                 onChange={podcast.setBrief}
               />
             ) : (
@@ -440,6 +415,7 @@ export function StudioPanel({
   isCreating,
   error,
   onGenerate,
+  onSetUpVoices,
 }: {
   workspaceId: number
   documents: WorkspaceDocument[]
@@ -450,6 +426,8 @@ export function StudioPanel({
   isCreating: boolean
   error: string | null
   onGenerate: (job: StudioJobCreate) => Promise<boolean>
+  /** Opens Settings where a server audio model's voices are added. */
+  onSetUpVoices: () => void
 }) {
   const [format, setFormat] = useState<string | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
@@ -521,6 +499,10 @@ export function StudioPanel({
                   void onGenerate(job).then((created) => {
                     if (created) setFormatOpen(false)
                   })
+                }}
+                onSetUpVoices={() => {
+                  setFormatOpen(false)
+                  onSetUpVoices()
                 }}
               />
             </>

@@ -14,7 +14,7 @@ async def test_the_catalog_renders_with_no_network_and_no_scan(
 
     assert reply.status_code == 200
     body = reply.json()
-    curated = [row for row in body["rows"] if row["origin"] == "curated"]
+    curated = [row for row in body["rows"] if row["origin"] == "curated" and row["engine"] == "llamacpp"]
     assert curated
     # A badge names a verdict exactly when it warns.
     for row in curated:
@@ -22,6 +22,7 @@ async def test_the_catalog_renders_with_no_network_and_no_scan(
             badge = build["badge"]
             assert badge["level"] in {"none", "notice", "refuse"}
             assert bool(badge["verdict"]) == (badge["level"] != "none")
+    assert body["projector_notices"] == []
     assert "scanned" not in body
 
 
@@ -58,7 +59,7 @@ async def test_each_curated_model_names_its_default_and_at_most_one_recommended_
     body = (await client.get("/llm/catalog/local")).json()
 
     for row in body["rows"]:
-        if row["origin"] == "curated":
+        if row["origin"] == "curated" and row["engine"] == "llamacpp":
             assert row["default_quantization"] == "UD-Q4_K_XL"
             assert sum(b["recommended"] for b in row["builds"]) <= 1
 
@@ -70,7 +71,10 @@ async def test_the_offload_fraction_survives_to_the_renderer(
     body = (await client.get("/llm/catalog/local")).json()
 
     assert all(
-        "offload_fraction" in b["fit"] for row in body["rows"] for b in row["builds"]
+        "offload_fraction" in b["fit"]
+        for row in body["rows"]
+        if row["engine"] == "llamacpp"
+        for b in row["builds"]
     )
 
 
@@ -127,7 +131,7 @@ async def test_every_curated_row_says_which_build_it_leads_with_and_why(
     body = (await client.get("/llm/catalog/local")).json()
 
     for row in body["rows"]:
-        if row["origin"] == "curated":
+        if row["origin"] == "curated" and row["engine"] == "llamacpp":
             lead = row["lead"]
             assert lead["why"] in {
                 "in_use",
@@ -150,4 +154,3 @@ async def test_an_install_that_is_not_running_cannot_be_cancelled(
 async def test_the_install_list_starts_empty(client: AsyncClient) -> None:
     """A fresh app has no jobs, so no screen shows a download."""
     assert (await client.get("/llm/installs")).json() == {"jobs": []}
-

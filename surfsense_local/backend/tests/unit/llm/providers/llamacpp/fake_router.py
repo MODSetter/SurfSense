@@ -21,6 +21,7 @@ class FakeRouter:
         # What `/props` reports about the chat template. Defaults to a template
         # that carries everything, which is the common case.
         self.template_caps: dict = {"supports_system_role": True}
+        self.model_info: dict = {}
         # llama.cpp issue #29006: some templates 400 on a json_schema request.
         self.reject_response_format = False
         self.fail_chat_with: int | None = None
@@ -45,6 +46,10 @@ class FakeRouter:
         # a test that cares; the default is an immediately finished stream, so a
         # caller that subscribes without one is not left hanging.
         self.sse_events: list[dict] = []
+        # Models whose preset gives them a projector that reads images. The real
+        # router reads the projector's header and lists `image` whether or not
+        # the model is loaded (b11050, server-models.cpp update_caps()).
+        self.sees: set[str] = set()
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
@@ -59,6 +64,7 @@ class FakeRouter:
                 200,
                 json={
                     "role": "router",
+                    "model_info": self.model_info,
                     "chat_template_caps": self.template_caps,
                     "default_generation_settings": {"n_ctx": 16384},
                 },
@@ -71,6 +77,12 @@ class FakeRouter:
                     "data": [
                         {
                             "id": name,
+                            "architecture": {
+                                "input_modalities": ["text", "image"]
+                                if name in self.sees
+                                else ["text"],
+                                "output_modalities": ["text"],
+                            },
                             "status": {
                                 "value": "loaded"
                                 if name in self.loaded

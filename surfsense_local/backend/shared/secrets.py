@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import hmac
 import logging
 import os
 from functools import lru_cache
@@ -31,9 +32,17 @@ class UnreadableSecretError(Exception):
 
 @lru_cache
 def _fernet() -> Fernet:
-    secret = os.environ.get("SURFSENSE_LOCAL_SECRET") or _file_secret()
-    digest = hashlib.sha256(secret.encode()).digest()
+    digest = hashlib.sha256(_secret().encode()).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def _secret() -> str:
+    return os.environ.get("SURFSENSE_LOCAL_SECRET") or _file_secret()
+
+
+def install_digest(purpose: str) -> bytes:
+    """32 bytes stable for this install and `purpose`, revealing nothing of the secret."""
+    return hmac.new(_secret().encode(), purpose.encode(), hashlib.sha256).digest()
 
 
 def _file_secret() -> str:

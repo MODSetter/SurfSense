@@ -33,6 +33,23 @@ export default defineConfig([
     rules: {
       'formatjs/enforce-default-message': ['error', 'literal'],
       'formatjs/enforce-placeholders': 'error',
+      // enforce-placeholders reads values only from an object literal, so a
+      // variable or a spread would pass with a placeholder unfilled.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name='formatMessage'][arguments.1][arguments.1.type!='ObjectExpression']",
+          message:
+            'Pass formatMessage its values as an object literal, so enforce-placeholders can check them.',
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='formatMessage'] > ObjectExpression > SpreadElement",
+          message:
+            'Write each formatMessage value out in the literal; a spread hides it from enforce-placeholders.',
+        },
+      ],
       'formatjs/enforce-id': [
         'error',
         {

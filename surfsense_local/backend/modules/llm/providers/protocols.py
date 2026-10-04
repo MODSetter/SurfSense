@@ -23,6 +23,14 @@ class Generator(Protocol):
         """
         ...
 
+    async def sees_images(self, model: str) -> bool | None:
+        """Whether this model takes images, or None when it cannot be told.
+
+        None is not no: a caller refusing images on it would hide them behind a
+        hiccup, while the runtime still refuses what it cannot take.
+        """
+        ...
+
     async def token_count(self, model: str, text: str) -> int | None:
         """This text's exact cost by the model's own tokenizer, or None.
 
@@ -41,6 +49,7 @@ class Generator(Protocol):
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
+        json_schema: dict | None = None,
     ) -> AsyncIterator[str]:
         """The answer text alone; a thinking model's trace is left out."""
         ...
@@ -53,6 +62,7 @@ class Generator(Protocol):
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
+        json_schema: dict | None = None,
     ) -> AsyncIterator[Delta]:
         """The reply as it streams, with the trace marked apart from the answer."""
         ...
@@ -72,7 +82,8 @@ class ImageGenerator(Protocol):
 class Voice:
     id: str
     label: str
-    gender: Literal["female", "male"]
+    # None where the source does not say: OpenAI documents none for its voices.
+    gender: Literal["female", "male"] | None
     # The languages this voice speaks, as the model's entry names them: one for
     # a Kokoro voice, every one the model speaks for a Supertonic voice.
     languages: tuple[str, ...]
@@ -93,9 +104,7 @@ class SynthesizedAudio:
 
 
 class TextToSpeech(Protocol):
-    """Anything that voices a script: audio.cpp on this computer today."""
-
-    def voices(self) -> list[Voice]: ...
+    """Anything that voices a script: audio.cpp here, or a server's /audio/speech."""
 
     async def check_memory(self) -> None:
         """Raise, with the sentence a person reads, when voicing cannot fit."""

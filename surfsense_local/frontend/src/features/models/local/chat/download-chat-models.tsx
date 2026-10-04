@@ -17,6 +17,7 @@ import { ModelFamilyGroup } from "./model-family-group"
 import { ModelSearch } from "./model-search"
 import { useDeleteLocalChatModel } from "./use-delete-local-chat-model"
 import { useLocalChatCatalog } from "./use-local-chat-catalog"
+import { useLocalRuntime } from "./use-local-runtime"
 
 function messageFrom(error: unknown) {
   return error instanceof Error
@@ -62,8 +63,9 @@ export function DownloadChatModels({
 }) {
   const headingId = useId()
   const catalog = useLocalChatCatalog()
+  const runtime = useLocalRuntime()
   // Downloading does not select: a model is chosen with Use once it is on disk.
-  const { installs, install, cancel } = useInstall({ select: false })
+  const { jobs, installs, install, cancel } = useInstall({ select: false })
   const select = useSelect("text_gen")
   const remove = useDeleteLocalChatModel(onModelUnavailable)
   const [deleting, setDeleting] = useState<{
@@ -135,6 +137,28 @@ export function DownloadChatModels({
         gpuStatus={catalog.data.gpu_status}
       />
 
+      {/* Once, above the rows. Download stays offered: an install still
+          downloads while the runtime is down and ends with an honest message
+          (runtime.md, failure behavior); it is Use that has to wait. */}
+      {!runtime.available ? (
+        <Alert role="status">
+          <CircleAlertIcon />
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "models_download_chat_runtime_unavailable_title",
+              defaultMessage: "The local runtime is unavailable",
+            })}
+          </AlertTitle>
+          <AlertDescription>
+            {intl.formatMessage({
+              id: "models_download_chat_runtime_unavailable_body",
+              defaultMessage:
+                "You can still download models; they become usable once it runs again. Restart SurfSense to start it.",
+            })}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {curated.length > 0 ? (
         <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
           <div>
@@ -162,7 +186,6 @@ export function DownloadChatModels({
                     row={row}
                     installs={installs}
                     actionsDisabled={busy}
-                    runtimeAvailable
                     onAction={act}
                     onCancel={cancel}
                     onDelete={(build) => {
@@ -204,7 +227,7 @@ export function DownloadChatModels({
       <ModelSearch
         onInstall={act}
         onCancel={cancel}
-        installs={installs}
+        jobs={jobs}
         disabled={busy}
       />
 

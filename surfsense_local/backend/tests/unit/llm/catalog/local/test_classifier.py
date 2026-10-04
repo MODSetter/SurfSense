@@ -30,7 +30,6 @@ def test_a_chat_model_has_nothing_to_explain() -> None:
 def test_things_that_produce_no_type_are_known_and_typeless() -> None:
     """Things that produce no type are known and typeless."""
     for name in (
-        "nomic-bert",
         "whisper",
         "paddleocr",
         "eagle3",
@@ -41,6 +40,14 @@ def test_things_that_produce_no_type_are_known_and_typeless() -> None:
         assert found.types == (), name
         assert found.known, name
         assert found.reason, name
+
+
+def test_an_embedder_is_an_embedding_model() -> None:
+    """A catalog type, so an engine can run it; never a slot, which selection enforces."""
+    for name in ("nomic-bert", "Nomic-Bert", "feature-extraction"):
+        assert classify(name).types == (ModelType.EMBEDDING,), name
+    # The tag refines a chat architecture: llm2vec-style embedders declare one.
+    assert classify("mistral3", "sentence-similarity").types == (ModelType.EMBEDDING,)
 
 
 def test_diffusion_video_and_speech_get_their_own_type() -> None:
@@ -55,7 +62,6 @@ def test_diffusion_video_and_speech_get_their_own_type() -> None:
 
 def test_the_tag_refines_a_chat_architecture() -> None:
     """The tag refines a chat architecture."""
-    assert classify("mistral3", "sentence-similarity").types == ()
     assert classify("qwen3", "text-to-speech").types == (ModelType.AUDIO_GEN,)
     assert classify("qwen2", "automatic-speech-recognition").types == ()
 
@@ -76,7 +82,6 @@ def test_the_tags_that_mean_chat_never_refuse() -> None:
 def test_case_does_not_matter() -> None:
     """Case does not matter."""
     assert classify("QWEN3").types == TEXT
-    assert classify("Nomic-Bert").types == ()
 
 
 def test_an_unreadable_header_fails_open_to_chat_marked_approximate() -> None:

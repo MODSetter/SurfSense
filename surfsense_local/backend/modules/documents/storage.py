@@ -8,9 +8,6 @@ from zipfile import BadZipFile, ZipFile
 
 from fastapi import HTTPException, UploadFile, status
 
-from modules.documents.models import Document
-from shared.config import get_storage_settings
-
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 10_000
 MAX_ARCHIVE_UNPACKED_BYTES = 2 * 1024 * 1024 * 1024
@@ -120,13 +117,6 @@ def _is_image(path: Path, suffix: str) -> bool:
     if suffix == ".bmp":
         return header.startswith(b"BM")
     return header.startswith(b"RIFF") and header[8:12] == b"WEBP"
-
-
-def original_path(document: Document) -> Path:
-    """Where the upload was stored."""
-    suffix = (document.document_metadata or {}).get("suffix", "")
-    directory = get_storage_settings().document_dir(document.workspace_id, document.id)
-    return directory / f"original{suffix}"
 
 
 def title_of(upload: UploadFile) -> str:

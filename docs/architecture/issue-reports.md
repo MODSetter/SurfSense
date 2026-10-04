@@ -1,8 +1,8 @@
 # Issue reports
 
-Report issue, below Plugins in the sidebar, on every error toast and under Help › Report Issue… in the macOS menu bar (Windows and Linux draw no menu bar), shows what this run of the app has logged and turns the user's description into a GitHub bug report.
+Report issue, a tab in Settings' App group below About, and a dialog opened from every error toast, shows what this run of the app has logged and turns the user's description into a GitHub bug report. The tab and the dialog share one form and one draft; toasts keep the dialog because they fire where Settings does not exist, such as onboarding. Help › Report Issue… in the macOS menu bar (Windows and Linux draw no menu bar) opens the Settings tab on the dashboard, which claims it through [`help-menu-report.ts`](../../surfsense_local/frontend/src/features/feedback/help-menu-report.ts), and the dialog on every other screen. The tab also carries Copy system info, which puts the version, OS and runtime versions on the clipboard in English whatever the interface language, since it is pasted into issues.
 
-**Code:** [`surfsense_local/frontend/src/features/feedback/`](../../surfsense_local/frontend/src/features/feedback/), [`surfsense_local/electron/src/main/session-log/`](../../surfsense_local/electron/src/main/session-log/), [`surfsense_local/electron/src/main/menu/`](../../surfsense_local/electron/src/main/menu/), [`.github/ISSUE_TEMPLATE/bug.yml`](../../.github/ISSUE_TEMPLATE/bug.yml)
+**Code:** [`surfsense_local/frontend/src/features/feedback/`](../../surfsense_local/frontend/src/features/feedback/), [`surfsense_local/electron/src/preload/index.ts`](../../surfsense_local/electron/src/preload/index.ts), [`surfsense_local/electron/src/main/session-log/`](../../surfsense_local/electron/src/main/session-log/), [`surfsense_local/electron/src/main/menu/`](../../surfsense_local/electron/src/main/menu/), [`.github/ISSUE_TEMPLATE/bug.yml`](../../.github/ISSUE_TEMPLATE/bug.yml)
 
 ## The session log
 
@@ -18,10 +18,11 @@ Report issue, below Plugins in the sidebar, on every error toast and under Help 
 - If the clipboard write fails, GitHub is not opened, since the user would paste whatever was copied before into a public issue.
 - Which part? and What did you expect? are left to fill in on GitHub: a URL cannot prefill a dropdown, and the expected result is the reporter's to say.
 - Error toasts go through `errorToast()`, sonner's `toast.error` with a Report issue action that opens the dialog carrying the toast's title and description.
+- An unexpected sidecar exit raises one of those toasts, naming the affected
+  user-facing feature. The report carries the sidecar's internal name and exit
+  code; requested stops produce no crash event.
 - The dialog is an app dialog, like the egress prompt: opened over another dialog, say from Help while Settings is open, it opens as that dialog's nested dialog. Its draft survives a close, and a move to another dialog.
 
 ## Known gaps
 
-- About's Report an issue link still opens the bare form, without the log.
-- A sidecar crash reaches the log, but no screen shows it: main sends `sidecar:crashed` and nothing in the renderer listens, so no toast offers Report issue.
 - The main process's own warnings, such as a preference file it could not read, still go to the terminal only.

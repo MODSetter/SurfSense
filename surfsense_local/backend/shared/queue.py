@@ -20,12 +20,14 @@ with closing(sqlite3.connect(_QUEUE_FILE, timeout=5)) as _connection:
 # One queue per consumer, so an import never queues ahead of a summary.
 ingest_queue = SqliteHuey(name="ingest", filename=_QUEUE_FILE)
 studio_queue = SqliteHuey(name="studio", filename=_QUEUE_FILE)
+plugins_queue = SqliteHuey(name="plugins", filename=_QUEUE_FILE)
 
 
 def import_tasks() -> None:
     """Import every task; a job carries the name of one, not its code."""
     import modules.artifacts.tasks
     import modules.documents.tasks
+    import modules.plugins.tasks
 
 
 def revoke_pending(queue: SqliteHuey, name: str, argument: int) -> None:

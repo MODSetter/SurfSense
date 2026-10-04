@@ -38,18 +38,18 @@ The Date is the day the decision was first written down. Source links are permal
 | Number | Title | Status |
 |---|---|---|
 | 0003 | [Generated deliverables are a document type, not a second corpus](0003-artifacts-as-documents.md) | Accepted |
-| 0004 | [The desktop app is its own tree on FastAPI, SQLite and Huey, with no accounts](0004-desktop-app-is-its-own-tree.md) | Accepted |
+| 0004 | [The desktop app is its own tree on FastAPI, SQLite and Huey, with no accounts](0004-desktop-app-is-its-own-tree.md) | Accepted, in part superseded by 0035 |
 | 0005 | [Schema changes are hand-written Alembic revisions that the API applies at startup](0005-hand-written-migrations.md) | Accepted |
 | 0006 | [Retrieval widens recall with FTS5 and sqlite-vec, then orders the union by cosine similarity](0006-hybrid-retrieval.md) | Accepted, the ordering decision superseded by 0031 |
-| 0007 | [Embeddings come from a bundled bge-small model run in process on the CPU](0007-bundled-embeddings.md) | Accepted |
+| 0007 | [Embeddings come from a bundled bge-small model run in process on the CPU](0007-bundled-embeddings.md) | Accepted, amended by 0036 |
 | 0008 | [Ingest and Studio jobs run on separate Huey queues, each drained by its own worker](0008-two-job-queues.md) | Accepted |
 | 0009 | [The UI stays fresh by invalidating queries on server-sent events, with no sync engine](0009-freshness-by-invalidation.md) | Accepted |
 | 0010 | [Studio models emit structured content and trusted builders render it, so no model-written code runs](0010-studio-builders-not-sandboxes.md) | Accepted, in part superseded by 0028 |
 | 0011 | [llama-server in router mode is the one local model runtime](0011-llama-cpp-local-runtime.md) | Accepted, in part superseded by 0026 and the model catalog proposal |
-| 0012 | [The GPU backend is Vulkan everywhere off Apple Silicon, with no CUDA payload](0012-vulkan-only-gpu-backend.md) | Accepted |
+| 0012 | [The GPU backend is Vulkan everywhere off Apple Silicon, with no CUDA payload](0012-vulkan-only-gpu-backend.md) | Accepted, for Docker images superseded by 0035 |
 | 0013 | [Model fit comes from the allocator's view of one device, and only physics refuses an install](0013-fit-from-the-allocator.md) | Accepted |
 | 0014 | [The model catalog is a curated offline manifest plus Hugging Face search, and SurfSense downloads the files itself](0014-two-tier-model-catalog.md) | Accepted, in part superseded by 0026, 0027 and the model catalog proposal |
-| 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal |
+| 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal, in part superseded by 0038 |
 | 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Accepted |
 | 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027 |
 | 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted |
@@ -68,3 +68,8 @@ The Date is the day the decision was first written down. Source links are permal
 | 0031 | [Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25](0031-ranking-blends-absolute-leg-scores.md) | Accepted, amended by 0032 and 0033 |
 | 0032 | [The index and the question are split by one tokenizer, FTS5's own, and it keeps a word's combining marks](0032-one-tokenizer-for-index-and-question.md) | Accepted |
 | 0033 | [Every candidate is scored on its own cosine, because a chunk the vector leg did not reach is unmeasured rather than unrelated](0033-every-candidate-is-scored-on-its-own-cosine.md) | Accepted |
+| 0034 | [Whether a chat model reads images is llama.cpp's own answer for a local model and the catalog's for a remote one, and it is stored nowhere](0034-vision-is-the-runtimes-answer-stored-nowhere.md) | Accepted |
+| 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted |
+| 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
+| 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
+| 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |

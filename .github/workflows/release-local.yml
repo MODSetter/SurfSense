@@ -86,6 +86,12 @@ jobs:
             echo "::error::Version '$VERSION' is not semver (expected X.Y.Z); fix the tag."
             exit 1
           fi
+          # updater.ts sets allowPrerelease, so a published prerelease is offered
+          # to every installed app. The default dry run (0.0.0-test) never publishes.
+          if [ "${{ inputs.publish || 'always' }}" = "always" ] && ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' has a prerelease suffix, and this app never publishes one: allowPrerelease would offer it to every installed app. Tag X.Y.Z."
+            exit 1
+          fi
           if [ "${{ github.event_name }}" = "push" ]; then
             TRACKED="$(tr -d '[:space:]' < surfsense_local/VERSION)"
             if [ "$VERSION" != "$TRACKED" ]; then
@@ -131,10 +137,11 @@ jobs:
           # Both desktop trees pin the same pnpm; the root one is the web app's.
           package_json_file: surfsense_local/electron/package.json
 
+      # Node 24, as desktop-tests: the Node that Electron 44 embeds.
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: |
             surfsense_local/frontend/pnpm-lock.yaml
@@ -209,9 +216,14 @@ jobs:
         working-directory: surfsense_local/electron
         run: node scripts/fetch-llamacpp.mjs
 
+      # Stages nothing while opencode is off (scripts/opencode/enabled.mjs).
+      - name: Stage opencode
+        working-directory: surfsense_local/electron
+        run: node scripts/opencode/stage.mjs
+
       - name: Fetch the audio.cpp build
         if: runner.os != 'macOS'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: audiocpp-${{ runner.os }}
           path: surfsense_local/electron
@@ -224,7 +236,7 @@ jobs:
 
       - name: Fetch the sd.cpp build
         if: runner.os != 'Windows'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: sdcpp-${{ runner.os }}
           path: surfsense_local/electron
@@ -327,7 +339,7 @@ jobs:
           test -f "$DIR/stable-diffusion.cpp.txt"
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surfsense-local-${{ matrix.os }}
           path: |

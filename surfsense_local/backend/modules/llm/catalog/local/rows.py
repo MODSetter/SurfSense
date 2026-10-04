@@ -105,6 +105,9 @@ class LocalRow:
     lead: Lead | None = None
     # An audio model's only.
     voicing: Voicing | None = None
+    # What the model is for, as its entry says; an embedder's only, which
+    # onboarding lists without a chat model's fit and badges to tell them apart.
+    description: str | None = None
 
     @property
     def runnable(self) -> bool:

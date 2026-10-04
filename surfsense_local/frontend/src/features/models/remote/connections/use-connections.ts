@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 
+import type { ModelType } from "../../model-type"
 import { MODELS_QUERY_KEY, useRefreshModels } from "../../models-query"
 import { deleteConnection, getConnections } from "./api"
 
@@ -13,6 +14,23 @@ export function useConnections() {
   return useQuery({
     queryKey: connectionsQueryKey,
     queryFn: ({ signal }) => getConnections(signal),
+  })
+}
+
+/**
+ * The connections that can fill `modelType`, by the backend's `serves`; none
+ * for a step with no slot. The same query, so every list stays in step.
+ */
+export function useConnectionsServing(modelType: ModelType | null) {
+  return useQuery({
+    queryKey: connectionsQueryKey,
+    queryFn: ({ signal }) => getConnections(signal),
+    select: (connections) =>
+      modelType
+        ? connections.filter((connection) =>
+            connection.serves.includes(modelType)
+          )
+        : [],
   })
 }
 

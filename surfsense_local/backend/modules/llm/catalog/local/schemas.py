@@ -125,12 +125,22 @@ class LocalRowRead(BaseModel):
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool
-    # The engine that offered the row and would run it: llamacpp, sdcpp or audiocpp.
+    # The engine that offered the row and would run it: llamacpp, sdcpp,
+    # audiocpp or onnxruntime.
     engine: str
+    # What the model is for; an embedder's only.
+    description: str | None = None
     # Absent for a searched repo, which lists every build and leads with none.
     lead: LeadRead | None
     # An audio model's memory while voicing, voices and languages; null otherwise.
     voicing: VoicingRead | None = None
+
+
+class ProjectorNoticeRead(BaseModel):
+    kind: str
+    projector: str
+    model_id: str | None
+    rename_to: str | None
 
 
 class LocalCatalogRead(BaseModel):
@@ -138,6 +148,7 @@ class LocalCatalogRead(BaseModel):
     gpu_status: str
     rows: list[LocalRowRead]
     recommended_id: str | None
+    projector_notices: list[ProjectorNoticeRead]
 
 
 class SearchHitRead(BaseModel):

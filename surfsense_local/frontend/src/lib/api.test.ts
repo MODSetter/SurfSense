@@ -4,6 +4,7 @@ import type { ApiError } from "./api"
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.resetModules()
 })
 
@@ -29,6 +30,26 @@ describe("api base url", () => {
 
   it("stays relative in a bare browser so the dev proxy applies", async () => {
     expect(await callHealthWith(undefined)).toBe("/health")
+  })
+
+  it("falls back to VITE_API_BASE without the Electron bridge", async () => {
+    vi.stubEnv("VITE_API_BASE", "/api")
+    expect(await callHealthWith(undefined)).toBe("/api/health")
+  })
+
+  it("prefers the packaged apiUrl over VITE_API_BASE", async () => {
+    vi.stubEnv("VITE_API_BASE", "/api")
+    expect(await callHealthWith({ apiUrl: "http://127.0.0.1:9999" })).toBe(
+      "http://127.0.0.1:9999/health"
+    )
+  })
+
+  it("builds media and download links from VITE_API_BASE", async () => {
+    vi.stubEnv("VITE_API_BASE", "/api")
+    vi.stubGlobal("window", {})
+    vi.resetModules()
+    const { apiUrl } = await import("./api")
+    expect(apiUrl("/documents/1/file")).toBe("/api/documents/1/file")
   })
 })
 

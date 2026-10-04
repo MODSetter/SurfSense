@@ -2,6 +2,7 @@ import enum
 
 import httpx
 
+from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from shared.secrets import UnreadableSecretError
 
 
@@ -18,6 +19,8 @@ class ChatErrorKind(enum.StrEnum):
     PROVIDER_UNAVAILABLE = "provider_unavailable"
     MODEL_CANNOT_RUN = "model_cannot_run"
     CONTEXT_TOO_LONG = "context_too_long"
+    SUBSCRIPTION_SIGN_IN = "subscription_sign_in"
+    SUBSCRIPTION_LIMIT = "subscription_limit"
     NETWORK = "network"
     TIMEOUT = "timeout"
     UNKNOWN = "unknown"
@@ -41,6 +44,13 @@ _MESSAGES: dict[ChatErrorKind, str] = {
     ChatErrorKind.CONTEXT_TOO_LONG: (
         "This conversation is too long for the model's context window. "
         "Start a new chat or pick a model with a larger window."
+    ),
+    ChatErrorKind.SUBSCRIPTION_SIGN_IN: (
+        "Your ChatGPT account needs to sign in again in Model setup."
+    ),
+    ChatErrorKind.SUBSCRIPTION_LIMIT: (
+        "Your ChatGPT plan's usage limit is reached. "
+        "It resets on its own; check your usage in ChatGPT's settings."
     ),
     ChatErrorKind.TIMEOUT: "The model took too long to respond. Try again.",
     ChatErrorKind.UNKNOWN: "Something went wrong generating a reply. Try again.",
@@ -83,6 +93,12 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         # key is unrecoverable once this install's secret changes, so the only
         # useful answer names the key rather than reporting a fault.
         return ChatErrorKind.PROVIDER_AUTH, _MESSAGES[ChatErrorKind.PROVIDER_AUTH]
+    if isinstance(exc, SignInRequiredError):
+        kind = ChatErrorKind.SUBSCRIPTION_SIGN_IN
+        return kind, _MESSAGES[kind]
+    if isinstance(exc, PlanLimitError):
+        kind = ChatErrorKind.SUBSCRIPTION_LIMIT
+        return kind, _MESSAGES[kind]
     if isinstance(exc, httpx.HTTPStatusError):
         status_code = exc.response.status_code
         if status_code in _AUTH_STATUS_CODES:
@@ -122,3 +138,12 @@ def _is_context_too_long(response: httpx.Response) -> bool:
     error = payload.get("error") if isinstance(payload, dict) else None
     error_type = error.get("type") if isinstance(error, dict) else None
     return error_type == _CONTEXT_TOO_LONG_ERROR_TYPE
+
+
+def empty_reply_error() -> tuple[ChatErrorKind, str]:
+    """A stream that closed with no answer text: nothing raised, but nothing to keep.
+
+    `unknown` rather than a new kind, whose text would need translating: a
+    retry can succeed, since sampling differs from one run to the next.
+    """
+    return ChatErrorKind.UNKNOWN, _MESSAGES[ChatErrorKind.UNKNOWN]

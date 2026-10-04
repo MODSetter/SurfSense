@@ -8,6 +8,7 @@ import {
 import { intl } from "@/i18n/intl"
 
 import { useRefreshModels } from "../../models-query"
+import type { ModelType } from "../../model-type"
 import type { Connection } from "./api"
 import { ConnectionForm } from "./connection-form"
 
@@ -18,6 +19,7 @@ import { ConnectionForm } from "./connection-form"
 export function ConnectionDialog({
   open,
   connection,
+  modelType,
   onOpenChange,
   onOpenChangeComplete,
   onCreated,
@@ -25,6 +27,8 @@ export function ConnectionDialog({
   open: boolean
   /** The server to edit; absent to add one. */
   connection?: Connection
+  /** The slot being filled, so only ways to connect that can fill it are offered. */
+  modelType?: ModelType
   onOpenChange: (open: boolean) => void
   /** Where a caller clears `connection`, once the dialog has finished closing. */
   onOpenChangeComplete?: (open: boolean) => void
@@ -75,6 +79,7 @@ export function ConnectionDialog({
         <ConnectionForm
           key={connection?.id ?? "new"}
           connection={connection}
+          modelType={modelType}
           onCancel={() => onOpenChange(false)}
           onSaved={(saved) => {
             void refresh()

@@ -9,6 +9,7 @@ in the written manifest is read from the files.
 
 from local_manifest.audiocpp.entry import AudioEntry
 from local_manifest.entry import Entry
+from local_manifest.onnxruntime.entry import EmbeddingEntry
 from local_manifest.sdcpp.entry import Companion, ImageEntry, VideoEntry
 
 
@@ -444,6 +445,104 @@ ENTRIES: tuple[Entry, ...] = (
                     ("Leo", "male"),
                 )
             ],
+        },
+    ),
+    # Embedders: bge ships with the app and is the default; the rest are chosen
+    # once, at onboarding. Each semantic_weight is the middle of the retrieval
+    # eval's plateau for that model (1 Oct 2026, 266 queries): both granites
+    # peak at 0.85, where cross-lingual is 8/8 and 7/8 and LIMIT stays 200/200;
+    # 0.90 starts costing LIMIT.
+    EmbeddingEntry(
+        id="bge-small-en-v1.5",
+        name="BGE Small (English)",
+        family="BGE",
+        publisher="BAAI",
+        description="Fast search in English. Comes with SurfSense.",
+        license="mit",
+        source_repo="BAAI/bge-small-en-v1.5",
+        repo="Qdrant/bge-small-en-v1.5-onnx-Q",
+        aliases=("BAAI/bge-small-en-v1.5",),
+        builds=(("F16", "model_optimized.onnx"),),
+        embedding={
+            "dimension": 384,
+            "pooling": "cls",
+            "normalize": True,
+            "max_tokens": 512,
+            "semantic_weight": 0.65,
+            "batch": 32,
+        },
+    ),
+    EmbeddingEntry(
+        id="multilingual-e5-small",
+        name="Multilingual E5 Small",
+        family="E5",
+        publisher="Microsoft",
+        description="A smaller multilingual model, for machines with less memory.",
+        license="mit",
+        source_repo="intfloat/multilingual-e5-small",
+        repo="Xenova/multilingual-e5-small",
+        upstream_repo="intfloat/multilingual-e5-small",
+        aliases=("intfloat/multilingual-e5-small",),
+        builds=(("INT8", "onnx/model_int8.onnx"),),
+        # Mean pooling and the prefixes it was trained with: the mirror states
+        # neither, and without them it searches worse.
+        embedding={
+            "dimension": 384,
+            "pooling": "mean",
+            "normalize": True,
+            "max_tokens": 512,
+            "query_prefix": "query: ",
+            "document_prefix": "passage: ",
+            "semantic_weight": 0.65,
+            "batch": 32,
+        },
+    ),
+    EmbeddingEntry(
+        id="granite-embedding-97m-multilingual-r2",
+        name="Granite Embedding 97M (Multilingual)",
+        family="Granite Embedding",
+        publisher="IBM",
+        description="Search across more than 50 languages.",
+        license="apache-2.0",
+        source_repo="ibm-granite/granite-embedding-97m-multilingual-r2",
+        repo="onnx-community/granite-embedding-97m-multilingual-r2-ONNX",
+        upstream_repo="ibm-granite/granite-embedding-97m-multilingual-r2",
+        aliases=("ibm-granite/granite-embedding-97m-multilingual-r2",),
+        # Full precision: its int8 build measured 0.961 against it and failed parity.
+        builds=(("F32", "onnx/model.onnx"),),
+        embedding={
+            "dimension": 384,
+            "pooling": "cls",
+            "normalize": True,
+            "max_tokens": 512,
+            "semantic_weight": 0.85,
+            "batch": 32,
+        },
+    ),
+    EmbeddingEntry(
+        id="granite-embedding-311m-multilingual-r2",
+        name="Granite Embedding 311M (Multilingual)",
+        family="Granite Embedding",
+        publisher="IBM",
+        description="The larger multilingual model, for machines with more memory.",
+        license="apache-2.0",
+        source_repo="ibm-granite/granite-embedding-311m-multilingual-r2",
+        repo="onnx-community/granite-embedding-311m-multilingual-r2-ONNX",
+        upstream_repo="ibm-granite/granite-embedding-311m-multilingual-r2",
+        aliases=("ibm-granite/granite-embedding-311m-multilingual-r2",),
+        builds=(("INT8", "onnx/model_int8.onnx"),),
+        embedding={
+            "dimension": 768,
+            "pooling": "cls",
+            "normalize": True,
+            "max_tokens": 512,
+            "semantic_weight": 0.85,
+            "batch": 16,
+            "parity": {
+                "origin": "retrieval eval corpus, 23 passages, against onnx/model.onnx",
+                "mean": 0.992,
+                "min": 0.987,
+            },
         },
     ),
 )

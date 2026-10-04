@@ -15,23 +15,32 @@ Stage numbering is the execution order. Each stage lists **checks** (verify befo
 
 Substitute your own host for `$API` and `$WEB` throughout.
 
-## One variable, two places
+## Two variables, two places
 
-`SUNSET_MODE` is a single name set in two files, and setting one is the likeliest way to get a
-half-sunset: a backend refusing writes behind an app that still looks open, or an app redirecting to
-`/sunset` while the backend happily accepts writes.
+The flag is two variables in each of two files. `SUNSET_MODE` is the one you set today.
+`DEPLOYMENT_MODE=cloud` is the one it depends on: both processes ignore `SUNSET_MODE` unless the
+deployment mode is `cloud`, so that a self-hosted install with a copied `.env` cannot sunset itself.
+Production has had `DEPLOYMENT_MODE=cloud` all along, which is why it is easy to forget and easy to
+lose in a different shell, container or checkout.
 
-| Set it in | Reaches | Turns on |
-|---|---|---|
-| `surfsense_backend/.env` | the API process | `sunset: true` on `/health`, writes return 410 |
-| `surfsense_web/.env` | the Next process | app routes redirect to `/sunset` |
+| Set in | Reaches | Needs | Turns on |
+|---|---|---|---|
+| `surfsense_backend/.env` | the API process | `DEPLOYMENT_MODE=cloud` and `SUNSET_MODE` | `sunset: true` on `/health`, writes return 410 |
+| `surfsense_web/.env` | the Next process | cloud mode, from `DEPLOYMENT_MODE=cloud` or a build made with `NEXT_PUBLIC_DEPLOYMENT_MODE=cloud`, and `SUNSET_MODE` | app routes redirect to `/sunset` |
 
-Both are read at **runtime**, per request — the backend through `os.getenv`, the web app in
-`proxy.ts`. Neither is baked into a build, which is why the web one is not a `NEXT_PUBLIC_*`
-variable: sunsetting is a restart, never a rebuild.
+Setting `SUNSET_MODE` in only one file is the likeliest way to get a half-sunset: a backend refusing
+writes behind an app that still looks open, or an app redirecting to `/sunset` while the backend
+happily accepts writes.
 
-Both accept `1`, `true`, `yes` or `on`; anything else, including empty, means off. Stages 1 and 3
-set them one at a time on purpose, so that if something breaks you know which half did it.
+`SUNSET_MODE` is read at **runtime**, per request — the backend through `os.getenv`, the web app in
+`proxy.ts`. It is not baked into a build, which is why the web one is not a `NEXT_PUBLIC_*`
+variable: sunsetting is a restart, never a rebuild. The backend reads `DEPLOYMENT_MODE` the same
+way, defaulting to `self-hosted`. The web app takes the runtime `DEPLOYMENT_MODE` and falls back to
+the build-time `NEXT_PUBLIC_DEPLOYMENT_MODE`.
+
+`SUNSET_MODE` accepts `1`, `true`, `yes` or `on`; anything else, including empty, means off.
+`DEPLOYMENT_MODE` must be exactly `cloud`. Stages 1 and 3 set `SUNSET_MODE` one file at a time on
+purpose, so that if something breaks you know which half did it.
 
 > The Docker Compose stack — dev and self-host, not production — passes the web flag from
 > `docker/.env` into the frontend container instead. Production sets both files directly.
@@ -53,8 +62,16 @@ curl -s -o /dev/null -w '%{http_code}\n' $WEB/dashboard   # 200
 Take a Postgres snapshot now, not at T+30. The purge has its own snapshot, but this one covers
 stages 5 and 6 — and it is the only thing that makes a stopped service a recoverable mistake.
 
+Confirm both processes are in cloud mode before going on: `DEPLOYMENT_MODE=cloud` in
+`surfsense_backend/.env`, and for the web app either `DEPLOYMENT_MODE=cloud` in `surfsense_web/.env`
+or a build made with `NEXT_PUBLIC_DEPLOYMENT_MODE=cloud`. Without it the stages below change
+nothing, and nothing will say why.
+
 **Stop condition:** `/health` already reports `sunset: true`. Something is set that you did not set;
 find out what before continuing.
+
+**Stop condition:** either process is not in cloud mode. That is not this runbook's to set: a
+production that is not in cloud mode has a different problem, so find out why first.
 
 ---
 
@@ -78,6 +95,11 @@ curl -s -o /dev/null -w '%{http_code}\n' $API/api/v1/export                 # 40
 ```
 
 Export must answer 401 rather than 410: it is a `GET`, and it is the only thing users have left.
+
+If `/health` still reports `sunset: false` after the restart, the API process is not seeing both
+variables. Check, in the environment of the running process and not only in the file, that
+`DEPLOYMENT_MODE` is exactly `cloud` and that `SUNSET_MODE` is one of the accepted spellings, and
+that the process restarted was the one serving `$API`.
 
 **Stop condition:** export or login returns 410. Unset the flag, restart, and work out why before
 retrying — a sunset that blocks export is worse than no sunset at all.
@@ -118,6 +140,11 @@ curl -s -o /dev/null -w '%{http_code}\n' $WEB/pricing                       # 20
 ```
 
 The portal has to stay reachable: it is where everyone is being sent.
+
+If `/dashboard/1` still answers 200, the Next process is not seeing both halves. Check that
+`SUNSET_MODE` is one of the accepted spellings in the environment of the running process, and that
+it is in cloud mode: `DEPLOYMENT_MODE=cloud` at runtime, or a build made with
+`NEXT_PUBLIC_DEPLOYMENT_MODE=cloud` when the runtime variable is unset.
 
 **Stop condition:** `/sunset` redirects to itself, or `/license` redirects. Unset and restart.
 

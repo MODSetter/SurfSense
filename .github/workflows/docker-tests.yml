@@ -134,11 +134,12 @@ jobs:
         with:
           package_json_file: surfsense_web/package.json
 
-      # Matches surfsense_web's Dockerfile (node:20) and @types/node ^20.
+      # Matches surfsense_web's engines, which Vercel builds with, its Dockerfile
+      # (node:24) and @types/node ^24.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: surfsense_web/pnpm-lock.yaml
 
@@ -151,6 +152,40 @@ jobs:
 
       - name: Run Biome
         run: pre-commit run biome-check-web --all-files
+
+  # tsx --test, with no browser or services. A job of its own rather than a
+  # step in web-lint so a failing test is reported apart from a lint failure.
+  web-unit:
+    name: Web Unit Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: surfsense_web/package.json
+
+      # Matches surfsense_web's engines, which Vercel builds with, its Dockerfile
+      # (node:24) and @types/node ^24.
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: surfsense_web/pnpm-lock.yaml
+
+      - name: Install web dependencies
+        working-directory: surfsense_web
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        working-directory: surfsense_web
+        run: pnpm test:unit
 
   backend-unit:
     name: Backend Unit Tests
@@ -336,11 +371,12 @@ jobs:
         with:
           package_json_file: surfsense_web/package.json
 
-      # Matches surfsense_web's Dockerfile (node:20) and @types/node ^20.
+      # Matches surfsense_web's engines, which Vercel builds with, its Dockerfile
+      # (node:24) and @types/node ^24.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: surfsense_web/pnpm-lock.yaml
 
@@ -424,7 +460,7 @@ jobs:
   gate:
     name: Docker Gate
     runs-on: ubuntu-latest
-    needs: [changes, backend-lint, web-lint, backend-unit, backend-integration, e2e]
+    needs: [changes, backend-lint, web-lint, web-unit, backend-unit, backend-integration, e2e]
     if: always()
 
     steps:

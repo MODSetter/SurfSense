@@ -128,3 +128,36 @@ def test_an_id_nothing_carries_is_unknown() -> None:
     found = lookup.classify("acme/llama-support-v2")
 
     assert (found.known, found.types, found.supports) == (False, frozenset(), None)
+
+
+def test_a_model_the_manifest_knows_and_cannot_call_says_why(lookup_of) -> None:
+    """One rule for the remote catalog and the connection listing: a model on
+    an unreachable provider, or served only on /responses or through another
+    protocol, is unusable with the manifest's own reason. A model no entry
+    describes is unknown, not unusable, and a custom connection, which names
+    no provider, is never told."""
+    from tests.unit.llm.catalog.remote.conftest import connect, model
+
+    lookup = lookup_of(
+        {
+            "router": {
+                "models": {
+                    "opus": model(call={"route": None, "protocol": "anthropic"}),
+                    "glm": model(),
+                    "resp": model(call={"route": "responses", "protocol": None}),
+                }
+            },
+            "vertex": {
+                "connect": connect("unreachable", "Needs a Google Cloud sign-in"),
+                "models": {"gemini": model()},
+            },
+        }
+    )
+
+    assert "anthropic" in (lookup.unusable_reason("opus", "router") or "")
+    assert "/responses" in (lookup.unusable_reason("resp", "router") or "")
+    assert lookup.unusable_reason("models/opus", "router") is not None
+    assert lookup.unusable_reason("glm", "router") is None
+    assert lookup.unusable_reason("gemini", "vertex") == "Needs a Google Cloud sign-in"
+    assert lookup.unusable_reason("mystery", "vertex") is None
+    assert lookup.unusable_reason("opus", None) is None

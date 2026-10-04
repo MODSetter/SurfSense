@@ -8,6 +8,9 @@ export type ModelSelection = {
   connection_id: number | null
   name: string
   updated_at: string
+  // Whether this model reads images: llama.cpp's own answer for a local model,
+  // the catalog's for a remote one. Absent reads as no.
+  reads_images?: boolean
 }
 
 /** What a selection write names: a model, and where it runs. */

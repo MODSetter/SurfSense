@@ -19,15 +19,11 @@ import {
 } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
-import {
-  getRepoDetail,
-  searchModels,
-  type LocalBuild,
-  type SearchRow,
-} from "./api"
+import type { LocalBuild, SearchRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
+import { GGUF_SEARCH, type SearchSource } from "./search-source"
 import type { InstallJob } from "../installs/api"
 import { jobFor } from "../installs/job-state"
 
@@ -60,6 +56,13 @@ const describe = (hit: SearchRow) => [
   ...(hit.license ? [hit.license] : []),
 ]
 
+function latestJobFor(jobs: readonly InstallJob[], catalogId: string) {
+  for (let index = jobs.length - 1; index >= 0; index--) {
+    if (jobs[index].catalog_id === catalogId) return jobs[index]
+  }
+  return undefined
+}
+
 /**
  * One repo's builds, fetched when the row is opened. The listing alone: each
  * size is exact and each fit an estimate, and the one header read happens when
@@ -67,20 +70,24 @@ const describe = (hit: SearchRow) => [
  */
 function RepoBuilds({
   repo,
+  source,
+  note,
   onInstall,
   onCancel,
-  installs,
+  jobs,
   disabled,
 }: {
   repo: string
+  source: SearchSource
+  note: string | undefined
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
-  installs: readonly InstallJob[]
+  jobs: readonly InstallJob[]
   disabled: boolean
 }) {
   const detail = useQuery({
-    queryKey: ["llm", "search", repo],
-    queryFn: ({ signal }) => getRepoDetail(repo, signal),
+    queryKey: ["llm", "search", source.key, repo],
+    queryFn: ({ signal }) => source.repo(repo, signal),
     staleTime: STALE_MS,
   })
 
@@ -106,29 +113,40 @@ function RepoBuilds({
     )
   }
 
-  const { row } = detail.data
+  const { gated, row } = detail.data
   if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
-        {intl.formatMessage({
-          id: "models_search_builds_empty",
-          defaultMessage: "This repo has no build SurfSense can run.",
-        })}
+        {row.not_runnable_reason ??
+          intl.formatMessage({
+            id: "models_search_builds_empty",
+            defaultMessage: "This repo has no build SurfSense can run.",
+          })}
       </p>
     )
   }
 
   return (
     <>
-      <p className="px-3 pt-2 text-xs text-muted-foreground">
-        {row.runnable
-          ? intl.formatMessage({
-              id: "models_search_builds_body",
-              defaultMessage:
-                "Sizes are exact. Fit is estimated and checked before download.",
-            })
-          : row.not_runnable_reason}
-      </p>
+      {gated ? (
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "models_search_builds_gated_body",
+            defaultMessage:
+              "This gated repository requires Hugging Face authentication, which SurfSense does not support yet.",
+          })}
+        </p>
+      ) : null}
+      {!row.runnable ? (
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
+          {row.not_runnable_reason}
+        </p>
+      ) : null}
+      {note ? (
+        <p className="px-3 pt-2 text-xs text-pretty text-muted-foreground">
+          {note}
+        </p>
+      ) : null}
       <ul
         className="flex flex-col divide-y"
         aria-label={intl.formatMessage(
@@ -140,7 +158,10 @@ function RepoBuilds({
         )}
       >
         {row.builds.map((build) => {
-          const job = jobFor(installs, build.catalog_id)
+          const job = jobFor(jobs, build.catalog_id)
+          const latest = latestJobFor(jobs, build.catalog_id)
+          const failure =
+            !job && latest?.event.type === "error" ? latest.event.message : null
           return (
             <li
               key={build.catalog_id || build.quantization}
@@ -162,12 +183,24 @@ function RepoBuilds({
                 <BuildAction
                   build={build}
                   label={repo}
-                  installs={installs}
+                  installs={jobs}
                   disabled={disabled}
-                  runtimeAvailable
                   onAction={onInstall}
                 />
               </div>
+              {failure ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {failure}
+                </p>
+              ) : build.fit?.approximate ? (
+                <p className="text-xs text-muted-foreground">
+                  {intl.formatMessage({
+                    id: "models_search_builds_body",
+                    defaultMessage:
+                      "Sizes are exact. Fit is estimated and checked before download.",
+                  })}
+                </p>
+              ) : null}
               {job ? (
                 <InstallProgress
                   event={job.event}
@@ -185,17 +218,22 @@ function RepoBuilds({
 export function ModelSearch({
   onInstall,
   onCancel,
-  installs,
+  jobs,
   disabled,
   autoFocus = false,
+  source = GGUF_SEARCH,
+  note,
 }: {
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
-  installs: readonly InstallJob[]
+  jobs: readonly InstallJob[]
   disabled: boolean
   /** Only where the search was just asked for; a page that merely lists it
    *  must not focus it, since focusing raises the egress question. */
   autoFocus?: boolean
+  source?: SearchSource
+  /** Said above an opened repo's builds, such as what a download commits to. */
+  note?: string
 }) {
   const headingId = useId()
   const [query, setQuery] = useState("")
@@ -230,8 +268,8 @@ export function ModelSearch({
   }, [reached, huggingface])
 
   const results = useQuery({
-    queryKey: ["llm", "search", "list", trimmed],
-    queryFn: ({ signal }) => searchModels(trimmed, signal),
+    queryKey: ["llm", "search", source.key, "list", trimmed],
+    queryFn: ({ signal }) => source.search(trimmed, signal),
     enabled: trimmed.length > 1,
     staleTime: STALE_MS,
   })
@@ -410,9 +448,11 @@ export function ModelSearch({
                       <div className="border-t bg-muted/20">
                         <RepoBuilds
                           repo={hit.repo}
+                          source={source}
+                          note={note}
                           onInstall={onInstall}
                           onCancel={onCancel}
-                          installs={installs}
+                          jobs={jobs}
                           disabled={disabled}
                         />
                       </div>

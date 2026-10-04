@@ -1,10 +1,12 @@
 import base64
 import binascii
 import json
+from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
 import httpx
 
+from modules.llm.connections.key_headers import key_headers
 from modules.llm.providers.protocols import GeneratedImage
 
 TIMEOUT = httpx.Timeout(180.0, connect=5.0)
@@ -20,28 +22,32 @@ class NonRetryableImageError(RuntimeError):
     """An image request began, so repeating it could duplicate a billed result."""
 
 
+# Raises to refuse a host the endpoint named for its image. The caller owns the
+# egress decision, so this provider never needs the database.
+AllowUrlHost = Callable[[str], Awaitable[None]]
+
+
 class OpenAICompatibleImageProvider:
     def __init__(
         self,
         connection_id: int,
         base_url: str,
         api_key: str | None = None,
+        *,
+        allow_url_host: AllowUrlHost,
     ) -> None:
         self._connection_id = connection_id
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
+        self._allow_url_host = allow_url_host
 
     def _headers(self) -> dict[str, str]:
-        return (
-            {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
-        )
+        return key_headers(self._base_url, self._api_key)
 
     async def generate(self, model: str, prompt: str) -> GeneratedImage:
         key = (self._connection_id, self._base_url)
         preferred = _route_cache.get(key, STANDARD_ROUTE)
-        alternate = (
-            EXTENSION_ROUTE if preferred == STANDARD_ROUTE else STANDARD_ROUTE
-        )
+        alternate = EXTENSION_ROUTE if preferred == STANDARD_ROUTE else STANDARD_ROUTE
 
         try:
             status, payload = await self._post(preferred, model, prompt)
@@ -51,9 +57,7 @@ class OpenAICompatibleImageProvider:
             else:
                 route = preferred
             if status >= 400:
-                raise NonRetryableImageError(
-                    f"image endpoint returned HTTP {status}"
-                )
+                raise NonRetryableImageError(f"image endpoint returned HTTP {status}")
             image = await self._normalize(payload)
         except NonRetryableImageError:
             raise
@@ -63,9 +67,7 @@ class OpenAICompatibleImageProvider:
         _route_cache[key] = route
         return image
 
-    async def _post(
-        self, route: str, model: str, prompt: str
-    ) -> tuple[int, object]:
+    async def _post(self, route: str, model: str, prompt: str) -> tuple[int, object]:
         async with (
             httpx.AsyncClient(timeout=TIMEOUT, headers=self._headers()) as client,
             client.stream(
@@ -87,9 +89,7 @@ class OpenAICompatibleImageProvider:
     async def _normalize(self, payload: object) -> GeneratedImage:
         if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
             raise ValueError("image endpoint returned no data list")
-        entry = next(
-            (item for item in payload["data"] if isinstance(item, dict)), None
-        )
+        entry = next((item for item in payload["data"] if isinstance(item, dict)), None)
         if entry is None:
             raise ValueError("image endpoint returned no image")
 
@@ -105,6 +105,7 @@ class OpenAICompatibleImageProvider:
             raise ValueError("image endpoint returned neither b64_json nor url")
         if url.startswith("data:"):
             return _decode_data_url(url)
+        await self._allow_url_host(url)
         return await _download_image(url)
 
 

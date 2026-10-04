@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from modules.llm.connections.service import CapabilitySource
+from modules.llm.image_server_state import ImageServerState
 from modules.llm.model_type import ModelType
 from modules.llm.profile import Tier
 
@@ -53,6 +54,13 @@ class ConnectionRead(BaseModel):
     base_url: str
     catalog_provider: str
     has_api_key: bool
+    # `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account.
+    auth_kind: str = "api_key"
+    # Only for `chatgpt`: whether it holds tokens, and whose.
+    signed_in: bool = False
+    account_email: str | None = None
+    # The slots this connection can fill; decided here, never in the renderer.
+    serves: list[ModelType] = []
     created_at: datetime
     updated_at: datetime
 
@@ -65,6 +73,10 @@ class ConnectionModelRead(BaseModel):
     capability_source: CapabilitySource
     # Decided here, never in the renderer, so every picker offers the same set.
     selectable_for: list[ModelType]
+    reads_images: bool
+    # Set when the manifest says this model cannot be called through the
+    # provider the connection names; the row stays, filling no slot.
+    unusable_reason: str | None = None
 
 
 class RuntimeFileRead(BaseModel):
@@ -82,11 +94,19 @@ class LocalImageRuntimeRead(BaseModel):
     args: list[str]
 
 
+class LocalImageStateRead(BaseModel):
+    """What the screen may say about the chosen local image model's server."""
+
+    state: ImageServerState
+
+
 class ModelTestWrite(BaseModel):
     """Asks one model to do its job once, for either role."""
 
     model: str = Field(min_length=1, max_length=512)
     prompt: str | None = Field(default=None, max_length=2000)
+    # A speech test's voice; the first reviewed one when omitted, if any.
+    voice: str | None = Field(default=None, max_length=100)
 
 
 class ChatTestRead(BaseModel):
@@ -113,10 +133,17 @@ class SelectionRead(BaseModel):
     name: str
     tier: Tier
     updated_at: datetime
+    # Whether the composer offers images; worked out per read, never stored.
+    reads_images: bool = False
 
 
 class OnboardingStatusRead(BaseModel):
     completed: bool
+
+
+class OnboardingComplete(BaseModel):
+    # A curated embedder already downloaded; none means the bundled one.
+    embedding_model: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class InstallRequest(BaseModel):

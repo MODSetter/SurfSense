@@ -494,7 +494,24 @@ def test_mixed_deep_nested_children_indentation():
 
     assert (
         blocknote_to_markdown(test_block)
-        == f"- Parent\n{prefix}- Child 1\n{prefix * 2}1. Nested Child 1\n{prefix * 3}2. Nested Child 2\n{prefix}- Child 2\n{prefix}- Child 3"
+        == f"- Parent\n{prefix}- Child 1\n{prefix * 2}1. Nested Child 1\n{prefix * 3}1. Nested Child 2\n{prefix}- Child 2\n{prefix}- Child 3"
+    )
+
+
+def test_nested_numbered_list_numbers_independently_of_parent():
+    """A nested numbered list starts at 1 and leaves the parent list's count alone."""
+
+    def item(text, children=()):
+        return {
+            "type": "numberedListItem",
+            "content": [{"type": "text", "text": text}],
+            "children": list(children),
+        }
+
+    blocks = [item("First", [item("Sub A"), item("Sub B")]), item("Second")]
+
+    assert (
+        blocknote_to_markdown(blocks) == "1. First\n  1. Sub A\n  2. Sub B\n2. Second"
     )
 
 

@@ -1,12 +1,14 @@
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.embedding.active import active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
@@ -14,30 +16,42 @@ from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import ProviderDep
+from modules.llm.local_image_state import local_image_state
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, llamacpp, provider_names
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.reads_images import (
+    connection_catalog_provider,
+    selection_reads_images,
+)
 from modules.llm.residency import warm_selected
 from modules.llm.schemas import (
     LocalImageRuntimeRead,
+    LocalImageStateRead,
     ModelDeleteRead,
     ModelRead,
+    OnboardingComplete,
     OnboardingStatusRead,
     ProviderRead,
     RuntimeFileRead,
     SelectionRead,
     SelectionWrite,
 )
-from modules.llm.selectable import selectable_for
+from modules.llm.selectable import SLOTS, selectable_for
 from modules.llm.selection import choose_model, complete_onboarding
+from modules.llm.subscriptions.chatgpt.router import router as chatgpt_router
+from modules.llm.voices.router import router as voices_router
 from shared.config import get_llm_settings
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(local_catalog_router)
 router.include_router(install_jobs_router)
 router.include_router(remote_catalog_router)
+# Before the connections router, so `chatgpt` is never read as a connection id.
+router.include_router(chatgpt_router)
 router.include_router(connections_router)
+router.include_router(voices_router)
 
 
 @router.get(
@@ -56,8 +70,10 @@ def read_onboarding_status(session: SessionDep) -> OnboardingStatusRead:
     response_model=OnboardingStatusRead,
     summary="Complete model onboarding",
 )
-def mark_onboarding_complete(session: SessionDep) -> OnboardingStatusRead:
-    complete_onboarding(session)
+def mark_onboarding_complete(
+    session: SessionDep, payload: Annotated[OnboardingComplete | None, Body()] = None
+) -> OnboardingStatusRead:
+    complete_onboarding(session, payload.embedding_model if payload else None)
     return OnboardingStatusRead(completed=True)
 
 
@@ -123,6 +139,11 @@ async def delete_model(
             status.HTTP_409_CONFLICT,
             f"{model_name} comes with SurfSense and cannot be deleted",
         )
+    if await transact(session, _embeds_the_library, model_name):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{model_name} made every vector in the library and cannot be deleted",
+        )
     if await transact(session, _studio_running):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -158,6 +179,11 @@ async def delete_model(
         )
         selection_cleared = selection_cleared or cleared
     return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
+
+
+def _embeds_the_library(session: Session, model_name: str) -> bool:
+    active = active_index(session)
+    return active is not None and active.spec.id == model_name
 
 
 def _studio_running(session: Session) -> bool:
@@ -217,18 +243,51 @@ def read_local_image_runtime(
     )
 
 
+def _slot(model_type: ModelType) -> ModelType:
+    """The embedder is fixed with the index at onboarding, never selected."""
+    if model_type not in SLOTS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "the embedding model is chosen during onboarding, not selected",
+        )
+    return model_type
+
+
+SlotDep = Annotated[ModelType, Depends(_slot)]
+
+
+@router.get(
+    "/image/local/state",
+    response_model=LocalImageStateRead,
+    summary="Whether the chosen local image model is running, without starting it",
+)
+async def read_local_image_state(
+    session: SessionDep,
+    service: LocalCatalogDep,
+    model_type: ModelType = ModelType.IMAGE_GEN,
+) -> LocalImageStateRead:
+    return LocalImageStateRead(
+        state=await local_image_state(session, service, model_type)
+    )
+
+
 @router.get(
     "/selection/{model_type}",
     response_model=SelectionRead,
     summary="Read the model chosen for a model type",
 )
-def read_selection(model_type: ModelType, session: SessionDep) -> SelectedModel:
+async def read_selection(model_type: SlotDep, session: SessionDep) -> SelectionRead:
+    return await _selection_read(
+        session, await transact(session, _chosen_or_404, model_type)
+    )
+
+
+def _chosen_or_404(session: Session, model_type: ModelType) -> SelectedModel:
     selected = session.get(SelectedModel, model_type)
     if selected is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"no model chosen for {model_type}"
         )
-
     return selected
 
 
@@ -238,11 +297,11 @@ def read_selection(model_type: ModelType, session: SessionDep) -> SelectedModel:
     summary="Choose the model for a model type",
 )
 async def set_selection(
-    model_type: ModelType,
+    model_type: SlotDep,
     payload: SelectionWrite,
     session: SessionDep,
     background: BackgroundTasks,
-) -> SelectedModel:
+) -> SelectionRead:
     chosen = await choose_model(
         session,
         model_type,
@@ -258,4 +317,19 @@ async def set_selection(
     # either way — the only question is whether it happens now or on their
     # first question.
     background.add_task(warm_selected, chosen, get_llm_settings().llamacpp_base_url)
-    return chosen
+    return await _selection_read(session, chosen)
+
+
+async def _selection_read(session: Session, selected: SelectedModel) -> SelectionRead:
+    read, catalog_provider = await transact(session, _read_with_provider, selected)
+    read.reads_images = await selection_reads_images(selected, catalog_provider)
+    return read
+
+
+def _read_with_provider(
+    session: Session, selected: SelectedModel
+) -> tuple[SelectionRead, str | None]:
+    return (
+        SelectionRead.model_validate(selected),
+        connection_catalog_provider(session, selected),
+    )

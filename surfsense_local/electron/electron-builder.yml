@@ -40,6 +40,12 @@ extraResources:
   # above (build:voice); every other voice model is downloaded.
   - from: audiocpp
     to: audiocpp
+  # opencode's server for the agent, and the ripgrep it greps with
+  # (scripts/opencode/). Pinned by version and SHA-256; it starts only once the
+  # API writes its configuration. While opencode is off nothing is staged, and
+  # electron-builder warns that the folder is missing and skips it.
+  - from: opencode
+    to: opencode
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
@@ -73,6 +79,15 @@ linux:
       Comment: Local-first research over your own documents
       Categories: Office;Utility;
       StartupWMClass: SurfSense
+
+# llama.cpp's GPU backend opens libvulkan.so.1 from the host. Recommended, not
+# depended on: without it the app still runs, on the CPU. Setting `recommends`
+# replaces electron-builder's list, so its default stays first. `depends` is left
+# unset to keep electron-builder's GTK, NSS and X libraries.
+deb:
+  recommends:
+    - libappindicator3-1
+    - libvulkan1
 
 win:
   target: [nsis]

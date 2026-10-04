@@ -1,14 +1,18 @@
 """Content kinds: the model writes markdown or JSON, the worker renders it as-is."""
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
 from modules.llm.profile import Tier
 from worker.studio.content.flashcards import pipeline as flashcards
+from worker.studio.content.flashcards import schema as flashcards_schema
 from worker.studio.content.mindmap import pipeline as mindmap
 from worker.studio.content.quiz import pipeline as quiz
+from worker.studio.content.quiz import schema as quiz_schema
 from worker.studio.content.summary import pipeline as summary
+from worker.studio.shared import generate
 from worker.studio.shared.text import parse_json
 
 pytestmark = pytest.mark.unit
@@ -47,6 +51,56 @@ def test_a_quiz_is_capped_where_its_prompt_says_it_is() -> None:
     built = quiz.build(raw, [])
 
     assert len(json.loads(built.primary)["questions"]) == quiz.QUESTIONS
+
+
+def test_a_quiz_asks_the_model_for_its_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The shape the builder reads is enforced while the model writes, so a
+    small model cannot drift off it; the prompt still says it in prose."""
+    sent: list[dict | None] = []
+
+    def fake_run_model(*_args: object, json_schema: dict | None = None, **_kw: object):
+        sent.append(json_schema)
+        return '{"title": "T", "questions": []}'
+
+    monkeypatch.setattr(generate, "run_model", fake_run_model)
+    model = SimpleNamespace(tier=Tier.COMPACT)
+
+    quiz.render(model, [], None)
+
+    assert sent == [quiz_schema.REPLY]
+
+
+def test_the_quiz_schema_asks_for_what_the_builder_keeps() -> None:
+    """A question the builder would drop is one the grammar should not allow."""
+    question = quiz_schema.REPLY["properties"]["questions"]["items"]
+    options = question["properties"]["options"]
+
+    assert set(quiz_schema.REPLY["required"]) == {"title", "questions"}
+    assert set(question["required"]) == {"question", "options", "answer", "explanation"}
+    assert options["minItems"] == options["maxItems"] == quiz.OPTIONS
+
+
+def test_a_deck_asks_the_model_for_its_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A small model that drifts off the shape loses the whole deck, not a card."""
+    sent: list[dict | None] = []
+
+    def fake_run_model(*_args: object, json_schema: dict | None = None, **_kw: object):
+        sent.append(json_schema)
+        return '{"title": "T", "cards": []}'
+
+    monkeypatch.setattr(generate, "run_model", fake_run_model)
+
+    flashcards.render(SimpleNamespace(tier=Tier.COMPACT), [], None)
+
+    assert sent == [flashcards_schema.REPLY]
+
+
+def test_the_deck_schema_asks_for_what_the_builder_keeps() -> None:
+    """A card without both sides is dropped, so the grammar asks for both."""
+    card = flashcards_schema.REPLY["properties"]["cards"]["items"]
+
+    assert set(flashcards_schema.REPLY["required"]) == {"title", "cards"}
+    assert set(card["required"]) == {"front", "back"}
 
 
 def test_every_content_kind_is_asked_for_in_its_own_words_at_every_tier() -> None:

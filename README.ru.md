@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, изолированная от сети альтернатива NotebookLM с открытым кодом" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="Настольное приложение SurfSense со Studio открытым и выбранным Qwen, превращающее локальные источники в результаты" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="Настольное приложение SurfSense со Studio открытым и выбранным Qwen, превращающее локальные источники в результаты" />
 </p>
 
 SurfSense — бесплатное настольное приложение с открытым кодом для документов, которые уже есть. Перетащите их внутрь, задайте вопросы и получите ответы со ссылкой на источник, а затем превратите те же документы в брифинг, презентацию, отчёт, учебное руководство или подкаст. Всё это работает на вашем компьютере: индекс лежит на диске, модель выбираете вы, и приложение ничего не отправляет. Аккаунт создавать не нужно.

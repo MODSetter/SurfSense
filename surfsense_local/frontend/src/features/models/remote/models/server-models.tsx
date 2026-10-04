@@ -24,6 +24,7 @@ import { intl } from "@/i18n/intl"
 import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
 import { useSelection } from "../../selection/use-selection"
+import { ServerVoices } from "../voices/server-voices"
 import type { Connection } from "../connections/api"
 import { DisconnectButton } from "../connections/disconnect-button"
 import type { ConnectionModel } from "./api"
@@ -126,6 +127,7 @@ export function ServerModels({
         // Typed by hand, so nothing vouches for it; the backend checks it when
         // it is assigned.
         selectable_for: [modelType],
+        reads_images: false,
       },
     })
   }
@@ -142,7 +144,16 @@ export function ServerModels({
         >
           <span className="shrink-0">{connection.label}</span>
           <DotIcon aria-hidden="true" className="size-3 shrink-0" />
-          <span className="truncate font-normal">{connection.base_url}</span>
+          <span className="truncate font-normal">
+            {connection.auth_kind !== "chatgpt"
+              ? connection.base_url
+              : connection.signed_in
+                ? (connection.account_email ?? connection.base_url)
+                : intl.formatMessage({
+                    id: "models_server_models_signed_out_status",
+                    defaultMessage: "Signed out",
+                  })}
+          </span>
         </h3>
         <div className="flex shrink-0 items-center gap-1">
           <Button
@@ -185,6 +196,12 @@ export function ServerModels({
                 defaultMessage: "In use",
               })}
             </Button>
+          </div>
+        ) : null}
+        {current && modelType === "audio_gen" ? (
+          // Its voices belong to this server's model, so they are set up here.
+          <div className="border-b px-3 py-3">
+            <ServerVoices />
           </div>
         ) : null}
         <button
@@ -350,6 +367,14 @@ export function ServerModels({
                               </Badge>
                             ))
                           )}
+                          {model.reads_images ? (
+                            <Badge variant="secondary">
+                              {intl.formatMessage({
+                                id: "models_server_models_vision_label",
+                                defaultMessage: "Vision",
+                              })}
+                            </Badge>
+                          ) : null}
                         </div>
                       </div>
                       {inUse(model.name) ? (

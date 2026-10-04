@@ -32,16 +32,20 @@ class Capabilities:
     system_role: bool
     typed_content: bool
     tools: bool
+    # Whether llama-server parses the model's tool calls out of its reply; a
+    # template can render tools and still have none parsed (common/chat-auto-parser-generator.cpp).
+    tool_calls: bool
     context_tokens: int | None
 
     @property
     def can_see(self) -> bool:
-        """Both halves, because either alone is a lie.
+        """Whether llama-server loads a projector that reads images for it.
 
-        A model can accept images architecturally while its template takes only
-        string content, which leaves no way to send it one.
+        Not the template's content shape: at b11050 the server swaps each image
+        for a media marker before templating and keeps it when a string-only
+        template joins the parts (common/chat.cpp, concat_content_parts).
         """
-        return Modality.IMAGE in self.inputs and self.typed_content
+        return Modality.IMAGE in self.inputs
 
     @property
     def user_facing(self) -> tuple[str, ...]:
@@ -73,5 +77,6 @@ def read_capabilities(model_id: str, models: dict, props: dict) -> Capabilities:
         system_role=bool(template.get("supports_system_role", True)),
         typed_content=bool(template.get("supports_typed_content", False)),
         tools=bool(template.get("supports_tools", False)),
+        tool_calls=bool(template.get("supports_tool_calls", False)),
         context_tokens=settings.get("n_ctx"),
     )

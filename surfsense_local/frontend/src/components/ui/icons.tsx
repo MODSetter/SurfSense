@@ -9,9 +9,9 @@ import {
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
   ArrowUp02Icon as ArrowUp02IconData,
+  ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
   BotIcon as BotIconData,
-  BrainCircuitIcon as BrainCircuitIconData,
   Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
   Cards01Icon as Cards01IconData,
@@ -50,6 +50,7 @@ import {
   PencilEdit02Icon as PencilEdit02IconData,
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
+  PlayIcon as PlayIconData,
   PlusIcon as PlusIconData,
   PodcastIcon as PodcastIconData,
   Presentation02Icon as Presentation02IconData,
@@ -66,6 +67,7 @@ import {
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  ThoughtBubbleIcon as ThoughtBubbleIconData,
   UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
   Video01Icon as Video01IconData,
@@ -119,7 +121,6 @@ export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
-export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
 export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
@@ -149,6 +150,7 @@ export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
+export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
@@ -167,6 +169,8 @@ export const Presentation02Icon = createIcon(Presentation02IconData)
 export const Quiz02Icon = createIcon(Quiz02IconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const SearchIcon = createIcon(Search01Icon)
+// Points in a space, nearby meaning similar: what an embedding is.
+export const EmbeddingIcon = createIcon(ChartScatterIconData)
 export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
@@ -183,6 +187,7 @@ export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData
 )
+export const ThoughtBubbleIcon = createIcon(ThoughtBubbleIconData)
 export const Trash2Icon = createIcon(Delete02Icon)
 export const ViewIcon = createIcon(ViewIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)

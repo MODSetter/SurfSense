@@ -1,21 +1,27 @@
 """Chat end to end: retrieve, stream a cited reply, and persist both turns."""
 
+import asyncio
 import json
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
-from modules.chat.budget import ANSWER_RESERVE_TOKENS
+from modules.chat.budget import ANSWER_RESERVE_TOKENS, QUESTION_CHARS
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
 from tests.integration.chat.conftest import (
+    REPLY_DELTAS,
+    set_answer,
+    set_prompt_progress,
     set_props_n_ctx,
     set_reasoning,
     set_tokens_per_word,
+    stall_after_answer,
 )
 from worker.ingestion import run
 
@@ -47,7 +53,9 @@ def _seed(
             ids[title] = doc.id
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -62,7 +70,9 @@ def _choose_generation_model(engine: Engine) -> None:
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -78,11 +88,14 @@ async def _send(
     thread_id: int,
     text: str,
     document_ids: list[int] | None = None,
+    thinking: bool | None = None,
 ) -> list[dict]:
     events: list[dict] = []
     body: dict = {"text": text}
     if document_ids is not None:
         body["document_ids"] = document_ids
+    if thinking is not None:
+        body["thinking"] = thinking
     async with client.stream(
         "POST", f"/chat/threads/{thread_id}/messages", json=body
     ) as reply:
@@ -294,6 +307,93 @@ async def test_a_thinking_model_shows_its_reasoning_before_the_answer(
     }
 
 
+async def test_reading_a_long_prompt_streams_progress_before_the_answer(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The wait before the first token gets a figure that moves: the tokens
+    read so far out of those left to read, with the cached prefix taken out.
+    It is for the wait only, so it is not stored with the turn."""
+    set_prompt_progress(
+        [
+            {"total": 6144, "cache": 2048, "processed": 2048, "time_ms": 0},
+            {"total": 6144, "cache": 2048, "processed": 4096, "time_ms": 300},
+            {"total": 6144, "cache": 2048, "processed": 6144, "time_ms": 600},
+        ]
+    )
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened to revenue?")
+
+    kinds = [event["type"] for event in events]
+    progress = [event for event in events if event["type"] == "prompt-progress"]
+    assert [(event["processed"], event["total"]) for event in progress] == [
+        (0, 4096),
+        (2048, 4096),
+        (4096, 4096),
+    ]
+    last = max(i for i, kind in enumerate(kinds) if kind == "prompt-progress")
+    assert last < kinds.index("delta")
+    answer = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert answer == "Revenue climbed after the launch [1]."
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored[1]["content"]["text"].startswith("Revenue climbed")
+    assert "progress" not in stored[1]["content"]
+
+
+async def test_a_reply_with_no_progress_streams_as_it_did(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The frame is optional: an endpoint that reports nothing sends none."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened to revenue?")
+
+    assert "prompt-progress" not in {event["type"] for event in events}
+async def test_a_turn_sent_with_thinking_off_answers_with_no_trace(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The switch is a field on the turn: the local runtime is told not to
+    think, so no trace streams and none is stored."""
+    set_reasoning(["The note says ", "revenue climbed."])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(
+        client, thread_id, "what happened to revenue?", thinking=False
+    )
+
+    kinds = {event["type"] for event in events}
+    assert not kinds & {"reasoning", "reasoning-end"}
+    answer = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert answer == "Revenue climbed after the launch [1]."
+    (asked,) = [r for r in llamacpp_server if r.get("max_tokens") != 12]
+    assert asked["thinking_budget_tokens"] == 0
+    assert asked["chat_template_kwargs"] == {"enable_thinking": False}
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert "reasoning" not in stored[1]["content"]
+
+
+async def test_a_turn_thinks_unless_it_says_otherwise(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """Thinking on, sent or left out, adds nothing to the model's request."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "first question")
+    await _send(client, thread_id, "second question", thinking=True)
+
+    answers = [r for r in llamacpp_server if r.get("max_tokens") != 12]
+    assert len(answers) == 2
+    for asked in answers:
+        assert "thinking_budget_tokens" not in asked
+        assert "chat_template_kwargs" not in asked
+
+
 async def test_a_followup_never_hands_the_model_its_earlier_reasoning(
     client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
 ) -> None:
@@ -364,6 +464,123 @@ async def test_a_failed_reply_is_classified_and_leaves_no_trace(
     assert threads[0]["title"] == "New chat"
 
 
+async def _hang_up_mid_reply(client: AsyncClient, thread_id: int) -> None:
+    """Read the whole answer, then close while the model is still generating."""
+    deltas: list[str] = []
+    async with client.stream(
+        "POST",
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "how did revenue move?"},
+    ) as reply:
+        async for line in reply.aiter_lines():
+            if line.startswith("data: {"):
+                event = json.loads(line[len("data: ") :])
+                if event["type"] == "delta":
+                    deltas.append(event["text"])
+            if len(deltas) == len(REPLY_DELTAS):
+                return
+
+
+async def _settled_messages(client: AsyncClient, thread_id: int) -> list[dict]:
+    """The thread once the server has finished with the abandoned stream."""
+    stored: list[dict] = []
+    for _ in range(40):
+        stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+        if len(stored) == 2 and stored[1]["completed_at"]:
+            break
+        await asyncio.sleep(0.05)
+    return stored
+
+
+async def _model_is_free() -> bool:
+    """Whether deleting the chat model would be allowed, as `DELETE /llm/models` asks."""
+    for _ in range(40):
+        try:
+            key = model_key("llamacpp", "Qwen3-1.7B-Q4_K_M")
+            async with model_activity.deleting(key):
+                return True
+        except ModelBusyError:
+            await asyncio.sleep(0.05)
+    return False
+
+
+async def test_a_reply_the_client_hangs_up_on_frees_the_model(
+    live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """A stale in-use mark would 409 deleting this model until the app restarts."""
+    release = stall_after_answer()
+    workspace_id, _ids = _seed(engine)
+    async with AsyncClient(base_url=live_url) as client:
+        thread_id = await _open_thread(client, workspace_id)
+        await _hang_up_mid_reply(client, thread_id)
+        free = await _model_is_free()
+        release.set()
+
+    assert free
+
+
+async def test_a_reply_the_client_hangs_up_on_keeps_its_text(
+    live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """What streamed before the hang-up is the reply; the code comment promises it."""
+    release = stall_after_answer()
+    workspace_id, _ids = _seed(engine)
+    async with AsyncClient(base_url=live_url) as client:
+        thread_id = await _open_thread(client, workspace_id)
+        await _hang_up_mid_reply(client, thread_id)
+        stored = await _settled_messages(client, thread_id)
+        release.set()
+
+    # The turn is kept, not discarded: text streamed, so the empty-reply
+    # guard does not apply. Checked first so a discard fails here, by name.
+    assert [message["role"] for message in stored] == ["user", "assistant"]
+    assert stored[1]["content"]["text"].startswith("Revenue climbed after the launch")
+    assert stored[1]["completed_at"]
+
+
+@pytest.mark.parametrize("reasoning", [[], ["The note says ", "nothing useful."]])
+async def test_a_reply_with_no_text_leaves_no_trace(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+    reasoning: list[str],
+) -> None:
+    """A stream that closes cleanly with no answer, even after thinking, is discarded."""
+    set_reasoning(reasoning)
+    set_answer([])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    error = next(event for event in events if event["type"] == "error")
+    assert error["kind"] == "unknown"
+    assert not any(event["type"] == "completed" for event in events)
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored == []
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
+
+
+async def test_a_curated_model_answers_at_its_publishers_temperature(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+) -> None:
+    """Qwen3's entry commits 0.6 for thinking; the title keeps its own zero."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "how did revenue move?")
+
+    title, answer = sorted(llamacpp_server, key=lambda r: r.get("max_tokens") != 12)
+    assert title["temperature"] == 0
+    assert answer["temperature"] == 0.6
+
+
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:
     """Refused before retrieval, so the frontend can route the user to setup."""
     workspace = (await client.post("/workspaces", json={"name": "w"})).json()
@@ -376,6 +593,22 @@ async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> 
     assert reply.status_code == 409
 
 
+async def test_a_question_past_its_share_is_refused_at_the_wire(
+    client: AsyncClient,
+) -> None:
+    """Refused before a model is resolved or retrieval runs: with no model
+    selected, a message that got past the schema would be the 409 above."""
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(client, workspace["id"])
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "x" * (QUESTION_CHARS + 1)},
+    )
+
+    assert reply.status_code == 422
+
+
 async def test_missing_embedding_assets_are_an_actionable_503(
     client: AsyncClient, engine: Engine
 ) -> None:
@@ -383,7 +616,9 @@ async def test_missing_embedding_assets_are_an_actionable_503(
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -399,6 +634,30 @@ async def test_missing_embedding_assets_are_an_actionable_503(
         "local embedding model is not installed; "
         "run `uv run scripts/fetch_embedding_model.py`"
     )
+
+
+async def test_chat_before_an_embedder_is_chosen_is_a_409(
+    unlocked_client: AsyncClient, unlocked_engine: Engine
+) -> None:
+    """The API reached before onboarding finishes: say why, rather than guess a model."""
+    with create_session_factory(unlocked_engine)() as session:
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
+            )
+        )
+        session.commit()
+    workspace = (await unlocked_client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(unlocked_client, workspace["id"])
+
+    reply = await unlocked_client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "hi"}
+    )
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "embedding_not_chosen"
 
 
 async def test_the_answer_reserves_room_instead_of_taking_the_whole_window(

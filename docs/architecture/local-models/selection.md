@@ -22,11 +22,19 @@ choosing or clearing a model never touches.
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
 | `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
-| `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id`, which nothing reads yet | Studio's `podcast` |
+| `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
+
+`embedding` is a `ModelType` too, and the one exception: a catalog type, so the
+manifest and an engine can describe an embedder, never a slot. The embedder
+belongs to the library's index, fixed when onboarding finishes
+([search](../search.md), [ADR 0037](../../adr/0037-embedding-is-a-type-not-a-slot.md)). `SLOTS` in
+[`selectable.py`](../../../surfsense_local/backend/modules/llm/selectable.py) is every type but it:
+`selectable_for` never offers `embedding`, not even to a model nothing
+recognises, and both `/llm/selection/{model_type}` routes answer `422` for it.
 
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
@@ -94,17 +102,19 @@ generation never has to:
 - **Remote**: `inspect()` reads the endpoint's `/models` row for the model. With
   a `hugging_face_id`, `params_b` is the largest size stated in the id or the
   repo name, and `line` defaults to `flagship`, because published weights with no
-  size word are a vendor's full-size model. Without one, `vendor` is the row's
-  `owned_by`, or the part of the id before its last `/`.
-- **Anything else, or a failed read**: `from_name()` takes the largest `<n>b`
+  size word are a vendor's full-size model. Without one, `params_b` is the
+  largest size stated in the id, and `vendor` is the row's `owned_by`, or the
+  part of the id before its last `/`, when the id states no size.
+- **Local text**: `inspect()` reads `general.parameter_count` from the
+  llama.cpp router's `/props`; when the runtime states no count, the filename
+  supplies it.
+- **Anything else, or a failed provider read**: `from_name()` takes the largest `<n>b`
   count in the name, so a mixture of experts reads its total rather than its
   active size and `llama-3.3-70b` is not 3B, and failing that a line word such as
   `mini`, `flash`, `pro` or `max`.
 
-A local model is fingerprinted from its filename. `LlamaCppProvider` has no
-`inspect()`, so the call fails, the failure is caught, and `from_name()` reads
-8 from `Qwen3-8B-Q4_K_M`. A row with all three facts null, such as one chosen
-before tiering existed, is fingerprinted from its name on read.
+A row with all three facts null, such as one chosen before tiering existed, is
+fingerprinted from its name on read.
 
 ## Prompt tiers
 
@@ -118,15 +128,18 @@ names the prompt file.
 | `params_b` ≥ 100.0 | `frontier` |
 | no count, but a `vendor` | `frontier` |
 | no count, `line` is flagship / small | `frontier` / `capable` |
-| nothing, and the provider is `llamacpp` | `compact` |
-| nothing, any other provider | `capable` |
+| nothing, and the endpoint is on this machine (`llamacpp`, or a connection on a loopback host) | `compact` |
+| nothing, and the endpoint is hosted | `capable` |
 
 The thresholds encode a claim about scaffolding, not about quality: below the
 first a model loses accuracy when asked to follow a structure, between the two it
 gains from one, and above the second it writes better from judgement than from
 steps. The last two rows are the same bet: a hosted endpoint runs models too big
 for a laptop, and a local one runs the laptop. `Fingerprint.local` decides which
-applies, and it returns `provider == "llamacpp"`.
+applies: true for `llamacpp`, which has no URL of its own, and for a connection
+whose host `host_destination()` reports as loopback, such as LM Studio or Ollama
+on `localhost`. `SelectedModel.fingerprint` sets that from its connection, which
+the row loads joined so reading the tier never queries lazily.
 
 The tier is not stored. `SelectedModel.tier` calls `classify()` on read, and
 `ResolvedGeneration.tier` hands it to chat and to every Studio format, so
@@ -158,7 +171,11 @@ three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
 `GET /llm/onboarding` returns `{"completed": bool}`, true once the singleton
 `onboarding_completion` row exists. `POST /llm/onboarding` writes that row and
 requires a persisted `text_gen` selection, answering `422 chat model required`
-otherwise; image, image editing, video and audio models are optional. The marker means the user finished
+otherwise; image, image editing, video and audio models are optional. Its body
+may name `embedding_model`, a curated embedder already downloaded; the route
+locks it as the library's embedder before writing the marker, refusing `409` one
+not yet downloaded and leaving onboarding unfinished. No name locks the bundled
+bge-small ([`choose.py`](../../../surfsense_local/backend/modules/embedding/choose.py)). The marker means the user finished
 choosing, and it is the one thing that must not become true early.
 
 Two invariants, both easy to break from the frontend: selecting or clearing a
@@ -167,12 +184,29 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then five steps: chat, image, image editing, audio and video model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The five
-model steps are one component for any slot
+The onboarding page opens on a welcome screen, then six steps: chat, image, image editing, audio, video and search model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done.
+
+The embedding step comes last and is not a slot, but it is the same component
+as the model steps below, with one more entry in their tables
+([`model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)).
+What a step does on Use is its own hook: a slot's saves the selection, and the
+embedding step's ([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
+only marks a choice, In use until another is used, bge-small by default and again
+if the chosen one is deleted. Its downloads install with `select: false`; a
+Hugging Face pick is labelled not tested by SurfSense; the bundled bge-small has
+no Delete. Its search is `ModelSearch` given the embedding endpoints, which answer
+in the GGUF search's shapes, with a note that larger models are slower. A notice
+above the list says the choice can't be changed later and that the default suits
+English. It offers no server until remote embedders exist. Being last, its
+Finish sends the choice with the call that ends onboarding; Skip and finish, or
+Finish with the choice untouched, sends none, which means bge-small
+([embedding](../embedding.md)).
+
+The model steps are one component for any slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every
-model this computer can run at once, the catalog's starred row first, with
-Download, Use and Delete as in Settings; a download's progress shows under its
+model this computer can run at once: in the chat step, models downloaded from Hugging Face first, then the curated list with its starred row first, with
+Download, Use and Delete as in Settings, and no Delete on a model the app ships; a download's progress shows under its
 row and never moves the page. The chat step also offers Settings' Hugging Face
 search, closed until asked for; the image, image editing, audio and video steps have none, since
 sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
@@ -215,17 +249,28 @@ into the first non-system turn, keeping that turn's role, rather than losing it.
 seam, so `modules/chat` assembles one conversation and never learns that
 templates differ.
 
-`vision` requires both halves: `image` among the accepted inputs and
-`supports_typed_content` from the template. A model can accept images
-architecturally while its template takes only string content, which leaves no
-way to send it one. It is the only capability meant to reach a person;
+`vision` is `image` among the accepted inputs, llama.cpp's own answer: the
+router reads the header of the projector the preset gave a model and lists
+`image` whether or not the model is loaded. The template's
+`supports_typed_content` does not decide it, because at `b11050` llama-server
+swaps each image for a media marker before templating and keeps the marker when
+it joins parts for a string-only template ([ADR
+0034](../../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).
+`sees_images()` reads it from `/models` alone, so nothing is loaded to ask; an
+unreadable `/models` is no answer rather than no. It is the only capability
+meant to reach a person;
 `system_role`, `typed_content` and `tools` change how a request is built and mean
 nothing to one. `Modality` carries only text and image, so an audio-capable model
 is not detected as one; audio and video are deliberately not modelled, because
 nothing can feed them.
 
 A remote endpoint reports none of this. Its models' capabilities come from its
-`/models` listing ([`../connections.md`](../connections.md)).
+`/models` listing, and whether one reads images from the catalog
+([`../connections.md`](../connections.md)).
+
+`GET` and `PUT /llm/selection/{model_type}` add `reads_images` to the choice,
+worked out per read from those two answers and stored nowhere, so the composer
+knows before anything is sent ([`../chat.md`](../chat.md#images)).
 
 ## Constrained decoding
 
@@ -238,6 +283,13 @@ a `json_schema` request, which
 some templates, is retried once unconstrained. Chat prose is deliberately
 unconstrained.
 
+Studio passes a schema through `run_model()`
+([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
+each format's beside its prompts, as the quiz's
+([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+A reply that arrives unconstrained, from an endpoint that ignores
+`response_format` or from the 400 retry, is still read by `parse_json()`.
+
 ## How it is tested
 
 [`surfsense_local/backend/tests/unit/llm/profile/`](../../../surfsense_local/backend/tests/unit/llm/profile/)
@@ -249,9 +301,5 @@ over HTTP.
 
 ## Known gaps
 
-- The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
-- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts. Featherless lists every model this way (`"owned_by": "Feather"`, no `hugging_face_id`), so every model there, Qwen3 0.6B included, gets frontier prompts.
-- Local fingerprints come from the filename only: `LlamaCppProvider` has no `inspect()`, so `from_llamacpp()`, which reads `general.parameter_count` from `/props`, is never called.
-- No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
-- Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
+- Only the quiz and flashcards pass `json_schema`: mind map, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

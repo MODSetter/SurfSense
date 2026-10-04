@@ -105,7 +105,7 @@ function PlanCell({ plan }: { plan: Plan }) {
 							key={action.label}
 							asChild
 							size="lg"
-							variant={action.primary ? "default" : "outline"}
+							variant={action.primary ? "default" : "secondary"}
 						>
 							{action.external ? (
 								<a href={action.href} target="_blank" rel="noreferrer noopener">

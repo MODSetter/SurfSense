@@ -1,7 +1,8 @@
+from dataclasses import replace
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from modules.llm.model_type import ModelType
 from modules.llm.profile import Fingerprint, Line, Tier, classify, from_name
@@ -53,21 +54,39 @@ class SelectedModel(Base):
     params_b: Mapped[float | None]
     vendor: Mapped[str | None]
     line: Mapped[Line | None] = mapped_column(text_enum(Line))
+    # What the user set for this model that no endpoint states, keyed by the
+    # slice that owns each entry: `voices` belongs to `llm/voices`. Null until
+    # something is set, and cleared when the slot takes another model.
+    settings: Mapped[dict | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+    # Joined, so the tier can be read off the loop without a lazy load: the row
+    # always arrives with its connection's host.
+    connection: Mapped["ProviderConnection | None"] = relationship(lazy="joined")
 
     @property
     def fingerprint(self) -> Fingerprint:
         """What was collected when this model was chosen, else what its name says."""
         if self.params_b is None and self.vendor is None and self.line is None:
-            return from_name(self.provider, self.name)
-        return Fingerprint(
-            provider=self.provider,
-            name=self.name,
-            params_b=self.params_b,
-            vendor=self.vendor,
-            line=self.line,
+            fingerprint = from_name(self.provider, self.name)
+        else:
+            fingerprint = Fingerprint(
+                provider=self.provider,
+                name=self.name,
+                params_b=self.params_b,
+                vendor=self.vendor,
+                line=self.line,
+            )
+        return replace(fingerprint, loopback=self._on_this_machine())
+
+    def _on_this_machine(self) -> bool:
+        # Imported here: the egress service imports this module for its rows.
+        from modules.egress.service import host_destination
+
+        return (
+            self.connection is not None
+            and host_destination(self.connection.base_url) is None
         )
 
     @property
@@ -80,6 +99,7 @@ class ProviderConnection(Base):
     __tablename__ = "provider_connections"
     __table_args__ = (
         CheckConstraint("provider = 'openai_compatible'", name="provider"),
+        CheckConstraint("auth_kind IN ('api_key', 'chatgpt')", name="auth_kind"),
         UniqueConstraint("label"),
     )
 
@@ -91,6 +111,12 @@ class ProviderConnection(Base):
     # provider's own entries; `custom` for anything the manifest does not list.
     catalog_provider: Mapped[str] = mapped_column(server_default="custom")
     api_key_ciphertext: Mapped[bytes | None]
+    # `chatgpt` signs in with a ChatGPT account: no key, OAuth tokens instead.
+    auth_kind: Mapped[str] = mapped_column(server_default="api_key")
+    # Encrypted JSON of the token set; NULL on a `chatgpt` row means signed out.
+    oauth_ciphertext: Mapped[bytes | None]
+    # Bumped by every refresh, so a process that lost the race uses the winner's.
+    token_version: Mapped[int] = mapped_column(server_default="0")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

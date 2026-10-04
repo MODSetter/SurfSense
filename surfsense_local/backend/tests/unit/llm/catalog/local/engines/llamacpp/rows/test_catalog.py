@@ -227,6 +227,31 @@ def test_a_curated_model_downloaded_from_an_alias_repo_is_recognised(
     ]
 
 
+def test_a_build_still_missing_a_file_is_not_installed_yet(tmp_path: Path) -> None:
+    """An install cut off between the weights and the projector left the weights
+    under their final name. Its record names what is still to come, so the row
+    keeps offering Download rather than reading installed and loading as text."""
+    model = next(m for m in CURATED if m.id == "gemma-3-4b")
+    build = model.as_builds()[0]
+    assert build.projector is not None
+    a_model(tmp_path / build.weights.name)
+    unfinished = InstalledBuild(
+        build.runtime_name,
+        model.source_repo,
+        "r",
+        build.quantization,
+        (build.weights.name,),
+        pending=(projector_filename(build.runtime_name),),
+    )
+
+    result = catalog(
+        BUDGETS["discrete-24gb"], scan(tmp_path, {unfinished.model_id: unfinished})
+    )
+
+    row = next(r for r in result.rows if r.id == "gemma-3-4b")
+    assert [b.installed_as for b in row.builds if b.installed_as] == []
+
+
 def test_any_other_file_is_its_own_row_judged_by_its_header(tmp_path: Path) -> None:
     """Any other file is its own row judged by its header."""
     a_model(tmp_path / "mystery-Q5_K_M.gguf")
@@ -386,3 +411,23 @@ def test_the_build_in_use_leads_its_row(tmp_path: Path) -> None:
 
     row = next(r for r in result.rows if r.id == "qwen3-8b")
     assert (row.lead.quantization, row.lead.why) == ("Q4_K_M", LeadReason.IN_USE)
+
+
+def test_an_installed_vision_build_reads_images_only_with_its_projector(
+    tmp_path: Path,
+) -> None:
+    """Installed, the badge follows the load: the preset gives `--mmproj` only for
+    a projector on disk, and llama.cpp reports what the preset gave it. A build
+    whose projector never landed runs text-only and must not say Vision."""
+    a_model(tmp_path / "gemma-3-4b-it-Q2_K.gguf", architecture="gemma3", embedding=2560)
+
+    def installed_build():
+        result = catalog(BUDGETS["discrete-24gb"], scan(tmp_path, {}))
+        row = next(r for r in result.rows if r.id == "gemma-3-4b")
+        return next(b for b in row.builds if b.installed_as)
+
+    assert not installed_build().reads_images
+
+    a_projector(tmp_path / projector_filename("gemma-3-4b-it-Q2_K"), width=2560)
+
+    assert installed_build().reads_images

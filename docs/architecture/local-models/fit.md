@@ -597,7 +597,7 @@ model's real window:
 | Answer reserve | 1024 | Reserved first. llama.cpp stops a reply wherever the window runs out, so spending this on history is how a good answer gets cut off mid-sentence with no error at all. |
 | System prompt | 400 | A rendered prompt plus the grounding header at the largest tier. Approximate. |
 | Excerpts | 2400 | Retrieval already caps chunks at 480 tokens and 5 hits, so this holds before retrieval runs. |
-| Question | 1024 | The user's message, so one turn cannot claim the whole window. A share, not a limit (see Known gaps). |
+| Question | 1024 | The user's message, so one turn cannot claim the whole window. Enforced at the wire: `MessageText` refuses more than 4,096 characters, the share at the four-characters-a-token estimate. |
 
 History gets what is left, `max(0, n_ctx - 4848)`: 3,344 tokens at the 8,192
 floor, growing with the window, so a narrower window means a shorter history
@@ -705,8 +705,7 @@ holds the badge to the load, and `tests/unit/chat/test_budget.py` the chat budge
 
 ## Known gaps
 
-- Live host memory reads 0 on Windows: `system_memory.available_bytes()` has no Windows branch and `os.sysconf` does not exist there, and `Device.reports_live_memory`, which tells a live reading from a restated total, is never read. On a Windows machine with no GPU every model is therefore planned at the 8,192 floor; capacity mode is unaffected because it reads the CPU device's total.
-- The question's 1,024-token share is not enforced: `MessageText` in `modules/chat/schemas.py` sets no maximum length, so a longer question can push a turn with a full history past the window.
+- `Device.reports_live_memory`, which tells a live reading from a restated total, is never read, so a device whose `free` merely restates `total`, as WSL2 and macOS do, is trusted as if it had reported free memory. `system_memory.available_bytes()` has no test.
 - The `q8_0` preference is unmeasured: nobody has timed a resident `q8_0` cache against a small `f16` spill on prompt rate, and published figures report quantized caches generating materially slower.
 - The light-spill boundary may be tight: `LIGHT_SPILL` ends at 0.25, which puts Qwen3 8B on a 6 GB RTX 3050 (0.33 by layers) out of the recommendation although its owner runs it without noticeable lag; one prefill and decode measurement of that configuration against the resident 4B settles it, and moving the boundary moves the badge and the star together.
 - The weights term is unconfirmed against the pinned files: the measured model buffers exceeded them (2,680 MiB against 2,382 for the 4B, 1,294 against 1,056 for the 1.7B), probably because those runs used another publisher's build, and if not, the largest term is under-estimated by 12 to 22%.

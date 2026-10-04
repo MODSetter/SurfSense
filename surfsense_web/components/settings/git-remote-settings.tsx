@@ -669,7 +669,10 @@ export function GitRemoteSettings({
 																}}
 																className="w-full justify-start gap-2 font-normal"
 															>
-																<IconBrandGitlab size={14} className="shrink-0 text-muted-foreground" />
+																<IconBrandGitlab
+																	size={14}
+																	className="shrink-0 text-muted-foreground"
+																/>
 																<span className="truncate">{repo.full_name}</span>
 															</Button>
 														</li>

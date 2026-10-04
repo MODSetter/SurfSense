@@ -9,12 +9,20 @@ Support matches on the **payment**, never on how similar two addresses look:
 ask the buyer for the charge id (or last 4 + amount + date), find it in Stripe,
 and use that checkout session id here.
 
+A trial has no payment, so ``--trial-email`` takes the exact address the trial
+was issued to, as the requester says they typed it. Never guess it from a
+lookalike: ask again. Someone who knows another person's exact address could
+have that trial repointed to them; they gain only a free, expiring, suspendable
+trial, and the correction moves the trial key too, so the owner can claim again.
+
 Correcting the stored address matters as much as sending the file. Leave the
 typo in Keygen and every future re-download is another support ticket, because
 ``/license/resend`` looks the customer up by that address.
 
     python -m scripts.correct_license_email --session cs_test_123 \
         --email real@buyer.com --mail
+    python -m scripts.correct_license_email --trial-email typo@exmaple.com \
+        --email real@example.com --mail
 
 Prints the current record and asks for confirmation before writing, unless
 --yes is passed.
@@ -29,15 +37,22 @@ import sys
 from app.license.admin import correct_license_email
 from app.license.email.deliver import deliver_licenses
 from app.license.models import LicenseNotFoundError
-from app.license.records import find_license_by_checkout_session
+from app.license.records import (
+    find_license_by_checkout_session,
+    find_trial_license_by_email,
+)
 
 
 async def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
+    anchor = parser.add_mutually_exclusive_group(required=True)
+    anchor.add_argument(
         "--session",
-        required=True,
         help="Stripe checkout session id, from the payment in the Stripe dashboard",
+    )
+    anchor.add_argument(
+        "--trial-email",
+        help="The exact address a trial was issued to, as the requester typed it",
     )
     parser.add_argument("--email", required=True, help="The buyer's real address")
     parser.add_argument(
@@ -49,7 +64,10 @@ async def main() -> int:
     args = parser.parse_args()
 
     try:
-        record = await find_license_by_checkout_session(args.session)
+        if args.session is not None:
+            record = await find_license_by_checkout_session(args.session)
+        else:
+            record = await find_trial_license_by_email(args.trial_email)
     except LicenseNotFoundError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

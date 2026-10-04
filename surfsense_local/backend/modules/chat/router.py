@@ -1,23 +1,41 @@
+import base64
+import binascii
 import json
 import logging
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import asdict
 from datetime import UTC, datetime
 
+import anyio
 from fastapi import APIRouter, HTTPException, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
-from modules.chat.budget import answer_max_tokens, history_budget
+from modules.agent.agent_threads.forget_sessions import forget_sessions
+from modules.agent.agent_threads.open_session import open_agent_session
+from modules.agent.agent_threads.thread_messages import agent_thread_messages
+from modules.agent.agent_threads.turn import agent_turn
+from modules.agent.dependencies import LaunchKeyDep
+from modules.agent.engine_choice import selected_model_can_run_agent
+from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
-from modules.chat.errors import classify_chat_error
+from modules.chat.errors import classify_chat_error, empty_reply_error
 from modules.chat.history import TokenCounter, build_messages
+from modules.chat.images import store
+from modules.chat.images.intake import ImageRefusedError, NormalisedImage, normalise
+from modules.chat.images.sources import (
+    MAX_SOURCE_IMAGES,
+    image_source_paths,
+    load_source_images,
+)
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
 from modules.chat.reasoning import ReasoningTrace
 from modules.chat.schemas import (
+    ImageUpload,
     MessageCreate,
     MessageRead,
     ThreadCreate,
@@ -26,6 +44,7 @@ from modules.chat.schemas import (
 )
 from modules.chat.title import generate_title
 from modules.documents.sources import load_selected_sources
+from modules.embedding.active import require_active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.providers.protocols import Generator
 from modules.llm.resolution import (
@@ -46,12 +65,21 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_201_CREATED,
     summary="Open a chat thread",
 )
-def create_thread(
-    workspace: WorkspaceDep, payload: ThreadCreate, session: SessionDep
+async def create_thread(
+    workspace: WorkspaceDep,
+    payload: ThreadCreate,
+    session: SessionDep,
+    launch_key: LaunchKeyDep,
 ) -> ChatThread:
-    thread = ChatThread(workspace_id=workspace.id, title=payload.title)
-    session.add(thread)
-    session.flush()  # The id and timestamps come from the database.
+    """Open a thread, and give it to the agent when the selected model may run it.
+
+    Chosen here and kept: the thread's turns live with whichever engine got it.
+    """
+    thread = await transact(session, _new_thread, workspace.id, payload.title)
+    if await selected_model_can_run_agent(session):
+        session_id = await open_agent_session(session, thread, launch_key)
+        if session_id is not None:
+            await transact(session, _give_to_agent, thread, session_id)
     return thread
 
 
@@ -83,12 +111,12 @@ def update_thread(thread: ThreadDep, payload: ThreadUpdate) -> ChatThread:
     response_model=list[MessageRead],
     summary="Read a thread's messages",
 )
-def list_messages(thread: ThreadDep, session: SessionDep) -> Sequence[ChatMessage]:
-    return session.scalars(
-        select(ChatMessage)
-        .where(ChatMessage.chat_thread_id == thread.id)
-        .order_by(ChatMessage.created_at)
-    ).all()
+async def list_messages(
+    thread: ThreadDep, session: SessionDep, launch_key: LaunchKeyDep
+) -> Sequence[ChatMessage] | list[dict]:
+    if thread.uses_agent:
+        return await agent_thread_messages(session, thread, launch_key)
+    return await transact(session, _stored_turns, thread)
 
 
 @router.delete(
@@ -96,9 +124,45 @@ def list_messages(thread: ThreadDep, session: SessionDep) -> Sequence[ChatMessag
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a thread and its messages",
 )
-def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
-    session.delete(thread)
+async def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
+    workspace_id, thread_id = thread.workspace_id, thread.id
+    if thread.opencode_session_id is not None:
+        await forget_sessions(workspace_id, [thread.opencode_session_id])
+    await transact(session, _delete_thread, thread)
+    store.remove_thread(workspace_id, thread_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _delete_thread(session: Session, thread: ChatThread) -> None:
+    """Delete the row; its messages cascade and its artifacts are kept.
+
+    `transact` commits before the caller removes the files, which a rollback
+    would otherwise leave pointing at nothing.
+    """
+    session.delete(thread)
+
+
+@router.get(
+    "/chat/threads/{thread_id}/messages/{message_id}/images/{index}",
+    response_class=FileResponse,
+    summary="Read an image a turn carried",
+)
+def read_message_image(
+    thread: ThreadDep, message_id: int, index: int, session: SessionDep
+) -> FileResponse:
+    message = session.get(ChatMessage, message_id)
+    references = (
+        message.content.get("images", [])
+        if message is not None and message.chat_thread_id == thread.id
+        else []
+    )
+    if not 0 <= index < len(references):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such image")
+    path = store.image_path(references[index])
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "the image is no longer on disk")
+    # Only PNG and JPEG are ever stored, so inline cannot run a script.
+    return FileResponse(path, media_type=references[index]["mime"])
 
 
 @router.post(
@@ -106,11 +170,19 @@ def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
     summary="Send a message and stream the grounded reply",
 )
 async def send_message(
-    thread: ThreadDep, payload: MessageCreate, session: SessionDep
+    thread: ThreadDep,
+    payload: MessageCreate,
+    session: SessionDep,
+    launch_key: LaunchKeyDep,
 ) -> StreamingResponse:
+    if thread.uses_agent:
+        return await agent_turn(session, thread, payload, launch_key)
     resolved, history, hits = await transact(session, _ground, thread, payload)
     selected = resolved.selection
     generator = resolved.generator
+    # Asked once: it gates attachments and decides whether sources send pictures.
+    sees = await generator.sees_images(selected.name)
+    images = await _accepted_images(payload.images, sees)
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
@@ -123,10 +195,12 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
+    found = await _source_images(session, hits, sees, n_ctx, len(images))
     messages = await build_messages(
         context,
         history,
         payload.text,
+        images=[image.as_part() for image in (*images, *found)],
         history_budget=history_budget(n_ctx),
         token_count=_token_counter(generator, selected.name),
     )
@@ -139,7 +213,7 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text
+            session, _open_turn, thread, payload.text, images
         )
         user_created_at = _iso(user_message.created_at)
     except Exception:
@@ -186,8 +260,21 @@ async def send_message(
         try:
             try:
                 async for delta in generator.chat_deltas(
-                    selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
+                    selected.name,
+                    messages,
+                    max_tokens=answer_max_tokens(n_ctx),
+                    # None leaves the model to its own default.
+                    reasoning=None if payload.thinking else False,
                 ):
+                    if delta.progress is not None:
+                        yield _frame(
+                            {
+                                "type": "prompt-progress",
+                                "processed": delta.progress.processed,
+                                "total": delta.progress.total,
+                            }
+                        )
+                        continue
                     if delta.reasoning:
                         trace.add(delta.text)
                         yield _frame({"type": "reasoning", "text": delta.text})
@@ -217,30 +304,50 @@ async def send_message(
                 )
                 failed = True
         finally:
-            if failed and not parts:
-                await transact(
-                    session, _discard_turn, user_message, assistant_message
-                )
-            else:
-                # A turn worth keeping: commit the deferred rename alongside
-                # it, so a thread is never renamed unless it ends up with a
-                # real first reply.
-                if should_generate_title and title:
-                    await transact(session, _rename, thread, title)
-                # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
-                answer, used = resolve_citations("".join(parts), citations)
-                cited = [asdict(citation) for citation in used]
-                await transact(
-                    session,
-                    _complete,
-                    assistant_message,
-                    answer,
-                    cited,
-                    trace.stored(),
-                )
-                assistant_completed_at = _iso(assistant_message.completed_at)
+            # Starlette cancels the response task on disconnect. The turn still
+            # has to settle before the request scope disappears.
+            with anyio.CancelScope(shield=True):
+                # No answer text is no reply, whether it failed, closed cleanly
+                # or only thought: keeping it would leave a blank bubble and a
+                # rename.
+                if not parts:
+                    await transact(
+                        session, _discard_turn, user_message, assistant_message
+                    )
+                    if images:
+                        await transact(session, _sweep_images, thread)
+                else:
+                    # A turn worth keeping: commit the deferred rename alongside
+                    # it, so a thread is never renamed unless it ends up with a
+                    # real first reply.
+                    if should_generate_title and title:
+                        await transact(session, _rename, thread, title)
+                    # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
+                    answer, used = resolve_citations("".join(parts), citations)
+                    cited = [asdict(citation) for citation in used]
+                    await transact(
+                        session,
+                        _complete,
+                        assistant_message,
+                        answer,
+                        cited,
+                        trace.stored(),
+                    )
+                    assistant_completed_at = _iso(assistant_message.completed_at)
 
-        if failed and not parts:
+        if not parts:
+            if not failed:
+                # Discarding the turn removes the person's own message too, so
+                # say so rather than close in silence.
+                kind, message = empty_reply_error()
+                yield _frame(
+                    {
+                        "type": "error",
+                        "kind": kind,
+                        "message": message,
+                        "provider": selected.provider,
+                    }
+                )
             yield _DONE
             return
 
@@ -274,10 +381,91 @@ async def _release_model_after(
         async for frame in frames:
             yield frame
     finally:
-        await model_activity.release_use(key)
+        with anyio.CancelScope(shield=True):
+            await model_activity.release_use(key)
+
+
+async def _accepted_images(
+    uploads: list[ImageUpload], sees: bool | None
+) -> list[NormalisedImage]:
+    """The turn's images, normalised, or the refusal that stores nothing.
+
+    Only a definite no refuses: an unreadable runtime lets the turn through,
+    and llama-server's own error stops an image it cannot take.
+    """
+    if not uploads:
+        return []
+    if sees is False:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This model can't read images. Choose one that can, or send the text alone.",
+        )
+    try:
+        return await run_in_threadpool(_normalised, uploads)
+    except ImageRefusedError as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
+        ) from error
+
+
+async def _source_images(
+    session: Session,
+    hits: list[Hit],
+    sees: bool | None,
+    n_ctx: int | None,
+    attached: int,
+) -> list[NormalisedImage]:
+    """Retrieved image sources, only for a model known to see, and only as many
+    as the window has room for once the person's own images are paid for."""
+    room = (history_budget(n_ctx) - IMAGE_TOKENS * attached) // IMAGE_TOKENS
+    limit = min(MAX_SOURCE_IMAGES, room)
+    if sees is not True or limit <= 0 or not hits:
+        return []
+    paths = await transact(session, image_source_paths, hits, limit)
+    return await run_in_threadpool(load_source_images, paths)
+
+
+def _normalised(uploads: list[ImageUpload]) -> list[NormalisedImage]:
+    images = []
+    for upload in uploads:
+        try:
+            data = base64.b64decode(upload.data, validate=True)
+        except binascii.Error as error:
+            raise ImageRefusedError("an image was not valid base64") from error
+        images.append(normalise(data))
+    return images
 
 
 # The stream's session work, each piece one short transaction off the event loop.
+
+
+def _new_thread(session: Session, workspace_id: int, title: str) -> ChatThread:
+    """Insert the thread; the id and timestamps come from the database."""
+    thread = ChatThread(workspace_id=workspace_id, title=title)
+    session.add(thread)
+    session.flush()
+    session.refresh(thread)
+    return thread
+
+
+def _give_to_agent(session: Session, thread: ChatThread, session_id: str) -> None:
+    """Record the opencode session that will hold the thread's turns.
+
+    Reloaded here, off the event loop: the write moves `updated_at`, which the
+    response reads.
+    """
+    thread.opencode_session_id = session_id
+    session.flush()
+    session.refresh(thread)
+
+
+def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]:
+    """A chat thread's turns, oldest first."""
+    return session.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.chat_thread_id == thread.id)
+        .order_by(ChatMessage.created_at)
+    ).all()
 
 
 def _ground(
@@ -291,9 +479,9 @@ def _ground(
     if payload.document_ids is not None:
         load_selected_sources(session, thread.workspace_id, payload.document_ids)
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
-    from worker.ingestion.embedding import missing_embedding_files
+    from modules.embedding.encoder import missing_files
 
-    if missing_embedding_files():
+    if missing_files(require_active_index(session).spec):
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "local embedding model is not installed; "
@@ -312,10 +500,18 @@ def _ground(
 
 
 def _open_turn(
-    session: Session, thread: ChatThread, text: str
+    session: Session,
+    thread: ChatThread,
+    text: str,
+    images: list[NormalisedImage],
 ) -> tuple[ChatMessage, ChatMessage]:
+    references = [
+        store.store(image, thread.workspace_id, thread.id) for image in images
+    ]
+    # `images` only when there are some, so every row before them stays as it was.
+    content: dict = {"text": text, **({"images": references} if references else {})}
     user_message = ChatMessage(
-        chat_thread_id=thread.id, role=MessageRole.USER, content={"text": text}
+        chat_thread_id=thread.id, role=MessageRole.USER, content=content
     )
     assistant_message = ChatMessage(
         chat_thread_id=thread.id,
@@ -326,6 +522,16 @@ def _open_turn(
     session.flush()
     session.refresh(user_message)  # created_at is server-side; load it here
     return user_message, assistant_message
+
+
+def _sweep_images(session: Session, thread: ChatThread) -> None:
+    """Remove the files a discarded turn alone pointed at."""
+    contents = session.scalars(
+        select(ChatMessage.content).where(ChatMessage.chat_thread_id == thread.id)
+    ).all()
+    store.remove_unreferenced(
+        thread.workspace_id, thread.id, store.referenced_keys(list(contents))
+    )
 
 
 def _rename(_session: Session, thread: ChatThread, title: str) -> None:

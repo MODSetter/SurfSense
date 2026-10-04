@@ -35,7 +35,7 @@ describe("LeftSidebar", () => {
     render(<LeftSidebar {...baseProps()} />)
 
     const brand = screen.getByRole("heading", { name: "SurfSense" })
-    expect(brand.className).toContain("font-heading")
+    expect(brand.className).toContain("brand-wordmark")
     expect(brand.className).toContain("select-none")
 
     const newChat = screen.getByRole("button", { name: "New chat" })
@@ -56,6 +56,7 @@ describe("LeftSidebar", () => {
             id: 1,
             workspace_id: 1,
             title: "Past chat",
+            uses_agent: false,
             created_at: "2026-09-08T00:00:00Z",
             updated_at: "2026-09-08T00:00:00Z",
           },

@@ -41,9 +41,45 @@ test("opens the community Discord invite only", () => {
   assert.equal(allowedExternalUrl("https://discord.gg/other"), null)
 })
 
+test("opens OpenRouter's two-segment pages, as a model's is, and no other shape", () => {
+  assert.equal(
+    allowedExternalUrl("https://openrouter.ai/hexgrad/kokoro-82m"),
+    "https://openrouter.ai/hexgrad/kokoro-82m"
+  )
+  assert.equal(
+    allowedExternalUrl("https://openrouter.ai/bytedance-seed/seed-audio-1-0"),
+    "https://openrouter.ai/bytedance-seed/seed-audio-1-0"
+  )
+  assert.equal(allowedExternalUrl("https://openrouter.ai/"), null)
+  assert.equal(allowedExternalUrl("https://openrouter.ai/a/b/c"), null)
+  assert.equal(allowedExternalUrl("https://openrouter.ai/a/b?x=1"), null)
+  assert.equal(allowedExternalUrl("https://evil.openrouter.ai/a/b"), null)
+})
+
 test("refuses other schemes and hosts", () => {
   assert.equal(allowedExternalUrl("http://surfsense.com"), null)
   assert.equal(allowedExternalUrl("file:///etc/passwd"), null)
   assert.equal(allowedExternalUrl("https://evil.surfsense.com.example"), null)
   assert.equal(allowedExternalUrl("not a url"), null)
+})
+
+test("opens OpenAI's sign-in page only when it redirects back to this machine", () => {
+  const authorize = "https://auth.openai.com/api/accounts/authorize"
+  const back = encodeURIComponent("http://127.0.0.1:53111/callback")
+  const signIn = `${authorize}?client_id=dynamic_agent_client&redirect_uri=${back}`
+  assert.equal(allowedExternalUrl(signIn), signIn)
+  assert.equal(
+    allowedExternalUrl(
+      `${authorize}?redirect_uri=${encodeURIComponent("https://evil.example/callback")}`
+    ),
+    null
+  )
+  assert.equal(
+    allowedExternalUrl(
+      `${authorize}?redirect_uri=${encodeURIComponent("http://127.0.0.1:53111/other")}`
+    ),
+    null
+  )
+  assert.equal(allowedExternalUrl(`${authorize}`), null)
+  assert.equal(allowedExternalUrl("https://auth.openai.com/log-in"), null)
 })

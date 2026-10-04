@@ -18,9 +18,12 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | open source | オープンソース † | 오픈소스 | 开源 | ओपन सोर्स | Open Source † | código abierto | open source | código aberto | открытый исходный код |
 | privacy | プライバシー | 프라이버시 | 隐私 | गोपनीयता | Datenschutz † | privacidad | confidentialité | privacidade | конфиденциальность |
 | source (an added file or folder) | ソース | 소스 | 来源 | स्रोत | Quelle | fuente | source | fonte | источник |
+| note (a source the user writes) | メモ | 메모 | 笔记 | नोट | Notiz | nota | note | nota | заметка |
 | thinking (a model reasoning before it answers) | 考え中 / 考えました | 생각 | 思考 | सोचना | nachdenken | pensar | réflexion | pensar | размышления |
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
+| agent (the assistant that works through steps and tools) | エージェント | 에이전트 | 智能体 | एजेंट | Agent | agente | agent | agente | агент |
+| shell command | シェルコマンド | 셸 명령 | shell 命令 | शेल कमांड | Shell-Befehl | comando de shell | commande shell | comando de shell | команда оболочки |
 | model | モデル | 모델 | 模型 | मॉडल | Modell | modelo | modèle | modelo | модель |
 | download | ダウンロード † | 다운로드 | 下载 | डाउनलोड | herunterladen | descargar | télécharger | baixar | скачать |
 | settings | 設定 | 설정 | 设置 | सेटिंग्स | Einstellungen | ajustes | Paramètres | Configurações | настройки |
@@ -31,6 +34,7 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | quiz | クイズ | 퀴즈 | 测验 | क्विज़ | Quiz † | cuestionario | Quiz | Quiz | Тест |
 | study guide | 学習ガイド | 학습 가이드 | 学习指南 | स्टडी गाइड | Lernzettel † | guía de estudio | Guide de révision | Guia de estudos | конспект |
 | podcast | ポッドキャスト | 팟캐스트 | 播客 | पॉडकास्ट | Podcast | podcast | Podcast | Podcast | подкаст |
+| speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
 | workspace | ワークスペース | 워크스페이스 | 工作区 | वर्कस्पेस | Workspace | espacio de trabajo | espace de travail | Workspace | рабочая область |
 | artifact (a Studio output) | 生成物 | 생성물 | 产物 | आर्टिफ़ैक्ट | Artefakt | artefacto | artefact | artefato | артефакт |
 | chunk (a cited passage) | チャンク | 청크 | 片段 | चंक | Abschnitt | fragmento | extrait | trecho | фрагмент |
@@ -49,6 +53,10 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | report an issue | 問題を報告 | 문제 신고 | 报告问题 | समस्या रिपोर्ट करें | Problem melden | informar de un problema | signaler un problème | relatar um problema | сообщить о проблеме |
 | session log | セッションログ | 세션 로그 | 会话日志 | सेशन लॉग | Sitzungsprotokoll | registro de la sesión | journal de session | log da sessão | журнал сеанса |
 | clipboard | クリップボード | 클립보드 | 剪贴板 | क्लिपबोर्ड | Zwischenablage | portapapeles | presse-papiers | área de transferência | буфер обмена |
+| embedding (the model that turns the library into vectors) | 埋め込み | 임베딩 | 嵌入 | एम्बेडिंग | Embedding | embedding | embedding | embedding | эмбеддинг |
+| sign in (to a ChatGPT account) | サインイン | 로그인 | 登录 | साइन इन | anmelden | iniciar sesión | se connecter | entrar | войти |
+| plan (a ChatGPT plan, Plus or Pro) | プラン | 플랜 | 套餐 | प्लान | Plan | plan | forfait | plano | план |
+| subscription (using a ChatGPT plan instead of a key) | サブスクリプション | 구독 | 订阅 | सब्सक्रिप्शन | Abo | suscripción | abonnement | assinatura | подписка |
 
 ## What the English means
 

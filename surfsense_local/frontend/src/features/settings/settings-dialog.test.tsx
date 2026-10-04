@@ -60,6 +60,186 @@ describe("SettingsDialog", () => {
     expect(screen.getByRole("heading", { name: "About" })).toBeTruthy()
   })
 
+  it("files issue reports from their own tab in the App group", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    const app = screen.getByRole("navigation", { name: "App" })
+    const report = screen.getByRole("button", { name: "Report issue" })
+    expect(app.contains(report)).toBe(true)
+
+    await user.click(report)
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Report issue" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("textbox", { name: "What went wrong?" })
+    ).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it("groups the sections into Settings, Models, System and App", () => {
+    render(<SettingsHarness />)
+
+    const groups = {
+      Settings: ["General", "License"],
+      Models: [
+        "Text gen",
+        "Image gen",
+        "Image edit",
+        "Audio",
+        "Video",
+        "Embedding",
+      ],
+      System: ["Resources", "Network"],
+      App: ["About", "Report issue"],
+    }
+    for (const [group, sections] of Object.entries(groups)) {
+      const nav = screen.getByRole("navigation", { name: group })
+      expect(
+        Array.from(nav.querySelectorAll("button"), (b) => b.textContent)
+      ).toEqual(sections)
+    }
+  })
+
+  it("shows the embedding model the library was built with, and offers no way to change it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/embedding/index"
+          ? Response.json({
+              active: {
+                name: "Granite Embedding 97M (Multilingual)",
+                spec: {
+                  id: "granite-embedding-97m-multilingual-r2",
+                  source: "curated",
+                  identified: "measured",
+                  dimension: 384,
+                },
+              },
+              building: null,
+            })
+          : Response.json({ detail: "not found" }, { status: 404 })
+      )
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    await user.click(screen.getByRole("button", { name: "Embedding" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Embedding" })
+    ).toBeTruthy()
+    expect(
+      await screen.findByText("Granite Embedding 97M (Multilingual)")
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        "Chosen during onboarding setup and used for every document, so it can’t be changed."
+      )
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: /change|delete|download/i })
+    ).toBeNull()
+  })
+
+  it("says when the embedding model was not tested by SurfSense", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/embedding/index"
+          ? Response.json({
+              active: {
+                name: "intfloat/multilingual-e5-small",
+                spec: {
+                  id: "hf--intfloat--multilingual-e5-small",
+                  source: "huggingface",
+                  identified: "declared",
+                  dimension: 384,
+                },
+              },
+              building: null,
+            })
+          : Response.json({ detail: "not found" }, { status: 404 })
+      )
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    await user.click(screen.getByRole("button", { name: "Embedding" }))
+
+    expect(
+      await screen.findByText("intfloat/multilingual-e5-small")
+    ).toBeTruthy()
+    expect(screen.getByText("Not tested by SurfSense")).toBeTruthy()
+  })
+
+  it("shows live resource usage in its own section", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          cpu: { percent: 20, app_percent: 5 },
+          memory: {
+            total_bytes: 16 * 1024 ** 3,
+            used_bytes: 8 * 1024 ** 3,
+            app_bytes: 1024 ** 3,
+          },
+          gpus: [],
+          engines: [],
+        })
+      )
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    const system = screen.getByRole("navigation", { name: "System" })
+    const resources = screen.getByRole("button", { name: "Resources" })
+    expect(system.contains(resources)).toBe(true)
+
+    await user.click(resources)
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Resources" })
+    ).toBeTruthy()
+    expect(await screen.findByRole("meter", { name: "RAM" })).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it("scrolls every section's heading with its content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    for (const [nav, heading] of [
+      ["General", "General"],
+      ["Resources", "Resources"],
+      ["Network", "Network"],
+      ["License", "License"],
+      ["About", "About"],
+    ]) {
+      await user.click(screen.getByRole("button", { name: nav }))
+      const viewport = document.querySelector(
+        '[data-slot="scroll-fade-viewport"]'
+      )
+      expect(
+        viewport?.contains(
+          screen.getByRole("heading", { level: 2, name: heading })
+        ),
+        heading
+      ).toBe(true)
+    }
+    vi.unstubAllGlobals()
+  })
+
   it("changes and persists the appearance preference", async () => {
     const user = userEvent.setup()
 
@@ -129,6 +309,13 @@ describe("SettingsDialog", () => {
               provider: "openai_compatible",
               base_url: "https://openrouter.ai/api/v1",
               has_api_key: true,
+              serves: [
+                "text_gen",
+                "image_gen",
+                "image_edit",
+                "video_gen",
+                "audio_gen",
+              ],
               created_at: "2026-09-09T00:00:00Z",
               updated_at: "2026-09-09T00:00:00Z",
             },

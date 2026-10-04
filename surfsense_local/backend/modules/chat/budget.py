@@ -31,10 +31,25 @@ SYSTEM_PROMPT_TOKENS = 400
 # measured so the budget holds even before retrieval runs.
 EXCERPTS_TOKENS = 2400
 
+# The characters-to-tokens estimate history.py prices turns with when the
+# model's own tokenizer is not asked. Dense scripts run richer than this, so
+# the cap below is loose for them, never tight.
+CHARS_PER_TOKEN = 4
+
 # A pasted question can be long; capped so one turn cannot claim the whole
-# window and leave nothing for history or the answer. MessageText enforces
-# this at the wire (modules/chat/schemas.py).
+# window and leave nothing for history or the answer.
 QUESTION_TOKENS = 1024
+
+# What one attached image costs the window. The curated vision model, Gemma 3,
+# spends a fixed 256; Qwen2.5-VL, downloadable from search, spends ~1,340 at the
+# 1024 px cap (modules/chat/images/intake.py). Priced at the larger, so the trim
+# drops a turn rather than overflowing the window.
+IMAGE_TOKENS = 1400
+
+# What MessageText refuses past, at the wire (modules/chat/schemas.py). One
+# global cap rather than one per window: it runs before any model is resolved,
+# and the budget prices the question at the same 1,024 for every window.
+QUESTION_CHARS = QUESTION_TOKENS * CHARS_PER_TOKEN
 
 # Today's number, kept as the fallback for a window this module cannot see:
 # unchanged so a remote model with no reported `n_ctx` behaves exactly as it
@@ -51,7 +66,9 @@ def history_budget(n_ctx: int | None) -> int:
     """
     if n_ctx is None:
         return DEFAULT_HISTORY_TOKENS
-    spent = SYSTEM_PROMPT_TOKENS + EXCERPTS_TOKENS + QUESTION_TOKENS + ANSWER_RESERVE_TOKENS
+    spent = (
+        SYSTEM_PROMPT_TOKENS + EXCERPTS_TOKENS + QUESTION_TOKENS + ANSWER_RESERVE_TOKENS
+    )
     return max(0, n_ctx - spent)
 
 

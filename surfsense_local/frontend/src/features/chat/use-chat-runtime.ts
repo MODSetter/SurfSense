@@ -6,6 +6,12 @@ import {
 } from "@assistant-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import {
+  answerPermission,
+  type AgentStep,
+  type PermissionReply,
+  type PermissionRequest,
+} from "@/features/agent/api"
 import { errorToast } from "@/features/feedback/error-toast"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
@@ -19,15 +25,26 @@ import {
   streamMessage,
   type ChatMessage,
   type ChatThread,
+  type ImageUpload,
 } from "./api"
+import {
+  ChatImageAdapter,
+  attachmentsOf,
+  previewOf,
+  uploadsOf,
+} from "./image-attachments"
 import { chatKeys } from "./query-keys"
-import type { ChatErrorKind } from "./sse"
+import type { ChatErrorKind, ChatStreamEvent } from "./sse"
+import { readThinkingOn } from "./thinking-preference"
 
 export type ChatTurnError = {
   kind: ChatErrorKind
   message: string
   provider: string
   retryText: string
+  retryImages: ImageUpload[]
+  /** The request failed before an SSE frame classified the backend error. */
+  detailIsLocal?: boolean
 }
 
 function messageFrom(error: unknown) {
@@ -92,26 +109,57 @@ function readStoredView(workspaceId: number): ConversationView {
 
 function hasCanonicalTurn(
   threadMessages: ChatMessage[],
-  userMessageId: number,
-  assistantMessageId: number
+  userMessageId: number | string,
+  assistantMessageId: number | string
 ) {
   const ids = new Set(threadMessages.map((message) => message.id))
   return ids.has(userMessageId) && ids.has(assistantMessageId)
 }
+
+const OPTIMISTIC_ID = "optimistic-"
 
 function areLiveMessagesPersisted(
   liveMessages: ChatMessage[],
   persistedMessages: ChatMessage[]
 ) {
   const persistedIds = new Set(persistedMessages.map((message) => message.id))
+  // A stored id is the database's number or, in an agent thread, opencode's
+  // string; only the placeholders sent before `accepted` are neither.
   return liveMessages.every(
-    (message) => typeof message.id === "number" && persistedIds.has(message.id)
+    (message) =>
+      !String(message.id).startsWith(OPTIMISTIC_ID) &&
+      persistedIds.has(message.id)
   )
+}
+
+/** The step an `agent-step` frame describes, without the frame's own type. */
+function stepFrom(
+  event: Extract<ChatStreamEvent, { type: "agent-step" }>
+): AgentStep {
+  const { id, tool, status, title, input, output, error } = event
+  return { id, tool, status, title, input, output, error }
+}
+
+/** The request a `permission-request` frame describes. */
+function requestFrom(
+  event: Extract<ChatStreamEvent, { type: "permission-request" }>
+): PermissionRequest {
+  const { id, permission, patterns, command } = event
+  return { id, permission, patterns, command }
+}
+
+/** The reply's steps with this one added, or updated where it already is. */
+function withStep(steps: AgentStep[] | undefined, step: AgentStep) {
+  const current = steps ?? []
+  return current.some((candidate) => candidate.id === step.id)
+    ? current.map((candidate) => (candidate.id === step.id ? step : candidate))
+    : [...current, step]
 }
 
 function toRuntimeMessage(
   message: ChatMessage,
-  chatErrors: Record<string, ChatTurnError>
+  chatErrors: Record<string, ChatTurnError>,
+  threadId: number | null
 ): ThreadMessageLike {
   const value =
     message.role === "assistant" ? message.completed_at : message.created_at
@@ -124,6 +172,9 @@ function toRuntimeMessage(
     id: String(message.id),
     role: message.role,
     content: [{ type: "text", text: message.content.text ?? "" }],
+    ...(message.role === "user"
+      ? { attachments: attachmentsOf(message, threadId) }
+      : {}),
     ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
     ...(error
       ? { status: { type: "incomplete", reason: "error", error } as const }
@@ -131,12 +182,14 @@ function toRuntimeMessage(
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
+        steps: message.content.steps ?? [],
         reasoning: message.content.reasoning
           ? {
               text: message.content.reasoning.text,
               durationMs: message.content.reasoning.duration_ms,
             }
           : null,
+        progress: message.content.progress ?? null,
       },
     },
   }
@@ -146,11 +199,18 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  readsImages,
+  canSkipThinking,
   onModelRequired,
 }: {
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // Whether the selected model reads images; without it the composer has no
+  // attachment adapter, so it takes none.
+  readsImages: boolean
+  // Whether the selected model can be told not to think; no other is asked to.
+  canSkipThinking: boolean
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -168,6 +228,8 @@ export function useChatRuntime({
   const [chatErrors, setChatErrors] = useState<Record<string, ChatTurnError>>(
     {}
   )
+  // The agent's requests waiting for the user, oldest first.
+  const [approvals, setApprovals] = useState<PermissionRequest[]>([])
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
 
@@ -216,6 +278,7 @@ export function useChatRuntime({
       rememberThread(workspaceId, threadId)
       setLiveMessages(null)
       setChatErrors({})
+      setApprovals([])
       setIsRunning(false)
       setAutoNamingThreadId(null)
       setAnimatingTitleThreadId(null)
@@ -237,6 +300,7 @@ export function useChatRuntime({
     rememberThread(workspaceId, null)
     setLiveMessages(null)
     setChatErrors({})
+    setApprovals([])
     setIsRunning(false)
     setAutoNamingThreadId(null)
     setAnimatingTitleThreadId(null)
@@ -313,7 +377,17 @@ export function useChatRuntime({
   }
 
   const send = useCallback(
-    async (text: string) => {
+    async (typed: string, images: ImageUpload[] = []) => {
+      // The backend needs a question for retrieval and the title; an image sent
+      // alone asks the obvious one.
+      const text =
+        typed ||
+        (images.length > 0
+          ? intl.formatMessage({
+              id: "chat_runtime_image_question_body",
+              defaultMessage: "What is in this image?",
+            })
+          : "")
       if (
         !text ||
         isRunning ||
@@ -331,8 +405,8 @@ export function useChatRuntime({
 
       let threadId =
         conversationView.status === "active" ? conversationView.threadId : null
-      let userMessageId: number | null = null
-      let assistantMessageId: number | null = null
+      let userMessageId: number | string | null = null
+      let assistantMessageId: number | string | null = null
       // Declared here (not inside the try) so the catch block below can still
       // attach a failure to the right message, whether or not "accepted" ever
       // remapped these to real ids.
@@ -371,7 +445,10 @@ export function useChatRuntime({
           {
             id: userId,
             role: "user",
-            content: { text },
+            content: {
+              text,
+              ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
+            },
             created_at: null,
             completed_at: null,
           },
@@ -387,7 +464,9 @@ export function useChatRuntime({
         await streamMessage(
           threadId,
           text,
+          images,
           selectedDocumentIds,
+          !canSkipThinking || readThinkingOn(),
           controller.signal,
           (event) => {
             if (requestVersion.current !== version) {
@@ -468,6 +547,25 @@ export function useChatRuntime({
                       : message
                   ) ?? null
               )
+            } else if (event.type === "prompt-progress") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            progress: {
+                              processed: event.processed,
+                              total: event.total,
+                            },
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
             } else if (event.type === "reasoning") {
               const targetId = assistantId
               setLiveMessages(
@@ -525,6 +623,34 @@ export function useChatRuntime({
                       : message
                   ) ?? null
               )
+            } else if (event.type === "agent-step") {
+              const step = stepFrom(event)
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            steps: withStep(message.content.steps, step),
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "permission-request") {
+              const request = requestFrom(event)
+              setApprovals((current) =>
+                current.some((waiting) => waiting.id === request.id)
+                  ? current
+                  : [...current, request]
+              )
+            } else if (event.type === "permission-replied") {
+              setApprovals((current) =>
+                current.filter((waiting) => waiting.id !== event.id)
+              )
             } else if (event.type === "error") {
               const failedId = assistantId
               setChatErrors((current) => ({
@@ -534,6 +660,7 @@ export function useChatRuntime({
                   message: event.message,
                   provider: event.provider,
                   retryText: text,
+                  retryImages: images,
                 },
               }))
             }
@@ -584,9 +711,11 @@ export function useChatRuntime({
             ...current,
             [String(assistantId)]: {
               kind: "unknown",
-              message: messageFrom(cause),
+              message: cause instanceof Error ? cause.message : "",
               provider: "",
               retryText: text,
+              retryImages: images,
+              detailIsLocal: true,
             },
           }))
         }
@@ -594,11 +723,14 @@ export function useChatRuntime({
         if (requestVersion.current === version) {
           setIsRunning(false)
           setAutoNamingThreadId(null)
+          // A request outlives its turn only on screen: opencode dropped it.
+          setApprovals([])
         }
       }
     },
     [
       canSend,
+      canSkipThinking,
       conversationView,
       createThreadMutation,
       isRunning,
@@ -610,7 +742,8 @@ export function useChatRuntime({
   )
 
   const onNew = useCallback(
-    (appendMessage: AppendMessage) => send(submittedText(appendMessage)),
+    (appendMessage: AppendMessage) =>
+      send(submittedText(appendMessage), uploadsOf(appendMessage)),
     [send]
   )
 
@@ -618,7 +751,7 @@ export function useChatRuntime({
     (assistantId: string) => {
       const failed = chatErrors[assistantId]
       if (!failed) return
-      void send(failed.retryText)
+      void send(failed.retryText, failed.retryImages)
     },
     [chatErrors, send]
   )
@@ -628,6 +761,27 @@ export function useChatRuntime({
     setIsRunning(false)
     setAutoNamingThreadId(null)
   }, [])
+
+  const answerApproval = useCallback(
+    async (request: PermissionRequest, reply: PermissionReply) => {
+      if (activeThreadId === null) return
+      try {
+        await answerPermission(activeThreadId, request.id, reply)
+        setApprovals((current) =>
+          current.filter((waiting) => waiting.id !== request.id)
+        )
+      } catch (cause) {
+        errorToast(
+          intl.formatMessage({
+            id: "chat_runtime_approval_toast",
+            defaultMessage: "Couldn’t send your answer to the agent",
+          }),
+          { description: messageFrom(cause) }
+        )
+      }
+    },
+    [activeThreadId]
+  )
 
   const finishTitleAnimation = useCallback(() => {
     setAnimatingTitleThreadId(null)
@@ -665,9 +819,16 @@ export function useChatRuntime({
     }
   }, [messagesQuery.error])
 
+  const adapters = useMemo(
+    () => (readsImages ? { attachments: new ChatImageAdapter() } : undefined),
+    [readsImages]
+  )
+
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages: threadMessages,
-    convertMessage: (message) => toRuntimeMessage(message, chatErrors),
+    convertMessage: (message) =>
+      toRuntimeMessage(message, chatErrors, activeThreadId),
+    adapters,
     onNew,
     isRunning,
     isSendDisabled: !canSend || isLoadingMessages || isLoadingThreads,
@@ -697,5 +858,7 @@ export function useChatRuntime({
     rename,
     removeThread,
     retry,
+    approvals,
+    answerApproval,
   }
 }

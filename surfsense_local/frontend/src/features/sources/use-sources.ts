@@ -2,17 +2,25 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
+import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
 import { intl } from "@/i18n/intl"
 
 import {
   cancelDocument,
+  createNote,
   deleteDocument,
+  getDocument,
   isSupportedSourceFile,
   listDocuments,
   retryDocument,
+  updateDocument,
   uploadDocuments,
   type WorkspaceDocument,
 } from "./api"
+
+// The worker's notices are best-effort: one lost while a row is in flight would
+// leave it stale, so the list is still re-read now and then until none is.
+const LOST_NOTICE_POLL_MS = 10_000
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -62,6 +70,7 @@ export function useSources(workspaceId: number) {
   const listController = useRef<AbortController | null>(null)
   const uploadController = useRef<AbortController | null>(null)
   const pollController = useRef<AbortController | null>(null)
+  const changeController = useRef<AbortController | null>(null)
   const hasActiveIngestion = documents.some(
     (document) =>
       document.status === "pending" || document.status === "processing"
@@ -88,6 +97,7 @@ export function useSources(workspaceId: number) {
       controller.abort()
       uploadController.current?.abort()
       pollController.current?.abort()
+      changeController.current?.abort()
     }
   }, [workspaceId])
 
@@ -102,7 +112,7 @@ export function useSources(workspaceId: number) {
     void (async () => {
       try {
         while (!controller.signal.aborted) {
-          await wait(1500, controller.signal)
+          await wait(LOST_NOTICE_POLL_MS, controller.signal)
           const next = await listDocuments(workspaceId, controller.signal)
           if (pollController.current !== controller) {
             return
@@ -128,6 +138,23 @@ export function useSources(workspaceId: number) {
 
     return () => controller.abort()
   }, [hasActiveIngestion, workspaceId])
+
+  // Without the loading state: the list is on screen, and only its rows move.
+  useWorkspaceChanges(workspaceId, "documents", () => {
+    changeController.current?.abort()
+    const controller = new AbortController()
+    changeController.current = controller
+    void listDocuments(workspaceId, controller.signal)
+      .then((next) => {
+        if (changeController.current === controller) {
+          setDocuments(next)
+          setError(null)
+        }
+      })
+      .catch(() => {
+        // The next change, or the re-read while something ingests, reloads.
+      })
+  })
 
   const refresh = async () => {
     listController.current?.abort()
@@ -218,6 +245,83 @@ export function useSources(workspaceId: number) {
     }
   }
 
+  const replace = (updated: WorkspaceDocument) =>
+    setDocuments((current) =>
+      current.map((document) =>
+        document.id === updated.id ? updated : document
+      )
+    )
+
+  // Each answers whether it saved, so its dialog closes only then, and says why
+  // not in a toast: the panel's alert sits behind the dialog. An edited note
+  // comes back pending, and the ingestion poll carries it to ready.
+  const noteFailed = (cause: unknown) =>
+    errorToast(
+      intl.formatMessage({
+        id: "sources_note_save_toast",
+        defaultMessage: "Couldn’t save the note",
+      }),
+      { description: messageFrom(cause) }
+    )
+
+  const writeNote = async (title: string, content: string) => {
+    try {
+      const created = await createNote(workspaceId, { title, content })
+      // The server announces the note before it answers, so a refetch may
+      // already hold it.
+      setDocuments((current) => [
+        created,
+        ...current.filter((document) => document.id !== created.id),
+      ])
+      return true
+    } catch (cause) {
+      noteFailed(cause)
+      return false
+    }
+  }
+
+  const rename = async (documentId: number, title: string) => {
+    try {
+      replace(await updateDocument(workspaceId, documentId, { title }))
+      return true
+    } catch (cause) {
+      errorToast(
+        intl.formatMessage({
+          id: "sources_rename_toast",
+          defaultMessage: "Couldn’t rename the source",
+        }),
+        { description: messageFrom(cause) }
+      )
+      return false
+    }
+  }
+
+  // Content only when it changed: sending it re-ingests the note.
+  const editNote = async (
+    documentId: number,
+    title: string,
+    content?: string
+  ) => {
+    try {
+      replace(
+        await updateDocument(
+          workspaceId,
+          documentId,
+          content === undefined ? { title } : { title, content }
+        )
+      )
+      return true
+    } catch (cause) {
+      noteFailed(cause)
+      return false
+    }
+  }
+
+  const loadNote = async (documentId: number) => {
+    const document = await getDocument(workspaceId, documentId)
+    return { title: document.title, content: document.content ?? "" }
+  }
+
   const upload = async (files: File[]) => {
     if (files.length === 0) {
       return
@@ -267,9 +371,10 @@ export function useSources(workspaceId: number) {
         const createdIds = new Set(
           outcome.created.map((document) => document.id)
         )
+        // In the server's order, newest first, so the next refetch moves nothing.
         return [
+          ...[...outcome.created].reverse(),
           ...current.filter((document) => !createdIds.has(document.id)),
-          ...outcome.created,
         ]
       })
       const count = outcome.created.length
@@ -496,6 +601,10 @@ export function useSources(workspaceId: number) {
     revealOriginal,
     retry,
     cancel,
+    rename,
+    writeNote,
+    editNote,
+    loadNote,
     deleteOne,
     deleteSelected,
     setDocumentSelected,

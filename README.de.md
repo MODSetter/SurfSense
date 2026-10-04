@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, die netzgetrennte Open-Source-Alternative zu NotebookLM" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, die netzgetrennte Open-Source-Alternative zu NotebookLM" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="Die SurfSense-Desktop-App mit geöffnetem Studio und ausgewähltem Qwen, die lokale Quellen in Ergebnisse verwandelt" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="Die SurfSense-Desktop-App mit geöffnetem Studio und ausgewähltem Qwen, die lokale Quellen in Ergebnisse verwandelt" />
 </p>
 
 SurfSense ist eine kostenlose Open-Source-Desktop-App für die Dokumente, die du schon hast. Zieh sie hinein, stell Fragen und bekommst Antworten, die ihre Quelle nennen. Dieselben Dokumente werden daraus ein Briefing, eine Folienpräsentation, ein Bericht, ein Lernleitfaden oder ein Podcast. Alles läuft auf deinem eigenen Rechner: Der Index liegt auf deiner Festplatte, du wählst das Modell, und die App lädt nichts hoch. Ein Konto brauchst du nicht.

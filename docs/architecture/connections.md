@@ -40,6 +40,8 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
+| `auth_kind` | `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account, enforced by a CHECK; added in place by `0023`, so existing rows read `api_key` |
+| `oauth_ciphertext`, `token_version` | a `chatgpt` row's encrypted token set and its refresh counter ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
 | `created_at`, `updated_at` | |
 
 A base URL must be `http` or `https` with a host, and may not carry credentials, a query or a fragment. Private, loopback and link-local hosts are valid: the API binds to loopback, and reaching internal endpoints is the point. If the API ever binds externally, this becomes an SSRF boundary and has to be redesigned first.
@@ -50,13 +52,16 @@ A base URL must be `http` or `https` with a host, and may not carry credentials,
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/llm/connections` | list, by label, with `has_api_key` and never the key |
+| `GET` | `/llm/connections` | list, by label, with `has_api_key` and never the key, and `serves`, the slots each can fill |
 | `POST` | `/llm/connections` | create; `201` |
 | `PUT` | `/llm/connections/{connection_id}` | replace |
 | `DELETE` | `/llm/connections/{connection_id}` | delete it and the selections that use it; `204` |
 | `GET` | `/llm/connections/{connection_id}/models` | the endpoint's live model list |
 | `POST` | `/llm/connections/{connection_id}/chat-test` | one short answer from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/image-test` | one image from a chosen model |
+| `POST` | `/llm/connections/{connection_id}/speech-test` | one spoken line from a chosen model |
+
+A ChatGPT connection is created by signing in, not by this write body, and its own routes are in [`chatgpt-subscription.md`](chatgpt-subscription.md#signing-in).
 
 The write body:
 
@@ -80,15 +85,15 @@ The write body:
 
 ## Live models
 
-`GET .../models` calls `{base_url}/models` and, in parallel, `{base_url}/models?output_modalities=image`. A valid answer to the second is merged in and any failure of it is ignored: OpenRouter's default listing leaves out most of its image models, and an endpoint that ignores the parameter returns the same set, so no provider has to be recognised. Ids are deduplicated within the connection and sorted. A failed baseline call is a `502`, and the connection stays.
+`GET .../models` calls `{base_url}/models` and, in parallel, `{base_url}/models?output_modalities=all`. A valid answer to the second is merged in and any failure of it is ignored: OpenRouter's default listing holds 464 of its 635 models and leaves out most of its image and all of its speech models, and an endpoint that ignores the parameter returns the same set, so no provider has to be recognised. Ids are deduplicated within the connection and sorted. A failed baseline call is a `502`, and the connection stays.
 
 Each model's `types` come from the first of three sources that knows it, and nothing is guessed; `capability_source` says which:
 
-1. `declared`: output modalities the endpoint publishes: text is `text_gen`, image `image_gen`, video `video_gen` and audio `audio_gen`.
+1. `declared`: output modalities the endpoint publishes: text is `text_gen`, image `image_gen`, video `video_gen`, and audio or OpenRouter's `speech` `audio_gen`. Any other word, such as OpenRouter's `transcription` or `embeddings`, is a known answer that fills no slot.
 2. `catalog`: the remote model manifest, [`catalog/remote/manifest/models.json`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json). `scripts/refresh_remote_manifest.py` builds it offline from models.dev, keyed provider then model, with the evidence the classifier reads rather than a verdict; a person reviews the diff and commits it, and nothing fetches models.dev at runtime. A connection with a `catalog_provider` reads that provider's entry first. Otherwise, and for an id its provider does not carry, the lookup reads the maker's own entry when the id's prefix names one, otherwise the types every provider carrying the id agrees on, trying the full id and then its last path segment ([`lookup.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/lookup.py)). A model found with no types, such as an embedder, is known to fill no slot.
 3. `unknown`: neither source knows the id.
 
-Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule. Neither reads the manifest's `call` or `connect.status`, so a model the remote catalog marks `unusable` is still offered here (Known gaps). A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
+Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule. A model the manifest knows and cannot call, on a provider that is `unreachable` or served only on `/responses` or through another protocol, stays in the listing with `selectable_for` empty and its `unusable_reason`: the same row and reason the remote catalog gives, from the one rule in [`lookup.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/lookup.py) (`unusable_reason()`), and choosing it is refused with that reason. Only a connection that names its manifest provider is told this: a `custom` connection reads across providers for types alone, since what some provider cannot call says nothing about what a local Ollama or LM Studio serves, and a model no entry describes is unknown, not unusable. A model the listing does not contain, a connection whose listing fails, or an unusable model the user still wants, needs the choice repeated with `allow_unlisted: true`, the deliberate override the form's Save anyway and Use without testing send and never the default. The remote model list is fetched every time and never stored. It also carries `reads_images`, false for an unusable model and otherwise from the manifest's `modalities.input` through the connection's catalog provider ([`reads_images.py`](../../surfsense_local/backend/modules/llm/catalog/remote/reads_images.py)), even for a model whose types the endpoint declares; the selection routes and chat's send check read the same function, so a model's Vision chip never disagrees with the composer ([`chat.md`](chat.md#images)). An id the manifest lacks answers no. Neither reads the manifest's `call` or `connect.status`, so a model the remote catalog marks `unusable` is still offered here (Known gaps). A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
 
 ## The remote catalog
 
@@ -100,6 +105,7 @@ Each listed model also carries `selectable_for`, the slots it can fill, decided 
 | `GET` | `/llm/catalog/remote/providers/{id}` | that provider's rows: `not_connected`, or one `unchecked` row per connection that names it | none |
 | `GET` | `/llm/catalog/remote/connections/{id}` | that connection's rows checked against its live listing | that host |
 
+- A row's `supports` carries `tool_call`, `reasoning`, `structured_output`, `context_window` and `reads_images`, the last read off `modalities.input`.
 - A row carries its `availability`: `not_connected`, `unchecked`, `available`, `not_served` (retired, or the key cannot reach it), `could_not_check`, or `unusable` with a `reason`. An unusable row, from an unreachable provider or a model served only on `/responses` or through another protocol, has an empty `selectable_for`.
 - Each connection has its own rows, because two keys to one provider can reach different models.
 - A listed id the provider's manifest entry lacks, one newer than the last refresh, is added as `available`. A `custom` connection's rows are its listing and nothing else.
@@ -112,7 +118,7 @@ Each listed model also carries `selectable_for`, the slots it can fill, decided 
 Chat goes through `OpenAICompatibleChatProvider(base_url, api_key)`:
 
 - health and model listing through `GET /models`;
-- a streaming `POST /chat/completions`, with an `Authorization: Bearer` header when there is a key and no provider-specific headers or fields;
+- a streaming `POST /chat/completions`, with an `Authorization: Bearer` header when there is a key and no provider-specific fields. A turn carrying images sends OpenAI typed parts, text then `image_url` data URLs; every other turn keeps string content. `sees_images()` answers what resolution passed it from the manifest, never asking the endpoint. The one provider-specific header: a key for `api.anthropic.com` goes as `x-api-key` with `anthropic-version`, because Anthropic's `GET /models` does not read a bearer token. Discovery and images send the key the same way ([`key_headers.py`](../../surfsense_local/backend/modules/llm/connections/key_headers.py));
 - each chunk read as answer (`content`) or reasoning (`reasoning_content`, or `reasoning` as vLLM, Ollama and OpenRouter name it). `chat_deltas()` yields both, marked; `chat()` yields the answer alone, for titles, Studio and the connection check;
 - 300 seconds to the first token, answer or reasoning, since a cold model may still be loading, then 30 seconds between tokens. A long think keeps the stream alive rather than counting as a model that never started. Model listings wait at most 120 seconds and connection discovery 10;
 - no context window and no token count, so chat falls back to its fixed history budget ([`chat.md`](chat.md)).
@@ -124,13 +130,14 @@ Images go through `OpenAICompatibleImageProvider`:
 3. Cache the route that worked until the process restarts.
 
 - There is no fallback or retry after any other failure: auth, rate limit, timeout, `5xx`, a connection error or a malformed success. The endpoint may already have generated, and billed, an image. These surface as `NonRetryableImageError`, which a Studio job does not retry either. Route negotiation is not a retry policy.
-- Both routes send `model` and `prompt`. The first entry of the reply's `data` may be `b64_json`, a base64 data URL, or an `http(s)` URL, which is downloaded without the endpoint's bearer token and with at most three redirects. Replies are capped at 28 MB and images at 20 MB, under a 180-second timeout, and the bytes must be PNG, JPEG, GIF, WebP or SVG and match any MIME type the endpoint claims.
+- Both routes send `model` and `prompt`. The first entry of the reply's `data` may be `b64_json`, a base64 data URL, or an `http(s)` URL, which is downloaded only once egress to its host is allowed ([`egress.md`](egress.md)), without the endpoint's bearer token and with at most three redirects. Replies are capped at 28 MB and images at 20 MB, under a 180-second timeout, and the bytes must be PNG, JPEG, GIF, WebP or SVG and match any MIME type the endpoint claims.
 
 [`resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py) turns a model type's selection into a provider for chat, titles and Studio; the connection routes build their own for discovery and tests:
 
 ```text
 text_gen          llamacpp                   → the supervised llama-server
                   openai_compatible + id     → load the connection → chat provider
+                                                 (auth_kind chatgpt → the Responses generator)
 image_gen         sdcpp                      → the image provider at sd-server's loopback URL
                   openai_compatible + id     → load the connection → image provider
 ```
@@ -141,6 +148,8 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 
 - `chat-test` streams one answer from the chosen model, by default to a prompt asking for one short sentence, capped at 1,024 tokens and 600 characters, so a model whose capability is `unknown` can be seen answering before it becomes the chat model. An empty reply is a `502`, which is what a reasoning model returns when it spends the whole budget thinking.
 - `image-test` generates one image, by default a blue circle on white, through the real image client and returns the bytes with `Cache-Control: no-store`. It creates no artifact.
+- `speech-test` voices the `prompt` sent, the Try dialog's line in the interface's language, through the podcast's speech client, in the `voice` sent, and returns the audio with `Cache-Control: no-store`. Without one the request carries no `voice`, so the server speaks in its own default where it has one, and says so where it has none; no voice is assumed. The Try dialog has an optional voice field for audio models and plays the clip.
+- `GET`, `POST` and `DELETE /llm/selection/audio_gen/voices` read the audio selection's voices (the server's list, else the user's), add one once the server has voiced the `text` sent (`502` with the server's words when it refuses), and remove one. A model on this computer is a `409`.
 - Selecting a model never runs inference. The server group offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
 
 ## Where keys live
@@ -161,13 +170,11 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Frontend
 
-- Each model section in Settings, Chat and Image, shows every connection as a group under the local models. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
+- Each model section in Settings shows, as a group under the local models, every connection whose `serves` includes that section's slot. `serves` comes from one backend rule ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)): every slot for a key connection, `text_gen` alone for a ChatGPT one. The section's empty state counts only those connections. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model's row shows its type chips, and a Vision chip when `reads_images` is true. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
 - Edit and Disconnect sit on each group. Edit opens the same form in that dialog. A connection serves every slot, so Disconnect names each model it will clear, Chat, Image or both, whichever section it is disconnected from.
 - Onboarding's model steps use the same groups and the same dialog; with nothing connected yet, their **Connect** opens the dialog directly, and saving opens the server page on the new connection's models.
-- A model type no server model can fill yet offers no servers anywhere, in Settings or onboarding, and its copy drops the mention: audio today, since no server model voices podcasts. The list is `serversCanServe()` in `features/models/remote/servers-can-serve.ts`.
 - The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.
 
 ## Known gaps
 
-- An image returned as a URL is downloaded from whatever host the endpoint names, with no egress decision for that host; the endpoint's key is withheld from the download.
-- A model the remote catalog marks `unusable`, from an unreachable provider or served only on `/responses` or through another protocol, is still offered by `GET /llm/connections/{id}/models` and accepted by `choose_model()`, which ignore `call` and `connect.status`.
+- A model on an endpoint the manifest does not carry never reads images here, even when its listing declares `image` input: discovery reads only output modalities, and nothing is stored at selection to carry the endpoint's word to the send ([ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).

@@ -217,9 +217,12 @@ def _render_block(
 
     # --- Render nested children (indented) ---
     if children:
+        # Children form their own list: numbering starts over and must not
+        # leak into this block's siblings.
+        child_counter = 0
         for child in children:
-            child_lines, numbered_list_counter = _render_block(
-                child, indent=indent + 1, numbered_list_counter=numbered_list_counter
+            child_lines, child_counter = _render_block(
+                child, indent=indent + 1, numbered_list_counter=child_counter
             )
             lines.extend(child_lines)
 

@@ -3,8 +3,8 @@
   "productName": "SurfSense",
   "private": true,
   "packageManager": "pnpm@11.27.1",
-  "version": "2.0.3",
-  "description": "Electron shell: spawns the API + worker sidecars, loads the Vite SPA",
+  "version": "2.1.0",
+  "description": "Air gapped, privacy focused open source NotebookLM alternative.",
   "author": {
     "name": "SurfSense",
     "email": "noreply@surfsense.app"
@@ -13,7 +13,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "postinstall": "install-electron",
-    "predev": "pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:llamacpp && pnpm build:sdcpp && pnpm build:audiocpp",
+    "predev": "pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:llamacpp && pnpm build:sdcpp && pnpm build:audiocpp && pnpm build:opencode",
     "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && node scripts/electron-dev.mjs\"",
     "build": "electron-vite build",
     "build:frontend": "pnpm --dir ../frontend install && pnpm --dir ../frontend build",
@@ -24,7 +24,8 @@
     "build:llamacpp": "node scripts/fetch-llamacpp.mjs",
     "build:sdcpp": "node scripts/sdcpp/stage.mjs",
     "build:audiocpp": "node scripts/audiocpp/stage.mjs",
-    "dist": "pnpm build:llamacpp && pnpm build:sdcpp --strict && pnpm build:audiocpp --strict && pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build && electron-builder",
+    "build:opencode": "node scripts/opencode/stage.mjs",
+    "dist": "pnpm build:llamacpp && pnpm build:sdcpp --strict && pnpm build:audiocpp --strict && pnpm build:opencode && pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build && electron-builder",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/*.test.ts src/main/**/*.test.ts scripts/**/*.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:sidecars": "node scripts/check-sidecars.mjs"

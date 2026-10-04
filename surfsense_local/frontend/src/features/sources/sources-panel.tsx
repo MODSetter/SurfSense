@@ -12,6 +12,8 @@ import {
   EllipsisIcon,
   FilePlus2Icon,
   FolderOpenIcon,
+  PencilEdit02Icon,
+  PencilIcon,
   RefreshCwIcon,
   SquareDashedMousePointerIcon,
   Trash2Icon,
@@ -48,6 +50,14 @@ import {
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
+import { getFileViewer } from "@/features/file-viewers/registry"
+import {
+  NoteEditorDialog,
+  type NoteActions,
+  type NoteTarget,
+} from "./note-editor-dialog"
+import { RenameSourceDialog } from "./rename-source-dialog"
+import { useFileDrop } from "./use-file-drop"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -65,10 +75,13 @@ function SelectableSourceRow({
   highlighted,
   rowRef,
   onOpen,
+  onPreview,
   onReveal,
   onRetry,
   onCancel,
   onDelete,
+  onRename,
+  onEditNote,
   isDeleting,
   onSelectedChange,
 }: {
@@ -77,10 +90,13 @@ function SelectableSourceRow({
   highlighted: boolean
   rowRef: (node: HTMLLIElement | null) => void
   onOpen: () => void
+  onPreview: () => void
   onReveal: () => void
   onRetry: () => void
   onCancel: () => void
   onDelete: () => void
+  onRename?: () => void
+  onEditNote?: () => void
   isDeleting: boolean
   onSelectedChange: (selected: boolean) => void
 }) {
@@ -92,6 +108,8 @@ function SelectableSourceRow({
     document.status === "pending" || document.status === "processing"
   const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
+  const previewable = getFileViewer(document.mime_type) !== null
+  const titleActionable = previewable || openable
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
@@ -200,12 +218,14 @@ function SelectableSourceRow({
             </span>
             <button
               type="button"
-              disabled={!openable}
+              disabled={!titleActionable}
               className={cn(
                 "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
                 dropdownOpen && "sidebar-row-title-fade-actions"
               )}
-              onClick={openable ? onOpen : undefined}
+              onClick={
+                titleActionable ? (previewable ? onPreview : onOpen) : undefined
+              }
             >
               {document.title}
             </button>
@@ -238,6 +258,15 @@ function SelectableSourceRow({
                   className="min-w-40"
                 >
                   <DropdownMenuGroup>
+                    {previewable ? (
+                      <DropdownMenuItem onClick={onPreview}>
+                        <ViewIcon />
+                        {intl.formatMessage({
+                          id: "sources_row_menu_preview_label",
+                          defaultMessage: "Preview",
+                        })}
+                      </DropdownMenuItem>
+                    ) : null}
                     {openable ? (
                       <>
                         <DropdownMenuItem onClick={onOpen}>
@@ -291,6 +320,24 @@ function SelectableSourceRow({
                         {intl.formatMessage({
                           id: "sources_row_menu_cancel_label",
                           defaultMessage: "Cancel",
+                        })}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {onEditNote && document.document_type === "NOTE" ? (
+                      <DropdownMenuItem onClick={onEditNote}>
+                        <PencilEdit02Icon />
+                        {intl.formatMessage({
+                          id: "sources_row_menu_edit_note_label",
+                          defaultMessage: "Edit note",
+                        })}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {onRename ? (
+                      <DropdownMenuItem onClick={onRename}>
+                        <PencilIcon />
+                        {intl.formatMessage({
+                          id: "sources_row_menu_rename_label",
+                          defaultMessage: "Rename",
                         })}
                       </DropdownMenuItem>
                     ) : null}
@@ -387,6 +434,7 @@ export function SourcesPanel({
   error,
   addAction,
   onOpen,
+  onPreview,
   onReveal,
   onRetry,
   onCancel,
@@ -394,6 +442,9 @@ export function SourcesPanel({
   onDeleteSelected,
   onSelectionChange,
   onToggleAll,
+  onDropFiles,
+  onRename,
+  notes,
 }: {
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
@@ -403,6 +454,7 @@ export function SourcesPanel({
   error: string | null
   addAction?: ReactNode
   onOpen: (documentId: number) => void
+  onPreview?: (documentId: number) => void
   onReveal: (documentId: number) => void
   onRetry: (documentId: number) => void
   onCancel: (documentId: number) => void
@@ -410,12 +462,29 @@ export function SourcesPanel({
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
   onToggleAll: () => void
+  // Files dropped on the panel. Absent, the panel takes no drop: the caller
+  // withholds it while an upload runs, as it disables Add.
+  onDropFiles?: (files: File[]) => void
+  // Absent, the panel offers no rename and no notes.
+  onRename?: (documentId: number, title: string) => Promise<boolean>
+  notes?: NoteActions
 }) {
   const sourceRows = useRef(new Map<number, HTMLLIElement>())
+  const drop = useFileDrop(onDropFiles)
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
   >(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<WorkspaceDocument | null>(
+    null
+  )
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const openNote = (documentId: number | null) => {
+    setNoteTarget({ documentId })
+    setNoteOpen(true)
+  }
   const deleteCount =
     deleteTarget === "selected"
       ? selectedDocumentIds.length
@@ -471,7 +540,23 @@ export function SourcesPanel({
                 })}
           </Button>
         ) : null}
-        <div className="ml-auto">{addAction}</div>
+        <div className="ml-auto flex items-center gap-1">
+          {notes ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => openNote(null)}
+            >
+              <PencilEdit02Icon data-icon="inline-start" />
+              {intl.formatMessage({
+                id: "sources_new_note_button",
+                defaultMessage: "New note",
+              })}
+            </Button>
+          ) : null}
+          {addAction}
+        </div>
       </div>
     </div>
   )
@@ -490,9 +575,18 @@ export function SourcesPanel({
         </Alert>
       ) : null}
       <section
-        className="flex h-full min-h-0 w-full min-w-0 flex-col"
+        className="relative flex h-full min-h-0 w-full min-w-0 flex-col"
         aria-labelledby="all-sources"
+        {...drop.handlers}
       >
+        {drop.active ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-ring/60 bg-app-shell p-4 text-center text-sm text-muted-foreground">
+            {intl.formatMessage({
+              id: "sources_drop_label",
+              defaultMessage: "Drop files to add them as sources",
+            })}
+          </div>
+        ) : null}
         {listHeader}
         <ScrollFade className="min-h-0 flex-1">
           {isLoading ? (
@@ -510,6 +604,7 @@ export function SourcesPanel({
                     else sourceRows.current.delete(document.id)
                   }}
                   onOpen={() => onOpen(document.id)}
+                  onPreview={() => onPreview?.(document.id)}
                   onReveal={() => onReveal(document.id)}
                   onRetry={() => onRetry(document.id)}
                   onCancel={() => onCancel(document.id)}
@@ -517,6 +612,15 @@ export function SourcesPanel({
                     setDeleteTarget(document)
                     setDeleteOpen(true)
                   }}
+                  onRename={
+                    onRename
+                      ? () => {
+                          setRenameTarget(document)
+                          setRenameOpen(true)
+                        }
+                      : undefined
+                  }
+                  onEditNote={notes ? () => openNote(document.id) : undefined}
                   isDeleting={isDeleting}
                   onSelectedChange={(selected) =>
                     onSelectionChange(document.id, selected)
@@ -620,6 +724,28 @@ export function SourcesPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {onRename ? (
+        <RenameSourceDialog
+          document={renameTarget}
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setRenameTarget(null)
+          }}
+          onRename={onRename}
+        />
+      ) : null}
+      {notes ? (
+        <NoteEditorDialog
+          target={noteTarget}
+          open={noteOpen}
+          notes={notes}
+          onOpenChange={setNoteOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setNoteTarget(null)
+          }}
+        />
+      ) : null}
     </>
   )
 }

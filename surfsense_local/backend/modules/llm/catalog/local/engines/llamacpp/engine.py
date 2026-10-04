@@ -1,5 +1,6 @@
 """llama.cpp behind the engine seam: chat models in llama-server's folder."""
 
+import threading
 from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
 
@@ -8,14 +9,20 @@ import httpx
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
-from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import write_preset
+from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
+    preset_model_ids,
+    write_preset,
+)
 from modules.llm.catalog.local.engines.llamacpp.models_folder.readiness import (
     become_ready,
 )
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     DownloadedModel,
+    ProjectorNotice,
+    projector_notices,
     scan,
 )
+from modules.llm.catalog.local.engines.llamacpp.pricing import price
 from modules.llm.catalog.local.engines.llamacpp.rows.catalog import local_catalog
 from modules.llm.catalog.local.engines.llamacpp.search.exact_check import check_build
 from modules.llm.catalog.local.engines.llamacpp.search.hits import (
@@ -33,6 +40,8 @@ from modules.llm.hardware import BudgetMode
 from modules.llm.model_type import ModelType
 from modules.llm.providers.llamacpp import PROVIDER
 
+_TOO_BIG = "This build is too big for this computer. Pick a smaller one."
+
 
 class LlamaCppEngine:
     name = ENGINE
@@ -48,6 +57,7 @@ class LlamaCppEngine:
         self._models_dir = models_dir
         self._runtime_url = runtime_url
         self._budget = budget
+        self._preset_lock = threading.Lock()
 
     @property
     def folder(self) -> Path:
@@ -57,6 +67,10 @@ class LlamaCppEngine:
         """The models on disk, read from their own headers."""
         return scan(self._models_dir, read_installs(self._models_dir))
 
+    def projector_notices(self) -> tuple[ProjectorNotice, ...]:
+        """Unpaired projectors and the model they identify, when exactly one."""
+        return projector_notices(self._models_dir, self.installed())
+
     def rows(
         self,
         models: Sequence[CuratedModel],
@@ -64,9 +78,11 @@ class LlamaCppEngine:
         *,
         selected: str | None,
     ) -> tuple[LocalRow, ...]:
+        installed = self.installed()
+        self._reprice_for_copied_models(installed)
         return local_catalog(
             models,
-            self.installed(),
+            installed,
             self._budget(BudgetMode.CAPACITY),
             mint,
             selected=selected,
@@ -87,17 +103,32 @@ class LlamaCppEngine:
 
     def reprice(self) -> None:
         """Rewrite the preset for everything on disk."""
+        installed = self.installed()
+        with self._preset_lock:
+            self._write_preset(installed)
+
+    def _reprice_for_copied_models(self, installed: Sequence[DownloadedModel]) -> None:
+        model_ids = frozenset(
+            model.model_id for model in installed if model.shape is not None
+        )
+        with self._preset_lock:
+            if not model_ids <= preset_model_ids(self._models_dir):
+                self._write_preset(installed)
+
+    def _write_preset(self, installed: Sequence[DownloadedModel]) -> None:
         write_preset(
             self._models_dir,
-            self.installed(),
+            installed,
             self._budget(BudgetMode.CAPACITY),
             self._budget(BudgetMode.LIVE),
         )
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
-        """Read a searched build's headers and refuse what cannot run, before any
-        bytes move. Returns the plan with a failed projector dropped."""
+        """Refuse what cannot run here, before any bytes move: a curated build by
+        its committed shape, a searched one by reading its headers. Returns the
+        plan with a failed projector dropped."""
         if not plan.needs_check:
+            self._refuse_curated_too_big(plan)
             return plan
         async with httpx.AsyncClient(follow_redirects=True) as client:
             checked = await check_build(
@@ -110,12 +141,25 @@ class LlamaCppEngine:
                 checked.classification.reason or "SurfSense cannot run this model."
             )
         if checked.fit.state is FitState.TOO_BIG:
-            raise InstallRefusedError(
-                "This build is too big for this computer. Pick a smaller one."
-            )
+            raise InstallRefusedError(_TOO_BIG)
         return InstallPlan(
             plan.model_id, checked.build, self.name, pipeline_tag=plan.pipeline_tag
         )
+
+    def _refuse_curated_too_big(self, plan: InstallPlan) -> None:
+        # A curated build's header was read at refresh time; whether it fits
+        # this machine was not. Priced as its row is, and only TOO_BIG
+        # refuses: a build that spills runs, slower, and stays the user's
+        # to choose.
+        projector = plan.build.projector
+        fit = price(
+            plan.shape,
+            plan.build.weights_bytes,
+            projector.size_bytes if projector else 0,
+            self._budget(BudgetMode.CAPACITY),
+        )
+        if fit.state is FitState.TOO_BIG:
+            raise InstallRefusedError(_TOO_BIG)
 
     async def after_install(self, model_id: str) -> AsyncIterator[InstallStep]:
         # The router only learns about a model by restarting, and reporting

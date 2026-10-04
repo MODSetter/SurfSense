@@ -68,20 +68,20 @@ def finish_job(
     document: Document,
     status: DocumentStatus,
     error_message: str | None = None,
+    **produced: str,
 ) -> bool:
-    """Write a terminal status unless cancel won the race. Returns whether we wrote."""
+    """Write a terminal status unless cancel won the race. Returns whether we wrote.
+
+    Only the columns the job `produced` are written beside it, never the row as
+    `begin_job` read it: a rename or a note edit committed meanwhile must stand.
+    """
     result = session.execute(
         update(Document)
         .where(
             Document.id == document.id,
             Document.status != DocumentStatus.CANCELLED,
         )
-        .values(
-            status=status,
-            error_message=error_message,
-            content=document.content,
-            title=document.title,
-        )
+        .values(status=status, error_message=error_message, **produced)
     )
     if result.rowcount == 0:
         session.rollback()

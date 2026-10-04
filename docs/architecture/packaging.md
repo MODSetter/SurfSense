@@ -19,6 +19,7 @@ The asar holds only the Electron main and preload bundles. Everything else rides
 | `llamacpp` | `electron/llamacpp` | `llama-server` and the libraries it links |
 | `sdcpp` | `electron/sdcpp` | `sd-server`, for local image generation |
 | `audiocpp` | `electron/audiocpp` | `audiocpp_server`, its libraries, the curated model specs and eSpeak-ng, for podcast voices |
+| `opencode` | `electron/opencode` | `opencode` and `rg`, for the agent, with their licences; absent while opencode is off |
 
 The app icon lives in `electron/build/icons/`: `packaged/` holds the `.icns`, `.ico` and `.png` that `electron-builder.yml` names per OS, and `dev/` a variant with a "DEV" badge, which `electron/src/main/dev-app-identity.ts` sets on the Dock, taskbar, window and About panel only while unpackaged, alongside the name "SurfSense Dev", because development runs inside Electron's own bundle and would otherwise show Electron's icon. The macOS menu bar name and the About panel icon stay Electron’s in development; only packaging changes them. Artwork on Windows and Linux fills its canvas; on macOS it sits at 824 of 1024 px with a transparent margin, Apple's icon grid, so `icon.icns` and `dev/icon-macos.png` carry that margin and the `.ico` and `.png` files do not.
 
@@ -39,7 +40,7 @@ What else each spec names, and why the analyser cannot find it on its own:
 |---|---|---|
 | `api.spec` | `collect_submodules("uvicorn")` | uvicorn loads its loop, protocol and lifespan implementations by string |
 | `api.spec` | `onnxruntime` and `tokenizers` libraries | the query encoder's native libraries load from C |
-| `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts | read by path or through `importlib.resources` |
+| `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts, the agent's prompt | read by path or through `importlib.resources` |
 | `api.spec` | excludes Docling, torch, torchvision, transformers, pandas, scipy and OpenCV | only the worker parses files, and the analyser cannot tell these are optional |
 | `worker.spec` | the local model manifest, the remote model manifest | Studio finds its chosen image and audio models through the local catalog, and classifies a remote model through the same discovery the API uses; both files are read by path |
 | `worker.spec` | Docling and its packages, RapidOCR, transformers, torchvision | lazy and native imports Docling reaches only on the first PDF |
@@ -52,7 +53,7 @@ Three packs are staged into `backend/models` before packaging and ship as `resou
 
 | Pack | Staged by | Holds |
 |---|---|---|
-| Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model, tokenizer and config |
+| Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model and its tokenizer, from a pinned revision, sha256-checked |
 | Voice | `build:voice`, `scripts/fetch_bundled_voice.py` | `audio/`: the manifest's first audio model in its default build, Kokoro 82M `Q8_0` (190 MB), with its install record, fetched as a catalog install is: from its pinned commit, sha256-checked |
 | Parser | `build:parser`, `scripts/fetch_docling_models.py` | Docling's layout, table and RapidOCR weights, pruned of the variants ingest never loads |
 
@@ -69,6 +70,8 @@ The release workflow runs the three scripts directly. Without the parser pack, D
   - macOS downloads upstream's archive, checked against its pinned SHA-256.
   - Windows and Linux compile the pinned commit, because upstream's Linux archives need glibc 2.38 and its Windows archive compiles AVX-512 into the executable. The recipe, `scripts/audiocpp/recipe.mjs`, builds only the CPU backend, since the server runs with `--backend cpu`, with one ggml library per micro-architecture and only the curated model families.
   - Compiling needs CMake and GCC 13 or newer on Linux, or Visual Studio 2022 or newer with the C++ tools on Windows. Without them the script stages an empty folder and says why, and the app runs without local audio. Release CI and `pnpm dist` pass `--strict`, which fails instead, naming everything missing and the command that installs it with the machine's package manager.
+
+- `scripts/opencode/stage.mjs`, which `build:opencode` runs, stages opencode `1.18.34` and ripgrep `15.1.0` into `electron/opencode/`, each archive checked against its SHA-256 in `scripts/opencode/pins.mjs`. On x64 it takes opencode's `-baseline` build, which opencode compiles without AVX2. The release archives carry only the executable, so opencode's licence comes from its tag, also pinned; ripgrep's three licence files ship in `opencode/ripgrep/`. It runs `opencode --version` and `rg --version` from the staged folder before it swaps the folder into place, and restages when the staged opencode reports another version. The Linux executable needs glibc 2.17 and no libstdc++. It stages only when `scripts/opencode/enabled.mjs` says opencode is on, which is off until a model passes the agent test and `SURFSENSE_LOCAL_OPENCODE_ENABLED=1` overrides; off, it removes an earlier stage, so neither `pnpm dev` nor an installer carries one.
 
 `pnpm dist` in `electron/` runs every staging step before `electron-builder`, the native runtimes first, so a missing toolchain stops it before the frontend and the Python binaries are built. It stages sd.cpp and audio.cpp with `--strict`, so an installer never ships without them; `predev` does not, so dev runs without a toolchain.
 
@@ -119,7 +122,7 @@ Why it compiles on Linux and macOS, in plain words: upstream's ready-made progra
 
 The Linux runner is pinned because `ubuntu-latest` moves to 26.04 and would silently raise the AppImage's glibc floor; llama.cpp's Vulkan build needs 2.34. There is no Intel Mac build, because torch and onnxruntime no longer publish Intel macOS wheels.
 
-Each runner, in order, checks the version (semver; on a tag push it must equal `surfsense_local/VERSION`), refuses to build with the test signing key ([license](license/app.md)), freezes the binaries, smokes the frozen worker's Docling vision imports (`--check-vision-runtime`) and the frozen API's `/health`, stages the model packs, builds the SPA and the Electron bundles, stages llama.cpp, audio.cpp and sd.cpp, and runs `electron-builder`. The three runners wait for the `audiocpp` and `sdcpp` jobs, and unpack audio.cpp's Windows and Linux builds and sd.cpp's Linux and macOS builds. On Linux it then starts the API from the packaged `linux-unpacked` resources and runs `llama-server --list-devices`, `audiocpp_server --list-devices` and `sd-server --help` from their packaged directories, because ggml finds its backends only next to the running executable, and checks that eSpeak-ng and its licence are packaged beside `audiocpp_server`, and sd.cpp's Vulkan backend and licence beside `sd-server`.
+Each runner, in order, checks the version (semver; on a tag push it must equal `surfsense_local/VERSION`; whenever it publishes it must carry no prerelease suffix), refuses to build with the test signing key ([license](license/app.md)), freezes the binaries, smokes the frozen worker's Docling vision imports (`--check-vision-runtime`) and the frozen API's `/health`, stages the model packs, builds the SPA and the Electron bundles, stages llama.cpp, audio.cpp and sd.cpp, and runs `electron-builder`. The three runners wait for the `audiocpp` and `sdcpp` jobs, and unpack audio.cpp's Windows and Linux builds and sd.cpp's Linux and macOS builds. On Linux it then starts the API from the packaged `linux-unpacked` resources and runs `llama-server --list-devices`, `audiocpp_server --list-devices` and `sd-server --help` from their packaged directories, because ggml finds its backends only next to the running executable, and checks that eSpeak-ng and its licence are packaged beside `audiocpp_server`, and sd.cpp's Vulkan backend and licence beside `sd-server`.
 
 The macOS build is signed with the hardened runtime and notarized whenever the signing secrets are available. Two steps run only on tag pushes: the early check of the Apple notarization credentials, and Azure Trusted Signing for the Windows build.
 
@@ -145,10 +148,5 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 
 ## Known gaps
 
-- `build-sdcpp.yml` has not run yet, so no release has built or packaged sd.cpp: the Linux and macOS compiles and the Windows runtime copy have not run; only the build recipe is unit-tested.
 - No CI job generates an image with the staged `sd-server`; its gates are `--help` and the platform floors, not a picture.
-- No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
-- No release has built or packaged audio.cpp yet, and nothing has staged its macOS archive on a Mac.
-- No workflow runs the `surfsense_local` unit or integration tests on pull requests; only the two packaging tests above run in CI.
-- No test ingests a PDF with networking disabled.

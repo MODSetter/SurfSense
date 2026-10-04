@@ -17,17 +17,22 @@ import sys
 from pathlib import Path
 
 from retrieval_eval.cases import CORPUS_DIR, LOCAL_DIR
-from retrieval_eval.fingerprint import embedder_identity, fingerprint
+from retrieval_eval.fingerprint import curated_identity, embedder_identity, fingerprint
 
 # Safe this high, unlike the embedder below: it reads no settings, only sqlite3.
 from shared.tokenizer import TOKENIZER
 
-# Deliberately not imported from worker.ingestion.embedding, even though that
-# is where it is defined: importing anything under `worker` pulls in
-# shared.queue, which reads the settings at import time and caches them. That
-# would freeze the data dir below before it is set, and the run would read the
-# user's own library instead. Measured twice.
+# Deliberately not imported from modules.embedding.bundled, even though that
+# is where it is defined: app imports stay below the line that sets the data
+# dir, because anything under `worker` pulls in shared.queue, which reads the
+# settings at import time and caches them. That would freeze the data dir
+# before it is set, and the run would read the user's own library instead.
+# Measured twice.
 MODEL_DIR_NAME = "bge-small-en-v1.5"
+# A curated embedder to index with instead of bge, by manifest id. From the
+# environment rather than a flag, because the data dir is keyed by it and is
+# set before argparse runs.
+EMBEDDER = os.environ.get("SURFSENSE_EVAL_EMBEDDER", MODEL_DIR_NAME)
 
 # Before the first import that reads settings, as tests/conftest.py does. The
 # ingest job opens its own engine from the configured data dir, so a run that
@@ -48,20 +53,31 @@ CACHE_ROOT = Path.home() / ".surfsense-retrieval-eval"
 _KEY = fingerprint(
     CORPUS_DIR,
     LOCAL_DIR / "corpus",
-    embedder=embedder_identity(
-        Path(os.environ["SURFSENSE_LOCAL_MODELS_DIR"]), MODEL_DIR_NAME
+    embedder=(
+        embedder_identity(
+            Path(os.environ["SURFSENSE_LOCAL_MODELS_DIR"]), MODEL_DIR_NAME
+        )
+        if EMBEDDER == MODEL_DIR_NAME
+        else curated_identity(EMBEDDER)
     ),
     tokenizer=TOKENIZER,
 )
 os.environ["SURFSENSE_LOCAL_DATA_DIR"] = str(CACHE_ROOT / _KEY)
+# A downloaded embedder is read where the user's app downloaded it, as the
+# models are: only the database and its documents belong to this run.
+_RUN_EMBEDDINGS = CACHE_ROOT / _KEY / "embeddings"
+if not _RUN_EMBEDDINGS.exists() and (_DATA / "embeddings").is_dir():
+    _RUN_EMBEDDINGS.parent.mkdir(parents=True, exist_ok=True)
+    _RUN_EMBEDDINGS.symlink_to(_DATA / "embeddings", target_is_directory=True)
 
 from retrieval_eval.cases import load  # noqa: E402
+from retrieval_eval.embedder import embedder_spec  # noqa: E402
 from retrieval_eval.run import as_record, ask, index, open_index  # noqa: E402
 from retrieval_eval.summary import summarize  # noqa: E402
 
+from modules.embedding.encoder import missing_files  # noqa: E402
 from shared.config import get_storage_settings  # noqa: E402
 from shared.db import import_models  # noqa: E402
-from worker.ingestion.embedding import missing_embedding_files  # noqa: E402
 
 
 def guard_data_dir() -> None:
@@ -83,18 +99,23 @@ def guard_data_dir() -> None:
 
 def run(args: argparse.Namespace) -> None:
     guard_data_dir()
-    missing = missing_embedding_files()
+    spec = embedder_spec(EMBEDDER)
+    missing = missing_files(spec)
     if missing:
         raise ValueError(
-            f"the embedding model is missing {missing}; "
-            "run scripts/fetch_embedding_model.py"
+            f"{spec.id} is missing {missing}: fetch bge with "
+            "scripts/fetch_embedding_model.py, or install another from the app"
         )
+    weight = os.environ.get("SURFSENSE_EVAL_WEIGHT")
+    if weight is not None:
+        spec = spec.model_copy(update={"semantic_weight": float(weight)})
+        print(f"{spec.id} at semantic weight {spec.semantic_weight}")
     corpus = load()
     print(f"{len(corpus.documents)} documents, {len(corpus.queries)} queries")
-    opened = None if args.rebuild else open_index()
+    opened = None if args.rebuild else open_index(spec)
     if opened is None:
         print(f"indexing into {CACHE_ROOT / _KEY}")
-        opened = index(corpus)
+        opened = index(corpus, spec)
     else:
         print(f"reusing the index in {CACHE_ROOT / _KEY}")
     session, workspace_id, engine = opened

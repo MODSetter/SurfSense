@@ -1,3 +1,4 @@
+import type { AgentStep } from "@/features/agent/api"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import { parseSseStream, type ChatStreamEvent, type Citation } from "./sse"
@@ -6,15 +7,35 @@ export type ChatThread = {
   id: number
   workspace_id: number
   title: string | null
+  // The agent answers this thread, chosen when it was opened.
+  uses_agent: boolean
   created_at: string
   updated_at: string
 }
+
+/** An image a stored turn carried; the bytes are served by the image route. */
+export type StoredImage = {
+  key: string
+  mime: string
+  size_bytes: number
+  sha256: string
+}
+
+/** One attached image as the send request carries it. `mime` is advisory. */
+export type ImageUpload = { mime: string | null; data: string }
 
 export type MessageContent = {
   text?: string
   citations?: Citation[]
   // A thinking model's trace, shown folded above the answer.
   reasoning?: { text: string; duration_ms: number | null }
+  images?: StoredImage[]
+  // An agent reply's tool calls, in the order it made them.
+  steps?: AgentStep[]
+  // Client only: what a turn not yet stored shows in place of `images`.
+  previews?: string[]
+  // Client only: how far the model has read the prompt, while it waits.
+  progress?: { processed: number; total: number }
 }
 
 export type ChatMessage = {
@@ -82,7 +103,9 @@ export function renameThread(
 export async function streamMessage(
   threadId: number,
   text: string,
+  images: ImageUpload[],
   documentIds: number[],
+  thinking: boolean,
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
 ): Promise<void> {
@@ -95,6 +118,10 @@ export async function streamMessage(
     body: JSON.stringify({
       text,
       document_ids: documentIds,
+      // Only when there are some, so a text turn sends exactly what it did.
+      ...(images.length > 0 ? { images } : {}),
+      // Only when off, for the same reason: on is the API's default.
+      ...(thinking ? {} : { thinking: false }),
     }),
     signal,
   })

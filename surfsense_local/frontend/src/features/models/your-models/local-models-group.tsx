@@ -19,12 +19,14 @@ function messageFrom(error: unknown) {
 /** The slot's models on this computer; a download under way shows as `pending`. */
 export function LocalModelsGroup({
   rows,
+  notices = [],
   pending,
   onDownload,
   onUse,
   onDelete,
 }: {
   rows: YourModelRow[]
+  notices?: string[]
   pending?: ReactNode
   onDownload: () => void
   onUse: (row: YourModelRow) => Promise<unknown>
@@ -64,6 +66,12 @@ export function LocalModelsGroup({
           defaultMessage: "This computer",
         })}
       </h3>
+
+      {notices.map((notice) => (
+        <p key={notice} className="text-xs wrap-anywhere text-muted-foreground">
+          {notice}
+        </p>
+      ))}
 
       {rows.length === 0 && !pending ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-2.5">
