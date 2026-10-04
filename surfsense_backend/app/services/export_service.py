@@ -54,6 +54,12 @@ _SKIP_REASONS = frozenset({"pending", "processing", "empty"})
 _CITATION_RE = re.compile(
     r"[\[\u3010]\u200b?citation:\s*([^\]\u3011]+?)\s*\u200b?[\]\u3011]"
 )
+# The renderer's id-list grammar: only payloads matching it are comma lists;
+# anything else (a URL with commas in its path) is one opaque payload.
+_CITATION_ID_LIST_RE = re.compile(r"(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*", re.ASCII)
+_CHUNK_ID_RE = re.compile(r"-?\d+", re.ASCII)
+# Chunk.id is a 32-bit Integer column; larger ids cannot exist and fail to bind.
+_INT32_MIN, _INT32_MAX = -(2**31), 2**31 - 1
 _CHAT_ROLES = frozenset({"user", "assistant"})
 
 
@@ -63,11 +69,14 @@ def _sanitize_filename(title: str) -> str:
 
 
 def _citation_payloads(text: str) -> list[str]:
-    return [
-        payload.strip()
-        for raw in _CITATION_RE.findall(text)
-        for payload in raw.split(",")
-    ]
+    payloads: list[str] = []
+    for raw in _CITATION_RE.findall(text):
+        raw = raw.strip()
+        if _CITATION_ID_LIST_RE.fullmatch(raw):
+            payloads.extend(piece.strip() for piece in raw.split(","))
+        else:
+            payloads.append(raw)
+    return payloads
 
 
 def flatten_message_text(
@@ -475,10 +484,11 @@ async def _citation_titles(
 ) -> dict[str, str]:
     chunk_ids: list[int] = []
     for payload in payloads:
-        try:
-            chunk_ids.append(int(payload))
-        except ValueError:
+        if not _CHUNK_ID_RE.fullmatch(payload):
             continue
+        chunk_id = int(payload)
+        if _INT32_MIN <= chunk_id <= _INT32_MAX:
+            chunk_ids.append(chunk_id)
     if not chunk_ids:
         return {}
     result = await session.execute(

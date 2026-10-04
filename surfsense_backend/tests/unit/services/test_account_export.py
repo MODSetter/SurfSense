@@ -9,9 +9,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.export_service import flatten_message_text, flatten_workspace_chats
+from app.services.export_service import (
+    _citation_payloads,
+    _citation_titles,
+    flatten_message_text,
+    flatten_workspace_chats,
+)
 
 pytestmark = pytest.mark.unit
+
 
 def _contracts_dir() -> Path:
     for parent in Path(__file__).resolve().parents:
@@ -32,9 +38,7 @@ def test_committed_export_sample_matches_the_contract():
 
 
 def test_three_citation_markers_export_with_none_and_three_titles():
-    text = (
-        "A [citation:11] then [citation:22] and [citation:33] done."
-    )
+    text = "A [citation:11] then [citation:22] and [citation:33] done."
     titles = {"11": "Alpha", "22": "Beta", "33": "Gamma"}
     stripped, citations = flatten_message_text(text, titles)
     assert "[citation:" not in stripped
@@ -70,6 +74,49 @@ def test_fullwidth_and_zero_width_citation_markers_are_stripped():
     )
     assert "citation:" not in stripped
     assert citations == [{"title": "Alpha"}, {"title": "Beta"}]
+
+
+def test_url_citation_with_commas_is_not_split_into_chunk_ids():
+    stripped, citations = flatten_message_text(
+        "See [citation:https://news.example/7,114883,story.html].",
+        {"114883": "Wrong"},
+    )
+    assert stripped == "See ."
+    assert citations == []
+
+
+def test_url_citation_payload_is_kept_whole():
+    url = "https://news.example/7,114883,30573452,story.html"
+    assert _citation_payloads(f"Per [citation:{url}] done.") == [url]
+
+
+def test_numeric_citation_lists_still_split():
+    assert _citation_payloads("[citation:11, doc-22,-33] and [citation:44]") == [
+        "11",
+        "doc-22",
+        "-33",
+        "44",
+    ]
+
+
+async def test_out_of_range_chunk_ids_are_not_queried():
+    session = _Session([(7, "Seven")])
+
+    titles = await _citation_titles(
+        session, workspace_id=12, payloads={"7", "30573452000", "doc-5"}
+    )
+
+    assert titles == {"7": "Seven"}
+
+
+async def test_no_query_when_no_payload_is_a_chunk_id():
+    session = _Session()
+
+    titles = await _citation_titles(
+        session, workspace_id=12, payloads={"https://news.example/7,114883"}
+    )
+
+    assert titles == {}
 
 
 class _Rows:
