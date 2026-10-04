@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -340,6 +341,37 @@ def test_a_non_zero_exit_without_a_traceback_reports_its_status() -> None:
     assert not result.ok
     assert result.error == "the script exited with status 3"
     assert result.traceback_tail is None
+
+
+def test_a_flood_on_stderr_keeps_only_its_tail_in_the_worker() -> None:
+    """A runaway script may write gigabytes there; the worker and its other jobs must not hold them."""
+    script = (
+        "import sys\n"
+        "line = 'x' * 1000 + chr(10)\n"
+        "for _ in range(200_000):\n"
+        "    sys.stderr.write(line)\n"
+        "raise ValueError('the last line')\n"
+    )
+    worker = psutil.Process()
+    before = worker.memory_info().rss
+    peak, running = [before], [True]
+
+    def sample() -> None:
+        while running[0]:
+            peak[0] = max(peak[0], worker.memory_info().rss)
+            time.sleep(0.01)
+
+    sampler = threading.Thread(target=sample)
+    sampler.start()
+    try:
+        result = run_document_script(script, output_name="d.docx", images={})
+    finally:
+        running[0] = False
+        sampler.join()
+
+    assert (peak[0] - before) < 50 * 2**20
+    assert result.error == "ValueError: the last line"
+    assert "raise ValueError('the last line')" in (result.traceback_tail or "")
 
 
 def test_only_the_last_thirty_lines_of_stderr_are_kept() -> None:

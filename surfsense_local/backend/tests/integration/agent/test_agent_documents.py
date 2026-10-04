@@ -5,7 +5,9 @@ import json
 import pytest
 
 from modules.agent.opencode_config import DOCUMENTS_SKILL, skills_folder
+from modules.agent.tool_endpoint import render_document
 from modules.agent.tool_endpoint.render_document import STOP_RULE
+from shared.queue import studio_queue
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import of_type, open_thread, send
 from tests.integration.worker.conftest import stub_model  # noqa: F401
@@ -133,3 +135,28 @@ async def test_a_failed_render_reaches_the_model_with_the_stop_rule(
     handed_back = _tool_results(agent_api.model.requests[1])
     assert "ValueError: the pricing table is empty" in handed_back
     assert STOP_RULE in handed_back
+
+
+async def test_a_render_ready_after_its_call_answered_links_its_version_when_read_back(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Studio may be busy past the call's wait; the step links the version once it is made."""
+    monkeypatch.setattr(render_document, "WAIT_SECONDS", 0.5)
+    agent_api.model.replies = [render(WORD), ("text", "It is on its way.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "Draft the proposal")
+    step = _finished(frames, "surfsense_render_document")
+    assert (step["status"], step["artifact"]) == ("completed", None)
+    studio_queue.execute(studio_queue.dequeue())  # Studio gets to it after the turn
+    stored = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+    listed = await agent_api.http.get(f"/workspaces/{agent_api.workspace_id}/artifacts")
+
+    (artifact,) = listed.json()
+    assert artifact["status"] == "ready"
+    (stored_step,) = stored.json()[-1]["content"]["steps"]
+    assert stored_step["artifact"] == {
+        "id": artifact["id"],
+        "title": "Client proposal",
+        "version": 1,
+    }

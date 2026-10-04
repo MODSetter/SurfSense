@@ -16,6 +16,7 @@ from sqlalchemy import (
     create_engine,
     event,
 )
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from shared.sqlite import enable_wal, require_load_extension
@@ -132,6 +133,11 @@ def _begin(connection: Connection) -> None:
     # price is that no transaction may stay open across a slow call (a model,
     # a probe, a stream), which is what the guard above and transact() enforce.
     connection.exec_driver_sql("BEGIN IMMEDIATE")
+
+
+def is_locked(error: OperationalError) -> bool:
+    """Whether another connection held the write lock past the busy wait."""
+    return "database is locked" in str(error.orig)
 
 
 def create_db_engine(path: Path) -> Engine:

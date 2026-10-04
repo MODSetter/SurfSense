@@ -231,6 +231,24 @@ async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
         yield endpoint
 
 
+def declare_image_input(reads_images: bool) -> None:
+    """The configuration the API writes for opencode, for a model that reads images or not."""
+    setup = AgentSetup(
+        model=MODEL,
+        window=32768,
+        reads_images=reads_images,
+        endpoint_url="http://127.0.0.1:9/v1",
+        launch_key="launch-key",
+    )
+    write_opencode_config(get_storage_settings().agent_dir / "opencode.json", setup)
+
+
+@pytest.fixture
+def model_reads_images() -> None:
+    """opencode configured for a model that reads images, which page previews are for."""
+    declare_image_input(True)
+
+
 @pytest.fixture
 def studio_worker() -> Iterator[None]:
     """The worker's Studio consumer, on a thread: a render runs its script while the tool waits."""

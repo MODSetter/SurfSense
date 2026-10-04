@@ -2,10 +2,12 @@ import logging
 import time
 
 import httpx
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
+from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
     DocumentScript,
     document_script,
@@ -27,7 +29,7 @@ from modules.llm.resolution import (
 )
 from shared import cancellation
 from shared.config import get_storage_settings
-from shared.db import create_db_engine, create_session_factory
+from shared.db import create_db_engine, create_session_factory, is_locked
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
@@ -157,7 +159,7 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     raise_if_cancelled(session, document)
 
     # A cancel hangs up on a model mid-reply; other stages still finish first.
-    with cancellation.watching(lambda: raise_if_cancelled(session, document)):
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
         return job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
 
 
@@ -172,8 +174,21 @@ def _run_script(
     raise_if_cancelled(session, document)
 
     # A cancel kills the script and everything it started.
-    with cancellation.watching(lambda: raise_if_cancelled(session, document)):
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
         return script_document.render(title, script, images)
+
+
+def _check_cancelled(session: Session, document: Document) -> None:
+    """The check polled while a step runs; a write lock held elsewhere skips one look.
+
+    Failing instead would kill work that had nothing wrong with it.
+    """
+    try:
+        raise_if_cancelled(session, document)
+    except OperationalError as error:
+        session.rollback()
+        if not is_locked(error):
+            raise
 
 
 def _reason(failure: Exception) -> str:
@@ -182,7 +197,7 @@ def _reason(failure: Exception) -> str:
     A document script's traceback is the exception: the agent fixes its script from it.
     """
     if isinstance(failure, ScriptRunFailedError):
-        return failure.reason(MESSAGE_CHARS)
+        return script_error(failure.reason(MESSAGE_CHARS - len(PREFIX)))
     if isinstance(failure, httpx.HTTPError):
         return f"The model could not be reached: {failure}"[:MESSAGE_CHARS]
     first_line = str(failure).strip().splitlines()[:1]

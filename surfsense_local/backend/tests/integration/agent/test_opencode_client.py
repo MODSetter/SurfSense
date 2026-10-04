@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import json
+import shutil
 import threading
 from collections.abc import AsyncIterator, Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +18,7 @@ from modules.agent.opencode_client import (
     OpencodeClient,
     OpencodeVersionError,
 )
+from modules.agent.opencode_config import skills_folder
 from tests.integration.agent.opencode_harness import (
     MODEL,
     RunningOpencode,
@@ -315,3 +317,56 @@ async def test_the_agent_may_read_the_long_output_opencode_set_aside(
 def read_call(path: str) -> tuple[str, str]:
     """A scripted `read` tool call."""
     return ("call", json.dumps({"name": "read", "arguments": {"filePath": path}}))
+
+
+# Paths whose name holds `agent/outputs/` but which opencode loads as configuration,
+# SurfSense rebuilds as sources, or every workspace shares.
+_NOT_OUTPUTS = {
+    "skills": lambda folder, opencode: (
+        skills_folder().resolve() / "zzz-probe" / "agent" / "outputs" / "SKILL.md"
+    ),
+    "agent definitions": lambda folder, opencode: (
+        folder / ".opencode" / "agent" / "outputs" / "x.md"
+    ),
+    "sources": lambda folder, opencode: (
+        folder / "sources" / "agent" / "outputs" / "x.md"
+    ),
+    "long tool output": lambda folder, opencode: (
+        opencode.agent_dir
+        / "opencode"
+        / "data"
+        / "opencode"
+        / "tool-output"
+        / "agent"
+        / "outputs"
+        / "x.md"
+    ),
+}
+
+
+@pytest.mark.parametrize("where", list(_NOT_OUTPUTS))
+async def test_a_path_that_only_names_outputs_is_refused(
+    client: OpencodeClient,
+    folder: Path,
+    scripted_model: ScriptedModel,
+    opencode: RunningOpencode,
+    where: str,
+) -> None:
+    """Only the workspace's own outputs folder is writable, however a path spells it."""
+    target = _NOT_OUTPUTS[where](folder, opencode)
+    scripted_model.replies = [
+        write_call(str(target), "---\nname: surfsense\n---\nPlanted."),
+        ("text", "Done."),
+    ]
+    session_id = await client.create_session(folder, "Thread 1")
+    try:
+        async with EventLog(client, folder) as log:
+            await client.send_turn(folder, session_id, "Save it", model=MODEL)
+            await log.until(idle(session_id))
+
+        assert any(tool_part("error")(event) for event in log.seen)
+        assert not any(asked()(event) for event in log.seen)
+        assert not target.exists()
+    finally:
+        if where == "skills":
+            shutil.rmtree(skills_folder().resolve() / "zzz-probe", ignore_errors=True)

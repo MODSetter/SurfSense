@@ -1,11 +1,12 @@
 """A PDF's pages for the agent: how many there are, and the first as PNG files it opens with `read`."""
 
 import shutil
-import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 import pypdfium2
+
+from shared import pdfium
 
 # Enough to check a document's opening layout without filling the model's context.
 PAGE_LIMIT = 4
@@ -16,10 +17,6 @@ PAGE_WIDTH_PX = 1000
 PAGE_HEIGHT_PX = 4000
 # A page this thin either way at the size it fits is a strip, not a page to check.
 SHORTEST_SIDE_PX = 100
-
-# pdfium is not thread-safe, and the API runs tools on a thread pool: every
-# use of it in the API goes through this file.
-_pdfium = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -35,7 +32,7 @@ def page_count(pdf: bytes) -> int:
 
     Raises pypdfium2.PdfiumError when the bytes are not a PDF.
     """
-    with _pdfium:
+    with pdfium.lock:
         document = pypdfium2.PdfDocument(pdf)
         try:
             return len(document)
@@ -51,7 +48,7 @@ def draw_pages(pdf: bytes, folder: Path) -> DrawnPages:
     shutil.rmtree(folder, ignore_errors=True)
     folder.mkdir(parents=True)
     drawn = DrawnPages([], [])
-    with _pdfium:
+    with pdfium.lock:
         document = pypdfium2.PdfDocument(pdf)
         try:
             for index in range(min(len(document), PAGE_LIMIT)):

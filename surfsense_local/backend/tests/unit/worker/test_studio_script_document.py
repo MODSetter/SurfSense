@@ -1,13 +1,16 @@
 """A document script's run becomes a Built: its file, its text, its download name."""
 
+import threading
 from io import BytesIO
 from pathlib import Path
 
 import docx
+import pypdfium2
 import pytest
 from reportlab.pdfgen import canvas
 
 from modules.artifacts.script_documents.spec import DocumentScript
+from shared import pdfium
 from worker.document_script.run import ScriptResult
 from worker.studio.office.docx import docx as word
 from worker.studio.office.pdf import pdf
@@ -213,3 +216,26 @@ def test_a_long_traceback_keeps_its_last_lines_under_the_limit() -> None:
     assert reason.startswith("KeyError: 'total'\n")
     assert reason.endswith("  File \"script.py\", line 9\nKeyError: 'total'")
     assert "line 0," not in reason
+
+
+def test_a_pdf_is_read_under_the_process_wide_pdfium_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """pdfium is not thread-safe, and Studio runs several jobs at once."""
+    held_while_opening: list[bool] = []
+    opened = pypdfium2.PdfDocument
+
+    def open_checking_the_lock(*args: object, **kwargs: object) -> object:
+        held_while_opening.append(pdfium.lock.locked())
+        return opened(*args, **kwargs)
+
+    monkeypatch.setattr(pdfium, "lock", threading.Lock())
+    monkeypatch.setattr(pypdfium2, "PdfDocument", open_checking_the_lock)
+    _runner(monkeypatch, _ran(_pdf_file("Pricing")))
+    script = DocumentScript(text="build()", format="pdf", images=())
+
+    built = pipeline.render("Proposal", script, {})
+
+    assert built.markdown == "Pricing"
+    assert held_while_opening == [True]
+    assert not pdfium.lock.locked()

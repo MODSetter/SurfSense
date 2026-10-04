@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
+from modules.agent.agent_threads.ready_renders import link_ready_renders
 from modules.agent.agent_threads.replies import thread_turns
 from modules.agent.opencode_client import OpencodeVersionError
 from modules.agent.opencode_runtime import AgentUnavailableError, ready_opencode
@@ -42,4 +43,6 @@ async def agent_thread_messages(
     citations = await transact(
         session, load_citations, thread.workspace_id, searched_chunks(messages)
     )
-    return thread_turns(messages, citations)
+    turns = thread_turns(messages, citations)
+    await transact(session, link_ready_renders, thread.workspace_id, turns)
+    return turns

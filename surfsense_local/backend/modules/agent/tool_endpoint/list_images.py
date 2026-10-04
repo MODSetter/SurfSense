@@ -1,5 +1,6 @@
 """The images tool: the figures SurfSense kept from the agent's sources, by the names scripts use."""
 
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -11,9 +12,11 @@ from modules.documents.models import Document
 from modules.documents.source_figures import (
     FiguresPending,
     SourceFigure,
-    figure_file,
     list_figures,
+    parse_figure_name,
 )
+from modules.documents.source_figures.layout import figure_png
+from modules.documents.source_figures.source import kept_figures_dir
 
 LISTING: dict[str, Any] = {
     "name": "list_images",
@@ -58,39 +61,61 @@ def list_images(session: Session, workspace_id: int, arguments: dict[str, Any]) 
             "Name at least one source: the number in brackets at the end of its "
             f"file name in {SOURCES}/."
         )
-    return "\n\n".join(
+    listed = [
         _source_images(session, workspace_id, source_id)
         for source_id in dict.fromkeys(source_ids)
-    )
+    ]
+    # Copying grows with the number of figures; the write lock must not be held across it.
+    session.commit()
+    return "\n\n".join(_shown(workspace_id, source) for source in listed)
 
 
-def _source_images(session: Session, workspace_id: int, source_id: int) -> str:
+@dataclass(frozen=True)
+class _SourceImages:
+    """One source's heading, or the whole answer when it has no images to give."""
+
+    text: str
+    figures: list[tuple[SourceFigure, Path]] = field(default_factory=list)
+
+
+def _source_images(
+    session: Session, workspace_id: int, source_id: int
+) -> _SourceImages:
     try:
         figures = list_figures(session, workspace_id, source_id)
     except FiguresPending:
-        return (
+        return _SourceImages(
             f"Source {source_id}: its images are being extracted. Ask again in a "
             "minute."
         )
     except LookupError:
-        return f"Source {source_id}: not a source in this workspace."
-    title = _one_line(session.get(Document, source_id).title)
+        return _SourceImages(f"Source {source_id}: not a source in this workspace.")
+    document = session.get(Document, source_id)
+    title = _one_line(document.title)
     if not figures:
-        return f'Source {source_id} ("{title}"): no images.'
+        return _SourceImages(f'Source {source_id} ("{title}"): no images.')
+    # list_figures read the index once; each listed figure's PNG sits beside it.
+    folder = kept_figures_dir(document)
+    return _SourceImages(
+        f'Source {source_id} ("{title}"):',
+        [(figure, figure_png(folder, _number(figure))) for figure in figures],
+    )
+
+
+def _shown(workspace_id: int, source: _SourceImages) -> str:
+    """The source's lines, each figure copied where `read` opens it; one gone from disk is left out."""
     lines = [
         _line(figure, show_figure(workspace_id, figure.name, png))
-        for figure in figures
-        if (png := _kept_png(session, workspace_id, figure)) is not None
+        for figure, png in source.figures
+        if png.is_file()
     ]
-    return "\n".join([f'Source {source_id} ("{title}"):', *lines])
+    return "\n".join([source.text, *lines])
 
 
-def _kept_png(session: Session, workspace_id: int, figure: SourceFigure) -> Path | None:
-    """The figure's file; None when it left the disk after it was listed."""
-    try:
-        return figure_file(session, workspace_id, figure.name)
-    except LookupError:
-        return None
+def _number(figure: SourceFigure) -> int:
+    parsed = parse_figure_name(figure.name)
+    assert parsed is not None  # list_figures names every figure it lists
+    return parsed[1]
 
 
 def _line(figure: SourceFigure, shown_at: str) -> str:
@@ -109,4 +134,4 @@ def _one_line(text: str) -> str:
     return " ".join(text.split())
 
 
-LIST_IMAGES = Tool(listing=LISTING, run=list_images)
+LIST_IMAGES = Tool(listing=LISTING, run=list_images, waits=True)

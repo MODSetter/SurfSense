@@ -1,5 +1,6 @@
 """Studio's job runs a document script as stored and keeps what it wrote."""
 
+import sqlite3
 import threading
 import time
 from io import BytesIO
@@ -15,6 +16,7 @@ from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.service import create_script_document
 from modules.artifacts.service import regenerate_artifact
 from modules.documents.models import Document, DocumentStatus
+from modules.embedding import encoder
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.workspaces.models import Workspace
@@ -191,7 +193,7 @@ def test_a_file_that_is_not_a_word_file_fails_the_job_without_a_retry(
     assert artifact.document.status is DocumentStatus.FAILED
     assert (
         artifact.document.error_message
-        == "the script wrote a file that is not a valid .docx"
+        == "Script error: the script wrote a file that is not a valid .docx"
     )
 
 
@@ -268,3 +270,76 @@ def test_a_cancel_stops_a_running_script_without_waiting_out_its_limit(
     assert artifact.document.status is DocumentStatus.CANCELLED
     assert elapsed < 20
     assert artifact.files == []
+
+
+# Longer than SQLite's 5 s busy wait (shared.db), as another job embedding a long body.
+LOCK_SECONDS = 6.5
+
+
+def _hold_the_write_lock_once(session: Session, started: Path, released: Path) -> None:
+    """Take the write lock once the script runs, keep it past the busy wait, then say so."""
+    deadline = time.monotonic() + 30
+    while not started.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    with create_session_factory(session.get_bind())() as other:
+        other.execute(text("SELECT 1"))  # every transaction begins with the write lock
+        time.sleep(LOCK_SECONDS)
+        other.commit()
+    released.touch()
+
+
+def test_a_write_lock_held_elsewhere_does_not_fail_a_running_script(
+    session: Session, workspace: Workspace, tmp_path: Path
+) -> None:
+    """The cancel check skips a look it cannot get; a correct script is never failed for it."""
+    started, released = tmp_path / "started", tmp_path / "released"
+    script = (
+        "import os, pathlib, time\n"
+        f"pathlib.Path({str(started)!r}).touch()\n"
+        f"while not pathlib.Path({str(released)!r}).exists():\n"
+        "    time.sleep(0.05)\n" + WORD_SCRIPT
+    )
+    artifact = _create(session, workspace, script=script)
+    holder = threading.Thread(
+        target=_hold_the_write_lock_once, args=(session, started, released)
+    )
+    holder.start()
+
+    run(artifact.id)
+    holder.join()
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+
+
+def test_the_write_lock_is_free_while_the_body_is_embedded(
+    session: Session, workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Embedding a long body takes as long as the body; other writers must not wait on it."""
+    embed = encoder.embed
+    others_could_write: list[bool] = []
+
+    def embed_while_another_writes(*args: Any) -> list[list[float]]:
+        other = sqlite3.connect(
+            get_storage_settings().database_path, timeout=0.1, isolation_level=None
+        )
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.execute("ROLLBACK")
+            others_could_write.append(True)
+        except sqlite3.OperationalError:
+            others_could_write.append(False)
+        finally:
+            other.close()
+        return embed(*args)
+
+    monkeypatch.setattr("modules.embedding.encoder.embed", embed_while_another_writes)
+    artifact = _create(session, workspace)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY
+    assert others_could_write == [True]

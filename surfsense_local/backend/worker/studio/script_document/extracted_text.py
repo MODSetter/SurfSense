@@ -7,6 +7,8 @@ import pypdfium2
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
+from shared import pdfium
+
 
 class UnreadableDocumentError(ValueError):
     """The bytes do not open as the format they were meant to be."""
@@ -25,19 +27,20 @@ def word_text(data: bytes) -> str:
 
 def pdf_text(data: bytes) -> str:
     """Each page's text layer, pages apart; a page of only drawings adds nothing."""
-    try:
-        pdf = pypdfium2.PdfDocument(data)
-    except pypdfium2.PdfiumError as error:
-        raise UnreadableDocumentError from error
-    try:
-        if len(pdf) == 0:
-            raise UnreadableDocumentError
-        pages = [
-            page.get_textpage().get_text_range().replace("\r\n", "\n").strip()
-            for page in pdf
-        ]
-    finally:
-        pdf.close()
+    with pdfium.lock:
+        try:
+            pdf = pypdfium2.PdfDocument(data)
+        except pypdfium2.PdfiumError as error:
+            raise UnreadableDocumentError from error
+        try:
+            if len(pdf) == 0:
+                raise UnreadableDocumentError
+            pages = [
+                page.get_textpage().get_text_range().replace("\r\n", "\n").strip()
+                for page in pdf
+            ]
+        finally:
+            pdf.close()
     return "\n\n".join(page for page in pages if page)
 
 

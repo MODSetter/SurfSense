@@ -10,8 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.previews import previews_for
 from modules.agent.tool_endpoint.document_size import document_size
 from modules.agent.tool_endpoint.job_outcome import JobOutcome, wait_for_outcome
@@ -20,10 +22,12 @@ from modules.agent.tool_endpoint.rendered_label import (
     TOOL_NAME,
     RenderedArtifact,
     first_line,
+    queued_line,
 )
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact, ArtifactFileRole
+from modules.artifacts.script_documents.script_error import is_script_error
 from modules.artifacts.script_documents.service import (
     ScriptDocumentRefusedError,
     create_script_document,
@@ -33,6 +37,7 @@ from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
+from shared.db import is_locked
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +146,10 @@ def render(session: Session, workspace_id: int, arguments: dict[str, Any]) -> st
             f"{_version_of(started)} was cancelled in Studio. Ask the user before "
             "rendering it again."
         )
+    # The first line lets the thread link the version once Studio has made it.
+    queued = RenderedArtifact(started.artifact_id, started.title, started.version)
     return (
+        f"{queued_line(queued)}\n"
         f"{_version_of(started)} is still being made after "
         f"{time.monotonic() - began:.0f} s, "
         "behind other Studio work. It appears in Studio when it is ready: tell the "
@@ -152,7 +160,10 @@ def render(session: Session, workspace_id: int, arguments: dict[str, Any]) -> st
 def _request(arguments: dict[str, Any]) -> _Request:
     """The call's arguments, refused in a sentence naming the one to fix."""
     title, script = arguments.get("title"), arguments.get("script")
-    base, images = arguments.get("artifact_id"), arguments.get("images", [])
+    # Null is how many models leave an optional field out.
+    base = arguments.get("artifact_id")
+    images = arguments.get("images")
+    images = [] if images is None else images
     if not isinstance(title, str):
         raise ToolCallError("Give the document a title.")
     if not isinstance(script, str):
@@ -204,18 +215,16 @@ def _made(
     session: Session, workspace_id: int, started: _Started, deadline: float
 ) -> str:
     """What the ready version holds, and the pages the agent can look at by the deadline."""
-    session.expire_all()
-    artifact = session.get(Artifact, started.artifact_id)
-    if artifact is None:
-        session.commit()
-        raise ToolCallError(f"Artifact {started.artifact_id} was deleted once ready.")
-    primary = next(f for f in artifact.files if f.role is ArtifactFileRole.PRIMARY)
-    text = artifact.document.content or ""
-    data = (get_storage_settings().data_dir / primary.storage_key).read_bytes()
-    # A Word preview waits on Electron; no transaction may be open meanwhile.
-    session.commit()
-    size = document_size(artifact.format, data, text)
     rendered = RenderedArtifact(started.artifact_id, started.title, started.version)
+    read = _read_ready(session, started, deadline)
+    if read is None:
+        return (
+            f"{first_line(rendered)}\nIt is ready in Studio. Its text and page "
+            "previews could not be read while Studio was busy: tell the user it is "
+            "ready, and do not render it again."
+        )
+    artifact, text, data = read
+    size = document_size(artifact.format, data, text)
     kind = f"{FORMATS_BY_KEY[artifact.format].label} document"
     return "\n".join(
         [
@@ -229,6 +238,40 @@ def _made(
     )
 
 
+def _read_ready(
+    session: Session, started: _Started, deadline: float
+) -> tuple[Artifact, str, bytes] | None:
+    """The ready version, its text and its file; None if the database stayed busy to the deadline.
+
+    Studio may hold the write lock past SQLite's busy wait while it saves another
+    document; the version is made, so the read is tried again, not failed.
+    """
+    while True:
+        try:
+            session.expire_all()
+            artifact = session.get(Artifact, started.artifact_id)
+            if artifact is None:
+                session.commit()
+                raise ToolCallError(
+                    f"Artifact {started.artifact_id} was deleted once ready."
+                )
+            primary = next(
+                f for f in artifact.files if f.role is ArtifactFileRole.PRIMARY
+            )
+            text = artifact.document.content or ""
+            # A Word preview waits on Electron; no transaction may be open meanwhile.
+            session.commit()
+        except OperationalError as error:
+            session.rollback()
+            if not is_locked(error):
+                raise
+            if time.monotonic() >= deadline:
+                return None
+            continue
+        data = (get_storage_settings().data_dir / primary.storage_key).read_bytes()
+        return artifact, text, data
+
+
 def _opening(text: str) -> str:
     if len(text) <= TEXT_CHARS:
         return text
@@ -237,6 +280,11 @@ def _opening(text: str) -> str:
 
 def _previews(artifact: Artifact, workspace_id: int, deadline: float) -> str:
     """The preview pages as paths the agent's `read` opens, and why any are missing."""
+    if not declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE):
+        return (
+            "No page previews: the selected model cannot read images. Check the "
+            "script and the text above instead."
+        )
     try:
         previews = previews_for(artifact, time_left=deadline - time.monotonic())
     # The version is made; a preview that breaks must not send the model to make it again.
@@ -267,12 +315,25 @@ def _version_of(started: _Started) -> str:
 
 
 def _failed(started: _Started, outcome: JobOutcome) -> str:
-    """The run's error and traceback tail, what to do next, and the stop rule."""
+    """The run's error and traceback tail, what to do next, and the stop rule.
+
+    Only a failure of the script itself sends the model to rewrite it.
+    """
+    reason = outcome.error_message or "no reason given"
+    if is_script_error(outcome.error_message):
+        return "\n\n".join(
+            [
+                f"{_version_of(started)} failed:\n{reason}",
+                "Fix the script and render it again with artifact_id "
+                f"{started.artifact_id}.\n{STOP_RULE}",
+            ]
+        )
     return "\n\n".join(
         [
-            f"{_version_of(started)} failed:\n{outcome.error_message or 'no reason given'}",
-            "Fix the script and render it again with artifact_id "
-            f"{started.artifact_id}.\n{STOP_RULE}",
+            f"{_version_of(started)} failed, but not in its script:\n{reason}",
+            "Render the same script again with artifact_id "
+            f"{started.artifact_id}; if it fails the same way, tell the user what "
+            f"failed.\n{STOP_RULE}",
         ]
     )
 

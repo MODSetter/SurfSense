@@ -23,6 +23,8 @@ from worker.document_script.run_folder import prepare_run_folder, require_plain_
 logger = logging.getLogger(__name__)
 
 TRACEBACK_LINES = 30
+# Room for the error line and TRACEBACK_LINES of long traceback lines.
+STDERR_TAIL_BYTES = 64 * 1024
 # How long output is still read after the tree is killed: a process that
 # escaped it (POSIX: one that left the group) can hold the pipe open for good.
 LAST_OUTPUT_SECONDS = 5
@@ -55,8 +57,7 @@ def run_document_script(
     A cancelled job (shared.cancellation) kills the script and raises its error.
     """
     require_plain_name(output_name, *images)
-    root = get_storage_settings().data_dir / "tmp" / "document-scripts"
-    folder = root / uuid.uuid4().hex
+    folder = run_folders_root() / uuid.uuid4().hex
     try:
         prepare_run_folder(folder, script, images)
         started = time.monotonic()
@@ -70,6 +71,11 @@ def run_document_script(
         return _read_output(folder / output_name, stderr, seconds)
     finally:
         shutil.rmtree(folder, ignore_errors=True)
+
+
+def run_folders_root() -> Path:
+    """Where each run gets its own folder."""
+    return get_storage_settings().data_dir / "tmp" / "document-scripts"
 
 
 def _run_child(
@@ -102,18 +108,20 @@ class _StderrReader:
     a helper the script started may hold the pipe open after the script exits."""
 
     def __init__(self, pipe: IO[bytes]) -> None:
-        self._chunks: list[bytes] = []
+        self._tail = bytearray()
         self._thread = threading.Thread(target=self._read, args=(pipe,), daemon=True)
         self._thread.start()
 
     def _read(self, pipe: IO[bytes]) -> None:
+        """Keep only the end: a runaway script can write gigabytes in its two minutes."""
         with pipe:
             while chunk := pipe.read1(65536):
-                self._chunks.append(chunk)
+                self._tail += chunk
+                del self._tail[:-STDERR_TAIL_BYTES]
 
     def text(self, timeout_seconds: float) -> str:
         self._thread.join(timeout_seconds)
-        return b"".join(self._chunks).decode(errors="replace")
+        return bytes(self._tail).decode(errors="replace")
 
 
 def _child_command(folder: Path) -> list[str]:

@@ -22,6 +22,7 @@ class Tool:
 
     listing: dict[str, Any]
     run: Callable[[Session, int, dict[str, Any]], str]
-    # Set for a tool that waits on another process: it commits its own short
-    # transactions, since the write lock held while it waits would stall that process.
+    # Set for a tool that waits on another process or does slow file work: it
+    # commits its own short transactions, since the write lock held meanwhile
+    # would stall every other writer.
     waits: bool = False

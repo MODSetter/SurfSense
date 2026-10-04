@@ -9,6 +9,7 @@ agent's and is never touched here.
 
 import os
 import re
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -53,8 +54,9 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
         for document in ready
     }
     for existing in sources.iterdir():
-        if existing.is_file() and existing.name not in wanted:
-            existing.unlink()
+        is_figures = existing.name == FIGURES and existing.is_dir()
+        if existing.name not in wanted and not is_figures:
+            _remove(existing)
     for name, text in wanted.items():
         path = sources / name
         if not _holds(path, text):
@@ -109,8 +111,21 @@ def _drop_figures_of_others(figures: Path, source_ids: set[int]) -> None:
         return
     for existing in figures.iterdir():
         parsed = parse_figure_name(existing.stem)
-        if existing.suffix != ".png" or parsed is None or parsed[0] not in source_ids:
-            existing.unlink()
+        if (
+            not existing.is_file()
+            or existing.suffix != ".png"
+            or parsed is None
+            or parsed[0] not in source_ids
+        ):
+            _remove(existing)
+
+
+def _remove(entry: Path) -> None:
+    """Delete a file or a whole folder; a folder here is never SurfSense's, and must not stop a turn."""
+    if entry.is_dir() and not entry.is_symlink():
+        shutil.rmtree(entry, ignore_errors=True)
+    else:
+        entry.unlink(missing_ok=True)
 
 
 def _holds(path: Path, text: bytes) -> bool:

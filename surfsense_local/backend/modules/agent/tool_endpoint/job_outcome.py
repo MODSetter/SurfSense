@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
+from shared.db import is_locked
 
 POLL_SECONDS = 0.5
 _SETTLED = (DocumentStatus.READY, DocumentStatus.FAILED, DocumentStatus.CANCELLED)
@@ -47,7 +48,7 @@ def wait_for_outcome(
         except OperationalError as error:
             # Studio holds the lock while it embeds a long document, past the busy wait.
             session.rollback()
-            if "database is locked" not in str(error.orig):
+            if not is_locked(error):
                 raise
         else:
             if row is None:

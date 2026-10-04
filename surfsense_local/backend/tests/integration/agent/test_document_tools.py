@@ -1,5 +1,6 @@
 """The document tools as opencode's MCP client calls them: render, read, and list images."""
 
+import sqlite3
 import threading
 import time
 from io import BytesIO
@@ -9,7 +10,7 @@ from PIL import Image
 from sqlalchemy import Engine, select, update
 
 from modules.agent.previews import Previews
-from modules.agent.tool_endpoint import render_document
+from modules.agent.tool_endpoint import list_images, render_document
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import figures_dir, write_index
@@ -17,11 +18,15 @@ from modules.documents.tasks import extract_figures
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from shared.queue import ingest_queue
+from tests.integration.agent.conftest import declare_image_input
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.worker.conftest import stub_model  # noqa: F401
 
 # The job indexes what the script wrote; the stub stands in for the embedder.
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("stub_model")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("stub_model", "model_reads_images"),
+]
 
 STOP = "If this is your third failed run for this request, stop and tell the user what failed."
 
@@ -223,6 +228,24 @@ async def test_a_pdf_render_counts_its_pages_and_lists_previews_to_open(
     assert "headers and footers" not in text
 
 
+async def test_a_model_that_cannot_read_images_is_drawn_no_previews(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """It would be shown none of them, and a Word preview waits up to 30 s on Electron."""
+    declare_image_input(False)
+    drawn: list[object] = []
+    monkeypatch.setattr(
+        render_document, "previews_for", lambda *args, **kwargs: drawn.append(args)
+    )
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    assert is_error is False, text
+    assert drawn == []
+    assert "No page previews: the selected model cannot read images" in text
+
+
 async def test_a_word_render_without_the_desktop_app_says_why_it_has_no_previews(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
@@ -375,7 +398,66 @@ async def test_a_failing_script_returns_its_error_and_the_stop_rule(
     assert "ValueError: the pricing table is empty" in text
     assert "line 2, in <module>" in text  # the traceback points into the script
     assert f"artifact_id {failed['id']}" in text
+    assert "Fix the script" in text
     assert text.endswith(STOP)
+
+
+async def test_a_version_that_failed_outside_its_script_is_not_blamed_on_it(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """A full disk or a busy database is no reason to rewrite a script that was right."""
+    workspace_id = await tools.workspace()
+    worker = threading.Thread(
+        target=_fail_while_holding_the_write_lock, args=(engine, 0.0), daemon=True
+    )
+    worker.start()
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    worker.join()
+    (failed,) = await _listed(tools, workspace_id)
+    assert is_error is True
+    assert "the disk is full" in text
+    assert "Fix the script" not in text
+    assert f"same script again with artifact_id {failed['id']}" in text
+    assert text.endswith(STOP)
+
+
+async def test_a_ready_version_is_reported_though_the_database_was_busy(
+    tools: ToolEndpoint,
+    engine: Engine,
+    studio_worker: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Another writer holding the lock past the busy wait must not hide a version that was made."""
+    settled = render_document.wait_for_outcome
+
+    def settle_then_lock(*args: object) -> object:
+        outcome = settled(*args)
+        held = threading.Event()
+        threading.Thread(
+            target=_hold_the_write_lock, args=(engine, held, 6.0), daemon=True
+        ).start()
+        held.wait(10)
+        return outcome
+
+    monkeypatch.setattr(render_document, "wait_for_outcome", settle_then_lock)
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    assert is_error is False, text
+    assert text.startswith("Rendered artifact ")
+    assert "Halvorsen Freight" in text
+
+
+def _hold_the_write_lock(engine: Engine, held: threading.Event, seconds: float) -> None:
+    """Hold the write lock past SQLite's 5 s busy wait (shared.db)."""
+    with create_session_factory(engine)() as session:
+        session.execute(select(1))
+        held.set()
+        time.sleep(seconds)
+        session.commit()
 
 
 async def test_a_render_still_running_at_the_limit_says_where_it_will_appear(
@@ -421,6 +503,20 @@ async def test_a_render_missing_what_it_needs_says_what(
     assert is_error is True
     assert says in text
     assert await _listed(tools, workspace_id) == []
+
+
+async def test_optional_arguments_sent_as_null_are_left_out(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """Many models fill every optional field, with null where they mean none."""
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(artifact_id=None, images=None)
+    )
+
+    assert is_error is False, text
+    assert text.startswith("Rendered artifact ")
 
 
 async def test_a_render_cannot_continue_another_workspaces_document(
@@ -538,6 +634,40 @@ async def test_a_sources_images_are_listed_with_their_captions_and_sizes(
         f'- {report}-1: 1200x800 px, page 3, caption "Figure 2. Yearly costs"' in text
     )
     assert f"- {report}-2: 1200x800 px, page 5, no caption" in text
+
+
+async def test_listed_images_are_copied_with_the_write_lock_free(
+    tools: ToolEndpoint, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A report can have hundreds of figures; Studio and the API must not wait on their copies."""
+    workspace_id = await tools.workspace()
+    report = _report_source(engine, workspace_id)
+    others_could_write: list[bool] = []
+    show = list_images.show_figure
+
+    def show_while_another_writes(*args: object) -> str:
+        other = sqlite3.connect(
+            get_storage_settings().database_path, timeout=0.1, isolation_level=None
+        )
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.execute("ROLLBACK")
+            others_could_write.append(True)
+        except sqlite3.OperationalError:
+            others_could_write.append(False)
+        finally:
+            other.close()
+        return show(*args)
+
+    monkeypatch.setattr(list_images, "show_figure", show_while_another_writes)
+
+    text, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [report]}
+    )
+
+    assert is_error is False, text
+    assert others_could_write == [True, True]
+    assert f"at sources/figures/{report}-2.png" in text
 
 
 async def test_a_listed_image_can_be_opened_from_the_sources_folder(

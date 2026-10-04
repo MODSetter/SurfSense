@@ -20,7 +20,10 @@ from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.worker.conftest import stub_model  # noqa: F401
 
 # The job indexes what the script wrote; the stub stands in for the embedder.
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("stub_model")]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("stub_model", "model_reads_images"),
+]
 
 CHART = """\
 import os

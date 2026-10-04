@@ -12,11 +12,14 @@ from api.config import get_settings
 from modules.agent.model_reads_images import selected_model_reads_images
 from modules.agent.model_window import selected_model_window
 from modules.agent.opencode_client import OpencodeClient
-from modules.agent.opencode_config import PROVIDER, AgentSetup, write_opencode_config
+from modules.agent.opencode_config import (
+    CONFIG_FILE,
+    PROVIDER,
+    AgentSetup,
+    write_opencode_config,
+)
 from shared.config import get_agent_settings, get_storage_settings
 
-# The file electron/src/main/sidecars/opencode.ts watches.
-CONFIG_FILE = "opencode.json"
 # Electron checks the file every 2 s and opencode answers about 2 s after it
 # starts; the rest is room for a slow disk on the first start of a session.
 READY_SECONDS = 60.0

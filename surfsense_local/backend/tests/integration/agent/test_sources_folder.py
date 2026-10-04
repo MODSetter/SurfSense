@@ -180,3 +180,34 @@ def test_a_deleted_sources_figures_leave_with_it(session: Session) -> None:
     sync_sources_folder(session, workspace_id)
 
     assert [file.name for file in figures.iterdir()] == [f"{kept.id}-1.png"]
+
+
+def test_a_folder_among_the_figures_is_removed_not_fatal(session: Session) -> None:
+    """Every turn syncs first, so anything there that is not a figure must not stop it."""
+    workspace_id = workspace(session)
+    kept = source(session, workspace_id, "report.pdf", "Q3", kind=DocumentType.FILE)
+    folder = sync_sources_folder(session, workspace_id)
+    figures = folder / "sources" / "figures"
+    (figures / "agent" / "outputs").mkdir(parents=True)
+    (figures / "agent" / "outputs" / "x.md").write_text("Planted.", encoding="utf-8")
+    (figures / f"{kept.id}-1.png").write_bytes(b"a figure")
+
+    sync_sources_folder(session, workspace_id)
+
+    assert [file.name for file in figures.iterdir()] == [f"{kept.id}-1.png"]
+
+
+def test_a_folder_planted_among_the_sources_leaves(session: Session) -> None:
+    """The agent greps `sources`, so only the sources and their figures may outlive a sync."""
+    workspace_id = workspace(session)
+    note = source(session, workspace_id, "Plan", "Draft.")
+    folder = sync_sources_folder(session, workspace_id)
+    planted = folder / "sources" / "agent" / "outputs"
+    planted.mkdir(parents=True)
+    (planted / "Fake [99].md").write_text("A fake source.", encoding="utf-8")
+
+    sync_sources_folder(session, workspace_id)
+
+    assert [entry.name for entry in (folder / "sources").iterdir()] == [
+        f"Plan [{note.id}].md"
+    ]

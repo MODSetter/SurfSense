@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from modules.agent.opencode_config import AgentSetup, write_opencode_config
+from modules.agent.opencode_config import (
+    AgentSetup,
+    declares_image_input,
+    write_opencode_config,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -113,13 +117,24 @@ def test_the_agent_has_no_shell_and_writes_only_to_outputs(tmp_path: Path) -> No
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup())
 
-    permission = written(path)["permission"]
+    config = written(path)
+    permission = config["permission"]
     assert permission["bash"] == "deny"
-    # The last matching rule wins, so the allow comes after the deny.
-    assert list(permission["edit"].items()) == [
-        ("*", "deny"),
-        ("*/agent/outputs/*", "allow"),
-    ]
+    # opencode spells an edit's path relative to "/", without the drive.
+    (skills,) = config["skills"]["paths"]
+    skills = Path(skills).relative_to(Path(skills).anchor).as_posix()
+    work = "Users/me/SurfSense/workspaces/1/agent"
+    rules = permission["edit"]
+    assert _opencode_decides(rules, f"{work}/outputs/report.md") == "allow"
+    for refused in (
+        f"{work}/sources/Plan [1].md",
+        f"{work}/sources/agent/outputs/x.md",
+        f"{work}/.opencode/agent/outputs/x.md",
+        "Users/me/SurfSense/agent/opencode/data/opencode/tool-output/agent/outputs/x",
+        f"{skills}/x/agent/outputs/SKILL.md",
+        "Users/me/elsewhere.md",
+    ):
+        assert _opencode_decides(rules, refused) == "deny", refused
     for tool in ("webfetch", "websearch", "task", "question"):
         assert permission[tool] == "deny", tool
 
@@ -256,3 +271,15 @@ def test_the_prompt_asks_for_no_shell(tmp_path: Path) -> None:
     prompt = config["agent"][config["default_agent"]]["prompt"]
     assert "shell command" not in prompt.lower()
     assert "approve" not in prompt.lower()
+
+
+@pytest.mark.parametrize("reads_images", [True, False])
+def test_the_written_file_says_whether_the_model_is_shown_images(
+    tmp_path: Path, reads_images: bool
+) -> None:
+    """The render tool draws previews only for a model opencode will show them to."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup(reads_images=reads_images))
+
+    assert declares_image_input(path) is reads_images
+    assert declares_image_input(tmp_path / "none.json") is False

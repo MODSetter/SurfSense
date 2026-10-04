@@ -8,7 +8,8 @@ from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artif
 
 # A shell command or a read can return a whole file; the step keeps the start.
 MAX_OUTPUT_CHARS = 4000
-_RENDER = f"{SERVER}_{TOOL_NAME}"
+# The name opencode gives SurfSense's render tool in a step.
+RENDER_STEP = f"{SERVER}_{TOOL_NAME}"
 
 
 def step_of(part: dict[str, Any]) -> dict[str, Any]:
@@ -25,7 +26,7 @@ def step_of(part: dict[str, Any]) -> dict[str, Any]:
         step["output"] = str(state["output"])[:MAX_OUTPUT_CHARS]
     if state.get("error") is not None:
         step["error"] = str(state["error"])
-    if step["tool"] == _RENDER:
+    if step["tool"] == RENDER_STEP:
         step["artifact"] = _rendered(state)
     return step
 

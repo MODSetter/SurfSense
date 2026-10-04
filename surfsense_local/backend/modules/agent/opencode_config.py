@@ -14,6 +14,8 @@ from typing import Any
 
 PROVIDER = "surfsense"
 AGENT = "surfsense"
+# The file electron/src/main/sidecars/opencode.ts watches, in the agent folder.
+CONFIG_FILE = "opencode.json"
 
 # opencode never asks for more than this per answer, whatever the limit says.
 OUTPUT_CAP = 32_000
@@ -39,7 +41,18 @@ def _permission(skills: Path) -> dict[str, Any]:
         "bash": "deny",
         # opencode matches an edit's path relative to the project root, which for a
         # folder outside git is "/", so the rule names the folder from any root.
-        "edit": {"*": "deny", "*/agent/outputs/*": "allow"},
+        # "*" also spans folders, so the denies after it refuse paths that only
+        # contain "agent/outputs/": opencode loads agent definitions from
+        # .opencode/ and skills from the skills folder, SurfSense greps sources/,
+        # and every workspace reads opencode's tool-output folder.
+        "edit": {
+            "*": "deny",
+            "*/agent/outputs/*": "allow",
+            "*/agent/sources/*": "deny",
+            "*/.opencode/*": "deny",
+            "*/opencode/tool-output/*": "deny",
+            f"*{skills.relative_to(skills.anchor).as_posix()}/*": "deny",
+        },
         # Only the skills folder, which a skill may point into. On macOS and Linux
         # opencode checks an absolute path as written, so "<skills>/../.." would
         # match the allow without the ".." deny. opencode's own folder for long
@@ -130,6 +143,20 @@ def _model_entry(setup: AgentSetup, output: int) -> dict[str, Any]:
         entry["modalities"] = {"input": ["text", "image"], "output": ["text"]}
         entry["attachment"] = True
     return entry
+
+
+def declares_image_input(path: Path) -> bool:
+    """Whether the configuration on disk lets the model see the images `read` opens.
+
+    Without the declaration opencode swaps each image for an error text, so an
+    image made for the model would be wasted; no configuration declares nothing.
+    """
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    models = config.get("provider", {}).get(PROVIDER, {}).get("models", {})
+    return any(entry.get("attachment") is True for entry in models.values())
 
 
 def agent_prompt() -> str:
