@@ -56,7 +56,6 @@ export function folderDeletionTouchesSync(
 	if (mountId == null) return false;
 	const byId = new Map(folders.map((f) => [f.id, f]));
 	return (
-		isSelfOrDescendantOf(byId, folderId, mountId) ||
-		isSelfOrDescendantOf(byId, mountId, folderId)
+		isSelfOrDescendantOf(byId, folderId, mountId) || isSelfOrDescendantOf(byId, mountId, folderId)
 	);
 }

@@ -134,11 +134,12 @@ jobs:
         with:
           package_json_file: surfsense_web/package.json
 
-      # Matches surfsense_web's Dockerfile (node:20) and @types/node ^20.
+      # Matches surfsense_web's engines, which Vercel builds with, its Dockerfile
+      # (node:24) and @types/node ^24.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: surfsense_web/pnpm-lock.yaml
 
@@ -169,11 +170,12 @@ jobs:
         with:
           package_json_file: surfsense_web/package.json
 
-      # Matches surfsense_web's Dockerfile (node:20) and @types/node ^20.
+      # Matches surfsense_web's engines, which Vercel builds with, its Dockerfile
+      # (node:24) and @types/node ^24.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: surfsense_web/pnpm-lock.yaml
 
@@ -369,11 +371,12 @@ jobs:
         with:
           package_json_file: surfsense_web/package.json
 
-      # Matches surfsense_web's Dockerfile (node:20) and @types/node ^20.
+      # Matches surfsense_web's engines, which Vercel builds with, its Dockerfile
+      # (node:24) and @types/node ^24.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: surfsense_web/pnpm-lock.yaml
 
