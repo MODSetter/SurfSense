@@ -5,24 +5,31 @@ only in this process's memory and goes upstream in the headers SurfSense sends
 to api.anthropic.com, so it never reaches SurfSense's database, opencode or a file.
 """
 
+import base64
 import copy
 import json
 import math
 import threading
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from typing import Any
 
 import httpx
+from PIL import Image
 
 from modules.llm.connections.key_headers import key_headers
 from tests.live.spend_ledger import SpendLedger, Usage
 
 ANTHROPIC = "https://api.anthropic.com/v1"
-# Worst case before a call is sent: JSON runs well over 3 characters a token,
-# and a request that names no output cap could ask for opencode's cap.
-_CHARS_PER_TOKEN = 3
+# Worst case before a call is sent: the live runs' JSON came to 2.8 to 2.9
+# characters a token, and a request that names no output cap could ask for
+# opencode's cap.
+_CHARS_PER_TOKEN = 2
 _DEFAULT_MAX_TOKENS = 32_000
+# Anthropic reads an image as its pixels over 750, and only ever scales one down;
+# its base64 runs to far more characters than that.
+_PIXELS_PER_TOKEN = 750
 _UPSTREAM_TIMEOUT = httpx.Timeout(600.0, connect=10.0)
 
 
@@ -219,25 +226,57 @@ def _usage(reported: dict[str, Any] | None) -> Usage:
 
 
 def _worst_case_usage(body: dict[str, Any]) -> Usage:
-    """The prompt at the dearest input rate, and the whole output cap."""
+    """The prompt at the dearest input rate, and the whole output cap.
+
+    An image whose size cannot be read is counted as text, which is dearer.
+    """
+    text_chars = len(json.dumps(body))
+    image_tokens = 0
+    for _, _, url in _image_parts(body):
+        pixels = _pixels(url)
+        if pixels is not None:
+            text_chars -= len(url)
+            image_tokens += math.ceil(pixels / _PIXELS_PER_TOKEN)
     return Usage(
-        cache_write_tokens=math.ceil(len(json.dumps(body)) / _CHARS_PER_TOKEN),
+        cache_write_tokens=math.ceil(text_chars / _CHARS_PER_TOKEN) + image_tokens,
         output_tokens=body.get("max_tokens") or _DEFAULT_MAX_TOKENS,
     )
 
 
+def _pixels(url: str) -> int | None:
+    """An inline image's width times height, read from its header; None if it has none."""
+    head, _, data = url.partition(";base64,")
+    if not head.startswith("data:image/") or not data:
+        return None
+    try:
+        with Image.open(BytesIO(base64.b64decode(data))) as image:
+            width, height = image.size
+    except (ValueError, OSError, Image.DecompressionBombError):
+        return None
+    return width * height
+
+
 def _images_in(body: dict[str, Any]) -> list[dict[str, Any]]:
     """Each image part the request carries: which message, whose, and what kind."""
+    return [
+        {
+            "message": index,
+            "role": role,
+            "mime": url.split(";", 1)[0].removeprefix("data:"),
+        }
+        for index, role, url in _image_parts(body)
+    ]
+
+
+def _image_parts(body: dict[str, Any]) -> list[tuple[int, str | None, str]]:
+    """Each image part's message index, that message's role, and its URL."""
     found = []
     for index, message in enumerate(body.get("messages") or []):
         content = message.get("content")
         for part in content if isinstance(content, list) else []:
             if isinstance(part, dict) and part.get("type") == "image_url":
                 url = (part.get("image_url") or {}).get("url", "")
-                mime = url.split(";", 1)[0].removeprefix("data:")
-                found.append(
-                    {"message": index, "role": message.get("role"), "mime": mime}
-                )
+                found.append((index, message.get("role"), url))
     return found
 
 

@@ -1,14 +1,19 @@
 """The recording proxy live runs put between SurfSense and Anthropic, driven against a stand-in."""
 
+import base64
 import json
+import math
+import random
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from pathlib import Path
 
 import httpx
 import pytest
+from PIL import Image
 
 from tests.live.recording_proxy import RecordingProxy
 from tests.live.spend_ledger import SpendLedger, Usage
@@ -249,6 +254,51 @@ def test_a_reply_cut_off_before_its_usage_is_charged_at_the_worst_case(
     assert ledger.total() == exchange.usage
     (recorded,) = proxy.transcript()
     assert recorded["usage_estimated"] is True
+
+
+def test_a_page_image_cut_off_with_its_reply_is_charged_by_its_pixels(
+    breaking_upstream: Upstream, ledger: SpendLedger
+) -> None:
+    """Anthropic reads an image as its pixels over 750, not its base64; counting that booked $1.51 for a $0.69 run."""
+    width, height = 1001, 1415  # a page preview, as the render tool draws one
+    page = BytesIO()
+    noise = Image.frombytes(
+        "L", (width, height), random.Random(7).randbytes(width * height)
+    )
+    noise.save(page, format="PNG")
+    image = "data:image/png;base64," + base64.b64encode(page.getvalue()).decode()
+    text = "Check page 1. " * 2000
+    content = [
+        {"type": "text", "text": text},
+        {"type": "image_url", "image_url": {"url": image}},
+    ]
+
+    with RecordingProxy(breaking_upstream.url, KEY, ledger, case="memo") as proxy:
+        _chat(proxy, messages=[{"role": "user", "content": content}])
+
+    (exchange,) = proxy.exchanges
+    pixels = math.ceil(width * height / 750)
+    without_image = len(_body(text))
+    # JSON ran 2.8 to 2.9 characters a token in the live runs; 2 keeps the stop early.
+    assert exchange.usage.cache_write_tokens >= pixels + without_image / 2.9
+    assert exchange.usage.cache_write_tokens <= pixels + without_image / 2 + 1
+    assert exchange.usage.output_tokens == 1000  # the request's max_tokens
+
+
+def _body(text: str) -> str:
+    """The request `_chat` sends with this text and the image left out."""
+    content = [
+        {"type": "text", "text": text},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,"}},
+    ]
+    return json.dumps(
+        {
+            "model": "claude-sonnet-5-5",
+            "stream": True,
+            "max_tokens": 1000,
+            "messages": [{"role": "user", "content": content}],
+        }
+    )
 
 
 def test_a_reply_with_its_usage_is_charged_as_reported(
