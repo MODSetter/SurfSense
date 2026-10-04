@@ -417,7 +417,12 @@ async def test_a_format_that_cannot_run_says_what_it_needs(
     )
 
     assert reply["result"]["isError"] is True
-    assert "Needs a chat model" in reply["result"]["content"][0]["text"]
+    # The whole sentence: the refusal's detail is an object with a code now,
+    # and the model must read its message, not the object.
+    assert (
+        reply["result"]["content"][0]["text"]
+        == 'Studio could not start "Quiz": Needs a chat model.'
+    )
 
 
 async def test_a_source_from_another_workspace_is_refused(
