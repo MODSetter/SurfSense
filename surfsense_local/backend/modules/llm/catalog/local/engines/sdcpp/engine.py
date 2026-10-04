@@ -27,6 +27,7 @@ class SdCppEngine:
     # sd-server makes images, edits them, and makes video.
     model_types = (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT, ModelType.VIDEO_GEN)
     provider = PROVIDER
+    server_follows_selection = True
 
     def __init__(self, images_dir: Path | None, models: Sequence[CuratedModel]) -> None:
         # None where Electron staged no sd-server: nothing is offered.
@@ -86,6 +87,9 @@ class SdCppEngine:
 
     def after_remove(self) -> None:
         pass
+
+    async def release(self, model_id: str) -> None:
+        pass  # the emptied slot is what stops sd-server
 
     def on_startup(self) -> None:
         """Record image models the old hard-coded list downloaded, once."""

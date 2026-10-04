@@ -102,3 +102,12 @@ def _loaded(spec: EmbedderSpec, directory: Path) -> tuple[Any, Any]:
         str(directory / spec.weights.path), providers=["CPUExecutionProvider"]
     )
     return session, encoder
+
+
+def release_sessions() -> None:
+    """Drop the cached sessions, and with them the model files they hold open.
+
+    A delete calls this when Windows refuses to remove a model's file; the next
+    embed loads its model again.
+    """
+    _loaded.cache_clear()
