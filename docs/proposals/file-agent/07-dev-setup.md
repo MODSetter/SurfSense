@@ -50,13 +50,22 @@ How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` w
 
 ## Live tests
 
-[`surfsense_local/backend/tests/live/`](../../../surfsense_local/backend/tests/live/) runs the real path against Claude Sonnet 5.5: Anthropic's OpenAI-compatible API, SurfSense's model endpoint, the staged opencode, the tool endpoint, Studio's job and the runner. Every live test skips unless `SURFSENSE_LIVE_TESTS=1` and `ANTHROPIC_API_KEY` are both set, so CI and ordinary runs never call a paid model; the proxy, ledger, run folder and Word printer have unit tests that run without them.
+[`surfsense_local/backend/tests/live/`](../../../surfsense_local/backend/tests/live/) runs the real path against Claude Sonnet 5.5: Anthropic's OpenAI-compatible API, SurfSense's model endpoint, the staged opencode, the tool endpoint, Studio's job and the runner. Every live test skips unless `SURFSENSE_LIVE_TESTS=1` and `ANTHROPIC_API_KEY` are both set, so CI and ordinary runs never call a paid model; the proxy, ledger, run folder, Word printer and the readers the cases check files with have unit tests that run without them.
 
 | Case | File | Passes when | Cost of a run, 4 Oct 2026 |
 |---|---|---|---|
 | Smoke | `test_smoke.py` | one turn calls `surfsense_search_sources` and the answer cites a passage | about $0.03 |
 | Images reach the model | `test_images_reach_the_model.py` | the agent renders a one-page PDF with a coloured shape and a word, opens its preview with `read`, and describes it correctly | about $0.09 |
-| Demo flow | `test_demo_flow.py` | the three demo turns below on the generated sources make Word v1 and v2 and a PDF v1, the edit holds a timeline table, a chart and the logo, and the agent opened its previews | about $0.71 |
+| Demo flow | `test_demo_flow.py` | the three demo turns below on the generated sources make Word v1 and v2 and a PDF v1, the edit holds a timeline table, a chart and the logo, and the agent opened its previews | about $1.50 |
+| PDF brief | `test_pdf_brief.py` | a client brief asked for as a PDF is a PDF, and the answer does not claim no format was named; "make it fit on one page and bold the totals" then gives one page with the 39,800 total in bold | about $0.34 |
+| Spreadsheet report | `test_spreadsheet_report.py` | a Word report draws bars of every year's revenue from an `.xlsx`; "switch the chart to a line chart and add a short trend paragraph" then draws the same figures as a line, as a new picture, beside a new paragraph | about $0.80 |
+| Memo restructure | `test_memo_restructure.py` | a Word memo has three sections; "merge sections 2 and 3, add a summary table at the top and number the headings" then puts a table above two sections, Background first, with every section heading numbered | about $0.70 |
+| Figure swap | `test_figure_swap.py` | from a PDF report holding a photo and a labelled bar chart, a Word summary places the chart, not the photo; "replace it with your own chart of the same numbers" then drops it for a new picture whose script holds all six values, which the report has only as bar labels | about $0.30 |
+| Board pack | `test_board_pack.py` | "make me something I can send to the board" from two notes and a `.docx` risk register makes a Word file or a PDF without asking, and the answer names the format and what it assumed; "add a short 'Decisions needed' section at the end" then ends on that heading | about $0.48 |
+
+The five cases after the demo each take two turns on sources the test writes, and read what the agent made the way a person would check it: [`word_file.py`](../../../surfsense_local/backend/tests/live/word_file.py) for a Word file's headings, tables and pictures, [`pdf_file.py`](../../../surfsense_local/backend/tests/live/pdf_file.py) for a PDF's pages, bold text and headings. With [`turn_renders.py`](../../../surfsense_local/backend/tests/live/turn_renders.py) they also check that the edit is the next version of the same document (same root and format, a higher number), and that in each turn the agent opened every page preview of the last version it rendered. The demo checks only that it opened a preview.
+
+The costs come from the usage Anthropic reported for a passing run, once the documents skill asked the agent to open every page and to look again after each fix. That self-check is most of the cost: page images stay in the model's context and nothing is cached, so the demo went from $0.71 to $1.50 (13 requests to 19) when the skill began asking for it.
 
 **Running them.** They need the staged opencode (step 1 above), the embedding model and parser pack, and the backend synced. Word previews come from [`word_printer.py`](../../../surfsense_local/backend/tests/live/word_printer.py), a LibreOffice stand-in for Electron behind the same snapshot routes, so their layout is LibreOffice's, not docx-preview's; without LibreOffice, Word versions report no previews and the cases still run. The stand-in sends the snapshot key the test sets on the API, as any other stand-in for Electron must (`SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY`).
 
@@ -68,17 +77,17 @@ ANTHROPIC_API_KEY="$(powershell.exe -NoProfile -Command "[Environment]::GetEnvir
   PYTHON_DOTENV_DISABLED=1 SURFSENSE_LIVE_TESTS=1 uv run pytest tests/live -m live -q
 ```
 
-Add `-k smoke`, `-k images` or `-k demo` to run one case.
+To run one case alone, give its file in place of `tests/live`, as in `uv run pytest tests/live/test_pdf_brief.py -m live -q` with the same environment.
 
 **The key never reaches a file.** The connection the tests create points at a recording proxy on loopback ([`recording_proxy.py`](../../../surfsense_local/backend/tests/live/recording_proxy.py)) and stores a placeholder; the proxy adds the real key in memory, with the same headers the app sends Anthropic, and forwards to `https://api.anthropic.com/v1/`. It records each request's usage, asking the stream to include it, and redacts the key from everything it writes.
 
-**The budget.** [`spend_ledger.py`](../../../surfsense_local/backend/tests/live/spend_ledger.py) keeps the cumulative tokens and dollars in `references/live-runs/spend.json`, which git ignores, at Sonnet 5.5's prices per million tokens: $2 input, $10 output, $0.20 cache read, $2.50 cache write. The budget for these runs is $50: every case checks the ledger before it starts and refuses at $45 or more, and the proxy refuses a single request whose worst case would reach $45. A reply that ends without reporting its usage is charged its worst case and marked estimated. On 4 Oct 2026 the ledger stood at $5.68. Prompt caching is reported as 0 through Anthropic's OpenAI-compatible API, so each request bills its whole context.
+**The budget.** [`spend_ledger.py`](../../../surfsense_local/backend/tests/live/spend_ledger.py) keeps the cumulative tokens and dollars in `references/live-runs/spend.json`, which git ignores, at Sonnet 5.5's prices per million tokens: $2 input, $10 output, $0.20 cache read, $2.50 cache write. The cap set for the first night of runs is $50: every case checks the ledger before it starts and refuses at $45 or more, and the proxy refuses a single request whose worst case would reach $45. A reply that ends without reporting its usage is charged its worst case, the whole request at the dearest input rate plus the full output cap, and marked estimated, so the ledger can read above the bill. When Anthropic dropped one request in a spreadsheet-report run and one in a memo-restructure run, the ledger charged those runs $1.44 and $2.20 for about $0.81 and $0.69 of the usage Anthropic reported. On 4 Oct 2026 the ledger stood at $13.78 of the $50. Prompt caching is reported as 0 through Anthropic's OpenAI-compatible API, so each request bills its whole context.
 
 **What a run leaves.** Each run writes `references/live-runs/<UTC time>-<case>/`: `transcript.md` (messages, tool calls and results, redacted), `frames.json` (the thread's frames), `model-requests.json` (each request's usage and whether it carried an image), the generated `.docx` and `.pdf` of every version with its script, the sources, the preview PNGs, `cost.json` and `result.json`. Open these to see what the agent did and made.
 
 ## The demo video
 
-Record from the dev build above. One run of the three turns costs about $0.70 with Sonnet 5.5 and takes about two and a half minutes, most of it the model.
+Record from the dev build above. One run of the three turns costs about $1.50 with Sonnet 5.5 and takes a little over three minutes, most of it the model.
 
 **Before recording:** the three sources ready in the sources panel; Sonnet selected; Studio open in the right rail with an empty artifact list; a fresh agent thread. Keep the window wide enough that the chat and Studio show side by side. Do not reload the thread while recording: a `[n]` the agent wrote for a file it read without searching streams but is dropped from the saved reply ([agent](../../architecture/agent.md#known-gaps)).
 
@@ -95,4 +104,4 @@ Record from the dev build above. One run of the three turns costs about $0.70 wi
    - "Created *Client proposal* v1" again: a PDF is a new document, so it starts at v1. It opens in the PDF viewer.
    - The Studio list now has two rows, the Word document at v2 and the PDF at v1. Download one to show it is a real file.
 
-If the agent re-renders after checking its previews, the Word document reaches v3 within a turn; the switcher shows every version, which is worth showing rather than cutting. If a script fails, the step shows the error and the agent fixes it and renders again, and after a third failure it stops and says what failed.
+The agent often re-renders after checking its previews, so the version numbers above can run higher: in the 4 Oct 2026 live run the first turn ended on v2 and the second on v4. The switcher shows every version, which is worth showing rather than cutting. If a script fails, the step shows the error and the agent fixes it and renders again, and after a third failure it stops and says what failed.
