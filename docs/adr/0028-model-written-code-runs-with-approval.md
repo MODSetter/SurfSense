@@ -1,6 +1,6 @@
 # ADR 0028: Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command
 
-- **Status:** Accepted
+- **Status:** Accepted; the agent's shell asking before each command and Studio's Office code running inside the worker are superseded by [ADR 0039](0039-document-scripts-run-without-approval.md)
 - **Date:** 2026-09-23
 - **Supersedes:** the rule in [ADR 0010](0010-studio-builders-not-sandboxes.md) that no model-written code runs
 - **Source:** [Office runner L32–34](https://github.com/MODSetter/SurfSense/blob/ecec636f1746bcdb523562c148d0fa298300290c/surfsense_local/backend/worker/studio/office/runner.py#L32-L34), [opencode permission defaults L119–136](https://github.com/anomalyco/opencode/blob/545f51d26cc39a907d2867492d498d9607ea5fa4/packages/opencode/src/agent/agent.ts#L119-L136), [opencode permission reply L31](https://github.com/anomalyco/opencode/blob/545f51d26cc39a907d2867492d498d9607ea5fa4/packages/opencode/src/server/routes/instance/httpapi/groups/permission.ts#L31)
