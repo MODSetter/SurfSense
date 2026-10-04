@@ -16,6 +16,7 @@ import pytest_asyncio
 from sqlalchemy import Engine
 
 from api.config import get_settings
+from modules.agent.previews.snapshot_key import get_snapshot_key_settings
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_storage_settings
@@ -63,16 +64,23 @@ def only_when_asked(request: pytest.FixtureRequest) -> None:
 class OpencodeAddress:
     port: int
     password: str
+    # The Word snapshot key Electron hands the API it launches.
+    snapshot_key: str
 
 
 @pytest.fixture(autouse=True)
 def opencode_address(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> OpencodeAddress | None:
-    """Where opencode will listen, set before the app is built: only then does it mount the agent's routes."""
+    """Where opencode will listen and the snapshot key, set before the app is built: only then does it mount the agent's routes."""
     if request.node.get_closest_marker("live") is None:
         return None
-    address = OpencodeAddress(free_port(), secrets.token_urlsafe(16))
+    address = OpencodeAddress(
+        free_port(), secrets.token_urlsafe(16), secrets.token_urlsafe(16)
+    )
+    monkeypatch.setattr(
+        get_snapshot_key_settings(), "docx_snapshot_key", address.snapshot_key
+    )
     agent = get_agent_settings()
     monkeypatch.setattr(agent, "opencode_url", f"http://127.0.0.1:{address.port}")
     monkeypatch.setattr(agent, "opencode_password", address.password)
@@ -144,7 +152,7 @@ async def live(
                     opencode_address.port,
                     opencode_address.password,
                 ),
-                WordPrinter(base_url) as printer,
+                WordPrinter(base_url, opencode_address.snapshot_key) as printer,
             ):
                 try:
                     yield agent

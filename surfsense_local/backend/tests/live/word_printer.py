@@ -37,8 +37,10 @@ _PRINT_SECONDS = 25
 class WordPrinter:
     """Polls the API for Word documents to print, while open."""
 
-    def __init__(self, api_url: str) -> None:
+    def __init__(self, api_url: str, key: str) -> None:
+        """`key` is the snapshot key the API was started with, which Electron presents."""
         self._api = api_url
+        self._key = key
         self._stopping = threading.Event()
         self._thread = threading.Thread(target=self._serve, daemon=True)
         self._folder = Path(tempfile.mkdtemp(prefix="surfsense-live-print-"))
@@ -74,7 +76,8 @@ class WordPrinter:
         }
 
     def _serve(self) -> None:
-        with httpx.Client(base_url=self._api, timeout=30.0) as api:
+        auth = {"Authorization": f"Bearer {self._key}"}
+        with httpx.Client(base_url=self._api, headers=auth, timeout=30.0) as api:
             while not self._stopping.wait(_POLL_SECONDS):
                 try:
                     taken = api.get(f"{_SNAPSHOTS}/next")
@@ -82,6 +85,15 @@ class WordPrinter:
                     continue
                 if taken.status_code == 200:
                     self._print(api, taken.json())
+                elif taken.status_code != 204:
+                    self._fail_once(
+                        f"the API answered {taken.status_code} to {_SNAPSHOTS}/next"
+                    )
+
+    def _fail_once(self, reason: str) -> None:
+        """A refusal repeats on every poll; the run folder needs it once."""
+        if reason not in self.failures:
+            self.failures.append(reason)
 
     def _print(self, api: httpx.Client, request: dict) -> None:
         try:
