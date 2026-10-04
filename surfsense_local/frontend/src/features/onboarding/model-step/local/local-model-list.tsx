@@ -21,7 +21,7 @@ const formatSize = (bytes: number) =>
   })
 
 /**
- * Every model this computer can run, one line each, the recommended one first.
+ * Every model this computer can run, one line each, in `localChoices` order.
  * Deliberately short of Settings' catalog: no other builds, no search. Its
  * actions are Settings' own, and a download shows under the row it belongs to.
  */
@@ -101,10 +101,17 @@ export function LocalModelList({
                       <>
                         <DotIcon aria-hidden="true" className="size-3" />
                         <span>
-                          {intl.formatMessage({
-                            id: "onboarding_model_list_installed_label",
-                            defaultMessage: "On this computer",
-                          })}
+                          {/* A Hugging Face pick is unreviewed; say so where
+                              "Downloaded" would be implied anyway. */}
+                          {row.origin === "curated"
+                            ? intl.formatMessage({
+                                id: "onboarding_model_list_installed_label",
+                                defaultMessage: "Downloaded",
+                              })
+                            : intl.formatMessage({
+                                id: "onboarding_model_list_hugging_face_label",
+                                defaultMessage: "From Hugging Face",
+                              })}
                         </span>
                       </>
                     ) : null}

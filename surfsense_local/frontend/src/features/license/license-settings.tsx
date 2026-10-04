@@ -22,13 +22,14 @@ import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
 import { translatedLicenseError } from "./license-error-text"
-import { PRICING_URL, TRIAL_URL } from "./license-links"
+import { PRICING_URL } from "./license-links"
 import {
   importLicense,
   readLicense,
   removeLicense,
   type LicenseStatus,
 } from "./api"
+import { TrialButton } from "./trial-button"
 import { licenseQueryKey, useLicense } from "./use-license"
 
 const DAY = 24 * 60 * 60 * 1000
@@ -316,27 +317,26 @@ export function LicenseSettings() {
                 defaultMessage: "No license on this device",
               })}
             </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <ExternalLink href={TRIAL_URL}>
-                {intl.formatMessage({
-                  id: "license_settings_trial_link",
-                  defaultMessage: "Start a free trial",
-                })}
-              </ExternalLink>
-              <ExternalLink href={PRICING_URL}>
-                {intl.formatMessage({
-                  id: "license_settings_pricing_link",
-                  defaultMessage: "See pricing",
-                })}
-              </ExternalLink>
-            </div>
+            <ExternalLink href={PRICING_URL}>
+              {intl.formatMessage({
+                id: "license_settings_pricing_link",
+                defaultMessage: "See pricing",
+              })}
+            </ExternalLink>
           </div>
-          <Button type="button" onClick={() => openEditor("add")}>
-            {intl.formatMessage({
-              id: "license_settings_add_button",
-              defaultMessage: "Add license",
-            })}
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => openEditor("add")}
+            >
+              {intl.formatMessage({
+                id: "license_settings_add_button",
+                defaultMessage: "Add license",
+              })}
+            </Button>
+            <TrialButton />
+          </div>
         </div>
       ) : null}
 

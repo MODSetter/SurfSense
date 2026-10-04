@@ -128,11 +128,7 @@ export default function RootLayout({
 				<SoftwareApplicationJsonLd />
 			</head>
 			<body
-				className={cn(
-					roboto.className,
-					roboto.variable,
-					"bg-[#141414] antialiased h-full w-full "
-				)}
+				className={cn(roboto.className, roboto.variable, "bg-[#141414] antialiased h-full w-full ")}
 			>
 				<PostHogProvider>
 					<LocaleProvider>

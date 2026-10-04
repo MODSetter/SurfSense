@@ -7,9 +7,9 @@ import {
 	LayoutGrid,
 	LibraryBig,
 	ListFilter,
+	type LucideIcon,
 	Settings2,
 	TriangleAlert,
-	type LucideIcon,
 	Unplug,
 	Upload,
 	Wrench,
@@ -207,11 +207,7 @@ export function ComposerAddMenuDrawer({
 						<span className="flex-1 text-left">Manage Tools</span>
 						<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
 					</button>
-					<button
-						type="button"
-						className={ROW}
-						onClick={() => push({ kind: "searchScope" })}
-					>
+					<button type="button" className={ROW} onClick={() => push({ kind: "searchScope" })}>
 						<ListFilter className="size-4 shrink-0 text-muted-foreground" />
 						<span className="flex-1 text-left">Search Scope</span>
 						{selectedSearchScope ? (
@@ -242,9 +238,7 @@ export function ComposerAddMenuDrawer({
 						<Icon className="size-4 shrink-0 text-muted-foreground" />
 						<span className="min-w-0 flex-1 text-left">
 							<span className="block font-medium">{option.label}</span>
-							<span className="mt-0.5 block text-xs text-muted-foreground">
-								{option.tooltip}
-							</span>
+							<span className="mt-0.5 block text-xs text-muted-foreground">{option.tooltip}</span>
 						</span>
 						{isSelected ? <Check className="size-4 shrink-0" /> : null}
 					</button>

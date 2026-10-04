@@ -246,8 +246,7 @@ export function HomeConfidential() {
 					<p className="ss-home-body mt-5">{CONFIDENTIAL.body}</p>
 					<p className="mt-6">
 						<Link className="ss-home-forward" href={CONFIDENTIAL.action.href}>
-							{CONFIDENTIAL.action.label}{" "}
-							<ArrowRightIcon aria-hidden="true" className="size-4" />
+							{CONFIDENTIAL.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 						</Link>
 					</p>
 				</div>

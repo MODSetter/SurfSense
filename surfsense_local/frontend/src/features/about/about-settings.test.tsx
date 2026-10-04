@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
 
@@ -64,54 +63,6 @@ describe("AboutSettings", () => {
     expect(bridge.openExternal).toHaveBeenCalledWith(
       "https://github.com/MODSetter/SurfSense/releases/tag/v2.0.2"
     )
-  })
-
-  it("copies the version and system for a bug report", async () => {
-    stubAboutBridge()
-    const user = userEvent.setup()
-    const writeText = vi
-      .spyOn(navigator.clipboard, "writeText")
-      .mockResolvedValue(undefined)
-    render(<AboutSettings />)
-
-    await user.click(
-      await screen.findByRole("button", { name: "Copy system info" })
-    )
-
-    const copied = writeText.mock.calls[0]?.[0] ?? ""
-    expect(copied).toContain("SurfSense 2.0.2")
-    expect(copied).toContain("macOS 15.4 (arm64)")
-    expect(copied).toContain("Electron 44.0.0")
-    expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy()
-  })
-
-  it("reports an issue through the dialog, with the system details", async () => {
-    const bridge = stubAboutBridge()
-    const user = userEvent.setup()
-    render(
-      <>
-        <AboutSettings />
-        <IssueReportDialog />
-      </>
-    )
-
-    await user.click(
-      await screen.findByRole("button", { name: "Report an issue" })
-    )
-    expect(bridge.openExternal).not.toHaveBeenCalled()
-    await user.type(
-      await screen.findByRole("textbox", { name: "What went wrong?" }),
-      "Settings freezes"
-    )
-    await user.click(screen.getByRole("button", { name: "Continue on GitHub" }))
-
-    await waitFor(() => expect(bridge.openExternal).toHaveBeenCalledOnce())
-    const what =
-      new URL(bridge.openExternal.mock.calls[0][0]).searchParams.get("what") ??
-      ""
-    expect(what).toContain("Settings freezes")
-    expect(what).toContain("SurfSense 2.0.2")
-    expect(what).toContain("macOS 15.4 (arm64)")
   })
 
   it("copies the bare version from beside it", async () => {

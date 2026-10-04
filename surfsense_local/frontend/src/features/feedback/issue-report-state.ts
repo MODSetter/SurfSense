@@ -35,6 +35,8 @@ export function updateIssueReport(patch: Partial<IssueReport>): void {
   listeners.forEach((listener) => listener())
 }
 
+// Opens IssueReportDialog. Callers: error toasts, the sidecar crash notice,
+// and Help › Report Issue… when nothing claims it (`help-menu-report.ts`).
 export function openIssueReport(context: ReportContext = {}): void {
   updateIssueReport({ open: true, context, copyFailed: false })
 }

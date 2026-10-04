@@ -261,7 +261,11 @@ async def send_message(
         try:
             try:
                 async for delta in generator.chat_deltas(
-                    selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
+                    selected.name,
+                    messages,
+                    max_tokens=answer_max_tokens(n_ctx),
+                    # None leaves the model to its own default.
+                    reasoning=None if payload.thinking else False,
                 ):
                     if delta.progress is not None:
                         yield _frame(

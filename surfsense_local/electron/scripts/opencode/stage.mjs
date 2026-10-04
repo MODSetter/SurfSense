@@ -8,6 +8,7 @@ import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { download, unpack } from "../pinned-download.mjs"
+import { opencodeEnabled } from "./enabled.mjs"
 import { HOSTS, OPENCODE_LICENCE, RIPGREP_VERSION, VERSION } from "./pins.mjs"
 
 const OUT = fileURLToPath(new URL("../../opencode", import.meta.url))
@@ -62,6 +63,13 @@ function verifyStage(stage) {
 }
 
 async function main() {
+  // Off also removes an earlier stage, so neither a dev run nor an installer carries one.
+  if (!opencodeEnabled()) {
+    rmSync(OUT, { recursive: true, force: true })
+    console.log("opencode is off; SURFSENSE_LOCAL_OPENCODE_ENABLED=1 stages it")
+    return
+  }
+
   const host = `${process.platform}-${process.arch}`
   const pins = HOSTS[host]
   if (!pins) throw new Error(`no opencode build is pinned for ${host}`)

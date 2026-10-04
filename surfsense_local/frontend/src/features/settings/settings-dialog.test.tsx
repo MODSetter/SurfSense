@@ -60,6 +60,53 @@ describe("SettingsDialog", () => {
     expect(screen.getByRole("heading", { name: "About" })).toBeTruthy()
   })
 
+  it("files issue reports from their own tab in the App group", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    const app = screen.getByRole("navigation", { name: "App" })
+    const report = screen.getByRole("button", { name: "Report issue" })
+    expect(app.contains(report)).toBe(true)
+
+    await user.click(report)
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Report issue" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("textbox", { name: "What went wrong?" })
+    ).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it("groups the sections into Settings, Models, System and App", () => {
+    render(<SettingsHarness />)
+
+    const groups = {
+      Settings: ["General", "License"],
+      Models: [
+        "Text gen",
+        "Image gen",
+        "Image edit",
+        "Audio",
+        "Video",
+        "Embedding",
+      ],
+      System: ["Resources", "Network"],
+      App: ["About", "Report issue"],
+    }
+    for (const [group, sections] of Object.entries(groups)) {
+      const nav = screen.getByRole("navigation", { name: group })
+      expect(
+        Array.from(nav.querySelectorAll("button"), (b) => b.textContent)
+      ).toEqual(sections)
+    }
+  })
+
   it("shows the embedding model the library was built with, and offers no way to change it", async () => {
     vi.stubGlobal(
       "fetch",
@@ -151,9 +198,9 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
     render(<SettingsHarness />)
 
-    const settings = screen.getByRole("navigation", { name: "Settings" })
+    const system = screen.getByRole("navigation", { name: "System" })
     const resources = screen.getByRole("button", { name: "Resources" })
-    expect(settings.contains(resources)).toBe(true)
+    expect(system.contains(resources)).toBe(true)
 
     await user.click(resources)
 

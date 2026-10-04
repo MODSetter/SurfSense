@@ -110,10 +110,21 @@ describe("images in chat", () => {
     const user = userEvent.setup()
     renderChat(false)
 
-    const attach = await screen.findByRole("button", { name: "Attach images" })
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Add images, sources, and more",
+      })
+    )
+    const attach = await screen.findByRole("menuitem", {
+      name: /^Attach images/,
+    })
     expect(attach.getAttribute("aria-disabled")).toBe("true")
     await user.hover(attach)
-    expect(await screen.findByText("This model can’t read images")).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.getAllByText("This model can’t read images")).toHaveLength(
+        2
+      )
+    )
   })
 
   it("opens a picker for image formats only while the model reads images", async () => {
@@ -127,8 +138,19 @@ describe("images in chat", () => {
     })
     renderChat(true)
 
-    const attach = await screen.findByRole("button", { name: "Attach images" })
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Add images, sources, and more",
+      })
+    )
+    const attach = await screen.findByRole("menuitem", {
+      name: /^Attach images/,
+    })
     expect(attach.getAttribute("aria-disabled")).toBeNull()
+    await user.hover(attach)
+    await waitFor(() =>
+      expect(screen.getAllByText("Add images to this message")).toHaveLength(2)
+    )
     await user.click(attach)
 
     await waitFor(() => expect(opened).toHaveLength(1))

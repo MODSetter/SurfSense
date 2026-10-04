@@ -40,7 +40,7 @@ from modules.migration.router import router as migration_router
 from modules.resource_usage.router import router as resource_usage_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
-from shared.config import get_llm_settings, get_storage_settings
+from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
 from shared.db import (
     create_db_engine,
     create_session_factory,
@@ -171,9 +171,11 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
-    app.include_router(agent_model_router)
-    app.include_router(agent_tools_router)
-    app.include_router(agent_threads_router)
+    # Routes only opencode calls, or that answer it, exist only beside one.
+    if get_agent_settings().has_opencode():
+        app.include_router(agent_model_router)
+        app.include_router(agent_tools_router)
+        app.include_router(agent_threads_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(EmbeddingNotChosenError, embedding_not_chosen)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)

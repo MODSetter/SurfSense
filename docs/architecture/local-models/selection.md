@@ -205,7 +205,7 @@ Finish with the choice untouched, sends none, which means bge-small
 The model steps are one component for any slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every
-model this computer can run at once, the catalog's starred row first, with
+model this computer can run at once: in the chat step, models downloaded from Hugging Face first, then the curated list with its starred row first, with
 Download, Use and Delete as in Settings, and no Delete on a model the app ships; a download's progress shows under its
 row and never moves the page. The chat step also offers Settings' Hugging Face
 search, closed until asked for; the image, image editing, audio and video steps have none, since

@@ -42,7 +42,8 @@ extraResources:
     to: audiocpp
   # opencode's server for the agent, and the ripgrep it greps with
   # (scripts/opencode/). Pinned by version and SHA-256; it starts only once the
-  # API writes its configuration.
+  # API writes its configuration. While opencode is off nothing is staged, and
+  # electron-builder warns that the folder is missing and skips it.
   - from: opencode
     to: opencode
 

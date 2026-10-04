@@ -97,7 +97,13 @@ def _generate(session: Session, artifact: Artifact) -> None:
         )
         persist.persist(session, artifact, document, built)
 
-        if not finish_job(session, document, DocumentStatus.READY):
+        if not finish_job(
+            session,
+            document,
+            DocumentStatus.READY,
+            title=document.title,
+            content=document.content,
+        ):
             return
         notify_artifact_updates(artifact)
         logger.info(

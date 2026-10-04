@@ -3,7 +3,7 @@
   "productName": "SurfSense",
   "private": true,
   "packageManager": "pnpm@11.27.1",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "Air gapped, privacy focused open source NotebookLM alternative.",
   "author": {
     "name": "SurfSense",

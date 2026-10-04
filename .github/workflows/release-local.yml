@@ -137,10 +137,11 @@ jobs:
           # Both desktop trees pin the same pnpm; the root one is the web app's.
           package_json_file: surfsense_local/electron/package.json
 
+      # Node 24, as desktop-tests: the Node that Electron 44 embeds.
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: |
             surfsense_local/frontend/pnpm-lock.yaml
@@ -215,13 +216,14 @@ jobs:
         working-directory: surfsense_local/electron
         run: node scripts/fetch-llamacpp.mjs
 
+      # Stages nothing while opencode is off (scripts/opencode/enabled.mjs).
       - name: Stage opencode
         working-directory: surfsense_local/electron
         run: node scripts/opencode/stage.mjs
 
       - name: Fetch the audio.cpp build
         if: runner.os != 'macOS'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: audiocpp-${{ runner.os }}
           path: surfsense_local/electron
@@ -234,7 +236,7 @@ jobs:
 
       - name: Fetch the sd.cpp build
         if: runner.os != 'Windows'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: sdcpp-${{ runner.os }}
           path: surfsense_local/electron
@@ -337,7 +339,7 @@ jobs:
           test -f "$DIR/stable-diffusion.cpp.txt"
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surfsense-local-${{ matrix.os }}
           path: |
