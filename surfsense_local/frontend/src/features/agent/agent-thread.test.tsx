@@ -487,6 +487,51 @@ describe("an agent thread", () => {
     ).toBeTruthy()
   })
 
+  it("says a render created a document whose earlier versions all failed", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Draft the proposal" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Fixed the script.",
+            steps: [
+              {
+                id: "prt_6",
+                tool: "surfsense_render_document",
+                status: "completed",
+                title: "",
+                input: { title: "Client proposal", format: "docx" },
+                output: "Rendered artifact 41, version 2.",
+                // v1's script failed, so v2 is the first the user can open.
+                artifact: {
+                  id: 41,
+                  title: "Client proposal",
+                  version: 2,
+                  created: true,
+                },
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(
+      await screen.findByRole("button", { name: "Created Client proposal v2" })
+    ).toBeTruthy()
+  })
+
   it("shows why a render failed instead of a document to open", async () => {
     const failure =
       "The script failed: AttributeError: 'Document' object has no attribute 'add_tabel'"

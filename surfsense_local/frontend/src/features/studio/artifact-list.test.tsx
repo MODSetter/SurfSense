@@ -510,25 +510,102 @@ describe("artifact list versions", () => {
     expect(onDelete).not.toHaveBeenCalled()
   })
 
-  it("offers no retry for a failed script, which would fail the same way", async () => {
+  it("shows a document as its newest ready version when a later edit fails", async () => {
     const onOpen = vi.fn()
     const user = userEvent.setup()
-    const v4 = proposal(33, 4, { status: "failed", error_message: "boom" })
+    const v4 = proposal(33, 4, {
+      status: "failed",
+      error_message: "Script error: AttributeError: boom",
+    })
     renderList({ artifacts: [v4, v3, v2, v1], onOpen })
 
+    const row = screen.getByRole("listitem")
+    expect(screen.getByText("v3")).toBeTruthy()
+    expect(row.textContent).not.toContain("v4")
     expect(
-      screen.getByLabelText("Generation failed for Client proposal")
+      screen.queryByLabelText("Generation failed for Client proposal")
+    ).toBeNull()
+    const hint = screen.getByLabelText("Latest edit failed (v4). Showing v3.")
+    await user.hover(hint)
+    expect(
+      await screen.findByText("Latest edit failed (v4). Showing v3.", {
+        selector: "[data-side]",
+      })
     ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Client proposal" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("offers no retry for an edit its script failed, which would fail the same way", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, {
+      status: "failed",
+      error_message: "Script error: AttributeError: boom",
+    })
+    renderList({ artifacts: [v4, v3, v2, v1], onRegenerate })
+
     expect(screen.queryByLabelText(/Retry Client proposal/)).toBeNull()
     await user.click(
       screen.getByRole("button", { name: "Actions for Client proposal" })
     )
     expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: /Retry/ })).toBeNull()
+  })
+
+  it("retries an edit that failed outside its script", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, {
+      status: "failed",
+      error_message: "interrupted when the app closed",
+    })
+    renderList({ artifacts: [v4, v3, v2, v1], onRegenerate })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Retry v4" }))
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(33)
+  })
+
+  it("retries a script the app's closing interrupted, which would run again", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const interrupted = proposal(30, 1, {
+      status: "failed",
+      error_message: "interrupted when the app closed",
+    })
+    renderList({ artifacts: [interrupted], onRegenerate })
+
+    await user.click(
+      screen.getByLabelText("Generation failed. Retry Client proposal")
+    )
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(30)
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Retry" }))
+    expect(onRegenerate).toHaveBeenCalledTimes(2)
+  })
+
+  it("explains a failed script on hover or focus when no version is ready", async () => {
+    const user = userEvent.setup()
+    const failed = proposal(30, 1, {
+      status: "failed",
+      error_message: "Script error: AttributeError: boom",
+    })
+    renderList({ artifacts: [failed] })
+
+    expect(screen.queryByLabelText(/Retry Client proposal/)).toBeNull()
+    const alert = screen.getByLabelText("Generation failed for Client proposal")
+    expect(alert.tabIndex).toBe(0)
+    await user.hover(alert)
     expect(
-      screen.queryByRole("menuitem", { name: /Retry|Regenerate/ })
-    ).toBeNull()
-    await user.click(screen.getByRole("menuitem", { name: "Open" }))
-    expect(onOpen).toHaveBeenCalledWith(32)
+      await screen.findByText(
+        "The document script failed. Ask the agent to fix it."
+      )
+    ).toBeTruthy()
   })
 
   it("retries a cancelled script, which never got to run", async () => {

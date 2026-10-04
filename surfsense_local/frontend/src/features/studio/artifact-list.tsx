@@ -59,6 +59,7 @@ import {
   newestReady,
   type ArtifactLine,
 } from "./artifact-versions"
+import { canRetry } from "./can-retry"
 import { FORMAT_ICONS, formatLabel } from "./studio-formats"
 
 function artifactFilterKey(workspaceId: number) {
@@ -94,28 +95,39 @@ function canDeleteLine(line: ArtifactLine) {
   return line.versions.every((version) => version.status !== "processing")
 }
 
+/** The version a document's row stands for: its newest, unless that one
+ *  failed and an earlier one is ready, since the document still works. */
+function shownVersion(line: ArtifactLine): Artifact {
+  const ready = newestReady(line.versions)
+  return line.newest.status === "failed" && ready ? ready : line.newest
+}
+
 function ArtifactRow({
   artifact,
+  failedEdit,
   canDelete,
   onOpen,
   onRegenerate,
   onCancel,
   onDelete,
 }: {
-  /** The document's newest version; its status is the row's. */
+  /** The version the row stands for; its status is the row's. */
   artifact: Artifact
+  /** A newer version than `artifact` that failed, or null. */
+  failedEdit: Artifact | null
   canDelete: boolean
   /** Null while no version of the document has finished. */
   onOpen: (() => void) | null
-  onRegenerate: () => void
+  onRegenerate: (id: number) => void
   onCancel: () => void
   onDelete: () => void
 }) {
   const ready = artifact.status === "ready"
   const failed = artifact.status === "failed"
   const cancelled = artifact.status === "cancelled"
-  // A failed script would fail the same way again; its agent writes the fix.
-  const retryable = cancelled || (failed && artifact.spec_kind !== "python")
+  const retryable = canRetry(artifact)
+  // What the developer tooltip explains: the failed edit, or the row's own end.
+  const problem = failedEdit ?? (failed || cancelled ? artifact : null)
   const ingesting =
     artifact.status === "pending" || artifact.status === "processing"
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -126,7 +138,7 @@ function ArtifactRow({
   const FormatIcon = FORMAT_ICONS[artifact.format] ?? FileIcon
 
   return (
-    <Tooltip open={(failed || cancelled) && modifierHeld && rowHovered}>
+    <Tooltip open={problem !== null && modifierHeld && rowHovered}>
       <TooltipTrigger
         render={
           <li
@@ -186,7 +198,7 @@ function ArtifactRow({
                               )
                         }
                         className="relative hover:bg-transparent"
-                        onClick={onRegenerate}
+                        onClick={() => onRegenerate(artifact.id)}
                       >
                         <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
                         <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-visible/button:opacity-100" />
@@ -207,17 +219,33 @@ function ArtifactRow({
                 </Tooltip>
               ) : null}
               {failed && !retryable ? (
-                <Alert02Icon
-                  role="img"
-                  aria-label={intl.formatMessage(
-                    {
-                      id: "studio_artifact_row_script_failed_aria",
-                      defaultMessage: "Generation failed for {name}",
-                    },
-                    { name: artifact.title }
-                  )}
-                  className="size-4.5 text-destructive"
-                />
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <span
+                        role="img"
+                        tabIndex={0}
+                        aria-label={intl.formatMessage(
+                          {
+                            id: "studio_artifact_row_script_failed_aria",
+                            defaultMessage: "Generation failed for {name}",
+                          },
+                          { name: artifact.title }
+                        )}
+                        className="flex rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      >
+                        <Alert02Icon className="size-4.5 text-destructive" />
+                      </span>
+                    }
+                  />
+                  <TooltipContent side="top" collisionPadding={8}>
+                    {intl.formatMessage({
+                      id: "studio_artifact_row_script_failed_tooltip",
+                      defaultMessage:
+                        "The document script failed. Ask the agent to fix it.",
+                    })}
+                  </TooltipContent>
+                </Tooltip>
               ) : null}
             </span>
             <button
@@ -244,6 +272,12 @@ function ArtifactRow({
                   { version: artifact.version.number }
                 )}
               </Badge>
+            ) : null}
+            {failedEdit?.version && artifact.version ? (
+              <FailedEditHint
+                failed={failedEdit.version.number}
+                shown={artifact.version.number}
+              />
             ) : null}
             {/* Two runs of one format share a title; the date tells them apart. */}
             <RelativeTime
@@ -296,7 +330,9 @@ function ArtifactRow({
                     {ready || retryable ? (
                       // One route, two words: after a failure it is a retry,
                       // after a success a fresh run of the same job.
-                      <DropdownMenuItem onClick={onRegenerate}>
+                      <DropdownMenuItem
+                        onClick={() => onRegenerate(artifact.id)}
+                      >
                         <RefreshCwIcon />
                         {ready
                           ? intl.formatMessage({
@@ -307,6 +343,20 @@ function ArtifactRow({
                               id: "studio_artifact_row_retry_label",
                               defaultMessage: "Retry",
                             })}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {failedEdit?.version && canRetry(failedEdit) ? (
+                      <DropdownMenuItem
+                        onClick={() => onRegenerate(failedEdit.id)}
+                      >
+                        <RefreshCwIcon />
+                        {intl.formatMessage(
+                          {
+                            id: "studio_artifact_row_retry_version_label",
+                            defaultMessage: "Retry v{version, number}",
+                          },
+                          { version: failedEdit.version.number }
+                        )}
                       </DropdownMenuItem>
                     ) : null}
                     {ingesting ? (
@@ -337,8 +387,8 @@ function ArtifactRow({
         }
       />
       <TooltipContent side="top" collisionPadding={8}>
-        {artifact.error_message ??
-          (cancelled
+        {problem?.error_message ??
+          (problem?.status === "cancelled"
             ? intl.formatMessage({
                 id: "studio_artifact_row_cancelled_tooltip",
                 defaultMessage: "Cancelled",
@@ -347,6 +397,37 @@ function ArtifactRow({
                 id: "studio_artifact_row_failed_tooltip",
                 defaultMessage: "Generation failed",
               }))}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+/** A quiet mark for an edit that failed after the version the row shows. */
+function FailedEditHint({ failed, shown }: { failed: number; shown: number }) {
+  const hint = intl.formatMessage(
+    {
+      id: "studio_artifact_row_failed_edit_tooltip",
+      defaultMessage:
+        "Latest edit failed (v{failed, number}). Showing v{shown, number}.",
+    },
+    { failed, shown }
+  )
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            role="img"
+            tabIndex={0}
+            aria-label={hint}
+            className="flex shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <Alert02Icon className="size-3.5 text-muted-foreground" />
+          </span>
+        }
+      />
+      <TooltipContent side="top" collisionPadding={8}>
+        {hint}
       </TooltipContent>
     </Tooltip>
   )
@@ -609,14 +690,16 @@ export function ArtifactList({
           <ul className="flex list-none flex-col gap-1">
             {visibleLines.map((line) => {
               const { newest, versions } = line
+              const shown = shownVersion(line)
               const openable = newestReady(versions)
               return (
                 <ArtifactRow
                   key={line.key}
-                  artifact={newest}
+                  artifact={shown}
+                  failedEdit={shown === newest ? null : newest}
                   canDelete={canDeleteLine(line)}
                   onOpen={openable ? () => onOpen(openable.id) : null}
-                  onRegenerate={() => onRegenerate(newest.id)}
+                  onRegenerate={onRegenerate}
                   onCancel={() => onCancel(newest.id)}
                   onDelete={() => {
                     setDeleteAsked(line)

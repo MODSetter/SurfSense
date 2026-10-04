@@ -16,6 +16,7 @@ import {
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
+import { canRetry } from "./can-retry"
 
 // The worker's notices are best-effort: one lost while a job runs would leave
 // its row stale, so the list is still re-read now and then until none does.
@@ -137,9 +138,9 @@ export function useStudio(workspaceId: number, selectionToken = "") {
         )
       } else if (
         artifact.status === "failed" &&
-        // A script's failure goes back to the agent that wrote it, and a
+        // A script's own failure goes back to the agent that wrote it, and a
         // retry would only run the same script again: no toast to retry.
-        artifact.spec_kind !== "python"
+        canRetry(artifact)
       ) {
         // The raw error (often a multi-line HTTP exception) belongs in
         // the row's own Ctrl/Cmd-hover tooltip, not a toast.

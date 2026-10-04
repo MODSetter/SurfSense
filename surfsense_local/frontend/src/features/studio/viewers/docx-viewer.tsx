@@ -149,7 +149,9 @@ export function DocxViewer({
         const page = rendered.querySelector<HTMLElement>(".docx")
         const pageWidth = page?.offsetWidth
         if (pageWidth) {
-          const fit = frame.clientWidth / pageWidth
+          // The frame's viewport, not its element: that leaves out the
+          // frame's own scrollbar, and the zoom on body does not scale it.
+          const fit = pages.documentElement.clientWidth / pageWidth
           setZoom(Math.min(1, Math.max(MIN_ZOOM, fit)))
         }
         setHasContent(true)

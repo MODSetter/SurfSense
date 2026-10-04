@@ -97,7 +97,7 @@ export function stepLabel(step: AgentStep): ReactNode {
     case "surfsense_render_document": {
       const made = step.artifact
       if (made) {
-        return made.version === 1
+        return (made.created ?? made.version === 1)
           ? intl.formatMessage(
               {
                 id: "agent_steps_render_created_label",

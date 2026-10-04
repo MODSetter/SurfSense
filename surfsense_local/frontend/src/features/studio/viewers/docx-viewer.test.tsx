@@ -192,6 +192,51 @@ describe("Word viewer", () => {
     expect(pricing?.href).toBe("about:blank#pricing")
   })
 
+  it("fits the page to the frame's viewport, leaving out its scrollbar", async () => {
+    serve({ 12: LINKS_OF_EVERY_KIND })
+    const { container } = render(
+      <DocxViewer
+        artifact={wordArtifact(12, LINKS_OF_EVERY_KIND)}
+        actionsContainer={null}
+      />
+    )
+    // jsdom lays nothing out: a 600 px frame whose scrollbar leaves 585 px,
+    // holding a page 816 px wide.
+    const frame = container.querySelector("iframe")!
+    Object.defineProperty(frame, "clientWidth", { value: 600 })
+    const pages = pagesOf(container)
+    Object.defineProperty(pages.documentElement, "clientWidth", { value: 585 })
+    // docx-preview may make the page in either window's realm.
+    const frameWindow = pages.defaultView as unknown as typeof globalThis
+    const realms = [HTMLElement.prototype, frameWindow.HTMLElement.prototype]
+    const own = realms.map((prototype) =>
+      Object.getOwnPropertyDescriptor(prototype, "offsetWidth")
+    )
+    for (const prototype of realms) {
+      Object.defineProperty(prototype, "offsetWidth", {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains("docx") ? 816 : 0
+        },
+      })
+    }
+
+    try {
+      await vi.waitFor(() =>
+        expect(pages.body.style.getPropertyValue("zoom")).toBe(
+          String(585 / 816)
+        )
+      )
+    } finally {
+      realms.forEach((prototype, index) => {
+        const descriptor = own[index]
+        if (descriptor)
+          Object.defineProperty(prototype, "offsetWidth", descriptor)
+        else Reflect.deleteProperty(prototype, "offsetWidth")
+      })
+    }
+  })
+
   it("shows the version picked last when an earlier one finishes after it", async () => {
     const { renderAsync: realRenderAsync } =
       await vi.importActual<typeof import("docx-preview")>("docx-preview")

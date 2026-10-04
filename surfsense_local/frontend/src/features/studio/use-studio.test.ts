@@ -268,7 +268,8 @@ describe("useStudio", () => {
         artifact({
           ...scriptDocument,
           status: "failed",
-          error_message: "AttributeError: 'Document' object has no attribute",
+          error_message:
+            "Script error: AttributeError: 'Document' object has no attribute",
         }),
       ],
     ])
@@ -280,6 +281,34 @@ describe("useStudio", () => {
       expect(result.current.artifacts[0]?.status).toBe("failed")
     )
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("toasts when a document script fails for a reason outside it, since a retry can finish it", async () => {
+    const scriptDocument = {
+      format: "docx",
+      version: { root_id: 1, number: 1, parent_id: null },
+      spec_kind: "python",
+    } as const
+    const api = studioApi([
+      [artifact(scriptDocument)],
+      [
+        artifact({
+          ...scriptDocument,
+          status: "failed",
+          error_message: "database is locked",
+        }),
+      ],
+    ])
+
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Summary of the source failed",
+        expect.anything()
+      )
+    )
   })
 })
 

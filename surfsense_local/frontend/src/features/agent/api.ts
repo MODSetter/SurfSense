@@ -6,6 +6,10 @@ export type RenderedArtifact = {
   id: number
   title: string
   version: number
+  /** True when no earlier version of the document is ready, since a failed
+   *  run uses up a number. Absent from a backend that does not say; the
+   *  version being the first then stands in. */
+  created?: boolean
 }
 
 /** One tool call the agent made, as `agent-step` frames and `content.steps` carry it. */
