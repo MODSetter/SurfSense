@@ -8,6 +8,7 @@ import psutil
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from shared.config import get_storage_settings
+from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 
@@ -32,10 +33,17 @@ def _markdown_from(path: Path) -> str:
     if suffix in TEXT_SUFFIXES:
         return path.read_text(encoding="utf-8", errors="replace")
 
+    converted = convert(path)
+    keep_figures(path, converted)
+    return converted.export_to_markdown()
+
+
+def convert(path: Path) -> Any:
+    """Docling's reading of a file: its DoclingDocument."""
     # First: it sets the environment docling reads as it is imported.
     converter = _converter()
-    source = as_page(path) if suffix in IMAGE_SUFFIXES else path
-    return converter.convert(source).document.export_to_markdown()
+    source = as_page(path) if path.suffix.lower() in IMAGE_SUFFIXES else path
+    return converter.convert(source).document
 
 
 @lru_cache(maxsize=1)
@@ -62,6 +70,8 @@ def _converter() -> Any:
     options = PdfPipelineOptions()
     options.do_ocr = True
     options.do_table_structure = True
+    # No picture images: figures are cropped from the original afterwards
+    # (figures/pdf_crops.py), as these keep every page's render in memory.
     # Docling's default is 4 threads; one per physical core parsed 1.4x faster
     # on 8 cores. At most 8, as for audio.cpp, since chat may share the CPU.
     options.accelerator_options = AcceleratorOptions(
