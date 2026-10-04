@@ -37,6 +37,8 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
 | workspace | ワークスペース | 워크스페이스 | 工作区 | वर्कस्पेस | Workspace | espacio de trabajo | espace de travail | Workspace | рабочая область |
 | artifact (a Studio output) | 生成物 | 생성물 | 产物 | आर्टिफ़ैक्ट | Artefakt | artefacto | artefact | artefato | артефакт |
+| version (one of a document’s versions, shown as v1, v2) | バージョン | 버전 | 版本 | वर्ज़न | Version | versión | version | versão | версия |
+| script (the code the agent writes to make a document) | スクリプト | 스크립트 | 脚本 | स्क्रिप्ट | Skript | script | script | script | скрипт |
 | chunk (a cited passage) | チャンク | 청크 | 片段 | चंक | Abschnitt | fragmento | extrait | trecho | фрагмент |
 | citation | 引用 | 인용 | 引用 | उद्धरण | Quellenangabe | cita | citation | citação | цитата |
 | Model setup | モデル設定 | 모델 설정 | 模型设置 | मॉडल सेटअप | Modell-Einrichtung | Ajustes del modelo | Configuration du modèle | Configuração de modelos | Настройка модели |

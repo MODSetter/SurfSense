@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { RelativeTime } from "@/components/relative-time"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -53,6 +54,11 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { Artifact, StudioFormat } from "./api"
+import {
+  artifactLines,
+  newestReady,
+  type ArtifactLine,
+} from "./artifact-versions"
 import { FORMAT_ICONS, formatLabel } from "./studio-formats"
 
 function artifactFilterKey(workspaceId: number) {
@@ -83,15 +89,24 @@ function writeStoredFormats(workspaceId: number, formats: string[]) {
   }
 }
 
+// A version mid-run would be deleted under its job.
+function canDeleteLine(line: ArtifactLine) {
+  return line.versions.every((version) => version.status !== "processing")
+}
+
 function ArtifactRow({
   artifact,
+  canDelete,
   onOpen,
   onRegenerate,
   onCancel,
   onDelete,
 }: {
+  /** The document's newest version; its status is the row's. */
   artifact: Artifact
-  onOpen: () => void
+  canDelete: boolean
+  /** Null while no version of the document has finished. */
+  onOpen: (() => void) | null
   onRegenerate: () => void
   onCancel: () => void
   onDelete: () => void
@@ -99,10 +114,10 @@ function ArtifactRow({
   const ready = artifact.status === "ready"
   const failed = artifact.status === "failed"
   const cancelled = artifact.status === "cancelled"
-  const retryable = failed || cancelled
+  // A failed script would fail the same way again; its agent writes the fix.
+  const retryable = cancelled || (failed && artifact.spec_kind !== "python")
   const ingesting =
     artifact.status === "pending" || artifact.status === "processing"
-  const processing = artifact.status === "processing"
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
@@ -111,7 +126,7 @@ function ArtifactRow({
   const FormatIcon = FORMAT_ICONS[artifact.format] ?? FileIcon
 
   return (
-    <Tooltip open={retryable && modifierHeld && rowHovered}>
+    <Tooltip open={(failed || cancelled) && modifierHeld && rowHovered}>
       <TooltipTrigger
         render={
           <li
@@ -191,18 +206,45 @@ function ArtifactRow({
                   </TooltipContent>
                 </Tooltip>
               ) : null}
+              {failed && !retryable ? (
+                <Alert02Icon
+                  role="img"
+                  aria-label={intl.formatMessage(
+                    {
+                      id: "studio_artifact_row_script_failed_aria",
+                      defaultMessage: "Generation failed for {name}",
+                    },
+                    { name: artifact.title }
+                  )}
+                  className="size-4.5 text-destructive"
+                />
+              ) : null}
             </span>
             <button
               type="button"
-              disabled={!ready}
+              disabled={!onOpen}
               className={cn(
                 "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
                 dropdownOpen && "sidebar-row-title-fade-actions"
               )}
-              onClick={ready ? onOpen : undefined}
+              onClick={onOpen ?? undefined}
             >
               {artifact.title}
             </button>
+            {artifact.version ? (
+              <Badge
+                variant="secondary"
+                className="h-4 shrink-0 px-1.5 text-[10px] tabular-nums"
+              >
+                {intl.formatMessage(
+                  {
+                    id: "studio_artifact_row_version_label",
+                    defaultMessage: "v{version, number}",
+                  },
+                  { version: artifact.version.number }
+                )}
+              </Badge>
+            ) : null}
             {/* Two runs of one format share a title; the date tells them apart. */}
             <RelativeTime
               date={new Date(artifact.created_at)}
@@ -242,7 +284,7 @@ function ArtifactRow({
                   className="min-w-40"
                 >
                   <DropdownMenuGroup>
-                    {ready ? (
+                    {onOpen ? (
                       <DropdownMenuItem onClick={onOpen}>
                         <ViewIcon />
                         {intl.formatMessage({
@@ -278,7 +320,7 @@ function ArtifactRow({
                     ) : null}
                     <DropdownMenuItem
                       variant="destructive"
-                      disabled={processing}
+                      disabled={!canDelete}
                       onClick={onDelete}
                     >
                       <Trash2Icon />
@@ -437,7 +479,7 @@ export function ArtifactList({
     () => new Map(formats.map((format) => [format.key, format.label])),
     [formats]
   )
-  const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null)
+  const [deleteAsked, setDeleteAsked] = useState<ArtifactLine | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedFormats, setSelectedFormats] = useState<string[]>(() =>
     readStoredFormats(workspaceId)
@@ -452,22 +494,31 @@ export function ArtifactList({
     setSelectedFormats(readStoredFormats(workspaceId))
   }
 
+  const lines = useMemo(() => artifactLines(artifacts), [artifacts])
+  // The document as it is now, not as it was when the dialog opened: the
+  // agent can add a version, or start one, while the user decides. Once it
+  // is gone, the dialog keeps its words through the closing animation.
+  const deleteNow = deleteAsked
+    ? (lines.find((line) => line.key === deleteAsked.key) ?? null)
+    : null
+  const deleteTarget = deleteNow ?? deleteAsked
+
   const availableFormats = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const artifact of artifacts) {
-      counts.set(artifact.format, (counts.get(artifact.format) ?? 0) + 1)
+    for (const { newest } of lines) {
+      counts.set(newest.format, (counts.get(newest.format) ?? 0) + 1)
     }
     return [...counts.entries()]
-  }, [artifacts])
+  }, [lines])
 
   // Filtered directly against what's selected, not intersected with what's
   // available — a filter saved in another workspace (e.g. "podcast") should
   // correctly show zero results here rather than silently showing everything.
-  const visibleArtifacts = useMemo(() => {
-    if (selectedFormats.length === 0) return artifacts
+  const visibleLines = useMemo(() => {
+    if (selectedFormats.length === 0) return lines
     const wanted = new Set(selectedFormats)
-    return artifacts.filter((artifact) => wanted.has(artifact.format))
-  }, [artifacts, selectedFormats])
+    return lines.filter(({ newest }) => wanted.has(newest.format))
+  }, [lines, selectedFormats])
 
   function toggleFormat(format: string, checked: boolean) {
     const next = checked
@@ -532,7 +583,7 @@ export function ArtifactList({
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
-        ) : visibleArtifacts.length === 0 ? (
+        ) : visibleLines.length === 0 ? (
           <Empty className="min-h-0 border-0 px-2">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -556,19 +607,24 @@ export function ArtifactList({
           </Empty>
         ) : (
           <ul className="flex list-none flex-col gap-1">
-            {visibleArtifacts.map((artifact) => (
-              <ArtifactRow
-                key={artifact.id}
-                artifact={artifact}
-                onOpen={() => onOpen(artifact.id)}
-                onRegenerate={() => onRegenerate(artifact.id)}
-                onCancel={() => onCancel(artifact.id)}
-                onDelete={() => {
-                  setDeleteTarget(artifact)
-                  setDeleteOpen(true)
-                }}
-              />
-            ))}
+            {visibleLines.map((line) => {
+              const { newest, versions } = line
+              const openable = newestReady(versions)
+              return (
+                <ArtifactRow
+                  key={line.key}
+                  artifact={newest}
+                  canDelete={canDeleteLine(line)}
+                  onOpen={openable ? () => onOpen(openable.id) : null}
+                  onRegenerate={() => onRegenerate(newest.id)}
+                  onCancel={() => onCancel(newest.id)}
+                  onDelete={() => {
+                    setDeleteAsked(line)
+                    setDeleteOpen(true)
+                  }}
+                />
+              )
+            })}
           </ul>
         )}
       </ScrollFade>
@@ -576,7 +632,7 @@ export function ArtifactList({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         onOpenChangeComplete={(open) => {
-          if (!open) setDeleteTarget(null)
+          if (!open) setDeleteAsked(null)
         }}
       >
         <AlertDialogContent>
@@ -589,7 +645,7 @@ export function ArtifactList({
                       defaultMessage: "Delete {name}?",
                     },
                     {
-                      name: deleteTarget.title,
+                      name: deleteTarget.newest.title,
                     }
                   )
                 : intl.formatMessage({
@@ -598,22 +654,34 @@ export function ArtifactList({
                   })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTarget
+              {deleteTarget && deleteTarget.versions.length > 1
                 ? intl.formatMessage(
                     {
-                      id: "studio_delete_dialog_body",
+                      id: "studio_delete_dialog_versions_body",
                       defaultMessage:
-                        "This permanently deletes {name} and its generated files.",
+                        "This permanently deletes all {count, plural, one {# version} other {# versions}} of {name} and their generated files.",
                     },
                     {
-                      name: deleteTarget.title,
+                      count: deleteTarget.versions.length,
+                      name: deleteTarget.newest.title,
                     }
                   )
-                : intl.formatMessage({
-                    id: "studio_delete_dialog_unnamed_body",
-                    defaultMessage:
-                      "This permanently deletes this artifact and its generated files.",
-                  })}
+                : deleteTarget
+                  ? intl.formatMessage(
+                      {
+                        id: "studio_delete_dialog_body",
+                        defaultMessage:
+                          "This permanently deletes {name} and its generated files.",
+                      },
+                      {
+                        name: deleteTarget.newest.title,
+                      }
+                    )
+                  : intl.formatMessage({
+                      id: "studio_delete_dialog_unnamed_body",
+                      defaultMessage:
+                        "This permanently deletes this artifact and its generated files.",
+                    })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -625,8 +693,11 @@ export function ArtifactList({
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
+              disabled={!deleteNow || !canDeleteLine(deleteNow)}
               onClick={() => {
-                if (deleteTarget) onDelete(deleteTarget.id)
+                for (const version of deleteNow?.versions ?? []) {
+                  onDelete(version.id)
+                }
               }}
             >
               {intl.formatMessage({

@@ -1,9 +1,11 @@
 import {
+  ArrowRightIcon,
   CheckIcon,
   ChevronRightIcon,
   CircleAlertIcon,
 } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -36,8 +38,11 @@ function StepStatus({ status }: { status: AgentStep["status"] }) {
   )
 }
 
-/** One step: what it did, and what it returned, folded until asked for. */
+/** One step: what it did, and what it returned, folded until asked for. A
+ *  step that made a document opens it instead of folding what it returned,
+ *  which was written for the model. */
 function StepLine({ step }: { step: AgentStep }) {
+  const openArtifact = useOpenArtifact()
   const detail = step.error ?? step.output
   const line = (
     <span className="flex min-w-0 items-center gap-2">
@@ -45,7 +50,22 @@ function StepLine({ step }: { step: AgentStep }) {
       <span className="min-w-0 truncate">{stepLabel(step)}</span>
     </span>
   )
-  if (!detail) {
+  const made = step.artifact
+  if (made && openArtifact) {
+    return (
+      <li className="py-0.5">
+        <button
+          type="button"
+          className="flex max-w-full cursor-pointer items-center gap-1 rounded-sm text-left outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => openArtifact(made.id)}
+        >
+          {line}
+          <ArrowRightIcon className="size-3.5 shrink-0" />
+        </button>
+      </li>
+    )
+  }
+  if (!detail || made) {
     return <li className="py-0.5">{line}</li>
   }
   return (

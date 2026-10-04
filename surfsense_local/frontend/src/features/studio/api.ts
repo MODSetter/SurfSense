@@ -10,6 +10,14 @@ export type StudioFormat = {
   unavailable_reason: string | null
 }
 
+/** Where an artifact sits in its document's line of versions. Each version is
+ *  its own artifact; the first one is the root (07-create-and-edit-mvp). */
+export type ArtifactVersion = {
+  root_id: number
+  number: number
+  parent_id: number | null
+}
+
 export type Artifact = {
   id: number
   document_id: number
@@ -20,6 +28,10 @@ export type Artifact = {
   error_message: string | null
   created_at: string
   updated_at: string
+  /** Null for an artifact made in one go, with no versions. */
+  version: ArtifactVersion | null
+  /** What the artifact is rendered from, kept so an edit can change it. */
+  spec_kind: "python" | "markdown" | null
 }
 
 export type ArtifactFile = {

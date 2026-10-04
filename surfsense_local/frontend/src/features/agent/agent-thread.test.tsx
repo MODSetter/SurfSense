@@ -77,6 +77,23 @@ type Backend = {
   answers: { requestId: string; reply: string }[]
 }
 
+// The version a completed render made, as the API reads it back.
+const PROPOSAL = {
+  id: 40,
+  document_id: 140,
+  format: "summary",
+  generation: 1,
+  title: "Client proposal",
+  status: "ready",
+  error_message: null,
+  content: "The proposal body.",
+  files: [],
+  created_at: "2026-10-04T00:00:00Z",
+  updated_at: "2026-10-04T00:00:00Z",
+  version: { root_id: 40, number: 1, parent_id: null },
+  spec_kind: "python",
+}
+
 /**
  * An agent thread whose next turn streams `first`, then waits for every
  * approval in `waitFor` to be answered before it streams `rest`. Listing the
@@ -107,6 +124,7 @@ function backend({
       }
       if (path.startsWith("/workspaces/1/documents")) return Response.json([])
       if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+      if (path === "/artifacts/40") return Response.json(PROPOSAL)
       const answer = path.match(/^\/chat\/threads\/10\/permissions\/(.+)$/)
       if (answer && init?.method === "POST") {
         const { reply } = JSON.parse(String(init.body)) as { reply: string }
@@ -393,5 +411,124 @@ describe("an agent thread", () => {
     await screen.findByText("Stored once.")
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.getAllByText("Stored once.")).toHaveLength(1)
+  })
+
+  it("opens the document a render made in Studio from its step", async () => {
+    const renderStep = {
+      id: "prt_5",
+      tool: "surfsense_render_document",
+      title: null,
+      input: { title: "Client proposal", format: "docx", script: "..." },
+    }
+    backend({
+      first: [
+        ACCEPTED,
+        { type: "agent-step", status: "running", ...renderStep },
+      ],
+      rest: [
+        {
+          type: "agent-step",
+          status: "completed",
+          ...renderStep,
+          output: "Rendered artifact 40, version 1.",
+          artifact: { id: 40, title: "Client proposal", version: 1 },
+        },
+        { type: "completed", assistant_completed_at: null, text: "Done." },
+      ],
+    })
+    renderAgentThread()
+    const user = await ask("Draft the proposal")
+
+    await user.click(
+      await screen.findByRole("button", { name: "Created Client proposal v1" })
+    )
+    expect(await screen.findByText("The proposal body.")).toBeTruthy()
+    expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
+  })
+
+  it("says which version a stored reply’s render updated", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Make it shorter" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Shorter now.",
+            steps: [
+              {
+                id: "prt_6",
+                tool: "surfsense_render_document",
+                status: "completed",
+                title: "",
+                input: { title: "Client proposal", format: "docx" },
+                output: "Rendered artifact 41, version 2.",
+                artifact: { id: 41, title: "Client proposal", version: 2 },
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Updated Client proposal to v2",
+      })
+    ).toBeTruthy()
+  })
+
+  it("shows why a render failed instead of a document to open", async () => {
+    const failure =
+      "The script failed: AttributeError: 'Document' object has no attribute 'add_tabel'"
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Draft the proposal" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Fixing the script.",
+            steps: [
+              {
+                id: "prt_7",
+                tool: "surfsense_render_document",
+                // The tool hands the error back to the model as its result.
+                status: "completed",
+                title: "",
+                input: { title: "Client proposal", format: "docx" },
+                output: failure,
+                artifact: null,
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+    const user = userEvent.setup()
+
+    await user.click(
+      await screen.findByText("Ran the document script for", { exact: false })
+    )
+    expect(screen.getByText(failure)).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Created|Updated/ })).toBeNull()
   })
 })

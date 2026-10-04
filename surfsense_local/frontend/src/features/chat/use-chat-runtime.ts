@@ -136,8 +136,8 @@ function areLiveMessagesPersisted(
 function stepFrom(
   event: Extract<ChatStreamEvent, { type: "agent-step" }>
 ): AgentStep {
-  const { id, tool, status, title, input, output, error } = event
-  return { id, tool, status, title, input, output, error }
+  const { id, tool, status, title, input, output, error, artifact } = event
+  return { id, tool, status, title, input, output, error, artifact }
 }
 
 /** The request a `permission-request` frame describes. */

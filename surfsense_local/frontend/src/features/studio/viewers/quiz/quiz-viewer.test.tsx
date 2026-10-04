@@ -35,6 +35,8 @@ const artifact: ArtifactDetail = {
   error_message: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  version: null,
+  spec_kind: null,
   content: null,
   files: [
     {

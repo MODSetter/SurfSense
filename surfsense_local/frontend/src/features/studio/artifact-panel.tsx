@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { buttonVariants } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
@@ -9,9 +9,16 @@ import { intl } from "@/i18n/intl"
 import {
   downloadUrl,
   readArtifact,
+  type Artifact,
   type ArtifactDetail,
   type ArtifactFile,
 } from "./api"
+import {
+  newestReady,
+  versionsOf,
+  type VersionedArtifact,
+} from "./artifact-versions"
+import { VersionSwitcher } from "./version-switcher"
 import { getArtifactViewer } from "./viewers/registry"
 
 const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
@@ -27,17 +34,50 @@ const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
     }),
 }
 
+/**
+ * Opens a newer version of the shown document once it is ready, as the agent
+ * makes one. Only a version that appears while the panel is open counts, so
+ * opening an older one on purpose stays put. The highest version seen never
+ * drops, so the newest one being run again is not a new one.
+ */
+function useFollowNewestVersion(
+  versions: VersionedArtifact[],
+  onOpenVersion: (artifactId: number) => void
+) {
+  const rootId = versions[0]?.version.root_id ?? null
+  const newest = newestReady(versions)
+  const seen = useRef<{ rootId: number; highest: number } | null>(null)
+  useEffect(() => {
+    const number = newest?.version.number ?? 0
+    if (rootId === null || seen.current?.rootId !== rootId) {
+      seen.current = rootId === null ? null : { rootId, highest: number }
+      return
+    }
+    if (newest && number > seen.current.highest) {
+      seen.current = { rootId, highest: number }
+      onOpenVersion(newest.id)
+    }
+  }, [rootId, newest, onOpenVersion])
+}
+
 export function ArtifactPanel({
   artifactId,
+  artifacts,
+  onOpenVersion,
   onClose,
 }: {
   artifactId: number
+  /** The workspace's artifacts, where the shown one's versions are found. */
+  artifacts: Artifact[]
+  onOpenVersion: (artifactId: number) => void
   onClose: () => void
 }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["artifact-panel", artifactId],
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
+  const versions = versionsOf(artifacts, artifactId)
+  useFollowNewestVersion(versions, onOpenVersion)
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
 
@@ -68,6 +108,11 @@ export function ArtifactPanel({
       flush
       actions={
         <>
+          <VersionSwitcher
+            versions={versions}
+            openId={artifactId}
+            onOpen={onOpenVersion}
+          />
           {/* Where a viewer's own controls (mindmap's fit, pdf's zoom)
               portal in — see ArtifactViewerProps.actionsContainer. */}
           <div ref={setActionsContainer} className="flex items-center gap-1" />

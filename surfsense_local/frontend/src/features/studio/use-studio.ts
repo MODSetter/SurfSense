@@ -135,7 +135,12 @@ export function useStudio(workspaceId: number, selectionToken = "") {
             { name: artifact.title }
           )
         )
-      } else if (artifact.status === "failed") {
+      } else if (
+        artifact.status === "failed" &&
+        // A script's failure goes back to the agent that wrote it, and a
+        // retry would only run the same script again: no toast to retry.
+        artifact.spec_kind !== "python"
+      ) {
         // The raw error (often a multi-line HTTP exception) belongs in
         // the row's own Ctrl/Cmd-hover tooltip, not a toast.
         errorToast(

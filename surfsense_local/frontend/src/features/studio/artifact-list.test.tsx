@@ -17,10 +17,14 @@ const artifact: Artifact = {
   error_message: null,
   created_at: "2026-09-06T00:00:00Z",
   updated_at: "2026-09-06T00:00:00Z",
+  version: null,
+  spec_kind: null,
 }
 
-function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
-  return render(
+type ListProps = Partial<Parameters<typeof ArtifactList>[0]>
+
+function list(props: ListProps = {}) {
+  return (
     <TooltipProvider>
       <ArtifactList
         workspaceId={1}
@@ -33,6 +37,10 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
       />
     </TooltipProvider>
   )
+}
+
+function renderList(props: ListProps = {}) {
+  return render(list(props))
 }
 
 afterEach(cleanup)
@@ -389,5 +397,147 @@ describe("artifact list", () => {
       ).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
     })
+  })
+})
+
+describe("artifact list versions", () => {
+  // A document the agent made and edited twice: each version is an artifact
+  // of its own, newest first as the API lists them.
+  function proposal(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      ...artifact,
+      id,
+      format: "docx",
+      title: "Client proposal",
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: "python",
+      ...extra,
+    } satisfies Artifact
+  }
+  const [v1, v2, v3] = [proposal(30, 1), proposal(31, 2), proposal(32, 3)]
+
+  it("lists a document once, as its newest version with that version’s number", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    renderList({ artifacts: [v3, artifact, v2, v1], onOpen })
+
+    const rows = screen.getAllByRole("listitem")
+    expect(rows).toHaveLength(2)
+    expect(rows[0].textContent).toContain("Client proposal")
+    expect(rows[0].textContent).toContain("v3")
+    expect(rows[1].textContent).not.toMatch(/v\d/)
+    await user.click(screen.getByRole("button", { name: "Client proposal" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("opens the newest finished version while the next one is generating", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, { status: "pending" })
+    renderList({ artifacts: [v4, v3, v2, v1], onOpen })
+
+    expect(
+      screen.getByRole("status", { name: "Processing Client proposal" })
+    ).toBeTruthy()
+    expect(screen.getByText("v4")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Client proposal" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("counts a document once in the type filter", async () => {
+    const user = userEvent.setup()
+    renderList({ artifacts: [v3, artifact, v2, v1] })
+
+    await user.click(screen.getByLabelText("Filter artifacts"))
+    expect(
+      await screen.findByRole("menuitemcheckbox", { name: /word \(1\)/i })
+    ).toBeTruthy()
+  })
+
+  it("deletes every version of a document after confirm", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+    renderList({ artifacts: [v3, v2, v1], onDelete })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    expect(
+      screen.getByText(
+        "This permanently deletes all 3 versions of Client proposal and their generated files."
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete artifact" }))
+    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([30, 31, 32])
+  })
+
+  it("deletes a version made while the delete dialog is open", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+    const { rerender } = renderList({ artifacts: [v3, v2, v1], onDelete })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    const v4 = proposal(33, 4, { status: "pending" })
+    rerender(list({ artifacts: [v4, v3, v2, v1], onDelete }))
+
+    expect(
+      screen.getByText(
+        "This permanently deletes all 4 versions of Client proposal and their generated files."
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete artifact" }))
+    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([30, 31, 32, 33])
+  })
+
+  it("will not delete once a version starts generating while the dialog is open", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+    const { rerender } = renderList({ artifacts: [v3, v2, v1], onDelete })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    const v4 = proposal(33, 4, { status: "processing" })
+    rerender(list({ artifacts: [v4, v3, v2, v1], onDelete }))
+
+    await user.click(screen.getByRole("button", { name: "Delete artifact" }))
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it("offers no retry for a failed script, which would fail the same way", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, { status: "failed", error_message: "boom" })
+    renderList({ artifacts: [v4, v3, v2, v1], onOpen })
+
+    expect(
+      screen.getByLabelText("Generation failed for Client proposal")
+    ).toBeTruthy()
+    expect(screen.queryByLabelText(/Retry Client proposal/)).toBeNull()
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy()
+    expect(
+      screen.queryByRole("menuitem", { name: /Retry|Regenerate/ })
+    ).toBeNull()
+    await user.click(screen.getByRole("menuitem", { name: "Open" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("retries a cancelled script, which never got to run", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, { status: "cancelled" })
+    renderList({ artifacts: [v4, v3, v2, v1], onRegenerate })
+
+    await user.click(screen.getByLabelText("Cancelled. Retry Client proposal"))
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(33)
   })
 })

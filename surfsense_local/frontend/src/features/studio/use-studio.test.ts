@@ -23,6 +23,8 @@ function artifact(overrides: Partial<Artifact> = {}): Artifact {
     error_message: null,
     created_at: "2026-09-15T00:00:00Z",
     updated_at: "2026-09-15T00:00:00Z",
+    version: null,
+    spec_kind: null,
     ...overrides,
   }
 }
@@ -252,6 +254,32 @@ describe("useStudio", () => {
     )
     expect(toast.error).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it("does not toast when the agent’s document script fails", async () => {
+    const scriptDocument = {
+      format: "docx",
+      version: { root_id: 1, number: 1, parent_id: null },
+      spec_kind: "python",
+    } as const
+    const api = studioApi([
+      [artifact(scriptDocument)],
+      [
+        artifact({
+          ...scriptDocument,
+          status: "failed",
+          error_message: "AttributeError: 'Document' object has no attribute",
+        }),
+      ],
+    ])
+
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
+
+    await waitFor(() =>
+      expect(result.current.artifacts[0]?.status).toBe("failed")
+    )
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })
 

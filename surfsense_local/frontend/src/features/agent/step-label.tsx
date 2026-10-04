@@ -15,7 +15,13 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value ? value : null
 }
 
-/** What one step did, in a sentence whose subject is set as code. */
+/** A document's title inside a sentence. */
+const documentTitle = (chunks: ReactNode[]) => (
+  <em className="text-foreground">{chunks}</em>
+)
+
+/** What one step did, in a sentence whose subject is set apart: code as
+ *  code, a document by its title. */
 export function stepLabel(step: AgentStep): ReactNode {
   const subject = (value: string) => (
     <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
@@ -88,6 +94,56 @@ export function stepLabel(step: AgentStep): ReactNode {
       }
       break
     }
+    case "surfsense_render_document": {
+      const made = step.artifact
+      if (made) {
+        return made.version === 1
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_render_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_render_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, or a run whose script failed: the title it was asked for.
+      const title = text(input.title)
+      if (title) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_render_label",
+            defaultMessage: "Ran the document script for <doc>{title}</doc>",
+          },
+          { title, doc: documentTitle }
+        )
+      }
+      break
+    }
+    case "surfsense_read_document":
+      return intl.formatMessage({
+        id: "agent_steps_read_document_label",
+        defaultMessage: "Read the script behind a document",
+      })
+    case "surfsense_list_images":
+      if (Array.isArray(input.source_ids)) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_list_images_label",
+            defaultMessage:
+              "Looked for images in {count, plural, one {# source} other {# sources}}",
+          },
+          { count: input.source_ids.length }
+        )
+      }
+      break
     case "glob":
       if (pattern) {
         return intl.formatMessage(

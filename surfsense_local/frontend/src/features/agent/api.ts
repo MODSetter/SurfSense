@@ -1,5 +1,13 @@
 import { requestVoid } from "@/lib/api"
 
+/** The Studio artifact a `surfsense_render_document` call made, once that
+ *  version is ready. */
+export type RenderedArtifact = {
+  id: number
+  title: string
+  version: number
+}
+
 /** One tool call the agent made, as `agent-step` frames and `content.steps` carry it. */
 export type AgentStep = {
   id: string
@@ -9,6 +17,10 @@ export type AgentStep = {
   input: Record<string, unknown>
   output?: string
   error?: string
+  /** Set only once a render's version is ready: null while it runs and
+   *  when its script failed, though the failed version exists. Absent on
+   *  every other tool. */
+  artifact?: RenderedArtifact | null
 }
 
 /** Something the agent wants to do that waits for the user's answer. */

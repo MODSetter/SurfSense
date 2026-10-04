@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ApprovalDialog } from "@/features/agent/approval-dialog"
 import { toast } from "sonner"
 import {
@@ -52,6 +52,7 @@ import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
+import { OpenArtifactContext } from "@/features/studio/open-artifact"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
 import { UpdateButton } from "@/features/updates/update-settings"
@@ -169,12 +170,21 @@ function WorkspaceDashboard({
       return next
     })
   }
-  const openRightPanel = () => {
+  const openRightPanel = useCallback(() => {
     setRightPanelOpen(true)
     writeRightPanelOpen(true)
-  }
+  }, [])
+  // Stable: it is a context value, and this page re-renders on every streamed
+  // token, which would re-render every agent step in the thread.
+  const openArtifact = useCallback(
+    (artifactId: number) => {
+      openRightPanel()
+      setInspect({ kind: "artifact", artifactId })
+    },
+    [openRightPanel]
+  )
   return (
-    <>
+    <OpenArtifactContext.Provider value={openArtifact}>
       <div className="titlebar-controls">
         <div className="titlebar-controls-end">
           <UpdateButton />
@@ -403,6 +413,8 @@ function WorkspaceDashboard({
                 ) : inspect?.kind === "artifact" ? (
                   <ArtifactPanel
                     artifactId={inspect.artifactId}
+                    artifacts={studio.artifacts}
+                    onOpenVersion={openArtifact}
                     onClose={closeInspect}
                   />
                 ) : null
@@ -427,10 +439,7 @@ function WorkspaceDashboard({
                   artifacts={studio.artifacts}
                   formats={studio.formats}
                   isLoading={studio.isLoading}
-                  onOpen={(artifactId) => {
-                    openRightPanel()
-                    setInspect({ kind: "artifact", artifactId })
-                  }}
+                  onOpen={openArtifact}
                   onRegenerate={(artifactId) =>
                     void studio.regenerate(artifactId)
                   }
@@ -442,7 +451,7 @@ function WorkspaceDashboard({
           </div>
         </SlideRail>
       </section>
-    </>
+    </OpenArtifactContext.Provider>
   )
 }
 
