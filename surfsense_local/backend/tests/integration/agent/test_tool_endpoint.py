@@ -98,6 +98,8 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     assert listed["render_document"]["required"] == ["title", "format", "script"]
     assert listed["render_document"]["properties"]["format"]["enum"] == ["docx", "pdf"]
     assert listed["read_document"]["required"] == ["artifact_id"]
+    # A long script is read a page of lines at a time, under opencode's cut.
+    assert listed["read_document"]["properties"]["offset"]["type"] == "integer"
     assert listed["list_images"]["required"] == ["source_ids"]
     images = next(t for t in reply["result"]["tools"] if t["name"] == "list_images")
     # A model that reads no images is told what to do instead of charting guesses.

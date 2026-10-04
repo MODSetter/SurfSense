@@ -13,6 +13,9 @@ from modules.agent.agent_threads.compaction import is_summary, turn_openers
 from modules.agent.agent_threads.steps import step_of
 from modules.chat.prompt import Citation, resolve_citations
 
+# Between two parts of a reply's text: each step's words start with no break of their own.
+PARAGRAPH = "\n\n"
+
 
 def reply_id(user_message_id: str) -> str:
     """The id a turn's reply goes by, stable from the first frame to the stored turn."""
@@ -86,7 +89,7 @@ def turn_reply(
         if part.get("type") == "tool"
     ]
     times = [step["info"].get("time", {}) for step in steps]
-    text, cited = resolve_citations("\n\n".join(texts), citations)
+    text, cited = resolve_citations(PARAGRAPH.join(texts), citations)
     return {
         "id": reply_id(user_message_id),
         "role": "assistant",
@@ -101,7 +104,9 @@ def turn_reply(
 
 
 def _text(parts: list[dict[str, Any]]) -> str:
-    """A message's answer text, without its reasoning or its tool calls."""
-    return "".join(
-        part.get("text") or "" for part in parts if part.get("type") == "text"
-    ).strip()
+    """A message's answer text, without its reasoning or its tool calls; each part a paragraph."""
+    return PARAGRAPH.join(
+        text
+        for part in parts
+        if part.get("type") == "text" and (text := (part.get("text") or "").strip())
+    )

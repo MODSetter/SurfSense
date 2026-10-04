@@ -295,6 +295,25 @@ async def test_listing_the_thread_reads_its_turns_from_opencode(
     assert [step["tool"] for step in assistant["content"]["steps"]] == ["glob"]
 
 
+async def test_words_before_a_tool_call_and_after_it_read_as_two_paragraphs(
+    agent_api: AgentAPI,
+) -> None:
+    """Live, on completion and reopened, the reply never runs one step's words into the next."""
+    agent_api.model.replies = [
+        ("say-and-call", json.dumps({"say": "I'll list the sources.", "call": GLOB})),
+        ("text", "Listed."),
+    ]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "List them")
+    stored = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+
+    expected = "I'll list the sources.\n\nListed."
+    assert "".join(f["text"] for f in of_type(frames, "delta")) == expected
+    assert of_type(frames, "completed")[0]["text"] == expected
+    assert stored.json()[-1]["content"]["text"] == expected
+
+
 SUMMARY = "## Objective\nList the sources.\n\n## Next Move\nAnswer."
 
 

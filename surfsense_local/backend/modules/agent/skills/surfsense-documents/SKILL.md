@@ -34,7 +34,7 @@ A drawn chart in a source rarely leaves its numbers in the source's text. When t
 
 ## Editing a document you made
 
-1. Call `surfsense_read_document` with its artifact id. It returns the newest version's script.
+1. Call `surfsense_read_document` with its artifact id. It returns the newest version's script. A long script comes in pages: when the result says the script goes on, call it again with the offset it names until you have read every line.
 2. Change only what the user asked for. Keep every other line as it was.
    Make every change asked for in this render, reading loose words the natural way: "the cover" of a document without a cover page is the top of its first page, and a section the user names that the document lacks is the closest one or a new one. Say in a line what you assumed. Ask first only when something cannot be done as asked.
 3. Render with the same title and format and `artifact_id` set to that document: the result is its next version. A different format, such as a PDF of a Word document, is a new document: render it without `artifact_id`.

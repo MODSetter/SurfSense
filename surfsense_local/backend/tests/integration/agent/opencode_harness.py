@@ -57,7 +57,9 @@ class ScriptedModel:
 
     A reply is ("text", words), ("bash", command) for one shell call,
     ("call", JSON of {"name", "arguments"}) for any other tool call, ("calls",
-    a JSON list of them) for several in one step, ("call-filling-the-window",
+    a JSON list of them) for several in one step, ("say-and-call", JSON of
+    {"say", "call"}) for words and then a call in one step, as Claude often
+    answers, ("call-filling-the-window",
     JSON as for "call"), whose usage says the context is full so opencode
     compacts before the next step, ("stall", words), which sends its words
     and then waits until released, or ("too-long", ""), which refuses the
@@ -98,7 +100,7 @@ class ScriptedHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        if kind in ("bash", "call", "calls", "call-filling-the-window"):
+        if kind in ("bash", "call", "calls", "say-and-call", "call-filling-the-window"):
             wanted = (
                 [
                     {
@@ -109,6 +111,9 @@ class ScriptedHandler(BaseHTTPRequestHandler):
                 if kind == "bash"
                 else json.loads(value)
             )
+            if kind == "say-and-call":
+                self._send(_chunk({"role": "assistant", "content": wanted["say"]}))
+                wanted = wanted["call"]
             calls = [
                 {
                     "index": index,

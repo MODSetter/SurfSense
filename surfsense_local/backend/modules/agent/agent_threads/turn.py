@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
+from modules.agent.agent_threads.ready_renders import link_live_render
 from modules.agent.agent_threads.replies import turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.engine_choice import selected_model_can_run_agent
@@ -122,6 +123,11 @@ async def _stream(
                             break
                         continue
                     for frame in turn.frames(event):
+                        if frame.get("artifact") is not None:
+                            # Whether it made the document, as the stored step says.
+                            await transact(
+                                session, link_live_render, workspace_id, frame
+                            )
                         yield _frame(frame)
                         # After `accepted`, as the chat sends it: the thread exists to be renamed.
                         if frame["type"] == "accepted" and title is not None:

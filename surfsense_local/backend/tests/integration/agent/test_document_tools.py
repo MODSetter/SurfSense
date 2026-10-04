@@ -1,5 +1,6 @@
 """The document tools as opencode's MCP client calls them: render, read, and list images."""
 
+import re
 import sqlite3
 import threading
 import time
@@ -572,6 +573,105 @@ async def test_reading_any_version_returns_the_newest_script(
     assert f"version 2, artifact {second_id}" in text
     assert "Word document" in text
     assert newest_script in text
+    lines = newest_script.count("\n")
+    assert f"lines 1-{lines} of {lines}" in text
+    assert "offset" not in text
+
+
+# opencode cuts a tool result past either and keeps the whole in a folder every
+# workspace's agent can read (its Truncate).
+OPENCODE_MAX_LINES = 2000
+OPENCODE_MAX_BYTES = 50 * 1024
+_PAGE = re.compile(r"Script, lines ([0-9]+)-([0-9]+) of ([0-9]+):\n")
+# After the page's own last newline, a blank line and where the next page starts.
+_NEXT = re.compile(r"(?<=\n)\nThe script goes on .* offset ([0-9]+) .*\Z", re.DOTALL)
+
+
+async def _read_in_pages(
+    tools: ToolEndpoint, workspace_id: int, artifact_id: int
+) -> tuple[str, list[str]]:
+    """The script, put back together from every page the model would read; and the pages."""
+    pages: list[str] = []
+    script = ""
+    arguments: dict[str, object] = {"artifact_id": artifact_id}
+    while True:
+        text, is_error = await tools.call(workspace_id, "read_document", arguments)
+        assert is_error is False, text
+        pages.append(text)
+        first, last, total = map(int, _PAGE.search(text).groups())
+        assert first == arguments.get("offset", 1)
+        body = text[_PAGE.search(text).end() :]
+        following = _NEXT.search(body)
+        if following is None:
+            assert last == total
+            return script + body, pages
+        assert int(following[1]) == last + 1
+        script += body[: following.start()]
+        arguments = {"artifact_id": artifact_id, "offset": last + 1}
+
+
+@pytest.mark.parametrize(
+    "padding",
+    [
+        pytest.param([f"# note {n}\n" for n in range(2500)], id="many-lines"),
+        pytest.param([f"# {'x' * 300}\n" for _ in range(400)], id="long-lines"),
+    ],
+)
+async def test_a_long_script_is_read_in_pages_opencode_keeps_whole(
+    tools: ToolEndpoint, studio_worker: None, padding: list[str]
+) -> None:
+    """Each page stays under opencode's cut, and the pages make up the script exactly."""
+    workspace_id = await tools.workspace()
+    script = WORD.format(closing="Signed.") + "".join(padding)
+    rendered, _ = await tools.call(
+        workspace_id, "render_document", render(script=script)
+    )
+
+    read, pages = await _read_in_pages(tools, workspace_id, _artifact_id(rendered))
+
+    assert read == script
+    assert len(pages) > 1
+    for page in pages:
+        assert page.count("\n") < OPENCODE_MAX_LINES
+        assert len(page.encode()) < OPENCODE_MAX_BYTES
+        assert "Its newest is version 1" in page
+    assert "surfsense_read_document" in pages[0]
+
+
+@pytest.mark.parametrize("offset", [0, 99, "2", True])
+async def test_reading_from_a_line_the_script_does_not_have_is_refused(
+    tools: ToolEndpoint, studio_worker: None, offset: object
+) -> None:
+    """The model learns which offsets there are rather than reading nothing."""
+    workspace_id = await tools.workspace()
+    rendered, _ = await tools.call(workspace_id, "render_document", render())
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "read_document",
+        {"artifact_id": _artifact_id(rendered), "offset": offset},
+    )
+
+    assert is_error is True
+    lines = WORD.format(closing="Signed.").count("\n")
+    assert f"from 1 to {lines}" in text
+
+
+async def test_an_offset_sent_as_null_reads_from_the_top(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """Null is how many models leave an optional field out."""
+    workspace_id = await tools.workspace()
+    rendered, _ = await tools.call(workspace_id, "render_document", render())
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "read_document",
+        {"artifact_id": _artifact_id(rendered), "offset": None},
+    )
+
+    assert is_error is False, text
+    assert WORD.format(closing="Signed.") in text
 
 
 async def test_reading_a_document_studio_drafted_says_it_has_no_script(
