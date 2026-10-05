@@ -17,7 +17,9 @@ A run is one chat reply being generated, by any chat model: the local runtime, a
 A run on a remote connection or a ChatGPT subscription is the same run: it survives a disconnect, replays from `after`, stores how it ended, and is saved and settled on a quit as a local one is. What differs comes from the provider being elsewhere:
 
 - **It never queues.** Admission ([`02-admission.md`](02-admission.md)) covers the local runtime only, so a remote run starts at once, goes straight to `running`, and never shows "Waiting".
-- **Several run against the provider at once.** Each running thread is its own request, so a provider's rate limit or a subscription's usage limit can end one. It ends as the error the chat already classifies, `provider_rate_limited` or `subscription_limit` ([`errors.py`](../../../surfsense_local/backend/modules/chat/errors.py)), stored as the turn's `ending` with its notice. Limiting how many run at once per connection is out of scope.
+- **Several run against the provider at once.** Each running thread is its own request, sent as soon as it starts; the app does not limit how many run at once per connection. What a provider refuses is handled after it answers:
+  - **A `429` from any remote provider** ends the run as `provider_rate_limited`, the kind the chat already classifies ([`errors.py`](../../../surfsense_local/backend/modules/chat/errors.py)), stored as the turn's `ending` with its notice and Retry. The question stays.
+  - **A ChatGPT subscription retries a temporary failure first.** A `429`, `500`, `502`, `503` or `504` is retried up to 2 times, after the delay the response asks for (`retry-after-ms` or `retry-after`, at most 60 seconds), or 1 then 2 seconds when it names none. Stop ends the wait at once. A used-up plan is never retried: it ends as `subscription_limit`, since no wait clears it. When the retries run out, the run ends with the kind the chat already gives that status: `provider_rate_limited` for a `429`, `provider_unavailable` for a 5xx. The retry lives in the subscription's provider ([`openai_responses/`](../../../surfsense_local/backend/modules/llm/providers/openai_responses/)), so Studio's calls on a subscription get it too.
 - **Stop and quit close the request.** Cancelling a run closes its stream to the provider. Whether the provider stops generating, and billing, on its side when the stream closes is up to the provider.
 - **Egress is checked when the run starts,** as today: resolving the selection refuses a host the user has not allowed before anything is stored (`_connection` in [`resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py)). A host refused while a run is live does not end it.
 
@@ -70,7 +72,7 @@ History is every stored turn today ([`history.py`](../../../surfsense_local/back
 | `GET` | `/workspaces/{workspace_id}/chat/threads` | adds `running: bool` to each thread |
 
 - Every frame carries its sequence number as the SSE `id:` field, so a follower can resume where it was.
-- A new frame, `run-state`, reports `queued` with a `position`, then `running`. Before admission ([`02-admission.md`](02-admission.md)) exists, a run goes straight to `running`. Existing clients ignore a frame they do not know.
+- A new frame, `run-state`, reports `queued` with a `position` while admission ([`02-admission.md`](02-admission.md)) holds a local run back, then `running`. A remote run goes straight to `running`. Existing clients ignore a frame they do not know.
 - A follower that disconnects ends only itself. Stop, deleting the thread and deleting its workspace end the run.
 
 ## Telling other windows
@@ -162,6 +164,7 @@ At the HTTP seam, against a scripted generator:
 - History for the next turn skips a failed pair with no text and keeps a failed reply with text.
 - Deleting a thread with a run ends the run.
 - Against a scripted remote endpoint: a run survives its follower disconnecting and replays from `after=0` as a local one does; it goes straight to `running` with no queue; a `429` stores the turn with `ending` `provider_rate_limited`; Stop closes the request to the endpoint.
+- Against a scripted subscription endpoint: a `429` with `retry-after: 1` then a reply succeeds after one retry; three `503`s end the run as `provider_unavailable` after two retries; a usage-limit `429` ends at once as `subscription_limit` with no retry; Stop during a retry wait ends the run without another request.
 - Two threads on the same remote connection run at the same time.
 - A send to an agent thread streams as today, and closing its stream stops the turn.
 

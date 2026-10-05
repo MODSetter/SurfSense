@@ -41,7 +41,7 @@ Worker jobs already settle the documents a quit left processing the same way ([`
 
 ## Shipping
 
-Today's blank reply after a crash can be fixed before runs exist, as a bug fix: delete the empty turns at startup, since nothing yet stores or shows an ending. Part 1 replaces that deletion with the `interrupted` ending above. Stopping runs before a quit and saving while a run is live need the run task, and ship with [`01-runs.md`](01-runs.md) or straight after it, before a release carries runs without them.
+This part ships in the same change as [`01-runs.md`](01-runs.md). Stopping runs before a quit and saving while a run is live need the run task, and runs without them would lose a reply's text on every quit. The startup sweep also fixes today's blank reply after a crash, since the empty turn it leaves is settled as interrupted rather than shown as a finished, empty reply.
 
 ## Tests
 
@@ -53,5 +53,5 @@ Today's blank reply after a crash can be fixed before runs exist, as a bug fix: 
 
 ## Checks
 
-- **Before the early bug fix,** reproduce both facts read from the code: that a crash leaves a blank reply, and that closing the window today keeps a partial one. The design does not depend on the second; it only confirms what today does.
+- **Before building the startup sweep,** reproduce both facts read from the code: that a crash leaves a blank reply, and that closing the window today keeps a partial one. The design does not depend on the second; it only confirms what today does.
 - **While building `stop-all`,** measure it with four runs and ingest holding the lock. Tune the 3-second bound to what that takes; the quit never waits longer than the bound, and the 5-second saves cover whatever it cuts off. No progress indicator in the first version.

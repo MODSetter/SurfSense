@@ -1,25 +1,20 @@
 # Admission
 
-Once replies run in the background, several can want the local runtime at once, alongside Studio. Admission decides which generation request llama-server receives next. It ships at one slot, where it is a visible queue, and is what makes the shared cache of [`03-parallel-slots.md`](03-parallel-slots.md) safe.
+Once replies run in the background, several can want the local runtime at once, alongside Studio. Admission decides which generation request llama-server receives next. At one slot it is a visible queue with chat ahead of Studio; with the shared cache of [`03-parallel-slots.md`](03-parallel-slots.md) it is what keeps the cache from overflowing.
 
-## Who generates on llama-server
+## Every caller passes through the API
 
-| Caller | Process | Path today |
-|---|---|---|
-| Chat replies, thread titles | API | in process, through the provider |
-| Agent turns | opencode | the API's model endpoint, which relays to llama-server ([agent](../../architecture/agent.md), The model endpoint) |
-| Studio | `worker-studio` | straight to llama-server, at `SURFSENSE_LOCAL_LLAMACPP_BASE_URL` |
+Admission lives in the API and counts what passes through it. Every request that generates on llama-server does:
 
-A gate inside the API sees the first two and not Studio. With one slot that costs only fairness. With a shared cache it is unsafe: llama.cpp kills every request involved in an overflow.
+| Caller | Process | How it reaches the model | Admitted |
+|---|---|---|---|
+| Chat runs, thread titles | API | in process, through the provider | in process, interactive |
+| Agent turns | opencode | the API's model endpoint, which relays to llama-server ([agent](../../architecture/agent.md), The model endpoint) | in the relay, interactive |
+| Studio | `worker-studio` | the model route ([`05-model-route.md`](05-model-route.md)) | in the route, background |
 
-## The gateway
+Remote models are not admitted: they never queue, wherever the request comes from.
 
-The API serves llama-server's routes under `/internal/llamacpp/`, and Electron points `worker-studio`'s `SURFSENSE_LOCAL_LLAMACPP_BASE_URL` at it ([`python.ts`](../../../surfsense_local/electron/src/main/sidecars/python.ts)). Studio's code does not change: its provider builds the same URLs on a different base.
-
-- **Generation routes** (`/v1/chat/completions`, and any other route that decodes) pass through admission, then stream from llama-server.
-- **Everything else** (`/models`, `/props`, `/tokenize`, `/apply-template`, `/models/load`) passes straight through.
-- **The agent's model endpoint** keeps its own route and gains admission in its relay, in process.
-- The API's own calls are admitted in process, without the HTTP hop.
+Image generation's unload of the text model is not a generation request, but it would cut off whatever is running, so it takes the runtime through admission too ([`05-model-route.md`](05-model-route.md), Local image generation gives up the runtime).
 
 ## Pools
 
@@ -36,7 +31,7 @@ Whether `b11050` reports `total_slots` in `/props` is checked before the pool is
 
 A request is admitted when a slot is free and the tokens already committed plus its cost fit the budget. When nothing is committed it is admitted regardless, so one long request is never refused for being long. The window, not admission, is what refuses an oversize prompt.
 
-**Cost** is what the request will hold in the cache:
+**Cost** is what the request will hold in the cache, worked out by the API from the request itself, never declared by the caller:
 
 - **Prompt:** an estimate that errs high. The chat's four characters a token ([`budget.py`](../../../surfsense_local/backend/modules/chat/budget.py)) undercounts dense scripts, and undercounting is the failure this exists to prevent, so admission uses a denser estimate than the chat budget. Images are priced as the chat budget prices them.
 - **Output:** `max_tokens` when the request sets one below the window; a chat turn sets 1,024. Otherwise a default allowance, capped so that a short prompt plus its allowance does not exceed an equal share of the budget. Without the cap, an unstated allowance on a small cache admits fewer requests than there are slots.
@@ -53,23 +48,26 @@ A request is admitted when a slot is free and the tokens already committed plus 
 ## What the user sees
 
 - A chat run that waits sends `run-state` with `queued` and its position, and the thread shows "Waiting for another reply". The thinking header does not start until it runs.
-- Studio's jobs stay `processing` while they wait, as they do today while the model loads.
+- Studio's jobs stay `processing` while they wait, as they do today while the model loads. The Studio panel does not change.
 - llama.cpp's cache-full errors ("failed to find free space in the KV cache", "failed to find a memory slot") become a new chat error kind, `runtime_busy`, which says the replies running together ran out of room and offers Retry. Admission should make it rare; the error says what happened when it is not.
 
 ## Tests
 
-At the gateway's HTTP seam, against a scripted llama-server whose `/props` sets the slots and the budget:
+In process, against a scripted llama-server whose `/props` sets the slots and the budget:
 
-- Slots 1: a second request reports `queued` with position 1, then runs when the first ends.
+- Slots 1: a second chat reports `queued` with position 1, then runs when the first ends.
 - Slots 2, budget smaller than both costs: the second waits though a slot is free.
 - Nothing committed: a request costing more than the budget is admitted.
 - A Studio request queued before a chat request runs after it.
 - A queued request whose caller disconnects leaves the line and llama-server receives nothing.
 - A generating request stopped mid-stream releases its slot and tokens.
-- `/props` and `/models` pass through while every slot is busy.
+- An agent step through the model endpoint is admitted as interactive and released when its response ends.
+- A remote request is never queued.
+
+The route's own tests are in [`05-model-route.md`](05-model-route.md).
 
 ## Decided
 
-- **The agent is admitted in its relay, not through the gateway.** The relay already runs in the API, so it takes the in-process path chat takes, and opencode keeps calling the same route. The gateway exists only for Studio, the one caller in another process.
+- **One pool, three doors.** Chat and titles take admission in process, the agent in its relay, Studio in the model route. All three run in the API, so one pool sees everything that generates on the runtime.
 - **A prompt's cost is estimated, not counted.** `/tokenize` is exact, but it is one more request before every turn, while the model may still be loading. If the estimate admits too few requests in practice, counting replaces it.
 - **Studio has no ageing.** Strict priority could starve it under constant chatting, which one person rarely does. If Studio jobs are seen waiting on chats, ageing is added then.
