@@ -35,7 +35,6 @@
   "agent_steps_shell_label": "{command} 실행함",
   "agent_steps_studio_label": "Studio에서 {format} 생성을 시작함",
   "agent_steps_write_label": "{file} 작성함",
-  "app_api_insufficient_space_error": "{message} ({required, number, ::unit/gigabyte .#} 필요, {available, number, ::unit/gigabyte .#} 사용 가능)",
   "app_api_request_failed_error": "요청이 실패했습니다 (상태 {status})",
   "app_bootstrap_loader_aria": "SurfSense를 시작하는 중",
   "app_bootstrap_retry_button": "다시 시도",

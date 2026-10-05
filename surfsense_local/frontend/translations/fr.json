@@ -35,7 +35,6 @@
   "agent_steps_shell_label": "A exécuté {command}",
   "agent_steps_studio_label": "A lancé {format} dans Studio",
   "agent_steps_write_label": "A écrit {file}",
-  "app_api_insufficient_space_error": "{message} (requis : {required, number, ::unit/gigabyte .#}, disponible : {available, number, ::unit/gigabyte .#})",
   "app_api_request_failed_error": "La requête a échoué avec le statut {status}",
   "app_bootstrap_loader_aria": "Démarrage de SurfSense",
   "app_bootstrap_retry_button": "Réessayer",

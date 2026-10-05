@@ -85,4 +85,4 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 
 ## Known gaps
 
-- Backend prose without a code stays English in every language: fit verdicts, `not_runnable_reason`, which an install refusing a searched file repeats, an embedder's failed check at install, the disk-space `detail` that `lib/api.ts` wraps in a translated sentence, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.
+- Backend prose without a code stays English in every language: fit verdicts, `not_runnable_reason`, which an install refusing a searched file repeats, an embedder's failed check at install, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.

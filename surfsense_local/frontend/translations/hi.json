@@ -35,7 +35,6 @@
   "agent_steps_shell_label": "{command} चलाया",
   "agent_steps_studio_label": "Studio में {format} बनाना शुरू किया",
   "agent_steps_write_label": "{file} लिखी",
-  "app_api_insufficient_space_error": "{message} ({required, number, ::unit/gigabyte .#} चाहिए, {available, number, ::unit/gigabyte .#} उपलब्ध)",
   "app_api_request_failed_error": "अनुरोध विफल रहा, स्टेटस {status}",
   "app_bootstrap_loader_aria": "SurfSense शुरू हो रहा है",
   "app_bootstrap_retry_button": "फिर से कोशिश करें",
