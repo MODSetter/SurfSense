@@ -145,6 +145,7 @@ export function ThreadPanel({
       onModelSelected={onModelSelected}
       readsImages={model?.reads_images === true}
       describedBy={thread == null ? undefined : headingId}
+      readsThinking={thread?.uses_agent !== true}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
     />

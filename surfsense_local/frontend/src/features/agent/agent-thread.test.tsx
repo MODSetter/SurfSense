@@ -188,6 +188,23 @@ afterEach(() => {
 })
 
 describe("an agent thread", () => {
+  it("offers no thinking switch, which the agent never reads", async () => {
+    backend()
+    renderAgentThread()
+    const user = userEvent.setup()
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Add images, sources, and more",
+      })
+    )
+
+    expect(await screen.findByRole("menu")).toBeTruthy()
+    expect(
+      screen.queryByRole("menuitemcheckbox", { name: /^Thinking/ })
+    ).toBeNull()
+  })
+
   it("shows each step the agent takes as it takes it", async () => {
     backend({
       first: [ACCEPTED, step("running")],

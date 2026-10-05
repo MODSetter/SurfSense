@@ -128,6 +128,7 @@ export function ChatComposer({
   onModelSelected,
   readsImages,
   describedBy,
+  readsThinking = true,
   onUploadSources,
   isUploadingSources = false,
 }: {
@@ -146,6 +147,8 @@ export function ChatComposer({
   readsImages: boolean
   // The conversation the composer writes into, named for a screen reader.
   describedBy?: string
+  // False in an agent thread, which never reads the switch, so it is not offered.
+  readsThinking?: boolean
   onUploadSources?: (files: File[]) => void
   isUploadingSources?: boolean
 }) {
@@ -166,7 +169,9 @@ export function ChatComposer({
   const addMenu = (className: string) => (
     <ComposerAddMenu
       readsImages={readsImages}
-      thinking={model ? { canSkip: canSkipThinking(model) } : undefined}
+      thinking={
+        model && readsThinking ? { canSkip: canSkipThinking(model) } : undefined
+      }
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
       className={className}
