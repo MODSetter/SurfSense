@@ -39,6 +39,10 @@ class FakeOpenAI:
         self.scope = PLAN_SCOPE
         self.authorized: list[dict[str, str]] = []
         self.revoked_refresh: set[str] = set()
+        self.issued_refresh: list[str] = []
+        # Each revocation request's form, as RFC 7009 sends it.
+        self.revocations: list[dict[str, str]] = []
+        self.revocation_down = False
         self.live_access: set[str] = set()
         self._codes: dict[str, dict[str, str]] = {}
         self.models = [
@@ -62,6 +66,7 @@ class FakeOpenAI:
             serial = self._serial
         access = f"at-{serial}"
         self.live_access.add(access)
+        self.issued_refresh.append(f"rt-{serial}")
         return {
             "access_token": access,
             "refresh_token": f"rt-{serial}",
@@ -174,6 +179,14 @@ class FakeOpenAI:
                 if self.path == "/api/accounts/oauth/token":
                     form = {k: v[0] for k, v in parse_qs(raw).items()}
                     self._json(*fake._token_reply(form))
+                elif self.path == "/api/accounts/oauth/revoke":
+                    if fake.revocation_down:
+                        self._json(503, {"error": "unavailable"})
+                        return
+                    form = {k: v[0] for k, v in parse_qs(raw).items()}
+                    fake.revocations.append(form)
+                    fake.revoked_refresh.add(form.get("token", ""))
+                    self._json(200, {})
                 elif self.path == "/v1/responses":
                     if not self._authorized():
                         return
