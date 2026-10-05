@@ -34,9 +34,12 @@ def turn_sources(
     A thread that never stored a scope keeps the whole workspace, as before scopes.
     """
     workspace_id = thread.workspace_id
+    # Ticked but not ready yet; an id list names only ready sources.
+    indexing = 0
     if payload.source_scope is not None:
         _, resolved = store_thread_scope(session, thread, payload.source_scope)
         ids: list[int] | None = resolved.ids
+        indexing = resolved.counts.indexing
     elif payload.document_ids is not None:
         ids = [
             document.id
@@ -45,7 +48,9 @@ def turn_sources(
             )
         ]
     elif thread.source_scope is not None:
-        ids = resolve_scope(session, workspace_id, thread_scope(thread)).ids
+        resolved = resolve_scope(session, workspace_id, thread_scope(thread))
+        ids = resolved.ids
+        indexing = resolved.counts.indexing
     else:
         ids = None
     if ids is None:
@@ -53,6 +58,6 @@ def turn_sources(
     titles = scope_titles(session, workspace_id, ids)
     return TurnSources(
         ids,
-        scope_note(session, workspace_id, ids),
+        scope_note(session, workspace_id, ids, indexing),
         {"document_ids": ids, "titles": [titles[i] for i in ids]},
     )

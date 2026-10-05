@@ -30,12 +30,29 @@ _NONE_SELECTED = (
     f"file in {SOURCES}/. Answer from the conversation, or ask the user to select "
     "the sources to use."
 )
+_STILL_READING = (
+    "The {selected} still being read, so none can be used "
+    f"yet. Do not search, open or cite any file in {SOURCES}/. Answer from the "
+    "conversation, or tell the user to send the request again once they are ready."
+)
 
 
-def scope_note(session: Session, workspace_id: int, ids: Sequence[int]) -> str:
-    """The note for a turn's sources, already checked or resolved as a chat's are."""
+def scope_note(
+    session: Session, workspace_id: int, ids: Sequence[int], indexing: int = 0
+) -> str:
+    """The note for a turn's sources, already checked or resolved as a chat's are.
+
+    `indexing` counts ticked sources not ready yet, so a ticked folder still
+    being read is not called "no sources".
+    """
     if not ids:
-        return f"[surfsense-scope: none]\n{_NONE_SELECTED}"
+        selected = (
+            "selected source is"
+            if indexing == 1
+            else f"{indexing} selected sources are"
+        )
+        why = _STILL_READING.format(selected=selected) if indexing else _NONE_SELECTED
+        return f"[surfsense-scope: none]\n{why}"
     tag = f"[surfsense-scope: {','.join(map(str, ids))}]"
     if len(ids) > NAMED_FILES:
         return "\n".join(
