@@ -44,7 +44,7 @@ What else each spec names, and why the analyser cannot find it on its own:
 | `api.spec` | excludes Docling, torch, torchvision, transformers, pandas, scipy and OpenCV | only the worker parses files, and the analyser cannot tell these are optional |
 | `worker.spec` | the local model manifest, the remote model manifest | Studio finds its chosen image and audio models through the local catalog, and classifies a remote model through the same discovery the API uses; both files are read by path |
 | `worker.spec` | Docling and its packages, RapidOCR, transformers, torchvision | lazy and native imports Docling reaches only on the first PDF |
-| `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab, openpyxl | the Office formats and document scripts run model-written code that imports them, so no static import exists; openpyxl, which Docling brings, also reads every document script's workbook for its summary |
+| `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab, openpyxl | the Office formats and document scripts run model-written code that imports them, so no static import exists; openpyxl, named in `pyproject.toml` though Docling brings it too, also reads every document script's workbook for its summary |
 | `worker.spec` | `matplotlib.pyplot`, `matplotlib.backends.backend_pdf`, `matplotlib.backends.backend_svg`, with the matplotlib hook set to the `Agg` backend | document scripts draw charts, and nothing imports matplotlib statically. Naming pyplot runs PyInstaller's hook, which adds `mpl-data` and the backend chosen; a chart saved as PDF or SVG, or `PdfPages`, imports its canvas by name, which the hook does not follow. `Agg` alone keeps Tk's GUI backend out, since scripts run with `MPLBACKEND=Agg` |
 | `worker.spec` | `modules.documents.tasks`, `modules.artifacts.tasks` | Huey resolves a task by its name |
 
@@ -153,5 +153,4 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 - No CI job generates an image with the staged `sd-server`; its gates are `--help` and the platform floors, not a picture.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
 - No packaging test checks that the frozen API carries the agent's `SKILL.md`; `api.spec` collects it, and it was checked by hand.
-- openpyxl reaches the lock only through `docling-slim[standard]`; `worker.spec` freezes it by name, but `pyproject.toml` does not name it, so a Docling change could drop it from document scripts and from the workbook summary.
 - What matplotlib adds to the installer has not been measured against its size gate. A scratch freeze of the worker put it at about 15 MB unpacked under `_internal/matplotlib`, plus about 0.6 MB for contourpy and kiwisolver.
