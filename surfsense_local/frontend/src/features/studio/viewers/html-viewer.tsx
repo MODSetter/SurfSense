@@ -17,7 +17,11 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: [...studioKeys.artifact(artifact.id), "html"],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "html",
+      artifact.generation,
+    ],
     queryFn: async () => {
       if (!primary) throw new Error("This artifact has no file to preview")
       // Content-Disposition on this route is "attachment" for text/html (see

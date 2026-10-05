@@ -100,7 +100,11 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: [...studioKeys.artifact(artifact.id), "workbook"],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "workbook",
+      artifact.generation,
+    ],
     queryFn: async () => {
       if (!primary) throw new Error("This artifact has no file to preview")
       if (primary.size_bytes > MAX_VIEWER_BYTES) {

@@ -53,7 +53,11 @@ export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: [...studioKeys.artifact(artifact.id), "file"],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "file",
+      artifact.generation,
+    ],
     queryFn: ({ signal }) => readArtifactFile<Quiz>(artifact.id, signal),
   })
 

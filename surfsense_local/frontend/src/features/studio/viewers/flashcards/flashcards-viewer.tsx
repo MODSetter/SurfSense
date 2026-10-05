@@ -61,7 +61,11 @@ export function FlashcardsViewer({
     isLoading,
     error,
   } = useQuery({
-    queryKey: [...studioKeys.artifact(artifact.id), "file"],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "file",
+      artifact.generation,
+    ],
     queryFn: ({ signal }) =>
       readArtifactFile<FlashcardDeck>(artifact.id, signal),
   })
