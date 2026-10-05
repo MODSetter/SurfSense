@@ -119,6 +119,29 @@ async def test_extract_html_returns_markdown(tmp_path):
     assert result.etl_service == "DIRECT_CONVERT"
 
 
+async def test_extract_html_keeps_the_space_of_a_whitespace_only_inline_element(
+    tmp_path,
+):
+    """A space held by an otherwise empty inline element stays between its words."""
+    html_file = tmp_path / "page.html"
+    html_file.write_text(
+        "<p>further<strong> </strong>reference</p>"
+        "<p><b>First</b><b> </b><b>Last</b></p>"
+        "<p>Hello<code> </code>world</p>"
+        '<p><a href="https://example.com"><img src="x.png" alt="pic"></a></p>',
+        encoding="utf-8",
+    )
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=str(html_file), filename="page.html")
+    )
+
+    assert "further reference" in result.markdown_content
+    assert "**First** **Last**" in result.markdown_content
+    assert "Hello world" in result.markdown_content
+    assert "[![pic](x.png)](https://example.com)" in result.markdown_content
+
+
 async def test_extract_mp3_returns_transcription(tmp_path, mocker):
     """An .mp3 audio file is transcribed via litellm.atranscription."""
     audio_file = tmp_path / "recording.mp3"

@@ -14,6 +14,7 @@ import csv
 from collections.abc import Callable
 from pathlib import Path
 
+from bs4 import BeautifulSoup
 from markdownify import markdownify
 
 # The stdlib csv module defaults to a 128 KB field-size limit which is too
@@ -98,10 +99,32 @@ def tsv_to_markdown(file_path: str) -> str:
     return csv_to_markdown(file_path, delimiter="\t")
 
 
+# markdownify drops these elements together with their text when that text is only
+# whitespace, running the words around them together.
+_WHITESPACE_DROPPING_INLINE_TAGS = (
+    "a",
+    "b",
+    "code",
+    "del",
+    "em",
+    "i",
+    "kbd",
+    "s",
+    "samp",
+    "strong",
+    "sub",
+    "sup",
+)
+
+
 def html_to_markdown(file_path: str) -> str:
     """Convert an HTML file to markdown via ``markdownify``."""
-    html = _read_text(file_path)
-    return markdownify(html).strip()
+    soup = BeautifulSoup(_read_text(file_path), "html.parser")
+    # Innermost first, so nested wrappers such as <b><i> </i></b> come off completely.
+    for tag in reversed(soup.find_all(_WHITESPACE_DROPPING_INLINE_TAGS)):
+        if tag.find(True) is None and not tag.get_text().strip():
+            tag.unwrap()
+    return markdownify(str(soup)).strip()
 
 
 _CONVERTER_MAP: dict[str, Callable[..., str]] = {
