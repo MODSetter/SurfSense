@@ -1246,3 +1246,48 @@ async def test_a_render_cannot_continue_a_document_studio_made(
     assert is_error is True
     assert "made in Studio: refine it there, or make a new document" in text
     assert len(await _listed(tools, workspace_id)) == listed
+
+
+async def test_reading_the_agents_version_skips_a_newer_one_studio_made(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """Before 07's decision 8 held, the agent could continue Studio's draft, so one
+    lineage holds both; the newest the agent may continue is its own."""
+    workspace_id = await tools.workspace()
+    draft_id, refining_id = _studio_document(engine, workspace_id)
+    agents_script = WORD.format(closing="Kind regards.")
+    with create_session_factory(engine)() as session:
+        agents = create_script_document(
+            session,
+            session.get(Workspace, workspace_id),
+            title="Client proposal",
+            format="docx",
+            script=agents_script,
+            base_artifact_id=None,
+            image_names=[],
+        )
+        # As a render naming the draft left it, before the refusal.
+        agents.artifact_metadata = {
+            **agents.artifact_metadata,
+            "version": ArtifactVersion(draft_id, 3, draft_id).as_metadata(),
+        }
+        agents_id = agents.id
+        # Studio's refine, rewritten as a script and run after the agent's version.
+        refined = session.get(Artifact, refining_id)
+        refined.artifact_metadata = {
+            **refined.artifact_metadata,
+            "spec": DocumentSpec(
+                "python", WORD.format(closing="Shorter."), "docx", ()
+            ).as_metadata(),
+            "version": ArtifactVersion(draft_id, 4, draft_id).as_metadata(),
+        }
+        session.commit()
+
+    text, is_error = await tools.call(
+        workspace_id, "read_document", {"artifact_id": agents_id}
+    )
+
+    assert is_error is False, text
+    assert f"Its newest is version 3, artifact {agents_id}" in text
+    assert agents_script in text
+    assert "Shorter." not in text

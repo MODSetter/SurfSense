@@ -128,9 +128,9 @@ def _rest(page: ScriptPage) -> str:
 
 
 def _newest_version(session: Session, workspace_id: int, root: int) -> Artifact:
-    """The newest version holding a script: a Studio Refine's has none until it renders."""
+    """The agent's newest script: a lineage begun before 07's decision 8 held may hold Studio's."""
     version = Artifact.artifact_metadata["version"]
-    return session.scalars(
+    scripts = session.scalars(
         select(Artifact)
         .where(
             Artifact.workspace_id == workspace_id,
@@ -138,8 +138,9 @@ def _newest_version(session: Session, workspace_id: int, root: int) -> Artifact:
             Artifact.artifact_metadata["spec"]["kind"].as_string() == "python",
         )
         .order_by(version["number"].as_integer().desc())
-        .limit(1)
-    ).one()
+    )
+    # The named version is the agent's, so one is always found.
+    return next(a for a in scripts if not studio_made(a.artifact_metadata))
 
 
 def _status(artifact: Artifact) -> str:
