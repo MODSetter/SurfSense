@@ -872,13 +872,8 @@ async def test_a_preview_that_breaks_still_reports_the_ready_version(
     assert "No page previews: drawing them failed." in text
 
 
-async def test_reading_a_document_refined_in_studio_skips_the_version_with_no_script_yet(
-    tools: ToolEndpoint, engine: Engine
-) -> None:
-    """A Refine's version keeps its script only once it renders; until then, and
-    if it fails, the newest script is the one before it. Refine is Studio's, so
-    the first version is a script Studio drafted."""
-    workspace_id = await tools.workspace()
+def _studio_document(engine: Engine, workspace_id: int) -> tuple[int, int]:
+    """A Word document Studio drafted as a script, and its Refine still pending."""
     with create_session_factory(engine)() as session:
         first = create_script_document(
             session,
@@ -889,17 +884,43 @@ async def test_reading_a_document_refined_in_studio_skips_the_version_with_no_sc
             base_artifact_id=None,
             image_names=[],
         )
-        first_id = first.id
         first.document.status = DocumentStatus.READY  # as its run left it
         first.artifact_metadata = {**first.artifact_metadata, RECIPE_KEY: drafted()}
         session.commit()
         # As the refine route leaves it: pending, its rewrite not written yet.
-        create_refine_version(session, first_id, "Shorter")
+        refining = create_refine_version(session, first.id, "Shorter")
+        return first.id, refining.id
+
+
+@pytest.mark.parametrize("named", [0, 1], ids=["draft", "pending refine"])
+async def test_reading_a_document_studio_made_says_to_refine_it_there(
+    tools: ToolEndpoint, engine: Engine, named: int
+) -> None:
+    """07, decision 8: Studio's documents stay in Studio, whichever version is named."""
+    workspace_id = await tools.workspace()
+    artifact_id = _studio_document(engine, workspace_id)[named]
 
     text, is_error = await tools.call(
-        workspace_id, "read_document", {"artifact_id": first_id}
+        workspace_id, "read_document", {"artifact_id": artifact_id}
     )
 
-    assert is_error is False, text
-    assert f"Its newest is version 1, artifact {first_id}" in text
-    assert "We propose a two-phase rollout" in text
+    assert is_error is True
+    assert "made in Studio: refine it there, or make a new document" in text
+    assert "no script" not in text
+
+
+async def test_a_render_cannot_continue_a_document_studio_made(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """The render says where the document is edited, and makes no version."""
+    workspace_id = await tools.workspace()
+    draft_id, _ = _studio_document(engine, workspace_id)
+    listed = len(await _listed(tools, workspace_id))
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(artifact_id=draft_id)
+    )
+
+    assert is_error is True
+    assert "made in Studio: refine it there, or make a new document" in text
+    assert len(await _listed(tools, workspace_id)) == listed

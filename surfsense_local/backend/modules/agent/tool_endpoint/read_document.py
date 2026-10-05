@@ -14,8 +14,10 @@ from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
+from modules.artifacts.script_documents.service import MADE_IN_STUDIO
 from modules.artifacts.script_documents.spec import document_script
 from modules.artifacts.script_documents.version import version_of
+from modules.artifacts.studio_documents.recipe import studio_made
 from modules.documents.models import DocumentStatus
 
 LISTING: dict[str, Any] = {
@@ -62,6 +64,8 @@ def read(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     named = session.get(Artifact, artifact_id)
     if named is None or named.workspace_id != workspace_id:
         raise ToolCallError(f"There is no artifact {artifact_id} in this workspace.")
+    if studio_made(named.artifact_metadata):
+        raise ToolCallError(MADE_IN_STUDIO)
     version = version_of(named.artifact_metadata)
     if version is None or document_script(named.artifact_metadata) is None:
         raise ToolCallError(

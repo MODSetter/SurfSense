@@ -12,6 +12,8 @@ from modules.artifacts.script_documents.service import (
     ScriptDocumentRefusedError,
     create_script_document,
 )
+from modules.artifacts.studio_documents.recipe import RECIPE_KEY, drafted
+from modules.artifacts.studio_documents.service import create_refine_version
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
 from shared.queue import studio_queue
@@ -197,6 +199,39 @@ def test_an_artifact_studio_made_cannot_be_a_base(
 
     with pytest.raises(ScriptDocumentRefusedError, match="has no versions"):
         _create(session, workspace, base_artifact_id=studio.id)
+
+
+def _studio_draft(session: Session, workspace: Workspace, kind: str) -> Artifact:
+    """v1 of a document Studio drafted, ready, its spec of either kind."""
+    draft = _create(session, workspace)
+    draft.document.status = DocumentStatus.READY
+    spec = {**draft.artifact_metadata["spec"], "kind": kind}
+    draft.artifact_metadata = {
+        **draft.artifact_metadata,
+        "spec": spec,
+        RECIPE_KEY: drafted(),
+    }
+    session.commit()
+    return draft
+
+
+@pytest.mark.parametrize("kind", ["python", "markdown"])
+@pytest.mark.parametrize("named", ["draft", "pending refine"])
+def test_a_document_studio_made_is_left_to_studio(
+    session: Session, workspace: Workspace, kind: str, named: str
+) -> None:
+    """07, decision 8: Studio's documents are refined in Studio, never by the agent."""
+    draft = _studio_draft(session, workspace, kind)
+    base = draft
+    if named == "pending refine":
+        base = create_refine_version(session, draft.id, "Shorter")
+    before = _artifact_count(session)
+
+    with pytest.raises(ScriptDocumentRefusedError, match="made in Studio: refine it"):
+        _create(session, workspace, base_artifact_id=base.id)
+
+    session.rollback()
+    assert _artifact_count(session) == before
 
 
 def test_a_pdf_cannot_continue_a_word_document(

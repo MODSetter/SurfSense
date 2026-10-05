@@ -11,7 +11,6 @@ from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
     DocumentScript,
     document_script,
-    spec_kind,
 )
 from modules.artifacts.script_documents.version import ArtifactVersion
 from modules.artifacts.studio_documents.recipe import (
@@ -148,9 +147,10 @@ def _generate(session: Session, artifact: Artifact) -> None:
             NonRetryableImageError | NonRetryableSpeechError | NotEnoughMemoryError,
         ):
             return
-        # A script document is never retried: its agent reads this FAILED and
-        # renders a fix as a new version, which a retry turning READY would race.
-        if spec_kind(artifact.artifact_metadata) == "python":
+        # The agent's script document is never retried: its agent reads this FAILED
+        # and renders a fix as a new version, which a retry turning READY would race.
+        # A Studio draft's kept spec does not count: its Retry asks the model again.
+        if renders_as_stored(artifact.artifact_metadata):
             return
         # A refine is one call the user asked for; Retry asks again if they want.
         if refinement(artifact.artifact_metadata) is not None:

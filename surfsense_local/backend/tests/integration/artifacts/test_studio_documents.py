@@ -75,6 +75,7 @@ def _choose(session: Session, monkeypatch: pytest.MonkeyPatch, provider: str) ->
         {
             "provider": provider,
             "name": "m",
+            "connection": None,
             "tier": Tier.CAPABLE,
             "fingerprint": Fingerprint(provider, "m"),
         },
@@ -304,3 +305,25 @@ def test_regenerate_drafts_a_studio_document_again(
     assert artifact.document.title == "Second draft"
     assert artifact.artifact_metadata["spec"]["text"] == "# Second draft"
     assert artifact.artifact_metadata["version"]["number"] == 1
+
+
+def test_a_retry_of_a_studio_script_that_fails_is_retried_by_huey(
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The spec its last success kept does not make it the agent's script document."""
+    _choose(session, monkeypatch, "openai_compatible")
+    _model(monkeypatch, PDF_SCRIPT, "raise ValueError('still broken')")
+    artifact = _job(session, workspace, logo_source, "pdf")
+    run(artifact.id)
+    _ready(session, artifact)
+
+    regenerate_artifact(session, artifact)
+    with pytest.raises(RuntimeError):
+        run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert "still broken" in (artifact.document.error_message or "")
