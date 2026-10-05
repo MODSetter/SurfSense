@@ -84,6 +84,8 @@ import { sessionLog } from "./session-log/session-log.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
 import { appMenu } from "./menu/app-menu.ts"
 import { helpMenu } from "./menu/help-menu.ts"
+import { apiQuitConfirmation } from "./quit/api-quit-confirmation.ts"
+import { confirmQuit } from "./quit/confirm-running-replies.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -104,6 +106,11 @@ const DATA_DIR = join(
 app.setPath("userData", join(DATA_DIR, "electron"))
 
 let sidecars: Sidecars | null = null
+// This run's API, once it answers; the quit asks it about running replies.
+let apiUrl: string | null = null
+// Asked once per quit, whether it began at the menu or at the last window.
+let quitConfirmed = false
+let confirmingQuit = false
 let mainWindow: BrowserWindow | null = null
 let shuttingDown = false
 let stopDocxSnapshots: (() => void) | null = null
@@ -626,7 +633,16 @@ function createWindow(apiUrl: string): void {
     if (level === "warning" || level === "error") sessionLog.append("renderer", message)
   })
 
-  win.on("close", () => saveWindowState(win))
+  win.on("close", (event) => {
+    saveWindowState(win)
+    // Closing the last window quits the app, so it asks as a quit does.
+    if (quitConfirmed || shuttingDown || BrowserWindow.getAllWindows().length > 1)
+      return
+    event.preventDefault()
+    void quitWithConfirmation().then((quit) => {
+      if (quit) win.close()
+    })
+  })
 
   win.once("ready-to-show", () => {
     if (savedState?.maximized ?? true) {
@@ -641,6 +657,21 @@ function createWindow(apiUrl: string): void {
     )
   } else {
     void win.loadURL(DEV_RENDERER_URL)
+  }
+}
+
+/** Whether to quit: asks, and saves, only while replies are being written. */
+async function quitWithConfirmation(): Promise<boolean> {
+  if (quitConfirmed || apiUrl === null) return true
+  if (confirmingQuit) return false
+  confirmingQuit = true
+  try {
+    quitConfirmed = await confirmQuit(
+      apiQuitConfirmation(apiUrl, () => mainWindow)
+    )
+    return quitConfirmed
+  } finally {
+    confirmingQuit = false
   }
 }
 
@@ -692,6 +723,7 @@ function main(): void {
       applyLocalePreference(loadLocalePreference())
       applyDevAppIdentity()
       const boot = await bootSidecars()
+      apiUrl = boot.apiUrl
       announceApiUrl(boot.dataDir, boot.apiUrl)
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({
@@ -721,7 +753,9 @@ function main(): void {
   app.on("before-quit", (event) => {
     if (!sidecars || shuttingDown) return
     event.preventDefault()
-    void shutdown().finally(() => app.quit())
+    void quitWithConfirmation().then((quit) => {
+      if (quit) void shutdown().finally(() => app.quit())
+    })
   })
 
   // Ctrl-C / dev loop: before-quit does not fire on a signal, so reap here too

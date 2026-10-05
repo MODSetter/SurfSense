@@ -74,7 +74,7 @@ def _resolve(monkeypatch: pytest.MonkeyPatch, provider: str) -> None:
         },
     )()
     monkeypatch.setattr(
-        "worker.studio.job.resolve_generation",
+        "worker.studio.job.resolve_routed_generation",
         lambda _session: ResolvedGeneration(selection, None),
     )
 

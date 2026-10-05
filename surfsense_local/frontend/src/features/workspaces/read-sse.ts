@@ -1,12 +1,12 @@
 export type WorkspaceEvent =
   | { type: "connected" }
   | {
-      type: "documents" | "artifacts" | "folders"
+      type: "documents" | "artifacts" | "chat-runs" | "folders"
       ids: number[]
       status: string
     }
 
-const CHANGED = ["documents", "artifacts", "folders"] as const
+const CHANGED = ["documents", "artifacts", "chat-runs", "folders"] as const
 
 /** One frame. A heartbeat, or a kind this client does not know, is nothing. */
 function parseFrame(frame: string): WorkspaceEvent | null {

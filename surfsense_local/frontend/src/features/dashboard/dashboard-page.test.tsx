@@ -1610,8 +1610,13 @@ describe("dashboard chat", () => {
     expect(retryButton, "context_too_long must not offer Retry").toBeNull()
   })
 
-  it("aborts the active stream when stop is pressed", async () => {
-    const captured: { signal: AbortSignal | null } = { signal: null }
+  it("asks the API to stop the reply when stop is pressed", async () => {
+    const captured: {
+      signal: AbortSignal | null
+      stream: ReadableStreamDefaultController<Uint8Array> | null
+      stopped: boolean
+      hungUpBeforeStop: boolean | null
+    } = { signal: null, stream: null, stopped: false, hungUpBeforeStop: null }
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
@@ -1648,23 +1653,29 @@ describe("dashboard chat", () => {
           return new Response(
             new ReadableStream({
               start(controller) {
+                captured.stream = controller
                 controller.enqueue(
                   new TextEncoder().encode(
                     'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"Partial answer"}\n\n'
                   )
-                )
-                captured.signal?.addEventListener("abort", () =>
-                  controller.error(new DOMException("Aborted", "AbortError"))
                 )
               },
             }),
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
+        if (path === "/chat/threads/10/run/stop") {
+          // The API stores what the reply has, then ends the run's stream.
+          captured.stopped = true
+          captured.hungUpBeforeStop = captured.signal?.aborted ?? null
+          captured.stream?.enqueue(new TextEncoder().encode("data: [DONE]\n\n"))
+          captured.stream?.close()
+          return new Response(null, { status: 204 })
+        }
         if (path === "/chat/threads/10/messages") {
           // The stopped turn as the backend keeps it: the text so far.
           return Response.json(
-            captured.signal === null
+            !captured.stopped
               ? []
               : [
                   {
@@ -1677,7 +1688,11 @@ describe("dashboard chat", () => {
                   {
                     id: 101,
                     role: "assistant",
-                    content: { text: "Partial answer", citations: [] },
+                    content: {
+                      text: "Partial answer",
+                      citations: [],
+                      ending: { type: "stopped" },
+                    },
                     created_at: "2026-09-05T00:00:00Z",
                     completed_at: "2026-09-05T00:00:01Z",
                   },
@@ -1718,7 +1733,9 @@ describe("dashboard chat", () => {
       await screen.findByRole("button", { name: "Stop generating" })
     )
 
-    expect(captured.signal?.aborted).toBe(true)
+    // A stop is asked of the API, which owns the reply; hanging up would not end it.
+    await waitFor(() => expect(captured.stopped).toBe(true))
+    expect(captured.hungUpBeforeStop).toBe(false)
     expect(
       await screen.findByRole("button", { name: "Send message" })
     ).toBeTruthy()

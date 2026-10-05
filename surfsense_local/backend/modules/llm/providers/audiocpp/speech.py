@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 
 import httpx
@@ -16,7 +17,6 @@ from modules.llm.providers.audiocpp.memory import (
     OtherModel,
     check_voicing_memory,
 )
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
 from shared import cancellation
 
@@ -60,13 +60,15 @@ class AudioCppSpeech:
         model: VoicedModel,
         *,
         base_url: str,
-        chat_runtime: RouterClient,
+        give_up_text_runtime: Callable[[], AbstractAsyncContextManager[None]],
         transport: httpx.AsyncBaseTransport | None = None,
         available: Callable[[], int] | None = None,
     ) -> None:
         self._model = model
         self._base_url = base_url
-        self._chat_runtime = chat_runtime
+        # Unloads the text models once nothing is generating, and keeps them
+        # out for the block, so no chat is cut off and none loads back under it.
+        self._give_up_text_runtime = give_up_text_runtime
         self._transport = transport
         # Read when checked, not when built: memory moves while a job drafts.
         self._available = available or (lambda: system_memory.available_bytes())
@@ -81,27 +83,31 @@ class AudioCppSpeech:
 
     async def check_memory(self) -> None:
         """Before anything loads: once loaded, the model takes its peak. Short,
-        it frees the chat model first, as voicing will; drafting reloads it."""
+        it gives up the text runtime first, as voicing will, then lets it go:
+        drafting the script needs it, and reloads the chat model."""
         try:
             await self._wait_for_memory(0)
         except NotEnoughMemoryError:
-            await _free_chat_model(self._chat_runtime)
-            await self._wait_for_memory(MEMORY_WAIT_SECONDS)
+            async with self._give_up_text_runtime():
+                await self._wait_for_memory(MEMORY_WAIT_SECONDS)
 
     async def synthesize(
         self, turns: list[SpokenTurn], language: str
     ) -> SynthesizedAudio:
-        # The script is written, so the chat model's memory is voicing's now.
-        await _free_chat_model(self._chat_runtime)
-        await self._wait_for_memory(MEMORY_WAIT_SECONDS)
-        speaks = {voice.id: voice.languages for voice in self.voices()}
-        async with httpx.AsyncClient(
-            base_url=self._base_url, timeout=_TURN_TIMEOUT, transport=self._transport
-        ) as client:
-            try:
-                voiced = await self._voice_each(client, turns, language, speaks)
-            finally:
-                await _unload(client)
+        # The script is written, so the chat model's memory is voicing's now,
+        # for every turn.
+        async with self._give_up_text_runtime():
+            await self._wait_for_memory(MEMORY_WAIT_SECONDS)
+            speaks = {voice.id: voice.languages for voice in self.voices()}
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=_TURN_TIMEOUT,
+                transport=self._transport,
+            ) as client:
+                try:
+                    voiced = await self._voice_each(client, turns, language, speaks)
+                finally:
+                    await _unload(client)
         return SynthesizedAudio(joined_wav(voiced), "audio/wav")
 
     async def _wait_for_memory(self, seconds: float) -> None:
@@ -158,17 +164,6 @@ def _server_message(reply: httpx.Response) -> str:
         return str(reply.json()["error"]["message"])
     except (ValueError, KeyError, TypeError):
         return f"HTTP {reply.status_code}"
-
-
-async def _free_chat_model(router: RouterClient) -> None:
-    """The router reloads it on its next request. A failure only costs the
-    memory check its margin, not the minutes of drafting behind it."""
-    try:
-        for resident in await router.models():
-            if resident.loaded:
-                await router.unload(resident.id)
-    except httpx.HTTPError:
-        logger.warning("audiocpp: could not unload the chat model", exc_info=True)
 
 
 async def _unload(client: httpx.AsyncClient) -> None:

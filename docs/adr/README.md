@@ -74,3 +74,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
+| 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |

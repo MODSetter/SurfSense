@@ -1,13 +1,15 @@
+import asyncio
 import base64
 import binascii
 import json
 import logging
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import asdict
 from datetime import UTC, datetime
 
 import anyio
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
@@ -17,7 +19,7 @@ from api.dependencies import SessionDep, transact
 from modules.agent.agent_threads.forget_sessions import forget_thread
 from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
-from modules.agent.agent_threads.turn import agent_turn
+from modules.agent.agent_threads.turn import RunPlace, agent_turn
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import selected_model_can_run_agent
 from modules.agent.thread_folder.layout import remove_thread_folder
@@ -40,19 +42,30 @@ from modules.chat.images.sources import (
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
 from modules.chat.reasoning import ReasoningTrace
+from modules.chat.runs.dependencies import ChatRunsDep
+from modules.chat.runs.live_text import save_while_running
+from modules.chat.runs.notify import notify_run
+from modules.chat.runs.registry import STOP_SETTLE_SECONDS
+from modules.chat.runs.run import Run, RunState
+from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import (
     ImageUpload,
     MessageCreate,
     MessageRead,
+    RunStateRead,
     ThreadCreate,
     ThreadRead,
     ThreadUpdate,
 )
-from modules.chat.title import generate_title
+from modules.chat.title import TITLE_MAX_TOKENS, generate_title
 from modules.documents.sources import load_selected_sources
 from modules.embedding.active import require_active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.admission.pool import Priority
+from modules.llm.admission.waiting import wait_in_line
+from modules.llm.providers import llamacpp
 from modules.llm.providers.protocols import Generator
+from modules.llm.providers.types import Message
 from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
@@ -99,12 +112,28 @@ async def create_thread(
     response_model=list[ThreadRead],
     summary="List chat threads",
 )
-def list_threads(workspace: WorkspaceDep, session: SessionDep) -> Sequence[ChatThread]:
-    return session.scalars(
+def list_threads(
+    workspace: WorkspaceDep, session: SessionDep, runs: ChatRunsDep
+) -> list[ThreadRead]:
+    threads = session.scalars(
         select(ChatThread)
         .where(ChatThread.workspace_id == workspace.id)
         .order_by(ChatThread.created_at.desc())
     ).all()
+    return [
+        ThreadRead.model_validate(thread).model_copy(
+            update=_run_fields(runs.get(thread.id))
+        )
+        for thread in threads
+    ]
+
+
+def _run_fields(run: Run | None) -> dict:
+    """Whether the thread is answering, and where its reply stands."""
+    if run is None:
+        return {"running": False, "run_state": None}
+    state = RunStateRead(state=run.state.state, position=run.state.position)
+    return {"running": True, "run_state": state}
 
 
 @router.patch(
@@ -123,10 +152,11 @@ def update_thread(thread: ThreadDep, payload: ThreadUpdate) -> ChatThread:
     summary="Read a thread's messages",
 )
 async def list_messages(
-    thread: ThreadDep, session: SessionDep, launch_key: LaunchKeyDep
+    thread: ThreadDep, session: SessionDep, launch_key: LaunchKeyDep, runs: ChatRunsDep
 ) -> Sequence[ChatMessage] | list[dict]:
     if thread.uses_agent:
-        return await agent_thread_messages(session, thread, launch_key)
+        answering = runs.get(thread.id) is not None
+        return await agent_thread_messages(session, thread, launch_key, answering)
     return await transact(session, _stored_turns, thread)
 
 
@@ -135,8 +165,14 @@ async def list_messages(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a thread and its messages",
 )
-async def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
+async def delete_thread(
+    thread: ThreadDep, session: SessionDep, runs: ChatRunsDep
+) -> Response:
     workspace_id, thread_id = thread.workspace_id, thread.id
+    # First, so a reply never writes into a thread that is gone; the lock the
+    # thread's lookup took is let go, or the reply could not store its end.
+    await run_in_threadpool(session.commit)
+    await runs.stop(thread_id, STOP_SETTLE_SECONDS)
     folder = None
     if thread.opencode_session_id is not None:
         folder = await forget_thread(
@@ -191,10 +227,17 @@ async def send_message(
     payload: MessageCreate,
     session: SessionDep,
     launch_key: LaunchKeyDep,
+    runs: ChatRunsDep,
+    request: Request,
 ) -> StreamingResponse:
+    if runs.get(thread.id) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "this thread is still answering")
     if thread.uses_agent:
-        return await agent_turn(session, thread, payload, launch_key)
-    resolved, history, hits, scope_record = await transact(
+        place = RunPlace(
+            runs, request.app.state.session_factory, request.app.state.broker
+        )
+        return await agent_turn(session, thread, payload, launch_key, place)
+    resolved, history, hits, retried, scope_record = await transact(
         session, _ground, thread, payload
     )
     selected = resolved.selection
@@ -233,16 +276,43 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text, images, scope_record
+            session, _open_turn, thread, payload.text, images, retried, scope_record
         )
         user_created_at = _iso(user_message.created_at)
+        if retried:
+            await transact(session, _sweep_images, thread)
     except Exception:
         await model_activity.release_use(activity_key)
         raise
 
-    async def stream() -> AsyncIterator[bytes]:
+    # The run outlives this request, so it keeps its own session.
+    session_factory = request.app.state.session_factory
+    admission = request.app.state.local_admission
+    local = selected.provider == llamacpp.PROVIDER
+    thread_id, user_id, assistant_id = thread.id, user_message.id, assistant_message.id
+
+    async def stream(run: Run) -> AsyncIterator[bytes]:
+        with session_factory() as session:
+            thread, user_message, assistant_message = await transact(
+                session, _reload_turn, thread_id, user_id, assistant_id
+            )
+            async for frame in _reply(
+                run, session, thread, user_message, assistant_message
+            ):
+                yield frame
+
+    async def _reply(
+        run: Run,
+        session: Session,
+        thread: ChatThread,
+        user_message: ChatMessage,
+        assistant_message: ChatMessage,
+    ) -> AsyncIterator[bytes]:
         parts: list[str] = []
         failed = False
+        answered = False
+        # The error frame's kind and message, stored with the turn as its ending.
+        failure: tuple[str, str] | None = None
         title: str | None = None
         yield _frame(
             {
@@ -258,62 +328,103 @@ async def send_message(
                 "items": [asdict(citation) for citation in citations],
             }
         )
-        if should_generate_title:
-            try:
-                title = await generate_title(generator, selected.name, payload.text)
-                if title:
-                    # Shown optimistically; the rename only commits below if
-                    # this turn ends up with a real reply, keeping a thread
-                    # from staying renamed with nothing in it after a reload.
-                    yield _frame({"type": "thread-title-update", "title": title})
-            except Exception:
-                session.rollback()
-                logger.warning(
-                    "Chat title generation failed for thread %s",
-                    thread.id,
-                    exc_info=True,
-                )
         cited: list[dict] = []
         answer = ""
         assistant_completed_at: str | None = None
         trace = ReasoningTrace()
+        saved_parts = 0
+
+        def unsaved() -> tuple[str, list[dict]] | None:
+            nonlocal saved_parts
+            if len(parts) == saved_parts:
+                return None
+            saved_parts = len(parts)
+            text, used = resolve_citations("".join(parts), citations)
+            return text, [asdict(citation) for citation in used]
+
+        def turn(
+            sent: list[Message], max_tokens: int | None
+        ) -> Callable[[Callable[[int], None]], AbstractAsyncContextManager[None]]:
+            """The local runtime's room for one generation; a remote model has
+            its own servers and never waits here."""
+            return lambda tell: admission.admitted(
+                selected.name, sent, max_tokens, Priority.INTERACTIVE, tell
+            )
+
+        saver = asyncio.create_task(
+            save_while_running(session_factory, assistant_message.id, unsaved)
+        )
         try:
+            if should_generate_title:
+                try:
+                    async with AsyncExitStack() as held:
+                        if local:
+                            async for place in wait_in_line(
+                                held,
+                                turn([Message("user", payload.text)], TITLE_MAX_TOKENS),
+                            ):
+                                run.set_state(RunState("queued", place))
+                        title = await generate_title(
+                            generator, selected.name, payload.text
+                        )
+                    if title:
+                        # Shown optimistically; the rename only commits below if
+                        # this turn ends up with a real reply, keeping a thread
+                        # from staying renamed with nothing in it after a reload.
+                        yield _frame({"type": "thread-title-update", "title": title})
+                except Exception:
+                    await transact(session, _rolled_back)
+                    logger.warning(
+                        "Chat title generation failed for thread %s",
+                        thread.id,
+                        exc_info=True,
+                    )
             try:
-                async for delta in generator.chat_deltas(
-                    selected.name,
-                    messages,
-                    max_tokens=answer_max_tokens(n_ctx),
-                    # None leaves the model to its own default.
-                    reasoning=None if payload.thinking else False,
-                ):
-                    if delta.progress is not None:
-                        yield _frame(
-                            {
-                                "type": "prompt-progress",
-                                "processed": delta.progress.processed,
-                                "total": delta.progress.total,
-                            }
-                        )
-                        continue
-                    if delta.reasoning:
-                        trace.add(delta.text)
-                        yield _frame({"type": "reasoning", "text": delta.text})
-                        continue
-                    if (duration_ms := trace.end()) is not None:
-                        yield _frame(
-                            {"type": "reasoning-end", "duration_ms": duration_ms}
-                        )
-                    parts.append(delta.text)
-                    yield _frame({"type": "delta", "text": delta.text})
+                async with AsyncExitStack() as held:
+                    max_tokens = answer_max_tokens(n_ctx)
+                    if local:
+                        async for place in wait_in_line(
+                            held, turn(messages, max_tokens)
+                        ):
+                            run.set_state(RunState("queued", place))
+                    run.set_state(RunState("running"))
+                    async for delta in generator.chat_deltas(
+                        selected.name,
+                        messages,
+                        max_tokens=max_tokens,
+                        # None leaves the model to its own default.
+                        reasoning=None if payload.thinking else False,
+                    ):
+                        if delta.progress is not None:
+                            yield _frame(
+                                {
+                                    "type": "prompt-progress",
+                                    "processed": delta.progress.processed,
+                                    "total": delta.progress.total,
+                                }
+                            )
+                            continue
+                        if delta.reasoning:
+                            trace.add(delta.text)
+                            yield _frame({"type": "reasoning", "text": delta.text})
+                            continue
+                        if (duration_ms := trace.end()) is not None:
+                            yield _frame(
+                                {"type": "reasoning-end", "duration_ms": duration_ms}
+                            )
+                        parts.append(delta.text)
+                        yield _frame({"type": "delta", "text": delta.text})
                 # A think that used the whole budget never reaches an answer.
                 if (duration_ms := trace.end()) is not None:
                     yield _frame({"type": "reasoning-end", "duration_ms": duration_ms})
+                answered = True
             except Exception as exc:
                 # Surfaced as an event; a turn with no content at all is
                 # discarded below rather than left as an empty, unexplained
                 # reply. `finally` still runs on a client disconnect (that
                 # raises outside Exception), so a partial reply is never lost.
                 kind, message = classify_chat_error(exc, selected.provider)
+                failure = (kind, message)
                 yield _frame(
                     {
                         "type": "error",
@@ -324,27 +435,35 @@ async def send_message(
                 )
                 failed = True
         finally:
-            # Starlette cancels the response task on disconnect. The turn still
-            # has to settle before the request scope disappears.
+            # A stop cancels the run mid-reply; the turn still has to settle.
             with anyio.CancelScope(shield=True):
-                # No answer text is no reply, whether it failed, closed cleanly
-                # or only thought: keeping it would leave a blank bubble and a
-                # rename.
-                if not parts:
+                saver.cancel()
+                await asyncio.gather(saver, return_exceptions=True)
+                if not parts and run.stop_requested:
+                    # Stopped before a word: the person chose to, and there is
+                    # nothing to keep.
                     await transact(
                         session, _discard_turn, user_message, assistant_message
                     )
                     if images:
                         await transact(session, _sweep_images, thread)
                 else:
-                    # A turn worth keeping: commit the deferred rename alongside
-                    # it, so a thread is never renamed unless it ends up with a
-                    # real first reply.
-                    if should_generate_title and title:
+                    # Kept, failed or not: a question that vanished would hide
+                    # what went wrong from a window that was elsewhere. The
+                    # rename waits for a real reply, so a failed first turn
+                    # leaves the thread's name alone.
+                    if parts and should_generate_title and title:
                         await transact(session, _rename, thread, title)
                     # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
                     answer, used = resolve_citations("".join(parts), citations)
                     cited = [asdict(citation) for citation in used]
+                    if not parts and failure is None and answered:
+                        failure = empty_reply_error()
+                    ending = _ending(
+                        failure,
+                        cut_off=not answered and failure is None,
+                        stopped=run.stop_requested,
+                    )
                     await transact(
                         session,
                         _complete,
@@ -352,13 +471,14 @@ async def send_message(
                         answer,
                         cited,
                         trace.stored(),
+                        ending,
                     )
                     assistant_completed_at = _iso(assistant_message.completed_at)
 
         if not parts:
             if not failed:
-                # Discarding the turn removes the person's own message too, so
-                # say so rather than close in silence.
+                # Closing with nothing to say is still a failure the person
+                # should see, not a silent empty reply.
                 kind, message = empty_reply_error()
                 yield _frame(
                     {
@@ -382,27 +502,20 @@ async def send_message(
         )
         yield _DONE
 
-    return StreamingResponse(
-        _release_model_after(stream(), activity_key),
-        media_type="text/event-stream",
-        # Keep a proxy from buffering or caching a live stream into one late blob.
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    broker = request.app.state.broker
+    workspace_id = thread.workspace_id
 
+    async def ended() -> None:
+        await model_activity.release_use(activity_key)
+        notify_run(broker, workspace_id, thread_id, "done")
 
-async def _release_model_after(
-    frames: AsyncIterator[bytes], key: tuple[str, ...]
-) -> AsyncIterator[bytes]:
-    try:
-        async for frame in frames:
-            yield frame
-    finally:
-        with anyio.CancelScope(shield=True):
-            await model_activity.release_use(key)
+    def moved(state: RunState) -> None:
+        notify_run(broker, workspace_id, thread_id, state.state)
+
+    run = runs.start(thread_id, stream, on_end=ended, on_state=moved)
+    notify_run(broker, workspace_id, thread_id, "running")
+    # This request only follows the run: hanging up leaves it generating.
+    return event_stream(run.follow())
 
 
 async def _accepted_images(
@@ -515,9 +628,12 @@ def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]
 
 def _ground(
     session: Session, thread: ChatThread, payload: MessageCreate
-) -> tuple[ResolvedGeneration, Sequence[ChatMessage], list[Hit], dict]:
-    """The model to answer with, the turns so far, the passages to cite, and
-    what the user turn records of the sources it used."""
+) -> tuple[
+    ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage], dict
+]:
+    """The model to answer with, the turns so far, the passages to cite, the
+    failed turn a retry replaces, and what the user turn records of the sources
+    it used."""
     try:
         resolved = resolve_generation(session)
     except ModelResolutionError as error:
@@ -550,6 +666,9 @@ def _ground(
         .where(ChatMessage.chat_thread_id == thread.id)
         .order_by(ChatMessage.created_at)
     ).all()
+    retried = _retried_turn(history, payload.retry_of)
+    if retried:
+        history = history[:-2]
     hits = retrieve(
         session,
         thread.workspace_id,
@@ -557,7 +676,31 @@ def _ground(
         document_ids=payload.document_ids,
         scope=scope,
     )
-    return resolved, history, hits, record
+    return resolved, history, hits, retried, record
+
+
+# The endings a retry may replace. A stopped or completed reply is the
+# person's own result, not a failure to try again.
+_RETRYABLE = frozenset({"error", "interrupted"})
+
+
+def _retried_turn(
+    history: Sequence[ChatMessage], retry_of: int | None
+) -> list[ChatMessage]:
+    """The failed pair `retry_of` names, which must be the thread's latest."""
+    if retry_of is None:
+        return []
+    latest = list(history[-2:])
+    if (
+        len(latest) != 2
+        or latest[1].id != retry_of
+        or latest[1].role is not MessageRole.ASSISTANT
+        or latest[1].content.get("ending", {}).get("type") not in _RETRYABLE
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "only the latest failed reply can be retried"
+        )
+    return latest
 
 
 def _open_turn(
@@ -565,8 +708,13 @@ def _open_turn(
     thread: ChatThread,
     text: str,
     images: list[NormalisedImage],
+    replaces: list[ChatMessage],
     scope_record: dict,
 ) -> tuple[ChatMessage, ChatMessage]:
+    # In the same transaction as the new turn, so a retry never shows the
+    # question twice or loses it.
+    for message in replaces:
+        session.delete(message)
     references = [
         store.store(image, thread.workspace_id, thread.id) for image in images
     ]
@@ -588,6 +736,17 @@ def _open_turn(
     session.flush()
     session.refresh(user_message)  # created_at is server-side; load it here
     return user_message, assistant_message
+
+
+def _reload_turn(
+    session: Session, thread_id: int, user_id: int, assistant_id: int
+) -> tuple[ChatThread, ChatMessage, ChatMessage]:
+    """The turn's rows in the run's own session."""
+    return (
+        session.get_one(ChatThread, thread_id),
+        session.get_one(ChatMessage, user_id),
+        session.get_one(ChatMessage, assistant_id),
+    )
 
 
 def _sweep_images(session: Session, thread: ChatThread) -> None:
@@ -618,11 +777,34 @@ def _complete(
     answer: str,
     cited: list[dict],
     reasoning: dict | None,
+    ending: dict | None = None,
 ) -> None:
     message.content = {"text": answer, "citations": cited}
     if reasoning is not None:
         message.content["reasoning"] = reasoning
+    if ending is not None:
+        message.content["ending"] = ending
     message.completed_at = datetime.now(UTC)
+
+
+def _ending(
+    failure: tuple[str, str] | None, *, cut_off: bool, stopped: bool
+) -> dict | None:
+    """How the turn ended, stored with it; None for a reply that completed.
+
+    A run cut off without a stop is the app going away under it.
+    """
+    if failure is not None:
+        kind, message = failure
+        return {"type": "error", "kind": kind, "message": message}
+    if cut_off:
+        return {"type": "stopped"} if stopped else {"type": "interrupted"}
+    return None
+
+
+def _rolled_back(session: Session) -> None:
+    """Drop whatever a failed title left half done, off the event loop."""
+    session.rollback()
 
 
 def _iso(instant: datetime) -> str:

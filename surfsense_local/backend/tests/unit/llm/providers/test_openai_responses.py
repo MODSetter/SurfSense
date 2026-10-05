@@ -248,3 +248,145 @@ async def test_the_plans_listed_models_are_its_models() -> None:
     models = await _provider(handler).models()
 
     assert [(m.name, m.display_name) for m in models] == [("gpt-5", "GPT-5")]
+
+
+class Pauses:
+    """The waits between retries, recorded instead of slept."""
+
+    def __init__(self) -> None:
+        self.waited: list[float] = []
+
+    async def __call__(self, seconds: float) -> None:
+        self.waited.append(seconds)
+
+
+def _answering(*statuses: int, headers: dict | None = None):
+    """Refuse with each status in turn, then answer."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if len(seen) <= len(statuses):
+            return httpx.Response(
+                statuses[len(seen) - 1],
+                json={"error": {"message": "busy"}},
+                headers=headers or {},
+            )
+        return httpx.Response(200, text=_text("Hel", "lo"))
+
+    return handler, seen
+
+
+async def test_a_brief_throttle_is_retried_after_the_wait_it_asks_for() -> None:
+    """A moment's throttling is waited out instead of failing the reply."""
+    handler, seen = _answering(429, headers={"retry-after": "1"})
+    pauses = Pauses()
+    provider = ResponsesChatProvider(
+        BASE, Tokens("t1"), transport=httpx.MockTransport(handler), pause=pauses
+    )
+
+    answer = "".join([t async for t in provider.chat("gpt-5", [Message("user", "hi")])])
+
+    assert answer == "Hello"
+    assert pauses.waited == [1.0]
+    assert len(seen) == 2
+
+
+async def test_a_wait_stated_in_milliseconds_is_honoured() -> None:
+    """The finer of the two headers wins when the endpoint sends it."""
+    handler, _seen = _answering(503, headers={"retry-after-ms": "1500"})
+    pauses = Pauses()
+    provider = ResponsesChatProvider(
+        BASE, Tokens("t1"), transport=httpx.MockTransport(handler), pause=pauses
+    )
+
+    async for _ in provider.chat("gpt-5", [Message("user", "hi")]):
+        pass
+
+    assert pauses.waited == [1.5]
+
+
+async def test_a_long_wait_is_capped_at_a_minute() -> None:
+    """A reply never sits silent for minutes on the endpoint's say-so."""
+    handler, _seen = _answering(429, headers={"retry-after": "300"})
+    pauses = Pauses()
+    provider = ResponsesChatProvider(
+        BASE, Tokens("t1"), transport=httpx.MockTransport(handler), pause=pauses
+    )
+
+    async for _ in provider.chat("gpt-5", [Message("user", "hi")]):
+        pass
+
+    assert pauses.waited == [60.0]
+
+
+async def test_it_gives_up_after_two_retries_with_the_last_status() -> None:
+    """A failure that outlasts two waits is the run's failure, kept as it is."""
+    handler, seen = _answering(503, 503, 503)
+    pauses = Pauses()
+    provider = ResponsesChatProvider(
+        BASE, Tokens("t1"), transport=httpx.MockTransport(handler), pause=pauses
+    )
+
+    with pytest.raises(httpx.HTTPStatusError) as failed:
+        async for _ in provider.chat("gpt-5", [Message("user", "hi")]):
+            pass
+
+    assert failed.value.response.status_code == 503
+    assert pauses.waited == [1.0, 2.0]
+    assert len(seen) == 3
+
+
+async def test_a_used_up_plan_is_never_retried() -> None:
+    """No wait clears it: the plan's limit resets on its own schedule."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            429,
+            json={
+                "error": {
+                    "code": "subscription_sharing_usage_limit_exceeded",
+                    "message": "Limit.",
+                }
+            },
+        )
+
+    pauses = Pauses()
+    provider = ResponsesChatProvider(
+        BASE, Tokens("t1"), transport=httpx.MockTransport(handler), pause=pauses
+    )
+
+    with pytest.raises(PlanLimitError):
+        async for _ in provider.chat("gpt-5", [Message("user", "hi")]):
+            pass
+
+    assert (pauses.waited, len(seen)) == ([], 1)
+
+
+async def test_stopping_during_a_wait_sends_nothing_more() -> None:
+    """Stop ends the wait at once, without a request it no longer wants."""
+    import asyncio
+
+    handler, seen = _answering(429, headers={"retry-after": "30"})
+    waiting = asyncio.Event()
+
+    async def pause(_seconds: float) -> None:
+        waiting.set()
+        await asyncio.Event().wait()
+
+    provider = ResponsesChatProvider(
+        BASE, Tokens("t1"), transport=httpx.MockTransport(handler), pause=pause
+    )
+
+    async def consume() -> None:
+        async for _ in provider.chat("gpt-5", [Message("user", "hi")]):
+            pass
+
+    task = asyncio.create_task(consume())
+    await waiting.wait()
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+    assert len(seen) == 1
