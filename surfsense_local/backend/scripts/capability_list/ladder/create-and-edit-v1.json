@@ -1,0 +1,262 @@
+{
+  "suite": "create-and-edit",
+  "suite_version": 1,
+  "provisional": true,
+  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific",
+  "cases": {
+    "smoke": {
+      "image_only": false,
+      "required": true
+    },
+    "images-reach-the-model": {
+      "image_only": true,
+      "required": false
+    },
+    "demo-flow": {
+      "image_only": false,
+      "required": true
+    },
+    "pdf-brief": {
+      "image_only": false,
+      "required": false
+    },
+    "spreadsheet-report": {
+      "image_only": false,
+      "required": false
+    },
+    "memo-restructure": {
+      "image_only": false,
+      "required": false
+    },
+    "figure-swap": {
+      "image_only": true,
+      "required": false
+    },
+    "board-pack": {
+      "image_only": false,
+      "required": false
+    }
+  },
+  "models": [
+    {
+      "model_id": "claude-sonnet-5-5",
+      "provider": "anthropic",
+      "host": "api.anthropic.com",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed all 8 cases, on the code the cases were written against.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "pass",
+        "memo-restructure": "pass",
+        "figure-swap": "pass",
+        "board-pack": "pass"
+      }
+    },
+    {
+      "model_id": "claude-opus-5-5",
+      "provider": "anthropic",
+      "host": "api.anthropic.com",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed all 8 cases and opened every page it rendered.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "pass",
+        "memo-restructure": "pass",
+        "figure-swap": "pass",
+        "board-pack": "pass"
+      }
+    },
+    {
+      "model_id": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "host": "api.anthropic.com",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed 5 of 8; in the other 3 it did not open its page previews, so ask it to check each page.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "fail:skipped_preview_check",
+        "memo-restructure": "fail:skipped_preview_check",
+        "figure-swap": "pass",
+        "board-pack": "fail:skipped_preview_check"
+      }
+    },
+    {
+      "model_id": "moonshotai/kimi-k3",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed all 8 cases and checked every page it rendered.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "pass",
+        "memo-restructure": "pass",
+        "figure-swap": "pass",
+        "board-pack": "pass"
+      }
+    },
+    {
+      "model_id": "z-ai/glm-5.3",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": false,
+      "note": "Text-only: passed every case that needs no image; it cannot read a chart's values off a figure.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "n/a",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "pass",
+        "memo-restructure": "pass",
+        "figure-swap": "fail:text_only",
+        "board-pack": "pass"
+      }
+    },
+    {
+      "model_id": "deepseek/deepseek-v4-pro-0813",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": false,
+      "note": "Text-only: passed every case that needs no image; it cannot read a chart's values off a figure.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "n/a",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "pass",
+        "memo-restructure": "pass",
+        "figure-swap": "fail:text_only",
+        "board-pack": "pass"
+      }
+    },
+    {
+      "model_id": "qwen/qwen3.8-27b",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed all 8 cases and checked every page it rendered.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "pass",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "pass",
+        "memo-restructure": "pass",
+        "figure-swap": "pass",
+        "board-pack": "pass"
+      }
+    },
+    {
+      "model_id": "qwen/qwen3.6-35b-a3b",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed 4 of 8; looped without rendering in the demo and retyped preview paths wrongly.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "fail:looped",
+        "pdf-brief": "pass",
+        "spreadsheet-report": "fail:retyped_preview_path",
+        "memo-restructure": "pass",
+        "figure-swap": "fail:retyped_preview_path",
+        "board-pack": "fail:did_not_say_assumption"
+      }
+    },
+    {
+      "model_id": "google/gemma-4-31b-it",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed 2 of 8; never opened its page previews and made a new document instead of a version.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "fail:left_out_artifact_id",
+        "pdf-brief": "fail:skipped_preview_check",
+        "spreadsheet-report": "fail:skipped_preview_check",
+        "memo-restructure": "fail:skipped_preview_check",
+        "figure-swap": "fail:skipped_preview_check",
+        "board-pack": "fail:made_no_document"
+      }
+    },
+    {
+      "model_id": "mistralai/ministral-14b-2512",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed 3 of 8; skipped its page previews and made no document for a request that named no format.",
+      "also": [],
+      "cases": {
+        "smoke": "pass",
+        "images-reach-the-model": "pass",
+        "demo-flow": "pass",
+        "pdf-brief": "fail:skipped_preview_check",
+        "spreadsheet-report": "fail:skipped_preview_check",
+        "memo-restructure": "fail:skipped_preview_check",
+        "figure-swap": "fail:skipped_preview_check",
+        "board-pack": "fail:made_no_document"
+      }
+    },
+    {
+      "model_id": "qwen/qwen3.5-9b",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "served": "remote",
+      "date": "2026-10-04",
+      "reads_images": true,
+      "note": "Passed 1 of 8; many script errors, a silently dropped logo and no citation marker.",
+      "also": [],
+      "cases": {
+        "smoke": "fail:no_citation_marker",
+        "images-reach-the-model": "pass",
+        "demo-flow": "fail:left_image_out",
+        "pdf-brief": "fail:skipped_preview_check",
+        "spreadsheet-report": "fail:skipped_preview_check",
+        "memo-restructure": "fail:skipped_preview_check",
+        "figure-swap": "fail:skipped_preview_check",
+        "board-pack": "fail:made_no_document"
+      }
+    }
+  ]
+}

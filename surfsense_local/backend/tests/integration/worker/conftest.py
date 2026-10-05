@@ -32,6 +32,7 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
         {
             "provider": "fake",
             "name": "fake",
+            "connection": None,
             "tier": Tier.COMPACT,
             "fingerprint": Fingerprint("fake", "fake"),
         },

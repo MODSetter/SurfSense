@@ -67,6 +67,7 @@ def _resolve(monkeypatch: pytest.MonkeyPatch, provider: str) -> None:
         {
             "provider": provider,
             "name": "Qwen3-4B",
+            "connection": None,
             "tier": Tier.CAPABLE,
             "fingerprint": Fingerprint(provider, "Qwen3-4B"),
         },

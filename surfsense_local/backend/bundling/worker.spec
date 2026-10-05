@@ -38,6 +38,14 @@ datas.append(
         "modules/llm/catalog/local/manifest",
     )
 )
+# Studio's Word and PDF path follows the measured level; without the list a
+# frozen build drafts every remote model by script and every local one by Markdown.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "capability" / "measured" / "capabilities.json"),
+        "modules/llm/capability/measured",
+    )
+)
 
 for package in (
     "onnxruntime",
