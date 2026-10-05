@@ -16,7 +16,7 @@ Today a reply belongs to the HTTP request that asked for it. `POST /chat/threads
 
 The local runtime serves one request at a time: every preset pins `parallel = 1` ([runtime](../../architecture/local-models/runtime.md), The preset file). The fit estimate assumes the same: `n_seq_max` is 1 in [`kv_cells.py`](../../../surfsense_local/backend/modules/llm/fit/kv_cells.py) and `SLOTS = 1` in [`compute_buffers.py`](../../../surfsense_local/backend/modules/llm/fit/compute_buffers.py).
 
-Background runs cover chat threads. Agent threads keep today's behaviour, where closing the stream stops the turn; their requests still pass admission, because they share llama-server's cache.
+Background runs cover chat threads on every chat model: the local runtime, remote connections and a ChatGPT subscription. Agent threads keep today's behaviour, where closing the stream stops the turn; their requests still pass admission, because they share llama-server's cache.
 
 Facts are checked against this repo and llama.cpp `b11050` (the build the app pins) as of 5 Oct 2026.
 
@@ -24,7 +24,7 @@ Facts are checked against this repo and llama.cpp `b11050` (the build the app pi
 
 | Part | File | Delivers | Depends on |
 |---|---|---|---|
-| **Runs** | [`01-runs.md`](01-runs.md) | replies survive switching threads and reloads; running, queued and unread threads show in the Chats dialog and on the sidebar's Chats button; Stop is its own route | nothing |
+| **Runs** | [`01-runs.md`](01-runs.md) | replies, local or remote, survive switching threads and reloads; running, queued and unread threads show in the Chats dialog and on the sidebar's Chats button; Stop is its own route | nothing |
 | **Admission** | [`02-admission.md`](02-admission.md) | one queue in front of llama-server for chat, agent and Studio; a visible "waiting" state; chat ahead of Studio | runs |
 | **Parallel slots** | [`03-parallel-slots.md`](03-parallel-slots.md) | up to four local replies at once from one shared cache | admission |
 | **Partial replies** | [`04-partial-replies.md`](04-partial-replies.md) | a quit or crash keeps the reply's text and the user's question, marked cut off | runs |
@@ -45,7 +45,7 @@ Each part ships on its own. Parallel slots never ship without admission: with a 
 | Who reaches llama-server to generate | Only the API. The agent already does, through its model endpoint ([agent](../../architecture/agent.md), The model endpoint); Studio's worker moves behind the API too. |
 | Where admission sits | In process for the API's own calls and for the agent's model endpoint, which already runs in the API. An HTTP gateway only for Studio, the one caller in another process. |
 | Admission | A slot and a token budget, both read from what llama-server reports it allocated. First come, first served, with interactive work ahead of Studio and no ageing. A prompt's cost is estimated, not counted. |
-| Remote connections | Run in the background like local ones, with no admission. |
+| Remote models | Remote connections and a ChatGPT subscription run in the background like the local runtime, with no admission: they never queue, several can run against one provider at once, and a rate or usage limit ends a run with the error the chat already classifies ([`01-runs.md`](01-runs.md), Remote models). |
 | Slots | Ask for four on every backend, with one unified cache. When four are not resident even at an 8,192 window, step down one slot at a time, then widen the window as far as that count allows. A model that spills even at one slot keeps four. Metal keeps four. No per-machine measurement gates it: what slots change is llama.cpp's own arithmetic, and `--fit` spills rather than fails ([`03-parallel-slots.md`](03-parallel-slots.md)). |
 
 ## Out of scope

@@ -28,7 +28,7 @@ The backstop, for a crash, and for a stop-all that runs out of time. While a run
 
 `_complete` overwrites the whole content at the end, so the last save never conflicts with the final write. The window following a run renders its live copy while the run is going and ignores stored turns until it ends (`usesLiveMessages`), so a save never shows twice there. A window that reopens a running thread must show the run's replay rather than the saved text, which [`01-runs.md`](01-runs.md) owns.
 
-Agent turns are stored by opencode, not in this row, and are not affected.
+All of this holds for every chat model, local or remote: a run on a remote connection is stopped before a quit, saved while live and settled at startup the same way. Agent turns are stored by opencode, not in this row, and are not affected.
 
 ## At startup
 

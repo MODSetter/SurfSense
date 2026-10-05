@@ -1,16 +1,25 @@
 # Runs
 
-A run is one chat reply being generated. The API starts it as a background task and keeps it until it ends; any number of connections can follow it, and losing all of them does not stop it. Reloading the window, switching thread or switching workspace drops a follower, never the run.
+A run is one chat reply being generated, by any chat model: the local runtime, a remote connection, or a ChatGPT subscription. The API starts it as a background task and keeps it until it ends; any number of connections can follow it, and losing all of them does not stop it. Reloading the window, switching thread or switching workspace drops a follower, never the run.
 
 ## The run
 
 - **Keyed by thread.** At most one active run per thread, held in an in-memory registry in the API process. A send to a thread with an active run is `409`.
-- **What it runs.** The generator that `POST .../messages` drives today for a chat thread, unchanged. The run task reads it to the end; the response no longer does.
+- **What it runs.** The generator that `POST .../messages` drives today for a chat thread, unchanged. The run task reads it to the end; the response no longer does. The generator is the same whichever provider answers, so the run is too.
 - **Agent threads are not runs.** Their turns stream as today and end when the stream closes. They keep their turns in opencode, so nothing below about stored endings, Retry or history applies to them.
 - **What it holds.** Every frame the generator yields, in order, each with a sequence number starting at 1, plus its state: `queued` or `running`. A run is held only while it is active.
 - **What it owns.** The model's in-use mark and the cleanup the response's shielded `finally` does today: storing the reply and how it ended, and releasing the mark. Moving them from the response to the run removes the reason for the shield.
 - **It leaves the registry only after its reply is stored.** So there is no moment when the run is gone and the database does not yet hold its reply. A follower that arrives after that gets `404` and reads the stored turns, which hold everything the run sent.
 - **Storage is unchanged otherwise.** Both turns are written before the run starts, the assistant turn when it ends ([chat](../../architecture/chat.md), The stream). Saving a live run's text is [`04-partial-replies.md`](04-partial-replies.md).
+
+## Remote models
+
+A run on a remote connection or a ChatGPT subscription is the same run: it survives a disconnect, replays from `after`, stores how it ended, and is saved and settled on a quit as a local one is. What differs comes from the provider being elsewhere:
+
+- **It never queues.** Admission ([`02-admission.md`](02-admission.md)) covers the local runtime only, so a remote run starts at once, goes straight to `running`, and never shows "Waiting".
+- **Several run against the provider at once.** Each running thread is its own request, so a provider's rate limit or a subscription's usage limit can end one. It ends as the error the chat already classifies, `provider_rate_limited` or `subscription_limit` ([`errors.py`](../../../surfsense_local/backend/modules/chat/errors.py)), stored as the turn's `ending` with its notice. Limiting how many run at once per connection is out of scope.
+- **Stop and quit close the request.** Cancelling a run closes its stream to the provider. Whether the provider stops generating, and billing, on its side when the stream closes is up to the provider.
+- **Egress is checked when the run starts,** as today: resolving the selection refuses a host the user has not allowed before anything is stored (`_connection` in [`resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py)). A host refused while a run is live does not end it.
 
 ## How a turn ends
 
@@ -132,7 +141,6 @@ All new text goes into the interface messages and is translated with the rest.
 - **The API cannot outlive the app.** It is a child of Electron on loopback, so when it is gone there is no client left to replay to.
 - **The database already holds the result.** The run stores its reply and its ending before it leaves the registry, so a follower that comes back later reads the stored turns.
 - **Every write contends for one file.** Each transaction takes the lock with `BEGIN IMMEDIATE`, and ingest writes to the same file ([overview](../../architecture/overview.md), Layer boundary). Storing deltas would add a write stream per running reply for nothing the API does not already have.
-- **The run sits above the provider,** so a remote connection gets background runs as a local model does.
 
 ## When this ships
 
@@ -153,6 +161,8 @@ At the HTTP seam, against a scripted generator:
 - `retry_of` on the latest failed turn deletes that pair and stores the new one; on any other turn it is `409`.
 - History for the next turn skips a failed pair with no text and keeps a failed reply with text.
 - Deleting a thread with a run ends the run.
+- Against a scripted remote endpoint: a run survives its follower disconnecting and replays from `after=0` as a local one does; it goes straight to `running` with no queue; a `429` stores the turn with `ending` `provider_rate_limited`; Stop closes the request to the endpoint.
+- Two threads on the same remote connection run at the same time.
 - A send to an agent thread streams as today, and closing its stream stops the turn.
 
 In the frontend, against a scripted stream:
