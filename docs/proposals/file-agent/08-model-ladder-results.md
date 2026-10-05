@@ -1,6 +1,6 @@
 # Model ladder: first results
 
-The eight live cases of the [create-and-edit slice](07-create-and-edit-mvp.md) were run on Claude Opus 5.5 and Claude Haiku 4.5, beside the Sonnet 5.5 runs that wrote them. Opus passed all eight on the first try. Haiku passed five. Its three failures had one cause: on the first turn it did not open every page preview of the document it ended on, which the skill asks for. The edit turns of those three cases were therefore never reached. This is the first measured row toward [05](05-model-ladder-and-evals.md)'s matrix. In 05's terms it is screening: one run per cell in the dev setup, not a committed row. Eight open models then ran the same cases through OpenRouter ([below](#open-models-through-openrouter)). Kimi K3 and Qwen3.8-27B passed all eight. The text-only GLM-5.3 and DeepSeek V4 Pro failed only the case that needs image input. From Gemma 4 31B and Qwen3.6-35B-A3B (about 3B active) down, the models stopped checking their pages, invented drawing APIs and lost track of versions, and no 8–14B model passed the document cases.
+The eight live cases of the [create-and-edit slice](07-create-and-edit-mvp.md) were run on Claude Opus 5.5 and Claude Haiku 4.5, beside the Sonnet 5.5 runs that wrote them. Opus passed all eight on the first try. Haiku passed five. Its three failures had one cause: on the first turn it did not open every page preview of the document it ended on, which the skill asks for. The edit turns of those three cases were therefore never reached. This is the first measured row toward [05](05-model-ladder-and-evals.md)'s matrix. In 05's terms it is screening: one run per cell in the dev setup, not a committed row. Eight open models then ran the same cases through OpenRouter ([below](#open-models-through-openrouter)). Kimi K3 and Qwen3.8-27B passed all eight. The text-only GLM-5.3 and DeepSeek V4 Pro failed only the case that needs image input. From Gemma 4 31B and Qwen3.6-35B-A3B (about 3B active) down, the models stopped checking their pages, invented drawing APIs and lost track of versions, and no 8–14B model passed the document cases. With the page previews then sent inline with the render's result ([below](#page-previews-inline)), every page drawn reached the model in all 58 runs, and the cells that had failed on it now fail, when they do, at later checks.
 
 ## What was run
 
@@ -73,6 +73,8 @@ These are what the failures point to. None was made here: the ladder measures, a
 - **Reply shape.** The one-line plan Opus writes before a re-render ("I'll keep the table together and fix the widths.") ends up at the top of its final answer, because `b61d458cb` keeps a reply's steps as paragraphs. The next paragraph usually says it again. Showing text written before a tool call as a step, not as part of the answer, would fix it.
 - **Caching.** 0 cache reads on every Claude run makes each run dearer and slower than it needs to be. 05's native Anthropic path ([section 2](05-model-ladder-and-evals.md#2-serving-claude-to-opencode)) is the fix, and a re-run of this matrix on that path measures it.
 - **Harness.** `SpendLedger.add` guards its read-modify-write only within one process, and every process writes the same temporary file name. Concurrent runners sharing one `spend.json` could lose a charge. Each runner should get its own `SURFSENSE_LIVE_RUNS_DIR`, or the ledger should get a file lock.
+
+**Since these runs, the previews are inline.** The first option of the tool change is built: `surfsense_render_document` and `surfsense_source_pages` return each page drawn as an image item after their text, a 750,000-pixel JPEG at quality 80, which opencode attaches to the next request, so there is no step to skip and no path to retype. The skill and the prompt say to look at every page the result shows. The harness counts a page as checked only when that exact image reached the model in a request that came back 200 ([agent](../../architecture/agent.md#documents-the-agent-makes)). The re-run of the failed cells, with Opus and Kimi K3 as controls, is [below](#page-previews-inline).
 
 ## Open models through OpenRouter
 
@@ -233,6 +235,110 @@ None of these changes was made here, for the same reason as above: the ladder me
 - **Case: the demo's chart check.** Any two pictures pass it, so placing the source figure passes without drawing the requested chart. Kimi, GLM and Qwen3.8 each placed or kept the source figure.
 - **Case: board pack's assumption check.** It looks for particular words. Qwen3.6 stated its format choice in other words and failed it.
 - **Harness: the ledger's estimate for a cut-off request.** The estimate can charge more prompt than the model's window holds. On Qwen3.6 it charged 393K to 492K cache-write tokens on a 262K-token model. Capping the estimate at the window would bring the ledger closer to the bill.
+
+## Page previews inline
+
+The first tool change above was built, and the cells whose models skipped or mistyped previews ran again, with Opus and Kimi K3 as controls. In 58 runs every page the agent drew reached the model, and no preview was opened with `read`, so no page went twice. Of the 10 cells the preview check had failed above, 9 passed at least once and 17 of their 30 runs passed. Haiku's spreadsheet report passed 3 of 3 and its memo 2 of 3, Qwen3.6-35B-A3B's figure swap 3 of 3, and Ministral 14B's spreadsheet report 3 of 3. The runs that still fail stop at later checks: a wrong sum, a lost `artifact_id`, an unnumbered heading, an answer with no stated assumption. The controls held, Opus at 3 of 3 and Kimi at 7 of 8, and they took fewer requests on most cases. A model that reads images now passes the preview check whenever delivery works, so the check no longer shows that it looked with care. Haiku still never rendered again after a look.
+
+### What changed
+
+- **The tool.** `surfsense_render_document` and `surfsense_source_pages` return each page they draw as an image item after their text: a JPEG of at most 750,000 pixels at quality 80, about 728×1030 and about 1,000 Anthropic tokens for an A4 page. The 1000-px PNGs stay on disk for a closer look with `read`. opencode sends the images to the model in a user message right after the tool call. The result says the pages "come with this result as images, in order" and no longer lists one path per page. A model that does not read images gets none.
+- **The skill and the prompt.** Both say to look at every page the result shows before answering, and to render again when one is wrong ([agent](../../architecture/agent.md#previews)).
+- **The check.** A page counts as checked when the exact JPEG the render made reached the model in a request that came back 200, or when the model opened it with `read` (`pages_sent_inline` in [`turn_renders.py`](../../../surfsense_local/backend/tests/live/turn_renders.py)). The images case now requires the inline page, and still checks the description.
+- **Not changed.** Images piling up in a thread have no cap: every page stays in each later request until opencode compacts the turn.
+
+### What was run
+
+- **When.** 4 Oct 2026, 19:46 to 21:32 Pacific (02:46 to 04:32 UTC on 5 Oct).
+- **Code.** `slice/inline-previews`: `af86482f2`, which is `slice/agent-formats` with the ladder's harness, plus the inline change. The columns above ran on `dev_mod` at `6fd13c530`. This base also has decks, workbooks and templates from sources, so the skill now offers PowerPoint and Excel as well. The harness, the providers and OpenRouter's routing were as above, with one `SURFSENSE_LIVE_RUNS_DIR` per model. No code changed during the runs.
+- **Cells.**
+
+  | Model | Cases | Runs |
+  |---|---|---|
+  | Haiku 4.5 | spreadsheet report, memo restructure, board pack | 3 each |
+  | Ministral 14B | PDF brief, memo restructure, figure swap, spreadsheet report | 3 each |
+  | Qwen3.6-35B-A3B | figure swap, spreadsheet report (not the demo, whose failure was an 82-call `skill` loop) | 3 each |
+  | Gemma 4 31B | smoke and images; PDF brief, demo and the four cases it never reached | 1; 3 each |
+  | Kimi K3 (control) | all eight | 1 |
+  | Opus 5.5 (control) | images, PDF brief, demo | 1 |
+
+  The rule was 3 runs on any cell whose outcome changed. Every Gemma document cell changed, the PDF brief and the demo from a failure and the other four from "not run", so all six ran twice more. Smoke and images, passes before and after, ran once. Ministral's board pack, which rendered nothing, was not re-run. No failure looked transient, so none was repeated.
+- **Cost.** As above, the ledger charges the listing and the bill is the provider's. The ledgers total $6.13: Opus $4.20, Haiku $0.73, Kimi $0.88, Gemma $0.16, Qwen3.6 $0.09 and Ministral $0.06. The bill was about $5.33: Opus $2.64 by reported usage, Kimi $1.09, Haiku $0.73, Gemma $0.72 (its hosts charge about 4 times the listing, as above), Qwen3.6 $0.09 and Ministral $0.06. OpenRouter's Kimi K3 listing had dropped to $0.67 input and $0.22 cache read per million, so compare Kimi by the bill. Run folders are under `references/live-runs/ladder-inline/`, which git ignores, one folder per model with its own `spend.json`.
+
+### Before and after
+
+The first-run column is the outcome above (n=1, except Haiku's memo, 0 of 3 with the extra runs). Cost is the bill per run, averaged over the cell's runs; on Anthropic it is the reported usage. Requests are per run, averaged and rounded.
+
+| Model | Case | First run | Inline | Bill a run, first → inline | Requests a run, first → inline |
+|---|---|---|---|---|---|
+| Opus 5.5 | Images | pass | 1 of 1 | $0.18 → $0.16 | 4 → 3 |
+| Opus 5.5 | PDF brief | pass | 1 of 1 | $0.70 → $1.05 | 9 → 10 |
+| Opus 5.5 | Demo | pass | 1 of 1 | $2.02 → $1.42 | 16 → 10 |
+| Haiku 4.5 | Spreadsheet report | fail | **3 of 3** | $0.07 → $0.11 | 7 → 8 |
+| Haiku 4.5 | Memo restructure | 0 of 3 | **2 of 3** | $0.05 → $0.10 | 5 → 7 |
+| Haiku 4.5 | Board pack | fail | 0 of 3 | $0.06 → $0.04 | 5 → 3 |
+| Ministral 14B | PDF brief | fail | 1 of 3 | $0.003 → $0.007 | 6 → 9 |
+| Ministral 14B | Spreadsheet report | fail | **3 of 3** | $0.002 → $0.005 | 6 → 9 |
+| Ministral 14B | Memo restructure | fail | 1 of 3 | $0.002 → $0.006 | 4 → 9 |
+| Ministral 14B | Figure swap | fail | 1 of 3 | $0.003 → $0.004 | 7 → 7 |
+| Qwen3.6-35B-A3B | Figure swap | fail | **3 of 3** | $0.006 → $0.012 | 7 → 11 |
+| Qwen3.6-35B-A3B | Spreadsheet report | fail | **2 of 3** | $0.005 → $0.017 | 5 → 10 |
+| Gemma 4 31B | Smoke | pass | 1 of 1 | $0.001 → $0.001 | 2 → 2 |
+| Gemma 4 31B | Images | pass | 1 of 1 | $0.02 → $0.05 | 8 → 11 |
+| Gemma 4 31B | Demo | fail | 1 of 3 | $0.04 → $0.07 | 11 → 16 |
+| Gemma 4 31B | PDF brief | fail | 1 of 3 | $0.01 → $0.04 | 4 → 8 |
+| Gemma 4 31B | Memo restructure | not run | 0 of 3 | $0.03 | 8 |
+| Gemma 4 31B | Figure swap | not run | 1 of 3 | $0.03 | 10 |
+| Gemma 4 31B | Board pack | not run | 0 of 3 | $0.02 | 6 |
+| Gemma 4 31B | Spreadsheet report | not run | 2 of 3 | $0.03 | 7 |
+| Kimi K3 | Smoke | pass | 1 of 1 | $0.02 → $0.01 | 2 → 2 |
+| Kimi K3 | Images | pass | 1 of 1 | $0.05 → $0.03 | 4 → 3 |
+| Kimi K3 | Demo | pass | 1 of 1 | $0.71 → $0.38 | 19 → 12 |
+| Kimi K3 | PDF brief | pass | 1 of 1 | $0.20 → $0.17 | 10 → 7 |
+| Kimi K3 | Spreadsheet report | pass | 1 of 1 | $0.14 → $0.18 | 10 → 8 |
+| Kimi K3 | Memo restructure | pass | **0 of 1** | $0.15 → $0.09 | 10 → 8 |
+| Kimi K3 | Figure swap | pass | 1 of 1 | $0.14 → $0.07 | 11 → 9 |
+| Kimi K3 | Board pack | pass | 1 of 1 | $0.29 → $0.17 | 13 → 9 |
+
+**Reading the cost.**
+
+- **Cells that failed before cost more, because they now get further.** The first Haiku, Ministral and Qwen3.6 failures stopped at turn 1, and most of these runs reach turn 2. Haiku's passing spreadsheet report cost $0.11 a run; Opus's cost $1.23 the first time.
+- **Models that already looked pay less.** The pages come with the render instead of in a `read` call each, and an A4 page is about 1,000 tokens instead of the PNG's 1,890. The bill fell on 9 of the 11 control cells. Opus's demo went from 16 requests and $2.02 to 10 and $1.42, and from 4.3 to 3.3 minutes. Kimi's went from 19 requests in 13.3 minutes to 12 in 3.7, though its hosts' speed varies: its images case took 4.8 minutes for 3 requests on slow upstreams (Makora, InferenceNet).
+- **Opus's PDF brief rose,** from $0.70 to $1.05, with one more request and a re-render after its first look. Its ledger shows $2.62 because 2 dropped requests were charged at worst case.
+- **What the images themselves cost.** Counted at Anthropic's rate of one token per 750 pixels, images were 2% to 34% of a run's input tokens, most in the demo. Opus's demo sent up to 8 JPEGs in one request (about 9.9K tokens), and images were about 15% of its input, about $0.16 of its $1.42. The most in one request was 12, in a Gemma demo (about 15.8K tokens).
+
+### Failures
+
+No run failed the preview check. Every render that drew pages had them matched by exact JPEG in a request that came back 200. Each failure carries one of 05's triage labels. The folders are under the model's folder in `ladder-inline/` and start with the stamp given.
+
+- **A wrong sum. Ministral, PDF brief, runs 1 and 3: `model`.** The table total came out as 49,800 and 36,850 EUR, not 39,800, so the check that 39,800 is bold failed. Run 1 had 4 failed renders first. `20261005T030123Z`, `20261005T031123Z`
+- **A lost `artifact_id`: `model`.** The edit rendered without `artifact_id`, so it made a new document instead of the next version.
+  - Ministral, memo restructure, runs 1 and 3. Run 3 lost it after 3 failed renders. `20261005T030338Z`, `20261005T031425Z`
+  - Qwen3.6, spreadsheet report, run 2. Turn 2 had 5 failed renders, one started a new document, and the line chart became v2 of that one. `20261005T032145Z`
+  - Gemma: PDF brief runs 1 and 2, spreadsheet report run 1, demo run 3 and figure swap run 3 (below). `20261005T032624Z`, `20261005T040354Z`, `20261005T033727Z`
+- **Gemma, demo, run 3: `model`.** Turn 2 made 8 renders, 4 of which failed with FileNotFoundError on the logo. None passed `artifact_id` or listed the images, so each made a new document (artifacts 2 to 9) and Word never reached v2. The answer said the logo was on the cover. `20261005T041800Z`
+- **Gemma, figure swap, runs 2 and 3: `model`.** Run 2 failed 3 renders on the chart image, because it had not listed the chart in `images` or had given a wrong path. It stopped at the third failure, as the skill asks, and gave the summary as text. Run 3 made 10 renders, each without `artifact_id` and with `images` empty, so the chart was never placed. After seeing the page it rendered again 9 times, then said plainly that it could not insert the chart. `20261005T041225Z`, `20261005T042537Z`
+- **Ministral, figure swap, runs 2 and 3: `model`.** Run 2 wrote its python-docx script into the answer and never called `surfsense_render_document`, so turn 1 has no version. Run 3 placed the report's photo, not its chart. `20261005T030904Z`, `20261005T031628Z`
+- **No render, a question instead. Haiku, board pack, runs 2 and 3: `model`.** Run 2, in a single request and without reading the sources, asked which sources, which format (PDF, PowerPoint, Excel or Word) and what message. Run 3 listed the sources, then asked whether to make a PDF, slides or a Word document. The case wants a document without asking. Offering a deck or a workbook comes from this base's new formats, which the first runs did not have, so the cell is not a clean comparison. `20261005T025840Z`, `20261005T030050Z`
+- **No stated assumption. Haiku, board pack, run 1, and Gemma, board pack, 3 of 3: `model`, and the case's wording.** Each made a one-page PDF, Haiku after one failed render, and the page was sent inline. The answers named the format but no assumption in the words the case looks for ("assum", "I chose" and so on), the check already questioned above for Qwen3.6. Haiku `20261005T025509Z`; Gemma `20261005T033555Z`, `20261005T041344Z`, `20261005T042915Z`
+- **An unnumbered heading. Memo restructure: `model`, and the case's call.**
+  - Gemma, 3 of 3. v2 has an unnumbered "Executive Summary" above "1. Background" and "2. Options and Recommendation", so "number the headings" fails. `20261005T033310Z`, `20261005T041102Z`, `20261005T042358Z`
+  - Kimi. v2 puts the table at the top, then an unnumbered "Summary" heading above two numbered sections, so three sections sit under the table, not two. This is the call Haiku's extra memo run above failed on, and it has nothing to do with the previews. `20261005T035730Z`
+  - Haiku, run 3. v1 has a Heading 1 title, "INTERNAL MEMORANDUM", above Background, Options and Recommendation, so the case counts 4 sections, not 3. Its page was sent inline. `20261005T030003Z`
+- **An empty turn. Gemma, demo, run 1: `model`, or its host.** Turn 1 loaded the skill, then its next request came back 200 from CoreWeave with 859 output tokens and no text or tool call, so the turn ended without a render. Only one Word version was ready, v2, after a failed v1 in turn 2. `20261005T032835Z`
+
+**Reported apart.** This change cannot fix Gemma's `artifact_id`. It decided Gemma's PDF brief twice, its demo once and its spreadsheet report once, and figure swap run 3 rendered 10 separate documents. Ministral's board pack, which rendered nothing the first time, was not re-run. Haiku's board pack now shows a related mode: 2 of 3 runs rendered nothing and asked which format.
+
+**Provider drops.** Opus's PDF brief lost two requests ("Server disconnected without sending a response" and an SSL bad-record-MAC read error). opencode retried both inside the run, which passed, and the ledger charged them at worst case ($2.62 against $1.05 reported). No transient failure decided a case. The runner's free-memory gate held one run for about 2 minutes when free memory dipped to 2.2 GB.
+
+### What the re-run says
+
+- **Sending the pages removes the skipped look.** The first runs' most common failure, an unopened or mistyped preview, did not happen once in 58 runs, and no page was sent twice. The cells it decided now pass or fail on the document itself.
+- **The failures that remain are the model's, past the look.** They are the kinds the open columns [found](#where-the-document-work-stops) further down the tiers, plus arithmetic: a wrong sum, a lost `artifact_id`, the wrong figure, a script pasted into the chat, images not listed. A page in front of the model fixes none of these.
+- **Passing the check no longer shows a careful look.** Re-renders after a look are the remaining signal. Opus re-rendered twice (PDF brief and demo, turn 1), Kimi once (board pack), Ministral once (a memo turn 2) and Qwen3.6 once (spreadsheet run 2, among failed renders). Gemma re-rendered 15 times; the 9 in figure swap run 3 were futile, because `images` was never set. Haiku re-rendered 0 times in 9 runs. The pages now reach Haiku, and it still ships what its first render made.
+- **The case wording now decides more runs than the previews.** The memo's unnumbered summary heading failed Gemma 3 of 3, Kimi and, in another form, Haiku. The board pack's assumption phrase failed Haiku once and Gemma 3 of 3. Whether a summary heading must be numbered, and what counts as stating an assumption, are the cases' calls to settle before the next sweep.
+- **For the tiers.** Haiku 4.5 passes the edit turns it never reached the first time (spreadsheet 3 of 3, memo 2 of 3), at about a tenth of Opus's cost, but still does not revise after looking. Qwen3.6-35B-A3B passes the two cells it had failed on paths (5 of 6 runs). Ministral 14B passes the spreadsheet report every time and the other three cells once in three, so the 8–14B tier still has no reliable candidate. Gemma 4 31B passes 5 of 18 document runs, held back by `artifact_id`.
+- **Image cost is modest at this length.** A run's images were at most a third of its input, and models that already looked got cheaper. Nothing here came near a per-request image cap. Long threads, where every page stays until compaction, are still unmeasured.
 
 ## Still to run
 
