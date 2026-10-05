@@ -88,6 +88,7 @@ function backend({
   waitFor: waiting = [] as string[],
   stored = [] as unknown[],
   storedAfter = null as unknown[] | null,
+  refusal = null as Record<string, unknown> | null,
 } = {}): Backend {
   const state: Backend = { answers: [] }
   let sent = false
@@ -119,6 +120,7 @@ function backend({
         return new Response(null, { status: 204 })
       }
       if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+        if (refusal) return Response.json({ detail: refusal }, { status: 409 })
         sent = true
         return new Response(pausedStream(first, gate, rest), {
           headers: { "Content-Type": "text/event-stream" },
@@ -188,6 +190,31 @@ afterEach(() => {
 })
 
 describe("an agent thread", () => {
+  it("offers a new chat when the selected model cannot run the agent", async () => {
+    backend({
+      refusal: {
+        message:
+          "The selected model cannot run the agent. Choose another model, or start a new chat to use this one.",
+        code: "agent_model_unsupported",
+      },
+    })
+    renderAgentThread()
+    const user = await ask("Summarise the contracts")
+
+    const notice = await screen.findByText(
+      /can’t continue with the selected model/
+    )
+    const alert = notice.closest<HTMLElement>('[role="alert"]')!
+    // Retry would send the same turn into the same refusal.
+    expect(within(alert).queryByRole("button", { name: "Retry" })).toBeNull()
+
+    await user.click(within(alert).getByRole("button", { name: "New chat" }))
+
+    await waitFor(() =>
+      expect(localStorage.getItem("surfsense:last-thread:1:v1")).toBe("new")
+    )
+  })
+
   it("shows each step the agent takes as it takes it", async () => {
     backend({
       first: [ACCEPTED, step("running")],

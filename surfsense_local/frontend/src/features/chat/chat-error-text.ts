@@ -66,6 +66,12 @@ const chatErrorText: Record<ChatErrorKind, () => string> = {
       id: "chat_error_unknown",
       defaultMessage: "Something went wrong generating a reply. Try again.",
     }),
+  agent_model_unsupported: () =>
+    intl.formatMessage({
+      id: "chat_error_agent_model_unsupported",
+      defaultMessage:
+        "This thread can’t continue with the selected model. Start a new chat to use it, or choose another model.",
+    }),
 }
 
 // The backend words `network` differently for the local runtime, which has no Model setup fix.

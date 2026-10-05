@@ -6,7 +6,7 @@ import { intl } from "@/i18n/intl"
 import { translatedChatError } from "./chat-error-text"
 import type { ChatTurnError } from "./use-chat-runtime"
 
-type Action = "model-setup" | "retry" | "none"
+type Action = "model-setup" | "new-chat" | "retry" | "none"
 
 function actionFor(error: ChatTurnError): Action {
   switch (error.kind) {
@@ -25,6 +25,9 @@ function actionFor(error: ChatTurnError): Action {
       // The notice text already says to start a new chat or pick a model
       // with a larger window — Retry would resend the same overlong turn.
       return "none"
+    // The thread keeps its engine, so only a new thread takes this model.
+    case "agent_model_unsupported":
+      return "new-chat"
     default:
       return "retry"
   }
@@ -32,9 +35,11 @@ function actionFor(error: ChatTurnError): Action {
 
 export function ChatErrorNotice({
   onModelSetup,
+  onNewChat,
   onRetry,
 }: {
   onModelSetup: () => void
+  onNewChat: () => void
   onRetry: (assistantId: string) => void
 }) {
   const messageId = useAuiState(({ message }) => message.id)
@@ -65,6 +70,18 @@ export function ChatErrorNotice({
             {intl.formatMessage({
               id: "chat_failed_reply_model_setup_button",
               defaultMessage: "Model setup",
+            })}
+          </Button>
+        ) : action === "new-chat" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 text-foreground"
+            onClick={onNewChat}
+          >
+            {intl.formatMessage({
+              id: "chat_failed_reply_new_chat_button",
+              defaultMessage: "New chat",
             })}
           </Button>
         ) : action === "retry" ? (

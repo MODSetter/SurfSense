@@ -24,6 +24,9 @@ class ChatErrorKind(enum.StrEnum):
     NETWORK = "network"
     TIMEOUT = "timeout"
     UNKNOWN = "unknown"
+    # Refused before the stream, not classified from an exception: an agent
+    # thread whose selected model cannot run the agent.
+    AGENT_MODEL_UNSUPPORTED = "agent_model_unsupported"
 
 
 _MESSAGES: dict[ChatErrorKind, str] = {

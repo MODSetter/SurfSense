@@ -30,6 +30,7 @@ from modules.agent.opencode_runtime import (
 )
 from modules.agent.sources_folder import sync_sources_folder
 from modules.agent.tool_endpoint.registration import register_workspace_tools
+from modules.chat.errors import ChatErrorKind
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.llm.resolution import ModelResolutionError
@@ -68,8 +69,11 @@ async def agent_turn(
         await ready.client.close()
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "The selected model cannot run the agent. Choose another model, "
-            "or start a new chat to use this one.",
+            {
+                "message": "The selected model cannot run the agent. Choose "
+                "another model, or start a new chat to use this one.",
+                "code": ChatErrorKind.AGENT_MODEL_UNSUPPORTED,
+            },
         )
     folder = await transact(session, sync_sources_folder, thread.workspace_id)
     await register_workspace_tools(

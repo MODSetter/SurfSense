@@ -50,6 +50,7 @@ export type ChatErrorKind =
   | "network"
   | "timeout"
   | "unknown"
+  | "agent_model_unsupported"
 
 function parseFrame(frame: string): ChatStreamEvent | null {
   const data = frame

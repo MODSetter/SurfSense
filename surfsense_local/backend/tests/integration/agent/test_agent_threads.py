@@ -123,7 +123,9 @@ async def test_a_thread_cannot_continue_with_a_model_that_cannot_call_tools(
     )
 
     assert reply.status_code == 409
-    assert "new chat" in reply.json()["detail"]
+    # Coded, so the composer can offer a new thread rather than a Retry.
+    assert reply.json()["detail"]["code"] == "agent_model_unsupported"
+    assert "new chat" in reply.json()["detail"]["message"]
     assert agent_api.model.requests == []
     turns = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
     assert turns.json() == []

@@ -712,6 +712,21 @@ export function useChatRuntime({
           cause.message.includes("no chat model selected")
         ) {
           onModelRequired()
+        } else if (
+          cause instanceof ApiError &&
+          cause.code === "agent_model_unsupported" &&
+          requestVersion.current === version
+        ) {
+          setChatErrors((current) => ({
+            ...current,
+            [String(assistantId)]: {
+              kind: "agent_model_unsupported",
+              message: cause.message,
+              provider: "",
+              retryText: text,
+              retryImages: images,
+            },
+          }))
         } else if (isAbort(cause) && threadId !== null) {
           void queryClient.invalidateQueries({
             queryKey: chatKeys.messages(threadId),

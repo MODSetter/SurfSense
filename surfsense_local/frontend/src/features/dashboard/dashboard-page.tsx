@@ -372,6 +372,7 @@ function WorkspaceDashboard({
             }}
             onModelSetup={onModelRequired}
             onModelSelected={onModelSelected}
+            onNewChat={chat.startNewChat}
             onRetry={chat.retry}
             sourceCount={sources.includedDocumentIds.length}
             onUploadSources={(files) => void sources.upload(files)}
