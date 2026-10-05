@@ -71,9 +71,11 @@ def import_models() -> None:
     import modules.documents.models
     import modules.egress.models
     import modules.embedding.models
+    import modules.folders.models
     import modules.license.models
     import modules.llm.models
     import modules.plugins.models
+    import modules.source_roots.models
     import modules.workspaces.models
 
 

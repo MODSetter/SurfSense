@@ -142,7 +142,17 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     fmt = FORMATS_BY_KEY[kind]
     # The prompt is what to search for, where the format reads passages.
     query = prompt if fmt.grounding is Grounding.PASSAGES else None
-    sources = gather.gather(session, meta.get("source_document_ids", []), query)
+    sources = gather.gather(
+        session,
+        meta.get("source_document_ids", []),
+        query,
+        focus=prompt or fmt.default_focus,
+    )
+    # "Grounded on 14 of 212 sources": what reached the model, not what was ticked.
+    artifact.artifact_metadata = {
+        **meta,
+        "grounded_document_ids": [source.document_id for source in sources],
+    }
     logger.info(
         "studio: artifact %s gathered %s sources (%s chars)",
         artifact.id,

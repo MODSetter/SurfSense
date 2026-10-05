@@ -1,7 +1,16 @@
 from shared.queue import ingest_queue
 
+# Higher runs first. A note written during a long folder copy is ready in
+# seconds; the copy waits behind it.
+PRIORITY_INTERACTIVE = 100
+PRIORITY_CHANGED = 50
+PRIORITY_BULK = 10
 
-@ingest_queue.task(retries=2)
+# An upload of more files than this is a bulk copy.
+BULK_UPLOAD_FILES = 20
+
+
+@ingest_queue.task(retries=2, priority=PRIORITY_INTERACTIVE)
 def ingest_document(document_id: int) -> None:
     """Parse, chunk, embed and index one document."""
     # Lazy: the body pulls in Docling and torch, which the API never needs.

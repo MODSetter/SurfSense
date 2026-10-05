@@ -13,7 +13,7 @@ import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
 import { AgentSteps } from "@/features/agent/agent-steps"
-import type { AgentStep, SourceScope } from "@/features/agent/api"
+import type { AgentStep, TurnSources } from "@/features/agent/api"
 import { WorkingFrom } from "@/features/agent/working-from"
 import { Button } from "@/components/ui/button"
 import {
@@ -129,9 +129,9 @@ function MessageSteps() {
   return <AgentSteps steps={steps} />
 }
 
-function scopeFrom(custom: unknown): SourceScope | null {
+function scopeFrom(custom: unknown): TurnSources | null {
   if (typeof custom === "object" && custom !== null && "scope" in custom) {
-    return (custom.scope as SourceScope | null) ?? null
+    return (custom.scope as TurnSources | null) ?? null
   }
   return null
 }

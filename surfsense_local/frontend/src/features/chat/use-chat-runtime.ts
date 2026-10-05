@@ -13,6 +13,7 @@ import {
   type PermissionRequest,
 } from "@/features/agent/api"
 import { errorToast } from "@/features/feedback/error-toast"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
 
@@ -201,6 +202,7 @@ export function useChatRuntime({
   canSend,
   selectedDocumentIds,
   selectedSourceTitles,
+  sourceScope = null,
   readsImages,
   canSkipThinking,
   onModelRequired,
@@ -210,6 +212,8 @@ export function useChatRuntime({
   selectedDocumentIds: number[]
   // Each selected source's title, in the order of `selectedDocumentIds`.
   selectedSourceTitles: string[]
+  // What the server resolves into the turn's sources, so none is left out.
+  sourceScope?: SourceScope | null
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
@@ -482,6 +486,7 @@ export function useChatRuntime({
           text,
           images,
           selectedDocumentIds,
+          sourceScope,
           !canSkipThinking || readThinkingOn(),
           controller.signal,
           (event) => {
@@ -528,6 +533,20 @@ export function useChatRuntime({
                               ? { text: event.text }
                               : {}),
                           },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "agent-scope") {
+              // The server's resolution replaces the panel's guess.
+              const targetId = userId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: { ...message.content, scope: event.scope },
                         }
                       : message
                   ) ?? null
@@ -754,6 +773,7 @@ export function useChatRuntime({
       queryClient,
       selectedDocumentIds,
       selectedSourceTitles,
+      sourceScope,
       threads,
       workspaceId,
     ]

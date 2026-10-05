@@ -19,6 +19,8 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | privacy | プライバシー | 프라이버시 | 隐私 | गोपनीयता | Datenschutz † | privacidad | confidentialité | privacidade | конфиденциальность |
 | source (an added file or folder) | ソース | 소스 | 来源 | स्रोत | Quelle | fuente | source | fonte | источник |
 | note (a source the user writes) | メモ | 메모 | 笔记 | नोट | Notiz | nota | note | nota | заметка |
+| folder (holds sources in the sources panel) | フォルダー | 폴더 | 文件夹 | फ़ोल्डर | Ordner | carpeta | dossier | pasta | папка |
+| Library (the top of a workspace's folders) | ライブラリ | 라이브러리 | 资料库 | लाइब्रेरी | Bibliothek | Biblioteca | Bibliothèque | Biblioteca | Библиотека |
 | thinking (a model reasoning before it answers) | 考え中 / 考えました | 생각 | 思考 | सोचना | nachdenken | pensar | réflexion | pensar | размышления |
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |

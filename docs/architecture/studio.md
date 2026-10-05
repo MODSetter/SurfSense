@@ -121,11 +121,13 @@ The libraries a script may use are the worker's: python-docx, ReportLab, matplot
 
 ## Grounding
 
-[`shared/gather.py`](../../surfsense_local/backend/worker/studio/shared/gather.py) loads the selected documents' markdown, and [`shared/generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py) sends it as one user message, each document under its title as a heading, after the format's system prompt. The budget is 24,000 characters.
+[`shared/gather.py`](../../surfsense_local/backend/worker/studio/shared/gather.py) loads the selected documents' markdown, and [`shared/generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py) sends it as one user message, each document under its title as a heading, after the format's system prompt. The budget is 24,000 characters unless the caller passes `budget_chars`.
 
 - A selection that fits is sent whole, in selection order, and nothing is searched.
 - A larger one gives every document an even share of the budget. A document shorter than its share is sent whole, and what it leaves goes to the others, so no selected document is left out.
 - With a prompt, each share holds that document's passages that best match it, found by one `retrieve()` call scoped to the selection ([`search.md`](search.md)). They are kept in reading order, with `[...]` where text between them was skipped. A document with no match, and every document when there is no prompt, contributes its start.
+- When the even share would fall below 1,500 characters (`MIN_SHARE_CHARS`, about one chunk), cutting every document to a sliver says nothing, so one `retrieve()` over the selection takes its best passages for the prompt, else the format's `default_focus`, up to the budget. Only documents holding a chosen passage are sent.
+- The job records `grounded_document_ids` in `artifact_metadata`: what reached the model, so the panel can say "Grounded on 14 of 212 sources".
 - Summary and mind map read a document's shape rather than answer a focus, so they always take each document from its start (`Grounding.WHOLE` on the format in [`formats.py`](../../surfsense_local/backend/modules/artifacts/formats.py)). The other formats take passages.
 - The search embeds the prompt, which loads the embedding model in the Studio worker, as persisting an artifact already does.
 
@@ -167,11 +169,11 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 | Method | Path | Does |
 |---|---|---|
 | `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available` and `unavailable_reason` |
-| `POST` | `/workspaces/{workspace_id}/studio/jobs` | `{format, document_ids, prompt?, options?}`; `201` with the artifact |
+| `POST` | `/workspaces/{workspace_id}/studio/jobs` | `{format, source_scope?, document_ids?, prompt?, options?}`; a `source_scope` is resolved on the server and recorded in `artifact_metadata` beside the resolved `source_document_ids`, and wins over `document_ids`; nothing ready is `422`, or `409` while the scope's sources are still indexing; `201` with the artifact |
 | `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief to review before submitting, the model's `voices` (`null` when they are typed) and the `languages` it may use |
 | `GET` | `/workspaces/{workspace_id}/artifacts` | the workspace's artifacts, newest first |
 | `GET` | `/artifacts/{artifact_id}` | detail: the body, the files, quiz or flashcard progress |
-| `POST` | `/artifacts/{artifact_id}/regenerate` | run the job again; `202` |
+| `POST` | `/artifacts/{artifact_id}/regenerate` | run the job again, re-resolving a recorded `source_scope` without the artifact itself, else replaying the recorded ids that still exist; `409` "None of this artifact's sources are left." when none remain; `202` |
 | `POST` | `/artifacts/{artifact_id}/cancel` | stop a queued or running job; `409` if nothing is running |
 | `GET` | `/artifacts/{artifact_id}/files/{role}` | stream the `primary` or `preview` file |
 | `PUT` | `/artifacts/{artifact_id}/quiz-state/{answer\|skip\|retake}` | quiz progress |

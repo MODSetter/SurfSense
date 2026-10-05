@@ -75,7 +75,7 @@ function pausedStream(first: unknown[], gate: Promise<void>, rest: unknown[]) {
 
 type Backend = {
   answers: { requestId: string; reply: string }[]
-  sent: { document_ids?: number[] }[]
+  sent: { document_ids?: number[]; source_scope?: { all: boolean } }[]
 }
 
 // The version a completed render made, as the API reads it back.
@@ -321,6 +321,28 @@ describe("an agent thread", () => {
 
     expect(await screen.findByText("Working from Plan.pdf")).toBeTruthy()
     expect(state.sent[0].document_ids).toEqual([5])
+  })
+
+  it("shows the sources the server resolved the ticks into", async () => {
+    const resolved = Array.from({ length: 300 }, (_, index) => index + 1)
+    const state = backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-scope",
+          scope: {
+            document_ids: resolved,
+            titles: resolved.map((id) => `Report ${id}`),
+          },
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Working from 300 sources")).toBeTruthy()
+    expect(state.sent[0].source_scope?.all).toBe(true)
   })
 
   it("shows the sources a stored turn worked from", async () => {

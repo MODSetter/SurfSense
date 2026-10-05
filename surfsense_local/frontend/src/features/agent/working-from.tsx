@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/tooltip"
 import { intl } from "@/i18n/intl"
 
-import type { SourceScope } from "./api"
+import type { TurnSources } from "./api"
 
 // Past this many, names would crowd the line: it counts them and names them on hover.
 const NAMED_INLINE = 3
@@ -15,7 +15,7 @@ const LINE_CLASS =
   "flex max-w-[78%] items-start gap-1.5 text-xs leading-5 text-muted-foreground"
 
 /** Which sources an agent turn was allowed to use; nothing when it named no selection. */
-export function WorkingFrom({ scope }: { scope: SourceScope | null }) {
+export function WorkingFrom({ scope }: { scope: TurnSources | null }) {
   if (scope === null) return null
   const { titles } = scope
   const icon = <FileTextIcon className="mt-0.5 size-3.5 shrink-0" />

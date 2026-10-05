@@ -133,6 +133,7 @@ function WorkspaceDashboard({
     canSend: providerAvailable,
     selectedDocumentIds: sources.includedDocumentIds,
     selectedSourceTitles,
+    sourceScope: sources.sourceScope,
     readsImages: selection?.reads_images === true,
     canSkipThinking: canSkipThinking(selection),
     onModelRequired,
@@ -318,7 +319,9 @@ function WorkspaceDashboard({
                 >
                   <SourcesPanel
                     documents={sources.documents}
+                    index={sources.index}
                     selectedDocumentIds={sources.includedDocumentIds}
+                    folderTicks={sources.folderTicks}
                     highlightedDocumentId={null}
                     isLoading={sources.isLoading}
                     isDeleting={sources.isDeleting}
@@ -327,12 +330,16 @@ function WorkspaceDashboard({
                       <SourcesAddButton
                         isUploading={sources.isUploading}
                         onUpload={(files) => void sources.upload(files)}
+                        onUploadFolder={(entries) =>
+                          void sources.uploadEntries(entries)
+                        }
                       />
                     }
                     onDropFiles={
                       sources.isUploading
                         ? undefined
-                        : (files) => void sources.upload(files)
+                        : (entries, folderId) =>
+                            void sources.uploadEntries(entries, folderId)
                     }
                     onOpen={(id) => void sources.openOriginal(id)}
                     onPreview={toggleSourcePreview}
@@ -342,8 +349,10 @@ function WorkspaceDashboard({
                     onDelete={(id) => void sources.deleteOne(id)}
                     onDeleteSelected={() => void sources.deleteSelected()}
                     onSelectionChange={sources.setDocumentIncluded}
+                    onFolderSelectionChange={sources.setFolderIncluded}
                     onToggleAll={sources.toggleAllIncluded}
                     onRename={sources.rename}
+                    folderActions={sources.folderActions}
                     notes={{
                       write: sources.writeNote,
                       load: sources.loadNote,
@@ -429,6 +438,7 @@ function WorkspaceDashboard({
                   workspaceId={workspace.id}
                   documents={sources.documents}
                   selectedDocumentIds={sources.includedDocumentIds}
+                  sourceScope={sources.sourceScope}
                   onSelectionChange={sources.setDocumentIncluded}
                   onToggleAll={sources.toggleAllIncluded}
                   formats={studio.formats}

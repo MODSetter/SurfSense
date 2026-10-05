@@ -30,7 +30,7 @@ export type AgentStep = {
 /** The sources an agent turn was allowed to use: those ticked when it was
  *  sent, each id beside its title. Absent when the turn named no selection,
  *  which gives the agent the whole workspace. */
-export type SourceScope = {
+export type TurnSources = {
   document_ids: number[]
   titles: string[]
 }

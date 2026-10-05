@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from modules.agent.sources_folder import SOURCES, source_file_names
 from modules.documents.models import Document
-from modules.documents.sources import load_selected_sources
 
 _TAG = re.compile(r"\[surfsense-scope: (none|\d+(?:,\d+)*)\]")
 
@@ -33,12 +32,8 @@ _NONE_SELECTED = (
 )
 
 
-def scope_note(session: Session, workspace_id: int, document_ids: Sequence[int]) -> str:
-    """The note for a turn's ticked sources, once they are checked as a chat checks them."""
-    ids = [
-        document.id
-        for document in load_selected_sources(session, workspace_id, document_ids)
-    ]
+def scope_note(session: Session, workspace_id: int, ids: Sequence[int]) -> str:
+    """The note for a turn's sources, already checked or resolved as a chat's are."""
     if not ids:
         return f"[surfsense-scope: none]\n{_NONE_SELECTED}"
     tag = f"[surfsense-scope: {','.join(map(str, ids))}]"
@@ -77,18 +72,28 @@ def noted_scope(parts: list[dict[str, Any]]) -> list[int] | None:
     return None
 
 
+def scope_titles(
+    session: Session, workspace_id: int, ids: Sequence[int]
+) -> dict[int, str]:
+    """The titles of those of `ids` that still exist.
+
+    Read workspace-wide and filtered here: a resolved folder can name more ids
+    than SQLite takes as parameters.
+    """
+    wanted = set(ids)
+    rows = session.execute(
+        select(Document.id, Document.title).where(Document.workspace_id == workspace_id)
+    ).all()
+    return {i: title for i, title in rows if i in wanted}
+
+
 def name_scopes(
     session: Session, workspace_id: int, turns: list[dict[str, Any]]
 ) -> None:
     """Give each turn's scope its sources' titles; a source deleted since drops out."""
     scopes = [turn["content"]["scope"] for turn in turns if "scope" in turn["content"]]
-    wanted = {i for scope in scopes for i in scope["document_ids"]}
-    titles = dict(
-        session.execute(
-            select(Document.id, Document.title).where(
-                Document.workspace_id == workspace_id, Document.id.in_(wanted)
-            )
-        ).all()
+    titles = scope_titles(
+        session, workspace_id, [i for scope in scopes for i in scope["document_ids"]]
     )
     for scope in scopes:
         kept = [i for i in scope["document_ids"] if i in titles]

@@ -10,6 +10,7 @@ from shared.db import create_session_factory
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
     ingest_note,
+    of_type,
     open_thread,
     send,
     working_folder,
@@ -162,19 +163,128 @@ async def test_a_user_who_types_the_tag_changes_neither_scope_nor_words(
     }
 
 
-def _ready_source(engine: Engine, workspace_id: int, title: str) -> int:
+def _ready_source(
+    engine: Engine, workspace_id: int, title: str, folder_id: int | None = None
+) -> int:
     """A ready source with a file in sources/; nothing searches it here."""
+    return _ready_sources(engine, workspace_id, [title], folder_id)[0]
+
+
+def _ready_sources(
+    engine: Engine, workspace_id: int, titles: list[str], folder_id: int | None = None
+) -> list[int]:
+    """Ready sources in one commit, filed in `folder_id` when one is given."""
     with create_session_factory(engine)() as session:
-        note = Document(
-            workspace_id=workspace_id,
-            title=title,
-            document_type=DocumentType.NOTE,
-            status=DocumentStatus.READY,
-            content="Nothing to see.",
-        )
-        session.add(note)
+        notes = [
+            Document(
+                workspace_id=workspace_id,
+                title=title,
+                document_type=DocumentType.NOTE,
+                status=DocumentStatus.READY,
+                content="Nothing to see.",
+                folder_id=folder_id,
+            )
+            for title in titles
+        ]
+        session.add_all(notes)
         session.commit()
-        return note.id
+        return [note.id for note in notes]
+
+
+async def _folder(api: AgentAPI, name: str) -> int:
+    """A folder at the Library's top, made as the sources panel makes one."""
+    reply = await api.http.post(
+        f"/workspaces/{api.workspace_id}/folders", json={"name": name}
+    )
+    assert reply.status_code == 201, reply.text
+    return reply.json()["id"]
+
+
+# Past the 1,000 ids a request's document_ids may carry.
+FOLDER_SOURCES = 1001
+
+
+async def test_a_ticked_folder_scopes_the_turn_to_every_source_in_it(
+    agent_api: AgentAPI, engine: Engine
+) -> None:
+    """The server resolves the folder, however many sources it holds, as a chat does."""
+    research = await _folder(agent_api, "Research")
+    inside = _ready_sources(
+        engine,
+        agent_api.workspace_id,
+        [f"Report {n}" for n in range(FOLDER_SOURCES)],
+        research,
+    )
+    outside = _ready_source(engine, agent_api.workspace_id, "Memo")
+    looks = [
+        {"name": "surfsense_list_images", "arguments": {"source_ids": [i]}}
+        for i in (inside[-1], outside)
+    ]
+    agent_api.model.replies = [("calls", json.dumps(looks)), ("text", "Done.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(
+        agent_api, thread["id"], QUESTION, source_scope={"folder_ids": [research]}
+    )
+
+    asked, answered = agent_api.model.requests[:2]
+    told = _user_text(asked)
+    assert f"[surfsense-scope: {','.join(map(str, inside))}]" in told
+    assert f"{FOLDER_SOURCES} sources" in told
+    results = _tool_results(answered)
+    assert f"Source {outside} is not selected" in results
+    assert f"Source {inside[-1]} is not selected" not in results
+    (live,) = of_type(frames, "agent-scope")
+    assert live["scope"]["document_ids"] == inside
+    assert len(live["scope"]["titles"]) == FOLDER_SOURCES
+    stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
+    assert stored[0]["content"]["scope"]["document_ids"] == inside
+    kept = (
+        await agent_api.http.get(f"/chat/threads/{thread['id']}/source-scope")
+    ).json()
+    assert kept["source_scope"]["folder_ids"] == [research]
+
+
+async def test_a_turn_that_sends_no_scope_keeps_to_the_thread_s_stored_one(
+    agent_api: AgentAPI, engine: Engine
+) -> None:
+    """Ticks stored between turns hold the next turn, as they hold a chat's."""
+    ticked = _ready_source(engine, agent_api.workspace_id, "Plan")
+    _ready_source(engine, agent_api.workspace_id, "Memo")
+    agent_api.model.replies = [("text", "Noted.")]
+    thread = await open_thread(agent_api)
+    stored_scope = await agent_api.http.put(
+        f"/chat/threads/{thread['id']}/source-scope", json={"document_ids": [ticked]}
+    )
+    assert stored_scope.status_code == 200, stored_scope.text
+
+    frames = await send(agent_api, thread["id"], QUESTION)
+
+    told = _user_text(agent_api.model.requests[0])
+    assert f"[surfsense-scope: {ticked}]" in told
+    assert "Memo" not in told
+    (live,) = of_type(frames, "agent-scope")
+    assert live["scope"] == {"document_ids": [ticked], "titles": ["Plan"]}
+    stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
+    assert stored[0]["content"]["scope"] == {
+        "document_ids": [ticked],
+        "titles": ["Plan"],
+    }
+
+
+async def test_a_scope_with_nothing_ticked_means_no_sources(
+    agent_api: AgentAPI, engine: Engine
+) -> None:
+    """An empty scope is no sources, never the whole workspace."""
+    _ready_source(engine, agent_api.workspace_id, "Plan")
+    agent_api.model.replies = [("text", "Nothing.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], QUESTION, source_scope={})
+
+    assert "No sources are selected" in _user_text(agent_api.model.requests[0])
+    (live,) = of_type(frames, "agent-scope")
+    assert live["scope"] == {"document_ids": [], "titles": []}
 
 
 async def test_a_source_not_in_the_workspace_is_refused_before_anything_is_sent(

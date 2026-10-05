@@ -1,4 +1,5 @@
-import type { AgentStep, SourceScope } from "@/features/agent/api"
+import type { AgentStep, TurnSources } from "@/features/agent/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import { parseSseStream, type ChatStreamEvent, type Citation } from "./sse"
@@ -33,7 +34,7 @@ export type MessageContent = {
   // An agent reply's tool calls, in the order it made them.
   steps?: AgentStep[]
   // An agent turn's sources, on the user's message.
-  scope?: SourceScope
+  scope?: TurnSources
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.
@@ -102,11 +103,15 @@ export function renameThread(
   })
 }
 
+// The API's cap on `document_ids`; past it the scope alone says what is ticked.
+const MAX_DOCUMENT_IDS = 1000
+
 export async function streamMessage(
   threadId: number,
   text: string,
   images: ImageUpload[],
   documentIds: number[],
+  sourceScope: SourceScope | null,
   thinking: boolean,
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
@@ -119,7 +124,11 @@ export async function streamMessage(
     },
     body: JSON.stringify({
       text,
-      document_ids: documentIds,
+      // The server ignores these when a scope comes with them.
+      ...(documentIds.length <= MAX_DOCUMENT_IDS
+        ? { document_ids: documentIds }
+        : {}),
+      ...(sourceScope ? { source_scope: sourceScope } : {}),
       // Only when there are some, so a text turn sends exactly what it did.
       ...(images.length > 0 ? { images } : {}),
       // Only when off, for the same reason: on is the API's default.

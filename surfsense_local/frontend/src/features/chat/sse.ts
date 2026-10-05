@@ -1,4 +1,8 @@
-import type { AgentStep, PermissionRequest } from "@/features/agent/api"
+import type {
+  AgentStep,
+  PermissionRequest,
+  TurnSources,
+} from "@/features/agent/api"
 
 export type Citation = {
   source_id: number
@@ -32,6 +36,8 @@ export type ChatStreamEvent =
       message: string
       provider: string
     }
+  // The sources an agent turn works from, as the server resolved its ticks.
+  | { type: "agent-scope"; scope: TurnSources }
   | ({ type: "agent-step" } & AgentStep)
   | ({ type: "permission-request" } & PermissionRequest)
   | { type: "permission-replied"; id: string; reply: string }

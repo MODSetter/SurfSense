@@ -14,7 +14,8 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }))
 
-const LIST = "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+const LIST =
+  "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
 
 const file = {
   id: 7,
