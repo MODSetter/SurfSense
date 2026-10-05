@@ -126,7 +126,8 @@ function stepsFrom(custom: unknown): AgentStep[] {
 
 function MessageSteps() {
   const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
-  return <AgentSteps steps={steps} />
+  const scope = useAuiState(({ message }) => scopeFrom(message.metadata.custom))
+  return <AgentSteps steps={steps} scope={scope} />
 }
 
 function scopeFrom(custom: unknown): SourceScope | null {

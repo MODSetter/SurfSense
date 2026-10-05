@@ -21,8 +21,12 @@ const documentTitle = (chunks: ReactNode[]) => (
 )
 
 /** What one step did, in a sentence whose subject is set apart: code as
- *  code, a document by its title. */
-export function stepLabel(step: AgentStep): ReactNode {
+ *  code, a document by its title. `sourceTitle` names a source by its id,
+ *  or null when the turn's scope does not hold it. */
+export function stepLabel(
+  step: AgentStep,
+  sourceTitle: (documentId: number) => string | null = () => null
+): ReactNode {
   const subject = (value: string) => (
     <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
       {value}
@@ -144,6 +148,24 @@ export function stepLabel(step: AgentStep): ReactNode {
         )
       }
       break
+    case "surfsense_source_pages": {
+      const title =
+        typeof input.document_id === "number"
+          ? sourceTitle(input.document_id)
+          : null
+      return title
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_source_pages_label",
+              defaultMessage: "Looked at pages of <doc>{title}</doc>",
+            },
+            { title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_source_pages_untitled_label",
+            defaultMessage: "Looked at pages of a source",
+          })
+    }
     case "glob":
       if (pattern) {
         return intl.formatMessage(

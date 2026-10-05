@@ -254,8 +254,9 @@ function watchAgentConfig(ctx: SidecarContext): void {
   timer.unref()
 }
 
-// The agent looks at the pages of a Word document it made, and only Electron can
-// lay one out (docx-snapshot/). The API has the routes only beside an opencode.
+// The agent looks at the pages of a Word document or deck it made or was given,
+// and only Electron can lay one out (docx-snapshot/). The API has the routes only
+// beside an opencode.
 function serveWordPreviews(ctx: SidecarContext): void {
   if (ctx.docxSnapshotKey == null) return
   const page = app.isPackaged

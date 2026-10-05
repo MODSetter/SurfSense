@@ -11,10 +11,10 @@ export type SnapshotSession = {
 }
 
 /**
- * Let the snapshot windows load only the snapshot page's own files and the Word
- * files being printed. The document is untrusted, and a script that got into the
- * page would otherwise read local files and the whole API: a file:// page sends
- * no Origin, so the API cannot tell it from Electron's main process.
+ * Let the snapshot windows load only the snapshot page's own files and the
+ * documents being printed. The document is untrusted, and a script that got into
+ * the page would otherwise read local files and the whole API: a file:// page
+ * sends no Origin, so the API cannot tell it from Electron's main process.
  *
  * Returns `allow(fileUrl)`, which lets that file through until its release is called.
  */
@@ -30,6 +30,8 @@ export function confineSnapshotSession(
 
   const allowed = (url: string): boolean =>
     url.startsWith(ownFiles) ||
+    // The page's own object URLs: a deck's pictures, made from the file it prints.
+    url.startsWith("blob:") ||
     (devServerSocket !== undefined && url.startsWith(devServerSocket)) ||
     printing.includes(url)
 

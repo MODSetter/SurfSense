@@ -1,6 +1,6 @@
-// The agent checks a Word document it made by looking at its pages, and the app
-// has no Word converter: Electron lays the file out with the in-app viewer's
-// library and prints it. The API queues each request and waits; Electron polls
+// The agent checks a Word document or deck it made, or a source's, by looking at
+// its pages, and the app has no Office converter: Electron lays the file out with
+// the in-app viewer's library and prints it. The API queues each request and waits; Electron polls
 // for them, as it polls for the image runtime, so the API needs no way in here.
 // Every call carries the key Electron handed the API at launch: any process on
 // the machine can reach loopback, and only Electron may take or answer a request.
@@ -21,19 +21,33 @@ const PRINTS_AT_ONCE = 3
 // The API's limit on a failure's reason.
 const REASON_CHARS = 500
 
-/** Lay out the Word file at `fileUrl` and print it; stop when `signal` aborts. */
-export type PrintDocx = (fileUrl: string, signal: AbortSignal) => Promise<Uint8Array>
+// What the snapshot page can lay out.
+const FORMATS = ["docx", "pptx"] as const
+// An API from before page choices asked for a version's first four pages
+// (previews/page_images.py PAGE_LIMIT); printing the rest only makes the upload bigger.
+const FIRST_PAGES = "1-4"
+// printToPDF's pageRanges, such as "1-4" or "2,5".
+const PAGE_RANGES = /^\s*\d+(\s*-\s*\d+)?(\s*,\s*\d+(\s*-\s*\d+)?)*\s*$/
 
-type SnapshotRequest = { id: string; file_url: string }
+export type SnapshotFormat = (typeof FORMATS)[number]
+
+/** Lay out the file at `fileUrl` as `format` and print `pages` of it; stop when `signal` aborts. */
+export type PrintSnapshot = (
+  file: { fileUrl: string; format: SnapshotFormat; pages: string },
+  signal: AbortSignal,
+) => Promise<Uint8Array>
+
+// An API from before decks sends neither: every request was a Word file's first pages.
+type SnapshotRequest = { id: string; file_url: string; format?: string; pages?: string }
 
 type Api = { url: string; authorization: string; requestMs: number }
 
-/** Poll the API for Word documents to print until the returned stop is called. */
+/** Poll the API for documents to print until the returned stop is called. */
 export function serveDocxSnapshots(options: {
   apiUrl: string
   /** The snapshot key the API was started with (SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY). */
   key: string
-  print: PrintDocx
+  print: PrintSnapshot
   pollMs?: number
   printMs?: number
   requestMs?: number
@@ -97,7 +111,7 @@ async function takeNext(api: Api): Promise<SnapshotRequest | null> {
 async function serve(
   api: Api,
   request: SnapshotRequest,
-  print: PrintDocx,
+  print: PrintSnapshot,
   printMs: number,
 ): Promise<void> {
   const answer = `${api.url}${ROUTES}/${encodeURIComponent(request.id)}`
@@ -109,6 +123,17 @@ async function serve(
       signal: AbortSignal.timeout(api.requestMs),
     })
 
+  const format = request.format ?? "docx"
+  if (!isSnapshotFormat(format)) {
+    await fail(`the desktop app cannot print a ${format} file`)
+    return
+  }
+  const pages = request.pages ?? FIRST_PAGES
+  if (!PAGE_RANGES.test(pages)) {
+    await fail(`the desktop app cannot print pages ${JSON.stringify(pages)}`)
+    return
+  }
+
   const signal = AbortSignal.timeout(printMs)
   // A window torn down mid-print may never settle its calls; the time box holds anyway.
   const timedOut = new Promise<never>((_resolve, reject) =>
@@ -118,7 +143,8 @@ async function serve(
   timedOut.catch(() => {})
   let pdf: Uint8Array
   try {
-    pdf = await Promise.race([print(new URL(request.file_url, api.url).href, signal), timedOut])
+    const fileUrl = new URL(request.file_url, api.url).href
+    pdf = await Promise.race([print({ fileUrl, format, pages }, signal), timedOut])
   } catch (error) {
     await fail(
       signal.aborted
@@ -143,4 +169,8 @@ async function serve(
       ? "the printed document is too large to preview"
       : `the API refused the printed document (HTTP ${delivered.status})`,
   )
+}
+
+function isSnapshotFormat(format: string): format is SnapshotFormat {
+  return (FORMATS as readonly string[]).includes(format)
 }
