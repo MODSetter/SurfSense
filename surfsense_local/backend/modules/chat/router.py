@@ -277,6 +277,8 @@ async def send_message(
                     max_tokens=answer_max_tokens(n_ctx),
                     # None leaves the model to its own default.
                     reasoning=None if payload.thinking else False,
+                    # An endpoint that routes by it keeps the thread on one cache.
+                    conversation=f"surfsense-thread-{thread.id}",
                 ):
                     if delta.progress is not None:
                         yield _frame(

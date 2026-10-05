@@ -188,11 +188,19 @@ class RecordingGenerator:
     def __init__(self, reply: str) -> None:
         self.reply = reply
         self.requests: list[list[Message]] = []
+        self.conversations: list[str | None] = []
 
     async def chat(
-        self, model: str, messages: list[Message], **_: object
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        conversation: str | None = None,
+        **_: object,
     ) -> AsyncIterator[str]:
+        """Keep what was asked, then answer with the one reply."""
         self.requests.append(messages)
+        self.conversations.append(conversation)
         yield self.reply
 
 
@@ -214,6 +222,10 @@ def test_every_segment_reads_the_same_sources_before_what_is_its_own() -> None:
     assert second_user.content.startswith(grounding)
     assert "segment 1 of 2" in first_user.content
     assert "segment 2 of 2" in second_user.content
+    # One key for calls that share their start, so an endpoint routing by it
+    # sends every segment to the machine that cached the sources.
+    first_key, second_key = recorder.conversations
+    assert first_key is not None and first_key == second_key
 
 
 class FakeVoice:

@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from modules.llm.connections.conversation_fields import conversation_fields
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
@@ -125,6 +126,7 @@ class OpenAICompatibleChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
         """The answer text alone, for callers that have no use for the trace."""
         async for delta in self.chat_deltas(
@@ -134,6 +136,7 @@ class OpenAICompatibleChatProvider:
             temperature=temperature,
             reasoning=reasoning,
             json_schema=json_schema,
+            conversation=conversation,
         ):
             if not delta.reasoning and delta.progress is None:
                 yield delta.text
@@ -147,11 +150,13 @@ class OpenAICompatibleChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
         body: dict[str, object] = {
             "model": model,
             "messages": [_message(message) for message in messages],
             "stream": True,
+            **conversation_fields(self._base_url, model, conversation),
         }
         if max_tokens is not None:
             body["max_tokens"] = max_tokens

@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import hashlib
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -53,6 +54,7 @@ def run_model(
     """
     selected = model.selection
     grounding = _grounding(sources)
+    conversation = _shared_start_key(system, grounding)
     if after_sources is not None:
         grounding = f"{grounding}\n\n{after_sources}"
     messages = [
@@ -82,6 +84,7 @@ def run_model(
                 max_tokens=max_tokens,
                 reasoning=False,
                 json_schema=json_schema,
+                conversation=conversation,
             )
         )
     )
@@ -93,6 +96,13 @@ def run_model(
         time.monotonic() - started,
     )
     return reply
+
+
+def _shared_start_key(system: str, grounding: str) -> str:
+    """One key for every call that opens with this system prompt and these
+    sources, so an endpoint that routes by it sends them to the cache holding them."""
+    digest = hashlib.sha256(f"{system}\n\n{grounding}".encode()).hexdigest()
+    return f"surfsense-studio-{digest[:24]}"
 
 
 async def _collect(stream: AsyncIterator[str]) -> str:

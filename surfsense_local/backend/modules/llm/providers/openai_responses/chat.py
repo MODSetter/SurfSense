@@ -99,8 +99,9 @@ class ResponsesChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
-        async for delta in self.chat_deltas(model, messages):
+        async for delta in self.chat_deltas(model, messages, conversation=conversation):
             if not delta.reasoning:
                 yield delta.text
 
@@ -113,29 +114,37 @@ class ResponsesChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
-        body = {
+        body: dict[str, object] = {
             "model": model,
             "input": input_items(messages),
             "store": False,
             "stream": True,
         }
+        # As Codex sends them: the plan keys its cache by `prompt_cache_key` and
+        # routes a session to the machine holding it by the `session-id` header.
+        session = {"session-id": conversation} if conversation else {}
+        if conversation:
+            body["prompt_cache_key"] = conversation
         async for delta in with_deadlines(
-            self._stream(body),
+            self._stream(body, session),
             first_item_seconds=FIRST_TOKEN_SECONDS,
             between_items_seconds=BETWEEN_TOKENS_SECONDS,
             subject="the model",
         ):
             yield delta
 
-    async def _stream(self, body: dict[str, object]) -> AsyncIterator[Delta]:
+    async def _stream(
+        self, body: dict[str, object], headers: dict[str, str]
+    ) -> AsyncIterator[Delta]:
         # One refresh after a 401: the stored token can expire between reads.
         for refresh in (False, True):
             token = await self._access_token(refresh)
             async with (
                 self._client(token, TIMEOUT) as client,
                 client.stream(
-                    "POST", f"{self._base_url}/responses", json=body
+                    "POST", f"{self._base_url}/responses", json=body, headers=headers
                 ) as reply,
             ):
                 if reply.status_code == 401 and not refresh:

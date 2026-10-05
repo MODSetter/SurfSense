@@ -66,7 +66,7 @@ The workspace's folder is opencode's working folder for its sessions, and it goe
 
 - **Local:** llama-server's router at `{llamacpp_base_url}/v1`, under the selected model's name.
 - **Remote:** the connection's URL with its own key, once `egress.require()` allows its host; a refused host answers `403` naming it, before any connection opens ([egress](egress.md)).
-- **The request:** `tools` and `tool_choice` pass through; every `system` and `developer` message is joined into one system message first, because local chat templates want one there; assistant turns with no text and no call are dropped; control tokens such as `<|im_end|>` in user and tool text are split by a zero-width space, because tool results carry the user's documents.
+- **The request:** `tools` and `tool_choice` pass through; every `system` and `developer` message is joined into one system message first, because local chat templates want one there; assistant turns with no text and no call are dropped; control tokens such as `<|im_end|>` in user and tool text are split by a zero-width space, because tool results carry the user's documents. opencode names its session in `x-session-affinity` on every request; a remote host that routes a conversation by a key gets that name as one ([connections](connections.md#runtime)), so an agent's steps reach the machine that cached their prompt.
 - **The reply:** the model's own status and body pass through, so opencode reads a full window from llama-server's own wording and compacts. SurfSense's own errors are `{"error": {"message": …}}`. Every stream ends with `[DONE]`, added when the model leaves it out. There is no limit on waiting; opencode's configuration sets its own.
 
 ## SurfSense's tools

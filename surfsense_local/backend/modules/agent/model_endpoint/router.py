@@ -1,13 +1,13 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response
 
 from api.dependencies import SessionDep, transact
 from modules.agent.launch_key import require_launch_key
 from modules.agent.model_endpoint.error_replies import error_reply
 from modules.agent.model_endpoint.model_address import address_selected_model
 from modules.agent.model_endpoint.relay import relay
-from modules.agent.model_endpoint.request_shaping import shaped_messages
+from modules.agent.model_endpoint.request_shaping import shaped_request
 from modules.egress.service import EgressDeniedError
 from modules.llm.activity import ModelBusyError, model_activity
 from modules.llm.resolution import ModelResolutionError
@@ -21,7 +21,10 @@ router = APIRouter(
 
 @router.post("/v1/chat/completions", summary="Answer opencode with the selected model")
 async def complete_chat(
-    payload: Annotated[dict[str, Any], Body()], session: SessionDep
+    payload: Annotated[dict[str, Any], Body()],
+    session: SessionDep,
+    # opencode names its session on every request it sends a model.
+    affinity: Annotated[str | None, Header(alias="x-session-affinity")] = None,
 ) -> Response:
     """The one route opencode's provider calls, for every model local or remote.
 
@@ -42,11 +45,7 @@ async def complete_chat(
     except ModelBusyError as busy:
         return error_reply(409, str(busy), "model_busy")
 
-    body = {
-        **payload,
-        "model": address.name,
-        "messages": shaped_messages(payload.get("messages") or []),
-    }
+    body = shaped_request(payload, address, affinity)
     return await relay(
         address, body, lambda: model_activity.release_use(address.activity_key)
     )

@@ -22,6 +22,7 @@ DONE = "data: [DONE]\n\n"
 
 
 def _chat(body: str) -> OpenAICompatibleChatProvider:
+    """An endpoint that streams `body` back to every request."""
     return OpenAICompatibleChatProvider(
         "http://local/v1",
         transport=httpx.MockTransport(lambda _: httpx.Response(200, text=body)),
@@ -29,6 +30,7 @@ def _chat(body: str) -> OpenAICompatibleChatProvider:
 
 
 async def _answer(provider: object, model: str) -> None:
+    """One turn, read to its end, which is when reuse is reported."""
     async for _ in provider.chat_deltas(model, [Message("user", "hi")]):
         pass
 
@@ -76,6 +78,7 @@ async def test_a_chatgpt_plan_logs_the_reuse_its_completed_reply_reports(
     text = 'data: {"type":"response.output_text.delta","delta":"Hi"}\n\n'
 
     async def token(_: bool) -> str:
+        """The plan's access token; never refreshed here."""
         return "token"
 
     plan = ResponsesChatProvider(
