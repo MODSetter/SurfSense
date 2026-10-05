@@ -33,6 +33,8 @@ class ModelPreset:
     # The margin the fitter must leave, in MiB. No default: the badge was drawn
     # against a specific number and the caller always knows which.
     fit_target_mib: int
+    # Host memory for prompts saved while another caller holds the slot, in MiB.
+    prompt_cache_mib: int
     mmproj_path: str | None = None
 
 
@@ -63,6 +65,9 @@ def _section(preset: ModelPreset) -> str:
         # the fitter would look for one, so a later change to how the window is
         # set cannot quietly hand that floor back to llama.cpp's own 4096.
         f"fit-ctx = {preset.n_ctx}",
+        # Pinned rather than inherited: at llama.cpp's own 8 GiB, a 1.7B model's
+        # server grew to 7.4 GB, unbudgeted, and a pin bump could change it unseen.
+        f"cache-ram = {preset.prompt_cache_mib}",
     ]
     if preset.mmproj_path is not None:
         # `--fit` does not count the projector, so a vision model the fitter

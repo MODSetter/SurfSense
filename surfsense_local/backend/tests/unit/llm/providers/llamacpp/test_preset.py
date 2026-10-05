@@ -22,6 +22,7 @@ def a_preset(**overrides) -> ModelPreset:
         "n_ctx": 16384,
         "precision": KvPrecision.F16,
         "fit_target_mib": 1024,
+        "prompt_cache_mib": 4096,
     }
     return ModelPreset(**{**fields, **overrides})
 
