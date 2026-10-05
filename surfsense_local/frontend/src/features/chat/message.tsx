@@ -86,6 +86,13 @@ function progressFrom(custom: unknown): ReplyProgress | null {
   return null
 }
 
+function preparingFrom(custom: unknown): number | null {
+  if (typeof custom === "object" && custom !== null && "preparing" in custom) {
+    return (custom.preparing as number | null) ?? null
+  }
+  return null
+}
+
 function MessageThinking() {
   const running = useAuiState(
     ({ message }) => message.status?.type === "running"
@@ -101,6 +108,9 @@ function MessageThinking() {
   const progress = useAuiState(({ message }) =>
     progressFrom(message.metadata.custom)
   )
+  const preparing = useAuiState(({ message }) =>
+    preparingFrom(message.metadata.custom)
+  )
 
   return (
     <ReplyThinking
@@ -108,6 +118,7 @@ function MessageThinking() {
       answerStarted={answerStarted}
       reasoning={reasoning}
       progress={progress}
+      preparing={preparing}
     />
   )
 }

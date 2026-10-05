@@ -1,6 +1,8 @@
 import json
+import os
 import secrets
 import threading
+from collections import Counter, OrderedDict
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,8 +14,10 @@ import pytest_asyncio
 from sqlalchemy import Engine
 
 from api.config import get_settings
+from modules.agent.agent_threads import live_instances
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
+from modules.agent.tool_endpoint import failed_renders
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
@@ -101,6 +105,44 @@ def beside_an_opencode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         get_agent_settings(), "opencode_password", "not-a-running-opencode"
     )
+
+
+@pytest.fixture(autouse=True)
+def no_failed_renders(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test's database gives out thread ids from 1 again; a turn's count must not carry over."""
+    monkeypatch.setattr(failed_renders, "_failed", {})
+
+
+@pytest.fixture(autouse=True)
+def no_live_instances(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test starts its own opencode: another test's instances are not in it to free."""
+    monkeypatch.setattr(live_instances, "_used", OrderedDict())
+    monkeypatch.setattr(live_instances, "_turns", Counter())
+
+
+# MAX_PATH less its terminator: the most a path may hold where long paths are off.
+MAX_PATH = 259
+
+
+@pytest.fixture
+def long_paths_off(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Windows without long paths: a longer path is not found. Collects each one tried."""
+    too_long: list[str] = []
+
+    def within_max_path(call):
+        def checked(*paths: object, **kwargs: object):
+            for path in paths:
+                if isinstance(path, str | os.PathLike) and len(str(path)) > MAX_PATH:
+                    too_long.append(str(path))
+                    raise FileNotFoundError(3, "The path is too long", str(path))
+            return call(*paths, **kwargs)
+
+        return checked
+
+    monkeypatch.setattr(os, "link", within_max_path(os.link))
+    monkeypatch.setattr(os, "replace", within_max_path(os.replace))
+    monkeypatch.setattr(Path, "write_bytes", within_max_path(Path.write_bytes))
+    return too_long
 
 
 @pytest.fixture

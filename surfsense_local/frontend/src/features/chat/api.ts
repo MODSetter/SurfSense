@@ -39,6 +39,8 @@ export type MessageContent = {
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.
   progress?: { processed: number; total: number }
+  // Client only: the sources an agent turn is preparing, until its next frame.
+  preparing?: number
 }
 
 export type ChatMessage = {

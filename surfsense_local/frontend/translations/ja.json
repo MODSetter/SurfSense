@@ -154,6 +154,7 @@
   "chat_model_picker_trigger_aria": "モデル: {model}。モデルを変更します。",
   "chat_reasoning_done_label": "{seconds, plural, other {#秒}}間考えました",
   "chat_reasoning_done_untimed_label": "考えました",
+  "chat_reasoning_preparing_label": "{count, plural, other {#件のソース}}を準備しています…",
   "chat_reasoning_reading_label": "読み取り中 {percent, number, ::percent}",
   "chat_reasoning_thinking_label": "考え中",
   "chat_rename_dialog_body": "この会話がわかる短い名前を付けてください。",

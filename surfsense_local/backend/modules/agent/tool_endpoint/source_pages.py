@@ -14,6 +14,7 @@ from modules.agent.previews.source_pages import (
     source_pages,
 )
 from modules.agent.thread_folder.layout import PAGES, SOURCES
+from modules.agent.thread_folder.source_images import PathTooLongError
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.documents.models import Document, DocumentType
@@ -74,6 +75,10 @@ def draw(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
         drawn = source_pages(scope.folder, document_id, original, asked)
     except PagesRefusedError as refused:
         raise ToolCallError(f'Source {document_id} ("{title}") {refused}') from refused
+    except PathTooLongError as too_long:
+        raise ToolCallError(
+            f"{too_long} Read the text of source {document_id} in {SOURCES}/ instead."
+        ) from too_long
     return _shown(scope.folder, document_id, title, original, drawn)
 
 

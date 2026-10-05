@@ -13,6 +13,7 @@ from sqlalchemy import Engine, select, update
 
 from modules.agent.previews import Previews
 from modules.agent.tool_endpoint import list_images, render_document
+from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import figures_dir, write_index
@@ -20,7 +21,7 @@ from modules.documents.tasks import extract_figures
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from shared.queue import ingest_queue
-from tests.integration.agent.conftest import declare_image_input
+from tests.integration.agent.conftest import MAX_PATH, declare_image_input
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.worker.conftest import stub_model  # noqa: F401
 
@@ -403,6 +404,50 @@ async def test_a_failing_script_returns_its_error_and_the_stop_rule(
     assert text.endswith(STOP)
 
 
+async def test_after_three_failed_runs_the_next_render_is_refused_and_runs_nothing(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """Small models ignored the stop rule (one rendered 21 times in a turn): the tool enforces it."""
+    workspace_id = await tools.workspace()
+    failing = render(script=FAILING)
+    await tools.call(workspace_id, "render_document", failing)
+    await tools.call(workspace_id, "render_document", failing)
+    _, is_error = await tools.call(workspace_id, "render_document", render())
+    assert is_error is False  # a success in between still counts toward the three
+    await tools.call(workspace_id, "render_document", failing)
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    assert is_error is True
+    assert "no more renders run until the user's next message" in text
+    assert len(await _listed(tools, workspace_id)) == 4
+
+
+async def test_a_render_still_running_when_the_user_writes_again_counts_toward_its_own_turn(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A user who stops a looping turn and writes again gets three fresh tries."""
+    workspace_id = await tools.workspace()
+    thread_id = tools.default_thread(workspace_id)
+    failing = render(script=FAILING)
+    waited = render_document.wait_for_outcome
+
+    def next_message_meanwhile(*args: object, **kwargs: object) -> object:
+        outcome = waited(*args, **kwargs)
+        begin_turn(thread_id)
+        return outcome
+
+    with monkeypatch.context() as patch:
+        patch.setattr(render_document, "wait_for_outcome", next_message_meanwhile)
+        await tools.call(workspace_id, "render_document", failing)
+    await tools.call(workspace_id, "render_document", failing)
+    await tools.call(workspace_id, "render_document", failing)
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    assert is_error is False, text
+
+
 async def test_a_version_that_failed_outside_its_script_is_not_blamed_on_it(
     tools: ToolEndpoint, engine: Engine
 ) -> None:
@@ -771,6 +816,54 @@ async def test_listed_images_are_copied_with_the_write_lock_free(
     assert is_error is False, text
     assert others_could_write == [True, True]
     assert f"at sources/figures/{report}-2.png" in text
+
+
+async def test_an_image_whose_path_just_fits_is_copied_where_long_paths_are_off(
+    tools: ToolEndpoint,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+) -> None:
+    """The copy is written beside the image first, under a name no longer than the image's."""
+    storage = get_storage_settings()
+    workspace_id = await tools.workspace()
+    figures = tools.folder(workspace_id) / "sources" / "figures"
+    # As deep as `figures/` may be made: CreateDirectory leaves 12 for an 8.3 name.
+    padding = MAX_PATH - 12 - len(str(figures)) - 1
+    monkeypatch.setattr(storage, "data_dir", storage.data_dir / ("d" * padding))
+    report = _report_source(engine, workspace_id)
+    copied = tools.folder(workspace_id) / "sources" / "figures" / f"{report}-1.png"
+    assert len(str(copied.parent)) == MAX_PATH - 12
+    # Only now: the source's own figure index is a character longer than the copy.
+    long_paths_off: list[str] = request.getfixturevalue("long_paths_off")
+
+    text, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [report]}
+    )
+
+    assert is_error is False, text
+    assert copied.is_file()
+    assert long_paths_off == []
+
+
+async def test_an_image_too_deep_to_copy_is_still_listed_by_the_name_scripts_use(
+    tools: ToolEndpoint, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A script places it by name from IMAGES_DIR; only the copy to look at is missing."""
+    storage = get_storage_settings()
+    workspace_id = await tools.workspace()
+    figures = tools.folder(workspace_id) / "sources" / "figures"
+    padding = MAX_PATH - len(str(figures))
+    monkeypatch.setattr(storage, "data_dir", storage.data_dir / ("d" * padding))
+    report = _report_source(engine, workspace_id)
+
+    text, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [report]}
+    )
+
+    assert is_error is False, text
+    assert f"- {report}-1: 1200x800 px, page 3" in text
+    assert "no copy to open: SurfSense's data folder is too deep" in text
 
 
 async def test_a_listed_image_can_be_opened_from_the_sources_folder(

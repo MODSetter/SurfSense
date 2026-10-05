@@ -154,6 +154,7 @@
   "chat_model_picker_trigger_aria": "Modèle {model}. Changer de modèle.",
   "chat_reasoning_done_label": "Réflexion pendant {seconds, plural, one {# seconde} many {# secondes} other {# secondes}}",
   "chat_reasoning_done_untimed_label": "Réflexion terminée",
+  "chat_reasoning_preparing_label": "Préparation de {count, plural, one {# source} many {# sources} other {# sources}}…",
   "chat_reasoning_reading_label": "Lecture {percent, number, ::percent}",
   "chat_reasoning_thinking_label": "Réflexion",
   "chat_rename_dialog_body": "Choisissez un nom court qui identifie cette conversation.",

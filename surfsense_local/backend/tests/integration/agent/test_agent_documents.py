@@ -52,6 +52,11 @@ def _finished(frames: list[dict], tool: str) -> dict:
     return step
 
 
+def _last_tool_result(request: dict) -> str:
+    """What the model was handed back from its latest tool call."""
+    return json.dumps([m for m in request["messages"] if m["role"] == "tool"][-1])
+
+
 def _tool_results(request: dict) -> str:
     """What the model was handed back from its tool calls."""
     return json.dumps([m for m in request["messages"] if m["role"] == "tool"])
@@ -221,6 +226,30 @@ async def test_a_failed_render_reaches_the_model_with_the_stop_rule(
     handed_back = _tool_results(agent_api.model.requests[1])
     assert "ValueError: the pricing table is empty" in handed_back
     assert STOP_RULE in handed_back
+
+
+async def test_three_failed_renders_stop_the_turn_and_the_next_turn_may_render_again(
+    agent_api: AgentAPI, studio_worker: None
+) -> None:
+    """The stop holds for the turn alone: the user's next message may ask for another try."""
+    agent_api.model.replies = [
+        *[render(FAILING)] * 4,
+        ("text", "It failed three times."),
+        render(FAILING),
+        ("text", "It failed again."),
+    ]
+    thread = await open_thread(agent_api)
+
+    await send(agent_api, thread["id"], "Draft the proposal")
+    stopped = _last_tool_result(agent_api.model.requests[4])
+    made = await agent_api.http.get(f"/workspaces/{agent_api.workspace_id}/artifacts")
+    await send(agent_api, thread["id"], "Try once more")
+
+    assert "no more renders run until the user's next message" in stopped
+    assert len(made.json()) == 3
+    assert "ValueError: the pricing table is empty" in _last_tool_result(
+        agent_api.model.requests[6]
+    )
 
 
 async def test_a_render_ready_after_its_call_answered_links_its_version_when_read_back(

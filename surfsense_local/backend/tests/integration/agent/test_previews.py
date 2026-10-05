@@ -30,6 +30,7 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_session_factory
+from tests.integration.agent.conftest import MAX_PATH
 
 pytestmark = pytest.mark.integration
 
@@ -223,6 +224,20 @@ async def test_a_page_is_drawn_no_larger_than_an_image_the_model_can_take(
     assert previews.reason is not None
     assert "Page 2 was not drawn" in previews.reason
     assert "2 x 14400 pt" in previews.reason
+
+
+async def test_previews_whose_paths_cannot_fit_are_not_drawn_and_say_why(
+    ready_artifact: Callable[..., Artifact], tmp_path: Path
+) -> None:
+    """Under a thread folder this deep, `outputs/previews/` has no room for a page's name."""
+    artifact = ready_artifact("pdf", _pdf(2), "application/pdf")
+    folder = tmp_path / ("t" * (MAX_PATH - len(str(tmp_path)) - 20))
+
+    previews = previews_for(artifact, folder)
+
+    assert previews.pages == []
+    assert "too deep on this computer" in (previews.reason or "")
+    assert not (folder / "outputs").exists()
 
 
 async def test_a_file_that_is_not_a_pdf_gives_no_pages_and_says_why(

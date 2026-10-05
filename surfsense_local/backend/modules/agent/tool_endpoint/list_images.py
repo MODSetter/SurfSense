@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from modules.agent.thread_folder.layout import FIGURES, SOURCES
-from modules.agent.thread_folder.source_images import show_figure
+from modules.agent.thread_folder.source_images import PathTooLongError, show_figure
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.documents.models import Document
@@ -109,11 +109,19 @@ def _source_images(
 def _shown(folder: Path, source: _SourceImages) -> str:
     """The source's lines, each figure copied where `read` opens it; one gone from disk is left out."""
     lines = [
-        _line(figure, show_figure(folder, figure.name, png))
+        _line(figure, _copied(folder, figure, png))
         for figure, png in source.figures
         if png.is_file()
     ]
     return "\n".join([source.text, *lines])
+
+
+def _copied(folder: Path, figure: SourceFigure, png: Path) -> str:
+    """Where its copy to open is; without one, its name still places it in a script."""
+    try:
+        return f"at {show_figure(folder, figure.name, png)}"
+    except PathTooLongError as too_long:
+        return f"no copy to open: {too_long}"
 
 
 def _number(figure: SourceFigure) -> int:
@@ -129,7 +137,7 @@ def _line(figure: SourceFigure, shown_at: str) -> str:
         parts.append(f"page {figure.page}")
     caption = _one_line(figure.caption or "")
     parts.append(f'caption "{caption}"' if caption else "no caption")
-    parts.append(f"at {shown_at}")
+    parts.append(shown_at)
     return f"- {figure.name}: {', '.join(parts)}"
 
 

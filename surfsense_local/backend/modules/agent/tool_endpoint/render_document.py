@@ -16,6 +16,10 @@ from sqlalchemy.orm import Session
 from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.previews import previews_for
 from modules.agent.tool_endpoint.document_size import document_size
+from modules.agent.tool_endpoint.failed_renders import (
+    FailedRunError,
+    stop_after_three_failures,
+)
 from modules.agent.tool_endpoint.job_outcome import JobOutcome, wait_for_outcome
 from modules.agent.tool_endpoint.registration import TOOL_CALL_SECONDS
 from modules.agent.tool_endpoint.rendered_label import (
@@ -173,7 +177,7 @@ def render(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str
     if outcome.status is DocumentStatus.READY:
         return _made(session, scope.folder, started, deadline)
     if outcome.status is DocumentStatus.FAILED:
-        raise ToolCallError(_failed(started, outcome))
+        raise FailedRunError(_failed(started, outcome))
     if outcome.status is DocumentStatus.CANCELLED:
         raise ToolCallError(
             f"{_version_of(started)} was cancelled in Studio. Ask the user before "
@@ -426,4 +430,6 @@ def _failed(started: _Started, outcome: JobOutcome) -> str:
     )
 
 
-RENDER_DOCUMENT = Tool(listing=LISTING, run=render, waits=True)
+RENDER_DOCUMENT = Tool(
+    listing=LISTING, run=stop_after_three_failures(render), waits=True
+)
