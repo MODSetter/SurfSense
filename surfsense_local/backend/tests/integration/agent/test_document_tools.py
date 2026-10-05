@@ -1291,3 +1291,22 @@ async def test_reading_the_agents_version_skips_a_newer_one_studio_made(
     assert f"Its newest is version 3, artifact {agents_id}" in text
     assert agents_script in text
     assert "Shorter." not in text
+
+
+async def test_refusals_to_continue_studios_document_leave_a_new_one_free_to_render(
+    tools: ToolEndpoint, engine: Engine, studio_worker: None
+) -> None:
+    """The refusal says to make a new document: neither the three-failures stop
+    nor the same-title guard may then stand in the way."""
+    workspace_id = await tools.workspace()
+    draft_id, _ = _studio_document(engine, workspace_id)
+    for _ in range(3):
+        refused, _ = await tools.call(
+            workspace_id, "render_document", render(artifact_id=draft_id)
+        )
+        assert "made in Studio" in refused
+
+    text, is_error = await tools.call(workspace_id, "render_document", render())
+
+    assert is_error is False, text
+    assert text.startswith("Rendered artifact ")
