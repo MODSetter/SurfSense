@@ -122,29 +122,27 @@ class ResponsesChatProvider:
             "store": False,
             "stream": True,
         }
-        # As Codex sends them: the plan keys its cache by `prompt_cache_key` and
-        # routes a session to the machine holding it by the `session-id` header.
-        session = {"session-id": conversation} if conversation else {}
+        # Routes the conversation to the machine that cached its prompt. Not
+        # among the fields the plan's endpoint rejects, which name
+        # `prompt_cache_retention` (developers.openai.com/siwc, preview limitations).
         if conversation:
             body["prompt_cache_key"] = conversation
         async for delta in with_deadlines(
-            self._stream(body, session),
+            self._stream(body),
             first_item_seconds=FIRST_TOKEN_SECONDS,
             between_items_seconds=BETWEEN_TOKENS_SECONDS,
             subject="the model",
         ):
             yield delta
 
-    async def _stream(
-        self, body: dict[str, object], headers: dict[str, str]
-    ) -> AsyncIterator[Delta]:
+    async def _stream(self, body: dict[str, object]) -> AsyncIterator[Delta]:
         # One refresh after a 401: the stored token can expire between reads.
         for refresh in (False, True):
             token = await self._access_token(refresh)
             async with (
                 self._client(token, TIMEOUT) as client,
                 client.stream(
-                    "POST", f"{self._base_url}/responses", json=body, headers=headers
+                    "POST", f"{self._base_url}/responses", json=body
                 ) as reply,
             ):
                 if reply.status_code == 401 and not refresh:
