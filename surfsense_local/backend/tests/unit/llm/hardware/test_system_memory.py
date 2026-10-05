@@ -116,6 +116,8 @@ def test_darwin_falls_back_to_total_when_vm_stat_hangs(
     """The 5 s timeout raises a SubprocessError, which costs only the live reading."""
 
     def hung(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        # Without the timeout a hung vm_stat would hang the fit check with it.
+        assert kwargs.get("timeout") == 5
         raise subprocess.TimeoutExpired(command, 5)
 
     monkeypatch.setattr(system_memory.subprocess, "run", hung)
