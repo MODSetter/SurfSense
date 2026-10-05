@@ -16,6 +16,7 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.server_config impor
 )
 from modules.llm.catalog.local.engines.audiocpp.rows.catalog import audio_catalog
 from modules.llm.catalog.local.engines.engine import InstallStep
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.installs import InstalledBuild, read_installs
 from modules.llm.catalog.local.manifest import CuratedModel
@@ -128,7 +129,7 @@ class AudioCppEngine:
         # Electron restarts the server on the new file; the model loads on its
         # first request, so there is nothing to wait for here.
         self._write_config()
-        yield InstallStep("complete", "Model is ready")
+        yield InstallStep("complete", "Model is ready", code=InstallCode.READY)
 
     def _write_config(self) -> None:
         if self._audio_dir is not None:

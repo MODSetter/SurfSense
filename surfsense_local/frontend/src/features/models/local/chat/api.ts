@@ -199,11 +199,15 @@ export type RepoDetail = {
   row: LocalRow
 }
 
+// `code` names what `message` says, for the interface to say in its own
+// language; `installMessage()` falls back to `message` for one it has no text
+// for.
 export type InstallEvent =
   | {
       // `queued`: another download runs, and this one starts when it ends.
       type: "queued" | "starting" | "verifying" | "selecting" | "cancelled"
       message?: string
+      code?: string | null
     }
   | {
       // `preparing` covers two waits: the runtime restarting and picking the
@@ -212,17 +216,31 @@ export type InstallEvent =
       // until it has one to give.
       type: "preparing"
       message?: string
+      code?: string | null
       progress?: number | null
     }
   | {
       type: "downloading"
       message?: string
+      code?: string | null
       completed: number
       total: number
     }
   // `selection` is null when the install was asked not to select.
-  | { type: "complete"; message?: string; selection: ModelSelection | null }
-  | { type: "error"; message: string }
+  | {
+      type: "complete"
+      message?: string
+      code?: string | null
+      selection: ModelSelection | null
+    }
+  | {
+      type: "error"
+      message: string
+      code?: string | null
+      // Sent raw with `not_enough_disk`, for the message to format.
+      needed_bytes?: number
+      free_bytes?: number
+    }
 
 export type DeleteModelResult = {
   name: string

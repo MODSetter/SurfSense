@@ -65,6 +65,7 @@ async def test_an_image_build_installs_into_its_folder_and_is_selected(
     job = await install_to_end(client, catalog_id=build["catalog_id"], select=True)
 
     assert job["event"]["type"] == "complete", job
+    assert job["event"]["code"] == "ready"
     assert job["label"] == "Stable Diffusion 1.5 Q4_0"
     assert job["model_types"] == ["image_gen"]
     assert (images_dir / "v1-5-pruned_Q4_0.gguf").exists()
@@ -241,4 +242,7 @@ async def test_a_download_the_disk_cannot_hold_is_refused_before_it_starts(
 
     assert job["event"]["type"] == "error"
     assert "4.1 GB free" in job["event"]["message"]
+    assert job["event"]["code"] == "not_enough_disk"
+    assert round(job["event"]["needed_bytes"] / 1e9, 1) == 4.1
+    assert job["event"]["free_bytes"] == 10**6
     assert not (images_dir / "v1-5-pruned_Q4_0.gguf").exists()

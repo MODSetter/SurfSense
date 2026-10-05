@@ -25,6 +25,7 @@ import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
 import { GGUF_SEARCH, type SearchSource } from "./search-source"
 import type { InstallJob } from "../installs/api"
+import { installMessage } from "../installs/install-text"
 import { jobFor } from "../installs/job-state"
 
 // Tall enough for a handful of results, so the common search neither moves the
@@ -161,7 +162,9 @@ function RepoBuilds({
           const job = jobFor(jobs, build.catalog_id)
           const latest = latestJobFor(jobs, build.catalog_id)
           const failure =
-            !job && latest?.event.type === "error" ? latest.event.message : null
+            !job && latest?.event.type === "error"
+              ? installMessage(latest.event)
+              : null
           return (
             <li
               key={build.catalog_id || build.quantization}
