@@ -1,11 +1,13 @@
 """Host memory read from the OS, the figure that decides PARTIAL against TOO_BIG.
 
-Each reader is driven against recorded output, because only one of them can run
-on any given host.
+Each reader is driven against sample output or a stand-in system call, because
+only one of them can run on any given host.
 """
 
+import ctypes
 import io
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -108,6 +110,19 @@ def test_darwin_falls_back_to_total_when_vm_stat_fails(
     assert system_memory._darwin() == total
 
 
+def test_darwin_falls_back_to_total_when_vm_stat_hangs(
+    monkeypatch: pytest.MonkeyPatch, total: int
+) -> None:
+    """The 5 s timeout raises a SubprocessError, which costs only the live reading."""
+
+    def hung(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        raise subprocess.TimeoutExpired(command, 5)
+
+    monkeypatch.setattr(system_memory.subprocess, "run", hung)
+
+    assert system_memory._darwin() == total
+
+
 def test_darwin_with_nothing_reclaimable_reads_total_not_zero(
     monkeypatch: pytest.MonkeyPatch, total: int
 ) -> None:
@@ -124,3 +139,50 @@ def test_an_unknown_platform_reads_total(
     monkeypatch.setattr(system_memory.sys, "platform", "freebsd14")
 
     assert system_memory.available_bytes() == total
+
+
+def global_memory_status(monkeypatch: pytest.MonkeyPatch, succeeds: bool) -> None:
+    """A stand-in kernel32 that answers GlobalMemoryStatusEx as Windows does."""
+
+    def call(ref: object) -> int:
+        status = ref._obj  # type: ignore[attr-defined]
+        # Windows refuses the call unless the caller sized the struct.
+        assert status.dwLength == ctypes.sizeof(status)
+        status.ullAvailPhys = 6 * GIB
+        return 1 if succeeds else 0
+
+    stand_in = SimpleNamespace(kernel32=SimpleNamespace(GlobalMemoryStatusEx=call))
+    monkeypatch.setattr(system_memory.ctypes, "windll", stand_in, raising=False)
+
+
+def test_windows_reads_available_physical_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """There is no sysconf on Windows, so this call is all that keeps it off 0."""
+    global_memory_status(monkeypatch, succeeds=True)
+
+    assert system_memory._windows() == 6 * GIB
+
+
+def test_windows_reads_zero_when_the_call_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed call's struct is not trusted, whatever it holds."""
+    global_memory_status(monkeypatch, succeeds=False)
+
+    assert system_memory._windows() == 0
+
+
+def test_total_is_pages_times_page_size(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fallback every reader shares, from sysconf."""
+    values = {"SC_PAGE_SIZE": 16384, "SC_PHYS_PAGES": 1048576}
+    monkeypatch.setattr(system_memory.os, "sysconf", values.__getitem__, raising=False)
+
+    assert system_memory._total() == 16 * GIB
+
+
+def test_total_is_zero_without_sysconf(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows has no sysconf; zero there, never an exception."""
+    monkeypatch.delattr(system_memory.os, "sysconf", raising=False)
+
+    assert system_memory._total() == 0

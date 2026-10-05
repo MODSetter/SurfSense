@@ -190,11 +190,12 @@ On an M2 with roughly 2 GB genuinely free it reported 8192.0 MiB total and
 8192.0 MiB free, physical RAM restated twice. So `system_memory.available_bytes()`
 asks the operating system: `MemAvailable` from `/proc/meminfo` on Linux, free
 plus inactive pages from `vm_stat` on macOS, which is what a large allocation can
-actually claim, and `sysconf` totals as the fallback rather than zero. The figure
+actually claim, `ullAvailPhys` from `GlobalMemoryStatusEx` on Windows, and
+`sysconf` totals as the fallback rather than zero. The figure
 matters because host memory is what separates `PARTIAL` from `TOO_BIG` on a
 discrete card.
-Each reader and its fallbacks are tested against recorded `/proc/meminfo` and
-`vm_stat` output ([`test_system_memory.py`](../../../surfsense_local/backend/tests/unit/llm/hardware/test_system_memory.py)).
+Each reader and its fallbacks are tested against sample `/proc/meminfo` and
+`vm_stat` output and a stand-in `GlobalMemoryStatusEx` ([`test_system_memory.py`](../../../surfsense_local/backend/tests/unit/llm/hardware/test_system_memory.py)).
 
 ### Unified memory is one pool
 
