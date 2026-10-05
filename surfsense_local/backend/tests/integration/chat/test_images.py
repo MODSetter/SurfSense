@@ -10,7 +10,7 @@ from httpx import AsyncClient
 from PIL import Image as Pillow
 from sqlalchemy import Engine
 
-from tests.integration.chat.conftest import set_sees
+from tests.integration.chat.conftest import set_props_n_ctx, set_sees
 from tests.integration.chat.test_chat import _open_thread, _seed
 
 pytestmark = pytest.mark.integration
@@ -96,6 +96,48 @@ async def test_a_model_that_cannot_see_is_refused_and_nothing_is_kept(
     assert (await client.get(f"/chat/threads/{thread_id}/messages")).json() == []
     assert stored_images(data_dir) == []
     assert llamacpp_server == []
+
+
+async def test_images_that_outgrow_the_window_are_refused_and_nothing_is_kept(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+    data_dir: Path,
+) -> None:
+    """2,048 tokens hold at most four 256-token images once the answer is
+    reserved, fewer with the turn's text: four overflow even at 256 each."""
+    set_sees(True)
+    set_props_n_ctx(2048)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    status, body = await send(client, thread_id, "what are these?", [picture()] * 4)
+
+    assert status == 409
+    assert "Send fewer" in json.loads("".join(body))["detail"]
+    assert (await client.get(f"/chat/threads/{thread_id}/messages")).json() == []
+    assert stored_images(data_dir) == []
+    assert llamacpp_server == []
+
+
+async def test_images_a_cheap_projector_fits_are_sent(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+) -> None:
+    """Three images on an 8,192 window cost 768 on Gemma 3, so they are sent,
+    though the history trim prices each at 1,400."""
+    set_sees(True)
+    set_props_n_ctx(8192)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    status, _ = await send(client, thread_id, "what are these?", [picture()] * 3)
+
+    assert status == 200
+    assert len(image_parts(llamacpp_server[-1]["messages"][-1])) == 3
 
 
 async def test_bytes_that_are_not_an_image_are_refused(
