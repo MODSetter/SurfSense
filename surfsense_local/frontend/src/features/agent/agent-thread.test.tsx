@@ -407,6 +407,79 @@ describe("an agent thread", () => {
     expect(await screen.findByText("There are two.")).toBeTruthy()
   })
 
+  it("names the source a stored reply looked at the pages of", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: {
+            text: "Match the brand guide",
+            scope: { document_ids: [7, 8], titles: ["Notes", "Brand guide"] },
+          },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "It uses navy headings.",
+            steps: [
+              {
+                id: "prt_3",
+                tool: "surfsense_source_pages",
+                status: "completed",
+                title: "",
+                input: { document_id: 8 },
+                output: "",
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("It uses navy headings.")).toBeTruthy()
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent === "Looked at pages of Brand guide"
+      ).length
+    ).toBeGreaterThan(0)
+  })
+
+  it("names the source a reply looks at the pages of as it streams", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-scope",
+          scope: { document_ids: [8], titles: ["Brand guide"] },
+        },
+        step("running", {
+          tool: "surfsense_source_pages",
+          input: { document_id: 8 },
+        }),
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("Match the brand guide")
+
+    expect(
+      (
+        await screen.findAllByText(
+          (_, element) =>
+            element?.textContent === "Looked at pages of Brand guide"
+        )
+      ).length
+    ).toBeGreaterThan(0)
+  })
+
   it("names SurfSense's own tools in words, not by their tool names", async () => {
     backend({
       stored: [

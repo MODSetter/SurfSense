@@ -126,7 +126,13 @@ function stepsFrom(custom: unknown): AgentStep[] {
 
 function MessageSteps() {
   const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
-  const scope = useAuiState(({ message }) => scopeFrom(message.metadata.custom))
+  // The turn's sources are kept on the user's message this reply answers.
+  const scope = useAuiState(({ thread, message }) => {
+    const asked = thread.messages
+      .slice(0, message.index)
+      .findLast((candidate) => candidate.role === "user")
+    return asked ? scopeFrom(asked.metadata.custom) : null
+  })
   return <AgentSteps steps={steps} scope={scope} />
 }
 
