@@ -191,7 +191,8 @@ async def send_message(
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
-    context, citations = build_context(hits, resolved.tier)
+    grounding = build_context(hits, resolved.tier)
+    citations = grounding.citations
     logger.info(
         "chat: model %s/%s answering on the %s prompt (%s excerpts)",
         selected.provider,
@@ -200,12 +201,16 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
-    _refuse_images_past_window(len(images), n_ctx, len(context) + len(payload.text))
+    prompt_chars = (
+        len(grounding.instruction) + len(grounding.excerpts or "") + len(payload.text)
+    )
+    _refuse_images_past_window(len(images), n_ctx, prompt_chars)
     found = await _source_images(session, hits, sees, n_ctx, len(images))
     messages = await build_messages(
-        context,
+        grounding.instruction,
         history,
         payload.text,
+        excerpts=grounding.excerpts,
         images=[image.as_part() for image in (*images, *found)],
         history_budget=history_budget(n_ctx),
         token_count=_token_counter(generator, selected.name),

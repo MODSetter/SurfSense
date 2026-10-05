@@ -16,11 +16,15 @@ async def build_messages(
     history: Sequence[ChatMessage],
     user_text: str,
     *,
+    excerpts: str | None = None,
     images: Sequence[Image] = (),
     history_budget: int = DEFAULT_HISTORY_TOKENS,
     token_count: TokenCounter | None = None,
 ) -> list[Message]:
     """Assemble `[system, *recent history within budget, user]` for the generator.
+
+    `excerpts` go ahead of the new question and nowhere else, so the turns
+    before it reach the model as they did last time and its cached prefix holds.
 
     `history_budget` defaults to today's fixed figure; a caller that knows the
     model's real window computes a tighter one with `modules.chat.budget` so
@@ -43,10 +47,11 @@ async def build_messages(
     ]
     budget = max(0, history_budget - IMAGE_TOKENS * len(images))
     kept = await _within_budget(turns, budget, token_count)
+    question = f"{excerpts}\n\n{user_text}" if excerpts else user_text
     return [
         Message("system", system),
         *kept,
-        Message("user", user_text, images=tuple(images)),
+        Message("user", question, images=tuple(images)),
     ]
 
 

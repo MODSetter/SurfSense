@@ -22,12 +22,12 @@ A message body is `{"text": "...", "document_ids": [...], "images": [...], "thin
 
 ## Grounding shape
 
-The retrieved passages go into the system message, after a fixed instruction block:
+The system message is a fixed instruction block, and the retrieved passages go into the new user message, ahead of the question:
 
 ```text
-<instruction block for the model's tier>
+system: <instruction block for the model's tier>
 
-<retrieved_context>
+user:   <retrieved_context>
 These are excerpts from the user's knowledge base, selected for this query. ...
 <document title="Quarterly report" view="excerpt">
   [1] ...passage text...
@@ -37,13 +37,16 @@ These are excerpts from the user's knowledge base, selected for this query. ...
   [2] ...passage text...
 </document>
 </retrieved_context>
+
+        <the question>
 ```
 
+- The passages change with every question, and llama-server reuses a prompt only up to its first changed token, so they come after the history rather than ahead of it. Earlier questions reach the model without their passages, as they did before. Measured on Qwen3 1.7B at an 8,192-token window, with answers of about 450 tokens: turn 7 read 3,873 tokens of its prompt instead of 6,304.
 - Hits are numbered 1 to N in rank order and grouped under their document, in the order each document first appears. The model cites `[n]`. The numbers are per message.
 - The instruction block tells the model to answer from the sources, put a label right after the claim it supports, cite only what the sources back, say when the context does not hold the answer and then answer from its own knowledge if it can, and reply in the question's language, with a one-line example. Explicit rules earn their keep on small local models.
-- It ships as three markdown files in [`modules/chat/prompts/`](../../surfsense_local/backend/modules/chat/prompts/): `compact.md`, `capable.md` and `frontier.md`. All three carry the same citation rules, except where the [chat eval](../proposals/chat-eval.md) measured `compact.md` on Qwen3 1.7B: when the sources fall short, it answers from its own knowledge only with general knowledge, never guesses a detail of the user's own documents, products or people, labels neither sentence, and shows an example of each. `capable.md` adds a work order and `frontier.md` advice on how to shape an answer. `build_context(hits, tier)` loads the one for the selected model's prompt tier, which comes from the fingerprint recorded when the model was chosen, or from the model's name when none was recorded ([`local-models/selection.md`](local-models/selection.md)); it is not a user setting.
+- It ships as three markdown files in [`modules/chat/prompts/`](../../surfsense_local/backend/modules/chat/prompts/): `compact.md`, `capable.md` and `frontier.md`. All three carry the same citation rules, except where the [chat eval](../proposals/chat-eval.md) measured `compact.md` on Qwen3 1.7B: when the sources fall short, it answers from its own knowledge only with general knowledge, never guesses a detail of the user's own documents, products or people, labels neither sentence, and shows an example of each. `capable.md` adds a work order and `frontier.md` advice on how to shape an answer. `build_context(hits, tier)` returns it with the excerpts and their citations, loading the one for the selected model's prompt tier, which comes from the fingerprint recorded when the model was chosen, or from the model's name when none was recorded ([`local-models/selection.md`](local-models/selection.md)); it is not a user setting.
 - A passage cannot forge a source. `<source>`, `<context>`, `<document>` and `<retrieved_context>` tags in its text are stripped before it goes between the tags, so a document cannot close its block early or inject a label, and the document title is escaped as an attribute.
-- No hits, no context block: the system message is a short instruction with no citation rules, the same for every tier. It asks the model to say the knowledge base does not cover the question, then answer from general knowledge if it can, never guessing about the user's own documents, products or people.
+- No hits, no context block: the user message is the question alone, and the system message is a short instruction with no citation rules, the same for every tier. It asks the model to say the knowledge base does not cover the question, then answer from general knowledge if it can, never guessing about the user's own documents, products or people.
 
 ## Message assembly
 

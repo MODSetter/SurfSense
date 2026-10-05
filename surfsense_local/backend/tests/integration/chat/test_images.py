@@ -63,7 +63,8 @@ async def test_a_model_that_sees_receives_the_image_and_the_turn_keeps_it(
 
     assert status == 200
     asked = llamacpp_server[-1]["messages"][-1]
-    assert asked["content"][0] == {"type": "text", "text": "what is this?"}
+    assert asked["content"][0]["type"] == "text"
+    assert asked["content"][0]["text"].endswith("what is this?")
     (part,) = image_parts(asked)
     assert part["image_url"]["url"].startswith("data:image/jpeg;base64,")
 
@@ -186,7 +187,8 @@ async def test_a_followup_resends_only_the_newest_image_turn(
     with_images = [m for m in sent if image_parts(m)]
     assert [m["content"][0]["text"] for m in with_images] == ["second chart"]
     assert "first chart" in [m["content"] for m in sent]
-    assert sent[-1] == {"role": "user", "content": "and the left axis?"}
+    assert sent[-1]["role"] == "user"
+    assert sent[-1]["content"].endswith("and the left axis?")
 
 
 async def test_deleting_a_thread_removes_its_images(

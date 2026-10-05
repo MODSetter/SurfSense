@@ -275,8 +275,35 @@ async def test_a_followup_carries_the_earlier_turn(
     assert len(llamacpp_server) == 1
     sent = llamacpp_server[-1]["messages"]
     assert sent[0]["role"] == "system"
-    assert sent[-1] == {"role": "user", "content": "second question"}
+    assert sent[-1]["role"] == "user"
+    assert sent[-1]["content"].endswith("second question")
     assert "first question" in [message["content"] for message in sent]
+
+
+async def test_a_followup_keeps_the_system_message_and_asks_with_its_own_passages(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """llama-server reuses a prompt only up to its first changed token. With the
+    passages in the system message, every follow-up re-read its whole history;
+    with them in the question, it reads from the previous question on."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "what happened to revenue?")
+    await _send(client, thread_id, "and after the launch?")
+
+    first, second = (
+        request["messages"]
+        for request in llamacpp_server
+        if request["messages"][0]["role"] == "system"
+    )
+    assert first[0] == second[0]
+    assert FINANCE not in first[0]["content"]
+    assert FINANCE in first[-1]["content"]
+    assert first[-1]["content"].endswith("what happened to revenue?")
+    assert {"role": "user", "content": "what happened to revenue?"} in second
+    assert FINANCE in second[-1]["content"]
+    assert second[-1]["content"].endswith("and after the launch?")
 
 
 async def test_a_thinking_model_shows_its_reasoning_before_the_answer(
