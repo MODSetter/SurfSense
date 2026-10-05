@@ -17,9 +17,11 @@ import httpx
 from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
+from modules.agent.agent_threads.legacy_thread import LEGACY_TURN, is_legacy
 from modules.agent.agent_threads.ready_renders import link_live_render
 from modules.agent.agent_threads.replies import turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
@@ -31,11 +33,12 @@ from modules.agent.opencode_runtime import (
     ReadyAgent,
     ready_opencode,
 )
-from modules.agent.sources_folder import sync_sources_folder
-from modules.agent.tool_endpoint.registration import register_workspace_tools
+from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
+from modules.agent.tool_endpoint.registration import register_thread_tools
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.llm.resolution import ModelResolutionError
+from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +80,30 @@ async def agent_turn(
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     except (AgentUnavailableError, OpencodeVersionError) as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    # Checked once the model resolves, so a thread left with no model still asks for one.
-    if not await selected_model_can_run_agent(session):
+    try:
+        await _refuse_a_legacy_thread(ready, thread, session_id)
+        # Checked once the model resolves, so a thread left with no model still asks for one.
+        if not await selected_model_can_run_agent(session):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "The selected model cannot run the agent. Choose another model, "
+                "or start a new chat to use this one.",
+            )
+        # Commits its own short reads: files are written with the write lock free.
+        try:
+            folder = await run_in_threadpool(
+                sync_thread_folder, session, thread, sources.document_ids
+            )
+        except ThreadGoneError as error:
+            # Deleted from another tab while this turn was starting.
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, "thread not found"
+            ) from error
+    except BaseException:
         await ready.client.close()
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "The selected model cannot run the agent. Choose another model, "
-            "or start a new chat to use this one.",
-        )
-    folder = await transact(session, sync_sources_folder, thread.workspace_id)
-    await register_workspace_tools(
-        ready.client, folder, thread.workspace_id, launch_key, sources.document_ids
+        raise
+    await register_thread_tools(
+        ready.client, folder, thread.workspace_id, thread.id, launch_key
     )
     title = _first_title(thread, payload.text)
     if title is not None:
@@ -201,6 +217,21 @@ async def _stream(
                         "could not stop agent turn in %s", session_id, exc_info=True
                     )
             await client.close()
+
+
+async def _refuse_a_legacy_thread(
+    ready: ReadyAgent, thread: ChatThread, session_id: str
+) -> None:
+    """A thread whose session works in the folder all threads once shared is only read back."""
+    folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
+    try:
+        legacy = await is_legacy(ready.client, session_id, folder)
+    except httpx.HTTPError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"opencode did not answer: {error}"
+        ) from error
+    if legacy:
+        raise HTTPException(status.HTTP_409_CONFLICT, LEGACY_TURN)
 
 
 def _first_title(thread: ChatThread, text: str) -> str | None:

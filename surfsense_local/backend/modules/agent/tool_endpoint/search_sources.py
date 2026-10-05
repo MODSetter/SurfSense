@@ -1,10 +1,12 @@
 """The search tool: the chat's own search over the workspace's sources."""
 
+from pathlib import PurePosixPath
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from modules.agent.sources_folder import SOURCES, source_file_names
+from modules.agent.thread_folder.layout import SOURCES
+from modules.agent.thread_folder.scope_paths import scope_paths
 from modules.agent.tool_endpoint.passage_label import opening, without_passage_tags
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
@@ -16,6 +18,9 @@ _NOT_READY = (
     "SurfSense's search is not ready on this computer. Use grep on {files} instead."
 )
 _NO_MATCH = "No passage matched. Try other words, or grep {files}."
+
+# Only the selected sources are in the thread's folder.
+_GREP_IN = f"the selected sources' files in {SOURCES}/"
 
 _NOTHING_SELECTED = (
     "No sources are selected for this request, so there is nothing to search. "
@@ -49,7 +54,7 @@ def search(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str
     if not isinstance(query, str) or not query.strip():
         raise ToolCallError("Give a query: the words or the question to look for.")
     selected = scope.selected()
-    if selected is not None and not selected:
+    if not selected:
         return _NOTHING_SELECTED
     # Keep numpy/onnxruntime lazy, as the chat does.
     from modules.embedding.encoder import missing_files
@@ -57,25 +62,22 @@ def search(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str
     try:
         index = require_active_index(session)
     except EmbeddingNotChosenError as error:
-        raise ToolCallError(_NOT_READY.format(files=_grep_in(selected))) from error
+        raise ToolCallError(_NOT_READY.format(files=_GREP_IN)) from error
     if missing_files(index.spec):
-        raise ToolCallError(_NOT_READY.format(files=_grep_in(selected)))
-    files = source_file_names(session, scope.workspace_id)
-    searched = [i for i in files if selected is None or i in selected]
-    hits = retrieve(session, scope.workspace_id, query, document_ids=searched)
+        raise ToolCallError(_NOT_READY.format(files=_GREP_IN))
+    hits = retrieve(session, scope.workspace_id, query, document_ids=sorted(selected))
     if not hits:
-        return _NO_MATCH.format(files=_grep_in(selected))
-    return "\n\n".join(_passage(hit, files[hit.document_id]) for hit in hits)
+        return _NO_MATCH.format(files=_GREP_IN)
+    paths = scope_paths(
+        session,
+        scope.workspace_id,
+        {hit.document_id for hit in hits},
+        scope.folder / SOURCES,
+    )
+    return "\n\n".join(_passage(hit, paths.get(hit.document_id)) for hit in hits)
 
 
-def _grep_in(selected: frozenset[int] | None) -> str:
-    """Where the model may grep instead: never the files of sources it may not use."""
-    if selected is None:
-        return f"the files in {SOURCES}/"
-    return f"the selected sources' files in {SOURCES}/"
-
-
-def _passage(hit: Hit, source_file: str) -> str:
+def _passage(hit: Hit, path: PurePosixPath | None) -> str:
     """One passage, labelled the way the agent is told to cite it."""
     lines = (
         f' lines="{hit.start_line}-{hit.end_line}"'
@@ -83,10 +85,9 @@ def _passage(hit: Hit, source_file: str) -> str:
         else ""
     )
     text = without_passage_tags(hit.content).strip()
-    return (
-        f'{opening(hit.chunk_id)} source="{SOURCES}/{source_file}"{lines}>\n'
-        f"{text}\n</passage>"
-    )
+    # A source whose path is too long for the disk has no file to point at.
+    source = f' source="{SOURCES}/{path.as_posix()}"' if path is not None else ""
+    return f"{opening(hit.chunk_id)}{source}{lines}>\n{text}\n</passage>"
 
 
 SEARCH_SOURCES = Tool(listing=LISTING, run=search)

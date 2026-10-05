@@ -213,7 +213,7 @@ async def test_no_event_stream_is_offered(tools: ToolEndpoint) -> None:
     workspace_id = await tools.workspace()
 
     reply = await tools.client.get(
-        f"/agent/tools/workspaces/{workspace_id}",
+        f"/agent/tools/workspaces/{workspace_id}/threads/{tools.default_thread(workspace_id)}",
         headers={
             "Authorization": f"Bearer {tools.launch_key}",
             "Accept": "text/event-stream",
@@ -308,7 +308,9 @@ async def test_a_workspace_that_does_not_exist_has_no_tools(
     tools: ToolEndpoint,
 ) -> None:
     """A deleted workspace's folder may still be registered in a running opencode."""
-    reply = await tools.post(404, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    reply = await tools.post(
+        404, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, thread=1
+    )
 
     assert reply.status_code == 404
 
@@ -337,6 +339,7 @@ async def test_a_search_before_onboarding_says_why_it_cannot_run(
     """Until an embedder is chosen nothing is indexed; the model can still grep."""
     async with endpoint_over(unlocked_engine) as tools:
         workspace_id = await tools.workspace()
+        ready_note(unlocked_engine, workspace_id)
 
         reply = await tools.request(
             workspace_id,

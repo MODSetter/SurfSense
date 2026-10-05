@@ -7,7 +7,7 @@ import pypdfium2
 
 from modules.agent.previews import docx_snapshots
 from modules.agent.previews.page_images import draw_pages
-from modules.agent.sources_folder import OUTPUTS
+from modules.agent.thread_folder.layout import OUTPUTS, PREVIEWS
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.spec import FORMAT_NAMES
 from modules.artifacts.script_documents.version import version_of
@@ -29,9 +29,9 @@ class Previews:
 
 
 def previews_for(
-    artifact: Artifact, time_left: float = WORD_SNAPSHOT_SECONDS
+    artifact: Artifact, folder: Path, time_left: float = WORD_SNAPSHOT_SECONDS
 ) -> Previews:
-    """Draw up to four pages or slides of a ready document version into the agent's outputs.
+    """Draw up to four pages or slides of a ready document version into a thread folder's outputs.
 
     Reads the artifact first and never touches its session, so a caller passes
     one whose files are loaded and holds no transaction: Word and PowerPoint
@@ -42,12 +42,7 @@ def previews_for(
     if version is None:
         raise ValueError(f"artifact {artifact.id} is not a document version")
     storage = get_storage_settings()
-    folder = (
-        storage.agent_working_dir(artifact.workspace_id)
-        / OUTPUTS
-        / "previews"
-        / f"{artifact.id}-v{version.number}"
-    )
+    pages = folder / OUTPUTS / PREVIEWS / f"{artifact.id}-v{version.number}"
     primary = next(
         (file for file in artifact.files if file.role is ArtifactFileRole.PRIMARY), None
     )
@@ -76,7 +71,7 @@ def previews_for(
             return Previews([], str(error))
 
     try:
-        drawn = draw_pages(pdf, folder)
+        drawn = draw_pages(pdf, pages)
     except pypdfium2.PdfiumError as error:
         return Previews([], f"The pages could not be drawn: {error}")
     return Previews(drawn.pages, " ".join(drawn.skipped) or None)

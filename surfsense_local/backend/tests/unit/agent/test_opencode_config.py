@@ -123,15 +123,26 @@ def test_the_agent_has_no_shell_and_writes_only_to_outputs(tmp_path: Path) -> No
     # opencode spells an edit's path relative to "/", without the drive.
     (skills,) = config["skills"]["paths"]
     skills = Path(skills).relative_to(Path(skills).anchor).as_posix()
-    work = "Users/me/SurfSense/workspaces/1/agent"
+    agent = "Users/me/SurfSense/workspaces/1/agent"
+    work = f"{agent}/threads/7"
     rules = permission["edit"]
     assert _opencode_decides(rules, f"{work}/outputs/report.md") == "allow"
+    assert _opencode_decides(rules, f"{work}/outputs/drafts/a.md") == "allow"
     for refused in (
         f"{work}/sources/Plan [1].md",
-        f"{work}/sources/agent/outputs/x.md",
-        f"{work}/.opencode/agent/outputs/x.md",
-        "Users/me/SurfSense/agent/opencode/data/opencode/tool-output/agent/outputs/x",
-        f"{skills}/x/agent/outputs/SKILL.md",
+        f"{work}/sources/Library/outputs/a.md",
+        f"{work}/sources/R/outputs/a.md",
+        f"{work}/sources/agent/threads/7/outputs/x.md",
+        f"{work}/.opencode/agent/threads/7/outputs/x.md",
+        f"{work}/outputs/agents.md",
+        f"{work}/outputs/AGENTS.md",
+        f"{work}/outputs/drafts/Context.md",
+        f"{work}/outputs/CLAUDE.md",
+        # Where every thread once worked.
+        f"{agent}/outputs/a.md",
+        f"{agent}/sources/Plan [1].md",
+        "Users/me/SurfSense/agent/opencode/data/opencode/tool-output/agent/threads/7/outputs/x",
+        f"{skills}/x/agent/threads/7/outputs/SKILL.md",
         "Users/me/elsewhere.md",
     ):
         assert _opencode_decides(rules, refused) == "deny", refused

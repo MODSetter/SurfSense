@@ -90,10 +90,15 @@ async def assert_pages_checked(
 ) -> None:
     """The agent opened every page preview of the version it ended the turn on."""
     made = await last_version(live, frames, turn)
-    previews = (
-        get_storage_settings().agent_working_dir(live.workspace_id)
-        / "outputs"
-        / "previews"
+    # Each thread draws previews into its own folder; a live run checks one thread.
+    threads = get_storage_settings().agent_threads_dir(live.workspace_id)
+    previews = next(
+        (
+            found
+            for found in threads.glob("*/outputs/previews")
+            if (found / f"{made.id}-v{made.number}").is_dir()
+        ),
+        threads / "none" / "outputs" / "previews",
     )
     assert _pages(previews / f"{made.id}-v{made.number}"), (
         f"{turn}: {made} has no page previews to check"

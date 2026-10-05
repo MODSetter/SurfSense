@@ -1,4 +1,4 @@
-"""Telling opencode where a workspace's tools are, as opencode receives it."""
+"""Telling opencode where a thread's tools are, as opencode receives it."""
 
 import json
 import threading
@@ -14,9 +14,8 @@ from modules.agent.previews.document_previews import WORD_SNAPSHOT_SECONDS
 from modules.agent.tool_endpoint import render_document
 from modules.agent.tool_endpoint.registration import (
     TOOL_CALL_SECONDS,
-    register_workspace_tools,
+    register_thread_tools,
 )
-from modules.agent.tool_endpoint.turn_scope import turn_scope
 
 pytestmark = pytest.mark.integration
 
@@ -27,6 +26,7 @@ class _Opencode(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         sent = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.server.sent.append(sent)  # type: ignore[attr-defined]
+        self.server.queries.append(parse_qs(urlsplit(self.path).query))  # type: ignore[attr-defined]
         body = json.dumps({sent["name"]: {"status": "connected"}}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -43,6 +43,7 @@ def opencode() -> Iterator[ThreadingHTTPServer]:
     """A stand-in for opencode's server, on a real port."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Opencode)
     server.sent = []  # type: ignore[attr-defined]
+    server.queries = []  # type: ignore[attr-defined]
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield server
     server.shutdown()
@@ -56,40 +57,37 @@ async def test_a_tool_call_may_run_as_long_as_a_render_waits(
     async with OpencodeClient(
         f"http://127.0.0.1:{opencode.server_port}", "pw"
     ) as client:
-        await register_workspace_tools(client, tmp_path, 7, "launch-key", None)
+        await register_thread_tools(client, tmp_path, 7, 12, "launch-key")
 
     (sent,) = opencode.sent  # type: ignore[attr-defined]
     config = sent["config"]
     assert (sent["name"], config["type"]) == ("surfsense", "remote")
-    assert urlsplit(config["url"]).path.endswith("/agent/tools/workspaces/7")
     assert config["timeout"] == TOOL_CALL_SECONDS * 1000  # in milliseconds
 
 
-async def _registered_scope(
-    opencode: ThreadingHTTPServer, folder: Path, document_ids: list[int] | None
-) -> tuple[int, frozenset[int] | None, bool]:
-    """What the address a turn registered tells the tools about that turn."""
+async def test_each_turn_registers_its_threads_address_in_its_threads_folder(
+    opencode: ThreadingHTTPServer, tmp_path: Path
+) -> None:
+    """A tool call names no thread, so the address and the instance it is given to do."""
+    first, second = tmp_path / "threads" / "12", tmp_path / "threads" / "13"
     async with OpencodeClient(
         f"http://127.0.0.1:{opencode.server_port}", "pw"
     ) as client:
-        await register_workspace_tools(client, folder, 7, "launch-key", document_ids)
-    url = opencode.sent[-1]["config"]["url"]  # type: ignore[attr-defined]
-    (token,) = parse_qs(urlsplit(url).query)["scope"]
-    scope = turn_scope(token, 7)
-    return scope.workspace_id, scope.document_ids, scope.known
+        await register_thread_tools(client, first, 7, 12, "launch-key")
+        await register_thread_tools(client, second, 7, 13, "launch-key")
 
-
-async def test_each_turn_registers_an_address_carrying_its_ticked_sources(
-    opencode: ThreadingHTTPServer, tmp_path: Path
-) -> None:
-    """A tool call names no turn, so the address it is made to says which sources it may use."""
-    ticked = await _registered_scope(opencode, tmp_path, [3, 5])
-    nothing = await _registered_scope(opencode, tmp_path, [])
-    unsaid = await _registered_scope(opencode, tmp_path, None)
-
-    assert ticked == (7, frozenset({3, 5}), True)
-    assert nothing == (7, frozenset(), True)
-    assert unsaid == (7, None, True)
+    registered = [
+        (query["directory"][0], urlsplit(sent["config"]["url"]).path)
+        for query, sent in zip(
+            opencode.queries,  # type: ignore[attr-defined]
+            opencode.sent,  # type: ignore[attr-defined]
+            strict=True,
+        )
+    ]
+    assert registered == [
+        (str(first), "/agent/tools/workspaces/7/threads/12"),
+        (str(second), "/agent/tools/workspaces/7/threads/13"),
+    ]
 
 
 def test_a_render_answers_before_opencode_gives_up_on_the_call() -> None:

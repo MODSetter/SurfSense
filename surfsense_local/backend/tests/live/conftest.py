@@ -207,8 +207,6 @@ async def _keep_outputs(agent: LiveAgent) -> None:
         name += f".{artifact['format']}" if ready else f"-{artifact['status']}"
         data = await agent.file(artifact["id"]) if ready else None
         agent.run.keep_document(name, data, agent.spec(artifact["id"]).get("text"))
-    agent.run.keep_previews(
-        get_storage_settings().agent_working_dir(agent.workspace_id)
-        / "outputs"
-        / "previews"
-    )
+    threads = get_storage_settings().agent_threads_dir(agent.workspace_id)
+    for previews in sorted(threads.glob("*/outputs/previews")):
+        agent.run.keep_previews(previews)

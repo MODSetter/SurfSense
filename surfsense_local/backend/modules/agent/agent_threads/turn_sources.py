@@ -1,26 +1,27 @@
-"""Which sources an agent turn works from, resolved as a chat resolves them."""
+"""Which sources an agent turn works from: the thread's scope, stored and resolved once."""
 
 from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from modules.agent.agent_threads.scope_note import scope_note, scope_titles
+from modules.agent.agent_threads.scope_note import scope_note, shown_scope
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.documents.sources import load_selected_sources
-from modules.source_scope.resolve import resolve_scope
+from modules.source_scope.resolve import ResolvedScope, resolve_scope
+from modules.source_scope.schemas import SourceScope
 from modules.source_scope.thread_scope import store_thread_scope, thread_scope
 
 
 @dataclass(frozen=True)
 class TurnSources:
-    """The turn's ready source ids, the note naming them, and how the turn shows them.
+    """The turn's ready source ids, which its folder mirrors, the note naming them, and how it shows them.
 
-    `document_ids` None is the whole workspace: no note, no line.
+    A thread on every source sends no note and shows no line.
     """
 
-    document_ids: list[int] | None
+    document_ids: list[int]
     note: str | None
     shown: dict[str, Any] | None
 
@@ -28,36 +29,41 @@ class TurnSources:
 def turn_sources(
     session: Session, thread: ChatThread, payload: MessageCreate
 ) -> TurnSources:
-    """A sent scope is stored and resolved; else an id list as sent; else the stored scope.
+    """A sent scope, or a sent id list, is stored; else the stored scope holds.
 
+    The tools read the stored scope on each call, so what is sent must be stored.
     Resolved ids are never capped: a ticked folder of any size is the whole turn.
-    A thread that never stored a scope keeps the whole workspace, as before scopes.
     """
-    workspace_id = thread.workspace_id
-    # Ticked but not ready yet; an id list names only ready sources.
-    indexing = 0
     if payload.source_scope is not None:
-        _, resolved = store_thread_scope(session, thread, payload.source_scope)
-        ids: list[int] | None = resolved.ids
-        indexing = resolved.counts.indexing
+        scope, resolved = store_thread_scope(session, thread, payload.source_scope)
     elif payload.document_ids is not None:
+        # Checked as a chat checks them: each must exist here and be ready.
         ids = [
             document.id
             for document in load_selected_sources(
-                session, workspace_id, payload.document_ids
+                session, thread.workspace_id, payload.document_ids
             )
         ]
-    elif thread.source_scope is not None:
-        resolved = resolve_scope(session, workspace_id, thread_scope(thread))
-        ids = resolved.ids
-        indexing = resolved.counts.indexing
+        scope, resolved = store_thread_scope(
+            session, thread, SourceScope(document_ids=ids)
+        )
     else:
-        ids = None
-    if ids is None:
-        return TurnSources(None, None, None)
-    titles = scope_titles(session, workspace_id, ids)
+        scope = thread_scope(thread)
+        resolved = resolve_scope(session, thread.workspace_id, scope)
+    if _every_source(scope):
+        return TurnSources(resolved.ids, None, None)
+    return _noted(session, thread.workspace_id, resolved)
+
+
+def _noted(session: Session, workspace_id: int, resolved: ResolvedScope) -> TurnSources:
     return TurnSources(
-        ids,
-        scope_note(session, workspace_id, ids, indexing),
-        {"document_ids": ids, "titles": [titles[i] for i in ids]},
+        resolved.ids,
+        scope_note(resolved.ids, resolved.counts.indexing),
+        shown_scope(session, workspace_id, resolved.ids),
+    )
+
+
+def _every_source(scope: SourceScope) -> bool:
+    return (
+        scope.all and not scope.excluded_folder_ids and not scope.excluded_document_ids
     )

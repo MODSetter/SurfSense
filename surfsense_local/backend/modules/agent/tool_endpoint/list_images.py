@@ -6,7 +6,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from modules.agent.sources_folder import FIGURES, SOURCES, show_figure
+from modules.agent.thread_folder.layout import FIGURES, SOURCES
+from modules.agent.thread_folder.source_images import show_figure
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.documents.models import Document
@@ -70,7 +71,7 @@ def list_images(session: Session, scope: TurnScope, arguments: dict[str, Any]) -
     ]
     # Copying grows with the number of figures; the write lock must not be held across it.
     session.commit()
-    return "\n\n".join(_shown(workspace_id, source) for source in listed)
+    return "\n\n".join(_shown(scope.folder, source) for source in listed)
 
 
 @dataclass(frozen=True)
@@ -105,10 +106,10 @@ def _source_images(
     )
 
 
-def _shown(workspace_id: int, source: _SourceImages) -> str:
+def _shown(folder: Path, source: _SourceImages) -> str:
     """The source's lines, each figure copied where `read` opens it; one gone from disk is left out."""
     lines = [
-        _line(figure, show_figure(workspace_id, figure.name, png))
+        _line(figure, show_figure(folder, figure.name, png))
         for figure, png in source.figures
         if png.is_file()
     ]

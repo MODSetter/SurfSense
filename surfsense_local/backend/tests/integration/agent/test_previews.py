@@ -142,9 +142,15 @@ def _docx() -> bytes:
     return out.getvalue()
 
 
+def _thread_folder(artifact: Artifact) -> Path:
+    """The folder of the thread whose render asked for the previews."""
+    return get_storage_settings().thread_working_dir(artifact.workspace_id, 1)
+
+
 def _preview_folder(artifact: Artifact, number: int) -> Path:
-    working = get_storage_settings().agent_working_dir(artifact.workspace_id)
-    return working / "outputs" / "previews" / f"{artifact.id}-v{number}"
+    return (
+        _thread_folder(artifact) / "outputs" / "previews" / f"{artifact.id}-v{number}"
+    )
 
 
 async def test_a_pdf_gets_its_pages_as_1000_pixel_wide_images_in_the_agent_folder(
@@ -153,7 +159,7 @@ async def test_a_pdf_gets_its_pages_as_1000_pixel_wide_images_in_the_agent_folde
     """A PDF version's pages land in outputs/previews/<id>-v<n>/ as PNGs the agent can read."""
     artifact = ready_artifact("pdf", _pdf(2), "application/pdf", number=3)
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     folder = _preview_folder(artifact, 3)
     assert previews == Previews(
@@ -171,7 +177,7 @@ async def test_only_the_first_four_pages_are_drawn(
     """A long document costs the model at most four images."""
     artifact = ready_artifact("pdf", _pdf(6), "application/pdf")
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert [page.name for page in previews.pages] == [
         "page-1.png",
@@ -190,7 +196,7 @@ async def test_drawing_a_version_again_replaces_its_old_pages(
     stale.parent.mkdir(parents=True)
     stale.write_bytes(b"from an earlier run")
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert [page.name for page in previews.pages] == ["page-1.png"]
     assert not stale.exists()
@@ -206,7 +212,7 @@ async def test_a_page_is_drawn_no_larger_than_an_image_the_model_can_take(
     sizes = [A4, (2, 14400), (595, 4000)]
     artifact = ready_artifact("pdf", _pdf_of_sizes(*sizes), "application/pdf")
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert [page.name for page in previews.pages] == ["page-1.png", "page-3.png"]
     with Image.open(previews.pages[0]) as cover:
@@ -225,7 +231,7 @@ async def test_a_file_that_is_not_a_pdf_gives_no_pages_and_says_why(
     """A file pdfium cannot open is a reason, not a failed tool call."""
     artifact = ready_artifact("pdf", b"not a pdf at all", "application/pdf")
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert previews.pages == []
     assert previews.reason is not None
@@ -240,7 +246,7 @@ async def test_a_version_whose_file_is_gone_gives_no_pages_and_says_why(
     storage = get_storage_settings()
     (storage.data_dir / artifact.files[0].storage_key).unlink()
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert previews == Previews(
         [], "The document's file is missing, so no pages were drawn."
@@ -255,7 +261,7 @@ async def test_an_artifact_that_is_no_document_version_is_refused(
     artifact.artifact_metadata = None
 
     with pytest.raises(ValueError, match="not a document version"):
-        previews_for(artifact)
+        previews_for(artifact, _thread_folder(artifact))
 
 
 async def test_without_electron_a_word_document_gets_no_pages_and_a_reason(
@@ -264,7 +270,7 @@ async def test_without_electron_a_word_document_gets_no_pages_and_a_reason(
     """Without the desktop app (Docker, tests) Word gets no pages at once, and says why."""
     artifact = ready_artifact("docx", _docx(), DOCX_MIME)
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert previews.pages == []
     assert previews.reason is not None
@@ -280,7 +286,9 @@ async def test_a_word_snapshot_waits_no_longer_than_the_caller_has_left(
     fresh_snapshots.next_request()  # Electron polls, but never prints this one
     started = time.monotonic()
 
-    previews = await asyncio.to_thread(previews_for, artifact, time_left=3.5)
+    previews = await asyncio.to_thread(
+        previews_for, artifact, _thread_folder(artifact), time_left=3.5
+    )
 
     assert time.monotonic() - started < 10
     assert previews == Previews([], "The Word preview did not finish within 3.5 s.")
@@ -294,7 +302,9 @@ async def test_with_too_little_time_left_a_word_document_is_not_sent_to_print(
     artifact = ready_artifact("docx", _docx(), DOCX_MIME)
     fresh_snapshots.next_request()
 
-    previews = await asyncio.to_thread(previews_for, artifact, time_left=1)
+    previews = await asyncio.to_thread(
+        previews_for, artifact, _thread_folder(artifact), time_left=1
+    )
 
     assert previews.pages == []
     assert previews.reason is not None
@@ -352,7 +362,9 @@ async def test_a_word_document_is_printed_by_electron_and_drawn_as_pages(
     artifact = ready_artifact("docx", _docx(), DOCX_MIME, number=2)
 
     with StandInForElectron(base_url, _print_two_pages) as electron:
-        previews = await asyncio.to_thread(previews_for, artifact)
+        previews = await asyncio.to_thread(
+            previews_for, artifact, _thread_folder(artifact)
+        )
 
     assert electron.served[0]["file_url"] == f"/artifacts/{artifact.id}/files/primary"
     folder = _preview_folder(artifact, 2)
@@ -374,7 +386,9 @@ async def test_a_failure_electron_reports_becomes_the_reason(
         ).raise_for_status()
 
     with StandInForElectron(base_url, report_failure):
-        previews = await asyncio.to_thread(previews_for, artifact)
+        previews = await asyncio.to_thread(
+            previews_for, artifact, _thread_folder(artifact)
+        )
 
     assert previews.pages == []
     assert previews.reason == (
@@ -456,7 +470,7 @@ async def test_a_refused_poll_does_not_count_as_electron_running(
         assert http.get(f"{PREVIEWS}/next").status_code == 401
 
     artifact = ready_artifact("docx", _docx(), DOCX_MIME)
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert previews.pages == []
     assert "desktop app" in (previews.reason or "")
@@ -544,7 +558,9 @@ async def test_a_deck_is_printed_by_electron_as_a_pptx_and_drawn_as_slides(
         ).raise_for_status()
 
     with StandInForElectron(base_url, print_slides) as electron:
-        previews = await asyncio.to_thread(previews_for, artifact)
+        previews = await asyncio.to_thread(
+            previews_for, artifact, _thread_folder(artifact)
+        )
 
     assert electron.served == [
         {
@@ -563,7 +579,7 @@ async def test_without_electron_a_deck_gets_no_slides_and_a_reason(
     """Slides are Electron's to print, as Word pages are."""
     artifact = ready_artifact("pptx", _pptx(), PPTX_MIME)
 
-    previews = await asyncio.to_thread(previews_for, artifact)
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert previews.pages == []
     assert "PowerPoint slides are drawn by the SurfSense desktop app" in (
@@ -578,7 +594,7 @@ async def test_a_word_request_names_its_format_and_pages(
     artifact = ready_artifact("docx", _docx(), DOCX_MIME)
 
     with StandInForElectron(base_url, _print_two_pages) as electron:
-        await asyncio.to_thread(previews_for, artifact)
+        await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
 
     assert (electron.served[0]["format"], electron.served[0]["pages"]) == (
         "docx",

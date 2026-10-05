@@ -13,7 +13,7 @@ from tests.integration.agent.test_agent_threads import (
     of_type,
     open_thread,
     send,
-    working_folder,
+    thread_folder,
 )
 
 pytestmark = pytest.mark.integration
@@ -57,8 +57,13 @@ async def test_a_turn_works_only_from_the_ticked_source(
 
     asked, answered = agent_api.model.requests[:2]
     told = _user_text(asked)
-    assert f"sources/Plan [{ticked}].md" in told
-    assert f"Memo [{unticked}]" not in told
+    # The thread's folder holds only the ticked source, so the note names no file.
+    assert f"[surfsense-scope: {ticked}]" in told
+    assert "Plan [" not in told and f"Memo [{unticked}]" not in told
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    assert sorted(p.name for p in (folder / "sources").rglob("*.md")) == [
+        f"Plan [{ticked}].md"
+    ]
     results = _tool_results(answered)
     assert f"[{ticked_chunk}]" in results and f"[{unticked_chunk}]" not in results
     assert results.count(f"Source {unticked} is not selected") == 2
@@ -79,7 +84,8 @@ async def test_the_scope_reaches_opencode_as_a_part_the_user_did_not_write(
 
     async with agent_api.opencode() as opencode:
         (message, *_) = await opencode.messages(
-            working_folder(agent_api.workspace_id), await _session_id(agent_api)
+            thread_folder(agent_api.workspace_id, thread["id"]),
+            await _session_id(agent_api, thread["id"]),
         )
     texts = [p for p in message["parts"] if p["type"] == "text"]
     assert texts[0]["text"] == QUESTION and not texts[0].get("synthetic")
@@ -229,16 +235,19 @@ async def test_a_ticked_folder_scopes_the_turn_to_every_source_in_it(
 
     asked, answered = agent_api.model.requests[:2]
     told = _user_text(asked)
-    assert f"[surfsense-scope: {','.join(map(str, inside))}]" in told
+    # Past 200 the tag counts them: every turn's note stays in the session.
+    assert f"[surfsense-scope: count={FOLDER_SOURCES}]" in told
     assert f"{FOLDER_SOURCES} sources" in told
     results = _tool_results(answered)
     assert f"Source {outside} is not selected" in results
     assert f"Source {inside[-1]} is not selected" not in results
+    counted = {"document_ids": [], "titles": [], "count": FOLDER_SOURCES}
     (live,) = of_type(frames, "agent-scope")
-    assert live["scope"]["document_ids"] == inside
-    assert len(live["scope"]["titles"]) == FOLDER_SOURCES
+    assert live["scope"] == counted
     stored = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()
-    assert stored[0]["content"]["scope"]["document_ids"] == inside
+    assert stored[0]["content"]["scope"] == counted
+    folder = thread_folder(agent_api.workspace_id, thread["id"]) / "sources"
+    assert len(list((folder / "Library" / "Research").glob("*.md"))) == FOLDER_SOURCES
     kept = (
         await agent_api.http.get(f"/chat/threads/{thread['id']}/source-scope")
     ).json()
@@ -302,8 +311,10 @@ async def test_a_source_not_in_the_workspace_is_refused_before_anything_is_sent(
     assert agent_api.model.requests == []
 
 
-async def _session_id(api: AgentAPI) -> str:
-    """The one opencode session the workspace's thread holds."""
+async def _session_id(api: AgentAPI, thread_id: int) -> str:
+    """The one opencode session the thread holds."""
     async with api.opencode() as opencode:
-        (session_id,) = await opencode.session_ids(working_folder(api.workspace_id))
+        (session_id,) = await opencode.session_ids(
+            thread_folder(api.workspace_id, thread_id)
+        )
     return session_id

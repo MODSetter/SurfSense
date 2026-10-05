@@ -180,7 +180,7 @@ async def test_the_agent_drafts_edits_and_checks_a_document_from_its_sources(
     pdf_id, pdf_version = _made(pdf)
     assert pdf_version == 1
     assert "2 pages" in pdf
-    agent_folder = get_storage_settings().agent_working_dir(workspace_id)
+    agent_folder = tools.folder(workspace_id)
     previews = [
         line.removeprefix("- ") for line in pdf.splitlines() if "previews/" in line
     ]
