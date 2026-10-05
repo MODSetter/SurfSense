@@ -1,8 +1,9 @@
 """The folder of extracted text the agent reads: one Markdown file per ready source.
 
 opencode's own read, grep and glob work on files, so each source's Docling text
-is laid out as one, and a figure the agent listed is copied to
-`sources/figures/<name>.png` for `read` to show it. `sources/` is rebuilt from
+is laid out as one, a figure the agent listed is copied to
+`sources/figures/<name>.png`, and a page it asked to see is drawn to
+`sources/pages/<id>-p<n>.png`, for `read` to show them. `sources/` is rebuilt from
 the database before each turn and is SurfSense's; `outputs/` beside it is the
 agent's and is never touched here.
 """
@@ -22,7 +23,9 @@ from shared.config import get_storage_settings
 
 SOURCES = "sources"
 FIGURES = "figures"
+PAGES = "pages"
 OUTPUTS = "outputs"
+_PAGE_IMAGE = re.compile(r"([0-9]+)-p[0-9]+\.png")
 
 # An artifact is an output, not a source; it reaches the agent through Studio.
 _SOURCE_TYPES = (DocumentType.FILE, DocumentType.NOTE)
@@ -54,15 +57,24 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
         for document in ready
     }
     for existing in sources.iterdir():
-        is_figures = existing.name == FIGURES and existing.is_dir()
-        if existing.name not in wanted and not is_figures:
+        is_ours = existing.name in (FIGURES, PAGES) and existing.is_dir()
+        if existing.name not in wanted and not is_ours:
             _remove(existing)
     for name, text in wanted.items():
         path = sources / name
         if not _holds(path, text):
             _write_whole(path, text)
-    _drop_figures_of_others(sources / FIGURES, {document.id for document in ready})
+    ready_ids = {document.id for document in ready}
+    _drop_figures_of_others(sources / FIGURES, ready_ids)
+    _drop_pages_of_others(sources / PAGES, ready_ids)
     return folder
+
+
+def page_image_path(workspace_id: int, document_id: int, page: int) -> Path:
+    """Where a source's page image goes for the agent to open: `sources/pages/<id>-p<n>.png`."""
+    pages = get_storage_settings().agent_working_dir(workspace_id) / SOURCES / PAGES
+    pages.mkdir(parents=True, exist_ok=True)
+    return pages / f"{document_id}-p{page}.png"
 
 
 def show_figure(workspace_id: int, name: str, png: Path) -> str:
@@ -117,6 +129,16 @@ def _drop_figures_of_others(figures: Path, source_ids: set[int]) -> None:
             or parsed is None
             or parsed[0] not in source_ids
         ):
+            _remove(existing)
+
+
+def _drop_pages_of_others(pages: Path, source_ids: set[int]) -> None:
+    """A page image leaves with its source; anything else there is not SurfSense's."""
+    if not pages.is_dir():
+        return
+    for existing in pages.iterdir():
+        match = _PAGE_IMAGE.fullmatch(existing.name)
+        if not existing.is_file() or match is None or int(match[1]) not in source_ids:
             _remove(existing)
 
 

@@ -1,4 +1,4 @@
-"""The document tool: run a script that writes a Word file or a PDF, kept as a version in Studio.
+"""The document tool: run a script that writes a Word file, a PDF, a deck or a workbook, kept as a version in Studio.
 
 The tool waits for the run, since the model fixes its script from the error
 (07-create-and-edit-mvp, decision 5).
@@ -26,14 +26,14 @@ from modules.agent.tool_endpoint.rendered_label import (
 )
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
-from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.script_error import is_script_error
 from modules.artifacts.script_documents.service import (
     ScriptDocumentRefusedError,
     create_script_document,
+    inherited_template,
 )
-from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS
+from modules.artifacts.script_documents.spec import DOCUMENT_FORMATS, FORMAT_NAMES
 from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
 from modules.documents.source_figures import parse_figure_name
@@ -58,6 +58,15 @@ WORD_PREVIEWS_LEAVE_OUT = (
     "Word previews leave out headers and footers: a logo or page number placed "
     "there is in the document even though no preview shows it."
 )
+# The snapshot page lays a deck out with pptx-renderer, the Studio viewer's library.
+SLIDE_PREVIEWS_DIFFER = (
+    "Slide previews show the deck as SurfSense's slide viewer draws it, which can "
+    "differ a little from PowerPoint in fonts and charts."
+)
+WORKBOOK_HAS_NO_PAGES = (
+    "No page previews: a workbook has no pages. Check the summary above against "
+    "what the user asked: each sheet, its header row, its values and its formulas."
+)
 STOP_RULE = (
     "If this is your third failed run for this request, stop and tell the user "
     "what failed."
@@ -66,10 +75,11 @@ STOP_RULE = (
 LISTING: dict[str, Any] = {
     "name": TOOL_NAME,
     "description": (
-        "Run a Python script that writes a Word document or a PDF, and keep the "
-        "file in Studio as a new version. Load the surfsense-documents skill "
-        "first. Waits for the run, then returns the artifact's id and version, "
-        "its opening text and page previews to check, or the error to fix."
+        "Run a Python script that writes a Word document, a PDF, a PowerPoint deck "
+        "or an Excel workbook, and keep the file in Studio as a new version. Load "
+        "the surfsense-documents skill first. Waits for the run, then returns the "
+        "artifact's id and version, its opening text (a workbook's summary) and "
+        "page previews to check, or the error to fix."
     ),
     "inputSchema": {
         "type": "object",
@@ -81,7 +91,10 @@ LISTING: dict[str, Any] = {
             "format": {
                 "type": "string",
                 "enum": list(DOCUMENT_FORMATS),
-                "description": "docx for a Word document, pdf for a PDF.",
+                "description": (
+                    "docx for a Word document, pdf for a PDF, pptx for a PowerPoint "
+                    "deck, xlsx for an Excel workbook."
+                ),
             },
             "script": {
                 "type": "string",
@@ -105,6 +118,16 @@ LISTING: dict[str, Any] = {
                     "script places; each is at IMAGES_DIR/<name>.png."
                 ),
             },
+            "template_source_id": {
+                "type": "integer",
+                "description": (
+                    "A source to start from so the result keeps its look: a .docx "
+                    "source for docx, a .pptx source for pptx, by the number at the "
+                    "end of its file name. The script opens a copy at "
+                    "TEMPLATE_PATH. A next version keeps its template when this is "
+                    "left out."
+                ),
+            },
         },
         "required": ["title", "format", "script"],
     },
@@ -118,6 +141,7 @@ class _Request:
     script: str
     base_artifact_id: int | None
     images: list[str]
+    template_source_id: int | None
 
 
 @dataclass(frozen=True)
@@ -137,6 +161,7 @@ def render(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str
     deadline = began + CALL_SECONDS
     request = _request(arguments)
     _refuse_unselected_images(scope, request.images)
+    _refuse_unselected_template(session, scope, request)
     workspace_id = scope.workspace_id
     started = _start(session, workspace_id, request)
     wait = min(WAIT_SECONDS, deadline - time.monotonic())
@@ -172,6 +197,7 @@ def _request(arguments: dict[str, Any]) -> _Request:
     base = arguments.get("artifact_id")
     images = arguments.get("images")
     images = [] if images is None else images
+    template = arguments.get("template_source_id")
     if not isinstance(title, str):
         raise ToolCallError("Give the document a title.")
     if not isinstance(script, str):
@@ -186,7 +212,14 @@ def _request(arguments: dict[str, Any]) -> _Request:
         raise ToolCallError(
             "images must be a list of names from surfsense_list_images, or left out."
         )
-    return _Request(title, arguments.get("format"), script, base, images)
+    if template is not None and (
+        not isinstance(template, int) or isinstance(template, bool)
+    ):
+        raise ToolCallError(
+            "template_source_id must be the number at the end of a source's file "
+            "name, or left out."
+        )
+    return _Request(title, arguments.get("format"), script, base, images, template)
 
 
 def _refuse_unselected_images(scope: TurnScope, images: list[str]) -> None:
@@ -205,6 +238,26 @@ def _refuse_unselected_images(scope: TurnScope, images: list[str]) -> None:
                 "selected for this request. Place only images from the selected "
                 "sources, or ask the user to select that one."
             )
+
+
+def _refuse_unselected_template(
+    session: Session, scope: TurnScope, request: _Request
+) -> None:
+    """A template is its source's content; one a next version keeps is held to the turn too."""
+    if request.template_source_id is not None:
+        scope.refuse_unselected([request.template_source_id])
+        return
+    kept = inherited_template(session, scope.workspace_id, request.base_artifact_id)
+    session.rollback()  # a read only; the version is made in its own transaction
+    if kept is None:
+        return
+    try:
+        scope.refuse_unselected([kept])
+    except ToolCallError as refused:
+        raise ToolCallError(
+            f"Artifact {request.base_artifact_id} starts from template source "
+            f"{kept}, which is not selected for this request. {refused}"
+        ) from refused
 
 
 def _start(session: Session, workspace_id: int, request: _Request) -> _Started:
@@ -232,6 +285,7 @@ def _create(session: Session, workspace_id: int, request: _Request) -> Artifact:
             script=request.script,
             base_artifact_id=request.base_artifact_id,
             image_names=request.images,
+            template_source_id=request.template_source_id,
         )
     except ScriptDocumentRefusedError as refused:
         raise ToolCallError(str(refused)) from refused
@@ -251,15 +305,22 @@ def _made(
         )
     artifact, text, data = read
     size = document_size(artifact.format, data, text)
-    kind = f"{FORMATS_BY_KEY[artifact.format].label} document"
+    kind = FORMAT_NAMES[artifact.format]
+    article = "An" if kind[0] in "AEIOU" else "A"
+    # A workbook has no pages to look at, so its whole summary is the check.
+    if artifact.format == "xlsx":
+        heading, body, check = "Its summary:", text, WORKBOOK_HAS_NO_PAGES
+    else:
+        heading, body = "Its text begins:", _opening(text)
+        check = _previews(artifact, workspace_id, deadline)
     return "\n".join(
         [
             first_line(rendered),
-            f"A {kind} of {size}. Its text begins:",
+            f"{article} {kind} of {size}. {heading}",
             "",
-            _opening(text),
+            body,
             "",
-            _previews(artifact, workspace_id, deadline),
+            check,
         ]
     )
 
@@ -322,9 +383,15 @@ def _previews(artifact: Artifact, workspace_id: int, deadline: float) -> str:
     folder = get_storage_settings().agent_working_dir(workspace_id)
     pages = [f"- {_relative(page, folder)}" for page in previews.pages]
     missing = [previews.reason] if previews.reason else []
-    left_out = [WORD_PREVIEWS_LEAVE_OUT] if artifact.format == "docx" else []
+    caveat = {"docx": [WORD_PREVIEWS_LEAVE_OUT], "pptx": [SLIDE_PREVIEWS_DIFFER]}
+    heading = "Slide" if artifact.format == "pptx" else "Page"
     return "\n".join(
-        ["Page previews to check with `read`:", *pages, *missing, *left_out]
+        [
+            f"{heading} previews to check with `read`:",
+            *pages,
+            *missing,
+            *caveat.get(artifact.format, []),
+        ]
     )
 
 

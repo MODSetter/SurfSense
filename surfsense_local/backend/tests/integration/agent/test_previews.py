@@ -15,6 +15,7 @@ from typing import Any
 
 import docx
 import httpx
+import pptx
 import pytest
 from PIL import Image
 from reportlab.lib.pagesizes import A4
@@ -512,5 +513,120 @@ async def test_an_api_without_opencode_has_no_snapshot_routes(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
         reply = await client.get(f"{PREVIEWS}/next")
+
+    assert reply.status_code == 404
+
+
+PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+
+def _pptx() -> bytes:
+    deck = pptx.Presentation()
+    deck.slides.add_slide(deck.slide_layouts[0]).shapes.title.text = "Quarterly review"
+    out = BytesIO()
+    deck.save(out)
+    return out.getvalue()
+
+
+async def test_a_deck_is_printed_by_electron_as_a_pptx_and_drawn_as_slides(
+    base_url: str, ready_artifact: Callable[..., Artifact]
+) -> None:
+    """Electron learns the file is a deck, and prints its first four slides."""
+    artifact = ready_artifact("pptx", _pptx(), PPTX_MIME)
+
+    def print_slides(http: httpx.Client, request: dict) -> None:
+        deck = http.get(request["file_url"])
+        assert deck.content.startswith(b"PK")
+        http.post(
+            f"{PREVIEWS}/{request['id']}/pdf",
+            content=_pdf(1),
+            headers={"content-type": "application/pdf"},
+        ).raise_for_status()
+
+    with StandInForElectron(base_url, print_slides) as electron:
+        previews = await asyncio.to_thread(previews_for, artifact)
+
+    assert electron.served == [
+        {
+            "id": electron.served[0]["id"],
+            "file_url": f"/artifacts/{artifact.id}/files/primary",
+            "format": "pptx",
+            "pages": "1-4",
+        }
+    ]
+    assert previews == Previews([_preview_folder(artifact, 1) / "page-1.png"], None)
+
+
+async def test_without_electron_a_deck_gets_no_slides_and_a_reason(
+    ready_artifact: Callable[..., Artifact],
+) -> None:
+    """Slides are Electron's to print, as Word pages are."""
+    artifact = ready_artifact("pptx", _pptx(), PPTX_MIME)
+
+    previews = await asyncio.to_thread(previews_for, artifact)
+
+    assert previews.pages == []
+    assert "PowerPoint slides are drawn by the SurfSense desktop app" in (
+        previews.reason or ""
+    )
+
+
+async def test_a_word_request_names_its_format_and_pages(
+    base_url: str, ready_artifact: Callable[..., Artifact]
+) -> None:
+    """Every request says how to lay the file out and which pages to print."""
+    artifact = ready_artifact("docx", _docx(), DOCX_MIME)
+
+    with StandInForElectron(base_url, _print_two_pages) as electron:
+        await asyncio.to_thread(previews_for, artifact)
+
+    assert (electron.served[0]["format"], electron.served[0]["pages"]) == (
+        "docx",
+        "1-4",
+    )
+
+
+async def test_a_sources_file_is_served_to_the_print_window_only_while_it_prints(
+    base_url: str,
+    tmp_path: Path,
+    fresh_snapshots: docx_snapshots.DocxSnapshots,
+) -> None:
+    """The window fetches it with neither key nor a missing Origin, as it fetches an artifact's file."""
+    original = tmp_path / "Brand.pptx"
+    original.write_bytes(_pptx())
+    fetched: list[httpx.Response] = []
+
+    def fetch_as_the_window(http: httpx.Client, request: dict) -> None:
+        with httpx.Client(base_url=base_url, timeout=10) as window:
+            fetched.append(window.get(request["file_url"], headers={"origin": "null"}))
+        http.post(
+            f"{PREVIEWS}/{request['id']}/pdf",
+            content=_pdf(2),
+            headers={"content-type": "application/pdf"},
+        ).raise_for_status()
+        with httpx.Client(base_url=base_url, timeout=10) as window:
+            fetched.append(window.get(request["file_url"]))
+
+    with StandInForElectron(base_url, fetch_as_the_window) as electron:
+        pdf = await asyncio.to_thread(
+            fresh_snapshots.snapshot,
+            format="pptx",
+            source_file=original,
+            pages="2,5",
+            timeout=10,
+        )
+
+    (request,) = electron.served
+    assert request["file_url"] == f"{PREVIEWS}/{request['id']}/file"
+    assert (request["format"], request["pages"]) == ("pptx", "2,5")
+    assert fetched[0].status_code == 200
+    assert fetched[0].content == original.read_bytes()
+    assert fetched[1].status_code == 404  # answered: no longer served
+    assert pdf.startswith(b"%PDF")
+
+
+async def test_no_file_is_served_for_a_request_no_one_made(http: httpx.Client) -> None:
+    """The file route serves nothing but a source being printed."""
+    reply = http.get(f"{PREVIEWS}/no-such-request/file")
 
     assert reply.status_code == 404

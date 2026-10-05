@@ -1,8 +1,9 @@
-"""Word documents waiting for Electron to print them to PDF.
+"""Word documents and PowerPoint decks waiting for Electron to print them to PDF.
 
-The app has no Word converter. Electron renders the file with docx-preview, the
-in-app viewer's library, and prints it; it polls for requests as it polls for
-the image runtime, so the API needs no way to reach it.
+The app has no Office converter. Electron lays the file out with the in-app
+viewer's library (docx-preview, or pptx-renderer for a deck) and prints it; it
+polls for requests as it polls for the image runtime, so the API needs no way
+to reach it. The name is the routes', kept from when only Word was printed.
 """
 
 import threading
@@ -10,10 +11,22 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
 
 # Electron polls every 2 s but not while it prints, which takes seconds; a
 # minute of silence means it is gone (or never ran: the Docker stack, tests).
 PRESENCE_SECONDS = 60
+# printToPDF's pageRanges: a version's previews are its first four pages.
+FIRST_PAGES = "1-4"
+
+SnapshotFormat = Literal["docx", "pptx"]
+
+# What the model is told failed to print.
+_PRINTED: dict[str, tuple[str, str]] = {
+    "docx": ("Word pages", "Word preview"),
+    "pptx": ("PowerPoint slides", "PowerPoint preview"),
+}
 
 
 class SnapshotUnavailableError(Exception):
@@ -22,10 +35,17 @@ class SnapshotUnavailableError(Exception):
 
 @dataclass(frozen=True)
 class SnapshotRequest:
-    """What Electron is handed: which artifact's primary file to print."""
+    """What Electron is handed: which file to print, laid out as which format, which pages.
+
+    The file is an artifact's primary file, or a source's original, which the
+    route serves only while this request is being printed.
+    """
 
     id: str
-    artifact_id: int
+    format: SnapshotFormat
+    pages: str
+    artifact_id: int | None = None
+    source_file: Path | None = None
 
 
 @dataclass
@@ -46,29 +66,41 @@ class DocxSnapshots:
         self._pending: dict[str, _Pending] = {}
         self._last_poll: float | None = None
 
-    def snapshot(self, artifact_id: int, timeout: float) -> bytes:
-        """Block until Electron sends the artifact's pages as a PDF."""
+    def snapshot(
+        self,
+        *,
+        format: SnapshotFormat,
+        timeout: float,
+        artifact_id: int | None = None,
+        source_file: Path | None = None,
+        pages: str = FIRST_PAGES,
+    ) -> bytes:
+        """Block until Electron sends those pages of the file as a PDF, in page order."""
+        if (artifact_id is None) == (source_file is None):
+            raise ValueError("print either an artifact or a source's file")
+        printed, preview = _PRINTED[format]
         with self._lock:
             if not self._electron_polling():
                 raise SnapshotUnavailableError(
-                    "Word pages are drawn by the SurfSense desktop app, which is "
+                    f"{printed} are drawn by the SurfSense desktop app, which is "
                     "not running beside this server."
                 )
-            pending = _Pending(SnapshotRequest(uuid.uuid4().hex, artifact_id))
-            self._pending[pending.request.id] = pending
+            request = SnapshotRequest(
+                uuid.uuid4().hex, format, pages, artifact_id, source_file
+            )
+            pending = _Pending(request)
+            self._pending[request.id] = pending
         try:
             answered = pending.answered.wait(timeout)
         finally:
             with self._lock:
-                self._pending.pop(pending.request.id, None)
+                self._pending.pop(request.id, None)
         if not answered:
             raise SnapshotUnavailableError(
-                f"The Word preview did not finish within {timeout:g} s."
+                f"The {preview} did not finish within {timeout:g} s."
             )
         if pending.pdf is None:
-            raise SnapshotUnavailableError(
-                f"The Word preview failed: {pending.failure}"
-            )
+            raise SnapshotUnavailableError(f"The {preview} failed: {pending.failure}")
         return pending.pdf
 
     def next_request(self) -> SnapshotRequest | None:
@@ -80,6 +112,14 @@ class DocxSnapshots:
                     pending.claimed = True
                     return pending.request
         return None
+
+    def source_file(self, request_id: str) -> Path | None:
+        """The source's file a taken, unanswered request prints; None for anything else."""
+        with self._lock:
+            pending = self._pending.get(request_id)
+            if pending is None or not pending.claimed or pending.answered.is_set():
+                return None
+            return pending.request.source_file
 
     def deliver(self, request_id: str, pdf: bytes) -> bool:
         """Hand the waiter its PDF; False when no one waits for it any more."""

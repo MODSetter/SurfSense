@@ -1,4 +1,4 @@
-"""Electron's Word snapshot role, played by LibreOffice, so a live run's Word versions get page previews.
+"""Electron's snapshot role, played by LibreOffice, so a live run's Word and PowerPoint files get page previews.
 
 It speaks the same routes Electron polls (modules/agent/previews/router.py). The
 pages come from LibreOffice's layout, not from docx-preview as in the app.
@@ -14,6 +14,7 @@ from typing import Any
 
 import docx
 import httpx
+import pypdfium2
 
 SOFFICE = next(
     (
@@ -99,7 +100,8 @@ class WordPrinter:
         try:
             word = api.get(request["file_url"])
             word.raise_for_status()
-            pdf = self._to_pdf(word.content)
+            printed = self._to_pdf(word.content, request.get("format", "docx"))
+            pdf = _only_pages(printed, request.get("pages", "1-4"))
         except (httpx.HTTPError, OSError, subprocess.SubprocessError) as failure:
             reason = _reason(failure)
             self.failures.append(reason)
@@ -112,10 +114,10 @@ class WordPrinter:
         )
         self.printed += 1
 
-    def _to_pdf(self, word: bytes) -> bytes:
+    def _to_pdf(self, word: bytes, format: str = "docx") -> bytes:
         if SOFFICE is None:
             raise OSError("LibreOffice is not installed")
-        source = self._folder / "document.docx"
+        source = self._folder / f"document.{format}"
         source.write_bytes(word)
         printed = self._folder / "document.pdf"
         printed.unlink(missing_ok=True)
@@ -142,3 +144,21 @@ class WordPrinter:
 def _reason(failure: Exception) -> str:
     """Within the 500 characters the failure route takes."""
     return f"{type(failure).__name__}: {failure}"[:500]
+
+
+def _only_pages(pdf: bytes, ranges: str) -> bytes:
+    """The pages a request names, in order, as Electron's printToPDF keeps them."""
+    wanted: list[int] = []
+    for part in ranges.split(","):
+        first, _, last = part.strip().partition("-")
+        wanted += range(int(first), int(last or first) + 1)
+    source = pypdfium2.PdfDocument(pdf)
+    kept = pypdfium2.PdfDocument.new()
+    try:
+        kept.import_pages(source, [n - 1 for n in wanted if n <= len(source)])
+        out = io.BytesIO()
+        kept.save(out)
+        return out.getvalue()
+    finally:
+        kept.close()
+        source.close()

@@ -11,6 +11,13 @@ from tests.integration.agent.test_document_tools import (
     _report_source,
     render,
 )
+from tests.integration.agent.test_office_documents import (
+    DECK_FROM_TEMPLATE,
+    _brand_deck,
+    _letterhead,
+    _uploaded,
+)
+from tests.integration.agent.test_office_documents import render as render_deck
 from tests.integration.agent.test_tool_endpoint import (
     choose_chat_model,
     ingest,
@@ -214,3 +221,52 @@ async def test_the_agents_own_documents_stay_usable_whatever_is_ticked(
 
     assert (read_refused, render_refused) == (False, False), (script, second)
     assert ", version 2:" in second
+
+
+async def test_a_render_cannot_start_from_an_unticked_sources_template(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """A template is a source's content: its look, and whatever it holds."""
+    workspace_id = await tools.workspace()
+    ticked = _uploaded(engine, workspace_id, "Plan.docx", _letterhead())
+    unticked = _uploaded(engine, workspace_id, "Brand.pptx", _brand_deck())
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, template_source_id=unticked),
+        token=remember_turn_scope(workspace_id, [ticked]),
+    )
+
+    assert is_error is True
+    assert f"Source {unticked} is not selected" in text
+    assert f"selected: {ticked}" in text
+    assert (
+        await tools.client.get(f"/workspaces/{workspace_id}/artifacts")
+    ).json() == []
+
+
+@pytest.mark.usefixtures("stub_model")
+async def test_a_next_version_cannot_keep_a_template_the_turn_no_longer_ticks(
+    tools: ToolEndpoint, engine: Engine, studio_worker: None
+) -> None:
+    """Leaving the template out keeps it, so the kept one is held to the turn's sources too."""
+    workspace_id = await tools.workspace()
+    brand = _uploaded(engine, workspace_id, "Brand.pptx", _brand_deck())
+    first, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, template_source_id=brand),
+    )
+    assert is_error is False, first
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, artifact_id=_artifact_id(first)),
+        token=remember_turn_scope(workspace_id, []),
+    )
+
+    assert is_error is True
+    assert f"starts from template source {brand}, which is not selected" in text
+    assert "ask them to select" in text

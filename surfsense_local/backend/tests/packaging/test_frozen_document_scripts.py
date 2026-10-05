@@ -104,3 +104,40 @@ def test_a_frozen_worker_saves_vector_charts_and_matplotlib_pdfs() -> None:
         assert len(pdf) == 1
     finally:
         pdf.close()
+
+
+DECK_AND_WORKBOOKS = """\
+import os
+import openpyxl
+import xlsxwriter
+from pptx import Presentation
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE
+from pptx.util import Inches
+
+book = xlsxwriter.Workbook("costs.xlsx")
+book.add_worksheet("Costs").write_formula(0, 0, "=1+1")
+book.close()
+assert openpyxl.load_workbook("costs.xlsx")["Costs"]["A1"].value == "=1+1"
+
+deck = Presentation()
+slide = deck.slides.add_slide(deck.slide_layouts[5])
+data = CategoryChartData()
+data.categories = ["2024", "2025"]
+data.add_series("Cost", (3, 5))
+slide.shapes.add_chart(
+    XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1), Inches(1), Inches(6), Inches(4), data
+)
+deck.save(os.environ["OUTPUT_PATH"])
+"""
+
+
+@pytest.mark.usefixtures("as_frozen")
+def test_a_frozen_worker_writes_decks_and_workbooks() -> None:
+    """python-pptx's templates, xlsxwriter and openpyxl all ship in the frozen worker."""
+    result = run_document_script(
+        DECK_AND_WORKBOOKS, output_name="document.pptx", images={}
+    )
+
+    assert result.ok, result.traceback_tail
+    assert (result.output or b"").startswith(b"PK")

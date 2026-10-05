@@ -60,6 +60,9 @@ for package in (
     "pptx",
     "xlsxwriter",
     "reportlab",
+    # Document scripts may write Excel with it, and the workbook summary reads
+    # every script's workbook with it (worker/studio/script_document/).
+    "openpyxl",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas

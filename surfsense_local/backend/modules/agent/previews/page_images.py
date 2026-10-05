@@ -47,23 +47,53 @@ def draw_pages(pdf: bytes, folder: Path) -> DrawnPages:
     """
     shutil.rmtree(folder, ignore_errors=True)
     folder.mkdir(parents=True)
-    drawn = DrawnPages([], [])
     with pdfium.lock:
         document = pypdfium2.PdfDocument(pdf)
         try:
-            for index in range(min(len(document), PAGE_LIMIT)):
-                page = document[index]
-                width, height = page.get_size()
-                scale = min(PAGE_WIDTH_PX / width, PAGE_HEIGHT_PX / height)
-                if min(width, height) * scale < SHORTEST_SIDE_PX:
-                    drawn.skipped.append(
-                        f"Page {index + 1} was not drawn: at {width:g} x "
-                        f"{height:g} pt it is too long and thin to show."
-                    )
-                    continue
-                path = folder / f"page-{index + 1}.png"
-                page.render(scale=scale).to_pil().save(path, format="PNG")
-                drawn.pages.append(path)
+            wanted = [
+                (index, index + 1, folder / f"page-{index + 1}.png")
+                for index in range(min(len(document), PAGE_LIMIT))
+            ]
+            return _draw(document, wanted, PAGE_WIDTH_PX, PAGE_HEIGHT_PX)
         finally:
             document.close()
+
+
+def draw_chosen_pages(
+    pdf: bytes, wanted: list[tuple[int, int, Path]], long_side: int
+) -> DrawnPages:
+    """Draw each (index in the PDF, page number to name it by, path), at most
+    `long_side` pixels either way.
+
+    Raises pypdfium2.PdfiumError when the bytes are not a PDF.
+    """
+    with pdfium.lock:
+        document = pypdfium2.PdfDocument(pdf)
+        try:
+            return _draw(document, wanted, long_side, long_side)
+        finally:
+            document.close()
+
+
+def _draw(
+    document: pypdfium2.PdfDocument,
+    wanted: list[tuple[int, int, Path]],
+    max_width: int,
+    max_height: int,
+) -> DrawnPages:
+    """Called under the pdfium lock."""
+    drawn = DrawnPages([], [])
+    for index, number, path in wanted:
+        page = document[index]
+        width, height = page.get_size()
+        # pdfium rounds pixels up, and 960 pt x (1000 / 960) is a hair over 1000.
+        scale = min(max_width / width, max_height / height) * (1 - 1e-9)
+        if min(width, height) * scale < SHORTEST_SIDE_PX:
+            drawn.skipped.append(
+                f"Page {number} was not drawn: at {width:g} x "
+                f"{height:g} pt it is too long and thin to show."
+            )
+            continue
+        page.render(scale=scale).to_pil().save(path, format="PNG")
+        drawn.pages.append(path)
     return drawn
