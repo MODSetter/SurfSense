@@ -1,27 +1,37 @@
 """A Word or PDF draft grounds on the ticked sources like every other format, and
 its Retry keeps to them; a refine's Retry rewrites without them."""
 
+from io import BytesIO
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
 from huey import Huey
+from PIL import Image
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import StudioJobCreate
 from modules.artifacts.service import create_artifact_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.source_figures.layout import (
+    figure_png,
+    figures_dir,
+    write_index,
+)
 from modules.folders.ensure_path import ensure_folder_path
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.profile import Fingerprint, Tier
+from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
 from modules.source_roots.managed_root import ensure_managed_root
 from modules.source_scope.schemas import SourceScope
 from modules.workspaces.models import Workspace
+from shared.config import get_storage_settings
 from shared.queue import studio_queue
 from tests.integration.worker.conftest import stub_model  # noqa: F401
+from worker.studio.shared import gather
 from worker.studio.shared.artifact import Source
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("stub_model")]
@@ -213,3 +223,101 @@ async def test_retrying_a_refine_needs_none_of_its_sources(
     second = _ready(session, second_id)
     assert second["spec"]["text"] == REVISED
     assert second["version"]["number"] == 2
+
+
+def _ground_on_first_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """As gather's best passages do when a scope outgrows the budget: only some
+    of the scope's sources reach the model."""
+    real = gather.gather
+
+    def first_only(session: Session, ids: list[int], *args: Any, **kw: Any):
+        return real(session, ids[:1], *args, **kw)
+
+    monkeypatch.setattr(gather, "gather", first_only)
+
+
+def _with_figures(session: Session, document_id: int, caption: str, count: int) -> None:
+    """Make a source a file holding `count` kept figures with that caption."""
+    document = session.get(Document, document_id)
+    document.document_type = DocumentType.FILE
+    session.commit()
+    folder = figures_dir(
+        get_storage_settings().document_dir(document.workspace_id, document.id)
+    )
+    folder.mkdir(parents=True, exist_ok=True)
+    png = BytesIO()
+    Image.new("RGB", (40, 20), "red").save(png, format="PNG")
+    for n in range(1, count + 1):
+        figure_png(folder, n).write_bytes(png.getvalue())
+    write_index(
+        folder,
+        [
+            {"n": n, "width": 40, "height": 20, "page": 1, "caption": caption}
+            for n in range(1, count + 1)
+        ],
+        None,
+    )
+
+
+async def test_a_refine_offers_only_the_figures_its_draft_was_grounded_on(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    small_model: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source the draft never read is not where its next version's figures come from."""
+    ticked, (read, unread) = _folder(session, workspace, "Halvorsen", notes=2)
+    _with_figures(session, read, "Depot map", 1)
+    _with_figures(session, unread, "Unrelated chart", 1)
+    _ground_on_first_only(monkeypatch)
+    _drafts(monkeypatch)
+    first_id = _folder_draft(session, workspace, ticked)
+    assert _ready(session, first_id)["grounded_document_ids"] == [read]
+    asked: list[str] = []
+
+    def rewrite(_model: object, messages: list[Message], **_kw: Any) -> str:
+        asked.append(messages[0].content)
+        return f"```markdown\n{REVISED}\n```"
+
+    monkeypatch.setattr("worker.studio.shared.generate.complete", rewrite)
+
+    refined = await client.post(
+        f"/artifacts/{first_id}/refine", json={"instruction": "Make it shorter"}
+    )
+    _work_off(studio_queue)
+
+    assert refined.status_code == 202, refined.text
+    _ready(session, refined.json()["id"])
+    (system,) = asked
+    assert f"image:{read}-1" in system
+    assert f"image:{unread}-1" not in system
+
+
+async def test_a_refine_is_not_priced_for_figures_its_draft_never_read(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    small_model: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The window check counts the figures the rewrite may place, and no others."""
+    ticked, (_read, unread) = _folder(session, workspace, "Halvorsen", notes=2)
+    _with_figures(session, unread, "Freight volume by depot and quarter. " * 6, 100)
+    _ground_on_first_only(monkeypatch)
+    _drafts(monkeypatch)
+    first_id = _folder_draft(session, workspace, ticked)
+    _ready(session, first_id)
+
+    async def window(_session: Session) -> tuple[str, int]:
+        return "m", 4_000  # the short spec and the prompt, not 100 figures' lines
+
+    monkeypatch.setattr(
+        "modules.artifacts.studio_documents.fits.selected_model_window", window
+    )
+
+    refined = await client.post(
+        f"/artifacts/{first_id}/refine", json={"instruction": "Make it shorter"}
+    )
+
+    assert refined.status_code == 202, refined.text

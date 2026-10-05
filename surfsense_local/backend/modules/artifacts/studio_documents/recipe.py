@@ -42,6 +42,15 @@ def refinement(metadata: dict[str, Any] | None) -> Refinement | None:
     return Refinement(recipe["instruction"], spec_from_metadata(recipe["base"]))
 
 
+def figure_sources(metadata: dict[str, Any] | None) -> list[int]:
+    """The sources whose figures a refine may place: those its draft was grounded on."""
+    meta = metadata or {}
+    grounded = meta.get("grounded_document_ids")
+    return list(
+        grounded if grounded is not None else meta.get("source_document_ids") or []
+    )
+
+
 def studio_made(metadata: dict[str, Any] | None) -> bool:
     """Whether Studio drafted or refined this version; the agent's scripts keep no recipe."""
     return RECIPE_KEY in (metadata or {})

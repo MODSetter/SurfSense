@@ -14,6 +14,7 @@ from modules.artifacts.script_documents.version import (
 )
 from modules.artifacts.studio_documents.recipe import (
     RECIPE_KEY,
+    figure_sources,
     refined,
     studio_made,
 )
@@ -65,9 +66,7 @@ def figure_captions(session: Session, artifact_id: int) -> list[str | None]:
     """The captions of the figures a refine's prompt will list, read without side effects."""
     artifact = session.get(Artifact, artifact_id)
     captions: list[str | None] = []
-    for document_id in (artifact.artifact_metadata or {}).get(
-        "source_document_ids"
-    ) or []:
+    for document_id in figure_sources(artifact.artifact_metadata):
         try:
             source = source_in_workspace(session, artifact.workspace_id, document_id)
         except LookupError:
@@ -114,6 +113,7 @@ def create_refine_version(
         RECIPE_KEY: refined(instruction, spec),
         "version": version.as_metadata(),
         "source_document_ids": list(meta.get("source_document_ids") or []),
+        "grounded_document_ids": figure_sources(meta),
         "prompt": meta.get("prompt"),
     }
     session.commit()

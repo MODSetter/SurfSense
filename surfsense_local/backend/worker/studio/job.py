@@ -18,6 +18,7 @@ from modules.artifacts.studio_documents.recipe import (
     RECIPE_KEY,
     Refinement,
     drafted,
+    figure_sources,
     refinement,
     renders_as_stored,
 )
@@ -216,11 +217,10 @@ def _run_script(
 def _refine(
     session: Session, artifact: Artifact, document: Document, refining: Refinement
 ) -> Built:
-    """One call rewrites the base version's spec; the figures it may place are its sources'."""
-    meta = artifact.artifact_metadata or {}
+    """One call rewrites the base version's spec; the figures it may place are its draft's."""
     model = _choose_model(session, ModelType.TEXT_GEN)
     figures = figure_shelf.figures_of(
-        session, artifact.workspace_id, meta.get("source_document_ids", [])
+        session, artifact.workspace_id, figure_sources(artifact.artifact_metadata)
     )
     title = document.title
     session.commit()
