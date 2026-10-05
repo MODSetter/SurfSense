@@ -2,7 +2,6 @@
 
 import logging
 
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
@@ -11,7 +10,11 @@ from modules.artifacts.script_documents.spec import (
     DocumentFormat,
     DocumentScript,
 )
-from modules.artifacts.script_documents.version import ArtifactVersion, version_of
+from modules.artifacts.script_documents.version import (
+    ArtifactVersion,
+    next_version_number,
+    version_of,
+)
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures import figure_file, parse_figure_name
@@ -90,7 +93,7 @@ def create_script_document(
         if base is None
         else ArtifactVersion(
             root=base.root,
-            number=_next_number(session, workspace.id, base.root),
+            number=next_version_number(session, workspace.id, base.root),
             parent=base_artifact_id,
         )
     )
@@ -149,15 +152,3 @@ def _base_version(
             "artifact."
         )
     return version
-
-
-def _next_number(session: Session, workspace_id: int, root: int) -> int:
-    """One past the root's newest version, so editing an old version adds a new one."""
-    version = Artifact.artifact_metadata["version"]
-    newest = session.scalar(
-        select(func.max(version["number"].as_integer())).where(
-            Artifact.workspace_id == workspace_id,
-            version["root"].as_integer() == root,
-        )
-    )
-    return (newest or 0) + 1

@@ -33,6 +33,8 @@ export type Artifact = {
   version: ArtifactVersion | null
   /** What the artifact is rendered from, kept so an edit can change it. */
   spec_kind: "python" | "markdown" | null
+  /** A ready Word or PDF version Studio made, which Refine may rewrite. */
+  refinable: boolean
 }
 
 export type ArtifactFile = {
@@ -195,6 +197,21 @@ export function regenerateArtifact(
 ): Promise<Artifact> {
   return requestJson<Artifact>(`/artifacts/${artifactId}/regenerate`, {
     method: "POST",
+    signal,
+  })
+}
+
+/** Makes the next version of a document from its spec rewritten to the
+ *  instruction; the answer is that version, still running. */
+export function refineArtifact(
+  artifactId: number,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/refine`, {
+    method: "POST",
+    body: JSON.stringify({ instruction }),
+    headers: { "Content-Type": "application/json" },
     signal,
   })
 }

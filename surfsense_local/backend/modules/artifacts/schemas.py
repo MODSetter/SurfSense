@@ -11,6 +11,7 @@ from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
 from modules.artifacts.script_documents.spec import SpecKind, spec_kind
 from modules.artifacts.script_documents.version import version_of
+from modules.artifacts.studio_documents.recipe import shown_spec_kind, studio_made
 from modules.documents.models import DocumentStatus
 from modules.source_scope.schemas import SourceScope
 
@@ -30,6 +31,14 @@ class StudioJobCreate(BaseModel):
     document_ids: list[int] | None = None
     prompt: Prompt | None = None
     options: dict | None = None
+
+
+class RefineRequest(BaseModel):
+    """What to change in a Word document or PDF; the whole spec is rewritten for it."""
+
+    instruction: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ]
 
 
 class FormatRead(BaseModel):
@@ -128,9 +137,11 @@ class ArtifactRead(BaseModel):
     error_message: str | None
     created_at: datetime
     updated_at: datetime
-    # None for an artifact Studio drafted: it keeps no spec and has no versions.
+    # None for an artifact that keeps no spec and so has no versions.
     version: ArtifactVersionRead | None = None
     spec_kind: SpecKind | None = None
+    # Whether Refine may rewrite this version: a ready Word or PDF Studio made.
+    refinable: bool = False
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactRead":
@@ -146,7 +157,8 @@ class ArtifactRead(BaseModel):
             created_at=artifact.created_at,
             updated_at=artifact.updated_at,
             version=_version(artifact),
-            spec_kind=spec_kind(artifact.artifact_metadata),
+            spec_kind=shown_spec_kind(artifact.artifact_metadata),
+            refinable=_refinable(artifact),
         )
 
 
@@ -176,6 +188,16 @@ class ArtifactDetail(ArtifactRead):
             quiz_state=_quiz_state(artifact),
             flashcard_state=_flashcard_state(artifact),
         )
+
+
+def _refinable(artifact: Artifact) -> bool:
+    """The agent's own documents are edited in its chat (07, decision 8)."""
+    meta = artifact.artifact_metadata
+    return (
+        artifact.document.status is DocumentStatus.READY
+        and spec_kind(meta) is not None
+        and studio_made(meta)
+    )
 
 
 def _version(artifact: Artifact) -> ArtifactVersionRead | None:

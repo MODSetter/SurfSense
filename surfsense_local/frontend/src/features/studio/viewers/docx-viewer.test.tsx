@@ -38,6 +38,7 @@ function wordArtifact(
     updated_at: "2026-10-04T00:00:00Z",
     version: { root_id: 12, number: id - 11, parent_id: null },
     spec_kind: "python",
+    refinable: false,
     content: null,
     files: [
       {

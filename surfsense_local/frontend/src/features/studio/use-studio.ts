@@ -11,6 +11,7 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
+  refineArtifact,
   regenerateArtifact,
   type Artifact,
   type StudioFormat,
@@ -253,6 +254,16 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     }
   }
 
+  // Rejects with the API's reason, for the Refine box to show where it was typed.
+  const refine = async (artifactId: number, instruction: string) => {
+    const next = await refineArtifact(artifactId, instruction)
+    // A re-read of the list may have brought it in first.
+    setArtifacts((current) => [
+      next,
+      ...current.filter((artifact) => artifact.id !== next.id),
+    ])
+  }
+
   const cancel = async (artifactId: number) => {
     setError(null)
     try {
@@ -285,6 +296,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     error,
     create,
     regenerate,
+    refine,
     cancel,
     remove,
     clearError: () => setError(null),

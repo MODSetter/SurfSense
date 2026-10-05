@@ -7,7 +7,6 @@ and a regenerate all render the same spec.
 import logging
 from pathlib import Path
 
-from pathvalidate import sanitize_filename
 from sqlalchemy.orm import Session
 
 from modules.artifacts.script_documents.spec import DocumentScript
@@ -22,6 +21,7 @@ from worker.studio.script_document.extracted_text import (
     word_text,
 )
 from worker.studio.shared.artifact import Built
+from worker.studio.shared.text import file_stem
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +88,5 @@ def render(title: str, script: DocumentScript, images: dict[str, Path]) -> Built
         markdown=text or f"# {title}",
         primary=result.output,
         primary_mime=office.mime,
-        primary_filename=f"{_file_stem(title, office.stem)}.{office.ext}",
+        primary_filename=f"{file_stem(title, office.stem)}.{office.ext}",
     )
-
-
-def _file_stem(title: str, fallback: str) -> str:
-    """The title as a file name any system can save: forbidden characters dropped."""
-    return sanitize_filename(title, platform="universal").strip() or fallback

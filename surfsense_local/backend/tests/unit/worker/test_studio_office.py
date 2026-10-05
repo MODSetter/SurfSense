@@ -40,11 +40,11 @@ def test_render_executes_generated_code_and_keeps_its_bytes(
         monkeypatch,
     )
 
-    built = office.render(pdf, MODEL, [Source(1, "Saturn", "rings")], None)
+    built = office.render(pptx, MODEL, [Source(1, "Saturn", "rings")], None)
 
     assert built.primary == b"%PDF-1.7 fake"
-    assert built.primary_mime == "application/pdf"
-    assert built.primary_filename == "cassini.pdf"
+    assert built.primary_mime == pptx.mime
+    assert built.primary_filename == "cassini.pptx"
     assert built.title == "Cassini"
     assert "Arrival in 2004." in built.markdown
 
@@ -55,10 +55,10 @@ def test_render_uses_the_picked_formats_mime_and_extension(
     """The user's button fixes the type: a docx job stores a .docx, not whatever."""
     _model("output_bytes = b'PK\\x03\\x04'\ntitle = 'Deck'", monkeypatch)
 
-    built = office.render(docx, MODEL, [], None)
+    built = office.render(xlsx, MODEL, [], None)
 
-    assert built.primary_filename == "deck.docx"
-    assert built.primary_mime.endswith("wordprocessingml.document")
+    assert built.primary_filename == "deck.xlsx"
+    assert built.primary_mime.endswith("spreadsheetml.sheet")
     assert built.markdown == "# Deck"  # summary falls back to the title
 
 
@@ -69,7 +69,7 @@ def test_code_that_forgets_output_bytes_fails_the_job(
     _model("title = 'oops'", monkeypatch)
 
     with pytest.raises(RuntimeError, match="output_bytes"):
-        office.render(pdf, MODEL, [], None)
+        office.render(xlsx, MODEL, [], None)
 
 
 def test_code_that_raises_surfaces_the_reason(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -104,7 +104,7 @@ def test_render_retries_failed_code_then_keeps_the_fix(
 
     monkeypatch.setattr(generate, "run_model", fake_model)
 
-    built = office.render(pdf, MODEL, [], None)
+    built = office.render(xlsx, MODEL, [], None)
 
     assert built.primary == b"%PDF-ok"
     assert len(seen) == 2
@@ -130,7 +130,7 @@ def test_render_stops_after_three_code_failures(
     monkeypatch.setattr(generate, "run_model", fake_model)
 
     with pytest.raises(RuntimeError, match="still broken"):
-        office.render(pdf, MODEL, [], None)
+        office.render(xlsx, MODEL, [], None)
     assert calls == 3
 
 
@@ -155,7 +155,7 @@ def test_a_cancel_during_a_failed_attempt_asks_for_no_retry(
     monkeypatch.setattr(generate, "run_model", fake_model)
 
     with cancellation.watching(check), pytest.raises(JobCancelledError):
-        office.render(pdf, MODEL, [], None)
+        office.render(xlsx, MODEL, [], None)
     assert calls == 1
 
 

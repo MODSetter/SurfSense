@@ -19,6 +19,7 @@ const artifact: Artifact = {
   updated_at: "2026-09-06T00:00:00Z",
   version: null,
   spec_kind: null,
+  refinable: false,
 }
 
 type ListProps = Partial<Parameters<typeof ArtifactList>[0]>
@@ -412,6 +413,7 @@ describe("artifact list versions", () => {
       created_at: `2026-10-0${number}T00:00:00Z`,
       version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
       spec_kind: "python",
+      refinable: false,
       ...extra,
     } satisfies Artifact
   }

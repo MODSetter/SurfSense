@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from modules.llm.profile import Tier
+from modules.llm.profile import Fingerprint, Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 
 
@@ -27,7 +27,14 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Compact is what a bundled local model gets, so that is the path under test.
     selection = type(
-        "Selection", (), {"provider": "fake", "name": "fake", "tier": Tier.COMPACT}
+        "Selection",
+        (),
+        {
+            "provider": "fake",
+            "name": "fake",
+            "tier": Tier.COMPACT,
+            "fingerprint": Fingerprint("fake", "fake"),
+        },
     )()
     monkeypatch.setattr(
         "worker.studio.job.resolve_generation",

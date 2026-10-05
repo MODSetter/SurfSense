@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
-from modules.artifacts.script_documents.spec import document_script
+from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
@@ -99,8 +99,8 @@ def create_artifact_job(
 
 
 def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
-    """Run a finished or failed artifact's job again: same sources and prompt,
-    or the same document script.
+    """Run a finished or failed artifact's job again: a draft from its sources
+    re-resolved, a refine's same rewrite, or the same document script.
 
     The artifact_metadata that created it (sources, prompt, options, spec) is still
     there, so this resets the backing document and re-enqueues — no new row.
@@ -108,15 +108,18 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
         raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
+    meta = artifact.artifact_metadata
     # A document script runs as stored: its format's models are never asked.
-    if document_script(artifact.artifact_metadata) is None:
+    if not renders_as_stored(meta):
         available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
         if not available:
             raise HTTPException(status.HTTP_409_CONFLICT, reason)
-        artifact.artifact_metadata = {
-            **(artifact.artifact_metadata or {}),
-            "source_document_ids": _replayed_sources(session, artifact),
-        }
+        # A refine rewrites its base's spec, so it needs none of its sources back.
+        if refinement(meta) is None:
+            artifact.artifact_metadata = {
+                **(meta or {}),
+                "source_document_ids": _replayed_sources(session, artifact),
+            }
 
     document.status = DocumentStatus.PENDING
     document.error_message = None

@@ -1,6 +1,17 @@
 """The artifact contract every family speaks: grounding in, a Built out."""
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+@dataclass(frozen=True)
+class SourceImage:
+    """A figure kept from a source, which a Word or PDF draft may place by name."""
+
+    name: str
+    caption: str | None
+    path: Path
 
 
 @dataclass(frozen=True)
@@ -10,6 +21,8 @@ class Source:
     document_id: int
     title: str
     content: str
+    # Filled only for the formats that place figures (Word and PDF).
+    figures: tuple[SourceImage, ...] = ()
 
 
 def fallback_title(user_prompt: str | None, sources: list[Source], label: str) -> str:
@@ -38,3 +51,5 @@ class Built:
     preview: bytes | None = None
     preview_mime: str | None = None
     preview_filename: str | None = None
+    # The source the next version is made from, for a format that keeps one.
+    spec: dict[str, Any] | None = None
