@@ -3,7 +3,7 @@ import http from "node:http"
 import type { AddressInfo } from "node:net"
 import test from "node:test"
 
-import { serveDocxSnapshots, type PrintDocx } from "./serve-snapshots.ts"
+import { serveDocxSnapshots, type PrintSnapshot } from "./serve-snapshots.ts"
 
 const ROUTES = "/agent/previews/docx-snapshots"
 // The key Electron made at launch and handed to the API.
@@ -16,7 +16,7 @@ type Received = { method: string; path: string; type: string; body: Buffer }
  * comes back. Like the API, it refuses a call without the launch's key.
  */
 async function fakeApi(
-  waiting: { id: string; file_url: string }[],
+  waiting: { id: string; file_url: string; format?: string; pages?: string }[],
   options: { port?: number; pdfStatus?: number; unansweredPolls?: number } = {},
 ) {
   const { port = 0, pdfStatus = 204 } = options
@@ -96,7 +96,7 @@ test("with nothing waiting it keeps polling and prints nothing", async () => {
 test("a waiting document is printed from its file URL and the PDF posted back", async () => {
   const api = await fakeApi([{ id: "req-1", file_url: "/artifacts/12/files/primary" }])
   const printedUrls: string[] = []
-  const print: PrintDocx = async (fileUrl) => {
+  const print: PrintSnapshot = async ({ fileUrl }) => {
     printedUrls.push(fileUrl)
     return new TextEncoder().encode("%PDF-1.7 two pages")
   }
@@ -111,6 +111,95 @@ test("a waiting document is printed from its file URL and the PDF posted back", 
   assert.equal(answer.path, `${ROUTES}/req-1/pdf`)
   assert.equal(answer.type, "application/pdf")
   assert.equal(answer.body.toString(), "%PDF-1.7 two pages")
+})
+
+test("each request is printed as the format and pages it names", async () => {
+  const api = await fakeApi([
+    { id: "deck", file_url: "/artifacts/7/files/primary", format: "pptx", pages: "1-4" },
+    {
+      id: "source",
+      file_url: `${ROUTES}/source/file`,
+      format: "docx",
+      pages: "2,5",
+    },
+    // An API from before decks: every request was a Word file's first pages.
+    { id: "older", file_url: "/artifacts/9/files/primary" },
+  ])
+  const printed: { fileUrl: string; format: string; pages: string }[] = []
+  const stop = serveDocxSnapshots({
+    apiUrl: api.url,
+    key: KEY,
+    print: async (file) => {
+      printed.push(file)
+      return new TextEncoder().encode("%PDF-1.7")
+    },
+    pollMs: 5,
+  })
+
+  await until(() => api.answers().length === 3)
+  stop()
+  await api.close()
+
+  assert.deepEqual(
+    printed.sort((a, b) => a.fileUrl.localeCompare(b.fileUrl)),
+    [
+      { fileUrl: `${api.url}${ROUTES}/source/file`, format: "docx", pages: "2,5" },
+      { fileUrl: `${api.url}/artifacts/7/files/primary`, format: "pptx", pages: "1-4" },
+      { fileUrl: `${api.url}/artifacts/9/files/primary`, format: "docx", pages: "1-4" },
+    ],
+  )
+})
+
+test("a format the app cannot print is reported as the request's failure", async () => {
+  const api = await fakeApi([
+    { id: "book", file_url: "/artifacts/4/files/primary", format: "xlsx" },
+  ])
+  let printed = 0
+  const stop = serveDocxSnapshots({
+    apiUrl: api.url,
+    key: KEY,
+    print: async () => {
+      printed += 1
+      return new TextEncoder().encode("%PDF-1.7")
+    },
+    pollMs: 5,
+  })
+
+  await until(() => api.answers().length === 1)
+  stop()
+  await api.close()
+
+  assert.equal(printed, 0)
+  const [answer] = api.answers()
+  assert.equal(answer.path, `${ROUTES}/book/failure`)
+  assert.deepEqual(JSON.parse(answer.body.toString()), {
+    reason: "the desktop app cannot print a xlsx file",
+  })
+})
+
+test("pages that are not a page range are reported as the request's failure", async () => {
+  const api = await fakeApi([
+    { id: "odd", file_url: "/artifacts/4/files/primary", format: "docx", pages: "all of them" },
+  ])
+  let printed = 0
+  const stop = serveDocxSnapshots({
+    apiUrl: api.url,
+    key: KEY,
+    print: async () => {
+      printed += 1
+      return new TextEncoder().encode("%PDF-1.7")
+    },
+    pollMs: 5,
+  })
+
+  await until(() => api.answers().length === 1)
+  stop()
+  await api.close()
+
+  assert.equal(printed, 0)
+  assert.deepEqual(JSON.parse(api.answers()[0].body.toString()), {
+    reason: "the desktop app cannot print pages \"all of them\"",
+  })
 })
 
 test("a print that throws is reported as the request's failure", async () => {
@@ -143,7 +232,7 @@ test("a print past its time box is aborted and reported, so the API stops waitin
     apiUrl: api.url,
     key: KEY,
     // Never settles, as a window torn down mid-print may not: the poller moves on anyway.
-    print: (_fileUrl, signal) => {
+    print: (_file, signal) => {
       signal.addEventListener("abort", () => {
         aborted = true
       })
@@ -237,7 +326,7 @@ test("a request waiting behind a slow print is printed at once, not after it", a
   const stop = serveDocxSnapshots({
     apiUrl: api.url,
     key: KEY,
-    print: (fileUrl) =>
+    print: ({ fileUrl }) =>
       fileUrl.endsWith("/artifacts/1/files/primary")
         ? new Promise((resolve) => {
             finishSlow = () => resolve(new TextEncoder().encode("%PDF-1.7 slow"))

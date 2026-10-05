@@ -485,7 +485,10 @@ async def test_a_render_still_running_at_the_limit_says_where_it_will_appear(
     ("arguments", "says"),
     [
         ({"title": "", "format": "docx", "script": "x"}, "title"),
-        ({"title": "Proposal", "format": "pptx", "script": "x"}, "docx or pdf"),
+        (
+            {"title": "Proposal", "format": "odt", "script": "x"},
+            "docx, pdf, pptx or xlsx",
+        ),
         ({"title": "Proposal", "format": "docx"}, "script"),
         (
             {"title": "Proposal", "format": "docx", "script": "x", "artifact_id": "1"},

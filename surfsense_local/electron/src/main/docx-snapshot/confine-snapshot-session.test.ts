@@ -40,6 +40,13 @@ test("the packaged page loads its own files and nothing else on disk", () => {
   assert.ok(!passes("file:///C:/Program%20Files/SurfSense/resources/app.asar"))
 })
 
+test("the page's own object URLs load, as a deck's pictures are", () => {
+  const { session, passes } = fakeSession()
+  confineSnapshotSession(session, PACKAGED)
+
+  assert.ok(passes("blob:file:///6d1f4c3a-7b8e-4f0a-9c2d-1e5b7a9c0f11"))
+})
+
 test("a Word file is reachable only while it is being printed", () => {
   const { session, passes } = fakeSession()
   const allow = confineSnapshotSession(session, PACKAGED)

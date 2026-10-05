@@ -41,6 +41,8 @@
   "agent_steps_running_aria": "Em andamento",
   "agent_steps_search_label": "Procurou {pattern} nas fontes",
   "agent_steps_shell_label": "Executou {command}",
+  "agent_steps_source_pages_label": "Olhou páginas de <doc>{title}</doc>",
+  "agent_steps_source_pages_untitled_label": "Olhou páginas de uma fonte",
   "agent_steps_studio_label": "Iniciou {format} no Studio",
   "agent_steps_write_label": "Escreveu {file}",
   "app_api_insufficient_space_error": "{message} (necessário: {required, number, ::unit/gigabyte .#}, disponível: {available, number, ::unit/gigabyte .#})",

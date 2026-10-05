@@ -620,3 +620,51 @@ describe("artifact list versions", () => {
     expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(33)
   })
 })
+
+describe.each([
+  { format: "pptx", title: "Board deck" },
+  { format: "xlsx", title: "Budget workbook" },
+])("artifact list versions of an agent's $format", ({ format, title }) => {
+  // A deck or workbook the agent rendered is a script document like a Word one.
+  function made(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      ...artifact,
+      id,
+      format,
+      title,
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 50, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: "python",
+      ...extra,
+    } satisfies Artifact
+  }
+
+  it("lists it once, as its newest version, and opens the newest ready one", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    const v3 = made(52, 3, { status: "pending" })
+    renderList({ artifacts: [v3, made(51, 2), made(50, 1)], onOpen })
+
+    const rows = screen.getAllByRole("listitem")
+    expect(rows).toHaveLength(1)
+    expect(rows[0].textContent).toContain("v3")
+    await user.click(screen.getByRole("button", { name: title }))
+    expect(onOpen).toHaveBeenCalledWith(51)
+  })
+
+  it("offers no retry for a version its script failed", async () => {
+    const user = userEvent.setup()
+    const v2 = made(51, 2, {
+      status: "failed",
+      error_message: "Script error: KeyError: 'Title Slide'",
+    })
+    renderList({ artifacts: [v2, made(50, 1)] })
+
+    expect(screen.queryByLabelText(new RegExp(`Retry ${title}`))).toBeNull()
+    await user.click(
+      screen.getByRole("button", { name: `Actions for ${title}` })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: /Retry/ })).toBeNull()
+  })
+})

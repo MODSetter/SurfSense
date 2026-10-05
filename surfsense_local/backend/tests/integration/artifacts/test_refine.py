@@ -593,3 +593,58 @@ async def test_a_version_whose_retry_did_not_finish_is_not_refined(
     assert response.status_code == 409, response.text
     assert "did not finish" in response.json()["detail"]
     assert _count(session) == before
+
+
+DECK = """\
+import os
+from pptx import Presentation
+
+deck = Presentation()
+deck.slides.add_slide(deck.slide_layouts[5]).shapes.title.text = "Rollout"
+deck.save(os.environ["OUTPUT_PATH"])
+"""
+
+WORKBOOK = """\
+import os
+from openpyxl import Workbook
+
+book = Workbook()
+book.active.append(["Phase", "Months"])
+book.save(os.environ["OUTPUT_PATH"])
+"""
+
+
+@pytest.mark.parametrize(("format", "script"), [("pptx", DECK), ("xlsx", WORKBOOK)])
+async def test_the_agents_decks_and_workbooks_are_not_refinable_either(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    local_model: None,
+    format: str,
+    script: str,
+) -> None:
+    """They keep a python spec as its Word documents do, and are edited in its chat too."""
+    made = create_script_document(
+        session,
+        workspace,
+        title="Rollout",
+        format=format,
+        script=script,
+        base_artifact_id=None,
+        image_names=[],
+    )
+    _work_off(studio_queue)
+    made_id = made.id
+    session.expire_all()
+    assert made.document.status is DocumentStatus.READY, made.document.error_message
+    before = _count(session)
+    session.commit()
+
+    shown = await client.get(f"/artifacts/{made_id}")
+    response = await _refine(client, session, made_id, "Add a slide on costs")
+
+    assert shown.json()["spec_kind"] == "python"
+    assert shown.json()["refinable"] is False
+    assert response.status_code == 409
+    assert "chat" in response.json()["detail"]
+    assert _count(session) == before

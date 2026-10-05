@@ -7,8 +7,14 @@ from sqlalchemy.orm import Session
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.spec import (
     DOCUMENT_FORMATS,
+    FORMAT_NAMES,
     DocumentFormat,
     DocumentScript,
+    document_script,
+)
+from modules.artifacts.script_documents.template_source import (
+    TemplateRefusedError,
+    template_file,
 )
 from modules.artifacts.script_documents.version import (
     ArtifactVersion,
@@ -26,8 +32,6 @@ logger = logging.getLogger(__name__)
 TITLE_CHARS = 200
 SCRIPT_CHARS = 200_000
 
-_FORMAT_NAMES: dict[str, str] = {"docx": "Word document", "pdf": "PDF"}
-
 
 class ScriptDocumentRefusedError(Exception):
     """A request this service will not carry out, in a sentence the caller passes on."""
@@ -42,9 +46,11 @@ def create_script_document(
     script: str,
     base_artifact_id: int | None,
     image_names: list[str],
+    template_source_id: int | None = None,
 ) -> Artifact:
     """Keep the script as a pending artifact's spec and queue Studio's job to run it.
 
+    A next version left without `template_source_id` keeps its base's template.
     Commits before enqueueing: the worker is another process and must find the row.
     """
     title = title.strip()
@@ -53,7 +59,7 @@ def create_script_document(
             f"Give the document a title of 1 to {TITLE_CHARS} characters."
         )
     if format not in DOCUMENT_FORMATS:
-        raise ScriptDocumentRefusedError("The format must be docx or pdf.")
+        raise ScriptDocumentRefusedError("The format must be docx, pdf, pptx or xlsx.")
     if not script.strip() or len(script) > SCRIPT_CHARS:
         raise ScriptDocumentRefusedError(
             f"Give a script of 1 to {SCRIPT_CHARS:,} characters."
@@ -73,6 +79,11 @@ def create_script_document(
         if base_artifact_id is None
         else _base_version(session, workspace.id, base_artifact_id, format)
     )
+    template = _template(
+        session, workspace.id, format, template_source_id, base_artifact_id
+    )
+    if template is not None and template not in source_ids:
+        source_ids.append(template)
 
     document = Document(
         workspace_id=workspace.id,
@@ -98,7 +109,9 @@ def create_script_document(
         )
     )
     artifact.artifact_metadata = {
-        "spec": DocumentScript(text=script, format=format, images=images).as_metadata(),
+        "spec": DocumentScript(
+            text=script, format=format, images=images, template_source_id=template
+        ).as_metadata(),
         "version": version.as_metadata(),
         "source_document_ids": source_ids,
         "prompt": None,
@@ -147,8 +160,49 @@ def _base_version(
     # The version switcher shows one document; a PDF of it is a document of its own.
     if base.format != format:
         raise ScriptDocumentRefusedError(
-            f"Artifact {base_id} is a {_FORMAT_NAMES[base.format]}; a "
-            f"{_FORMAT_NAMES[format]} starts its own document, made without a base "
+            f"Artifact {base_id} is a {FORMAT_NAMES[base.format]}; a "
+            f"{FORMAT_NAMES[format]} starts its own document, made without a base "
             "artifact."
         )
     return version
+
+
+def inherited_template(
+    session: Session, workspace_id: int, base_artifact_id: int | None
+) -> int | None:
+    """The template source a next version keeps when its call names none."""
+    if base_artifact_id is None:
+        return None
+    base = session.get(Artifact, base_artifact_id)
+    if base is None or base.workspace_id != workspace_id:
+        return None
+    script = document_script(base.artifact_metadata)
+    return script.template_source_id if script is not None else None
+
+
+def _template(
+    session: Session,
+    workspace_id: int,
+    format: DocumentFormat,
+    named: int | None,
+    base_artifact_id: int | None,
+) -> int | None:
+    """The template this version starts from: the one named, else its base's; checked either way."""
+    source_id = (
+        named
+        if named is not None
+        else inherited_template(session, workspace_id, base_artifact_id)
+    )
+    if source_id is None:
+        return None
+    try:
+        template_file(session, workspace_id, source_id, format)
+    except TemplateRefusedError as refused:
+        if named is not None:
+            raise ScriptDocumentRefusedError(str(refused)) from refused
+        raise ScriptDocumentRefusedError(
+            f"Artifact {base_artifact_id} was made from template source "
+            f"{source_id}. {refused} Pass another template_source_id, or make a "
+            "new document without artifact_id."
+        ) from refused
+    return source_id

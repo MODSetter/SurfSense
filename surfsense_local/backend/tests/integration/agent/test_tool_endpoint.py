@@ -92,11 +92,15 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
     studio_formats = listed["create_artifact"]["properties"]["format"]
     assert "quiz" in studio_formats["enum"]
-    # Word and PDF are scripts the agent renders, kept as versions it can edit.
-    assert not {"docx", "pdf"} & set(studio_formats["enum"])
-    assert "docx" not in studio_formats["description"]
-    assert listed["render_document"]["required"] == ["title", "format", "script"]
-    assert listed["render_document"]["properties"]["format"]["enum"] == ["docx", "pdf"]
+    # Office files and PDFs are scripts the agent renders, kept as versions it can edit.
+    assert not {"docx", "pdf", "pptx", "xlsx"} & set(studio_formats["enum"])
+    assert not {"docx", "pptx", "xlsx"} & set(studio_formats["description"].split())
+    render = listed["render_document"]
+    assert render["required"] == ["title", "format", "script"]
+    assert render["properties"]["format"]["enum"] == ["docx", "pdf", "pptx", "xlsx"]
+    assert "pptx for a PowerPoint deck" in render["properties"]["format"]["description"]
+    assert "xlsx for an Excel workbook" in render["properties"]["format"]["description"]
+    assert render["properties"]["template_source_id"]["type"] == "integer"
     assert listed["read_document"]["required"] == ["artifact_id"]
     # A long script is read a page of lines at a time, under opencode's cut.
     assert listed["read_document"]["properties"]["offset"]["type"] == "integer"
@@ -107,6 +111,34 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     for schema in listed.values():
         assert schema["type"] == "object"
         assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
+
+
+@pytest.mark.usefixtures("model_reads_images")
+async def test_a_model_that_reads_images_is_also_offered_source_pages(
+    tools: ToolEndpoint,
+) -> None:
+    """It comes last, so the tools before it keep their place in a cached prompt."""
+    workspace_id = await tools.workspace()
+
+    reply = await tools.request(workspace_id, "tools/list")
+
+    listed = {tool["name"]: tool["inputSchema"] for tool in reply["result"]["tools"]}
+    assert list(listed) == [
+        "search_sources",
+        "create_artifact",
+        "render_document",
+        "read_document",
+        "list_images",
+        "source_pages",
+    ]
+    pages = listed["source_pages"]
+    assert pages["required"] == ["document_id"]
+    assert pages["properties"]["pages"] == {
+        "type": "array",
+        "items": {"type": "integer"},
+        "description": pages["properties"]["pages"]["description"],
+    }
+    assert not {"$ref", "$defs", "anyOf"} & set(_keys(pages))
 
 
 def _keys(schema: Any) -> list[str]:
@@ -398,11 +430,11 @@ async def test_a_source_from_another_workspace_is_refused(
     assert listed == []
 
 
-@pytest.mark.parametrize("format", ["docx", "pdf"])
-async def test_a_word_or_pdf_job_is_sent_to_the_render_tool(
+@pytest.mark.parametrize("format", ["docx", "pdf", "pptx", "xlsx"])
+async def test_an_office_or_pdf_job_is_sent_to_the_render_tool(
     tools: ToolEndpoint, engine: Engine, format: str
 ) -> None:
-    """A Studio draft keeps no script, so the agent could never edit it."""
+    """A Studio draft keeps no script, so the agent could never edit or check it."""
     workspace_id = await tools.workspace()
     note_id = ready_note(engine, workspace_id)
     choose_chat_model(engine)

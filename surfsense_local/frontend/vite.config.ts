@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, type Plugin } from "vite"
 
-// The Word snapshot page's policy (docx-snapshot.html) leaves 'self' out of
+// The snapshot page's policy (docx-snapshot.html) leaves 'self' out of
 // connect-src, since packaged it is file://. Served by Vite, its origin is the
 // dev server, and Vite's client needs its websocket there: refused, its errors
 // come first in the console and stand in for why the page failed to start.
@@ -45,7 +45,7 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
-        // Electron prints Word files for the agent's previews from this page.
+        // Electron prints Word files and decks for the agent's previews from this page.
         "docx-snapshot": fileURLToPath(
           new URL("./docx-snapshot.html", import.meta.url)
         ),

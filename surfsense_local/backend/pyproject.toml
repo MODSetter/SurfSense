@@ -22,6 +22,10 @@ dependencies = [
     # place the PNG, and in Studio's Markdown builders' chart blocks.
     "matplotlib>=3.11.2",
     "onnxruntime>=1.20",
+    # Reads back the workbook a document script wrote
+    # (worker/studio/script_document/workbook_summary.py). Docling brings it
+    # too; named so it cannot vanish.
+    "openpyxl>=3.1.5",
     # Chat images are normalised before they are stored or sent
     # (modules/chat/images). Docling brings it too; named so it cannot vanish.
     "pillow>=12",

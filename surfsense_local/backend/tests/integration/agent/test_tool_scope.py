@@ -1,9 +1,18 @@
 """SurfSense's tools keep to the sources ticked for the turn that calls them."""
 
 import pytest
+from reportlab.lib.pagesizes import A4
 from sqlalchemy import Engine
 
+from modules.agent.agent_threads.turn_sources import turn_sources
 from modules.agent.tool_endpoint.turn_scope import remember_turn_scope
+from modules.chat.models import ChatThread
+from modules.chat.schemas import MessageCreate
+from modules.documents.models import Document
+from modules.folders.ensure_path import ensure_folder_path
+from modules.source_roots.managed_root import ensure_managed_root
+from modules.source_scope.schemas import SourceScope
+from shared.db import create_session_factory
 from tests.integration.agent.test_document_tools import (
     LOGO,
     _artifact_id,
@@ -11,6 +20,14 @@ from tests.integration.agent.test_document_tools import (
     _report_source,
     render,
 )
+from tests.integration.agent.test_office_documents import (
+    DECK_FROM_TEMPLATE,
+    _brand_deck,
+    _letterhead,
+    _uploaded,
+)
+from tests.integration.agent.test_office_documents import render as render_deck
+from tests.integration.agent.test_source_pages import _pdf
 from tests.integration.agent.test_tool_endpoint import (
     choose_chat_model,
     ingest,
@@ -214,3 +231,137 @@ async def test_the_agents_own_documents_stay_usable_whatever_is_ticked(
 
     assert (read_refused, render_refused) == (False, False), (script, second)
     assert ", version 2:" in second
+
+
+async def test_a_render_cannot_start_from_an_unticked_sources_template(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """A template is a source's content: its look, and whatever it holds."""
+    workspace_id = await tools.workspace()
+    ticked = _uploaded(engine, workspace_id, "Plan.docx", _letterhead())
+    unticked = _uploaded(engine, workspace_id, "Brand.pptx", _brand_deck())
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, template_source_id=unticked),
+        token=remember_turn_scope(workspace_id, [ticked]),
+    )
+
+    assert is_error is True
+    assert f"Source {unticked} is not selected" in text
+    assert f"selected: {ticked}" in text
+    assert (
+        await tools.client.get(f"/workspaces/{workspace_id}/artifacts")
+    ).json() == []
+
+
+@pytest.mark.usefixtures("stub_model")
+async def test_a_next_version_cannot_keep_a_template_the_turn_no_longer_ticks(
+    tools: ToolEndpoint, engine: Engine, studio_worker: None
+) -> None:
+    """Leaving the template out keeps it, so the kept one is held to the turn's sources too."""
+    workspace_id = await tools.workspace()
+    brand = _uploaded(engine, workspace_id, "Brand.pptx", _brand_deck())
+    first, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, template_source_id=brand),
+    )
+    assert is_error is False, first
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, artifact_id=_artifact_id(first)),
+        token=remember_turn_scope(workspace_id, []),
+    )
+
+    assert is_error is True
+    assert f"starts from template source {brand}, which is not selected" in text
+    assert "ask them to select" in text
+
+
+def _filed_in_folders(
+    engine: Engine, workspace_id: int, placed: dict[int, str]
+) -> dict[str, int]:
+    """Each source moved into a Library folder of the given name; the folders' ids by name."""
+    with create_session_factory(engine)() as session:
+        library = ensure_managed_root(session, workspace_id)
+        folders = {
+            name: ensure_folder_path(session, library, [name]).id
+            for name in set(placed.values())
+        }
+        for source_id, name in placed.items():
+            session.get(Document, source_id).folder_id = folders[name]
+        session.commit()
+    return folders
+
+
+def _folder_turn(engine: Engine, workspace_id: int, folder_id: int) -> str:
+    """The token a turn sent with one ticked folder registers its tools with."""
+    with create_session_factory(engine)() as session:
+        thread = ChatThread(workspace_id=workspace_id, opencode_session_id="ses_1")
+        session.add(thread)
+        session.flush()
+        sources = turn_sources(
+            session,
+            thread,
+            MessageCreate(text="hi", source_scope=SourceScope(folder_ids=[folder_id])),
+        )
+        session.commit()
+    return remember_turn_scope(workspace_id, sources.document_ids)
+
+
+@pytest.mark.usefixtures("stub_model")
+async def test_a_template_counts_as_ticked_when_its_folder_is(
+    tools: ToolEndpoint, engine: Engine, studio_worker: None
+) -> None:
+    """A ticked folder's sources reach the turn's token, templates among them."""
+    workspace_id = await tools.workspace()
+    brand = _uploaded(engine, workspace_id, "Brand.pptx", _brand_deck())
+    other = _uploaded(engine, workspace_id, "Other.pptx", _brand_deck())
+    folders = _filed_in_folders(engine, workspace_id, {brand: "Brand", other: "Old"})
+    token = _folder_turn(engine, workspace_id, folders["Brand"])
+
+    refused, refused_is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, template_source_id=other),
+        token=token,
+    )
+    made, made_is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render_deck(script=DECK_FROM_TEMPLATE, template_source_id=brand),
+        token=token,
+    )
+
+    assert refused_is_error is True
+    assert f"Source {other} is not selected" in refused
+    assert made_is_error is False, made
+    assert "A PowerPoint deck of 1 slide." in made
+
+
+@pytest.mark.usefixtures("model_reads_images")
+async def test_a_sources_pages_are_drawn_only_when_its_folder_is_ticked(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """Pages are the source's content, as its text is."""
+    workspace_id = await tools.workspace()
+    guide = _uploaded(engine, workspace_id, "Guide.pdf", _pdf(A4))
+    memo = _uploaded(engine, workspace_id, "Memo.pdf", _pdf(A4))
+    folders = _filed_in_folders(engine, workspace_id, {guide: "Brand", memo: "Old"})
+    token = _folder_turn(engine, workspace_id, folders["Brand"])
+
+    refused, refused_is_error = await tools.call(
+        workspace_id, "source_pages", {"document_id": memo}, token=token
+    )
+    drawn, drawn_is_error = await tools.call(
+        workspace_id, "source_pages", {"document_id": guide}, token=token
+    )
+
+    assert refused_is_error is True
+    assert f"Source {memo} is not selected" in refused
+    assert drawn_is_error is False, drawn
+    assert f"sources/pages/{guide}-p1.png" in drawn

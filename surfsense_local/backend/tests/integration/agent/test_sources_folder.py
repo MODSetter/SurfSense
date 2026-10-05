@@ -211,3 +211,22 @@ def test_a_folder_planted_among_the_sources_leaves(session: Session) -> None:
     assert [entry.name for entry in (folder / "sources").iterdir()] == [
         f"Plan [{note.id}].md"
     ]
+
+
+def test_a_deleted_sources_page_images_leave_with_it(session: Session) -> None:
+    """Page images the agent was shown are kept across turns, and go with their source."""
+    workspace_id = workspace(session)
+    kept = source(session, workspace_id, "brand.pdf", "Q3", kind=DocumentType.FILE)
+    gone = source(session, workspace_id, "old.pdf", "Q2", kind=DocumentType.FILE)
+    folder = sync_sources_folder(session, workspace_id)
+    pages = folder / "sources" / "pages"
+    pages.mkdir()
+    for document in (kept, gone):
+        (pages / f"{document.id}-p1.png").write_bytes(b"a page")
+    (pages / "notes.txt").write_text("Planted.", encoding="utf-8")
+
+    session.delete(gone)
+    session.commit()
+    sync_sources_folder(session, workspace_id)
+
+    assert [file.name for file in pages.iterdir()] == [f"{kept.id}-p1.png"]

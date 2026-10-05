@@ -95,4 +95,85 @@ describe("agent steps", () => {
     expect(screen.getByText("Read the script behind a document")).toBeTruthy()
     expect(screen.getByText("Looked for images in 2 sources")).toBeTruthy()
   })
+
+  it.each([
+    { format: "pptx", title: "Board deck" },
+    { format: "xlsx", title: "Budget workbook" },
+  ])(
+    "opens a $format the agent made as it does a Word document",
+    async ({ format, title }) => {
+      const openArtifact = vi.fn()
+      const user = userEvent.setup()
+      render(
+        <OpenArtifactContext.Provider value={openArtifact}>
+          <AgentSteps
+            steps={[
+              rendered({
+                input: { title, format, script: "..." },
+                artifact: { id: 60, title, version: 1, created: true },
+              }),
+              rendered({
+                id: "prt_4",
+                input: { title, format, script: "...", artifact_id: 60 },
+                artifact: { id: 61, title, version: 2, created: false },
+              }),
+            ]}
+          />
+        </OpenArtifactContext.Provider>
+      )
+
+      await user.click(
+        screen.getByRole("button", { name: `Created ${title} v1` })
+      )
+      await user.click(
+        screen.getByRole("button", { name: `Updated ${title} to v2` })
+      )
+      expect(openArtifact.mock.calls).toEqual([[60], [61]])
+    }
+  )
+
+  it("names looking at a source's pages by the source's title", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_5",
+            tool: "surfsense_source_pages",
+            status: "completed",
+            title: null,
+            input: { document_id: 8, pages: [1, 2] },
+          },
+        ]}
+        scope={{
+          document_ids: [7, 8],
+          titles: ["Notes.md", "Brand guide.pdf"],
+        }}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Looked at pages of Brand guide.pdf"
+    )
+  })
+
+  it("names looking at a source's pages when the turn named no sources", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_6",
+            tool: "surfsense_source_pages",
+            status: "running",
+            title: null,
+            input: { document_id: 8 },
+          },
+        ]}
+        scope={null}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Looked at pages of a source"
+    )
+  })
 })

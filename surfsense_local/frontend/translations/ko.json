@@ -41,6 +41,8 @@
   "agent_steps_running_aria": "실행 중",
   "agent_steps_search_label": "소스에서 {pattern} 검색함",
   "agent_steps_shell_label": "{command} 실행함",
+  "agent_steps_source_pages_label": "<doc>{title}</doc>의 페이지를 확인함",
+  "agent_steps_source_pages_untitled_label": "소스의 페이지를 확인함",
   "agent_steps_studio_label": "Studio에서 {format} 생성을 시작함",
   "agent_steps_write_label": "{file} 작성함",
   "app_api_insufficient_space_error": "{message} ({required, number, ::unit/gigabyte .#} 필요, {available, number, ::unit/gigabyte .#} 사용 가능)",
