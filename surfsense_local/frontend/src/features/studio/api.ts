@@ -196,6 +196,21 @@ export function regenerateArtifact(
   })
 }
 
+/** Makes the next version of a document from its spec rewritten to the
+ *  instruction; the answer is that version, still running. */
+export function refineArtifact(
+  artifactId: number,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/refine`, {
+    method: "POST",
+    body: JSON.stringify({ instruction }),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
 export function cancelArtifact(
   artifactId: number,
   signal?: AbortSignal

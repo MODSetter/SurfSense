@@ -18,6 +18,8 @@ import {
   versionsOf,
   type VersionedArtifact,
 } from "./artifact-versions"
+import { canRefine } from "./can-refine"
+import { RefineBox } from "./refine-box"
 import { VersionSwitcher } from "./version-switcher"
 import { getArtifactViewer } from "./viewers/registry"
 
@@ -64,12 +66,15 @@ export function ArtifactPanel({
   artifactId,
   artifacts,
   onOpenVersion,
+  onRefine,
   onClose,
 }: {
   artifactId: number
   /** The workspace's artifacts, where the shown one's versions are found. */
   artifacts: Artifact[]
   onOpenVersion: (artifactId: number) => void
+  /** Rejects with the reason the next version was refused. */
+  onRefine: (artifactId: number, instruction: string) => Promise<void>
   onClose: () => void
 }) {
   const { data, isLoading, error } = useQuery({
@@ -78,6 +83,11 @@ export function ArtifactPanel({
   })
   const versions = versionsOf(artifacts, artifactId)
   useFollowNewestVersion(versions, onOpenVersion)
+  // The list follows each run's status; the detail is read once.
+  const shown = artifacts.find((artifact) => artifact.id === artifactId) ?? data
+  const versionRunning = versions.some(
+    (version) => version.status === "pending" || version.status === "processing"
+  )
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
 
@@ -140,31 +150,41 @@ export function ArtifactPanel({
         </>
       }
     >
-      {/* The one viewable stage every artifact format renders into: same
-          size and position below the shared header, regardless of format.
-          No padding here — a viewer that wants breathing room (like
-          DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
-          can sit flush against the panel edges. */}
-      <div className="h-full overflow-y-auto">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Spinner />
-          </div>
-        ) : null}
-        {error ? (
-          <div className="flex h-full items-center justify-center px-5 text-center">
-            <p className="text-sm text-destructive">
-              {error instanceof Error
-                ? error.message
-                : intl.formatMessage({
-                    id: "studio_artifact_panel_load_error",
-                    defaultMessage: "Failed to load artifact",
-                  })}
-            </p>
-          </div>
-        ) : null}
-        {!isLoading && !error && data ? (
-          <Viewer artifact={data} actionsContainer={actionsContainer} />
+      <div className="flex h-full flex-col">
+        {/* The one viewable stage every artifact format renders into: same
+            size and position below the shared header, regardless of format.
+            No padding here — a viewer that wants breathing room (like
+            DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
+            can sit flush against the panel edges. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <Spinner />
+            </div>
+          ) : null}
+          {error ? (
+            <div className="flex h-full items-center justify-center px-5 text-center">
+              <p className="text-sm text-destructive">
+                {error instanceof Error
+                  ? error.message
+                  : intl.formatMessage({
+                      id: "studio_artifact_panel_load_error",
+                      defaultMessage: "Failed to load artifact",
+                    })}
+              </p>
+            </div>
+          ) : null}
+          {!isLoading && !error && data ? (
+            <Viewer artifact={data} actionsContainer={actionsContainer} />
+          ) : null}
+        </div>
+        {!isLoading && !error && shown && canRefine(shown) ? (
+          <RefineBox
+            key={artifactId}
+            artifactId={artifactId}
+            versionRunning={versionRunning}
+            onRefine={onRefine}
+          />
         ) : null}
       </div>
     </DetailPanel>

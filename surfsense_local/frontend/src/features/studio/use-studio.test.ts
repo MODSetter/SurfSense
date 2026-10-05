@@ -346,3 +346,70 @@ describe("useStudio formats freshness", () => {
     )
   })
 })
+
+describe("useStudio refine", () => {
+  const v1 = artifact({
+    id: 40,
+    format: "docx",
+    title: "Quarterly report",
+    status: "ready",
+    version: { root_id: 40, number: 1, parent_id: null },
+    spec_kind: "markdown",
+  })
+
+  function refineApi(answer: Response) {
+    const calls: { path: string; init?: RequestInit }[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push({ path, init })
+        if (path.endsWith("/events")) return new Response(null, { status: 204 })
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (path.endsWith("/refine")) return answer.clone()
+        return Response.json([v1])
+      })
+    )
+    return calls
+  }
+
+  it("puts the next version in the list as soon as the API takes it", async () => {
+    const v2 = {
+      ...v1,
+      id: 41,
+      status: "pending" as const,
+      version: { root_id: 40, number: 2, parent_id: 40 },
+    }
+    const calls = refineApi(Response.json(v2))
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await result.current.refine(40, "Add a chart of the revenue")
+
+    const sent = calls.find((call) => call.path === "/artifacts/40/refine")
+    expect(sent?.init?.method).toBe("POST")
+    expect(JSON.parse(String(sent?.init?.body))).toEqual({
+      instruction: "Add a chart of the revenue",
+    })
+    await waitFor(() =>
+      expect(result.current.artifacts.map((each) => each.id)).toEqual([41, 40])
+    )
+  })
+
+  it("rejects with the API’s reason and leaves the list as it was", async () => {
+    refineApi(
+      Response.json(
+        { detail: "This document is too long for the selected model." },
+        { status: 422 }
+      )
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    await expect(result.current.refine(40, "Shorter")).rejects.toThrow(
+      "This document is too long for the selected model."
+    )
+    expect(result.current.artifacts.map((each) => each.id)).toEqual([40])
+  })
+})
