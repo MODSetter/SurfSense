@@ -186,11 +186,14 @@ One row per run of a plugin's action. What the run produced is not here: the plu
         │   └── <file name>       an uploaded or imported file, under its own name
         ├── chats/<thread_id>/
         │   └── <sha256>.<ext>    an image a turn carried, normalised to PNG or JPEG
-        └── artifacts/<artifact_id>/
-            └── primary.<ext>     the rendered file; a preview would sit beside it
+        ├── artifacts/<artifact_id>/
+        │   └── primary.<ext>     the rendered file; a preview would sit beside it
+        └── agent/                the agent's working files (hosts with opencode staged)
+            ├── text/<document_id>-<sha16>.md   one per version of a source's text
+            └── threads/<thread_id>/            an agent thread's sources/ and outputs/
 ```
 
-Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory. The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
+Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory, an agent thread's folder under `agent/threads/` included. `agent/text/` holds no row's file: each thread's `sources/` hard-links into it, and a file no thread links is swept ([`agent.md`](agent.md#folders)). The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
 
 ## Entity graph
 
