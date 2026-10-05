@@ -32,20 +32,20 @@ Agent turns are stored by opencode, not in this row, and are not affected.
 
 ## At startup
 
-Before it serves anything, the API settles every assistant turn left without `completed_at`:
+Before it serves anything, the API settles every assistant turn left without `completed_at`: it sets `completed_at` and stores `ending` as `{"type": "interrupted"}` ([`01-runs.md`](01-runs.md), How a turn ends). The turn is kept with or without text, as a failed turn is, so a quit never takes the user's question.
 
-- **No text:** deleted with its user turn and any image file no other turn of the thread points at, as `_discard_turn` and `_sweep_images` do at the end of a turn today.
-- **Text:** kept, with `completed_at` set and `"interrupted": true` in its content. The frontend renders it as stopped with "Interrupted when the app closed".
+- **With text:** shown with "Interrupted when the app closed", and kept in history as a partial reply is.
+- **Without text:** shown with the same notice and Retry when it is the latest turn, and skipped in history with its question.
 
 Worker jobs already settle the documents a quit left processing the same way ([`interrupted_documents.py`](../../../surfsense_local/backend/worker/interrupted_documents.py)).
 
 ## Shipping
 
-The deletion of empty turns at startup fixes today's blank reply and does not need runs, so it can ship first, as a bug fix. Stopping runs before a quit and saving while a run is live need the run task, and ship with [`01-runs.md`](01-runs.md) or straight after it, before a release carries runs without them.
+Today's blank reply after a crash can be fixed before runs exist, as a bug fix: delete the empty turns at startup, since nothing yet stores or shows an ending. Part 1 replaces that deletion with the `interrupted` ending above. Stopping runs before a quit and saving while a run is live need the run task, and ship with [`01-runs.md`](01-runs.md) or straight after it, before a release carries runs without them.
 
 ## Tests
 
-- An assistant turn left empty at startup is deleted with its user turn; one left with text is kept, marked interrupted.
+- An assistant turn left without `completed_at` at startup is kept, with `completed_at` set and `ending` interrupted, whether or not it has text.
 - With two live runs, `stop-all` answers after both have committed their partial text.
 - `stop-all` answers within 3 seconds when a run cannot commit.
 - A live run's row holds its text, citations resolved, within 5 seconds; a save that cannot get the lock is skipped and the run's final write still lands.

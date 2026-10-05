@@ -25,7 +25,7 @@ Facts are checked against this repo and llama.cpp `b11050` (the build the app pi
 | **Runs** | [`01-runs.md`](01-runs.md) | replies survive switching threads and reloads; running threads show in the sidebar; Stop is its own route | nothing |
 | **Admission** | [`02-admission.md`](02-admission.md) | one queue in front of llama-server for chat, agent and Studio; a visible "waiting" state; chat ahead of Studio | runs |
 | **Parallel slots** | [`03-parallel-slots.md`](03-parallel-slots.md) | up to four local replies at once from one shared cache | admission |
-| **Partial replies** | [`04-partial-replies.md`](04-partial-replies.md) | a quit or crash keeps the reply's text and marks it cut off; an empty turn left by a crash is removed | runs, except removing empty turns |
+| **Partial replies** | [`04-partial-replies.md`](04-partial-replies.md) | a quit or crash keeps the reply's text and the user's question, marked cut off | runs |
 
 Each part ships on its own. Parallel slots never ship without admission: with a shared cache, two requests that together overflow it are both killed by llama.cpp. Runs never ship without partial replies: once a disconnect stops ending a run, closing the window stops saving its text.
 
