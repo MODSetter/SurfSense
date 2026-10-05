@@ -41,6 +41,8 @@
   "agent_steps_running_aria": "実行中",
   "agent_steps_search_label": "ソースで{pattern}を検索",
   "agent_steps_shell_label": "{command}を実行",
+  "agent_steps_source_pages_label": "<doc>{title}</doc>のページを確認",
+  "agent_steps_source_pages_untitled_label": "ソースのページを確認",
   "agent_steps_studio_label": "Studioで{format}の作成を開始",
   "agent_steps_write_label": "{file}に書き込み",
   "app_api_insufficient_space_error": "{message}（必要: {required, number, ::unit/gigabyte .#}、空き: {available, number, ::unit/gigabyte .#}）",

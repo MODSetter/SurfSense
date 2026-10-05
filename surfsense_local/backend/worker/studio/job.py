@@ -178,6 +178,7 @@ def _run_script(
 ) -> Built:
     """The stored script runs as it is; no model is asked and no source is gathered."""
     images = script_document.images_for(session, artifact.workspace_id, script)
+    template = script_document.template_for(session, artifact.workspace_id, script)
     title = document.title
     # The script may run for two minutes; the write lock must not be held across it.
     session.commit()
@@ -185,7 +186,7 @@ def _run_script(
 
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
-        return script_document.render(title, script, images)
+        return script_document.render(title, script, images, template)
 
 
 def _check_cancelled(session: Session, document: Document) -> None:

@@ -1,9 +1,23 @@
-import { renderAsync } from "docx-preview"
+import { drawn } from "./drawn"
 
-import { printLayout } from "./print-layout"
+// What each format is called in a reason, and the module that lays it out,
+// loaded on demand so a print parses only its own format's library.
+const FORMATS = {
+  docx: {
+    name: "Word file",
+    layOut: async (file: ArrayBuffer, page: Document) =>
+      (await import("./lay-out-word")).layOutWord(file, page),
+  },
+  pptx: {
+    name: "PowerPoint file",
+    layOut: async (file: ArrayBuffer, page: Document) =>
+      (await import("./lay-out-deck")).layOutDeck(file, page),
+  },
+} as const
 
 /**
- * Lay out the Word file named by `?file=` for Electron to print to PDF.
+ * Lay out the file named by `?file=` for Electron to print to PDF: a Word file
+ * as its pages, or with `?format=pptx` a deck as one slide per page.
  *
  * Resolves to null once the pages, their images and fonts are in place, or to
  * the reason it could not, in English for the agent: Electron cannot read a
@@ -13,55 +27,33 @@ export async function layOutSnapshot(
   search: string,
   page: Document
 ): Promise<string | null> {
-  const fileUrl = new URLSearchParams(search).get("file")
+  const params = new URLSearchParams(search)
+  const fileUrl = params.get("file")
   if (!fileUrl) return "the snapshot page was opened without a file to lay out"
+  const formatName = params.get("format") ?? "docx"
+  if (!Object.hasOwn(FORMATS, formatName)) {
+    return `the snapshot page cannot lay out a ${formatName} file`
+  }
+  const format = FORMATS[formatName as keyof typeof FORMATS]
 
   let response: Response
   try {
     response = await fetch(fileUrl)
   } catch (error) {
-    return `the Word file could not be fetched: ${messageOf(error)}`
+    return `the ${format.name} could not be fetched: ${messageOf(error)}`
   }
   if (!response.ok) {
-    return `the Word file could not be fetched (HTTP ${response.status})`
+    return `the ${format.name} could not be fetched (HTTP ${response.status})`
   }
   try {
-    // The in-app viewer's library and defaults, so the agent sees what the
-    // user sees. Headers and footers are left out: docx-preview places them
-    // in its page box, which print pagination replaces. Data URLs rather than
-    // object URLs: the window is thrown away after printing, and the page then
-    // also runs under jsdom, which has no URL.createObjectURL. No altChunks:
-    // docx-preview puts their HTML in an unsandboxed iframe, where a script
-    // the document carries would run as this page.
-    await renderAsync(await response.arrayBuffer(), page.body, page.head, {
-      inWrapper: false,
-      renderHeaders: false,
-      renderFooters: false,
-      renderAltChunks: false,
-      useBase64URL: true,
-    })
+    await format.layOut(await response.arrayBuffer(), page)
   } catch (error) {
-    return `the Word file could not be laid out: ${messageOf(error)}`
+    return `the ${format.name} could not be laid out: ${messageOf(error)}`
   }
 
-  const style = page.createElement("style")
-  style.textContent = printLayout(
-    page.body.querySelector<HTMLElement>("section.docx")
-  )
-  page.head.append(style)
-
-  await Promise.all([...page.images].map(loaded))
+  await Promise.all([...page.images].map(drawn))
   await page.fonts?.ready
   return null
-}
-
-/** Settles once the image has loaded or failed; a broken image still prints. */
-function loaded(image: HTMLImageElement): Promise<void> {
-  if (image.complete) return Promise.resolve()
-  return new Promise((resolve) => {
-    image.addEventListener("load", () => resolve(), { once: true })
-    image.addEventListener("error", () => resolve(), { once: true })
-  })
 }
 
 function messageOf(error: unknown): string {

@@ -29,3 +29,6 @@ class Tool:
     # commits its own short transactions, since the write lock held meanwhile
     # would stall every other writer.
     waits: bool = False
+    # Set for a tool whose results are images: offered only when opencode's
+    # configuration lets the model see them.
+    needs_image_input: bool = False

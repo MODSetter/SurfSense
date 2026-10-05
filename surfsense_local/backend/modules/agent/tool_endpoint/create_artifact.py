@@ -20,7 +20,7 @@ from modules.workspaces.models import Workspace
 # Studio's own cap on a request's instructions (StudioJobCreate.prompt).
 INSTRUCTIONS_CHARS = 2000
 
-# Word and PDF are scripts the agent renders: Studio's draft keeps none to edit.
+# Office files and PDFs are scripts the agent renders: Studio's draft keeps none to edit.
 _KEYS = [fmt.key for fmt in FORMATS if fmt.key not in DOCUMENT_FORMATS]
 
 # Written out flat, and the same on every turn, so a local model's prompt cache holds.
@@ -28,8 +28,8 @@ LISTING: dict[str, Any] = {
     "name": "create_artifact",
     "description": (
         "Start a Studio job that makes a deliverable from the user's sources, such "
-        "as slides, a quiz or a podcast. It returns at once; the result appears in "
-        "Studio when it is ready."
+        "as a quiz, a mind map or a podcast. It returns at once; the result appears "
+        "in Studio when it is ready."
     ),
     "inputSchema": {
         "type": "object",
@@ -37,9 +37,7 @@ LISTING: dict[str, Any] = {
             "format": {
                 "type": "string",
                 "enum": _KEYS,
-                "description": (
-                    "What to make. pptx is slides, xlsx a spreadsheet, html a web page."
-                ),
+                "description": "What to make. html is a web page.",
             },
             "source_ids": {
                 "type": "array",
@@ -67,8 +65,8 @@ def start(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     key = arguments.get("format")
     if key in DOCUMENT_FORMATS:
         raise ToolCallError(
-            f"Make a Word document or a PDF with {SERVER}_{RENDER_TOOL}, after "
-            "loading the surfsense-documents skill."
+            "Make a Word document, a PDF, a PowerPoint deck or an Excel workbook "
+            f"with {SERVER}_{RENDER_TOOL}, after loading the surfsense-documents skill."
         )
     fmt = FORMATS_BY_KEY.get(key) if key in _KEYS else None
     if fmt is None:

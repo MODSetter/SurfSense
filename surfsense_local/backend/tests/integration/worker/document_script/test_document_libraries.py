@@ -3,10 +3,12 @@
 import io
 from pathlib import Path
 
+import openpyxl
 import pypdfium2
 import pytest
 from docx import Document
 from PIL import Image
+from pptx import Presentation
 
 from worker.document_script.run import run_document_script
 
@@ -118,3 +120,112 @@ def test_an_image_name_must_be_a_plain_file_name(tmp_path: Path, name: str) -> N
 
     with pytest.raises(ValueError):
         run_document_script("x = 1\n", output_name="a.pdf", images={name: figure})
+
+
+def test_a_python_pptx_script_produces_a_deck() -> None:
+    """PowerPoint: a title slide and a bullet slide, read back by python-pptx."""
+    script = """\
+import os
+from pptx import Presentation
+from pptx.util import Inches
+
+deck = Presentation()
+deck.slide_width, deck.slide_height = Inches(13.333), Inches(7.5)
+cover = deck.slides.add_slide(deck.slide_layouts[0])
+cover.shapes.title.text = "Quarterly review"
+body = deck.slides.add_slide(deck.slide_layouts[1])
+body.shapes.title.text = "Costs"
+body.placeholders[1].text = "Costs rose in the north."
+deck.save(os.environ["OUTPUT_PATH"])
+"""
+
+    result = run_document_script(script, output_name="document.pptx", images={})
+
+    assert result.ok, result.traceback_tail
+    deck = Presentation(io.BytesIO(result.output))
+    assert [slide.shapes.title.text for slide in deck.slides] == [
+        "Quarterly review",
+        "Costs",
+    ]
+
+
+@pytest.mark.parametrize("library", ["xlsxwriter", "openpyxl"])
+def test_an_excel_script_produces_a_workbook_with_a_formula(library: str) -> None:
+    """Excel: both libraries the skill may name write a formula openpyxl reads back."""
+    script = {
+        "xlsxwriter": """\
+import os
+import xlsxwriter
+
+book = xlsxwriter.Workbook(os.environ["OUTPUT_PATH"])
+sheet = book.add_worksheet("Costs")
+sheet.write_column(0, 0, [1, 2])
+sheet.write_formula(2, 0, "=SUM(A1:A2)")
+book.close()
+""",
+        "openpyxl": """\
+import os
+import openpyxl
+
+book = openpyxl.Workbook()
+sheet = book.active
+sheet.title = "Costs"
+sheet.append([1])
+sheet.append([2])
+sheet["A3"] = "=SUM(A1:A2)"
+book.save(os.environ["OUTPUT_PATH"])
+""",
+    }[library]
+
+    result = run_document_script(script, output_name="document.xlsx", images={})
+
+    assert result.ok, result.traceback_tail
+    book = openpyxl.load_workbook(io.BytesIO(result.output))
+    assert book["Costs"]["A3"].value == "=SUM(A1:A2)"
+
+
+def _template_deck(path: Path) -> bytes:
+    """A one-slide deck to stand in for a source the user uploaded."""
+    deck = Presentation()
+    deck.slides.add_slide(deck.slide_layouts[0]).shapes.title.text = "Old cover"
+    deck.save(path)
+    return path.read_bytes()
+
+
+def test_a_template_is_a_copy_at_template_path(tmp_path: Path) -> None:
+    """The script opens the source's file as TEMPLATE_PATH, and what it does to it stays in the run."""
+    source = tmp_path / "Brand.pptx"
+    original = _template_deck(source)
+    script = """\
+import os
+from pptx import Presentation
+
+deck = Presentation(os.environ["TEMPLATE_PATH"])
+deck.slides[0].shapes.title.text = "New cover"
+deck.save(os.environ["TEMPLATE_PATH"])
+deck.save(os.environ["OUTPUT_PATH"])
+"""
+
+    result = run_document_script(
+        script, output_name="document.pptx", images={}, template=source
+    )
+
+    assert result.ok, result.traceback_tail
+    made = Presentation(io.BytesIO(result.output))
+    assert made.slides[0].shapes.title.text == "New cover"
+    assert source.read_bytes() == original
+
+
+def test_without_a_template_there_is_no_template_path() -> None:
+    """A script made without a template is not handed a path to a file that is not there."""
+    script = """\
+import os
+
+with open(os.environ["OUTPUT_PATH"], "w") as out:
+    out.write(str("TEMPLATE_PATH" in os.environ))
+"""
+
+    result = run_document_script(script, output_name="seen.txt", images={})
+
+    assert result.ok, result.traceback_tail
+    assert result.output == b"False"

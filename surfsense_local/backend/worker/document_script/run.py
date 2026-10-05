@@ -49,19 +49,23 @@ def run_document_script(
     *,
     output_name: str,
     images: dict[str, Path],
+    template: Path | None = None,
     timeout_seconds: float = 120,
 ) -> ScriptResult:
-    """Run the script with OUTPUT_PATH=<folder>/<output_name> and images at
-    IMAGES_DIR/<name>.png, then remove the folder. The caller keeps the script.
+    """Run the script with OUTPUT_PATH=<folder>/<output_name>, images at
+    IMAGES_DIR/<name>.png and a copy of `template` at TEMPLATE_PATH, then remove
+    the folder. The caller keeps the script.
 
     A cancelled job (shared.cancellation) kills the script and raises its error.
     """
     require_plain_name(output_name, *images)
     folder = run_folders_root() / uuid.uuid4().hex
     try:
-        prepare_run_folder(folder, script, images)
+        template_name = prepare_run_folder(folder, script, images, template)
         started = time.monotonic()
-        exit_code, stderr = _run_child(folder, output_name, timeout_seconds)
+        exit_code, stderr = _run_child(
+            folder, output_name, template_name, timeout_seconds
+        )
         seconds = time.monotonic() - started
         if exit_code is None:
             logger.info("document script: timed out after %ss", timeout_seconds)
@@ -79,7 +83,7 @@ def run_folders_root() -> Path:
 
 
 def _run_child(
-    folder: Path, output_name: str, timeout_seconds: float
+    folder: Path, output_name: str, template_name: str | None, timeout_seconds: float
 ) -> tuple[int | None, str]:
     """The child's exit code, None when it was killed at the limit, and its stderr.
 
@@ -87,7 +91,8 @@ def _run_child(
     killed then, not waited for.
     """
     command = _child_command(folder)
-    with process_tree(command, child_environment(folder, output_name)) as process:
+    environment = child_environment(folder, output_name, template_name)
+    with process_tree(command, environment) as process:
         stderr = _StderrReader(process.stderr)
         exit_code = _wait_for_exit(process, timeout_seconds)
     return exit_code, stderr.text(timeout_seconds=LAST_OUTPUT_SECONDS)

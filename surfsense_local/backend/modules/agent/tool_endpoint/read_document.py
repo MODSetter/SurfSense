@@ -12,9 +12,8 @@ from modules.agent.tool_endpoint.script_page import (
 )
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
-from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
-from modules.artifacts.script_documents.spec import document_script
+from modules.artifacts.script_documents.spec import FORMAT_NAMES, document_script
 from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
 
@@ -72,15 +71,23 @@ def read(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     newest = _newest_version(session, workspace_id, version.root)
     script = document_script(newest.artifact_metadata)
     number = version_of(newest.artifact_metadata).number
-    kind = f"{FORMATS_BY_KEY[newest.format].label} document"
+    kind = FORMAT_NAMES[newest.format]
+    article = "an" if kind[0] in "AEIOU" else "a"
     images = ", ".join(script.images) if script.images else "none"
+    # The next version keeps it unless its render names another.
+    template = (
+        [f"Template source it starts from: {script.template_source_id}"]
+        if script.template_source_id is not None
+        else []
+    )
     page = _page(script.text, offset)
     return "\n".join(
         [
-            f'"{newest.document.title}" is a {kind}. Its newest is version {number}, '
-            f"artifact {newest.id}, {_status(newest)}. Render its next version with "
-            f"artifact_id {newest.id}.",
+            f'"{newest.document.title}" is {article} {kind}. Its newest is version '
+            f"{number}, artifact {newest.id}, {_status(newest)}. Render its next "
+            f"version with artifact_id {newest.id}.",
             f"Source images it places: {images}",
+            *template,
             "",
             f"Script, lines {page.first}-{page.last} of {page.total}:",
             page.text + _rest(page),

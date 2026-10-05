@@ -8,14 +8,16 @@ from pathlib import Path
 from typing import Any
 
 import docx
+import pptx
 import pytest
+from pptx.util import Inches
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.service import create_script_document
 from modules.artifacts.service import regenerate_artifact
-from modules.documents.models import Document, DocumentStatus
+from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding import encoder
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
@@ -343,3 +345,120 @@ def test_the_write_lock_is_free_while_the_body_is_embedded(
     session.expire_all()
     assert artifact.document.status is DocumentStatus.READY
     assert others_could_write == [True]
+
+
+DECK_FROM_TEMPLATE = """\
+import os
+from pptx import Presentation
+
+deck = Presentation(os.environ["TEMPLATE_PATH"])
+# The template's own slides go; its masters and layouts stay.
+slides = deck.slides._sldIdLst
+for slide_id in list(slides):
+    deck.part.drop_rel(slide_id.rId)
+    slides.remove(slide_id)
+layout = next(l for l in deck.slide_layouts if l.name == "Title Only")
+deck.slides.add_slide(layout).shapes.title.text = "Quarterly review"
+deck.save(os.environ["OUTPUT_PATH"])
+"""
+
+
+def _brand_deck(session: Session, workspace: Workspace) -> Document:
+    """A deck the user uploaded: 16:9 slides and one slide of its own."""
+    deck = pptx.Presentation()
+    deck.slide_width, deck.slide_height = Inches(13.333), Inches(7.5)
+    deck.slides.add_slide(deck.slide_layouts[0]).shapes.title.text = "Brand cover"
+    source = Document(
+        workspace_id=workspace.id,
+        title="Brand.pptx",
+        document_type=DocumentType.FILE,
+        status=DocumentStatus.READY,
+        content="Brand cover",
+    )
+    session.add(source)
+    session.commit()
+    folder = get_storage_settings().document_dir(workspace.id, source.id)
+    folder.mkdir(parents=True)
+    deck.save(folder / "Brand.pptx")
+    return source
+
+
+def test_a_deck_made_from_a_template_keeps_its_slide_size_and_leaves_the_source_alone(
+    session: Session, workspace: Workspace
+) -> None:
+    """The script starts from a copy of the source's deck; the source file is never written."""
+    brand = _brand_deck(session, workspace)
+    original = (
+        get_storage_settings().document_dir(workspace.id, brand.id) / "Brand.pptx"
+    )
+    before = original.read_bytes()
+    artifact = _create(
+        session,
+        workspace,
+        format="pptx",
+        script=DECK_FROM_TEMPLATE,
+        template_source_id=brand.id,
+    )
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    made = pptx.Presentation(BytesIO(_primary(artifact)))
+    assert round(made.slide_width / made.slide_height, 2) == 1.78
+    assert [slide.shapes.title.text for slide in made.slides] == ["Quarterly review"]
+    assert artifact.document.content == "## Slide 1: Quarterly review"
+    assert original.read_bytes() == before
+
+
+def test_a_template_deleted_before_its_run_fails_the_run_and_says_so(
+    session: Session, workspace: Workspace
+) -> None:
+    """The version cannot start from a file that is gone; the agent reads why."""
+    brand = _brand_deck(session, workspace)
+    artifact = _create(
+        session,
+        workspace,
+        format="pptx",
+        script=DECK_FROM_TEMPLATE,
+        template_source_id=brand.id,
+    )
+    session.delete(brand)
+    session.commit()
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert f"no source file {brand.id}" in artifact.document.error_message
+
+
+def test_an_xlsxwriter_script_becomes_a_ready_workbook_summarised_as_its_body(
+    session: Session, workspace: Workspace
+) -> None:
+    """A workbook's body is its summary, which search and the agent both read."""
+    script = """\
+import os
+import xlsxwriter
+
+book = xlsxwriter.Workbook(os.environ["OUTPUT_PATH"])
+sheet = book.add_worksheet("Halvorsen costs")
+sheet.write_row(0, 0, ["Phase", "Cost"])
+sheet.write_row(1, 0, ["Pilot", 12000])
+sheet.write_formula(2, 1, "=SUM(B2:B2)")
+book.close()
+"""
+    artifact = _create(session, workspace, format="xlsx", script=script)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert artifact.files[0].original_filename == "Client proposal.xlsx"
+    assert 'Sheet "Halvorsen costs": A1:B3' in artifact.document.content
+    assert "- 'Halvorsen costs'!B3: =SUM(B2:B2)" in artifact.document.content
+    assert _matches(session, "Halvorsen") == 1

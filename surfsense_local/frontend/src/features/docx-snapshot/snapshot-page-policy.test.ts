@@ -36,7 +36,8 @@ describe("the snapshot page's content security policy", () => {
 
     // Packaged, 'self' is file://, which would let a script read any local file.
     expect(policy.get("connect-src")).toEqual(["http://127.0.0.1:*"])
-    expect(policy.get("img-src")).toEqual(["data:"])
+    // A deck's pictures are object URLs the page makes from the file itself.
+    expect(policy.get("img-src")).toEqual(["data:", "blob:"])
     expect(policy.get("font-src")).toEqual(["data:"])
   })
 })

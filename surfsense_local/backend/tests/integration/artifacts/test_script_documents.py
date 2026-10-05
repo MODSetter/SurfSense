@@ -14,6 +14,7 @@ from modules.artifacts.script_documents.service import (
 )
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
+from shared.config import get_storage_settings
 from shared.queue import studio_queue
 
 pytestmark = pytest.mark.integration
@@ -69,7 +70,13 @@ def test_a_first_version_is_its_own_root_and_waits_in_the_studio_queue(
     assert artifact.document.document_type is DocumentType.ARTIFACT
     assert artifact.document.status is DocumentStatus.PENDING
     assert artifact.artifact_metadata == {
-        "spec": {"kind": "python", "text": SCRIPT, "format": "docx", "images": []},
+        "spec": {
+            "kind": "python",
+            "text": SCRIPT,
+            "format": "docx",
+            "images": [],
+            "template_source_id": None,
+        },
         "version": {"root": artifact.id, "number": 1, "parent": None},
         "source_document_ids": [],
         "prompt": None,
@@ -146,7 +153,7 @@ def test_named_images_are_kept_in_the_spec_and_their_sources_recorded_once(
         ({"title": "x" * 201}, "title"),
         ({"script": ""}, "script"),
         ({"script": "x" * 200_001}, "script"),
-        ({"format": "pptx"}, "docx or pdf"),
+        ({"format": "odt"}, "docx, pdf, pptx or xlsx"),
         ({"image_names": ["999-1"]}, '"999-1"'),
         ({"image_names": ["../../surfsense.db"]}, '"../../surfsense.db"'),
         ({"base_artifact_id": 999}, "999"),
@@ -249,3 +256,133 @@ async def test_an_ordinary_artifact_reads_as_before(
     assert detail.json()["version"] is None
     assert detail.json()["spec_kind"] is None
     assert detail.json()["format"] == "docx"
+
+
+@pytest.mark.parametrize("format", ["pptx", "xlsx"])
+def test_a_deck_or_a_workbook_is_a_document_script_too(
+    session: Session, workspace: Workspace, format: str
+) -> None:
+    """PowerPoint and Excel are kept as scripts with versions, as Word and PDF are."""
+    first = _create(session, workspace, format=format)
+    second = _create(session, workspace, format=format, base_artifact_id=first.id)
+
+    assert first.format == format
+    assert first.artifact_metadata["spec"]["format"] == format
+    assert second.artifact_metadata["version"]["root"] == first.id
+
+
+def _uploaded(session: Session, workspace: Workspace, file_name: str) -> Document:
+    """A source the user uploaded, its original kept as ingest keeps it."""
+    source = Document(
+        workspace_id=workspace.id,
+        title=file_name,
+        document_type=DocumentType.FILE,
+        status=DocumentStatus.READY,
+        content="Brand guide",
+    )
+    session.add(source)
+    session.commit()
+    folder = get_storage_settings().document_dir(workspace.id, source.id)
+    folder.mkdir(parents=True)
+    (folder / file_name).write_bytes(b"PK\x03\x04 an office file")
+    return source
+
+
+@pytest.mark.parametrize(
+    ("format", "file_name"), [("docx", "Letterhead.docx"), ("pptx", "Brand.pptx")]
+)
+def test_a_template_source_is_kept_in_the_spec_and_recorded_as_a_source(
+    session: Session, workspace: Workspace, format: str, file_name: str
+) -> None:
+    """The run copies the template from the spec; the source grounds the document."""
+    template = _uploaded(session, workspace, file_name)
+
+    artifact = _create(
+        session, workspace, format=format, template_source_id=template.id
+    )
+
+    assert artifact.artifact_metadata["spec"]["template_source_id"] == template.id
+    assert artifact.artifact_metadata["source_document_ids"] == [template.id]
+
+
+def test_the_next_version_keeps_its_template_unless_the_call_names_another(
+    session: Session, workspace: Workspace
+) -> None:
+    """A call that leaves the template out still starts from it; naming one swaps it."""
+    brand = _uploaded(session, workspace, "Brand.pptx")
+    rebrand = _uploaded(session, workspace, "Rebrand.pptx")
+    first = _create(session, workspace, format="pptx", template_source_id=brand.id)
+
+    second = _create(session, workspace, format="pptx", base_artifact_id=first.id)
+    third = _create(
+        session,
+        workspace,
+        format="pptx",
+        base_artifact_id=second.id,
+        template_source_id=rebrand.id,
+    )
+
+    assert second.artifact_metadata["spec"]["template_source_id"] == brand.id
+    assert third.artifact_metadata["spec"]["template_source_id"] == rebrand.id
+
+
+@pytest.mark.parametrize(
+    ("format", "file_name", "reason"),
+    [
+        ("docx", "Brand.pptx", "not a Word file"),
+        ("pptx", "Letterhead.docx", "not a PowerPoint file"),
+        ("docx", "Plan.pdf", "not a Word file"),
+        ("pdf", "Letterhead.docx", "Word document or a PowerPoint deck"),
+        ("xlsx", "Budget.xlsx", "Word document or a PowerPoint deck"),
+    ],
+)
+def test_a_template_that_does_not_fit_the_format_is_refused(
+    session: Session, workspace: Workspace, format: str, file_name: str, reason: str
+) -> None:
+    """Only a .docx starts a Word document and only a .pptx a deck; nothing else takes one."""
+    template = _uploaded(session, workspace, file_name)
+
+    with pytest.raises(ScriptDocumentRefusedError, match=reason):
+        _create(session, workspace, format=format, template_source_id=template.id)
+
+    session.rollback()
+    assert _artifact_count(session) == 0
+
+
+def test_a_template_that_is_no_uploaded_file_in_this_workspace_is_refused(
+    session: Session, workspace: Workspace
+) -> None:
+    """A note has no file to start from, and another workspace's source is as good as missing."""
+    note = Document(
+        workspace_id=workspace.id,
+        title="Plan",
+        document_type=DocumentType.NOTE,
+        status=DocumentStatus.READY,
+        content="We ship on Friday.",
+    )
+    elsewhere = Workspace(name="Elsewhere")
+    session.add_all([note, elsewhere])
+    session.commit()
+    theirs = _uploaded(session, elsewhere, "Brand.pptx")
+
+    for source_id in (note.id, theirs.id, 999):
+        with pytest.raises(
+            ScriptDocumentRefusedError, match=f"source file {source_id}"
+        ):
+            _create(session, workspace, format="pptx", template_source_id=source_id)
+
+
+def test_a_next_version_whose_template_was_deleted_is_refused_with_what_to_do(
+    session: Session, workspace: Workspace
+) -> None:
+    """The model learns the template is gone and how to go on without it."""
+    brand = _uploaded(session, workspace, "Brand.pptx")
+    first = _create(session, workspace, format="pptx", template_source_id=brand.id)
+    session.delete(brand)
+    session.commit()
+
+    with pytest.raises(ScriptDocumentRefusedError) as refused:
+        _create(session, workspace, format="pptx", base_artifact_id=first.id)
+
+    assert f"made from template source {brand.id}" in str(refused.value)
+    assert "template_source_id" in str(refused.value)
