@@ -13,6 +13,7 @@ import {
   type PermissionRequest,
 } from "@/features/agent/api"
 import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
+import { isUnsupportedModelRefusal } from "@/features/agent/unsupported-model"
 import { errorToast } from "@/features/feedback/error-toast"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { ApiError } from "@/lib/api"
@@ -41,7 +42,8 @@ import { readThinkingOn } from "./thinking-preference"
 
 /** A backend error kind, or a refusal the app recognises before any stream:
  *  a turn on an agent thread that predates per-chat folders. */
-export type ChatTurnErrorKind = ChatErrorKind | "agent_thread_outdated"
+export type ChatTurnErrorKind =
+  ChatErrorKind | "agent_thread_outdated" | "agent_model_unsupported"
 
 export type ChatTurnError = {
   kind: ChatTurnErrorKind
@@ -795,6 +797,20 @@ export function useChatRuntime({
             ...current,
             [String(assistantId)]: {
               kind: "agent_thread_outdated",
+              message: "",
+              provider: "",
+              retryText: text,
+              retryImages: images,
+            },
+          }))
+        } else if (
+          isUnsupportedModelRefusal(cause) &&
+          requestVersion.current === version
+        ) {
+          setChatErrors((current) => ({
+            ...current,
+            [String(assistantId)]: {
+              kind: "agent_model_unsupported",
               message: "",
               provider: "",
               retryText: text,

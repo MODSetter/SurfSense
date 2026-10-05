@@ -109,6 +109,7 @@
   "chat_composer_upload_sources_label": "上传来源",
   "chat_composer_upload_sources_tooltip": "将文件添加到此工作区的来源",
   "chat_composer_upload_sources_uploading_tooltip": "上传中…",
+  "chat_error_agent_model_unsupported": "这段对话无法使用所选模型继续。请开始新对话来使用它，或选择其他模型。",
   "chat_error_agent_thread_outdated": "这个智能体对话创建于每个对话拥有自己的来源之前。请开始新对话以继续。",
   "chat_error_context_too_long": "这段对话太长，超出了模型的上下文窗口。请开始新对话，或选择上下文窗口更大的模型。",
   "chat_error_model_cannot_run": "SurfSense 无法运行这个模型。请选择其他模型。",

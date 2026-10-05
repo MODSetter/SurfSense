@@ -19,8 +19,10 @@ function actionFor(error: ChatTurnError): Action {
       // A bad base URL is a Model setup fix; a local runtime that isn't
       // running isn't — there's no settings action that starts it.
       return error.provider === "llamacpp" ? "none" : "model-setup"
-    // The thread can only be read now; a retry is refused the same way.
+    // The thread can only be read now, or keeps an engine the selected model
+    // cannot run: a retry is refused the same way, and only a new chat helps.
     case "agent_thread_outdated":
+    case "agent_model_unsupported":
       return "new-chat"
     // A reached plan limit: retrying cannot help until the plan's window resets.
     case "subscription_limit":
