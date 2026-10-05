@@ -1,5 +1,7 @@
 """The document tools as opencode's MCP client calls them: render, read, and list images."""
 
+import base64
+import logging
 import re
 import sqlite3
 import threading
@@ -12,7 +14,13 @@ from PIL import Image
 from sqlalchemy import Engine, select, update
 
 from modules.agent.previews import Previews
+from modules.agent.previews.inline_images import (
+    INLINE_LONG_SIDE,
+    INLINE_PIXELS,
+    inline_image,
+)
 from modules.agent.tool_endpoint import list_images, render_document
+from modules.agent.tool_endpoint.offered_tools import IMAGES_LEFT_OUT
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.service import create_script_document
 from modules.artifacts.script_documents.spec import DocumentSpec
@@ -100,6 +108,18 @@ def render(**arguments: object) -> dict[str, object]:
 def _artifact_id(text: str) -> int:
     """The artifact a successful render names on its first line."""
     return int(text.split(",")[0].removeprefix("Rendered artifact "))
+
+
+def _decoded(item: dict) -> Image.Image:
+    """An image item as the model's provider decodes it."""
+    with Image.open(BytesIO(base64.b64decode(item["data"]))) as image:
+        image.load()
+        return image.copy()
+
+
+def _blank_page(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (1000, 1415), "white").save(path, format="PNG")
 
 
 async def _listed(tools: ToolEndpoint, workspace_id: int) -> list[dict]:
@@ -212,27 +232,32 @@ async def test_a_render_naming_its_artifact_makes_the_next_version(
     }
 
 
-async def test_a_pdf_render_counts_its_pages_and_lists_previews_to_open(
+async def test_a_pdf_render_shows_its_pages_as_images(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
-    """The agent opens each preview with `read`, relative to its own folder."""
+    """Each page comes with the result: no step to skip and no path to retype."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(
+    text, images, is_error = await tools.call_content(
         workspace_id, "render_document", render(format="pdf", script=PDF)
     )
 
     assert is_error is False, text
     artifact_id = _artifact_id(text)
     assert "2 pages" in text
+    assert [item["mimeType"] for item in images] == ["image/jpeg", "image/jpeg"]
+    for item in images:
+        page = _decoded(item)
+        assert page.width * page.height <= INLINE_PIXELS
+        assert max(page.size) <= INLINE_LONG_SIDE
+        assert page.height > page.width
+    assert "come with this result as images, in order: page 1, page 2." in text
+    assert f"outputs/previews/{artifact_id}-v1/" in text
     folder = tools.folder(workspace_id)
-    previews = [
-        f"outputs/previews/{artifact_id}-v1/page-1.png",
-        f"outputs/previews/{artifact_id}-v1/page-2.png",
-    ]
-    for preview in previews:
-        assert f"- {preview}" in text
-        assert (folder / preview).is_file()
+    for n in (1, 2):
+        kept = folder / "outputs" / "previews" / f"{artifact_id}-v1" / f"page-{n}.png"
+        with Image.open(kept) as image:
+            assert image.width == 1000
     assert "headers and footers" not in text
 
 
@@ -247,10 +272,13 @@ async def test_a_model_that_cannot_read_images_is_drawn_no_previews(
     )
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(workspace_id, "render_document", render())
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render()
+    )
 
     assert is_error is False, text
     assert drawn == []
+    assert images == []
     assert "No page previews: the selected model cannot read images" in text
 
 
@@ -260,9 +288,12 @@ async def test_a_word_render_without_the_desktop_app_says_why_it_has_no_previews
     """Word pages are drawn by Electron, which no test and no Docker stack runs."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(workspace_id, "render_document", render())
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render()
+    )
 
     assert is_error is False, text
+    assert images == []
     assert "No page previews: Word pages are drawn by the SurfSense desktop app" in text
 
 
@@ -273,16 +304,19 @@ async def test_word_previews_say_they_leave_out_headers_and_footers(
     workspace_id = await tools.workspace()
 
     def previews_for(artifact: Artifact, folder: Path, time_left: float) -> Previews:
-        return Previews(
-            [folder / "outputs" / "previews" / f"{artifact.id}-v1" / "page-1.png"]
-        )
+        page = folder / "outputs" / "previews" / f"{artifact.id}-v1" / "page-1.png"
+        _blank_page(page)
+        return Previews([page])
 
     monkeypatch.setattr(render_document, "previews_for", previews_for)
 
-    text, is_error = await tools.call(workspace_id, "render_document", render())
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render()
+    )
 
     assert is_error is False, text
-    assert "-v1/page-1.png" in text
+    assert len(images) == 1
+    assert "in order: page 1." in text
     assert "Word previews leave out headers and footers" in text
 
 
@@ -292,15 +326,93 @@ async def test_a_page_too_long_and_thin_to_draw_is_named_beside_the_others(
     """The pages that could be drawn are listed, and the model learns which one was not."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(
+    text, images, is_error = await tools.call_content(
         workspace_id, "render_document", render(format="pdf", script=STRIP)
     )
 
     assert is_error is False, text
-    artifact_id = _artifact_id(text)
-    assert f"- outputs/previews/{artifact_id}-v1/page-1.png" in text
-    assert "page-2.png" not in text
+    assert len(images) == 1
+    (shown,) = [line for line in text.splitlines() if "in order:" in line]
+    assert shown.endswith("in order: page 1.")
     assert "Page 2 was not drawn" in text
+
+
+async def test_a_page_that_cannot_be_attached_is_named_and_the_others_still_shown(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The version is made: a page that breaks costs that page, not the result."""
+
+    def page_2_breaks(path: Path):
+        if path.name == "page-2.png":
+            raise OSError("cannot identify image file")
+        return inline_image(path)
+
+    monkeypatch.setattr(render_document, "inline_image", page_2_breaks)
+    workspace_id = await tools.workspace()
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render(format="pdf", script=PDF)
+    )
+
+    assert is_error is False, text
+    artifact_id = _artifact_id(text)
+    assert text.startswith(f"Rendered artifact {artifact_id}, version 1:")
+    assert len(images) == 1
+    assert "in order: page 1." in text
+    assert (
+        f"Page 2 could not be attached; open outputs/previews/{artifact_id}-v1/"
+        "page-2.png with read." in text
+    )
+
+
+async def test_a_render_whose_pages_all_fail_to_attach_says_it_has_no_previews(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No images, and no sentence saying some came."""
+
+    def broken(path: Path):
+        raise OSError("cannot identify image file")
+
+    monkeypatch.setattr(render_document, "inline_image", broken)
+    workspace_id = await tools.workspace()
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render(format="pdf", script=PDF)
+    )
+
+    assert is_error is False, text
+    assert images == []
+    assert "No page previews:" in text
+    assert "come with this result" not in text
+
+
+async def test_a_model_switched_to_text_only_during_the_render_is_sent_no_images(
+    tools: ToolEndpoint,
+    studio_worker: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """opencode would turn each image into an error the model is told to report."""
+    workspace_id = await tools.workspace()
+
+    def previews_for(artifact: Artifact, folder: Path, time_left: float) -> Previews:
+        page = folder / "outputs" / "previews" / f"{artifact.id}-v1" / "page-1.png"
+        _blank_page(page)
+        declare_image_input(False)
+        return Previews([page])
+
+    monkeypatch.setattr(render_document, "previews_for", previews_for)
+
+    with caplog.at_level(logging.WARNING):
+        text, images, is_error = await tools.call_content(
+            workspace_id, "render_document", render(format="pdf", script=PDF)
+        )
+
+    assert is_error is False, text
+    assert images == []
+    assert any(record.levelno == logging.WARNING for record in caplog.records)
+    # The text still promises images, so the model must learn none came.
+    assert text.endswith(IMAGES_LEFT_OUT), text
 
 
 async def test_the_word_preview_gets_only_the_time_the_call_has_left(
@@ -395,11 +507,12 @@ async def test_a_failing_script_returns_its_error_and_the_stop_rule(
     """The model fixes its script from the traceback, and stops after a third failure."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(
+    text, images, is_error = await tools.call_content(
         workspace_id, "render_document", render(script=FAILING)
     )
 
     assert is_error is True
+    assert images == []
     (failed,) = await _listed(tools, workspace_id)
     assert failed["status"] == "failed"
     assert "ValueError: the pricing table is empty" in text

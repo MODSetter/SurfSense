@@ -1,7 +1,9 @@
-"""Live runs: the real agent path with Claude Sonnet behind a recording proxy.
+"""Live runs: the real agent path with a paid model behind a recording proxy.
 
-Skipped unless SURFSENSE_LIVE_TESTS=1 and ANTHROPIC_API_KEY are set, so CI and
-ordinary runs never call a paid model. Every run checks the spend ledger first.
+The model is Claude Sonnet 5.5 on Anthropic unless SURFSENSE_LIVE_MODEL and
+SURFSENSE_LIVE_PROVIDER choose another (live_model.py). Skipped unless
+SURFSENSE_LIVE_TESTS=1 and the provider's key are set, so CI and ordinary runs
+never call a paid model. Every run checks the spend ledger first.
 """
 
 import os
@@ -30,9 +32,10 @@ from tests.integration.agent.opencode_harness import (
 )
 from tests.integration.conftest import base_url  # noqa: F401
 from tests.live.live_agent import LiveAgent
-from tests.live.recording_proxy import ANTHROPIC, RecordingProxy
+from tests.live.live_model import LiveModel, chosen_model, chosen_provider
+from tests.live.recording_proxy import RecordingProxy
 from tests.live.run_folder import RunFolder
-from tests.live.spend_ledger import MODEL, SpendLedger
+from tests.live.spend_ledger import SpendLedger
 from tests.live.word_printer import WordPrinter
 
 # A turn waits on the model and on renders of up to 150 s each.
@@ -54,10 +57,9 @@ def only_when_asked(request: pytest.FixtureRequest) -> None:
     """Skip a live case unless the maintainer asked for paid calls."""
     if request.node.get_closest_marker("live") is None:
         return
-    if os.environ.get("SURFSENSE_LIVE_TESTS") != "1" or not os.environ.get(
-        "ANTHROPIC_API_KEY"
-    ):
-        pytest.skip("set SURFSENSE_LIVE_TESTS=1 and ANTHROPIC_API_KEY to call Claude")
+    key_env = chosen_provider().key_env
+    if os.environ.get("SURFSENSE_LIVE_TESTS") != "1" or not os.environ.get(key_env):
+        pytest.skip(f"set SURFSENSE_LIVE_TESTS=1 and {key_env} to call a paid model")
 
 
 @dataclass(frozen=True)
@@ -89,13 +91,17 @@ def opencode_address(
 
 
 @pytest.fixture
+def live_model() -> LiveModel:
+    """The model this run calls, priced when the run starts."""
+    return chosen_model()
+
+
+@pytest.fixture
 def ledger() -> SpendLedger:
     """The cumulative ledger; a run that starts at the stop is refused."""
     spent = SpendLedger()
     if not spent.has_room(0):
-        pytest.skip(
-            f"the live budget stop is reached: ${spent.total().dollars:.2f} spent"
-        )
+        pytest.skip(f"the live budget stop is reached: ${spent.dollars():.2f} spent")
     return spent
 
 
@@ -125,23 +131,28 @@ async def live(
     base_url: str,  # noqa: F811
     engine: Engine,
     ledger: SpendLedger,
+    live_model: LiveModel,
     real_model: object,
     ingest_worker: None,
     studio_worker: None,  # noqa: F811
     opencode_address: OpencodeAddress,
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[LiveAgent]:
-    """The app on a port, opencode beside it, Claude behind the proxy; outputs kept afterwards."""
+    """The app on a port, opencode beside it, the model behind the proxy; outputs kept afterwards."""
     needs_staged_opencode()
     case = request.module.CASE
-    run = RunFolder(case)
+    run = RunFolder(case, live_model)
     # opencode's provider points at this API's model endpoint, on its real port.
     monkeypatch.setattr(get_settings(), "port", int(base_url.rsplit(":", 1)[1]))
 
     with RecordingProxy(
-        ANTHROPIC, os.environ["ANTHROPIC_API_KEY"], ledger, case
+        live_model.upstream,
+        os.environ[live_model.provider.key_env],
+        ledger,
+        case,
+        model=live_model,
     ) as proxy:
-        _connect_claude(engine, proxy.url)
+        _connect_model(engine, proxy.url, live_model)
         async with httpx.AsyncClient(base_url=base_url, timeout=_TURN_TIMEOUT) as http:
             workspace = await http.post("/workspaces", json={"name": "Live run"})
             workspace.raise_for_status()
@@ -170,17 +181,17 @@ async def live(
                     )
 
 
-def _connect_claude(engine: Engine, proxy_url: str) -> None:
-    """Claude as the user connects it: Anthropic's OpenAI-compatible API, as the text model.
+def _connect_model(engine: Engine, proxy_url: str, model: LiveModel) -> None:
+    """The model as the user connects it: its provider's OpenAI-compatible API, as the text model.
 
     The connection holds a placeholder: the proxy carries the real key.
     """
     with create_session_factory(engine)() as session:
         connection = ProviderConnection(
-            label="Anthropic",
+            label=model.provider.label,
             provider="openai_compatible",
             base_url=proxy_url,
-            catalog_provider="anthropic",
+            catalog_provider=model.provider.catalog_provider,
         )
         connection.api_key = "carried-by-the-recording-proxy"
         session.add(connection)
@@ -190,7 +201,7 @@ def _connect_claude(engine: Engine, proxy_url: str) -> None:
                 model_type=ModelType.TEXT_GEN,
                 provider="openai_compatible",
                 connection_id=connection.id,
-                name=MODEL,
+                name=model.name,
             )
         )
         session.commit()

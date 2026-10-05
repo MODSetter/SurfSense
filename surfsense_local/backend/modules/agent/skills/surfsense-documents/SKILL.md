@@ -5,7 +5,7 @@ description: Make or change a Word document (.docx), a PDF, a PowerPoint deck (.
 
 # Documents, decks and workbooks as scripts
 
-You make a file by writing a Python script and passing it to `surfsense_render_document`. SurfSense runs the script, keeps the file it writes as a version in Studio, and keeps the script beside it. To change the file later you change the script and render it again, which makes the next version.
+You make a file by writing a Python script and passing it to `surfsense_render_document`. SurfSense runs the script, keeps the file it writes as a version in Studio, and keeps the script beside it. Then look at every page the result shows before you go on. To change the file later you change the script and render it again, which makes the next version.
 
 ## The contract
 
@@ -53,7 +53,7 @@ When the user asks for their template, letterhead or brand deck, and a selected 
 
 ## Matching a look you can only see
 
-When the user wants the look of a source that cannot be a template, such as a PDF brand guide, or wants a deck in the style of a Word report, call `surfsense_source_pages` with that source and open the page images it returns with `read`. Note the fonts (use the closest you have), the colours as hex values, the margins, the heading sizes and where the logo sits, then write them into the script. Ask only for the pages you need, at most four at a time, and do not draw the same pages again: every image you open stays in the conversation.
+When the user wants the look of a source that cannot be a template, such as a PDF brand guide, or wants a deck in the style of a Word report, call `surfsense_source_pages` with that source; its pages come back as images with the result. Note the fonts (use the closest you have), the colours as hex values, the margins, the heading sizes and where the logo sits, then write them into the script. Ask only for the pages you need, at most four at a time, and do not draw the same pages again: every image you open stays in the conversation.
 
 ## Charts
 
@@ -66,11 +66,11 @@ A drawn chart in a source rarely leaves its numbers in the source's text. When t
 1. Call `surfsense_read_document` with its artifact id. It returns the newest version's script. A long script comes in pages: when the result says the script goes on, call it again with the offset it names until you have read every line.
 2. Change only what the user asked for. Keep every other line as it was.
    Make every change asked for in this render, reading loose words the natural way: "the cover" of a document without a cover page is the top of its first page, and a section the user names that the document lacks is the closest one or a new one. Say in a line what you assumed. Ask first only when something cannot be done as asked.
-3. Render with the same title and format and `artifact_id` set to that document: the result is its next version. A different format, such as a PDF of a Word document, is a new document: render it without `artifact_id`.
+3. Render with the same title and format and `artifact_id` set to that document: the result is its next version. A different format, such as a PDF of a Word document, is a new document: render it without `artifact_id`. Then look at every page the result shows before you go on.
 
 ## Checking what you made
 
-A successful render of a Word document, a PDF or a deck lists page or slide previews under `outputs/previews/`. Open every one it lists with `read`, not only the first, after the first version and after any change to the layout, and look for tables that run off the page, text running off a slide, squashed columns, images missing or out of place, empty pages, headings stranded at the foot of a page, unreadable charts and leftover placeholder text. A short last page is not a fault. When something is wrong, fix the script without dropping content the user did not ask to change, render again, then open every page of that new version too: answer only once you have looked at the version you end on. Word previews leave out headers and footers, so a logo or page number placed there does not show in them; that is not a fault to fix. When the result says there are no previews, check the text it returned instead. When `read` cannot show you the previews, check the script against the lists above and the text the result returned, and do not open them again.
+A successful render of a Word document, a PDF or a deck comes back with up to four page or slide previews as images. Look at every one, not only the first, after the first version and after any change to the layout, and look for tables that run off the page, text running off a slide, squashed columns, images missing or out of place, empty pages, headings stranded at the foot of a page, unreadable charts and leftover placeholder text. A short last page is not a fault. When something is wrong, fix the script without dropping content the user did not ask to change, render again, then look at every page of that new version too: answer only once you have looked at the version you end on. Word previews leave out headers and footers, so a logo or page number placed there does not show in them; that is not a fault to fix. When the result says there are no previews, check the text it returned instead. Open a preview file with `read` only when you need a closer look at one page: every image stays in the conversation.
 
 A workbook has no previews: its result is a summary of each sheet, its used range, its first rows and the formulas found. Check that every sheet is there, the headers and values sit in the right columns, and each total is a formula given the value it comes to. A formula shows as written, not its value.
 

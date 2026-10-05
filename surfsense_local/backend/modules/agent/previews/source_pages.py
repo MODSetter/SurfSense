@@ -18,7 +18,8 @@ from modules.agent.previews.page_images import (
 )
 from modules.agent.thread_folder.source_images import page_image_path
 
-# Big enough to read a heading's font and a table's lines, small enough for one attachment.
+# Big enough to read a heading's font and a table's lines. Shown inline (inline_images)
+# and kept on disk for a closer look.
 LONG_SIDE_PX = 1000
 SNAPSHOT_SECONDS = 30
 

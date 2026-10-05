@@ -1,8 +1,8 @@
-"""A loopback proxy between SurfSense's model endpoint and Anthropic that records and charges each call.
+"""A loopback proxy between SurfSense's model endpoint and the chosen provider that records and charges each call.
 
 The connection under test points here with a placeholder key; the real key lives
 only in this process's memory and goes upstream in the headers SurfSense sends
-to api.anthropic.com, so it never reaches SurfSense's database, opencode or a file.
+that provider, so it never reaches SurfSense's database, opencode or a file.
 """
 
 import base64
@@ -19,9 +19,10 @@ import httpx
 from PIL import Image
 
 from modules.llm.connections.key_headers import key_headers
+from tests.live.live_model import LiveModel
+from tests.live.model_prices import Prices
 from tests.live.spend_ledger import SpendLedger, Usage
 
-ANTHROPIC = "https://api.anthropic.com/v1"
 # Worst case before a call is sent: the live runs' JSON came to 2.8 to 2.9
 # characters a token, and a request that names no output cap could ask for
 # opencode's cap.
@@ -38,7 +39,15 @@ class Exchange:
     """One chat request as it went upstream, and what came back."""
 
     request: dict[str, Any]
+    # Where it went, and the headers it carried there with the key redacted.
+    upstream: str = ""
+    sent_headers: dict[str, str] = field(default_factory=dict)
     status: int = 0
+    # The provider's own id for the reply, and its own price for it when it says.
+    reply_id: str | None = None
+    reported_cost: float | None = None
+    # Which of OpenRouter's providers served the call; it routes each one apart.
+    served_by: str | None = None
     reply_text: str = ""
     tool_calls: list[dict[str, str]] = field(default_factory=list)
     usage: Usage = field(default_factory=Usage)
@@ -52,11 +61,18 @@ class RecordingProxy:
     """Serves `<url>/chat/completions` on a free loopback port while open."""
 
     def __init__(
-        self, upstream: str, api_key: str, ledger: SpendLedger, case: str
+        self,
+        upstream: str,
+        api_key: str,
+        ledger: SpendLedger,
+        case: str,
+        *,
+        model: LiveModel,
     ) -> None:
         self.upstream = upstream.rstrip("/")
         self.ledger = ledger
         self.case = case
+        self.model = model
         self.exchanges: list[Exchange] = []
         self.refused = False
         self._key = api_key
@@ -84,7 +100,12 @@ class RecordingProxy:
             return [
                 {
                     "request": _without_image_data(e.request),
+                    "upstream": e.upstream,
+                    "sent_headers": e.sent_headers,
                     "status": e.status,
+                    "reply_id": e.reply_id,
+                    "reported_cost": e.reported_cost,
+                    "served_by": e.served_by,
                     "reply_text": e.reply_text,
                     "tool_calls": e.tool_calls,
                     "usage": e.usage.__dict__,
@@ -101,12 +122,13 @@ class RecordingProxy:
     def forward(self, body: dict[str, Any], respond: "_Handler") -> None:
         """Send one chat request upstream, stream the reply back, and charge it."""
         exchange = Exchange(request=body, images=_images_in(body))
-        worst_case = _worst_case_usage(body)
-        if not self.ledger.has_room(worst_case.dollars):
+        prices = self.model.prices
+        worst_case = _worst_case_usage(body, prices)
+        if not self.ledger.has_room(prices.dollars(worst_case)):
             self.refused = True
             respond.error(
                 400,
-                f"live budget stop: ${self.ledger.total().dollars:.2f} spent of the "
+                f"live budget stop: ${self.ledger.dollars():.2f} spent of the "
                 f"${self.ledger.stop_dollars:.0f} stop",
             )
             return
@@ -116,6 +138,8 @@ class RecordingProxy:
             self.exchanges.append(exchange)
         headers = {"Content-Type": "application/json"}
         headers.update(key_headers(self.upstream, self._key))
+        exchange.upstream = f"{self.upstream}/chat/completions"
+        exchange.sent_headers = {k: self.redact(v) for k, v in headers.items()}
         try:
             with httpx.stream(
                 "POST",
@@ -137,11 +161,13 @@ class RecordingProxy:
         except httpx.HTTPError as failure:
             exchange.error = self.redact(f"{type(failure).__name__}: {failure}")
         finally:
-            # A reply cut off before its last chunk is still billed for what Anthropic
-            # read and wrote; an error answer is not.
+            # A reply cut off before its last chunk is still billed for what the
+            # provider read and wrote; an error answer is not.
             if exchange.usage == Usage() and exchange.status < 400:
                 exchange.usage, exchange.usage_estimated = worst_case, True
-            self.ledger.add(exchange.usage, self.case)
+            self.ledger.add(
+                exchange.usage, prices, case=self.case, model=self.model.label
+            )
 
     def _read_whole(self, exchange: Exchange, content: bytes) -> None:
         text = self.redact(content.decode("utf-8", "replace"))
@@ -159,6 +185,9 @@ class RecordingProxy:
             for c in message.get("tool_calls") or []
         ]
         exchange.usage = _usage(reply.get("usage"))
+        exchange.reply_id = reply.get("id")
+        exchange.served_by = reply.get("provider")
+        exchange.reported_cost = (reply.get("usage") or {}).get("cost")
 
     def _read_line(self, exchange: Exchange, line: str) -> None:
         data = line.removeprefix("data:").strip()
@@ -167,8 +196,11 @@ class RecordingProxy:
         chunk = json.loads(data)
         if chunk.get("error"):
             exchange.error = self.redact(json.dumps(chunk["error"]))[:2000]
+        exchange.reply_id = exchange.reply_id or chunk.get("id")
+        exchange.served_by = exchange.served_by or chunk.get("provider")
         if chunk.get("usage"):
             exchange.usage = _usage(chunk["usage"])
+            exchange.reported_cost = chunk["usage"].get("cost")
         for choice in chunk.get("choices") or []:
             delta = choice.get("delta") or {}
             exchange.reply_text += delta.get("content") or ""
@@ -211,11 +243,19 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def _usage(reported: dict[str, Any] | None) -> Usage:
-    """Anthropic's usage in OpenAI's shape; cached prompt tokens are billed apart."""
+    """Usage in OpenAI's shape; cached prompt tokens are billed apart.
+
+    Anthropic reports cache writes beside the prompt, OpenRouter inside its details.
+    """
     if not reported:
         return Usage()
-    cached = (reported.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
-    written = reported.get("cache_creation_input_tokens") or 0
+    details = reported.get("prompt_tokens_details") or {}
+    cached = details.get("cached_tokens") or 0
+    written = (
+        reported.get("cache_creation_input_tokens")
+        or details.get("cache_write_tokens")
+        or 0
+    )
     prompt = reported.get("prompt_tokens") or 0
     return Usage(
         input_tokens=max(prompt - cached - written, 0),
@@ -225,21 +265,21 @@ def _usage(reported: dict[str, Any] | None) -> Usage:
     )
 
 
-def _worst_case_usage(body: dict[str, Any]) -> Usage:
+def _worst_case_usage(body: dict[str, Any], prices: Prices) -> Usage:
     """The prompt at the dearest input rate, and the whole output cap.
 
     An image whose size cannot be read is counted as text, which is dearer.
     """
     text_chars = len(json.dumps(body))
     image_tokens = 0
-    for _, _, url in _image_parts(body):
+    for _, _, url in image_parts(body):
         pixels = _pixels(url)
         if pixels is not None:
             text_chars -= len(url)
             image_tokens += math.ceil(pixels / _PIXELS_PER_TOKEN)
-    return Usage(
-        cache_write_tokens=math.ceil(text_chars / _CHARS_PER_TOKEN) + image_tokens,
-        output_tokens=body.get("max_tokens") or _DEFAULT_MAX_TOKENS,
+    prompt = math.ceil(text_chars / _CHARS_PER_TOKEN) + image_tokens
+    return prices.dearest_prompt(prompt) + Usage(
+        output_tokens=body.get("max_tokens") or _DEFAULT_MAX_TOKENS
     )
 
 
@@ -264,11 +304,11 @@ def _images_in(body: dict[str, Any]) -> list[dict[str, Any]]:
             "role": role,
             "mime": url.split(";", 1)[0].removeprefix("data:"),
         }
-        for index, role, url in _image_parts(body)
+        for index, role, url in image_parts(body)
     ]
 
 
-def _image_parts(body: dict[str, Any]) -> list[tuple[int, str | None, str]]:
+def image_parts(body: dict[str, Any]) -> list[tuple[int, str | None, str]]:
     """Each image part's message index, that message's role, and its URL."""
     found = []
     for index, message in enumerate(body.get("messages") or []):

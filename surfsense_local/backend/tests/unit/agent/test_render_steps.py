@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from modules.agent.agent_threads.replies import turn_reply
+from modules.agent.agent_threads.steps import step_of
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.opencode_client import Event
 
@@ -113,3 +114,39 @@ def test_a_stored_reply_links_its_render_as_the_stream_did() -> None:
 
     (step,) = reply["content"]["steps"]
     assert step["artifact"] == {"id": 40, "title": "Client proposal", "version": 2}
+
+
+def test_a_steps_attachments_never_reach_the_thread() -> None:
+    """opencode keeps a render's page images on its part; the thread carries none of their bytes."""
+    data = "QUJD" * 2000
+    attachments = [
+        {
+            "id": "prt_f",
+            "type": "file",
+            "mime": "image/jpeg",
+            "url": f"data:image/jpeg;base64,{data}",
+        }
+    ]
+    part = _tool_part(
+        "surfsense_render_document",
+        "completed",
+        output=READY_OUTPUT,
+        attachments=attachments,
+    )
+    messages = [
+        {"info": {"id": "msg_u", "role": "user"}, "parts": []},
+        {
+            "info": {"id": "msg_a", "role": "assistant", "parentID": "msg_u"},
+            "parts": [part],
+        },
+    ]
+
+    (streamed,) = _steps(part)
+    reply = turn_reply(messages, "msg_u", [])
+
+    for shown in (step_of(part), streamed, reply):
+        assert "base64" not in str(shown)
+        assert data not in str(shown)
+    (stored,) = reply["content"]["steps"]
+    for step in (streamed, stored):
+        assert step["artifact"] == {"id": 40, "title": "Client proposal", "version": 2}

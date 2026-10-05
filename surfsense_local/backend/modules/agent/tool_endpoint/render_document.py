@@ -5,6 +5,7 @@ The tool waits for the run, since the model fixes its script from the error
 """
 
 import logging
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.previews import previews_for
+from modules.agent.previews.inline_images import inline_image
 from modules.agent.tool_endpoint.document_size import document_size
 from modules.agent.tool_endpoint.job_outcome import JobOutcome, wait_for_outcome
 from modules.agent.tool_endpoint.registration import TOOL_CALL_SECONDS
@@ -24,7 +26,12 @@ from modules.agent.tool_endpoint.rendered_label import (
     first_line,
     queued_line,
 )
-from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.tool import (
+    InlineImage,
+    Tool,
+    ToolCallError,
+    ToolResult,
+)
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.script_error import is_script_error
@@ -67,6 +74,11 @@ WORKBOOK_HAS_NO_PAGES = (
     "No page previews: a workbook has no pages. Check the summary above against "
     "what the user asked: each sheet, its header row, its values and its formulas."
 )
+LOOK_AT_EVERY_PAGE = (
+    "Look at every one before you answer; if one is wrong, fix the script, render "
+    "again and look at the new version's pages too."
+)
+_PAGE_FILE = re.compile(r"page-(\d+)\.png")
 STOP_RULE = (
     "If this is your third failed run for this request, stop and tell the user "
     "what failed."
@@ -79,7 +91,7 @@ LISTING: dict[str, Any] = {
         "or an Excel workbook, and keep the file in Studio as a new version. Load "
         "the surfsense-documents skill first. Waits for the run, then returns the "
         "artifact's id and version, its opening text (a workbook's summary) and "
-        "page previews to check, or the error to fix."
+        "up to four page previews as images to check, or the error to fix."
     ),
     "inputSchema": {
         "type": "object",
@@ -151,7 +163,9 @@ class _Started:
     title: str
 
 
-def render(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
+def render(
+    session: Session, scope: TurnScope, arguments: dict[str, Any]
+) -> str | ToolResult:
     """Create the version in one short transaction, wait for its job, and say how it went.
 
     Continuing a document needs no scope, since it is the agent's output; placing
@@ -289,8 +303,10 @@ def _create(session: Session, workspace_id: int, request: _Request) -> Artifact:
         raise ToolCallError(str(refused)) from refused
 
 
-def _made(session: Session, folder: Path, started: _Started, deadline: float) -> str:
-    """What the ready version holds, and the pages the agent can look at by the deadline."""
+def _made(
+    session: Session, folder: Path, started: _Started, deadline: float
+) -> str | ToolResult:
+    """What the ready version holds, and the pages drawn by the deadline, as images."""
     rendered = RenderedArtifact(started.artifact_id, started.title, started.version)
     read = _read_ready(session, started, deadline)
     if read is None:
@@ -304,12 +320,13 @@ def _made(session: Session, folder: Path, started: _Started, deadline: float) ->
     kind = FORMAT_NAMES[artifact.format]
     article = "An" if kind[0] in "AEIOU" else "A"
     # A workbook has no pages to look at, so its whole summary is the check.
+    images: tuple[InlineImage, ...] = ()
     if artifact.format == "xlsx":
         heading, body, check = "Its summary:", text, WORKBOOK_HAS_NO_PAGES
     else:
         heading, body = "Its text begins:", _opening(text)
-        check = _previews(artifact, folder, deadline)
-    return "\n".join(
+        check, images = _previews(artifact, started, folder, deadline)
+    made = "\n".join(
         [
             first_line(rendered),
             f"{article} {kind} of {size}. {heading}",
@@ -319,6 +336,7 @@ def _made(session: Session, folder: Path, started: _Started, deadline: float) ->
             check,
         ]
     )
+    return ToolResult(made, images) if images else made
 
 
 def _read_ready(
@@ -361,33 +379,72 @@ def _opening(text: str) -> str:
     return f"{text[:TEXT_CHARS]}… ({len(text) - TEXT_CHARS:,} more characters)"
 
 
-def _previews(artifact: Artifact, folder: Path, deadline: float) -> str:
-    """The preview pages as paths the agent's `read` opens, and why any are missing."""
+def _previews(
+    artifact: Artifact, started: _Started, folder: Path, deadline: float
+) -> tuple[str, tuple[InlineImage, ...]]:
+    """The preview pages as images, what to do with them, and why any are missing.
+
+    The paths are not listed one by one, so the model is not invited to open
+    each page again with `read`, which would send every page twice.
+    """
     if not declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE):
         return (
             "No page previews: the selected model cannot read images. Check the "
             "script and the text above instead."
-        )
+        ), ()
     try:
         previews = previews_for(artifact, folder, time_left=deadline - time.monotonic())
     # The version is made; a preview that breaks must not send the model to make it again.
     except Exception:
         logger.exception("previews of artifact %s failed", artifact.id)
-        return "No page previews: drawing them failed."
+        return "No page previews: drawing them failed.", ()
     if not previews.pages:
-        return f"No page previews: {previews.reason or 'none were drawn.'}"
-    pages = [f"- {_relative(page, folder)}" for page in previews.pages]
-    missing = [previews.reason] if previews.reason else []
+        return f"No page previews: {previews.reason or 'none were drawn.'}", ()
+    kept_in = _relative(previews.pages[0].parent, folder)
+    shown: list[int] = []
+    images: list[InlineImage] = []
+    unattached: list[str] = []
+    for number, page in sorted((_page_number(p), p) for p in previews.pages):
+        try:
+            images.append(inline_image(page))
+        # A page that will not encode costs that page, never the made version.
+        except Exception:
+            logger.exception("page %s of artifact %s not attached", number, artifact.id)
+            unattached.append(
+                f"Page {number} could not be attached; open "
+                f"{_relative(page, folder)} with read."
+            )
+            continue
+        shown.append(number)
+    if not images:
+        return (
+            "No page previews: they were drawn but could not be attached; open "
+            f"them in {kept_in}/ with read."
+        ), ()
+    unit = "slide" if artifact.format == "pptx" else "page"
     caveat = {"docx": [WORD_PREVIEWS_LEAVE_OUT], "pptx": [SLIDE_PREVIEWS_DIFFER]}
-    heading = "Slide" if artifact.format == "pptx" else "Page"
-    return "\n".join(
+    text = "\n".join(
         [
-            f"{heading} previews to check with `read`:",
-            *pages,
-            *missing,
+            f"The {unit} previews of version {started.version} of artifact "
+            f"{started.artifact_id} come with this result as images, in order: "
+            f"{', '.join(f'{unit} {n}' for n in shown)}.",
+            LOOK_AT_EVERY_PAGE,
+            *([previews.reason] if previews.reason else []),
+            *unattached,
             *caveat.get(artifact.format, []),
+            f"Larger copies are in {kept_in}/ as page-<n>.png; open one with read "
+            "only for a closer look.",
         ]
     )
+    return text, tuple(images)
+
+
+def _page_number(page: Path) -> int:
+    """The number in the file's name: a page too thin to draw leaves a gap."""
+    match = _PAGE_FILE.fullmatch(page.name)
+    if match is None:
+        raise ValueError(f"not a page preview: {page.name}")
+    return int(match[1])
 
 
 def _relative(page: Path, folder: Path) -> str:

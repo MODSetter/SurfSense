@@ -1,23 +1,31 @@
 """The source pages tool: a source's own pages as images, to see the look the user means."""
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from modules.agent.previews.inline_images import inline_image
 from modules.agent.previews.page_images import PAGE_LIMIT
 from modules.agent.previews.source_pages import (
-    LONG_SIDE_PX,
     PAGED_SUFFIXES,
     PagesRefusedError,
     SourcePages,
     source_pages,
 )
 from modules.agent.thread_folder.layout import PAGES, SOURCES
-from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.tool import (
+    InlineImage,
+    Tool,
+    ToolCallError,
+    ToolResult,
+)
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
+
+logger = logging.getLogger(__name__)
 
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 # The snapshot page lays Word out with docx-preview, told to skip both.
@@ -29,9 +37,9 @@ _WORD_PAGES = (
 LISTING: dict[str, Any] = {
     "name": "source_pages",
     "description": (
-        f"Draw up to {PAGE_LIMIT} pages of a PDF, Word or PowerPoint source as "
-        f"images under {SOURCES}/{PAGES}/, to see its look: fonts, colours, "
-        "layout. Returns how many pages it has and the images to open with read."
+        f"Draw up to {PAGE_LIMIT} pages of a PDF, Word or PowerPoint source and "
+        "return them as images, to see its look: fonts, colours, layout. Copies "
+        f"are kept under {SOURCES}/{PAGES}/."
     ),
     "inputSchema": {
         "type": "object",
@@ -57,8 +65,10 @@ LISTING: dict[str, Any] = {
 }
 
 
-def draw(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
-    """The pages drawn, how many the source has, and why any are missing; the source is only read."""
+def draw(
+    session: Session, scope: TurnScope, arguments: dict[str, Any]
+) -> str | ToolResult:
+    """The pages drawn as images, how many the source has, and why any are missing; the source is only read."""
     document_id = arguments.get("document_id")
     if not isinstance(document_id, int) or isinstance(document_id, bool):
         raise ToolCallError(
@@ -130,22 +140,53 @@ def _paged_original(
 
 def _shown(
     folder: Path, document_id: int, title: str, original: Path, drawn: SourcePages
-) -> str:
+) -> str | ToolResult:
+    """The pages as images in ascending order; a page that will not encode is named instead."""
     unit = PAGED_SUFFIXES[original.suffix.lower()]
     lines = [f'Source {document_id} ("{title}") has {drawn.count}.']
-    if drawn.pages:
-        lines.append(
-            f"{unit.capitalize()}s to open with read, at most {LONG_SIDE_PX} px on "
-            "their long side:"
-        )
-        lines += [f"- {path.relative_to(folder).as_posix()}" for _, path in drawn.pages]
-        if drawn.reason:
-            lines.append(drawn.reason)
+    shown: list[int] = []
+    images: list[InlineImage] = []
+    unattached: list[str] = []
+    for number, path in drawn.pages:
+        try:
+            images.append(inline_image(path))
+        # A page that will not encode costs that page, not the others drawn.
+        except Exception:
+            logger.exception(
+                "%s %s of source %s not attached", unit, number, document_id
+            )
+            unattached.append(
+                f"{unit.capitalize()} {number} could not be attached; open "
+                f"{path.relative_to(folder).as_posix()} with read."
+            )
+            continue
+        shown.append(number)
+    if shown:
+        lines.append(_come_with(unit, shown))
+    elif drawn.pages:
+        lines.append(f"No {unit}s could be attached.")
     else:
         lines.append(f"No pages were drawn: {drawn.reason or 'none were drawn.'}")
+    if drawn.pages and drawn.reason:
+        lines.append(drawn.reason)
+    lines += unattached
+    if shown:
+        lines.append(
+            f"Larger copies are in {SOURCES}/{PAGES}/ as {document_id}-p<n>.png; "
+            "open one with read only for a closer look."
+        )
     if original.suffix.lower() == ".docx":
         lines.append(_WORD_PAGES)
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    return ToolResult(text, tuple(images)) if images else text
+
+
+def _come_with(unit: str, numbers: list[int]) -> str:
+    """Which pages the images after the text are, as one sentence."""
+    if len(numbers) == 1:
+        return f"{unit.capitalize()} {numbers[0]} comes with this result as an image."
+    listed = ", ".join(map(str, numbers[:-1])) + f" and {numbers[-1]}"
+    return f"{unit.capitalize()}s {listed} come with this result as images, in order."
 
 
 # Offered only to a model that reads images: to any other, each page is an error.

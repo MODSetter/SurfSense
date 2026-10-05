@@ -1,4 +1,4 @@
-"""A PDF's pages for the agent: how many there are, and the first as PNG files it opens with `read`."""
+"""A PDF's pages for the agent: how many there are, and the first as PNG files, shown inline and kept on disk for a closer look."""
 
 import shutil
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from shared import pdfium
 
 # Enough to check a document's opening layout without filling the model's context.
 PAGE_LIMIT = 4
-# Wide enough to read body text, small enough to stay one image attachment.
+# Wide enough to read body text; the result carries a smaller copy (inline_images).
 PAGE_WIDTH_PX = 1000
 # A taller page is drawn narrower: the bitmap is made in the API process, and a
 # script may set any page size (ADR 0039).

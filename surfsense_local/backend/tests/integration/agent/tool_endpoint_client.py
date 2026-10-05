@@ -112,14 +112,36 @@ class ToolEndpoint:
         thread: int | None = None,
     ) -> tuple[str, bool]:
         """One tool call's text and whether it is an error, as the model reads it."""
+        text, _, is_error = await self.call_content(
+            workspace_id, name, arguments, thread=thread
+        )
+        return text, is_error
+
+    async def call_content(
+        self,
+        workspace_id: int,
+        name: str,
+        arguments: dict[str, Any],
+        *,
+        thread: int | None = None,
+    ) -> tuple[str, list[dict[str, Any]], bool]:
+        """One tool call's text, the image items after it, and whether it is an error.
+
+        opencode joins text items with blank lines and the render's first line
+        names its version, so a result is one text item, then only images.
+        """
         reply = await self.request(
             workspace_id,
             "tools/call",
             {"name": name, "arguments": arguments},
             thread=thread,
         )
-        (content,) = reply["result"]["content"]
-        return content["text"], reply["result"]["isError"]
+        first, *images = reply["result"]["content"]
+        assert set(first) == {"type", "text"} and first["type"] == "text", first
+        for image in images:
+            assert set(image) == {"type", "data", "mimeType"}, set(image)
+            assert image["type"] == "image", image["type"]
+        return first["text"], images, reply["result"]["isError"]
 
 
 @asynccontextmanager

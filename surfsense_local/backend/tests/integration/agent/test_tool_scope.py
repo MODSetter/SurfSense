@@ -480,11 +480,13 @@ async def test_a_sources_pages_are_drawn_only_when_its_folder_is_ticked(
     refused, refused_is_error = await tools.call(
         workspace_id, "source_pages", {"document_id": memo}, thread=thread
     )
-    drawn, drawn_is_error = await tools.call(
+    drawn, images, drawn_is_error = await tools.call_content(
         workspace_id, "source_pages", {"document_id": guide}, thread=thread
     )
 
     assert refused_is_error is True
     assert f"Source {memo} is not selected" in refused
     assert drawn_is_error is False, drawn
-    assert f"sources/pages/{guide}-p1.png" in drawn
+    assert len(images) == 1
+    pages = tools.folder(workspace_id, thread) / "sources" / "pages"
+    assert (pages / f"{guide}-p1.png").is_file()
