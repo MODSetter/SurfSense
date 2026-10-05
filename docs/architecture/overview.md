@@ -25,7 +25,9 @@ Electron main ─┬─ api            FastAPI on 127.0.0.1, free port    ─┐
                └─ opencode       opencode serve, started once the API writes its configuration
 
 BrowserWindow (Vite SPA) ── HTTP ──> api
-api, worker-studio ── HTTP ──> llama-server, sd-server, remote OpenAI-compatible endpoints
+api ── admission ── HTTP ──> llama-server, remote OpenAI-compatible endpoints
+worker-studio, opencode ── POST /internal/models/text/generate, /agent/model/v1 ──> api
+worker-studio ── HTTP ──> sd-server, audiocpp, remote image and speech endpoints
 worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE /workspaces/{id}/events
 ```
 
@@ -35,6 +37,7 @@ worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE
 - audiocpp_server refuses an empty model list, so it starts only once the API has written `audio/server.json` under the data directory, in dev too (`pnpm build:audiocpp`, which `predev` runs). On Windows and Linux that script compiles audio.cpp, and without a C++ toolchain the app runs without local audio ([packaging](packaging.md)). Electron checks that file every 5 seconds and restarts the server when it changes. Electron sets the machine-wide flags: the CPU backend, half the logical cores up to 8, one loaded model, and an unload after 5 idle minutes. The API writes that file whenever an audio model is installed or deleted, and at startup ([`local-models/catalog.md`](local-models/catalog.md)). The Studio worker voices podcasts there, at `SURFSENSE_LOCAL_AUDIO_BASE_URL`, and unloads the model when a podcast ends ([`studio.md`](studio.md)).
 - Only the API gates the window. Electron waits up to 60 seconds for `/health` and gives up at once if the API exits. llama-server is best-effort; its state shows through `/llm/providers`.
 - opencode, the agent's engine, starts only once the API has written `agent/opencode.json` under the data directory, in dev too (`pnpm build:opencode`, which `predev` runs, stages it only while opencode is on: [agent](agent.md)). Electron checks for that file every 2 seconds: it starts opencode once the file is there, stops it when the file goes, and restarts it after a crash, at most once every 10 seconds. A rewrite does not restart it, because opencode reads the file per folder the first time the folder is used; the API makes it read the file again through `POST /global/dispose` ([agent proposal](../proposals/agent/03-opencode.md)). Electron removes the file at boot, so each run's API writes its own. At boot Electron picks opencode's port and a random password, which it passes to the API alone as `SURFSENSE_LOCAL_OPENCODE_URL` and `SURFSENSE_LOCAL_OPENCODE_PASSWORD`. opencode's environment is built from a few system variables rather than inherited, with its home and XDG folders under `agent/opencode/`, its own fetches switched off and its proxy pointed at the discard port ([`sidecars/opencode.ts`](../../surfsense_local/electron/src/main/sidecars/opencode.ts)). `serve` keeps running when its parent is killed, so Electron records the pid, port and password in `agent/opencode-process.json`, and the next boot stops a recorded process that still accepts that password.
+- Before a quit, whether from the menu or by closing the last window, Electron asks the API how many chat replies are being written; with any, it asks the person, and on Quit has the API store each reply before anything is stopped ([chat](chat.md#runs)). Cancel keeps the app open.
 - On macOS and Linux each child runs in its own process group. On quit Electron sends SIGTERM and, after 5 seconds, SIGKILL; the group is also killed as soon as the sidecar itself exits, because a child that ignores SIGTERM would outlive the app. On Windows it kills the process tree. A single-instance lock hands a second launch to the first window, because two sets of sidecars would fight over the SQLite file.
 - The Python sidecars are configured through `SURFSENSE_LOCAL_*` variables: the API's host and port, the data and models directories, the llama-server and sd-server addresses, the images folder, audio.cpp's address and folder where it is staged, and `SURFSENSE_LOCAL_SECRET`, the key that encrypts stored API keys ([`connections.md`](connections.md)). No other sidecar receives the secret. The API alone also gets `SURFSENSE_LOCAL_SHELL_PID`, Electron's own pid, the root of what Settings › Resources counts as the app ([`resource-usage.md`](resource-usage.md)).
 
@@ -46,7 +49,8 @@ worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE
 | Migrations and the default workspace, at startup | `api` |
 | Upload streaming, dedup and enqueueing | `api` |
 | Query embedding and `retrieve()` for chat | `api`, in process |
-| The chat stream and thread titles | `api` |
+| Chat runs, the chat stream and thread titles | `api` |
+| Admission to the local runtime, and text generation for every other process | `api` ([admission](local-models/admission.md)) |
 | Model catalog, downloads and the hardware probe | `api` |
 | Parse, chunk, embed and index a document | `worker-ingest` |
 | Generate and render an artifact, index its body | `worker-studio` |
@@ -63,6 +67,7 @@ The rules that keep the processes out of each other's way:
 ## Freshness
 
 - Workers call `POST /internal/events` after each status change ([`worker/notify.py`](../../surfsense_local/backend/worker/notify.py)): ingest sends a `documents` event keyed by document id, Studio an `artifacts` event keyed by artifact id. The notice is best-effort with a 2-second timeout; losing one costs a live update, never the job.
+- The API announces each chat reply starting and ending on the same stream, as a `chat-runs` event keyed by thread id with status `running` or `done` ([chat](chat.md#runs)).
 - The API notifies of its own document changes on the same stream, straight to the broker: a note written, an upload, a rename or edit, a retry, a cancel, and a delete, whose status is `deleted` ([`api/notify.py`](../../surfsense_local/backend/api/notify.py)). So a change reaches an open window whoever made it: the window itself, a plugin, or a second window.
 - The API fans each notice out on `GET /workspaces/{id}/events` ([`modules/events/`](../../surfsense_local/backend/modules/events/)) as a named SSE event whose data is `{"ids": [...], "status": "..."}`. The stream opens with a `: connected` comment and sends `: ping` after 15 idle seconds. The broker is an in-memory map, which holds because one uvicorn process serves the app.
 - The frontend holds one subscription per workspace, shared by the lists that listen ([`features/workspaces/workspace-changes.ts`](../../surfsense_local/frontend/src/features/workspaces/workspace-changes.ts)), and closes it with the last of them. The sources panel reloads its list on each `documents` event and the Studio artifact list on each `artifacts` event; both reload each time a dropped stream is back, for what changed while nothing listened. Because a notice can be lost, each list also refetches every 10 seconds while any of its rows is `pending` or `processing`, and stops when none is: a lost notice leaves a row stale for at most that long, and nothing is requested on a timer while nothing is in flight.
@@ -114,12 +119,12 @@ The rules that keep the processes out of each other's way:
 - [Documents](documents.md): workspaces, upload, notes, the ingest pipeline.
 - [Search](search.md): `retrieve()`.
 - [Embedding model](embedding.md): the model that embeds the library, chosen once at onboarding.
-- [Chat](chat.md): grounding, the stream, citations.
+- [Chat](chat.md): grounding, the stream, runs, citations.
 - [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
-- Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
+- Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [admission and parallel slots](local-models/admission.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in English, Japanese and German.
 - [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).
 - [Contracts](../contracts/README.md) between the trees.

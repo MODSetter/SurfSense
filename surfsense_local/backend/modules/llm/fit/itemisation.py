@@ -39,6 +39,7 @@ def itemise(
     n_ctx: int,
     precision: KvPrecision = KvPrecision.F16,
     mmproj_bytes: int = 0,
+    slots: int = 1,
 ) -> NeedItems:
     """Price one build at one window.
 
@@ -50,6 +51,6 @@ def itemise(
     return NeedItems(
         weights_bytes=weights_bytes,
         mmproj_bytes=mmproj_bytes,
-        kv_bytes=kv_cache_bytes(shape, n_ctx, precision),
-        compute_bytes=compute_buffer_bytes(shape, n_ctx),
+        kv_bytes=kv_cache_bytes(shape, n_ctx, precision, slots),
+        compute_bytes=compute_buffer_bytes(shape, n_ctx, slots),
     )

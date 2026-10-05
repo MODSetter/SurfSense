@@ -263,6 +263,8 @@ function WorkspaceDashboard({
                 await chat.removeThread(threadId)
               }}
               onTitleAnimationComplete={chat.finishTitleAnimation}
+              runStates={chat.runStates}
+              unreadThreadIds={chat.unreadThreadIds}
               actions={[
                 {
                   key: "plugins",

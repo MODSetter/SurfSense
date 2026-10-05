@@ -17,7 +17,10 @@ from modules.agent.model_endpoint.router import router as agent_model_router
 from modules.agent.tool_endpoint.router import router as agent_tools_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
+from modules.chat.interrupted_turns import settle_interrupted_turns
 from modules.chat.router import router as chat_router
+from modules.chat.runs.registry import ChatRuns
+from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
@@ -30,8 +33,10 @@ from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
+from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.default_voice import choose_default_voice
+from modules.llm.model_route.router import router as model_route_router
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
@@ -79,6 +84,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         session_factory = create_session_factory(engine)
         with session_factory() as session:
             ensure_default_workspace(session)
+            settle_interrupted_turns(session)
             session.commit()
         app.state.session_factory = session_factory
         # Off the startup path, on a thread. Both halves are slow for the same
@@ -155,13 +161,17 @@ def create_app() -> FastAPI:
     app.add_middleware(MarkRequest)
     add_cors(app, get_settings())
     app.state.broker = EventBroker()  # No benefits from lifespan hooks.
+    app.state.chat_runs = ChatRuns()
+    app.state.local_admission = LocalAdmission()
     # Written into opencode's configuration; this process's turns only.
     app.state.agent_launch_key = mint_launch_key()
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
     app.include_router(llm_router)
+    app.include_router(model_route_router)
     app.include_router(chat_router)
+    app.include_router(chat_runs_router)
     app.include_router(artifacts_router)
     app.include_router(podcast_router)
     app.include_router(events_router)

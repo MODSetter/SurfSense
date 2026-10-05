@@ -159,3 +159,35 @@ describe("ChatsDialog", () => {
     expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 })
+
+describe("ChatsDialog, with replies running", () => {
+  const threads = [1, 2, 3, 4].map((id) => ({
+    id,
+    workspace_id: 1,
+    title: `Thread ${id}`,
+    uses_agent: false,
+    created_at: "2026-10-05T00:00:00Z",
+    updated_at: "2026-10-05T00:00:00Z",
+  }))
+
+  it("says which threads are writing, waiting, or have a reply not yet read", () => {
+    render(
+      <ChatsDialog
+        {...baseProps()}
+        threads={threads}
+        runStates={{
+          1: { state: "running" },
+          2: { state: "queued", position: 1 },
+        }}
+        unreadThreadIds={[3]}
+      />
+    )
+
+    const row = (name: string) =>
+      screen.getByRole("button", { name }).closest("div") as HTMLElement
+    expect(row("Thread 1").textContent).toContain("Writing…")
+    expect(row("Thread 2").textContent).toContain("Waiting")
+    expect(row("Thread 3").textContent).toContain("New reply")
+    expect(row("Thread 4").textContent).not.toMatch(/Writing|Waiting|New reply/)
+  })
+})

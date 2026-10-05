@@ -172,7 +172,8 @@ router reports, which is the filename stem:
 [Qwen3-8B-Q4_K_M]
 model = /Users/…/models/Qwen3-8B-Q4_K_M.gguf
 ctx-size = 16384
-parallel = 1
+parallel = 4
+kv-unified = on                                ; only above one slot
 fit-target = 1024
 fit-ctx = 16384
 mmproj = /Users/…/models/mmproj-Qwen3-8B-Q4_K_M.gguf ; only with a projector
@@ -181,8 +182,10 @@ cache-type-v = q8_0
 flash-attn = on
 ```
 
-- `parallel = 1`. llama-server defaults to four slots, which sizes the KV cache
-  for concurrency this app never uses.
+- `parallel` is the slot count the load plan chose, up to four, and above one
+  `kv-unified = on` gives every slot the whole window from one shared cache
+  rather than a fraction each. Admission keeps the shared cache from
+  overflowing ([admission](admission.md)).
 - `fit-target` is pinned rather than inherited. The badge subtracted a specific
   margin, 1 GiB, so passing it makes the two agree by construction. A vision
   projector's bytes are added to it, because `--fit` allocates the projector

@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
@@ -9,10 +10,18 @@ from modules.llm.providers.openai_compatible.chat import (
     LISTING_TIMEOUT,
     TIMEOUT,
 )
-from modules.llm.providers.openai_responses.errors import SignInRequiredError
+from modules.llm.providers.openai_responses.errors import (
+    PlanLimitError,
+    SignInRequiredError,
+)
 from modules.llm.providers.openai_responses.events import deltas
 from modules.llm.providers.openai_responses.input_items import input_items
 from modules.llm.providers.openai_responses.refusal import read_refusal, refused
+from modules.llm.providers.openai_responses.retry import (
+    MAX_RETRIES,
+    RETRYABLE_STATUSES,
+    retry_wait,
+)
 from modules.llm.providers.stream_deadline import with_deadlines
 from modules.llm.providers.types import Delta, Message, Model
 
@@ -38,11 +47,14 @@ class ResponsesChatProvider:
         *,
         reads_images: bool = False,
         transport: httpx.AsyncBaseTransport | None = None,
+        pause: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._access_token = access_token
         self._reads_images = reads_images
         self._transport = transport
+        # How a retry waits; a stop cancels it like any other await.
+        self._pause = pause
 
     def _client(self, token: str, timeout: httpx.Timeout) -> httpx.AsyncClient:
         return httpx.AsyncClient(
@@ -129,8 +141,14 @@ class ResponsesChatProvider:
             yield delta
 
     async def _stream(self, body: dict[str, object]) -> AsyncIterator[Delta]:
-        # One refresh after a 401: the stored token can expire between reads.
-        for refresh in (False, True):
+        """The reply, after at most one token refresh and two brief retries.
+
+        A temporary refusal before the reply starts is waited out, as long as
+        the endpoint asks and at most a minute; a used-up plan never is.
+        """
+        refresh = False
+        retries = 0
+        while True:
             token = await self._access_token(refresh)
             async with (
                 self._client(token, TIMEOUT) as client,
@@ -138,13 +156,25 @@ class ResponsesChatProvider:
                     "POST", f"{self._base_url}/responses", json=body
                 ) as reply,
             ):
+                # One refresh after a 401: the stored token can expire between reads.
                 if reply.status_code == 401 and not refresh:
+                    refresh = True
                     continue
                 if reply.status_code >= 400:
                     code, message = await read_refusal(reply)
                     if reply.status_code == 401:
                         raise SignInRequiredError(message)
-                    raise refused(code, message, reply)
-                async for delta in deltas(reply):
-                    yield delta
-                return
+                    failure = refused(code, message, reply)
+                    if (
+                        reply.status_code not in RETRYABLE_STATUSES
+                        or isinstance(failure, PlanLimitError)
+                        or retries >= MAX_RETRIES
+                    ):
+                        raise failure
+                    wait = retry_wait(reply, retries)
+                else:
+                    async for delta in deltas(reply):
+                        yield delta
+                    return
+            retries += 1
+            await self._pause(wait)

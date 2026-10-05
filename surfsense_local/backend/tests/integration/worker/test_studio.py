@@ -1,3 +1,4 @@
+import contextlib
 import json
 import time
 from collections.abc import Iterator
@@ -12,7 +13,6 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import (
@@ -25,7 +25,6 @@ from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 from worker.studio import run
 from worker.studio.office.docx import docx
 from worker.studio.office.pdf import pdf
@@ -585,7 +584,7 @@ def test_a_podcast_cancelled_while_voicing_stops_at_the_next_turn(
     voice = AudioCppSpeech(
         VoicedModel("kokoro-82m", kokoro.audio),
         base_url="http://audio",
-        chat_runtime=RouterClient("http://router", transport=FakeRouter().transport()),
+        give_up_text_runtime=contextlib.nullcontext,
         transport=httpx.MockTransport(audio_server),
         available=lambda: 64 * 2**30,
     )

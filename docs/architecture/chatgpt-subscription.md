@@ -63,6 +63,8 @@ A ChatGPT connection is a `provider_connections` row with `auth_kind = 'chatgpt'
 - The model list is the plan's `models` array, entries whose `visibility` is `list`, each a `text_gen` model with `capability_source: declared`. The manifest's "only on `/responses`" does not apply here.
 - No context window or token count, so chat keeps its fixed history budget. The same deadlines as the OpenAI-compatible client: 300 seconds to the first token, 30 between.
 
+A `429`, `500`, `502`, `503` or `504` before the reply starts is retried twice, after the wait the response asks for (`retry-after-ms` or `retry-after`, at most a minute) or one then two seconds, and a stop ends the wait at once ([`retry.py`](../../surfsense_local/backend/modules/llm/providers/openai_responses/retry.py)). A used-up plan is never retried. When the retries run out the status stands, so chat sorts it as it would any other.
+
 Chat sorts `SignInRequiredError` into `subscription_sign_in`, which offers Model setup, and `PlanLimitError` into `subscription_limit`, which offers no retry ([`chat.md`](chat.md#the-stream)). The model list answers a signed-out connection with `409` and code `sign_in_required`, and the composer's notice says to sign in again.
 
 ## Frontend

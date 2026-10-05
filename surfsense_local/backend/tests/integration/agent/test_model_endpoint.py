@@ -1,5 +1,6 @@
 """The model endpoint opencode's only provider points at: one route, the selected model behind it."""
 
+import asyncio
 import json
 import socket
 from collections.abc import AsyncIterator
@@ -11,6 +12,8 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from api.main import create_app
+from modules.llm.admission.local_runtime import LocalAdmission
+from modules.llm.admission.pool import Priority
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_llm_settings
@@ -31,6 +34,7 @@ class Endpoint:
     client: AsyncClient
     launch_key: str
     sessions: sessionmaker[Session]
+    admission: LocalAdmission
 
     async def chat(self, body: dict, key: str | None = None) -> tuple[int, str]:
         """Send one request as opencode's provider does; the reply's status and text."""
@@ -46,7 +50,12 @@ async def endpoint(engine: Engine) -> AsyncIterator[Endpoint]:
     app.state.session_factory = create_session_factory(engine)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield Endpoint(client, app.state.agent_launch_key, app.state.session_factory)
+        yield Endpoint(
+            client,
+            app.state.agent_launch_key,
+            app.state.session_factory,
+            app.state.local_admission,
+        )
 
 
 def select_local(sessions: sessionmaker[Session], name: str = LOCAL_MODEL) -> None:
@@ -304,3 +313,24 @@ async def test_without_a_selected_model_the_endpoint_says_so(
 
     assert status == 409
     assert "no chat model selected" in json.loads(text)["error"]["message"]
+
+
+async def test_a_local_step_waits_for_the_runtime_like_a_chat_does(
+    endpoint: Endpoint, model_server: StubModel
+) -> None:
+    """The agent shares the local runtime's cache with chat, so each step is
+    admitted with it; the model sees nothing until the room is free."""
+    select_local(endpoint.sessions)
+    held = endpoint.admission.admitted(LOCAL_MODEL, [], 10, Priority.INTERACTIVE)
+    await held.__aenter__()
+
+    step = asyncio.create_task(endpoint.chat(request()))
+    for _ in range(20):
+        await asyncio.sleep(0.01)
+    waited = list(model_server.requests)
+    await held.__aexit__(None, None, None)
+    status, _text = await step
+
+    assert waited == []
+    assert status == 200
+    assert len(model_server.requests) == 1

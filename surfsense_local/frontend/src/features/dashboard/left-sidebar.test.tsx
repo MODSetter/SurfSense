@@ -125,3 +125,47 @@ describe("LeftSidebar", () => {
     expect(screen.getByText("License footer")).toBeTruthy()
   })
 })
+
+describe("LeftSidebar, with replies elsewhere", () => {
+  it("counts the other threads still writing or waiting on the Chats row", () => {
+    render(
+      <LeftSidebar
+        {...baseProps()}
+        activeThreadId={1}
+        runStates={{
+          1: { state: "running" },
+          2: { state: "running" },
+          3: { state: "queued", position: 1 },
+        }}
+        unreadThreadIds={[4]}
+      />
+    )
+
+    const chats = screen.getByRole("button", { name: /^Chats/ })
+    expect(chats.textContent).toContain("2")
+    expect(chats.getAttribute("aria-label")).toBe(
+      "Chats, 2 replies being written"
+    )
+  })
+
+  it("counts unread replies once nothing else is writing", () => {
+    render(
+      <LeftSidebar
+        {...baseProps()}
+        activeThreadId={1}
+        unreadThreadIds={[2, 3]}
+      />
+    )
+
+    const chats = screen.getByRole("button", { name: /^Chats/ })
+    expect(chats.getAttribute("aria-label")).toBe("Chats, 2 new replies")
+  })
+
+  it("looks as it always did with nothing running and nothing unread", () => {
+    render(<LeftSidebar {...baseProps()} activeThreadId={1} />)
+
+    expect(screen.getByRole("button", { name: "Chats" }).textContent).toBe(
+      "Chats"
+    )
+  })
+})

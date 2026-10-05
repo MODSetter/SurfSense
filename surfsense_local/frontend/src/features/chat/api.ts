@@ -1,7 +1,12 @@
 import type { AgentStep } from "@/features/agent/api"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
-import { parseSseStream, type ChatStreamEvent, type Citation } from "./sse"
+import {
+  parseNumberedSseStream,
+  type ChatErrorKind,
+  type Citation,
+  type NumberedEvent,
+} from "./sse"
 
 export type ChatThread = {
   id: number
@@ -11,7 +16,23 @@ export type ChatThread = {
   uses_agent: boolean
   created_at: string
   updated_at: string
+  // A reply is being generated for it right now. Absent on a thread the
+  // client made itself before the list was read again.
+  running?: boolean
 }
+
+/** How a stored reply ended; absent for one that completed. */
+export type TurnEnding =
+  | {
+      type: "error"
+      kind: ChatErrorKind
+      message: string
+      provider?: string
+      // Client only: our own request failed before the API could classify it.
+      local?: boolean
+    }
+  | { type: "stopped" }
+  | { type: "interrupted" }
 
 /** An image a stored turn carried; the bytes are served by the image route. */
 export type StoredImage = {
@@ -36,6 +57,9 @@ export type MessageContent = {
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.
   progress?: { processed: number; total: number }
+  ending?: TurnEnding
+  // Client only: the reply's place in line for the local runtime.
+  queue?: { position: number }
 }
 
 export type ChatMessage = {
@@ -100,15 +124,15 @@ export function renameThread(
   })
 }
 
-export async function streamMessage(
+export async function* streamMessage(
   threadId: number,
   text: string,
   images: ImageUpload[],
   documentIds: number[],
   thinking: boolean,
-  signal: AbortSignal,
-  onEvent: (event: ChatStreamEvent) => void
-): Promise<void> {
+  retryOf: number | null,
+  signal: AbortSignal
+): AsyncGenerator<NumberedEvent> {
   const response = await request(`/chat/threads/${threadId}/messages`, {
     method: "POST",
     headers: {
@@ -122,14 +146,31 @@ export async function streamMessage(
       ...(images.length > 0 ? { images } : {}),
       // Only when off, for the same reason: on is the API's default.
       ...(thinking ? {} : { thinking: false }),
+      ...(retryOf !== null ? { retry_of: retryOf } : {}),
     }),
     signal,
   })
   if (!response.body) {
     throw new Error("The chat stream did not include a response body.")
   }
+  yield* parseNumberedSseStream(response.body)
+}
 
-  for await (const event of parseSseStream(response.body)) {
-    onEvent(event)
-  }
+/** A thread's running reply, replayed after frame `after` and then live. */
+export async function* followRun(
+  threadId: number,
+  after: number,
+  signal: AbortSignal
+): AsyncGenerator<NumberedEvent> {
+  const response = await request(
+    `/chat/threads/${threadId}/run?after=${after}`,
+    { headers: { Accept: "text/event-stream" }, signal }
+  )
+  if (!response.body) return
+  yield* parseNumberedSseStream(response.body)
+}
+
+/** End a thread's reply where it is; the API stores what it has. */
+export function stopRun(threadId: number): Promise<void> {
+  return requestVoid(`/chat/threads/${threadId}/run/stop`, { method: "POST" })
 }

@@ -21,6 +21,9 @@ class ModelAddress:
     name: str
     # What the model is marked in use under, so it cannot be deleted mid-turn.
     activity_key: tuple[str, ...]
+    # The local runtime shares its cache with chat and Studio, so its requests
+    # are admitted; a remote host has its own.
+    local_runtime: bool = False
 
 
 def address_selected_model(session: Session) -> ModelAddress:
@@ -32,7 +35,11 @@ def address_selected_model(session: Session) -> ModelAddress:
     if selected.provider == llamacpp.PROVIDER:
         router = get_llm_settings().llamacpp_base_url.rstrip("/")
         return ModelAddress(
-            f"{router}/v1/chat/completions", {}, selected.name, activity_key
+            f"{router}/v1/chat/completions",
+            {},
+            selected.name,
+            activity_key,
+            local_runtime=True,
         )
     if selected.provider != "openai_compatible" or selected.connection_id is None:
         raise ModelResolutionError(f"unknown provider: {selected.provider}")

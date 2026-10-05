@@ -62,7 +62,7 @@ The workspace's folder is opencode's working folder for its sessions, and it goe
 
 ## The model endpoint
 
-`POST /agent/model/v1/chat/completions` ([`model_endpoint/`](../../surfsense_local/backend/modules/agent/model_endpoint/)) is opencode's only way to a model. It refuses a request without this process's launch key with `401`, resolves the selected model on every request, and marks it in use while the turn runs.
+`POST /agent/model/v1/chat/completions` ([`model_endpoint/`](../../surfsense_local/backend/modules/agent/model_endpoint/)) is opencode's only way to a model. It refuses a request without this process's launch key with `401`, resolves the selected model on every request, marks it in use while the turn runs, and on the local runtime admits each request as interactive work, beside chat ([admission](local-models/admission.md#admission)).
 
 - **Local:** llama-server's router at `{llamacpp_base_url}/v1`, under the selected model's name.
 - **Remote:** the connection's URL with its own key, once `egress.require()` allows its host; a refused host answers `403` naming it, before any connection opens ([egress](egress.md)).
