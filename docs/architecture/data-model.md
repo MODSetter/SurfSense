@@ -127,7 +127,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 |---|---|
 | `document_id` | foreign key, unique and cascading: one sidecar per document |
 | `workspace_id` | foreign key, cascading |
-| `chat_thread_id` | foreign key, set null: clearing a chat must not delete what it produced |
+| `chat_thread_id` | foreign key, set null: clearing a chat must not delete what it produced; set on each version the agent renders |
 | `format` | text, not an enum |
 | `generation` | integer, `CHECK (generation > 0)`, bumped by each regenerate |
 | `created_by_tool_call_id`, `updated_by_tool_call_id` | provenance; a REST job passes none |

@@ -30,6 +30,7 @@ from modules.agent.tool_endpoint.rendered_label import (
     first_line,
     queued_line,
 )
+from modules.agent.tool_endpoint.same_title_documents import refuse_same_title
 from modules.agent.tool_endpoint.tool import (
     InlineImage,
     Tool,
@@ -180,8 +181,9 @@ def render(
     request = _request(arguments)
     _refuse_unselected_images(scope, request.images)
     _refuse_unselected_template(session, scope, request)
-    workspace_id = scope.workspace_id
-    started = _start(session, workspace_id, request)
+    if request.base_artifact_id is None and scope.known:
+        refuse_same_title(session, scope.thread_id, request.title, request.format)
+    started = _start(session, scope, request)
     wait = min(WAIT_SECONDS, deadline - time.monotonic())
     outcome = wait_for_outcome(session, started.artifact_id, wait)
     if outcome is None:
@@ -276,10 +278,10 @@ def _refuse_unselected_template(
         ) from refused
 
 
-def _start(session: Session, workspace_id: int, request: _Request) -> _Started:
+def _start(session: Session, scope: TurnScope, request: _Request) -> _Started:
     """The pending version and its queued job, committed so the worker finds them."""
     try:
-        artifact = _create(session, workspace_id, request)
+        artifact = _create(session, scope, request)
     except ToolCallError:
         session.rollback()  # a refusal leaves its reads open
         raise
@@ -288,8 +290,8 @@ def _start(session: Session, workspace_id: int, request: _Request) -> _Started:
     return _Started(artifact.id, version.number, request.title.strip())
 
 
-def _create(session: Session, workspace_id: int, request: _Request) -> Artifact:
-    workspace = session.get(Workspace, workspace_id)
+def _create(session: Session, scope: TurnScope, request: _Request) -> Artifact:
+    workspace = session.get(Workspace, scope.workspace_id)
     if workspace is None:
         raise ToolCallError("This workspace no longer exists.")
     try:
@@ -302,6 +304,7 @@ def _create(session: Session, workspace_id: int, request: _Request) -> Artifact:
             base_artifact_id=request.base_artifact_id,
             image_names=request.images,
             template_source_id=request.template_source_id,
+            chat_thread_id=scope.thread_id if scope.known else None,
         )
     except ScriptDocumentRefusedError as refused:
         raise ToolCallError(str(refused)) from refused

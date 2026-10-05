@@ -233,6 +233,70 @@ async def test_a_render_naming_its_artifact_makes_the_next_version(
     }
 
 
+async def test_rendering_a_title_the_thread_has_again_without_artifact_id_is_refused(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """Weaker models left artifact_id out of edits, so a change became a second document."""
+    workspace_id = await tools.workspace()
+    first, _ = await tools.call(workspace_id, "render_document", render())
+    first_id = _artifact_id(first)
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(title="  client  PROPOSAL ")
+    )
+
+    assert is_error is True
+    assert f"artifact_id {first_id}" in text
+    assert "different title" in text
+    assert len(await _listed(tools, workspace_id)) == 1
+
+
+async def test_a_title_the_thread_has_in_another_format_starts_its_own_document(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """ "Now a PDF version" is a new document, as the version switcher shows one format."""
+    workspace_id = await tools.workspace()
+    await tools.call(workspace_id, "render_document", render())
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(format="pdf", script=PDF)
+    )
+
+    assert is_error is False, text
+    assert len(await _listed(tools, workspace_id)) == 2
+
+
+async def test_a_title_another_thread_rendered_is_not_refused(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """Only this chat's documents are ones the model may mean to change."""
+    workspace_id = await tools.workspace()
+    await tools.call(workspace_id, "render_document", render())
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(), thread=tools.thread(workspace_id)
+    )
+
+    assert is_error is False, text
+
+
+async def test_a_same_title_refusal_is_not_a_failed_run(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """The model that ran nothing has three tries left to make the edit."""
+    workspace_id = await tools.workspace()
+    first, _ = await tools.call(workspace_id, "render_document", render())
+    for _ in range(3):
+        await tools.call(workspace_id, "render_document", render())
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(artifact_id=_artifact_id(first))
+    )
+
+    assert is_error is False, text
+    assert text.startswith("Rendered artifact ")
+
+
 async def test_a_pdf_render_shows_its_pages_as_images(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
@@ -531,7 +595,9 @@ async def test_after_three_failed_runs_the_next_render_is_refused_and_runs_nothi
     failing = render(script=FAILING)
     await tools.call(workspace_id, "render_document", failing)
     await tools.call(workspace_id, "render_document", failing)
-    _, is_error = await tools.call(workspace_id, "render_document", render())
+    _, is_error = await tools.call(
+        workspace_id, "render_document", render(title="Cover letter")
+    )
     assert is_error is False  # a success in between still counts toward the three
     await tools.call(workspace_id, "render_document", failing)
 

@@ -15,21 +15,25 @@ LEGACY_TURN = (
     "Start a new chat to continue."
 )
 
-# A session's folder never changes, so it is asked once per run.
-_legacy: dict[str, bool] = {}
+# A legacy session stays legacy, so that answer holds for the run. One in its own
+# folder is asked about each turn: opencode can lose it later, and answers 404.
+_legacy: set[str] = set()
 
 
 async def is_legacy(client: OpencodeClient, session_id: str, folder: Path) -> bool:
     """Whether the session works anywhere but the thread's own folder."""
-    if session_id not in _legacy:
-        directory = await client.session_directory(session_id)
-        _legacy[session_id] = _normal(directory) != _normal(folder)
-    return _legacy[session_id]
+    if session_id in _legacy:
+        return True
+    directory = await client.session_directory(session_id)
+    if _normal(directory) == _normal(folder):
+        return False
+    _legacy.add(session_id)
+    return True
 
 
 def forget_legacy(session_id: str) -> None:
     """Drop a deleted session's answer."""
-    _legacy.pop(session_id, None)
+    _legacy.discard(session_id)
 
 
 def _normal(path: str | Path) -> str:

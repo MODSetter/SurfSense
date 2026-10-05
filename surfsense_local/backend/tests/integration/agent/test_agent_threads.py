@@ -2,14 +2,17 @@
 
 import asyncio
 import json
+import sqlite3
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
 import pytest
 from sqlalchemy import Engine, select
+from sqlalchemy.exc import OperationalError
 
 from modules.agent.agent_threads import live_instances
+from modules.agent.agent_threads import turn as agent_turn
 from modules.artifacts.models import Artifact
 from modules.chat import router as chat_router
 from modules.chat.models import ChatThread
@@ -108,6 +111,24 @@ async def test_a_message_streams_the_agents_reply(agent_api: AgentAPI) -> None:
     assert [frame["type"] for frame in frames[:2]] == ["agent-preparing", "accepted"]
     assert "".join(f["text"] for f in of_type(frames, "delta")) == "Revenue rose in Q3."
     assert of_type(frames, "completed")[0]["text"] == "Revenue rose in Q3."
+    assert frames[-1] == {"type": "done"}
+
+
+async def test_an_unexpected_error_inside_the_stream_still_ends_it(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sync runs inside the stream: a failure there must not leave the chat waiting."""
+
+    def database_fails(*_args: object) -> None:
+        raise OperationalError("SELECT", {}, sqlite3.OperationalError("disk I/O error"))
+
+    monkeypatch.setattr(agent_turn, "sync_thread_folder", database_fails)
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "Hello")
+
+    (error,) = of_type(frames, "error")
+    assert error["kind"] == "unknown"
     assert frames[-1] == {"type": "done"}
 
 
@@ -527,6 +548,27 @@ async def test_a_thread_whose_session_opencode_lost_offers_a_new_chat(
 
     refused = await agent_api.http.post(
         f"/chat/threads/{thread['id']}/messages", json={"text": "Hello"}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == (
+        "This agent chat was started before each chat kept its own sources. "
+        "Start a new chat to continue."
+    )
+
+
+async def test_a_session_lost_after_a_turn_is_refused_like_one_lost_before(
+    agent_api: AgentAPI,
+) -> None:
+    """A session this run already checked can still vanish, as when opencode's data is cleared."""
+    thread = await open_thread(agent_api)
+    await send(agent_api, thread["id"], "Hello")
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    async with agent_api.opencode() as opencode:
+        await opencode.delete_session(folder, await _session_of(thread["id"]))
+
+    refused = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "Again"}
     )
 
     assert refused.status_code == 409

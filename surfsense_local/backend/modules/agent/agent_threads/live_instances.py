@@ -40,7 +40,9 @@ async def turn_ended(client: OpencodeClient, folder: Path) -> None:
     _turns[folder] -= 1
     if _turns[folder] <= 0:
         del _turns[folder]
-    instance_used(folder)
+    # A thread deleted during its turn was forgotten with its instance.
+    if folder in _used:
+        _used.move_to_end(folder)
     idle = [used for used in _used if used not in _turns]
     for stale in idle[: max(0, len(_used) - LIVE_INSTANCES)]:
         if stale in _turns:

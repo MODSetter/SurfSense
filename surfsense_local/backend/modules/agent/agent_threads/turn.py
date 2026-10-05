@@ -36,6 +36,7 @@ from modules.agent.opencode_runtime import (
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import register_thread_tools
+from modules.chat.errors import classify_chat_error
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.llm.resolution import ModelResolutionError
@@ -212,6 +213,14 @@ async def _stream(
                 "message": message,
                 "provider": "opencode",
             }
+        )
+        yield _DONE
+    # The headers are sent: only a frame can tell the chat the turn ended.
+    except Exception as failure:
+        logger.exception("agent turn in %s failed", session_id)
+        kind, message = classify_chat_error(failure, "opencode")
+        yield _frame(
+            {"type": "error", "kind": kind, "message": message, "provider": "opencode"}
         )
         yield _DONE
     finally:

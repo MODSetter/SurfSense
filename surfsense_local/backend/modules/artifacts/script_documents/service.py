@@ -47,6 +47,7 @@ def create_script_document(
     base_artifact_id: int | None,
     image_names: list[str],
     template_source_id: int | None = None,
+    chat_thread_id: int | None = None,
 ) -> Artifact:
     """Keep the script as a pending artifact's spec and queue Studio's job to run it.
 
@@ -94,7 +95,10 @@ def create_script_document(
     session.add(document)
     session.flush()
     artifact = Artifact(
-        document_id=document.id, workspace_id=workspace.id, format=format
+        document_id=document.id,
+        workspace_id=workspace.id,
+        format=format,
+        chat_thread_id=chat_thread_id,
     )
     session.add(artifact)
     session.flush()
