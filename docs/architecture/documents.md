@@ -16,6 +16,7 @@ A workspace holds a library of sources: uploaded files, notes written in the app
 | `DELETE` | `/workspaces/{workspace_id}` | delete it and everything in it; `204` |
 
 - The API seeds "My Workspace" at startup when no workspace exists ([`seed.py`](../../surfsense_local/backend/modules/workspaces/seed.py)), so a first launch always has one to open into.
+- Every workspace has a Library: a managed source root and its root folder, made when the workspace is created, by `0025` for older ones, and on first use by any folder route ([`managed_root.py`](../../surfsense_local/backend/modules/source_roots/managed_root.py)).
 - A name is trimmed and must be 1 to 200 characters, so a name of spaces fails instead of rendering blank.
 - Delete cascades the workspace's documents (with their chunks and index entries), threads, messages and artifacts, then removes `data/workspaces/<id>/` after the commit, which a rollback would undo.
 - Every route with a workspace in its path resolves it first and answers `404` for an unknown id. A document is looked up within the workspace in its path, so one workspace's id cannot reach another's document.
@@ -25,8 +26,9 @@ A workspace holds a library of sources: uploaded files, notes written in the app
 | Method | Path | Does |
 |---|---|---|
 | `GET` | `/workspaces/{workspace_id}/documents` | list (below) |
-| `POST` | `/workspaces/{workspace_id}/documents` | write a note, with an optional `document_metadata` object; `201` with its body, `422` for a field it does not know |
-| `POST` | `/workspaces/{workspace_id}/documents/upload` | upload files; `201` with `created`, `duplicates` and `rejected` |
+| `POST` | `/workspaces/{workspace_id}/documents` | write a note, with an optional `document_metadata` object and `folder_id`; `201` with its body, `422` for a field it does not know |
+| `POST` | `/workspaces/{workspace_id}/documents/upload` | upload files, with optional `folder_id` and `relative_paths` form fields; `201` with `created`, `duplicates` and `rejected` |
+| `POST` | `/workspaces/{workspace_id}/documents/move` | `{document_ids ≤ 1000, folder_id}`: file sources in a folder; `200` with `moved` and `skipped` ([Folders](#folders)) |
 | `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content` and `document_metadata`; `content` is `null` for a `FILE` the worker has not written yet |
 | `PATCH` | `/workspaces/{workspace_id}/documents/{document_id}` | rename; edit a note's content |
 | `DELETE` | `/workspaces/{workspace_id}/documents/{document_id}` | delete; `409` while `processing` |
@@ -39,9 +41,9 @@ Chunks have no router of their own.
 
 ## Listing
 
-- Filters are `?document_type=` and `?status=`, both repeatable. Paging is `?limit=` (default 50, at most 200) and `?offset=`. Rows come newest first, by `created_at` and then id, since one upload batch shares a second, so a fresh upload leads the sources list while it is still indexing.
+- Filters are `?document_type=` and `?status=`, both repeatable, and `?folder_id=`. Paging is `?limit=` (default 50, at most 200) and `?offset=`; the sources panel reads pages of 200 until one comes short, so it holds every source, not the newest 50. Rows come newest first, by `created_at` and then id, since one upload batch shares a second, so a fresh upload leads the sources list while it is still indexing.
 - `ARTIFACT` rows are included and the caller filters them out. The sources panel asks for `document_type=FILE&document_type=NOTE`, so Studio output does not look like something the user uploaded.
-- A row carries `id`, `title`, `document_type`, `status`, `error_message` and timestamps, but no `content`. The list is polled while ingest runs, and a body per row would ride along on every poll; `GET .../documents/{document_id}` returns one row with it.
+- A row carries `id`, `title`, `document_type`, `status`, `error_message`, `folder_id` and timestamps, but no `content`. The list is polled while ingest runs, and a body per row would ride along on every poll; `GET .../documents/{document_id}` returns one row with it.
 
 ## What is editable
 
@@ -56,15 +58,47 @@ A note is a document the user writes, with no file behind it. Creating one commi
 
 A note may carry `document_metadata`, stored as given. A plugin names itself there on the notes it adds, with `plugin_id`, `plugin_version`, `action` and `run_id`; a note the user writes has none, and editing a note leaves it alone. Writing a note with a field the API does not know is refused rather than dropped, so a client that names a field differently finds out at once.
 
+## The sources tree
+
+The sources panel shows the Library as a tree ([`features/sources/tree/`](../../surfsense_local/frontend/src/features/sources/tree)). It reads every folder with `GET /folders` and every file and note page by page, 200 at a time, and builds the tree on the client; the Library's own folder is never a row, so a workspace with no folders is the flat list it always was.
+
+- **Rows.** Folders come first, by name, then sources newest first. The list is an ARIA `tree` with one `treeitem` per row: arrow keys move and open, Space ticks, Enter opens, F2 renames and Delete asks to delete. A name filter above the tree shows matches with the folders holding them opened.
+- **Actions.** New folder (in the header, or inside a folder from its menu), Rename, Move to… and Delete. Move to… is a picker of folders and the keyboard's path; a row dragged onto a folder, or onto a source inside one, moves there too. A folder cannot be moved inside itself. Deleting a folder names how many sources, and filed Studio outputs, go with it, as `GET /folders/{folder_id}/summary` counts them, and deletes them for good.
+- **Ticks.** Each row's tick is tri-state. Ticking a folder ticks everything under it, now and added later; the nearest tick up the tree decides ([`scope-state.ts`](../../surfsense_local/frontend/src/features/sources/tree/scope-state.ts)). Chat and Studio send the ticks as `source_scope`, so every ticked source counts, not only the ones loaded.
+
 ## Upload
 
 - The request is multipart, one `files` part per file. Each file streams to a temporary file inside the workspace directory in 1 MB reads, hashed with SHA-256 on the way past and never held whole in memory. A file over 500 MB is refused with `413`. The temporary file sits on the same filesystem as its destination, because a rename is only atomic within one filesystem.
 - Only a plain extension, a dot and 1 to 16 letters or digits, is validated from the client's filename. The file is stored alone in a directory built from row ids, `data/workspaces/<workspace>/documents/<document>/`, under the client's filename made safe for every platform ([`original_file.py`](../../surfsense_local/backend/modules/documents/original_file.py)): the last path part only, with [pathvalidate](https://github.com/thombashi/pathvalidate) removing characters no filesystem accepts and suffixing Windows reserved names, leading dots dropped so the file is never hidden, cut before the extension so the whole name fits in 120 bytes, which keeps a typical Windows path under its 260-character limit, and ending in the validated extension lowercased. A name with nothing left becomes `untitled`, and one that would be `extracted.md` becomes `extracted (1).md` (see [The original file](#the-original-file)). The name reaches the disk; the path never does.
 - Accepted extensions are `.pdf`, `.docx`, `.pptx`, `.xlsx`, `.html`, `.htm`, `.csv`, `.md`, `.markdown`, `.txt`, `.text`, `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` and `.webp`. The bytes must match the extension: the PDF signature; an OOXML zip holding its main part, with at most 10,000 entries and 2 GB unpacked; UTF-8 text with no NUL and few control bytes; or an image's magic number. The MIME type stored is the server's, never the client's. The frontend mirrors the list to filter its file picker and to skip unsupported files, dropped ones included, before uploading.
-- The sources panel takes files two ways: its **Add** button, and files dropped onto the panel, which shows "Drop files to add them as sources" while files are dragged over it ([`use-file-drop.ts`](../../surfsense_local/frontend/src/features/sources/use-file-drop.ts)). Both go through the same upload. The panel takes no drop while an upload runs, as **Add** is disabled then, and a drag carrying no files, such as selected text, does not light it up. A file dropped anywhere else in the window is refused ([`file-drop-guard.ts`](../../surfsense_local/frontend/src/app/file-drop-guard.ts)): unhandled, Chromium opens it in the window, and in Electron that replaces the app, since the main process lets `file:` navigation through. A dropped folder arrives as one entry with no extension and is reported as unsupported.
-- `dedup_key` is the SHA-256 of the bytes and is unique per workspace. Keying on the bytes rather than the filename means the same report saved twice is one document, while two different files both called `report.pdf` are two.
-- A batch is split, not rejected, except that a file over 500 MB fails the whole request with 413 and nothing in it is created. The response lists `created`, `duplicates` (each with the existing document's id) and `rejected` (each with a reason), so a dropped folder holding one known file keeps the rest.
+- The sources panel takes files two ways: its **Add** button, and files dropped onto the panel, which shows "Drop files to add them as sources" while files are dragged over it ([`use-file-drop.ts`](../../surfsense_local/frontend/src/features/sources/use-file-drop.ts)). Both go through the same upload. The panel takes no drop while an upload runs, as **Add** is disabled then, and a drag carrying no files, such as selected text, does not light it up. A file dropped anywhere else in the window is refused ([`file-drop-guard.ts`](../../surfsense_local/frontend/src/app/file-drop-guard.ts)): unhandled, Chromium opens it in the window, and in Electron that replaces the app, since the main process lets `file:` navigation through.
+- A whole folder comes in two ways: **Add › Folder…**, an `<input webkitdirectory>` whose files carry `webkitRelativePath`, and a dropped folder, which the panel walks with `webkitGetAsEntry()` ([`dropped-files.ts`](../../surfsense_local/frontend/src/features/sources/folder-upload/dropped-files.ts)). Either sends each file's path under the folder as `relative_paths`, and a drop on a folder row, or on a source inside one, adds `folder_id`. Before sending, the client skips paths through `.git`, `node_modules`, `__pycache__`, `.DS_Store`, `.obsidian` and `.trash`, sets aside unsupported files and any file over 500 MB, which it lists as rejected rather than letting one fail its request with `413`, and sends the rest in requests of at most 50 files or 200 MB ([`upload-plan.ts`](../../surfsense_local/frontend/src/features/sources/folder-upload/upload-plan.ts)).
+- Files go into the `folder_id` form field's folder, else the top of the Library. `relative_paths`, a JSON list index for index with `files`, carries an added folder's tree: each file lands in the folders its path names below the target (`Research/2024/a.pdf` makes `Research` and `2024`), made as needed with `ensure_folder_path`. Levels past the depth cap are joined with " / " into the deepest level there is room for, so a deep tree arrives whole. A list of the wrong length is `422`; a folder from another workspace is `404`.
+- `dedup_key` is the SHA-256 of the bytes and is unique per folder. Keying on the bytes rather than the filename means the same report saved twice in one folder is one document, while two different files both called `report.pdf` are two. A file whose bytes sit in another folder is created in the new one too, so a copied folder has no holes, and copying it again adds only what is new.
+- A batch is split, not rejected, except that a file over 500 MB fails the whole request with 413 and nothing in it is created. The response lists `created`, `duplicates` (each with the existing document's id and its `folder_id`) and `rejected` (each with a reason), so a dropped folder holding one known file keeps the rest.
+- An upload of more than 20 files enqueues at `PRIORITY_BULK` (10); every other ingest runs at `PRIORITY_INTERACTIVE` (100), so a note written during a long folder copy is read first ([`tasks.py`](../../surfsense_local/backend/modules/documents/tasks.py)).
 - Accepted files become `FILE` rows in `pending`, with `mime_type`, `size_bytes` and `suffix` in `document_metadata`. The files move into place, the transaction commits, and only then is one ingest job enqueued per file, because the worker is another process and would look for rows this request had not yet written.
+
+## Folders
+
+Sources sit in folders of the workspace's Library ([data model](data-model.md#source_roots-and-folders), [proposal](../proposals/file-agent/01-sources-and-folders.md)). Routes are under `/workspaces/{workspace_id}` ([`modules/folders/`](../../surfsense_local/backend/modules/folders/)):
+
+| Method | Path | Does |
+|---|---|---|
+| `GET` | `/folders` | every live folder, flat, the Library's own folder (no parent) first, then by folded name |
+| `POST` | `/folders` | `{parent_id?, name, role?}`; no parent means the top of the Library; `201` |
+| `PATCH` | `/folders/{folder_id}` | `{name?, parent_id?, role?}`: rename, move, set or clear the role |
+| `GET` | `/folders/{folder_id}/summary` | `{folders, sources, artifacts}` below it, for the delete dialog |
+| `DELETE` | `/folders/{folder_id}` | delete it, its subfolders and every source in them, for good; `204` |
+| `POST` | `/folders/{folder_id}/cancel` | stop every queued or running read below it; `{cancelled}` |
+
+- A name is trimmed, 1 to 255 characters, and unique among its siblings by `name_key`, the name in NFC and case-folded in Python, since SQLite's `NOCASE` folds ASCII only: "Été" beside "ÉTÉ" is `409`.
+- Library folders go at most 8 levels below the Library's own folder; a create or move past that is `400`, and so is a move into the folder itself or below it.
+- The Library's own folder cannot be renamed, moved or deleted (`409`). A folder of another workspace, or one being deleted, is `404`.
+- Delete answers `409` while any source below is `processing`. Otherwise it marks the subtree `deleting`, which takes it out of every scope at once, and cancels its queued reads in the same transaction, so none starts and outlives its batch. It then removes the documents in batches of 500, each its own transaction with its bytes removed after the commit, then the folders. There is no Trash yet.
+- `POST /documents/move` refuses an id from another workspace (`422`) and skips a source whose bytes already sit in the target folder, reported as `{document_id, reason: "duplicate", duplicate_of}`.
+- Every change sends a `folders` event with the folder ids, an upload that made folders from its paths included; a move, a cancel and a delete also send a `documents` event with the document ids.
+- Every constructor files a source: a note and an upload go to the folder named or the top of the Library; an import rebuilds the bundle's folder path under the Library; an artifact starts unfiled.
 
 ## Retry, cancel and delete
 
@@ -126,13 +160,17 @@ Ingest keeps the pictures in each source, so the agent can place a source's char
 - `ingest` is a `SqliteHuey` queue in `huey.db`, a file of its own so the consumer's constant polling never contends for the write lock on `surfsense.db`.
 - `worker-ingest` drains it with one thread. Ingest saturates a CPU and writes to the database the API is serving from, so a second thread would spend its time behind the first one's lock. Studio has its own queue so an import never sits in front of a summary ([ADR 0008](../adr/0008-two-job-queues.md)).
 - The queue survives restarts. Electron starts the workers beside the API and only the API migrates, so each consumer waits until the database is at the latest revision before taking a job ([`wait_for_schema.py`](../../surfsense_local/backend/worker/wait_for_schema.py)); a job queued before an update would otherwise run against the old schema and fail. A job carries only its task's name, so each consumer imports every task before it starts (`import_tasks()`), and [`tests/integration/test_registration.py`](../../surfsense_local/backend/tests/integration/test_registration.py) fails when that list falls behind the task modules on disk.
-- Jobs are enqueued by upload, note creation, a note content edit and retry, and by import ([`import.md`](import.md)). The figures-only pass, `extract_figures`, shares the queue ([Figures](#figures)).
+- Jobs are enqueued by upload, note creation, a note content edit and retry, and by import ([`import.md`](import.md)). The queue takes the highest priority first: interactive work at 100, a bulk copy and an import at 10. The figures-only pass, `extract_figures`, shares the queue ([Figures](#figures)).
 - A source the app quit in the middle of ingesting is failed with `interrupted when the app closed` when the ingest worker next starts, before it takes a job ([`interrupted_documents.py`](../../surfsense_local/backend/worker/interrupted_documents.py)). Huey drops a job as it starts it, so nothing else would end it, and Retry accepts only a failed or cancelled document. A source still `pending` is still queued and is left alone.
 - Each transition the ingest worker makes, to `processing`, `ready` or `failed`, sends a `documents` event keyed by document id, and so does each change the API makes itself: a note written, an upload, a rename or edit, a retry, a cancel, and a delete, whose status is `deleted`. The sources panel reloads its list on each event and whenever a dropped stream is back, so a note a plugin writes shows as it is written; it still refetches every 10 seconds while any row is `pending` or `processing`, in case a notice was lost ([`overview.md`](overview.md#freshness)).
 
 ## Known gaps
 
-- Documents have no folders (`folder_id`); import keeps the hosted folder path in `document_metadata`. This needs a design.
+- Deleting a folder is permanent; the Trash is designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)).
+- Folders on disk (linked roots) are designed, not built.
+- The sources tree renders every visible row of the open folders, with no windowing, so a very large open folder costs render time. Which folders are open is not kept across a reload.
+- The tree's name filter runs on the client over the full listing, folding case with `toLocaleLowerCase`, which is close to the server's `name_key` but not identical; there is no `GET /folders/search`.
+- There is no multi-select with Shift or Ctrl, so Move to… and Delete act on one row at a time.
 - Parsing runs on the CPU. Windows and Linux ship CPU-only torch and no CUDA payload ([ADR 0012](../adr/0012-vulkan-only-gpu-backend.md)).
 - A picture in a Word or PowerPoint file is kept with no caption, even under a paragraph in Word's Caption style, because Docling links none; only a PDF's figures carry theirs.
 - OCR reads one script family per converter: PP-OCRv6 covers Latin, Chinese and Japanese, so scanned Korean, Cyrillic, Devanagari or Arabic text is misread.
