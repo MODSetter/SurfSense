@@ -10,7 +10,7 @@ llama-server reuses a prompt up to its first changed token and reads the rest; o
 
 ## Decision
 
-- What every request of a conversation or a job shares comes first; what is new comes last. A chat's system message is its instruction alone, and the turn's passages ride with its question, which is labelled after them so a short follow-up keeps its subject. A podcast segment's own part follows the sources every segment shares.
+- What every request of a conversation or a job shares comes first; what is new comes last. A chat's system message is its instruction alone, and the turn's passages ride with its question, which is labelled after them so a short follow-up keeps its subject. A podcast segment's whole draft prompt follows the sources every segment shares, behind a fixed one-line system prompt.
 - History is cut by whole exchanges to 75% of its budget when it overflows, and the thread records where it now starts, so the next turns start there too.
 - Each local model's preset pins `cache-ram`: a quarter of the memory the capacity budget gives a model, at most llama.cpp's 8,192 MiB.
 - A remote conversation is named only to a host known to route by the name: `session_id` to OpenRouter, with a top-level `cache_control` for an `anthropic/` model, and `prompt_cache_key` to OpenAI and to a ChatGPT plan. Every other host gets nothing new, because a strict endpoint rejects a field it does not know.

@@ -70,8 +70,7 @@ def _every_prompt(tier: Tier) -> dict[str, str]:
         "image": image.prompt(tier, FOCUS),
         "infographic": infographic.prompt(tier, FOCUS),
         "outline": outline.prompt(tier, BRIEF, FOCUS),
-        "draft": draft.prompt(tier, BRIEF),
-        "segment": draft.segment_prompt(tier, SEGMENT, 1, 2, "Sam: Welcome."),
+        "draft": draft.prompt(tier, BRIEF, SEGMENT, 1, 2, "Sam: Welcome."),
     } | {spec.key: office.build(tier, spec, FOCUS) for spec in (docx, pptx, xlsx, pdf)}
 
 

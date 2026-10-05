@@ -73,16 +73,14 @@ SEGMENTS = [
 
 def test_the_segment_prompt_places_the_beat_and_continues_from_the_recap() -> None:
     """The model knows where it is in the episode and what was just said."""
-    opening = draft.segment_prompt(Tier.CAPABLE, SEGMENTS[0], 1, 2, None)
+    opening = draft.prompt(Tier.CAPABLE, BRIEF, SEGMENTS[0], 1, 2, None)
     assert "segment 1 of 2" in opening
     assert "opening segment" in opening
     assert "- say hi" in opening and "about 100 words" in opening
 
-    middle = draft.segment_prompt(Tier.CAPABLE, SEGMENTS[1], 2, 2, "Sam: Welcome.")
+    middle = draft.prompt(Tier.CAPABLE, BRIEF, SEGMENTS[1], 2, 2, "Sam: Welcome.")
     assert "Sam: Welcome." in middle and "do not repeat" in middle
-
-    episode = draft.prompt(Tier.CAPABLE, BRIEF)
-    assert "1. Sam (host)" in episode and "pt-BR" in episode
+    assert "1. Sam (host)" in middle and "pt-BR" in middle
 
 
 def test_turns_are_attributed_by_slot_or_name_and_strangers_are_dropped() -> None:
@@ -206,8 +204,8 @@ class RecordingGenerator:
 
 def test_every_segment_reads_the_same_sources_before_what_is_its_own() -> None:
     """The runtime reuses a prompt only up to its first changed token. Measured on
-    Qwen3 1.7B: with the segment line first, each of four segments re-read 5,500
-    tokens of sources, 38 s each; with it after them, 0.65 s."""
+    Qwen3 1.7B: with the segment's instructions first, each of four segments
+    re-read about 6,200 tokens of sources; after them, about 230."""
     recorder = RecordingGenerator('{"turns": [{"speaker": 1, "text": "Hi."}]}')
     selection = SimpleNamespace(provider="llamacpp", name="qwen3", tier=Tier.CAPABLE)
     sources = [Source(1, "Saturn notes", "Galileo saw the rings in 1610.")]

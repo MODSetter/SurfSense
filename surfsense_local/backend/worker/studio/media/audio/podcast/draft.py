@@ -22,6 +22,12 @@ RECAP_CHARS = 800
 # counts under a planned segment.
 REPLY_TOKENS_PER_WORD = 12
 _JSON_NUDGE = "Your previous reply was not valid JSON. Return only the JSON object."
+# The same for every segment, so the runtime reads the sources once per episode.
+# A segment's instructions follow the sources whole: split, with what it shares
+# left up here, Qwen3 1.7B wrote half the dialogue in long lines.
+_SCRIPTWRITER = (
+    "You script natural podcast dialogue from the sources in the user's message."
+)
 
 
 @dataclass(frozen=True)
@@ -40,16 +46,14 @@ def draft(
 ) -> list[Turn]:
     """Every segment in order, each drafted with a recap of the ones before."""
     turns: list[Turn] = []
-    system = prompt(model.tier, brief)
     for position, segment in enumerate(segments, start=1):
-        text = segment_prompt(
-            model.tier, segment, position, len(segments), recap(turns, brief)
+        text = prompt(
+            model.tier, brief, segment, position, len(segments), recap(turns, brief)
         )
         turns.extend(
             _draft_one(
                 model,
                 brief,
-                system,
                 text,
                 position,
                 len(segments),
@@ -61,8 +65,14 @@ def draft(
     return turns
 
 
-def prompt(tier: Tier, brief: PodcastBrief) -> str:
-    """What every segment of the episode shares, so the runtime reads it once."""
+def prompt(
+    tier: Tier,
+    brief: PodcastBrief,
+    segment: Segment,
+    position: int,
+    total: int,
+    recap: str | None,
+) -> str:
     return prompting.load(
         __package__,
         tier,
@@ -70,21 +80,6 @@ def prompt(tier: Tier, brief: PodcastBrief) -> str:
         language=brief.language,
         style=brief.style.value,
         roster=roster(brief),
-    )
-
-
-def segment_prompt(
-    tier: Tier,
-    segment: Segment,
-    position: int,
-    total: int,
-    recap: str | None,
-) -> str:
-    """What only this segment is asked for, sent after the sources."""
-    return prompting.load(
-        __package__,
-        tier,
-        case="segment",
         continuity=_continuity(recap),
         position=position,
         total=total,
@@ -132,7 +127,6 @@ def recap(turns: list[Turn], brief: PodcastBrief) -> str | None:
 def _draft_one(
     model: ResolvedGeneration,
     brief: PodcastBrief,
-    system: str,
     text: str,
     position: int,
     total: int,
@@ -141,7 +135,7 @@ def _draft_one(
     max_tokens: int,
 ) -> list[Turn]:
     reply = generate.run_model(
-        model, system, sources, after_sources=text, max_tokens=max_tokens
+        model, _SCRIPTWRITER, sources, after_sources=text, max_tokens=max_tokens
     )
     try:
         return parse(reply, brief)
@@ -151,7 +145,7 @@ def _draft_one(
         )
     retry = generate.run_model(
         model,
-        system,
+        _SCRIPTWRITER,
         sources,
         after_sources=text,
         repair=generate.Repair(reply, _JSON_NUDGE),
