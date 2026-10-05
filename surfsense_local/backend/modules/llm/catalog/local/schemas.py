@@ -43,6 +43,10 @@ class BadgeRead(BaseModel):
     level: str
     verdict: str
     reason: str
+    # The tier the two sentences describe, for the interface to word in its own
+    # language; null when they are empty. `uma` picks between its wordings.
+    code: str | None = None
+    uma: bool = False
 
 
 class FitRead(BaseModel):

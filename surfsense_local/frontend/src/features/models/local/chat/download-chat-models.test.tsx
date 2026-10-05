@@ -440,6 +440,43 @@ describe("model catalog", () => {
     ).toBeTruthy()
   })
 
+  it("words a badge that names its tier itself", async () => {
+    // The API's sentences are English in every language; the tier beside them
+    // is what the interface has words for.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({}, [
+              build({
+                fit: fit({ state: "partial", offload_fraction: 0.7 }),
+                badge: {
+                  level: "notice",
+                  verdict: "backend verdict",
+                  reason: "backend reason",
+                  code: "heavy_spill",
+                  uma: true,
+                },
+              }),
+            ]),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText(
+        "Well over the GPU’s memory. Expect it to be slow."
+      )
+    ).toBeTruthy()
+    expect(screen.getByText("Reduced speed")).toBeTruthy()
+    expect(screen.queryByText("backend verdict")).toBeNull()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
   it("blocks install only when physics refuses", async () => {
     vi.stubGlobal(
       "fetch",

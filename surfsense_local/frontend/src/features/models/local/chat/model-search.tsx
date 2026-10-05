@@ -181,7 +181,7 @@ function RepoBuilds({
                       {formatSize(build.footprint_bytes)}
                     </span>
                   </div>
-                  <FitReason copy={build.badge} />
+                  <FitReason fit={build.fit} copy={build.badge} />
                 </div>
                 <BuildAction
                   build={build}
