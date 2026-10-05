@@ -7,12 +7,24 @@ from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.egress.service import EgressDeniedError
+from modules.llm.models import ProviderConnection
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
 from modules.llm.subscriptions.chatgpt.token_set import TokenSet
+from modules.llm.subscriptions.chatgpt.tokens import read_tokens
+from shared.secrets import UnreadableSecretError
 
 logger = logging.getLogger(__name__)
 
 REVOKE_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
+
+
+def tokens_to_revoke(connection: ProviderConnection) -> TokenSet | None:
+    """The tokens to end at OpenAI, or None when this install cannot open them:
+    a lost key must not block the sign-out or delete that recovers from it."""
+    try:
+        return read_tokens(connection)
+    except UnreadableSecretError:
+        return None
 
 
 def may_revoke(session: Session) -> bool:

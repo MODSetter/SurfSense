@@ -238,7 +238,11 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
     connection = session.get(ProviderConnection, connection_id)
     if connection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
-    forgotten = read_tokens(connection) if connection.auth_kind == CHATGPT else None
+    forgotten = (
+        revocation.tokens_to_revoke(connection)
+        if connection.auth_kind == CHATGPT
+        else None
+    )
     revoke = forgotten is not None and revocation.may_revoke(session)
     session.delete(connection)
     session.flush()

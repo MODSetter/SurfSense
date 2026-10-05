@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 from modules.llm.models import ProviderConnection
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
+from modules.llm.subscriptions.chatgpt.revocation import tokens_to_revoke
 from modules.llm.subscriptions.chatgpt.token_set import TokenSet
-from modules.llm.subscriptions.chatgpt.tokens import read_tokens, write_tokens
+from modules.llm.subscriptions.chatgpt.tokens import write_tokens
 
 CHATGPT = "chatgpt"
 # The plan's models are OpenAI's, so the manifest's OpenAI entries describe them.
@@ -66,7 +67,7 @@ def sign_out(session: Session, connection_id: int) -> TokenSet | None:
     Returns what was forgotten, for the caller to revoke once this commits.
     """
     connection = chatgpt_connection(session, connection_id)
-    forgotten = read_tokens(connection)
+    forgotten = tokens_to_revoke(connection)
     write_tokens(connection, None)
     session.flush()
     return forgotten
