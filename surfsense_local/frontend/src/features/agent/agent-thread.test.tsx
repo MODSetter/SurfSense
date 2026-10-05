@@ -92,6 +92,7 @@ const PROPOSAL = {
   updated_at: "2026-10-04T00:00:00Z",
   version: { root_id: 40, number: 1, parent_id: null },
   spec_kind: "python",
+  refinable: false,
 }
 
 /**

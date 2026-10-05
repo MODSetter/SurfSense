@@ -6,7 +6,9 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from modules.llm.profile import Tier
+from modules.llm.model_type import ModelType
+from modules.llm.models import ProviderConnection, SelectedModel
+from modules.llm.profile import Fingerprint, Tier
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.office.document import pipeline
 from worker.studio.office.document.strength import writes_script
@@ -20,7 +22,14 @@ pytestmark = pytest.mark.unit
 
 def _model(provider: str, tier: Tier) -> ResolvedGeneration:
     selection = type(
-        "Selection", (), {"provider": provider, "name": "m", "tier": tier}
+        "Selection",
+        (),
+        {
+            "provider": provider,
+            "name": "m",
+            "tier": tier,
+            "fingerprint": Fingerprint(provider, "m"),
+        },
     )()
     return ResolvedGeneration(selection, None)  # type: ignore[arg-type]
 
@@ -43,14 +52,42 @@ def _capture(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
     return systems
 
 
+def _selected(provider: str, base_url: str | None) -> SelectedModel:
+    connection = (
+        None
+        if base_url is None
+        else ProviderConnection(
+            label="c", provider="openai_compatible", base_url=base_url
+        )
+    )
+    return SelectedModel(
+        model_type=ModelType.TEXT_GEN,
+        provider=provider,
+        name="qwen3-32b",
+        connection=connection,
+    )
+
+
 @pytest.mark.parametrize(
-    ("provider", "strong"), [("llamacpp", False), ("openai_compatible", True)]
+    ("provider", "base_url", "strong"),
+    [
+        ("llamacpp", None, False),
+        ("openai_compatible", "http://localhost:11434/v1", False),  # Ollama
+        ("openai_compatible", "http://127.0.0.1:1234/v1", False),  # LM Studio
+        ("openai_compatible", "http://[::1]:8080/v1", False),
+        ("openai_compatible", "http://LocalHost:11434/v1", False),
+        ("openai_compatible", "http://127.0.0.2:8080/v1", False),
+        ("openai_compatible", "https://openrouter.ai/api/v1", True),
+        # Another computer on the network, as egress and the tier count it.
+        ("openai_compatible", "http://192.168.1.20:11434/v1", True),
+        ("openai_compatible", "http://0.0.0.0:11434/v1", True),
+    ],
 )
-def test_a_model_on_llama_cpp_is_small_and_one_on_a_server_is_strong(
-    provider: str, strong: bool
+def test_a_model_served_from_this_computer_is_small_and_a_remote_one_strong(
+    provider: str, base_url: str | None, strong: bool
 ) -> None:
-    """The provisional rule: where the model runs decides its path."""
-    assert writes_script(_model(provider, Tier.CAPABLE).selection) is strong
+    """The provisional rule: remote is strong, local is small, whatever serves it."""
+    assert writes_script(_selected(provider, base_url)) is strong
 
 
 @pytest.mark.parametrize("tier", list(Tier))

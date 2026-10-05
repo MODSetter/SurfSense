@@ -12,7 +12,11 @@ from modules.artifacts.script_documents.version import (
     next_version_number,
     version_of,
 )
-from modules.artifacts.studio_documents.recipe import RECIPE_KEY, refined
+from modules.artifacts.studio_documents.recipe import (
+    RECIPE_KEY,
+    refined,
+    studio_made,
+)
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import read_index
@@ -40,7 +44,19 @@ def refinable_spec(session: Session, artifact_id: int) -> DocumentSpec:
     if spec is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "Only a Word document or PDF made in Studio or by the agent can be refined.",
+            "Only a Word document or PDF made in Studio can be refined.",
+        )
+    # 07, decision 8: the agent keeps editing its own documents in its chat.
+    if not studio_made(artifact.artifact_metadata):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The agent made this document: ask for changes in its chat.",
+        )
+    # A failed or stopped Retry keeps the last spec, but the user no longer sees it.
+    if artifact.document.status is not DocumentStatus.READY:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This version did not finish: retry it, or refine another version.",
         )
     return spec
 

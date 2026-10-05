@@ -9,9 +9,9 @@ from modules.artifacts.flashcard_progress import (
 )
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
-from modules.artifacts.script_documents.spec import SpecKind
+from modules.artifacts.script_documents.spec import SpecKind, spec_kind
 from modules.artifacts.script_documents.version import version_of
-from modules.artifacts.studio_documents.recipe import shown_spec_kind
+from modules.artifacts.studio_documents.recipe import shown_spec_kind, studio_made
 from modules.documents.models import DocumentStatus
 
 Prompt = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
@@ -133,6 +133,8 @@ class ArtifactRead(BaseModel):
     # None for an artifact that keeps no spec and so has no versions.
     version: ArtifactVersionRead | None = None
     spec_kind: SpecKind | None = None
+    # Whether Refine may rewrite this version: a ready Word or PDF Studio made.
+    refinable: bool = False
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactRead":
@@ -149,6 +151,7 @@ class ArtifactRead(BaseModel):
             updated_at=artifact.updated_at,
             version=_version(artifact),
             spec_kind=shown_spec_kind(artifact.artifact_metadata),
+            refinable=_refinable(artifact),
         )
 
 
@@ -178,6 +181,16 @@ class ArtifactDetail(ArtifactRead):
             quiz_state=_quiz_state(artifact),
             flashcard_state=_flashcard_state(artifact),
         )
+
+
+def _refinable(artifact: Artifact) -> bool:
+    """The agent's own documents are edited in its chat (07, decision 8)."""
+    meta = artifact.artifact_metadata
+    return (
+        artifact.document.status is DocumentStatus.READY
+        and spec_kind(meta) is not None
+        and studio_made(meta)
+    )
 
 
 def _version(artifact: Artifact) -> ArtifactVersionRead | None:

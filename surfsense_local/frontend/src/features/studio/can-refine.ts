@@ -1,14 +1,8 @@
 import type { Artifact } from "./api"
 
-// The formats whose spec Refine rewrites; the others keep no spec to rewrite.
-const REFINABLE_FORMATS = new Set(["docx", "pdf"])
-
 /** Whether this version can be rewritten into the next one: a finished Word
- *  or PDF document that kept its Markdown or its script. */
+ *  or PDF document Studio made. The agent's own documents are edited in its
+ *  chat (07-create-and-edit-mvp, decision 8), so the API says which. */
 export function canRefine(artifact: Artifact): boolean {
-  return (
-    artifact.status === "ready" &&
-    REFINABLE_FORMATS.has(artifact.format) &&
-    artifact.spec_kind !== null
-  )
+  return artifact.refinable
 }

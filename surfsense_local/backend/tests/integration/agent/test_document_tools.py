@@ -14,6 +14,7 @@ from modules.agent.previews import Previews
 from modules.agent.tool_endpoint import list_images, render_document
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.service import create_script_document
+from modules.artifacts.studio_documents.recipe import RECIPE_KEY, drafted
 from modules.artifacts.studio_documents.service import create_refine_version
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import figures_dir, write_index
@@ -875,7 +876,8 @@ async def test_reading_a_document_refined_in_studio_skips_the_version_with_no_sc
     tools: ToolEndpoint, engine: Engine
 ) -> None:
     """A Refine's version keeps its script only once it renders; until then, and
-    if it fails, the newest script is the one before it."""
+    if it fails, the newest script is the one before it. Refine is Studio's, so
+    the first version is a script Studio drafted."""
     workspace_id = await tools.workspace()
     with create_session_factory(engine)() as session:
         first = create_script_document(
@@ -889,6 +891,7 @@ async def test_reading_a_document_refined_in_studio_skips_the_version_with_no_sc
         )
         first_id = first.id
         first.document.status = DocumentStatus.READY  # as its run left it
+        first.artifact_metadata = {**first.artifact_metadata, RECIPE_KEY: drafted()}
         session.commit()
         # As the refine route leaves it: pending, its rewrite not written yet.
         create_refine_version(session, first_id, "Shorter")

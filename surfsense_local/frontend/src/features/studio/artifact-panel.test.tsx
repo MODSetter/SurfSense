@@ -144,6 +144,7 @@ describe("artifact panel versions", () => {
       updated_at: `2026-10-0${number}T00:00:00Z`,
       version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
       spec_kind: "python",
+      refinable: false,
       ...extra,
     } satisfies Artifact
   }
@@ -269,6 +270,7 @@ describe("artifact panel versions", () => {
           updated_at: "2026-09-06T00:00:00Z",
           version: null,
           spec_kind: null,
+          refinable: false,
         })
       )
     )
@@ -289,6 +291,7 @@ describe("artifact panel versions", () => {
             updated_at: "2026-09-06T00:00:00Z",
             version: null,
             spec_kind: null,
+            refinable: false,
           },
         ]}
         onOpenVersion={vi.fn()}
@@ -318,6 +321,7 @@ describe("artifact panel refine", () => {
       updated_at: `2026-10-0${number}T00:00:00Z`,
       version: { root_id: 40, number, parent_id: number > 1 ? id - 1 : null },
       spec_kind: "markdown",
+      refinable: true,
       ...extra,
     } satisfies Artifact
   }
@@ -385,7 +389,7 @@ describe("artifact panel refine", () => {
     ).toBe("")
   })
 
-  it("offers Refine on a PDF written as a script too", async () => {
+  it("offers Refine on a PDF Studio wrote as a script too", async () => {
     const v1 = report(40, 1, { format: "pdf", spec_kind: "python" })
     serveDetail(v1)
 
@@ -454,7 +458,11 @@ describe("artifact panel refine", () => {
   })
 
   it("offers no Refine on a summary, or on a document kept without a spec", async () => {
-    const summary = report(40, 1, { format: "summary", spec_kind: null })
+    const summary = report(40, 1, {
+      format: "summary",
+      spec_kind: null,
+      refinable: false,
+    })
     serveDetail(summary)
 
     const { unmount } = render(panel([summary], vi.fn()))
@@ -462,15 +470,29 @@ describe("artifact panel refine", () => {
     expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
     unmount()
 
-    const drafted = report(40, 1, { spec_kind: null, version: null })
+    const drafted = report(40, 1, {
+      spec_kind: null,
+      version: null,
+      refinable: false,
+    })
     serveDetail(drafted)
     render(panel([drafted], vi.fn()))
     expect(await screen.findByText("Body of the report")).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
   })
 
+  it("offers no Refine on a document the agent wrote, which it edits in chat", async () => {
+    const script = report(40, 1, { spec_kind: "python", refinable: false })
+    serveDetail(script)
+
+    render(panel([script], vi.fn()))
+
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+  })
+
   it("offers no Refine until the open version is ready", async () => {
-    const failed = report(40, 1, { status: "failed" })
+    const failed = report(40, 1, { status: "failed", refinable: false })
     serveDetail(failed)
 
     render(panel([failed], vi.fn()))

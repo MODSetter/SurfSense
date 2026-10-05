@@ -20,7 +20,7 @@ from modules.artifacts.models import Artifact
 from modules.documents.models import Document
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
-from modules.llm.profile import Tier
+from modules.llm.profile import Fingerprint, Tier
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
 from modules.workspaces.models import Workspace
@@ -100,7 +100,14 @@ def _choose(session: Session, monkeypatch: pytest.MonkeyPatch, provider: str) ->
     session.add(SelectedModel(model_type=ModelType.TEXT_GEN, provider=LOCAL, name="m"))
     session.commit()
     selection = type(
-        "Selection", (), {"provider": provider, "name": "m", "tier": Tier.CAPABLE}
+        "Selection",
+        (),
+        {
+            "provider": provider,
+            "name": "m",
+            "tier": Tier.CAPABLE,
+            "fingerprint": Fingerprint(provider, "m"),
+        },
     )()
     monkeypatch.setattr(
         "worker.studio.job.resolve_generation",
@@ -111,7 +118,7 @@ def _choose(session: Session, monkeypatch: pytest.MonkeyPatch, provider: str) ->
         return "m", 32_768
 
     monkeypatch.setattr(
-        "modules.artifacts.studio_documents.router.selected_model_window", window
+        "modules.artifacts.studio_documents.fits.selected_model_window", window
     )
 
 

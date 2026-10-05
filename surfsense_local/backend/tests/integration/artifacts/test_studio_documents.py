@@ -14,7 +14,7 @@ from modules.artifacts.service import create_artifact_job, regenerate_artifact
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
-from modules.llm.profile import Tier
+from modules.llm.profile import Fingerprint, Tier
 from modules.llm.resolution import ResolvedGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
@@ -70,7 +70,14 @@ def _choose(session: Session, monkeypatch: pytest.MonkeyPatch, provider: str) ->
     )
     session.commit()
     selection = type(
-        "Selection", (), {"provider": provider, "name": "m", "tier": Tier.CAPABLE}
+        "Selection",
+        (),
+        {
+            "provider": provider,
+            "name": "m",
+            "tier": Tier.CAPABLE,
+            "fingerprint": Fingerprint(provider, "m"),
+        },
     )()
     monkeypatch.setattr(
         "worker.studio.job.resolve_generation",

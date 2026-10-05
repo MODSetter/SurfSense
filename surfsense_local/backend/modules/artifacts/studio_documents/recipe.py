@@ -42,9 +42,14 @@ def refinement(metadata: dict[str, Any] | None) -> Refinement | None:
     return Refinement(recipe["instruction"], spec_from_metadata(recipe["base"]))
 
 
+def studio_made(metadata: dict[str, Any] | None) -> bool:
+    """Whether Studio drafted or refined this version; the agent's scripts keep no recipe."""
+    return RECIPE_KEY in (metadata or {})
+
+
 def renders_as_stored(metadata: dict[str, Any] | None) -> bool:
     """Whether the job runs the stored spec and asks no model: the agent's scripts."""
-    return spec_kind(metadata) is not None and RECIPE_KEY not in (metadata or {})
+    return spec_kind(metadata) is not None and not studio_made(metadata)
 
 
 def shown_spec_kind(metadata: dict[str, Any] | None) -> SpecKind | None:

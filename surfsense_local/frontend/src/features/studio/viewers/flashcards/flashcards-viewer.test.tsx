@@ -27,6 +27,7 @@ const artifact: ArtifactDetail = {
   updated_at: "2026-01-01T00:00:00Z",
   version: null,
   spec_kind: null,
+  refinable: false,
   content: null,
   files: [
     {
