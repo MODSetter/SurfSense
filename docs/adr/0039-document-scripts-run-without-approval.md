@@ -36,4 +36,6 @@ The runner and the agent's side are built on `dev_mod` ([the create-and-edit sli
 - **Kept with its version.** An agent's Word document or PDF is a script document: its script is the artifact's spec, each edit is a new version, and the next edit reads and changes that script.
 - **No shell.** `bash` is `deny` in [`opencode_config.py`](../../surfsense_local/backend/modules/agent/opencode_config.py), and the agent reaches the runner only through `surfsense_render_document` ([agent](../architecture/agent.md#documents-the-agent-makes)).
 
-Not yet: Studio's own Office formats still run with `exec()` in [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py), and nothing blocks a script's network access or the processes it starts.
+- **Studio's Word and PDF.** A strong model's script runs through the runner and is kept as the version's spec; a small model writes Markdown that committed builders render ([studio](../architecture/studio.md#word-and-pdf)).
+
+Not yet: Studio's PowerPoint and Excel still run with `exec()` in [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py), and nothing blocks a script's network access or the processes it starts.
