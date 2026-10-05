@@ -9,7 +9,7 @@ import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import type { AgentStep, SourceScope } from "./api"
+import type { AgentStep, TurnSources } from "./api"
 import { stepLabel } from "./step-label"
 
 function StepStatus({ status }: { status: AgentStep["status"] }) {
@@ -101,7 +101,7 @@ export function AgentSteps({
   scope = null,
 }: {
   steps: AgentStep[]
-  scope?: SourceScope | null
+  scope?: TurnSources | null
 }) {
   if (steps.length === 0) {
     return null

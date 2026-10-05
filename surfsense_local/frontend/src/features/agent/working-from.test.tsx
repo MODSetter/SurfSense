@@ -41,6 +41,16 @@ describe("WorkingFrom", () => {
     ).toBeTruthy()
   })
 
+  it("counts a turn too large to name its sources, with no names to hover", () => {
+    render(
+      <WorkingFrom scope={{ document_ids: [], titles: [], count: 5000 }} />
+    )
+
+    const line = screen.getByText("Working from 5,000 sources")
+    // The named count is a focusable tooltip trigger; this one has no names.
+    expect(line.getAttribute("tabindex")).toBeNull()
+  })
+
   it("says when no sources were selected", () => {
     render(<WorkingFrom scope={scopeOf([])} />)
 

@@ -33,6 +33,9 @@ export type AgentStep = {
 export type TurnSources = {
   document_ids: number[]
   titles: string[]
+  /** Set, with no ids or titles, when the turn had too many sources to tag
+   *  each one (more than 200). */
+  count?: number
 }
 
 /** Something the agent wants to do that waits for the user's answer. */
