@@ -232,6 +232,7 @@ async def test_a_pick_that_passes_its_checks_installs_and_can_be_locked(
     job = await wait_for_end(client, started.json()["id"])
 
     assert job["event"]["type"] == "complete", job
+    assert job["event"]["code"] == "ready"
     # Opened again, the search offers Use rather than a second download.
     reopened = (await client.get(f"/embedding/huggingface/repo/{REPO}")).json()
     assert build_of(reopened)["installed_as"] == INSTALLED_AS
@@ -268,5 +269,7 @@ async def test_a_pick_that_fails_its_checks_is_removed(
     job = await wait_for_end(client, started.json()["id"])
 
     assert job["event"]["type"] == "error"
+    # Its counts are in the sentence, which has no code yet.
+    assert job["event"]["code"] is None
     assert "6 of 10" in json.dumps(job["event"])
     assert not (data_dir / "embeddings" / INSTALLED_AS).exists()

@@ -56,7 +56,7 @@ Main resolves the language ([`app-locale.ts`](../../surfsense_local/electron/src
 
 ## Backend text
 
-The backend stays English. Where it sends a code with its prose, the frontend shows its own text for the code and falls back to the backend's English for a code it does not know: the chat's error kinds ([`chat-error-text.ts`](../../surfsense_local/frontend/src/features/chat/chat-error-text.ts)) and the license rejection reasons ([`license-error-text.ts`](../../surfsense_local/frontend/src/features/license/license-error-text.ts)).
+The backend stays English. Where it sends a code with its prose, the frontend shows its own text for the code and falls back to the backend's English for a code it does not know: the chat's error kinds ([`chat-error-text.ts`](../../surfsense_local/frontend/src/features/chat/chat-error-text.ts)), the license rejection reasons ([`license-error-text.ts`](../../surfsense_local/frontend/src/features/license/license-error-text.ts)), and why a Studio format is unavailable, where `unavailable_code` names the missing model types, such as `needs_chat_image` ([`studio-unavailable-text.ts`](../../surfsense_local/frontend/src/features/studio/studio-unavailable-text.ts)); a create, a regenerate or a podcast brief refused for that reason carries the same code in its `409` ([`studio-error-text.ts`](../../surfsense_local/frontend/src/features/studio/studio-error-text.ts)); and a model install's events, where `code` names the step or the refusal and a refusal for disk space sends its sizes as raw bytes for the message to format ([`install-text.ts`](../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts)). Each code has a whole sentence of its own, not a list joined from parts.
 
 ## Build
 
@@ -85,4 +85,4 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 
 ## Known gaps
 
-- Backend prose without a code stays English in every language: model install messages, fit verdicts, `not_runnable_reason`, a Studio format's `unavailable_reason`, and the disk-space `detail` that `lib/api.ts` wraps in a translated sentence.
+- Backend prose without a code stays English in every language: fit verdicts, `not_runnable_reason`, which an install refusing a searched file repeats, an embedder's failed check at install, the disk-space `detail` that `lib/api.ts` wraps in a translated sentence, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.

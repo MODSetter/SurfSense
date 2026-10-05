@@ -44,6 +44,7 @@ from modules.llm.schemas import (
     ModelTestWrite,
 )
 from modules.llm.selectable import selectable_for
+from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
 from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
 from modules.llm.subscriptions.chatgpt.tokens import read_tokens
@@ -238,9 +239,19 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
     connection = session.get(ProviderConnection, connection_id)
     if connection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    forgotten = (
+        revocation.tokens_to_revoke(connection)
+        if connection.auth_kind == CHATGPT
+        else None
+    )
+    revoke = forgotten is not None and revocation.may_revoke(session)
     session.delete(connection)
     session.flush()
     egress.forget_if_unused(session, egress.host_destination(connection.base_url))
+    # Committed first: the delete stands even if OpenAI never answers.
+    session.commit()
+    if revoke:
+        revocation.revoke(forgotten)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

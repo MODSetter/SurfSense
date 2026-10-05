@@ -63,6 +63,7 @@ async def test_an_audio_build_installs_into_its_folder_and_names_itself_in_the_c
     job = await install(client, "kokoro-82m", "Q8_0")
 
     assert job["event"]["type"] == "complete", job
+    assert job["event"]["code"] == "ready"
     assert (audio_dir / "kokoro-82m-q8_0.gguf").exists()
     config = json.loads((audio_dir / "server.json").read_text())
     assert config == {
@@ -199,6 +200,48 @@ async def test_deleting_the_chosen_audio_model_clears_the_audio_selection(
     assert reply.status_code == 200, reply.text
     assert reply.json()["selection_cleared"] is True
     assert (await client.get("/llm/selection/audio_gen")).status_code == 404
+
+
+async def test_deleting_an_audio_model_its_server_holds_open_restarts_the_server(
+    client: AsyncClient, audio_dir, fake_hub, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows refuses to delete a file audiocpp_server has open, and Electron
+    restarts that server only when `server.json` is rewritten. The delete
+    rewrites it, keeps the model and its selection, and works when asked again."""
+    import os
+    from pathlib import Path
+
+    await install(client, "kokoro-82m", "Q8_0", select=True)
+    weights = audio_dir / "kokoro-82m-q8_0.gguf"
+    config = audio_dir / "server.json"
+    os.utime(config, (0, 0))
+    unlink = Path.unlink
+
+    def held_open(self: Path, missing_ok: bool = False) -> None:
+        if self == weights:
+            raise PermissionError(32, "The process cannot access the file", str(self))
+        unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", held_open)
+
+    reply = await client.delete("/llm/models/kokoro-82m-q8_0")
+
+    assert reply.status_code == 409, reply.text
+    assert "Delete it again" in reply.json()["detail"]
+    assert weights.exists()
+    assert config.stat().st_mtime > 0
+    assert [m["id"] for m in json.loads(config.read_text())["models"]] == [
+        "kokoro-82m-q8_0"
+    ]
+    assert (await client.get("/llm/selection/audio_gen")).status_code == 200
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    again = await client.delete("/llm/models/kokoro-82m-q8_0")
+
+    assert again.status_code == 200, again.text
+    assert again.json()["selection_cleared"] is True
+    assert not weights.exists()
+    assert not config.exists()
 
 
 async def test_a_voicing_refusal_names_a_lighter_curated_model(

@@ -127,6 +127,7 @@ export function ChatComposer({
   onModelSetup,
   onModelSelected,
   readsImages,
+  describedBy,
   onUploadSources,
   isUploadingSources = false,
 }: {
@@ -143,6 +144,8 @@ export function ChatComposer({
   onModelSelected: (selection: ModelSelection) => void
   // Attach and paste take images only while the selected model reads them.
   readsImages: boolean
+  // The conversation the composer writes into, named for a screen reader.
+  describedBy?: string
   onUploadSources?: (files: File[]) => void
   isUploadingSources?: boolean
 }) {
@@ -196,6 +199,7 @@ export function ChatComposer({
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
+          aria-describedby={describedBy}
           // Held whenever a send could not go anywhere: no model, a model that
           // can't be used, or egress to it still off.
           disabled={

@@ -13,12 +13,13 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
+from modules.llm.models import ProviderConnection
 from modules.llm.providers.types import Message
 from modules.llm.resolution import resolve_generation
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
 from shared.db import create_session_factory
 
-from .fake_openai import EMAIL, FakeOpenAI
+from .fake_openai import EMAIL, ISSUED_CLIENT, FakeOpenAI
 
 pytestmark = pytest.mark.integration
 
@@ -166,6 +167,104 @@ async def test_signing_out_keeps_the_connection_and_signing_in_again_restores_it
     # Signing out dropped the issued client with the tokens, so this registers anew.
     assert fake_openai.authorized[-1]["client_id"] == "dynamic_agent_client"
     assert (await client.get("/llm/connections")).json()[0]["signed_in"] is True
+
+
+async def test_signing_out_revokes_the_refresh_token_at_openai(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """Forgetting the tokens here is not enough: the grant must end at OpenAI too."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    refresh_token = fake_openai.issued_refresh[-1]
+
+    await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    assert fake_openai.revocations == [
+        {
+            "token": refresh_token,
+            "token_type_hint": "refresh_token",
+            "client_id": ISSUED_CLIENT,
+        }
+    ]
+
+
+async def test_deleting_a_signed_in_connection_revokes_its_refresh_token(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """A delete signs out as well, so it ends the grant the same way."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    refresh_token = fake_openai.issued_refresh[-1]
+
+    deleted = await client.delete(f"/llm/connections/{connection_id}")
+
+    assert deleted.status_code == 204
+    assert [form["token"] for form in fake_openai.revocations] == [refresh_token]
+
+
+async def test_a_failed_revocation_still_signs_out_here(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """The local sign-out is what the person asked for; OpenAI being down cannot undo it."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    fake_openai.revocation_down = True
+
+    signed_out = await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    assert signed_out.status_code == 204
+    assert (await client.get("/llm/connections")).json()[0]["signed_in"] is False
+
+
+async def test_a_malformed_sign_in_url_still_signs_out_here(
+    client: AsyncClient, fake_openai: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A configured URL that does not parse costs the revocation, not the sign-out."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    monkeypatch.setattr(get_endpoints(), "auth_url", "http://[::1")
+
+    signed_out = await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    assert signed_out.status_code == 204
+    assert (await client.get("/llm/connections")).json()[0]["signed_in"] is False
+    assert fake_openai.revocations == []
+
+
+def _scramble_tokens(engine: Engine, connection_id: int) -> None:
+    """Tokens this install can no longer open, as after a keychain reset."""
+    with create_session_factory(engine)() as session:
+        session.get(ProviderConnection, connection_id).oauth_ciphertext = b"lost-key"
+        session.commit()
+
+
+async def test_tokens_that_cannot_be_decrypted_still_sign_out_and_delete(
+    client: AsyncClient, engine: Engine, fake_openai: FakeOpenAI
+) -> None:
+    """Signing out and deleting are the ways out of a lost key, so neither can need it."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+
+    _scramble_tokens(engine, connection_id)
+    signed_out = await client.delete(f"/llm/connections/{connection_id}/sign-in")
+    _scramble_tokens(engine, connection_id)
+    deleted = await client.delete(f"/llm/connections/{connection_id}")
+
+    assert signed_out.status_code == 204
+    assert deleted.status_code == 204
+    assert fake_openai.revocations == []
+
+
+async def test_a_sign_in_host_turned_off_is_not_called_to_sign_out(
+    client: AsyncClient,
+    fake_openai: FakeOpenAI,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The person's off switch holds even for a revocation."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    monkeypatch.setattr(get_endpoints(), "auth_url", "https://auth.example")
+
+    signed_out = await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    assert signed_out.status_code == 204
+    assert (await client.get("/llm/connections")).json()[0]["signed_in"] is False
+    assert "Could not revoke" not in caplog.text
 
 
 async def test_a_label_already_taken_is_refused_before_the_browser_opens(

@@ -49,7 +49,17 @@ _ROOT_INDEX_FRONTMATTER = '---\nokf_version: "0.1"\n---\n\n'
 _RESERVED_STEMS = {"index", "log"}
 _ACCOUNT_FORMAT = "surfsense-export/1"
 _SKIP_REASONS = frozenset({"pending", "processing", "empty"})
-_CITATION_RE = re.compile(r"\[citation:\s*([^\]]+?)\s*\]")
+# The forms the web renderer accepts: full-width brackets, zero-width spaces
+# and comma-separated chunk ids, as older model-written markers used them.
+_CITATION_RE = re.compile(
+    r"[\[\u3010]\u200b?citation:\s*([^\]\u3011]+?)\s*\u200b?[\]\u3011]"
+)
+# The renderer's id-list grammar: only payloads matching it are comma lists;
+# anything else (a URL with commas in its path) is one opaque payload.
+_CITATION_ID_LIST_RE = re.compile(r"(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*", re.ASCII)
+_CHUNK_ID_RE = re.compile(r"-?\d+", re.ASCII)
+# Chunk.id is a 32-bit Integer column; larger ids cannot exist and fail to bind.
+_INT32_MIN, _INT32_MAX = -(2**31), 2**31 - 1
 _CHAT_ROLES = frozenset({"user", "assistant"})
 
 
@@ -58,14 +68,25 @@ def _sanitize_filename(title: str) -> str:
     return safe[:80] or "document"
 
 
+def _citation_payloads(text: str) -> list[str]:
+    payloads: list[str] = []
+    for raw in _CITATION_RE.findall(text):
+        raw = raw.strip()
+        if _CITATION_ID_LIST_RE.fullmatch(raw):
+            payloads.extend(piece.strip() for piece in raw.split(","))
+        else:
+            payloads.append(raw)
+    return payloads
+
+
 def flatten_message_text(
     text: str, title_by_payload: dict[str, str]
 ) -> tuple[str, list[dict[str, str]]]:
     """Strip ``[citation:…]`` markers and collect distinct titles in first-seen order."""
     citations: list[dict[str, str]] = []
     seen: set[str] = set()
-    for raw in _CITATION_RE.findall(text):
-        title = title_by_payload.get(raw.strip())
+    for payload in _citation_payloads(text):
+        title = title_by_payload.get(payload)
         if not title or title in seen:
             continue
         seen.add(title)
@@ -468,10 +489,14 @@ async def _citation_titles(
 ) -> dict[str, str]:
     chunk_ids: list[int] = []
     for payload in payloads:
-        try:
-            chunk_ids.append(int(payload))
-        except ValueError:
+        if not _CHUNK_ID_RE.fullmatch(payload):
             continue
+        try:
+            chunk_id = int(payload)
+        except ValueError:  # past Python's int-string digit limit
+            continue
+        if _INT32_MIN <= chunk_id <= _INT32_MAX:
+            chunk_ids.append(chunk_id)
     if not chunk_ids:
         return {}
     result = await session.execute(
@@ -506,10 +531,7 @@ async def flatten_workspace_chats(
         for message in thread.messages:
             if _role_value(message.role) not in _CHAT_ROLES:
                 continue
-            payloads.update(
-                raw.strip()
-                for raw in _CITATION_RE.findall(extract_text_content(message.content))
-            )
+            payloads.update(_citation_payloads(extract_text_content(message.content)))
     title_by_payload = await _citation_titles(session, workspace_id, payloads)
 
     exported: list[dict[str, Any]] = []

@@ -16,6 +16,7 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.server_config impor
 )
 from modules.llm.catalog.local.engines.audiocpp.rows.catalog import audio_catalog
 from modules.llm.catalog.local.engines.engine import InstallStep
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.installs import InstalledBuild, read_installs
 from modules.llm.catalog.local.manifest import CuratedModel
@@ -29,6 +30,7 @@ class AudioCppEngine:
     name = ENGINE
     model_types = (ModelType.AUDIO_GEN,)
     provider = PROVIDER
+    server_follows_selection = False
 
     def __init__(
         self,
@@ -127,13 +129,18 @@ class AudioCppEngine:
         # Electron restarts the server on the new file; the model loads on its
         # first request, so there is nothing to wait for here.
         self._write_config()
-        yield InstallStep("complete", "Model is ready")
+        yield InstallStep("complete", "Model is ready", code=InstallCode.READY)
 
     def _write_config(self) -> None:
         if self._audio_dir is not None:
             write_server_config(self._audio_dir, self.installed(), self._espeak)
 
     def after_remove(self) -> None:
+        self._write_config()
+
+    async def release(self, model_id: str) -> None:
+        # Electron restarts the server on any rewrite, and the new one opens a
+        # model only on its first request.
         self._write_config()
 
     def on_startup(self) -> None:

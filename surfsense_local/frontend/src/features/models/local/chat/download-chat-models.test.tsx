@@ -742,7 +742,8 @@ describe("model catalog", () => {
     await user.click(download)
     installs.move({
       type: "error",
-      message: "This build is too big for this computer. Pick a smaller one.",
+      message: "backend prose",
+      code: "too_big",
     })
     expect(
       await within(builds).findByText(
@@ -830,6 +831,30 @@ describe("model catalog", () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         "Download interrupted",
+        expect.objectContaining({ id: "model-install-error" })
+      )
+    )
+  })
+
+  it("says an install failure in its own words when the failure has a code", async () => {
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(catalog(), installs.handle))
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.click(
+      await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
+    await screen.findByRole("progressbar")
+    installs.move({
+      type: "error",
+      message: "backend prose",
+      code: "checksum_mismatch",
+    })
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "The downloaded file did not match the expected one. Retry the download.",
         expect.objectContaining({ id: "model-install-error" })
       )
     )

@@ -65,7 +65,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 - **History** is the thread's stored turns in `created_at` order, flattened to role and text. Stored citations and reasoning are for the UI, not the model. The newest earlier turn that carried images also carries them, unless the new turn brings its own ([Images](#images)).
 - **Sliding window.** The system message and the new user message are pinned; the most recent prior turns that fit the history budget are kept and older ones dropped.
 - **Budget** ([`budget.py`](../../surfsense_local/backend/modules/chat/budget.py)). One context window is shared by the system prompt (priced at 400 tokens), the excerpts (2,400: five hits of up to 480 tokens), the question (1,024, which `MessageText` enforces at the wire as 4,096 characters at the same four-characters-a-token estimate, refusing more with a 422 before any model is resolved) and a 1,024-token answer reserve, which is claimed first because llama.cpp stops a reply wherever the window runs out. History gets what remains of the model's window, floored at zero, so a narrow window means a shorter history rather than an overflowing turn. llama.cpp reports the window it actually allocated; an OpenAI-compatible endpoint reports none, and then history gets 3,000 tokens and `max_tokens` is left to the endpoint.
-- Each prior turn is priced by the local runtime's own tokenizer when it answers, and by `len(text) // 4` otherwise, plus 1,400 tokens per image it carries. The new turn's images are paid for out of the history budget before any prior turn is priced.
+- Each prior turn is priced by the local runtime's own tokenizer when it answers, and by `len(text) // 4` otherwise, plus 1,400 tokens per image it carries. The new turn's images are paid for out of the history budget before any prior turn is priced. That 1,400 is a ceiling for the trim, not a limit: the turn is refused with a 409, before anything is stored, only when a lower bound overflows a known window, the answer reserve plus the turn's own excerpts and question plus 256 per image, Gemma 3's fixed cost. The detail names how many images could fit; an unknown window lets the turn through.
 - **Retrieval query** is the new user message.
 
 ## The stream
@@ -73,7 +73,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 `POST .../messages` does, in order:
 
 1. Resolve the generation selection. With none, it answers `409` "no chat model selected" before anything streams, and the frontend opens model setup. It also resolves and stores the source scope (or validates `document_ids`), answers `503` if the embedding model files are missing, loads the history and runs `retrieve()`.
-2. Ask the generator whether the model reads images. A turn carrying images to a model that answers no gets a `409` and nothing is stored; images that are not an accepted image get a `422`.
+2. Ask the generator whether the model reads images. A turn carrying images to a model that answers no gets a `409` and nothing is stored, and so does one whose images overflow a known window even at 256 each ([Message assembly](#message-assembly)); images that are not an accepted image get a `422`.
 3. Build the context and the message list, with any images and retrieved image sources, and read the model's context window.
 4. Mark the model in use, so it cannot be deleted mid-answer; a deletion already in progress makes this a `409`.
 5. Store the user turn, with its images' files, and an empty assistant turn together. Their ids stay stable for the whole stream.
@@ -161,6 +161,8 @@ What it does not do:
 - Citations are buttons, not clickable `div`s.
 - A failed turn shows in an alert, which assistive technology announces.
 - The composer follows assistant-ui's keyboard behaviour.
+- While the turn waits, the thinking header's `role="status"` region says "Thinking" or the reading quarter. A second region (`reply-announcer.tsx`) stays silent until it says "Reply finished" once, for a reply it watched run to completion. It is keyed by message, because messages render by index and an instance would otherwise watch one thread's reply and announce another's. Tokens are never fed to it, since a polite region read on every delta would interrupt without pause; a reply loaded from history, a turn that ended with no answer, and one that failed or was stopped after text arrived say nothing; its alert, or the stop, already does. A stopped reply is marked `incomplete` with reason `cancelled` by the runtime ([`use-chat-runtime.ts`](../../surfsense_local/frontend/src/features/chat/use-chat-runtime.ts)), since assistant-ui would otherwise call it complete once the run ends.
+- The conversation has a heading, the thread's title, hidden visually because the visible title is the rename button. Focus does not move to it: on every thread switch the composer keeps the focus assistant-ui gives it, so someone can switch and type, and the composer is described by the heading (`aria-describedby`), so a screen reader names the conversation it writes into. A new chat has no heading until it is a thread.
 - The startup loader and the typed-in thread title respect `prefers-reduced-motion`.
 
 ## Agent threads
@@ -184,12 +186,11 @@ The same routes then reach the agent ([`modules/agent/agent_threads/`](../../sur
 - The sources panel's ticks belong to the workspace for the session, not to a thread: opening a thread does not load its stored `source_scope`, and a new chat's draft is not kept across a reload. Each turn sends the ticks on screen, which the server then stores on that thread.
 - The composer's and Studio's source counts come from the client's own listing, not from `POST /source-scope/resolve`, so they show ready sources only, never how many are still indexing or failed.
 - A scope list past 50,000 ids is refused with `422`. The panel sends folders where it can, so only more than 50,000 sources ticked or unticked one by one reach it.
+- The images `409` prices each image at Gemma 3's 256, so a dearer projector can still overflow unrefused: four Qwen2.5-VL images at the 1,024 px cap with five excerpts outgrow the 8,192 floor and fail as `context_too_long`.
 - An agent thread ignores the thinking switch, and its composer still shows the button as if it applied.
 - An agent thread's session is deleted only while opencode is running; one deleted before any turn has started opencode in this run of the app stays in opencode's database.
 - An agent thread's first turn is named after its first words, not by the model as a chat's is.
 - An agent thread refuses images.
-- No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. The trace now shows, so an empty answer is no longer unexplained, but how often it happens is unmeasured.
 - Nothing shows progress while a model loads beyond "Thinking": llama-server's prompt progress starts once the model is up ([`local-models/runtime.md`](local-models/runtime.md#prompt-progress)).
-- Nothing refuses a turn whose images alone outgrow the window. History floors at zero, but four attached images at 1,400 tokens each overflow a small local window before any history is kept, and the turn fails as `context_too_long`.
 - The per-image cost is priced, not measured: Gemma 3, the curated vision model, spends a fixed 256, and 1,400 covers Qwen2.5-VL at the 1,024 px cap. No measurement at the pinned build confirms either.

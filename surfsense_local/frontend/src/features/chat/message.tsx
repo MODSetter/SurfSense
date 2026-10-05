@@ -29,6 +29,7 @@ import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import { useCitationContext } from "./citation-context"
 import { CitationProvider, InlineCitation } from "./inline-citation"
+import { ReplyAnnouncer } from "./reply-announcer"
 import {
   ReplyThinking,
   type ReplyProgress,
@@ -94,6 +95,10 @@ function preparingFrom(custom: unknown): number | null {
 }
 
 function MessageThinking() {
+  const messageId = useAuiState(({ message }) => message.id)
+  const completed = useAuiState(
+    ({ message }) => message.status?.type === "complete"
+  )
   const running = useAuiState(
     ({ message }) => message.status?.type === "running"
   )
@@ -113,13 +118,23 @@ function MessageThinking() {
   )
 
   return (
-    <ReplyThinking
-      running={running}
-      answerStarted={answerStarted}
-      reasoning={reasoning}
-      progress={progress}
-      preparing={preparing}
-    />
+    <>
+      {/* Keyed by message: messages render by index, so an instance would
+          otherwise watch one thread's reply and announce another's. */}
+      <ReplyAnnouncer
+        key={messageId}
+        running={running}
+        answerStarted={answerStarted}
+        completed={completed}
+      />
+      <ReplyThinking
+        running={running}
+        answerStarted={answerStarted}
+        reasoning={reasoning}
+        progress={progress}
+        preparing={preparing}
+      />
+    </>
   )
 }
 

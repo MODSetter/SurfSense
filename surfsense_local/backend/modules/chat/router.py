@@ -21,7 +21,12 @@ from modules.agent.agent_threads.turn import agent_turn
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import selected_model_can_run_agent
 from modules.agent.thread_folder.layout import remove_thread_folder
-from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
+from modules.chat.budget import (
+    IMAGE_TOKENS,
+    answer_max_tokens,
+    history_budget,
+    image_room,
+)
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error, empty_reply_error
 from modules.chat.history import TokenCounter, build_messages
@@ -209,6 +214,7 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
+    _refuse_images_past_window(len(images), n_ctx, len(context) + len(payload.text))
     found = await _source_images(session, hits, sees, n_ctx, len(images))
     messages = await build_messages(
         context,
@@ -420,6 +426,27 @@ async def _accepted_images(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
         ) from error
+
+
+def _refuse_images_past_window(
+    attached: int, n_ctx: int | None, text_chars: int
+) -> None:
+    """Refuse before anything is stored a turn whose images overflow even at
+    Gemma 3's 256 each: trimming history cannot make room for them, so the model would only
+    fail it later as `context_too_long`."""
+    room = image_room(n_ctx, text_chars)
+    if room is None or attached <= room:
+        return
+    raise HTTPException(
+        status.HTTP_409_CONFLICT,
+        (
+            "This model's context window has no room for images."
+            if room == 0
+            else f"This model's context window has room for at most {room} "
+            + ("image." if room == 1 else "images.")
+        )
+        + " Send fewer, or choose a model with a larger window.",
+    )
 
 
 async def _source_images(

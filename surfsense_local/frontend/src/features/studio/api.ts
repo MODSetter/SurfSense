@@ -9,6 +9,8 @@ export type StudioFormat = {
   requires_model_types: ModelType[]
   available: boolean
   unavailable_reason: string | null
+  // The reason as a code this app has its own text for; absent from older data.
+  unavailable_code?: string | null
 }
 
 /** Where an artifact sits in its document's line of versions. Each version is

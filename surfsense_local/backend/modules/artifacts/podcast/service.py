@@ -22,7 +22,12 @@ def open_brief(
     try:
         roster = speech_voices(session)
     except ModelResolutionError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Needs an audio model") from error
+        # The reason with its code, as create and regenerate send it, so the
+        # interface shows its own sentence.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {"message": "Needs an audio model", "code": "needs_audio"},
+        ) from error
 
     last = session.scalars(
         select(Artifact)

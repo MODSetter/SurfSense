@@ -14,6 +14,7 @@ import { stageEspeak } from "./espeak.mjs"
 import { copyMsvcRuntime } from "../msvc-runtime.mjs"
 import { NotStaged, notStaged } from "../not-staged/message.mjs"
 import { packageManager } from "../not-staged/package-manager.mjs"
+import { renameWhenUnlocked } from "../windows-locks/rename-when-unlocked.mjs"
 import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { unpackUpstream } from "./upstream-archive.mjs"
@@ -85,7 +86,7 @@ async function main() {
     rmSync(backup, { recursive: true, force: true })
     if (existsSync(OUT)) renameSync(OUT, backup)
     try {
-      renameSync(stage, OUT)
+      await renameWhenUnlocked(stage, OUT)
     } catch (error) {
       if (existsSync(backup)) renameSync(backup, OUT)
       throw error

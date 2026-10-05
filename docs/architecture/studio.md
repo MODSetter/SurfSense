@@ -11,7 +11,7 @@ The tables, `artifacts` and `artifact_files`, are in [`data-model.md`](data-mode
 
 [`service.py`](../../surfsense_local/backend/modules/artifacts/service.py)`::create_artifact_job(session, workspace, payload, *, tool_call_id=None)` is the one entry for every format Studio drafts. The REST route passes no `tool_call_id`, and neither does the agent's `surfsense_create_artifact`, whose call reaches SurfSense without one ([agent](agent.md#surfsenses-tools)). Explicit or agentic, same code. A script document has its own entry, below.
 
-1. Look the format up in the catalog (`422` if unknown) and check that it is available (`409` with the reason if not).
+1. Look the format up in the catalog (`422` if unknown) and check that it is available (`409` if not, whose `detail` is `{message, code}`: the listing's reason and its `unavailable_code`). Regenerate answers the same `409`.
 2. Resolve the sources: at least one (`422`), all in this workspace (`422`) and all `ready` (`409`).
 3. Validate the options with the format's `validate_options` hook. Only podcast has one; a bad brief is a `422`.
 4. Create the `ARTIFACT` document, `pending` and titled with the format's label, and its `artifacts` sidecar with `generation` 1, `created_by_tool_call_id`, and the source ids, prompt and options in `artifact_metadata`.
@@ -39,7 +39,7 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 | `infographic` | Infographic | image_gen, text_gen | `media/visual/infographic/` | the image |
 
 - `requires_model_types` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required model type has a selection; otherwise the reason names every missing one in a fixed reading order: "Needs a chat model", "Needs an image model", "Needs an audio model", or two of them joined, as "Needs a chat model and an audio model". Naming only the first missing type made selecting it look like the gate moving to the other.
-- `podcast` runs with an `audio_gen` model on this computer or on a server. The format list and the brief read the model's voices without calling it, so neither needs the server's host allowed; the job does. Opening a podcast brief without an audio model answers `409` with "Needs an audio model". The app ships Kokoro and chooses it at startup when no audio model is chosen, so that answer needs the choice cleared since the last start, or a build without audio.cpp ([`local-models/selection.md`](local-models/selection.md)).
+- `podcast` runs with an `audio_gen` model on this computer or on a server. The format list and the brief read the model's voices without calling it, so neither needs the server's host allowed; the job does. Opening a podcast brief without an audio model answers `409` with "Needs an audio model" and the code `needs_audio`, in the same `{message, code}` detail as a refused create. The app ships Kokoro and chooses it at startup when no audio model is chosen, so that answer needs the choice cleared since the last start, or a build without audio.cpp ([`local-models/selection.md`](local-models/selection.md)).
 - Which formats are available is the server's answer to what is selected, so the panel asks again whenever the chat selection changes or the settings dialog closes, since the image model is chosen inside settings and nothing else reports it.
 - An image selection can resolve to the bundled sd-server as well as to a remote connection, so needing an image model does not mean needing a key or a network.
 - [`tests/unit/worker/test_studio_job_router.py`](../../surfsense_local/backend/tests/unit/worker/test_studio_job_router.py) asserts that `job_router.py` names every catalog key and nothing else, that each key has a pipeline, and that each pipeline takes its models, the sources, the prompt and, for a format with options, the options.
@@ -191,7 +191,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available` and `unavailable_reason` |
+| `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available`, `unavailable_reason` and `unavailable_code`, the same reason as a code the interface translates |
 | `POST` | `/workspaces/{workspace_id}/studio/jobs` | `{format, source_scope?, document_ids?, prompt?, options?}`; a `source_scope` is resolved on the server and recorded in `artifact_metadata` beside the resolved `source_document_ids`, and wins over `document_ids`; nothing ready is `422`, or `409` while the scope's sources are still indexing; `201` with the artifact |
 | `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief to review before submitting, the model's `voices` (`null` when they are typed) and the `languages` it may use |
 | `GET` | `/workspaces/{workspace_id}/artifacts` | the workspace's artifacts, newest first |
@@ -236,7 +236,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 ## The Studio panel
 
-- Studio lives in the right rail: pick a format, pick sources, add an optional prompt, generate. The source picker is the same included set as the sources panel, so chat and Studio share one selection. An unavailable format shows the API's reason.
+- Studio lives in the right rail: pick a format, pick sources, add an optional prompt, generate. The source picker is the same included set as the sources panel, so chat and Studio share one selection. An unavailable format shows the interface's sentence for the API's `unavailable_code`, or the API's `unavailable_reason` for a code it does not know. A create or regenerate refused for the same reason shows it the same way in the panel's alert.
 - A podcast waits for its brief: the panel loads `GET .../studio/podcast/brief` and renders a form for style, duration and speakers before the job can be submitted.
 - The artifact list shows each artifact with its status, and each row can be opened, regenerated, cancelled or deleted. A script document's versions share one row ([above](#script-documents)).
 

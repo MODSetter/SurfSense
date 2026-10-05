@@ -33,6 +33,8 @@ import { tmpdir } from "node:os"
 import { basename, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { renameWhenUnlocked } from "./windows-locks/rename-when-unlocked.mjs"
+
 export const BUILD = "b11050"
 const BASE = `https://github.com/ggml-org/llama.cpp/releases/download/${BUILD}`
 const HERE = fileURLToPath(new URL(".", import.meta.url))
@@ -189,7 +191,7 @@ async function main() {
     rmSync(backup, { recursive: true, force: true })
     if (existsSync(OUT)) renameSync(OUT, backup)
     try {
-      renameSync(stage, OUT)
+      await renameWhenUnlocked(stage, OUT)
     } catch (error) {
       if (existsSync(backup)) renameSync(backup, OUT)
       throw error

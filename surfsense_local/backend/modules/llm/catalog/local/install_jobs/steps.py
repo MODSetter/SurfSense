@@ -1,14 +1,44 @@
 """What one install does, in the order its events say it."""
 
+import logging
 from collections.abc import AsyncIterator, Callable
 
+import httpx
 from sqlalchemy.orm import Session
 
+from modules.llm.catalog.local.engines.engine import InstallStep
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.service import LocalCatalogService
 from modules.llm.model_type import ModelType
+from modules.llm.providers.llamacpp.download import ChecksumMismatchError
 from modules.llm.schemas import SelectionRead
 from modules.llm.selection import choose_model
+
+logger = logging.getLogger(__name__)
+
+# What a pinned file answers once it is gone: Hugging Face says 401 to an
+# anonymous request for a deleted, gated or private repo, and 404 for a file
+# or revision a live repo no longer has.
+GONE_STATUSES = frozenset({401, 403, 404})
+
+FILE_GONE = {
+    "type": "error",
+    "message": "This model is no longer available where SurfSense expects it.",
+    "code": InstallCode.FILE_GONE,
+}
+CHECKSUM_MISMATCH = {
+    "type": "error",
+    "message": "The downloaded file did not match the expected one. Retry the download.",
+    "code": InstallCode.CHECKSUM_MISMATCH,
+}
+
+
+def _pinned_url(error: httpx.HTTPStatusError) -> httpx.URL:
+    """The URL the download asked for, not the mirror a redirect reached,
+    which names no repo or commit and may carry a signed token."""
+    history = error.response.history
+    return history[0].request.url if history else error.request.url
 
 
 async def install_steps(
@@ -23,31 +53,76 @@ async def install_steps(
     try:
         checked = await service.check(plan)
     except InstallRefusedError as refused:
-        yield {"type": "error", "message": str(refused)}
-        return
-    yield {"type": "starting", "message": "Preparing download"}
-    async for step in service.install(checked):
         yield {
-            "type": "downloading",
-            "message": step.status,
-            "completed": step.completed,
-            "total": step.total,
+            "type": "error",
+            "message": str(refused),
+            "code": refused.code,
+            **refused.values,
         }
-    yield {"type": "verifying", "message": "Checking the model"}
+        return
+    yield {
+        "type": "starting",
+        "message": "Preparing download",
+        "code": InstallCode.PREPARING_DOWNLOAD,
+    }
+    try:
+        async for step in service.install(checked):
+            yield {
+                "type": "downloading",
+                "message": step.status,
+                "code": InstallCode.DOWNLOADING,
+                "completed": step.completed,
+                "total": step.total,
+            }
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code not in GONE_STATUSES:
+            raise
+        # A retry cannot help: the manifest needs this file re-pinned.
+        logger.error(
+            "pinned file is gone (HTTP %s): %s",
+            error.response.status_code,
+            _pinned_url(error),
+        )
+        yield FILE_GONE
+        return
+    except ChecksumMismatchError as mismatch:
+        # A retry may help if it keeps happening, something rewrites the file.
+        logger.warning(
+            "checksum mismatch, expected %s, got %s: %s",
+            mismatch.expected,
+            mismatch.actual,
+            mismatch.url,
+        )
+        yield CHECKSUM_MISMATCH
+        return
+    yield {
+        "type": "verifying",
+        "message": "Checking the model",
+        "code": InstallCode.CHECKING,
+    }
     engine = service.engine(checked.engine)
-    ready = "Model is ready"
+    ready = InstallStep("complete", "Model is ready", code=InstallCode.READY)
     async for step in engine.after_install(checked.model_id):
         if step.kind == "complete":
-            ready = step.message
+            ready = step
             continue
         # The model is on disk and the engine refused it: say why, and stop.
         if step.kind == "error":
-            yield {"type": "error", "message": step.message}
+            yield {"type": "error", "message": step.message, "code": step.code}
             return
-        yield {"type": step.kind, "message": step.message, "progress": step.progress}
+        yield {
+            "type": step.kind,
+            "message": step.message,
+            "code": step.code,
+            "progress": step.progress,
+        }
     selection = None
     if select:
-        yield {"type": "selecting", "message": "Selecting model"}
+        yield {
+            "type": "selecting",
+            "message": "Selecting model",
+            "code": InstallCode.SELECTING,
+        }
         with session_factory() as session:
             chosen = await choose_model(
                 session,
@@ -56,4 +131,9 @@ async def install_steps(
                 checked.model_id,
             )
             selection = SelectionRead.model_validate(chosen).model_dump(mode="json")
-    yield {"type": "complete", "message": ready, "selection": selection}
+    yield {
+        "type": "complete",
+        "message": ready.message,
+        "code": ready.code,
+        "selection": selection,
+    }

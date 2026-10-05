@@ -247,6 +247,194 @@ describe("dashboard chat", () => {
     })
   })
 
+  it("keeps the composer focused on a keyboard switch and names the conversation to it", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([thread])
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+    rememberOpenThread(1, 10)
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            initialProviderAvailable={true}
+            selection={{
+              model_type: "text_gen",
+              provider: "llamacpp",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+
+    // A keyboard user is told where they landed; a click keeps the composer.
+    await user.click(screen.getByRole("button", { name: "Chats" }))
+    ;(await screen.findByRole("button", { name: "Original title" })).focus()
+    await user.keyboard("{Enter}")
+
+    // Focus stays where someone can type; the composer is described by the
+    // conversation's heading, so a screen reader still says where it landed.
+    const composer = screen.getByRole("textbox", { name: "Message" })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(composer)
+      const describedBy = composer.getAttribute("aria-describedby")
+      expect(
+        describedBy && document.getElementById(describedBy)?.textContent
+      ).toBe("Original title")
+    })
+  })
+
+  it("never announces a reply finished for one left mid-stream in another chat", async () => {
+    const encoder = new TextEncoder()
+    const cached = {
+      id: 11,
+      workspace_id: 1,
+      title: "Cached chat",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const streaming = { ...cached, id: 10, title: "Streaming chat" }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([cached, streaming])
+        }
+        if (path === "/chat/threads/11/messages") {
+          return Response.json([
+            {
+              id: 1,
+              role: "user",
+              content: { text: "Earlier question" },
+              created_at: "2026-09-05T00:00:00Z",
+              completed_at: null,
+            },
+            {
+              id: 2,
+              role: "assistant",
+              content: { text: "Earlier answer", citations: [] },
+              created_at: "2026-09-05T00:00:01Z",
+              completed_at: "2026-09-05T00:00:01Z",
+            },
+          ])
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          // Answers, then never finishes, as a model still generating.
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"Partial answer"}\n\n'
+                  )
+                )
+              },
+            }),
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+    rememberOpenThread(1, 11)
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            initialProviderAvailable={true}
+            selection={{
+              model_type: "text_gen",
+              provider: "llamacpp",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    expect(await screen.findByText("Earlier answer")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Chats" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Streaming chat" })
+    )
+    await user.type(
+      await screen.findByRole("textbox", { name: "Message" }),
+      "Still going?"
+    )
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    expect(await screen.findByText("Partial answer")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Chats" }))
+    await user.click(await screen.findByRole("button", { name: "Cached chat" }))
+    expect(await screen.findByText("Earlier answer")).toBeTruthy()
+
+    expect(
+      screen
+        .queryAllByRole("status")
+        .some((status) => status.textContent === "Reply finished")
+    ).toBe(false)
+  })
+
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
     let resolveThreads!: (response: Response) => void
     let resolveCreate!: (response: Response) => void
@@ -1456,18 +1644,45 @@ describe("dashboard chat", () => {
         }
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           captured.signal = init.signal ?? null
+          // Text has arrived when the person stops it.
           return new Response(
             new ReadableStream({
               start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"Partial answer"}\n\n'
+                  )
+                )
                 captured.signal?.addEventListener("abort", () =>
                   controller.error(new DOMException("Aborted", "AbortError"))
                 )
               },
-            })
+            }),
+            { headers: { "Content-Type": "text/event-stream" } }
           )
         }
         if (path === "/chat/threads/10/messages") {
-          return Response.json([])
+          // The stopped turn as the backend keeps it: the text so far.
+          return Response.json(
+            captured.signal === null
+              ? []
+              : [
+                  {
+                    id: 100,
+                    role: "user",
+                    content: { text: "Stop this" },
+                    created_at: "2026-09-05T00:00:00Z",
+                    completed_at: null,
+                  },
+                  {
+                    id: 101,
+                    role: "assistant",
+                    content: { text: "Partial answer", citations: [] },
+                    created_at: "2026-09-05T00:00:00Z",
+                    completed_at: "2026-09-05T00:00:01Z",
+                  },
+                ]
+          )
         }
         return Response.json({ detail: "not found" }, { status: 404 })
       }
@@ -1498,6 +1713,7 @@ describe("dashboard chat", () => {
       "Stop this"
     )
     await user.click(screen.getByRole("button", { name: "Send message" }))
+    await screen.findByText("Partial answer")
     await user.click(
       await screen.findByRole("button", { name: "Stop generating" })
     )
@@ -1506,6 +1722,13 @@ describe("dashboard chat", () => {
     expect(
       await screen.findByRole("button", { name: "Send message" })
     ).toBeTruthy()
+    await screen.findByText("Partial answer")
+    // Stopped, not finished: the person chose to end it, so nothing is announced.
+    expect(
+      screen
+        .queryAllByRole("status")
+        .some((region) => region.textContent === "Reply finished")
+    ).toBe(false)
   })
 
   it("collapses the right rail from the toolbar outside the card", async () => {

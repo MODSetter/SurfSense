@@ -49,6 +49,8 @@ class FormatRead(BaseModel):
     requires_model_types: list[str]
     available: bool
     unavailable_reason: str | None
+    # The reason as a code the interface translates; the prose is its fallback.
+    unavailable_code: str | None = None
 
 
 class ArtifactFileRead(BaseModel):
