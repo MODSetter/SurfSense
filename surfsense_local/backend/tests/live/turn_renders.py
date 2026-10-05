@@ -30,6 +30,22 @@ def rendered_ids(frames: list[dict[str, Any]]) -> list[int]:
     ]
 
 
+def ready_versions(artifacts: list[dict[str, Any]]) -> dict[tuple[str, int], list[int]]:
+    """Each document's ready version numbers, oldest first, keyed by (format, root).
+
+    A render whose script failed still takes its version number, so a document
+    can start at v2: its first ready version is not always v1.
+    """
+    documents: dict[tuple[str, int], list[int]] = {}
+    for artifact in artifacts:
+        version = artifact["version"]
+        if artifact["status"] != "ready" or version is None:
+            continue
+        key = (artifact["format"], version["root_id"])
+        documents.setdefault(key, []).append(version["number"])
+    return {key: sorted(numbers) for key, numbers in sorted(documents.items())}
+
+
 def previews_opened(frames: list[dict[str, Any]]) -> set[tuple[int, int, int]]:
     """(artifact id, version, page) of every page preview the agent opened with read."""
     opened = set()

@@ -15,6 +15,7 @@ from modules.documents.source_figures import figure_file
 from shared.db import create_session_factory
 from tests.live import demo_sources
 from tests.live.live_agent import LiveAgent, steps
+from tests.live.turn_renders import ready_versions
 
 pytestmark = pytest.mark.live
 
@@ -29,10 +30,11 @@ TURNS = (
 
 
 async def test_the_agent_drafts_edits_and_exports_a_proposal(live: LiveAgent) -> None:
-    """v1 and v2 of the Word file and v1 of the PDF; the edit has the timeline, the chart and the logo.
+    """Two versions of the Word file and a PDF; the edit has the timeline, the chart and the logo.
 
     A self-check may render extra versions within a turn, so the edit is the
-    last Word version the second turn rendered, not necessarily v2.
+    last Word version the second turn rendered, not necessarily v2. A failed
+    render keeps its number, so a document's first ready version may be v2.
     """
     report = await live.upload(
         "Fleet telematics assessment.pdf", demo_sources.assessment_report()
@@ -44,18 +46,14 @@ async def test_the_agent_drafts_edits_and_exports_a_proposal(live: LiveAgent) ->
 
     replies = [await live.turn(thread, text) for text in TURNS]
 
-    made = {a["id"]: a for a in await live.artifacts() if a["status"] == "ready"}
-    versions = {
-        (a["format"], a["version"]["root_id"], a["version"]["number"])
-        for a in made.values()
-        if a["version"] is not None
-    }
-    word = sorted(key for key in versions if key[0] == "docx")
+    artifacts = await live.artifacts()
+    made = {a["id"]: a for a in artifacts if a["status"] == "ready"}
+    documents = ready_versions(artifacts)
+    word = [key for key in documents if key[0] == "docx"]
     assert word, "no Word document was made"
     root = word[0][1]
-    assert ("docx", root, 1) in versions, word
-    assert ("docx", root, 2) in versions, f"no second Word version: {word}"
-    assert any(f == "pdf" and n == 1 for f, _, n in versions), "no PDF was made"
+    assert len(documents[word[0]]) >= 2, f"no second Word version: {documents[word[0]]}"
+    assert any(f == "pdf" for f, _ in documents), "no PDF was made"
 
     rendered_in_the_edit = [
         made[s["artifact"]["id"]]
