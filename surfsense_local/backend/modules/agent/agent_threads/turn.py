@@ -10,7 +10,6 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from pathlib import Path
 
 import anyio
 import httpx
@@ -20,6 +19,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
+from modules.agent.agent_threads import live_instances
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.legacy_thread import LEGACY_TURN, is_legacy
 from modules.agent.agent_threads.ready_renders import link_live_render
@@ -34,6 +34,7 @@ from modules.agent.opencode_runtime import (
     ready_opencode,
 )
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
+from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import register_thread_tools
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
@@ -89,28 +90,15 @@ async def agent_turn(
                 "The selected model cannot run the agent. Choose another model, "
                 "or start a new chat to use this one.",
             )
-        # Commits its own short reads: files are written with the write lock free.
-        try:
-            folder = await run_in_threadpool(
-                sync_thread_folder, session, thread, sources.document_ids
-            )
-        except ThreadGoneError as error:
-            # Deleted from another tab while this turn was starting.
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND, "thread not found"
-            ) from error
+        title = _first_title(thread, payload.text)
+        if title is not None:
+            await transact(session, _rename, thread, title)
     except BaseException:
         await ready.client.close()
         raise
-    await register_thread_tools(
-        ready.client, folder, thread.workspace_id, thread.id, launch_key
-    )
-    title = _first_title(thread, payload.text)
-    if title is not None:
-        await transact(session, _rename, thread, title)
     sending = _Sending(payload.text, sources, title)
     return StreamingResponse(
-        _stream(session, thread.workspace_id, ready, folder, session_id, sending),
+        _stream(session, thread, ready, launch_key, session_id, sending),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -122,18 +110,38 @@ async def agent_turn(
 
 async def _stream(
     session: Session,
-    workspace_id: int,
+    thread: ChatThread,
     ready: ReadyAgent,
-    folder: Path,
+    launch_key: str,
     session_id: str,
     sending: _Sending,
 ) -> AsyncIterator[bytes]:
-    """The turn's frames, from the message sent to the reply stored."""
+    """The turn's frames, from its sources prepared to the reply stored."""
     title = sending.title
     client = ready.client
+    workspace_id = thread.workspace_id
+    folder = get_storage_settings().thread_working_dir(workspace_id, thread.id)
     turn = TurnFrames(session_id)
     sent = False
+    live_instances.turn_began(folder)
     try:
+        # A big scope's first sync takes about 30 s: the thread says why it waits.
+        count = len(sending.sources.document_ids)
+        yield _frame({"type": "agent-preparing", "count": count})
+        try:
+            # Commits its own short reads: files are written with the write lock free.
+            await run_in_threadpool(
+                sync_thread_folder, session, thread, sending.sources.document_ids
+            )
+        except (ThreadGoneError, OSError) as error:
+            logger.warning(
+                "thread %s's sources were not prepared", thread.id, exc_info=True
+            )
+            yield _frame(_not_prepared(error))
+            yield _DONE
+            return
+        await register_thread_tools(client, folder, workspace_id, thread.id, launch_key)
+        begin_turn(thread.id)
         if sending.sources.shown is not None:
             # First, so the turn shows what the server resolved, not what the client guessed.
             yield _frame({"type": "agent-scope", "scope": sending.sources.shown})
@@ -216,7 +224,23 @@ async def _stream(
                     logger.warning(
                         "could not stop agent turn in %s", session_id, exc_info=True
                     )
+            await live_instances.turn_ended(client, folder)
             await client.close()
+
+
+def _not_prepared(error: Exception) -> dict:
+    """The error frame for a turn whose sources could not be put in its folder."""
+    message = (
+        "This chat was deleted."
+        if isinstance(error, ThreadGoneError)
+        else f"The chat's sources could not be prepared: {error}"
+    )
+    return {
+        "type": "error",
+        "kind": "unknown",
+        "message": message,
+        "provider": "opencode",
+    }
 
 
 async def _refuse_a_legacy_thread(
@@ -226,6 +250,13 @@ async def _refuse_a_legacy_thread(
     folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
     try:
         legacy = await is_legacy(ready.client, session_id, folder)
+    except httpx.HTTPStatusError as error:
+        # Gone from opencode: no turn can continue it, as with a legacy thread.
+        if error.response.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(status.HTTP_409_CONFLICT, LEGACY_TURN) from error
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"opencode did not answer: {error}"
+        ) from error
     except httpx.HTTPError as error:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"opencode did not answer: {error}"

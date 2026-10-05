@@ -28,6 +28,7 @@ from modules.source_scope.schemas import SourceScope
 from modules.workspaces.models import Workspace
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_session_factory
+from tests.integration.agent.conftest import MAX_PATH
 
 pytestmark = pytest.mark.integration
 
@@ -503,31 +504,6 @@ def test_a_studio_artifact_filed_in_a_ticked_folder_is_there_to_read(
     assert texts(folder) == {
         f"Library/Research/Quiz [{quiz.id}].md": "Q1. When do we ship?"
     }
-
-
-# MAX_PATH less its terminator: the most a path may hold where long paths are off.
-MAX_PATH = 259
-
-
-@pytest.fixture
-def long_paths_off(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Windows without long paths: a longer path is not found. Collects each one tried."""
-    too_long: list[str] = []
-
-    def within_max_path(call):
-        def checked(*paths: object, **kwargs: object):
-            for path in paths:
-                if isinstance(path, str | os.PathLike) and len(str(path)) > MAX_PATH:
-                    too_long.append(str(path))
-                    raise FileNotFoundError(3, "The path is too long", str(path))
-            return call(*paths, **kwargs)
-
-        return checked
-
-    monkeypatch.setattr(os, "link", within_max_path(os.link))
-    monkeypatch.setattr(os, "replace", within_max_path(os.replace))
-    monkeypatch.setattr(Path, "write_bytes", within_max_path(Path.write_bytes))
-    return too_long
 
 
 def test_a_source_in_a_folder_as_deep_as_fits_is_written_where_long_paths_are_off(

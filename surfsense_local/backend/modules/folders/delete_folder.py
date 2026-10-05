@@ -71,10 +71,20 @@ def delete_folder(session: Session, folder: Folder) -> tuple[list[int], list[int
         .values(status=DocumentStatus.CANCELLED)
     )
     session.commit()
+    return purge_deleting(session, folder.id, folder.workspace_id, folders), folders
 
+
+def purge_deleting(
+    session: Session, folder_id: int, workspace_id: int, folders: list[int]
+) -> list[int]:
+    """Remove a `deleting` subtree's documents, then the folders; answers the ids.
+
+    Safe to repeat. A source still being read keeps the subtree, still out of
+    every scope, until the next start finishes it.
+    """
     deleted: list[int] = []
     while batch := _next_batch(session, folders):
-        directories = _directories(session, folder.workspace_id, batch)
+        directories = _directories(session, workspace_id, batch)
         session.execute(
             delete(Document).where(
                 Document.id.in_(batch), Document.status != DocumentStatus.PROCESSING
@@ -85,10 +95,12 @@ def delete_folder(session: Session, folder: Folder) -> tuple[list[int], list[int
             shutil.rmtree(directory, ignore_errors=True)
         deleted.extend(batch)
 
-    # Children cascade from the top folder.
-    session.execute(delete(Folder).where(Folder.id == folder.id))
-    session.commit()
-    return deleted, folders
+    left = session.scalar(select(func.count()).where(Document.folder_id.in_(folders)))
+    if not left:
+        # Children cascade from the top folder.
+        session.execute(delete(Folder).where(Folder.id == folder_id))
+        session.commit()
+    return deleted
 
 
 def _next_batch(session: Session, folders: list[int]) -> list[int]:

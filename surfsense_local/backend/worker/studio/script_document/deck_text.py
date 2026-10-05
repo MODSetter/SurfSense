@@ -41,7 +41,8 @@ def _slide_text(number: int, slide: Slide) -> str:
 def _shape_lines(shapes: Iterable[BaseShape]) -> Iterator[str]:
     """A shape's own lines; a group's shapes in their order; a picture or chart as a marker."""
     for shape in shapes:
-        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+        kind = _shape_type(shape)
+        if kind == MSO_SHAPE_TYPE.GROUP:
             yield from _shape_lines(shape.shapes)
         elif getattr(shape, "has_table", False):
             for row in shape.table.rows:
@@ -53,13 +54,22 @@ def _shape_lines(shapes: Iterable[BaseShape]) -> Iterator[str]:
                 _one_line(chart.chart_title.text_frame.text) if chart.has_title else ""
             )
             yield f"[chart: {title}]" if title else "[chart]"
-        elif shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+        elif kind == MSO_SHAPE_TYPE.PICTURE:
             yield "[picture]"
         elif shape.has_text_frame:
             for paragraph in shape.text_frame.paragraphs:
                 text = _one_line(paragraph.text)
                 if text:
                     yield text
+
+
+def _shape_type(shape: BaseShape) -> MSO_SHAPE_TYPE | None:
+    """None for a shape python-pptx cannot type: an `<p:sp>` with no geometry,
+    as a template's slides may hold. Its text still reads."""
+    try:
+        return shape.shape_type
+    except NotImplementedError:
+        return None
 
 
 def _notes(slide: Slide) -> str:

@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.agent.agent_threads import live_instances
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.ready_renders import link_ready_renders
 from modules.agent.agent_threads.replies import thread_turns
@@ -34,6 +35,7 @@ async def agent_thread_messages(
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
     # A session's own calls run where it was made, so a legacy thread reads back too.
     folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
+    live_instances.instance_used(folder)
     try:
         messages = await ready.client.messages(folder, session_id)
     except httpx.HTTPError as error:

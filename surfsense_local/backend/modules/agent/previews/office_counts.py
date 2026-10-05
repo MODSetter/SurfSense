@@ -12,7 +12,9 @@ from pathlib import Path
 _SLIDE = re.compile(rb"<(?:\w+:)?sldId\b")
 # The deck's own slide list, which comes before any section's list of the same ids.
 _SLIDE_LIST = re.compile(rb"<(\w+:|)sldIdLst\b[^>]*?(?:/>|>(.*?)</\1sldIdLst>)", re.S)
-_SHEET = re.compile(rb"<(?:\w+:)?sheet\b")
+# Each worksheet the workbook lists has one relationship of this type; a
+# chartsheet's is `/chartsheet`.
+_WORKSHEET = re.compile(rb'Type="[^"]*/worksheet"')
 _PAGES = re.compile(rb"<(?:\w+:)?Pages>\s*(\d+)\s*<")
 
 
@@ -26,9 +28,10 @@ def slide_count(file: bytes | Path) -> int | None:
 
 
 def sheet_count(file: bytes | Path) -> int | None:
-    """The workbook's sheets; None when it does not open."""
-    found = _part(file, "xl/workbook.xml")
-    return None if found is None else len(_SHEET.findall(found))
+    """The workbook's worksheets, as its summary counts them: a chartsheet holds
+    no cells and counts as a chart. None when it does not open."""
+    found = _part(file, "xl/_rels/workbook.xml.rels")
+    return None if found is None else len(_WORKSHEET.findall(found))
 
 
 def word_saved_pages(file: bytes | Path) -> int | None:

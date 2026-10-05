@@ -9,6 +9,7 @@ import httpx
 import pytest
 from sqlalchemy import Engine, select
 
+from modules.agent.agent_threads import live_instances
 from modules.artifacts.models import Artifact
 from modules.chat import router as chat_router
 from modules.chat.models import ChatThread
@@ -104,7 +105,7 @@ async def test_a_message_streams_the_agents_reply(agent_api: AgentAPI) -> None:
 
     frames = await send(agent_api, thread["id"], "What happened in Q3?")
 
-    assert frames[0]["type"] == "accepted"
+    assert [frame["type"] for frame in frames[:2]] == ["agent-preparing", "accepted"]
     assert "".join(f["text"] for f in of_type(frames, "delta")) == "Revenue rose in Q3."
     assert of_type(frames, "completed")[0]["text"] == "Revenue rose in Q3."
     assert frames[-1] == {"type": "done"}
@@ -162,6 +163,50 @@ async def test_the_sources_are_in_the_folder_before_the_turn(
     folder = thread_folder(agent_api.workspace_id, thread["id"])
     source = folder / "sources" / f"Plan [{note_id}].md"
     assert source.read_text(encoding="utf-8") == "Ship on Friday."
+
+
+async def test_a_turn_says_how_many_sources_it_prepares_before_it_syncs_them(
+    agent_api: AgentAPI,
+) -> None:
+    """A big scope's first sync takes about 30 s, and the thread must not look stuck meanwhile."""
+    thread = await open_thread(agent_api)
+    _note(agent_api.workspace_id, "Plan", "Ship on Friday.")
+    _note(agent_api.workspace_id, "Memo", "Ship on Monday.")
+
+    frames = await send(agent_api, thread["id"], "When do we ship?")
+
+    assert frames[0] == {"type": "agent-preparing", "count": 2}
+
+
+async def test_sources_that_cannot_be_prepared_end_the_turn_with_an_error_frame(
+    agent_api: AgentAPI,
+) -> None:
+    """The sync runs inside the stream, so its failure is said there, and nothing is sent."""
+    thread = await open_thread(agent_api)
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    (folder / "sources").rmdir()
+    (folder / "sources").write_text("in the way", encoding="utf-8")
+
+    frames = await send(agent_api, thread["id"], "When do we ship?")
+
+    assert [frame["type"] for frame in frames] == ["agent-preparing", "error", "done"]
+    assert agent_api.model.requests == []
+
+
+def _note(workspace_id: int, title: str, text: str) -> int:
+    with create_session_factory(
+        create_db_engine(get_storage_settings().database_path)
+    )() as session:
+        note = Document(
+            workspace_id=workspace_id,
+            title=title,
+            document_type=DocumentType.NOTE,
+            status=DocumentStatus.READY,
+            content=text,
+        )
+        session.add(note)
+        session.commit()
+        return note.id
 
 
 def ingest_note(
@@ -469,6 +514,67 @@ async def test_a_thread_started_in_the_shared_folder_reads_back_but_takes_no_tur
         "Revenue rose.",
     ]
     assert len(agent_api.model.requests) == 1
+
+
+async def test_a_thread_whose_session_opencode_lost_offers_a_new_chat(
+    agent_api: AgentAPI,
+) -> None:
+    """Such a thread can never take a turn again; the refusal the app knows shows its new-chat button."""
+    thread = await open_thread(agent_api)
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    async with agent_api.opencode() as opencode:
+        await opencode.delete_session(folder, await _session_of(thread["id"]))
+
+    refused = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "Hello"}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == (
+        "This agent chat was started before each chat kept its own sources. "
+        "Start a new chat to continue."
+    )
+
+
+async def test_past_the_cap_the_least_recently_used_instance_is_freed(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each thread's instance holds about 30 MB after a turn, and opencode frees none on its own."""
+    monkeypatch.setattr(live_instances, "LIVE_INSTANCES", 1)
+    first, second = await open_thread(agent_api), await open_thread(agent_api)
+
+    await send(agent_api, first["id"], "Hello")
+    await send(agent_api, second["id"], "Hello")
+
+    # A fresh instance starts without the thread's tools: the old one was disposed.
+    first_folder = thread_folder(agent_api.workspace_id, first["id"])
+    assert "surfsense" not in await _tool_servers(agent_api, first_folder)
+    second_folder = thread_folder(agent_api.workspace_id, second["id"])
+    assert "surfsense" in await _tool_servers(agent_api, second_folder)
+    assert of_type(await send(agent_api, first["id"], "Again"), "completed")
+
+
+async def test_an_instance_whose_turn_is_streaming_is_never_freed(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A turn waiting on the model or on an approval keeps its instance past the cap."""
+    monkeypatch.setattr(live_instances, "LIVE_INSTANCES", 1)
+    agent_api.model.replies = [("stall", "Reading"), ("text", "Hi.")]
+    streaming, other = await open_thread(agent_api), await open_thread(agent_api)
+    started = asyncio.Event()
+
+    async def on_frame(frame: Frame) -> None:
+        if frame["type"] == "delta":
+            started.set()
+
+    turn = asyncio.create_task(send(agent_api, streaming["id"], "Hello", on_frame))
+    await asyncio.wait_for(started.wait(), 30)
+    await send(agent_api, other["id"], "Hello")
+
+    folder = thread_folder(agent_api.workspace_id, streaming["id"])
+    assert "surfsense" in await _tool_servers(agent_api, folder)
+    agent_api.model.release.set()
+    assert of_type(await turn, "completed")
 
 
 async def test_two_threads_at_once_keep_their_own_tools(agent_api: AgentAPI) -> None:

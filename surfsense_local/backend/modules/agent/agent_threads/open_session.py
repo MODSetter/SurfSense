@@ -4,6 +4,7 @@ import httpx
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from modules.agent.agent_threads import live_instances
 from modules.agent.opencode_client import OpencodeVersionError
 from modules.agent.opencode_runtime import AgentUnavailableError, ready_opencode
 from modules.agent.thread_folder.layout import fresh_thread_folder
@@ -41,6 +42,7 @@ async def open_agent_session(
         folder = await run_in_threadpool(
             fresh_thread_folder, thread.workspace_id, thread.id
         )
+        live_instances.instance_used(folder)
         return await ready.client.create_session(folder, thread.title or "New chat")
     except OSError:
         logger.warning(

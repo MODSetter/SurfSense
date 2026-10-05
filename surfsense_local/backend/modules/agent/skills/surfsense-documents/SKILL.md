@@ -225,7 +225,10 @@ chart_data.categories = ["2024", "2025", "2026"]
 chart_data.add_series("Thousand EUR", (120, 135, 150))
 chart = pricing.shapes.add_chart(
     XL_CHART_TYPE.COLUMN_CLUSTERED,
-    Inches(7), Inches(1.8), Inches(5.5), Inches(4.5),
+    Inches(7),
+    Inches(1.8),
+    Inches(5.5),
+    Inches(4.5),
     chart_data,
 ).chart
 chart.has_title = True
@@ -257,7 +260,9 @@ for r, (phase, cost, contingency) in enumerate(rows, start=1):
     sheet.write_number(r, 1, cost, money)
     sheet.write_number(r, 2, contingency, percent)
     # The last argument is the value shown until the file is recalculated.
-    sheet.write_formula(r, 3, f"=B{r + 1}*(1+C{r + 1})", money, cost * (1 + contingency))
+    sheet.write_formula(
+        r, 3, f"=B{r + 1}*(1+C{r + 1})", money, cost * (1 + contingency)
+    )
 total = len(rows) + 1
 sheet.write(total, 0, "Total", header)
 cost_total = sum(cost for _, cost, _ in rows)

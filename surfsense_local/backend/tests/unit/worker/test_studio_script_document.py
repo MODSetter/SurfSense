@@ -9,6 +9,7 @@ import pptx
 import pypdfium2
 import pytest
 import xlsxwriter
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Inches
 from reportlab.pdfgen import canvas
 
@@ -297,6 +298,29 @@ def test_a_deck_reads_back_slide_by_slide_with_titles_tables_and_notes(
         "North | 120\n"
         "Notes: Start with the north."
     )
+
+
+def test_a_shape_with_no_geometry_from_a_kept_template_slide_still_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """python-pptx cannot type such a shape; failing on it made every Retry fail too."""
+    deck = pptx.Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[5])
+    slide.shapes.title.text = "Kept"
+    shape = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(1), Inches(2), Inches(3), Inches(1)
+    )
+    shape.text_frame.text = "Drawn by the template"
+    geometry = shape._element.spPr.prstGeom
+    geometry.getparent().remove(geometry)
+    buffer = BytesIO()
+    deck.save(buffer)
+    _runner(monkeypatch, _ran(buffer.getvalue()))
+    script = DocumentScript(text="build()", format="pptx", images=())
+
+    built = pipeline.render("Kept", script, {})
+
+    assert built.markdown == "## Slide 1: Kept\nDrawn by the template"
 
 
 def _workbook_file(rows: int = 3) -> bytes:

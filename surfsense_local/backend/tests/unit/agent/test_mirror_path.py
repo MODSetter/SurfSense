@@ -231,3 +231,24 @@ def test_no_folder_passes_for_the_agents_outputs(name: str) -> None:
     (path,) = lay_out(BASE, [MirroredSource(9, "Plan", 2)], folders).values()
 
     assert all(part.casefold() != "outputs" for part in path.parts), path
+
+
+def test_a_path_is_measured_as_windows_measures_it_in_utf_16_units() -> None:
+    """An emoji is one character to Python and two to MAX_PATH."""
+    base = "C:/" + "b" * 200
+
+    path = _paths([MirroredSource(9, "😀" * 60, None)], [], base)[9]
+
+    whole = f"{base}/{path}"
+    assert len(whole.encode("utf-16-le")) // 2 <= 259
+    assert path.startswith("😀")
+
+
+def test_a_folder_is_measured_in_utf_16_units_too() -> None:
+    """A folder of emoji that fits by characters but not by units is cut."""
+    base = "C:/" + "b" * 150
+    folders = [LiveFolder(1, None, "😀" * 60)]
+
+    path = _paths([MirroredSource(9, "Plan", 1)], folders, base)[9]
+
+    assert len(f"{base}/{path}".encode("utf-16-le")) // 2 <= 259

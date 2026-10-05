@@ -6,8 +6,9 @@ from pathlib import Path
 import pypdfium2
 
 from modules.agent.previews import docx_snapshots
-from modules.agent.previews.page_images import draw_pages
+from modules.agent.previews.page_images import PAGE_LIMIT, draw_pages
 from modules.agent.thread_folder.layout import OUTPUTS, PREVIEWS
+from modules.agent.thread_folder.path_budget import TOO_DEEP, fits
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.script_documents.spec import FORMAT_NAMES
 from modules.artifacts.script_documents.version import version_of
@@ -52,6 +53,8 @@ def previews_for(
 
     if artifact.format == "xlsx":
         return Previews([], "A workbook has no pages to draw.")
+    if not fits(pages / f"page-{PAGE_LIMIT}.png"):
+        return Previews([], TOO_DEEP.format(what="page previews"))
     if artifact.format == "pdf":
         pdf = path.read_bytes()
     else:  # docx or pptx, which Electron prints

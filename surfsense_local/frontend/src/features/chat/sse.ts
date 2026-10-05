@@ -36,6 +36,8 @@ export type ChatStreamEvent =
       message: string
       provider: string
     }
+  // An agent turn's first frame: how many sources its folder is being given.
+  | { type: "agent-preparing"; count: number }
   // The sources an agent turn works from, as the server resolved its ticks.
   | { type: "agent-scope"; scope: TurnSources }
   | ({ type: "agent-step" } & AgentStep)

@@ -196,6 +196,7 @@ function toRuntimeMessage(
             }
           : null,
         progress: message.content.progress ?? null,
+        preparing: message.content.preparing ?? null,
         scope: message.content.scope ?? null,
       },
     },
@@ -427,6 +428,7 @@ export function useChatRuntime({
       // remapped these to real ids.
       let userId: number | string = `optimistic-user-${version}`
       let assistantId: number | string = `optimistic-assistant-${version}`
+      let preparing = false
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
@@ -498,7 +500,40 @@ export function useChatRuntime({
             if (requestVersion.current !== version) {
               return
             }
-            if (event.type === "accepted") {
+            // Shown from the first frame until any other arrives.
+            if (preparing && event.type !== "agent-preparing") {
+              preparing = false
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: { ...message.content, preparing: undefined },
+                        }
+                      : message
+                  ) ?? null
+              )
+            }
+            if (event.type === "agent-preparing") {
+              preparing = true
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            preparing: event.count,
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "accepted") {
               const previousUserId = userId
               const previousAssistantId = assistantId
               const nextUserId = event.user_message_id

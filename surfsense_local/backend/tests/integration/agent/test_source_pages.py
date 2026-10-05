@@ -25,7 +25,7 @@ from modules.agent.previews.inline_images import inline_image
 from modules.agent.tool_endpoint import source_pages
 from modules.source_scope.schemas import SourceScope
 from shared.config import get_storage_settings
-from tests.integration.agent.conftest import declare_image_input
+from tests.integration.agent.conftest import MAX_PATH, declare_image_input
 from tests.integration.agent.test_office_documents import _uploaded
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 
@@ -144,6 +144,25 @@ async def test_a_pdfs_first_pages_come_back_as_images(
     assert f"sources/pages/ as {source_id}-p<n>.png" in text
     folder = get_storage_settings().document_dir(workspace_id, source_id)
     assert (folder / "Brand guide.pdf").read_bytes() == original
+
+
+async def test_pages_whose_paths_cannot_fit_are_refused_in_a_sentence(
+    tools: ToolEndpoint, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under a data folder this deep, `sources/pages/` has no room for a page's name."""
+    storage = get_storage_settings()
+    workspace_id = await tools.workspace()
+    pages = tools.folder(workspace_id) / "sources" / "pages"
+    padding = MAX_PATH - len(str(pages / "1-p1.png"))
+    monkeypatch.setattr(storage, "data_dir", storage.data_dir / ("d" * padding))
+    declare_image_input(True)
+    source_id = _uploaded(engine, workspace_id, "Brand guide.pdf", _pdf(A4))
+
+    text, is_error = await tools.call(workspace_id, "source_pages", _call(source_id))
+
+    assert is_error is True
+    assert "too deep on this computer" in text
+    assert not any((tools.folder(workspace_id) / "sources" / "pages").glob("*.png"))
 
 
 async def test_the_pages_asked_for_are_the_pages_drawn(

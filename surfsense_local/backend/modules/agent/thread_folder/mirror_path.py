@@ -12,6 +12,12 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from modules.agent.thread_folder.layout import FIGURES, OUTPUTS, PAGES
+from modules.agent.thread_folder.path_budget import (
+    LONGEST_DIRECTORY,
+    LONGEST_PATH,
+    cut,
+    units,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +25,6 @@ logger = logging.getLogger(__name__)
 _UNSAFE = re.compile(r'[\x00-\x1f<>:"/\\|?*]')
 # Short enough that a suffix and the extension still fit Windows' 255-character names.
 _LONGEST_SEGMENT = 100
-# MAX_PATH less its terminator; CreateDirectory leaves 12 more for an 8.3 name.
-_LONGEST_PATH = 259
-_LONGEST_DIRECTORY = 247
 # A folder must leave this much for a file in it, or it is cut shorter.
 _ROOM_FOR_A_FILE = 24
 _CUT_TO = 8
@@ -72,11 +75,11 @@ def lay_out(
     """
     directories: dict[int | None, PurePosixPath] = {
         None: PurePosixPath(),
-        **_directories(len(base), list(folders)),
+        **_directories(units(base), list(folders)),
     }
     paths: dict[int, PurePosixPath] = {}
     for doc in docs:
-        path = _placed(len(base), doc, directories.get(doc.folder_id))
+        path = _placed(units(base), doc, directories.get(doc.folder_id))
         if path is None:
             logger.warning("source %s has no path short enough to mirror", doc.id)
             continue
@@ -95,12 +98,12 @@ def _placed(
     title = _safe(doc.title)
     ending = f" [{doc.id}].md"
     if directory is not None:
-        room = _LONGEST_PATH - _length(base, directory) - 1 - len(ending)
-        cut = title[:room].rstrip(" .") if room > 0 else ""
-        if cut:
-            return directory / f"{cut}{ending}"
+        room = LONGEST_PATH - _length(base, directory) - 1 - len(ending)
+        kept = cut(title, room).rstrip(" .") if room > 0 else ""
+        if kept:
+            return directory / f"{kept}{ending}"
     flat = f"{title[:_CUT_TO].rstrip(' .')}{ending}"
-    if base + 1 + len(flat) <= _LONGEST_PATH:
+    if base + 1 + units(flat) <= LONGEST_PATH:
         return PurePosixPath(flat)
     return None
 
@@ -129,7 +132,7 @@ def _directories(base: int, folders: list[LiveFolder]) -> dict[int, PurePosixPat
     def too_long(ids: list[int]) -> bool:
         length = _length(base, directory(ids))
         return (
-            length > _LONGEST_DIRECTORY or _LONGEST_PATH - length - 1 < _ROOM_FOR_A_FILE
+            length > LONGEST_DIRECTORY or LONGEST_PATH - length - 1 < _ROOM_FOR_A_FILE
         )
 
     chains = sorted(
@@ -145,7 +148,7 @@ def _directories(base: int, folders: list[LiveFolder]) -> dict[int, PurePosixPat
             deepest = uncut[-1]
             cut.add(deepest)
             shorter = f"{names[deepest][:_CUT_TO].rstrip(' .')} [f{deepest}]"
-            if len(shorter) < len(names[deepest]):
+            if units(shorter) < units(names[deepest]):
                 names[deepest] = shorter
     return {
         ids[-1]: directory(ids)
@@ -189,4 +192,4 @@ def _safe(name: str, *, top: bool = False) -> str:
 
 
 def _length(base: int, directory: PurePosixPath) -> int:
-    return base + sum(1 + len(part) for part in directory.parts)
+    return base + sum(1 + units(part) for part in directory.parts)

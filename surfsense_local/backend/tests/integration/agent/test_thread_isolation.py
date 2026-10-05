@@ -7,6 +7,7 @@ import psutil
 import pytest
 from sqlalchemy import Engine
 
+from modules.agent.agent_threads import live_instances
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from shared.db import create_session_factory
 from tests.integration.agent.conftest import AgentAPI
@@ -172,9 +173,12 @@ MEASURED_THREADS = 8
 
 
 async def test_memory_one_threads_instance_holds_after_a_turn(
-    agent_api: AgentAPI, capsys: pytest.CaptureFixture[str]
+    agent_api: AgentAPI,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A measurement: each thread's instance, with its MCP client, stays until the thread is deleted."""
+    monkeypatch.setattr(live_instances, "LIVE_INSTANCES", MEASURED_THREADS + 1)
     warm = await open_thread(agent_api)
     await send(agent_api, warm["id"], "Hello")
     running = agent_api.electron.running

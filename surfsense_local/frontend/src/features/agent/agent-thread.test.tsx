@@ -324,6 +324,31 @@ describe("an agent thread", () => {
     expect(state.sent[0].document_ids).toEqual([5])
   })
 
+  it("says how many sources it prepares before the turn begins", async () => {
+    backend({
+      first: [{ type: "agent-preparing", count: 1200 }],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(
+      (await screen.findAllByText("Preparing 1,200 sources…")).length
+    ).toBeGreaterThan(0)
+  })
+
+  it("stops saying it prepares sources once the next frame comes", async () => {
+    backend({
+      first: [{ type: "agent-preparing", count: 3 }, ACCEPTED],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect((await screen.findAllByText("Thinking")).length).toBeGreaterThan(0)
+    expect(screen.queryAllByText("Preparing 3 sources…")).toEqual([])
+  })
+
   it("shows the sources the server resolved the ticks into", async () => {
     const resolved = Array.from({ length: 300 }, (_, index) => index + 1)
     const state = backend({

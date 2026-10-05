@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.agent.agent_threads.legacy_thread import forget_legacy, is_legacy
+from modules.agent.agent_threads.live_instances import forget_instance
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_runtime import AgentUnavailableError, connect_opencode
 from modules.agent.thread_folder.layout import forget_thread_lock
@@ -94,6 +95,7 @@ async def _forget(client: OpencodeClient, folder: Path, session_id: str) -> bool
         logger.warning("agent session %s was not deleted", session_id, exc_info=True)
     if not legacy:
         await _dispose(client, folder)
+    forget_instance(folder)
     forget_legacy(session_id)
     return legacy
 
