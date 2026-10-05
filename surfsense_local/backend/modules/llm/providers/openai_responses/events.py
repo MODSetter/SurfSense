@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from modules.llm.providers.openai_responses.refusal import error_fields, refused
+from modules.llm.providers.prompt_reuse import log_reuse, response_reuse
 from modules.llm.providers.types import Delta
 
 _ANSWER = "response.output_text.delta"
@@ -31,6 +32,9 @@ async def deltas(reply: httpx.Response) -> AsyncIterator[Delta]:
         elif kind in _TRACE and (text := event.get("delta")):
             yield Delta(text, reasoning=True)
         elif kind == "response.completed":
+            response = event.get("response")
+            if isinstance(response, dict) and (reuse := response_reuse(response)):
+                log_reuse(str(response.get("model")), reuse)
             return
         elif kind in _FAILED:
             response = event.get("response")

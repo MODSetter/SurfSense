@@ -335,6 +335,17 @@ is never sent the field. A batch can take longer than the 30 s allowed between
 tokens, so a progress chunk restarts the first-token budget and does not start
 the tight one. Not measured: a CPU-only build, where a batch is far slower.
 
+## Prompt reuse in the log
+
+llama-server reuses a prompt up to its first changed token and reads the rest.
+Measured at `b11050`, a streamed chat's last chunk carries `timings`, asked or
+not, with `cache_n` the tokens reused and `prompt_n` those read. The provider
+logs one line per reply from it, such as `qwen3 reused 5442 of 5476 prompt
+tokens` ([`prompt_reuse.py`](../../../surfsense_local/backend/modules/llm/providers/prompt_reuse.py)),
+so a prompt that stopped matching what the runtime holds shows as a number
+rather than as a slow answer. Nothing is asked for it, and nothing leaves the
+machine ([ADR 0016](../../adr/0016-no-telemetry.md)).
+
 ## The provider
 
 `LlamaCppProvider` satisfies the same `Generator` protocol as a remote endpoint,

@@ -58,7 +58,7 @@ A ChatGPT connection is a `provider_connections` row with `auth_kind = 'chatgpt'
 
 - The body is `{model, input, store: false, stream: true}` and nothing else. The plan's endpoint refuses `instructions`, `reasoning`, `text.format`, `max_output_tokens` and `tools`, so `max_tokens`, `reasoning`, `temperature` and `json_schema` are accepted and dropped. Studio parses an unconstrained reply as it does for any endpoint that ignores a schema.
 - A `system` turn goes as a `developer` input item. A turn with images sends `input_text` then `input_image` data URLs.
-- `response.output_text.delta` is answer text, and reasoning-summary deltas are reasoning. Only `response.completed` ends a reply: a stream that closes without it, or ends `incomplete`, raises.
+- `response.output_text.delta` is answer text, and reasoning-summary deltas are reasoning. Only `response.completed` ends a reply: a stream that closes without it, or ends `incomplete`, raises. Its `usage` is logged as the input tokens the plan reused from its cache (`input_tokens_details.cached_tokens`).
 - `subscription_sharing_usage_limit_exceeded`, as a `429` or inside `response.failed`, is `PlanLimitError`. `subscription_sharing_invalid_user` is `SignInRequiredError`. Anything else is an `httpx.HTTPStatusError` carrying OpenAI's message.
 - The model list is the plan's `models` array, entries whose `visibility` is `list`, each a `text_gen` model with `capability_source: declared`. The manifest's "only on `/responses`" does not apply here.
 - No context window or token count, so chat keeps its fixed history budget. The same deadlines as the OpenAI-compatible client: 300 seconds to the first token, 30 between.
