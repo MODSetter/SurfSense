@@ -20,6 +20,7 @@ from modules.llm.catalog.local.engines.onnxruntime.rows import (
     downloaded_rows,
     embedding_catalog,
 )
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.installs import (
     forget_install,
@@ -108,7 +109,11 @@ class OnnxRuntimeEngine:
         # Hugging Face pick is checked first, since nobody measured it.
         offered = self._offered.pop(model_id, None)
         if offered is not None:
-            yield InstallStep("verifying", "Checking that it finds answers")
+            yield InstallStep(
+                "verifying",
+                "Checking that it finds answers",
+                code=InstallCode.CHECKING_RETRIEVAL,
+            )
             width, refusal = await asyncio.to_thread(verify, offered)
             if refusal is not None:
                 self._discard(model_id)
@@ -116,7 +121,7 @@ class OnnxRuntimeEngine:
                 return
             checked = offered.model_copy(update={"dimension": width})
             (self._folder / model_id / SPEC_FILE).write_text(checked.model_dump_json())
-        yield InstallStep("complete", "Model is ready")
+        yield InstallStep("complete", "Model is ready", code=InstallCode.READY)
 
     def _discard(self, model_id: str) -> None:
         for name in install_files(self._folder, model_id):

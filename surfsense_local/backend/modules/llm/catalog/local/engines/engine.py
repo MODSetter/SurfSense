@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol
 
 from modules.llm.catalog.local.build import Build, BuildFile
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import LocalRow
@@ -20,6 +21,7 @@ class InstallStep:
     kind: str
     message: str
     progress: float | None = None
+    code: InstallCode | None = None
 
 
 class LocalEngine(Protocol):

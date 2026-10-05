@@ -62,6 +62,8 @@ async def test_a_second_job_waits_for_the_first_rather_than_failing() -> None:
     await asyncio.sleep(0.01)
 
     assert jobs.get(second.id).event["type"] == "queued"
+    assert jobs.get(second.id).event["code"] == "queued"
+    assert jobs.get(first.id).event["code"] == "checking"
     gate.set()
     await _settle(jobs)
     assert jobs.get(first.id).event["type"] == "complete"
@@ -103,6 +105,7 @@ async def test_cancelling_a_running_job_frees_the_lock_for_the_next() -> None:
     await _settle(jobs)
 
     assert jobs.get(first.id).event["type"] == "cancelled"
+    assert jobs.get(first.id).event["code"] == "cancelled"
     assert jobs.get(second.id).event["type"] == "complete"
     assert not lock.locked()
 
@@ -121,6 +124,7 @@ async def test_a_step_that_raises_ends_the_job_with_the_retry_message() -> None:
     assert jobs.get(job.id).event == {
         "type": "error",
         "message": "The model could not be installed. Retry the download.",
+        "code": "failed",
     }
 
 

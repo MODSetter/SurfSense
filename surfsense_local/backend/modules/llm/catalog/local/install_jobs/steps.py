@@ -6,6 +6,8 @@ from collections.abc import AsyncIterator, Callable
 import httpx
 from sqlalchemy.orm import Session
 
+from modules.llm.catalog.local.engines.engine import InstallStep
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.service import LocalCatalogService
 from modules.llm.model_type import ModelType
@@ -23,10 +25,12 @@ GONE_STATUSES = frozenset({401, 403, 404})
 FILE_GONE = {
     "type": "error",
     "message": "This model is no longer available where SurfSense expects it.",
+    "code": InstallCode.FILE_GONE,
 }
 CHECKSUM_MISMATCH = {
     "type": "error",
     "message": "The downloaded file did not match the expected one. Retry the download.",
+    "code": InstallCode.CHECKSUM_MISMATCH,
 }
 
 
@@ -49,14 +53,24 @@ async def install_steps(
     try:
         checked = await service.check(plan)
     except InstallRefusedError as refused:
-        yield {"type": "error", "message": str(refused)}
+        yield {
+            "type": "error",
+            "message": str(refused),
+            "code": refused.code,
+            **refused.values,
+        }
         return
-    yield {"type": "starting", "message": "Preparing download"}
+    yield {
+        "type": "starting",
+        "message": "Preparing download",
+        "code": InstallCode.PREPARING_DOWNLOAD,
+    }
     try:
         async for step in service.install(checked):
             yield {
                 "type": "downloading",
                 "message": step.status,
+                "code": InstallCode.DOWNLOADING,
                 "completed": step.completed,
                 "total": step.total,
             }
@@ -81,21 +95,34 @@ async def install_steps(
         )
         yield CHECKSUM_MISMATCH
         return
-    yield {"type": "verifying", "message": "Checking the model"}
+    yield {
+        "type": "verifying",
+        "message": "Checking the model",
+        "code": InstallCode.CHECKING,
+    }
     engine = service.engine(checked.engine)
-    ready = "Model is ready"
+    ready = InstallStep("complete", "Model is ready", code=InstallCode.READY)
     async for step in engine.after_install(checked.model_id):
         if step.kind == "complete":
-            ready = step.message
+            ready = step
             continue
         # The model is on disk and the engine refused it: say why, and stop.
         if step.kind == "error":
-            yield {"type": "error", "message": step.message}
+            yield {"type": "error", "message": step.message, "code": step.code}
             return
-        yield {"type": step.kind, "message": step.message, "progress": step.progress}
+        yield {
+            "type": step.kind,
+            "message": step.message,
+            "code": step.code,
+            "progress": step.progress,
+        }
     selection = None
     if select:
-        yield {"type": "selecting", "message": "Selecting model"}
+        yield {
+            "type": "selecting",
+            "message": "Selecting model",
+            "code": InstallCode.SELECTING,
+        }
         with session_factory() as session:
             chosen = await choose_model(
                 session,
@@ -104,4 +131,9 @@ async def install_steps(
                 checked.model_id,
             )
             selection = SelectionRead.model_validate(chosen).model_dump(mode="json")
-    yield {"type": "complete", "message": ready, "selection": selection}
+    yield {
+        "type": "complete",
+        "message": ready.message,
+        "code": ready.code,
+        "selection": selection,
+    }

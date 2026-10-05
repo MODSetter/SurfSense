@@ -57,7 +57,7 @@ under [`engines/`](../../../surfsense_local/backend/modules/llm/catalog/local/en
 catalog/local/
   build.py  listed_file.py  quantization.py  classifier.py  installs.py  rows.py
   manifest/                 the entry envelope, strict config, loader, models.json
-  install/                  plan.py, download.py (one path for every engine), tickets.py
+  install/                  plan.py, codes.py, download.py (one path for every engine), tickets.py
   install_jobs/             jobs.py (queue, cancel, feed), steps.py, describe.py, router.py
   engines/
     engine.py               the seam: what every engine answers
@@ -500,6 +500,17 @@ error        "The model could not be installed. Retry the download."
 cancelled    "Installation cancelled"          DELETE reached it, running or waiting
 ```
 
+Each frame also carries a `code` naming what its `message` says, from `InstallCode`
+([`install/codes.py`](../../../surfsense_local/backend/modules/llm/catalog/local/install/codes.py)):
+the renderer shows its own line for a code it knows, in the interface language,
+and the frame's English `message` for one it does not
+([`install-text.ts`](../../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts), [localization](../localization.md#backend-text)).
+A refusal for disk space is `not_enough_disk` with `needed_bytes` and
+`free_bytes` raw, so each language formats the sizes itself. Two refusals have a
+`null` code and stay English: a searched file of a type the runtime cannot run,
+whose sentence is the row's `not_runnable_reason`, and a Hugging Face embedder
+that fails its check.
+
 The API fetches each file of the build from
 `https://huggingface.co/{repo}/resolve/{revision}/{path}` into the models folder
 itself, verifying every file against its sha256 (a searched file whose listing
@@ -701,7 +712,7 @@ the service's installs, install jobs (`test_install_jobs.py`), the audio.cpp sli
 engine's refresh assembly; the routes, audio's `server.json` included, are
 covered in
 [`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/), the feed over a real socket in `test_install_feed.py`,
-and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
+and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
 
 ## Known gaps
 

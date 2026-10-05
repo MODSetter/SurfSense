@@ -14,6 +14,7 @@ from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
 )
 from modules.llm.catalog.local.engines.sdcpp.images_folder.legacy import adopt
 from modules.llm.catalog.local.engines.sdcpp.rows.catalog import image_catalog
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.installs import read_installs, record_install
 from modules.llm.catalog.local.manifest import CuratedModel
@@ -83,7 +84,7 @@ class SdCppEngine:
     async def after_install(self, model_id: str) -> AsyncIterator[InstallStep]:
         # sd-server takes its model at launch, from the selection: nothing to
         # restart and nothing to warm.
-        yield InstallStep("complete", "Model is ready")
+        yield InstallStep("complete", "Model is ready", code=InstallCode.READY)
 
     def after_remove(self) -> None:
         pass

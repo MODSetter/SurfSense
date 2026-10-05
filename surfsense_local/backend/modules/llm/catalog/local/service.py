@@ -22,6 +22,7 @@ from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_temper
 from modules.llm.catalog.local.engines.onnxruntime.engine import OnnxRuntimeEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.install.tickets import TicketStore
@@ -298,5 +299,7 @@ class LocalCatalogService:
     def _folder(self, engine: str) -> Path:
         folder = self.engine(engine).folder
         if folder is None:
-            raise InstallRefusedError("This build of SurfSense cannot run this model.")
+            raise InstallRefusedError(
+                "This build of SurfSense cannot run this model.", InstallCode.NO_ENGINE
+            )
         return folder

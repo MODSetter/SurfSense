@@ -481,8 +481,9 @@ async def test_a_curated_build_that_will_not_fit_is_refused_before_download(
     monkeypatch.setattr(service_module, "available_bytes", lambda: 256 * MIB)
     plan = curated_plan(service, "qwen3-32b")
 
-    with pytest.raises(InstallRefusedError, match="too big"):
+    with pytest.raises(InstallRefusedError, match="too big") as refused:
         await service.check(plan)
+    assert refused.value.code == "too_big"
 
     assert fake_hub == []
 
@@ -559,8 +560,32 @@ async def test_a_searched_build_that_cannot_chat_is_refused_before_download(
     """A searched build that cannot chat is refused before download."""
     serve(monkeypatch, header("nomic-bert"))
 
-    with pytest.raises(InstallRefusedError, match="search"):
+    with pytest.raises(InstallRefusedError, match="search") as refused:
         await service.check(searched(TEXT))
+    # The classifier's own sentence, which has no code yet.
+    assert refused.value.code is None
+
+
+async def test_a_searched_file_that_is_not_a_model_is_refused(
+    service, monkeypatch
+) -> None:
+    """An importance matrix is a valid GGUF file and nothing a runtime loads."""
+    serve(monkeypatch, gguf([kv("general.type", STRING, "imatrix")]))
+
+    with pytest.raises(InstallRefusedError, match="not a model") as refused:
+        await service.check(searched(TEXT))
+    assert refused.value.code == "not_a_model"
+
+
+async def test_a_build_for_an_engine_this_app_has_no_folder_for_is_refused(
+    service,
+) -> None:
+    """The fixture's app ships no image runtime, so nothing can land."""
+    plan = InstallPlan("sd-1.5-Q4_0", TEXT, "sdcpp")
+
+    with pytest.raises(InstallRefusedError, match="cannot run") as refused:
+        [step async for step in service.install(plan)]
+    assert refused.value.code == "no_engine"
 
 
 async def test_a_searched_build_too_big_for_the_machine_is_refused(
@@ -573,8 +598,9 @@ async def test_a_searched_build_too_big_for_the_machine_is_refused(
         (BuildFile(FileRole.WEIGHTS, "m-Q4_K_M.gguf", 10**15, "a" * 64, "r/m", "s"),),
     )
 
-    with pytest.raises(InstallRefusedError, match="too big"):
+    with pytest.raises(InstallRefusedError, match="too big") as refused:
         await service.check(searched(huge))
+    assert refused.value.code == "too_big"
 
 
 async def test_a_projector_that_does_not_belong_is_dropped_by_the_check(
