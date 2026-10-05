@@ -161,7 +161,7 @@ describe("ChatsDialog", () => {
 })
 
 describe("ChatsDialog, with replies running", () => {
-  const threads = [1, 2, 3, 4].map((id) => ({
+  const threads = [1, 2, 3, 4, 5].map((id) => ({
     id,
     workspace_id: 1,
     title: `Thread ${id}`,
@@ -170,7 +170,7 @@ describe("ChatsDialog, with replies running", () => {
     updated_at: "2026-10-05T00:00:00Z",
   }))
 
-  it("says which threads are writing, waiting, or have a reply not yet read", () => {
+  it("says which threads are writing, waiting, need approval, or have a reply not yet read", () => {
     render(
       <ChatsDialog
         {...baseProps()}
@@ -178,6 +178,7 @@ describe("ChatsDialog, with replies running", () => {
         runStates={{
           1: { state: "running" },
           2: { state: "queued", position: 1 },
+          4: { state: "needs-approval" },
         }}
         unreadThreadIds={[3]}
       />
@@ -197,6 +198,7 @@ describe("ChatsDialog, with replies running", () => {
       /^Waiting for another reply \(1st in line\) /
     )
     expect(description("Thread 3")).toMatch(/^New reply /)
-    expect(description("Thread 4")).not.toMatch(/Writing|Waiting|New reply/)
+    expect(description("Thread 4")).toMatch(/^Waiting for your approval /)
+    expect(description("Thread 5")).not.toMatch(/Writing|Waiting|New reply/)
   })
 })

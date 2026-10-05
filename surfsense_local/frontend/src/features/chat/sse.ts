@@ -43,9 +43,10 @@ export type ChatStreamEvent =
   | ({ type: "agent-step" } & AgentStep)
   | ({ type: "permission-request" } & PermissionRequest)
   | { type: "permission-replied"; id: string; reply: string }
-  // Where a run stands: waiting in line for the local runtime, or answering.
+  // Where a run stands: waiting in line for the local runtime, answering, or
+  // waiting on the user to answer the agent.
   | { type: "run-state"; state: "queued"; position: number }
-  | { type: "run-state"; state: "running" }
+  | { type: "run-state"; state: "running" | "needs-approval" }
   | { type: "done" }
 
 /** A frame with the number the run gave it, for resuming where a window left off. */

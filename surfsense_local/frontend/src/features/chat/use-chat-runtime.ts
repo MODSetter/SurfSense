@@ -48,7 +48,6 @@ import {
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
 import {
-  abandonRun,
   beginRun,
   dropRun,
   liveRun,
@@ -105,6 +104,32 @@ function submittedText(message: AppendMessage) {
 
 const EMPTY_THREADS: ChatThread[] = []
 const EMPTY_MESSAGES: ChatMessage[] = []
+const NO_APPROVALS: PermissionRequest[] = []
+
+/** The thread's waiting requests without one that was answered. */
+function withoutApproval(
+  all: Record<number, PermissionRequest[]>,
+  threadId: number,
+  requestId: string
+): Record<number, PermissionRequest[]> {
+  const current = all[threadId]
+  if (!current?.some((waiting) => waiting.id === requestId)) return all
+  return {
+    ...all,
+    [threadId]: current.filter((waiting) => waiting.id !== requestId),
+  }
+}
+
+/** Where the list says a thread's reply stands, as the run store spells it. */
+function listedRunState(thread: ChatThread): RunState | null {
+  if (!thread.running) return null
+  const listed = thread.run_state
+  if (listed?.state === "queued" && listed.position !== null) {
+    return { state: "queued", position: listed.position }
+  }
+  if (listed?.state === "needs-approval") return { state: "needs-approval" }
+  return { state: "running" }
+}
 
 function lastThreadKey(workspaceId: number) {
   return `surfsense:last-thread:${workspaceId}:v1`
@@ -312,8 +337,11 @@ export function useChatRuntime({
   const [unreadThreadIds, setUnreadThreadIds] = useState<number[]>(() =>
     readUnread(workspaceId)
   )
-  // The agent's requests waiting for the user, oldest first.
-  const [approvals, setApprovals] = useState<PermissionRequest[]>([])
+  // The agent's requests waiting for the user, oldest first, per thread: a
+  // turn keeps asking while its thread is not the one open.
+  const [approvalsByThread, setApprovalsByThread] = useState<
+    Record<number, PermissionRequest[]>
+  >({})
   const requestVersion = useRef(0)
 
   // Re-render on every change to any run, wherever its thread is.
@@ -328,6 +356,9 @@ export function useChatRuntime({
     conversationView.status === "active" ? conversationView.threadId : null
   const activeThreadIdRef = useRef(activeThreadId)
   activeThreadIdRef.current = activeThreadId
+  const approvals =
+    (activeThreadId !== null && approvalsByThread[activeThreadId]) ||
+    NO_APPROVALS
   const activeThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId) ?? null,
     [activeThreadId, threads]
@@ -358,40 +389,28 @@ export function useChatRuntime({
       renameThread(threadId, title),
   })
 
-  const leaveAgentTurn = useCallback(() => {
-    // An agent turn is not a background run: leaving its thread ends it.
-    const leaving = activeThreadIdRef.current
-    if (leaving === null) return
-    const thread = threads.find((candidate) => candidate.id === leaving)
-    if (thread?.uses_agent) abandonRun(leaving)
-  }, [threads])
-
   const selectThread = useCallback(
     (threadId: number) => {
       if (threadId === activeThreadId) {
         return
       }
-      leaveAgentTurn()
       requestVersion.current += 1
       setConversationView({ status: "active", threadId })
       rememberThread(workspaceId, threadId)
       setUnreadThreadIds(markRead(workspaceId, threadId))
-      setApprovals([])
       setAutoNamingThreadId(null)
       setAnimatingTitleThreadId(null)
     },
-    [activeThreadId, leaveAgentTurn, workspaceId]
+    [activeThreadId, workspaceId]
   )
 
   const startNewChat = useCallback(() => {
-    leaveAgentTurn()
     requestVersion.current += 1
     setConversationView({ status: "new" })
     rememberThread(workspaceId, null)
-    setApprovals([])
     setAutoNamingThreadId(null)
     setAnimatingTitleThreadId(null)
-  }, [leaveAgentTurn, workspaceId])
+  }, [workspaceId])
 
   useEffect(() => {
     if (!threadsQuery.isSuccess) return
@@ -420,9 +439,18 @@ export function useChatRuntime({
           chatKeys.threads(workspaceId),
           (current) =>
             current?.map((thread) =>
-              thread.id === threadId ? { ...thread, running: false } : thread
+              thread.id === threadId
+                ? { ...thread, running: false, run_state: null }
+                : thread
             )
         )
+        // A turn that ended asks nothing more.
+        setApprovalsByThread((all) => {
+          if (!all[threadId]) return all
+          const rest = { ...all }
+          delete rest[threadId]
+          return rest
+        })
         if (threadId !== activeThreadIdRef.current) {
           setUnreadThreadIds(markUnread(workspaceId, threadId))
         }
@@ -484,19 +512,23 @@ export function useChatRuntime({
           setAutoNamingThreadId((current) =>
             current === threadId ? null : current
           )
-        } else if (
-          event.type === "permission-request" &&
-          threadId === activeThreadIdRef.current
-        ) {
+        } else if (event.type === "permission-request") {
           const { id, permission, patterns, command } = event
-          setApprovals((current) =>
-            current.some((waiting) => waiting.id === id)
-              ? current
-              : [...current, { id, permission, patterns, command }]
-          )
+          setApprovalsByThread((all) => {
+            const current = all[threadId] ?? []
+            return current.some((waiting) => waiting.id === id)
+              ? all
+              : {
+                  ...all,
+                  [threadId]: [
+                    ...current,
+                    { id, permission, patterns, command },
+                  ],
+                }
+          })
         } else if (event.type === "permission-replied") {
-          setApprovals((current) =>
-            current.filter((waiting) => waiting.id !== event.id)
+          setApprovalsByThread((all) =>
+            withoutApproval(all, threadId, event.id)
           )
         }
       }),
@@ -528,7 +560,7 @@ export function useChatRuntime({
 
   useEffect(() => {
     if (activeThread === null || !activeThread.running) return
-    if (activeThread.uses_agent || liveRun(activeThread.id)) return
+    if (liveRun(activeThread.id)) return
     const threadId = activeThread.id
     const signal = beginRun(threadId)
     void pump(threadId, followRun(threadId, 0, signal)).catch(() => undefined)
@@ -804,24 +836,20 @@ export function useChatRuntime({
         content: { ...assistant.content, ending: { type: "stopped" } },
       },
     ])
-    if (activeThread?.uses_agent) {
-      abandonRun(threadId)
-      return
-    }
     try {
       await stopRun(threadId)
     } catch (cause) {
       errorToast(messageFrom(cause))
     }
-  }, [activeThread])
+  }, [])
 
   const answerApproval = useCallback(
     async (request: PermissionRequest, reply: PermissionReply) => {
       if (activeThreadId === null) return
       try {
         await answerPermission(activeThreadId, request.id, reply)
-        setApprovals((current) =>
-          current.filter((waiting) => waiting.id !== request.id)
+        setApprovalsByThread((all) =>
+          withoutApproval(all, activeThreadId, request.id)
         )
       } catch (cause) {
         errorToast(
@@ -896,11 +924,12 @@ export function useChatRuntime({
   })
 
   // Where each thread's reply stands: what the list says, sharpened by what
-  // this window follows itself, which alone knows a place in line.
+  // this window follows itself, which hears each change first.
   const runStates = useMemo(() => {
     const states: Record<number, RunState> = {}
     for (const thread of threads) {
-      if (thread.running) states[thread.id] = { state: "running" }
+      const listed = listedRunState(thread)
+      if (listed) states[thread.id] = listed
     }
     for (const run of liveRuns()) {
       if (!run.ended) states[run.threadId] = run.state

@@ -127,6 +127,26 @@ describe("LeftSidebar", () => {
 })
 
 describe("LeftSidebar, with replies elsewhere", () => {
+  it("marks a thread waiting on the user's approval ahead of everything else", () => {
+    render(
+      <LeftSidebar
+        {...baseProps()}
+        activeThreadId={1}
+        runStates={{
+          2: { state: "running" },
+          3: { state: "needs-approval" },
+        }}
+        unreadThreadIds={[4]}
+      />
+    )
+
+    const chats = screen.getByRole("button", { name: /^Chats/ })
+    expect(chats.textContent).toBe("Chats")
+    expect(chats.getAttribute("aria-label")).toBe(
+      "Chats, 1 reply waiting for your approval"
+    )
+  })
+
   it("marks unread replies ahead of others still writing, without a count", () => {
     render(
       <LeftSidebar

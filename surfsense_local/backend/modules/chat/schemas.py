@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -46,6 +46,14 @@ class ThreadUpdate(BaseModel):
     title: ThreadTitle
 
 
+class RunStateRead(BaseModel):
+    """Where a thread's reply stands: `queued` with its place in line, `running`,
+    or `needs-approval` while it waits on the user."""
+
+    state: Literal["queued", "running", "needs-approval"]
+    position: int | None = None
+
+
 class ThreadRead(BaseModel):
     """A thread as the API returns it."""
 
@@ -61,6 +69,8 @@ class ThreadRead(BaseModel):
     updated_at: datetime
     # Whether a reply is being generated for it right now.
     running: bool = False
+    # Where that reply stands; None when nothing is being generated.
+    run_state: RunStateRead | None = None
 
 
 class MessageCreate(BaseModel):

@@ -87,6 +87,23 @@ class OpencodeClient:
         reply.raise_for_status()
         return reply.json()["directory"]
 
+    async def session_metadata(
+        self, directory: Path, session_id: str
+    ) -> dict[str, Any]:
+        """What callers stored on the session; opencode itself writes none."""
+        reply = await self._http.get(f"/session/{session_id}", params=_in(directory))
+        reply.raise_for_status()
+        return reply.json().get("metadata") or {}
+
+    async def set_session_metadata(
+        self, directory: Path, session_id: str, metadata: dict[str, Any]
+    ) -> None:
+        """Replace the session's metadata whole: opencode does not merge it."""
+        reply = await self._http.patch(
+            f"/session/{session_id}", params=_in(directory), json={"metadata": metadata}
+        )
+        reply.raise_for_status()
+
     async def dispose_instance(self, directory: Path) -> None:
         """Drop the folder's instance: its MCP clients, its config and its memory.
 

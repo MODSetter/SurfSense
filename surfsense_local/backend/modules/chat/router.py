@@ -19,7 +19,7 @@ from api.dependencies import SessionDep, transact
 from modules.agent.agent_threads.forget_sessions import forget_thread
 from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
-from modules.agent.agent_threads.turn import agent_turn
+from modules.agent.agent_threads.turn import RunPlace, agent_turn
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import selected_model_can_run_agent
 from modules.agent.thread_folder.layout import remove_thread_folder
@@ -45,12 +45,14 @@ from modules.chat.reasoning import ReasoningTrace
 from modules.chat.runs.dependencies import ChatRunsDep
 from modules.chat.runs.live_text import save_while_running
 from modules.chat.runs.notify import notify_run
-from modules.chat.runs.run import Run
+from modules.chat.runs.registry import STOP_SETTLE_SECONDS
+from modules.chat.runs.run import Run, RunState
 from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import (
     ImageUpload,
     MessageCreate,
     MessageRead,
+    RunStateRead,
     ThreadCreate,
     ThreadRead,
     ThreadUpdate,
@@ -118,13 +120,20 @@ def list_threads(
         .where(ChatThread.workspace_id == workspace.id)
         .order_by(ChatThread.created_at.desc())
     ).all()
-    running = runs.running()
     return [
         ThreadRead.model_validate(thread).model_copy(
-            update={"running": thread.id in running}
+            update=_run_fields(runs.get(thread.id))
         )
         for thread in threads
     ]
+
+
+def _run_fields(run: Run | None) -> dict:
+    """Whether the thread is answering, and where its reply stands."""
+    if run is None:
+        return {"running": False, "run_state": None}
+    state = RunStateRead(state=run.state.state, position=run.state.position)
+    return {"running": True, "run_state": state}
 
 
 @router.patch(
@@ -143,10 +152,11 @@ def update_thread(thread: ThreadDep, payload: ThreadUpdate) -> ChatThread:
     summary="Read a thread's messages",
 )
 async def list_messages(
-    thread: ThreadDep, session: SessionDep, launch_key: LaunchKeyDep
+    thread: ThreadDep, session: SessionDep, launch_key: LaunchKeyDep, runs: ChatRunsDep
 ) -> Sequence[ChatMessage] | list[dict]:
     if thread.uses_agent:
-        return await agent_thread_messages(session, thread, launch_key)
+        answering = runs.get(thread.id) is not None
+        return await agent_thread_messages(session, thread, launch_key, answering)
     return await transact(session, _stored_turns, thread)
 
 
@@ -155,8 +165,14 @@ async def list_messages(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a thread and its messages",
 )
-async def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
+async def delete_thread(
+    thread: ThreadDep, session: SessionDep, runs: ChatRunsDep
+) -> Response:
     workspace_id, thread_id = thread.workspace_id, thread.id
+    # First, so a reply never writes into a thread that is gone; the lock the
+    # thread's lookup took is let go, or the reply could not store its end.
+    await run_in_threadpool(session.commit)
+    await runs.stop(thread_id, STOP_SETTLE_SECONDS)
     folder = None
     if thread.opencode_session_id is not None:
         folder = await forget_thread(
@@ -214,10 +230,13 @@ async def send_message(
     runs: ChatRunsDep,
     request: Request,
 ) -> StreamingResponse:
-    if thread.uses_agent:
-        return await agent_turn(session, thread, payload, launch_key)
     if runs.get(thread.id) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "this thread is still answering")
+    if thread.uses_agent:
+        place = RunPlace(
+            runs, request.app.state.session_factory, request.app.state.broker
+        )
+        return await agent_turn(session, thread, payload, launch_key, place)
     resolved, history, hits, retried, scope_record = await transact(
         session, _ground, thread, payload
     )
@@ -344,7 +363,7 @@ async def send_message(
                                 held,
                                 turn([Message("user", payload.text)], TITLE_MAX_TOKENS),
                             ):
-                                yield _queued(place)
+                                run.set_state(RunState("queued", place))
                         title = await generate_title(
                             generator, selected.name, payload.text
                         )
@@ -367,8 +386,8 @@ async def send_message(
                         async for place in wait_in_line(
                             held, turn(messages, max_tokens)
                         ):
-                            yield _queued(place)
-                    yield _frame({"type": "run-state", "state": "running"})
+                            run.set_state(RunState("queued", place))
+                    run.set_state(RunState("running"))
                     async for delta in generator.chat_deltas(
                         selected.name,
                         messages,
@@ -490,7 +509,10 @@ async def send_message(
         await model_activity.release_use(activity_key)
         notify_run(broker, workspace_id, thread_id, "done")
 
-    run = runs.start(thread_id, stream, on_end=ended)
+    def moved(state: RunState) -> None:
+        notify_run(broker, workspace_id, thread_id, state.state)
+
+    run = runs.start(thread_id, stream, on_end=ended, on_state=moved)
     notify_run(broker, workspace_id, thread_id, "running")
     # This request only follows the run: hanging up leaves it generating.
     return event_stream(run.follow())
@@ -778,11 +800,6 @@ def _ending(
     if cut_off:
         return {"type": "stopped"} if stopped else {"type": "interrupted"}
     return None
-
-
-def _queued(place: int) -> bytes:
-    """Where the reply stands in line for the local runtime."""
-    return _frame({"type": "run-state", "state": "queued", "position": place})
 
 
 def _rolled_back(session: Session) -> None:

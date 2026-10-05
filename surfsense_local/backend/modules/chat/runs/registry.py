@@ -2,9 +2,13 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 
-from modules.chat.runs.run import Run
+from modules.chat.runs.run import Run, RunState
 
 logger = logging.getLogger(__name__)
+
+# How long a stop waits for the reply to store what it has, so the caller's
+# next read sees the stopped turn.
+STOP_SETTLE_SECONDS = 5.0
 
 
 class RunActiveError(Exception):
@@ -27,6 +31,16 @@ class ChatRuns:
     def running(self) -> frozenset[int]:
         return frozenset(self._runs)
 
+    async def stop(self, thread_id: int, timeout: float) -> None:
+        """Stop the thread's run and wait, at most `timeout` seconds, for it to
+        store what it has; nothing to do when the thread is not answering."""
+        run = self._runs.get(thread_id)
+        if run is None or run.task is None:
+            return
+        task = run.task
+        run.stop()
+        await asyncio.wait({task}, timeout=timeout)
+
     async def interrupt_all(self, timeout: float) -> None:
         """End every run and wait, at most `timeout` seconds, for each to store
         what it has. Bounded: a quit never waits on a reply that cannot."""
@@ -41,11 +55,12 @@ class ChatRuns:
         thread_id: int,
         frames: Callable[[Run], AsyncIterator[bytes]],
         on_end: Callable[[], Awaitable[None]],
+        on_state: Callable[[RunState], None] | None = None,
     ) -> Run:
         """Begin a reply in the background; it keeps going whoever watches."""
         if thread_id in self._runs:
             raise RunActiveError("this thread is still answering")
-        run = Run()
+        run = Run(on_state)
         self._runs[thread_id] = run
         run.task = asyncio.create_task(self._drive(thread_id, run, frames, on_end))
         return run

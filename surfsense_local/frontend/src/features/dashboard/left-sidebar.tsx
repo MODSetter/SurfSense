@@ -2,6 +2,7 @@ import { useState, type ComponentType, type ReactNode } from "react"
 
 import {
   Chat01Icon,
+  CircleAlertIcon,
   Loader2Icon,
   PencilEdit02Icon,
 } from "@/components/ui/icons"
@@ -61,9 +62,10 @@ function SidebarNavButton({
 }
 
 /**
- * What the Chats row says about threads other than the open one: a dot when a
- * reply is unread, else a spinner while any is writing or waiting. One mark,
- * the one to act on first; the counts are for screen readers.
+ * What the Chats row says about threads other than the open one: an alert when
+ * the agent waits on the user's approval, else a dot when a reply is unread,
+ * else a spinner while any is writing or waiting. One mark, the one to act on
+ * first; the counts are for screen readers.
  */
 function chatsActivity(
   activeThreadId: number | null,
@@ -71,6 +73,22 @@ function chatsActivity(
   unreadThreadIds: number[]
 ): { indicator: ReactNode; ariaLabel: string } | null {
   const elsewhere = (id: number) => id !== activeThreadId
+  const asking = Object.entries(runStates).filter(
+    ([id, run]) => elsewhere(Number(id)) && run.state === "needs-approval"
+  ).length
+  if (asking > 0) {
+    return {
+      indicator: <CircleAlertIcon className="size-3 text-primary" />,
+      ariaLabel: intl.formatMessage(
+        {
+          id: "dashboard_sidebar_chats_needs_approval_aria",
+          defaultMessage:
+            "Chats, {count, plural, one {# reply} other {# replies}} waiting for your approval",
+        },
+        { count: asking }
+      ),
+    }
+  }
   const unread = unreadThreadIds.filter(elsewhere).length
   if (unread > 0) {
     return {

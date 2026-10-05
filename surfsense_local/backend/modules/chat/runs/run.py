@@ -1,7 +1,18 @@
 import asyncio
-from collections.abc import AsyncIterator
+import json
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
 
 DONE = b"data: [DONE]\n\n"
+
+
+@dataclass(frozen=True)
+class RunState:
+    """Where a run stands, as its engine says: `queued` with its place in line,
+    `running`, or `needs-approval` while it waits on the user."""
+
+    state: str
+    position: int | None = None
 
 
 class Run:
@@ -11,8 +22,10 @@ class Run:
     replay what it missed; the run itself never depends on anyone watching.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, on_state: Callable[[RunState], None] | None = None) -> None:
         self._frames: list[bytes] = []
+        self._on_state = on_state
+        self.state = RunState("running")
         self._changed = asyncio.Event()
         self._finished = False
         self._stop_requested = False
@@ -26,6 +39,18 @@ class Run:
         """Number a frame and hand it to every follower."""
         self._frames.append(b"id: %d\n" % (len(self._frames) + 1) + frame)
         self._wake()
+
+    def set_state(self, state: RunState) -> None:
+        """Record where the run stands, send it as a frame, and tell every window."""
+        if state == self.state:
+            return
+        self.state = state
+        payload: dict = {"type": "run-state", "state": state.state}
+        if state.position is not None:
+            payload["position"] = state.position
+        self.add(f"data: {json.dumps(payload)}\n\n".encode())
+        if self._on_state is not None:
+            self._on_state(state)
 
     def finish(self) -> None:
         """No more frames; followers drain what is left and close."""

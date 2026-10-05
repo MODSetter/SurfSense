@@ -4,7 +4,10 @@ import { applyFrame, type LivePair } from "./apply-frame"
 
 /** Where a run stands, as the thread list and the thinking header show it. */
 export type RunState =
-  { state: "queued"; position: number } | { state: "running" }
+  | { state: "queued"; position: number }
+  | { state: "running" }
+  // The agent asked the user something and does nothing until it is answered.
+  | { state: "needs-approval" }
 
 /** One thread's reply in progress, as this window follows it. */
 export type LiveRun = {
@@ -111,7 +114,7 @@ export async function pump(
         event.type === "run-state"
           ? event.state === "queued"
             ? { state: "queued", position: event.position }
-            : { state: "running" }
+            : { state: event.state }
           : entry.state
       runs.set(threadId, {
         ...entry,
@@ -144,11 +147,6 @@ export function updatePair(
   if (!entry?.pair) return
   runs.set(threadId, { ...entry, pair: change(entry.pair) })
   changed()
-}
-
-/** Stop reading a run's frames; for an agent turn, closing its stream ends it. */
-export function abandonRun(threadId: number): void {
-  runs.get(threadId)?.controller.abort()
 }
 
 /** Forget a run once its stored turns show the whole reply. */

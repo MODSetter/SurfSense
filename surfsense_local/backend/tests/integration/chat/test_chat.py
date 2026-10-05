@@ -359,6 +359,8 @@ async def test_a_reply_with_no_progress_streams_as_it_did(
     events = await _send(client, thread_id, "what happened to revenue?")
 
     assert "prompt-progress" not in {event["type"] for event in events}
+
+
 async def test_a_turn_sent_with_thinking_off_answers_with_no_trace(
     client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
 ) -> None:
@@ -368,9 +370,7 @@ async def test_a_turn_sent_with_thinking_off_answers_with_no_trace(
     workspace_id, _ids = _seed(engine)
     thread_id = await _open_thread(client, workspace_id)
 
-    events = await _send(
-        client, thread_id, "what happened to revenue?", thinking=False
-    )
+    events = await _send(client, thread_id, "what happened to revenue?", thinking=False)
 
     kinds = {event["type"] for event in events}
     assert not kinds & {"reasoning", "reasoning-end"}
@@ -689,6 +689,44 @@ async def test_a_thread_answers_one_message_at_a_time(
 
     assert second.status_code == 409
     assert [message["role"] for message in stored] == ["user", "assistant"]
+
+
+async def test_deleting_a_thread_stops_its_reply_first(
+    live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """A reply left running would go on writing into a thread that is gone."""
+    release = stall_after_answer()
+    workspace_id, _ids = _seed(engine)
+    async with AsyncClient(base_url=live_url) as client:
+        thread_id = await _open_thread(client, workspace_id)
+        await _hang_up_mid_reply(client, thread_id)
+        deleted = await client.delete(f"/chat/threads/{thread_id}")
+        active = (await client.get("/chat/runs")).json()["active"]
+        followed = await client.get(f"/chat/threads/{thread_id}/run")
+        free = await _model_is_free()
+        release.set()
+
+    assert deleted.status_code == 204
+    assert active == 0
+    assert followed.status_code == 404
+    assert free
+
+
+async def test_deleting_a_workspace_stops_its_replies_first(
+    live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """Every thread in the workspace goes with it, so none may still be writing."""
+    release = stall_after_answer()
+    workspace_id, _ids = _seed(engine)
+    async with AsyncClient(base_url=live_url) as client:
+        thread_id = await _open_thread(client, workspace_id)
+        await _hang_up_mid_reply(client, thread_id)
+        deleted = await client.delete(f"/workspaces/{workspace_id}")
+        active = (await client.get("/chat/runs")).json()["active"]
+        release.set()
+
+    assert deleted.status_code == 204
+    assert active == 0
 
 
 @pytest.mark.parametrize("reasoning", [[], ["The note says ", "nothing useful."]])
@@ -1167,6 +1205,36 @@ async def test_a_local_reply_waits_its_turn_and_says_so(
     states = [e for e in events if e["type"] == "run-state"]
     assert states[-1] == {"type": "run-state", "state": "running"}
     assert events[-1]["type"] == "completed"
+
+
+async def test_the_thread_list_says_where_each_reply_stands(
+    live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """A window that follows neither reply still sees which one waits, and where."""
+    set_props_slots(1)
+    release = stall_after_answer()
+    workspace_id, _ids = _seed(engine)
+    async with AsyncClient(base_url=live_url) as client:
+        first = await _open_thread(client, workspace_id)
+        second = await _open_thread(client, workspace_id)
+        idle = await _open_thread(client, workspace_id)
+        await _hang_up_mid_reply(client, first)
+        async with client.stream(
+            "POST", f"/chat/threads/{second}/messages", json={"text": "and costs?"}
+        ) as reply:
+            async for line in reply.aiter_lines():
+                if line.startswith("data: {") and '"run-state"' in line:
+                    break
+        listed = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+        release.set()
+        for thread_id in (first, second):
+            await _settled_messages(client, thread_id)
+
+    assert {t["id"]: t["run_state"] for t in listed} == {
+        first: {"state": "running", "position": None},
+        second: {"state": "queued", "position": 1},
+        idle: None,
+    }
 
 
 async def test_two_local_replies_generate_together_when_the_runtime_has_two_slots(

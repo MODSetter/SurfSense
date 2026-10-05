@@ -1,6 +1,7 @@
 import { useRef, useState, type SubmitEvent } from "react"
 
 import {
+  CircleAlertIcon,
   ClockIcon,
   EllipsisIcon,
   Loader2Icon,
@@ -402,6 +403,23 @@ export function ChatsDialog({
                               },
                               { position: runState.position }
                             )}
+                          </span>
+                        </span>
+                      ) : runState?.state === "needs-approval" ? (
+                        // The one mark in the accent colour beside unread: it waits on the user.
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <CircleAlertIcon
+                            aria-hidden
+                            className="size-3 text-primary"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage({
+                              id: "chat_chats_dialog_needs_approval_label",
+                              defaultMessage: "Waiting for your approval",
+                            })}
                           </span>
                         </span>
                       ) : null}

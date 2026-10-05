@@ -14,7 +14,8 @@ const WORKSPACE = 1
 
 function thread(
   id: number,
-  running = false
+  running = false,
+  extra: Partial<ChatThread> = {}
 ): ChatThread & { running: boolean } {
   return {
     id,
@@ -24,6 +25,7 @@ function thread(
     created_at: "2026-10-05T00:00:00Z",
     updated_at: "2026-10-05T00:00:00Z",
     running,
+    ...extra,
   }
 }
 
@@ -45,6 +47,11 @@ class Stream {
     )
     if (payload === "[DONE]") this.controller.close()
   }
+
+  /** The window hung up, as an aborted fetch does to its body. */
+  hangUp() {
+    this.controller.error(new DOMException("aborted", "AbortError"))
+  }
 }
 
 /** The chat API this window talks to: stored turns, and the streams it opens. */
@@ -54,6 +61,7 @@ class FakeApi {
   sends: Array<{ threadId: number; body: Record<string, unknown> }> = []
   sendStreams: Stream[] = []
   stops: number[] = []
+  follows: number[] = []
 
   fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), "http://api")
@@ -69,6 +77,7 @@ class FakeApi {
       const stream = new Stream()
       this.sends.push({ threadId, body: JSON.parse(String(init?.body)) })
       this.sendStreams.push(stream)
+      init?.signal?.addEventListener("abort", () => stream.hangUp())
       return new Response(stream.body, {
         headers: { "Content-Type": "text/event-stream" },
       })
@@ -77,7 +86,8 @@ class FakeApi {
       this.stops.push(Number(match[1]))
       return new Response(null, { status: 204 })
     }
-    if (path.match(/^\/chat\/threads\/\d+\/run$/)) {
+    if ((match = path.match(/^\/chat\/threads\/(\d+)\/run$/))) {
+      this.follows.push(Number(match[1]))
       return new Response(null, { status: 404 })
     }
     if (path.startsWith(`/workspaces/${WORKSPACE}/events`)) {
@@ -311,6 +321,115 @@ describe("useChatRuntime", () => {
       expect(result.current.runStates).toEqual({
         1: { state: "queued", position: 2 },
       })
+    )
+  })
+
+  it("keeps an agent turn arriving while another thread is open", async () => {
+    api.threads = [thread(1, false, { uses_agent: true }), thread(2)]
+    const { result } = renderRuntime()
+    await openThread(result, 1)
+    sendIn(result, "List the reports")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const reply = api.sendStreams[0]
+    act(() => {
+      reply.frame({
+        type: "accepted",
+        user_message_id: "msg_u",
+        assistant_message_id: "msg_u:reply",
+        user_created_at: "2026-10-05T00:00:00Z",
+      })
+      reply.frame({ type: "delta", text: "Two " })
+    })
+
+    await openThread(result, 2)
+    act(() => reply.frame({ type: "delta", text: "reports." }))
+    await openThread(result, 1)
+
+    await waitFor(() =>
+      expect(assistantText(result.current.messages)).toEqual(["Two reports."])
+    )
+    expect(result.current.isRunning).toBe(true)
+  })
+
+  it("asks the API to stop an agent turn instead of hanging up", async () => {
+    api.threads = [thread(1, false, { uses_agent: true }), thread(2)]
+    const { result } = renderRuntime()
+    await openThread(result, 1)
+    sendIn(result, "List the reports")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    act(() =>
+      api.sendStreams[0].frame({
+        type: "accepted",
+        user_message_id: "msg_u",
+        assistant_message_id: "msg_u:reply",
+        user_created_at: "2026-10-05T00:00:00Z",
+      })
+    )
+
+    await act(async () => {
+      result.current.runtime.thread.cancelRun()
+    })
+
+    await waitFor(() => expect(api.stops).toEqual([1]))
+  })
+
+  it("follows an agent turn the list says is running", async () => {
+    api.threads = [thread(1, true, { uses_agent: true }), thread(2)]
+    const { result } = renderRuntime()
+
+    await openThread(result, 1)
+
+    await waitFor(() => expect(api.follows).toContain(1))
+  })
+
+  it("says where each reply stands from the thread list alone", async () => {
+    api.threads = [
+      thread(1, true, {
+        run_state: { state: "needs-approval", position: null },
+      }),
+      thread(2, true, { run_state: { state: "queued", position: 1 } }),
+    ]
+    const { result } = renderRuntime()
+
+    await waitFor(() =>
+      expect(result.current.runStates).toEqual({
+        1: { state: "needs-approval" },
+        2: { state: "queued", position: 1 },
+      })
+    )
+  })
+
+  it("asks an agent's pending approval again on returning to its thread", async () => {
+    api.threads = [thread(1, false, { uses_agent: true }), thread(2)]
+    const { result } = renderRuntime()
+    await openThread(result, 1)
+    sendIn(result, "List the reports")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const reply = api.sendStreams[0]
+    act(() =>
+      reply.frame({
+        type: "accepted",
+        user_message_id: "msg_u",
+        assistant_message_id: "msg_u:reply",
+        user_created_at: "2026-10-05T00:00:00Z",
+      })
+    )
+
+    await openThread(result, 2)
+    act(() =>
+      reply.frame({
+        type: "permission-request",
+        id: "per_1",
+        permission: "doom_loop",
+        patterns: [],
+        command: null,
+      })
+    )
+    expect(result.current.approvals).toEqual([])
+    await openThread(result, 1)
+
+    await waitFor(() =>
+      expect(result.current.approvals.map((a) => a.id)).toEqual(["per_1"])
     )
   })
 })

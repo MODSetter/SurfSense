@@ -1,10 +1,10 @@
-import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 
 from modules.chat.runs.dependencies import ChatRunsDep
+from modules.chat.runs.registry import STOP_SETTLE_SECONDS
 from modules.chat.runs.stream import event_stream
 
 router = APIRouter(tags=["chat"])
@@ -33,11 +33,6 @@ def follow_run(
     )
 
 
-# How long a stop waits for the reply to store what it has, so the caller's
-# next read sees the stopped turn.
-STOP_SETTLE_SECONDS = 5.0
-
-
 @router.post(
     "/chat/threads/{thread_id}/run/stop",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -45,10 +40,7 @@ STOP_SETTLE_SECONDS = 5.0
 )
 async def stop_run(thread_id: int, runs: ChatRunsDep) -> Response:
     """Stop the run, queued or generating; `204` also when nothing runs."""
-    run = runs.get(thread_id)
-    if run is not None and run.task is not None:
-        run.stop()
-        await asyncio.wait({run.task}, timeout=STOP_SETTLE_SECONDS)
+    await runs.stop(thread_id, STOP_SETTLE_SECONDS)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

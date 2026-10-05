@@ -20,6 +20,11 @@ export type ChatThread = {
   // A reply is being generated for it right now. Absent on a thread the
   // client made itself before the list was read again.
   running?: boolean
+  // Where that reply stands; null when nothing is being generated.
+  run_state?: {
+    state: "queued" | "running" | "needs-approval"
+    position: number | null
+  } | null
 }
 
 /** How a stored reply ended; absent for one that completed. */

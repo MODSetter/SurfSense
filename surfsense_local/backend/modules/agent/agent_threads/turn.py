@@ -1,8 +1,9 @@
-"""One turn of an agent thread, streamed in the chat's own frames.
+"""One turn of an agent thread, run in the background in the chat's own frames.
 
 opencode holds the turn; this sends the message, relays what the session does
-until it is idle, then states the reply as opencode stored it. Closing the
-stream stops the turn: nothing works on unseen.
+until it is idle, then states the reply as opencode stored it. The turn is a
+run: a window that hangs up stops following it, not the turn; Stop and quit
+end it.
 """
 
 import asyncio
@@ -10,12 +11,13 @@ import json
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from pathlib import Path
 
 import anyio
 import httpx
 from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
@@ -23,11 +25,12 @@ from modules.agent.agent_threads import live_instances
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.legacy_thread import LEGACY_TURN, is_legacy
 from modules.agent.agent_threads.ready_renders import link_live_render
-from modules.agent.agent_threads.replies import turn_reply
+from modules.agent.agent_threads.recorded_endings import record_ending
+from modules.agent.agent_threads.replies import reply_id, turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.agent_threads.turn_sources import TurnSources, turn_sources
 from modules.agent.engine_choice import selected_model_can_run_agent
-from modules.agent.opencode_client import OpencodeVersionError
+from modules.agent.opencode_client import OpencodeClient, OpencodeVersionError
 from modules.agent.opencode_runtime import (
     AgentUnavailableError,
     ReadyAgent,
@@ -38,7 +41,12 @@ from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import register_thread_tools
 from modules.chat.errors import classify_chat_error
 from modules.chat.models import ChatThread
+from modules.chat.runs.notify import notify_run
+from modules.chat.runs.registry import ChatRuns
+from modules.chat.runs.run import Run, RunState
+from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import MessageCreate
+from modules.events.broker import EventBroker
 from modules.llm.resolution import ModelResolutionError
 from shared.config import get_storage_settings
 
@@ -62,10 +70,24 @@ class _Sending:
     title: str | None
 
 
+@dataclass(frozen=True)
+class RunPlace:
+    """What a turn needs to run past its request: the registry, its own sessions,
+    and the broker that tells every window."""
+
+    runs: ChatRuns
+    session_factory: sessionmaker[Session]
+    broker: EventBroker
+
+
 async def agent_turn(
-    session: Session, thread: ChatThread, payload: MessageCreate, launch_key: str
+    session: Session,
+    thread: ChatThread,
+    payload: MessageCreate,
+    launch_key: str,
+    place: RunPlace,
 ) -> StreamingResponse:
-    """Start the turn and answer with its stream, or refuse before anything is sent."""
+    """Start the turn as a run and follow it, or refuse before anything is sent."""
     session_id = thread.opencode_session_id
     if session_id is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "this thread is not the agent's")
@@ -98,20 +120,38 @@ async def agent_turn(
         await ready.client.close()
         raise
     sending = _Sending(payload.text, sources, title)
-    return StreamingResponse(
-        _stream(session, thread, ready, launch_key, session_id, sending),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    thread_id, workspace_id = thread.id, thread.workspace_id
+
+    async def frames(run: Run) -> AsyncIterator[bytes]:
+        # The run outlives this request, so it keeps its own session.
+        with place.session_factory() as run_session:
+            async for frame in _stream(
+                run,
+                run_session,
+                (workspace_id, thread_id),
+                ready,
+                launch_key,
+                session_id,
+                sending,
+            ):
+                yield frame
+
+    async def ended() -> None:
+        notify_run(place.broker, workspace_id, thread_id, "done")
+
+    def moved(state: RunState) -> None:
+        notify_run(place.broker, workspace_id, thread_id, state.state)
+
+    run = place.runs.start(thread_id, frames, on_end=ended, on_state=moved)
+    notify_run(place.broker, workspace_id, thread_id, "running")
+    # This request only follows the run: hanging up leaves the turn going.
+    return event_stream(run.follow())
 
 
 async def _stream(
+    run: Run,
     session: Session,
-    thread: ChatThread,
+    where: tuple[int, int],
     ready: ReadyAgent,
     launch_key: str,
     session_id: str,
@@ -120,9 +160,12 @@ async def _stream(
     """The turn's frames, from its sources prepared to the reply stored."""
     title = sending.title
     client = ready.client
-    workspace_id = thread.workspace_id
-    folder = get_storage_settings().thread_working_dir(workspace_id, thread.id)
+    workspace_id, thread_id = where
+    thread = await transact(session, _reload, thread_id)
+    folder = get_storage_settings().thread_working_dir(workspace_id, thread_id)
     turn = TurnFrames(session_id)
+    # Approvals asked and not yet answered: the turn waits on the user meanwhile.
+    waiting: set[str] = set()
     sent = False
     live_instances.turn_began(folder)
     try:
@@ -130,21 +173,23 @@ async def _stream(
         count = len(sending.sources.document_ids)
         yield _frame({"type": "agent-preparing", "count": count})
         try:
+            if thread is None:
+                raise ThreadGoneError(thread_id)
             # Commits its own short reads: files are written with the write lock free.
             await run_in_threadpool(
                 sync_thread_folder, session, thread, sending.sources.document_ids
             )
         except (ThreadGoneError, OSError) as error:
             logger.warning(
-                "thread %s's sources were not prepared", thread.id, exc_info=True
+                "thread %s's sources were not prepared", thread_id, exc_info=True
             )
             yield _frame(_not_prepared(error))
             yield _DONE
             return
         # The turn's first call into its instance: one being disposed is finished first.
         await live_instances.wait_for_disposal(folder)
-        await register_thread_tools(client, folder, workspace_id, thread.id, launch_key)
-        begin_turn(thread.id)
+        await register_thread_tools(client, folder, workspace_id, thread_id, launch_key)
+        begin_turn(thread_id)
         if sending.sources.shown is not None:
             # First, so the turn shows what the server resolved, not what the client guessed.
             yield _frame({"type": "agent-scope", "scope": sending.sources.shown})
@@ -169,6 +214,7 @@ async def _stream(
                             break
                         continue
                     for frame in turn.frames(event):
+                        _follow_approvals(run, waiting, frame)
                         if frame.get("artifact") is not None:
                             # Whether it made the document, as the stored step says.
                             await transact(
@@ -226,8 +272,11 @@ async def _stream(
         )
         yield _DONE
     finally:
-        # Starlette cancels this when the client hangs up: the turn stops with it.
+        # Stop and quit cancel the run: the turn stops with it.
         with anyio.CancelScope(shield=True):
+            if run.stop_requested and not turn.finished:
+                # opencode stores a Stop as it stores a quit: only this note tells them apart.
+                await _note_stop(client, folder, session_id, turn.user_message_id)
             if sent and not turn.finished:
                 try:
                     await client.abort(folder, session_id)
@@ -237,6 +286,32 @@ async def _stream(
                     )
             await live_instances.turn_ended(client, folder)
             await client.close()
+
+
+async def _note_stop(
+    client: OpencodeClient, folder: Path, session_id: str, user_message_id: str | None
+) -> None:
+    """Keep that the user stopped the reply; a failed write reads as interrupted,
+    which offers Retry rather than hiding it."""
+    if user_message_id is None:
+        return
+    try:
+        await record_ending(
+            client, folder, session_id, reply_id(user_message_id), {"type": "stopped"}
+        )
+    except httpx.HTTPError:
+        logger.warning("could not note the stop of %s's reply", session_id)
+
+
+def _follow_approvals(run: Run, waiting: set[str], frame: dict) -> None:
+    """Say the run needs approval while any request waits, and running once none does."""
+    if frame["type"] == "permission-request":
+        waiting.add(frame["id"])
+    elif frame["type"] == "permission-replied":
+        waiting.discard(frame["id"])
+    else:
+        return
+    run.set_state(RunState("needs-approval" if waiting else "running"))
 
 
 def _not_prepared(error: Exception) -> dict:
@@ -284,6 +359,11 @@ def _first_title(thread: ChatThread, text: str) -> str | None:
     return (
         words if len(words) <= TITLE_CHARS else words[: TITLE_CHARS - 1].rstrip() + "…"
     )
+
+
+def _reload(session: Session, thread_id: int) -> ChatThread | None:
+    """The thread in the run's own session; None once it was deleted."""
+    return session.get(ChatThread, thread_id)
 
 
 def _rename(_session: Session, thread: ChatThread, title: str) -> None:
