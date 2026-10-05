@@ -101,11 +101,22 @@ def assert_next_version(earlier: Version, later: Version, turn: str) -> None:
     assert later.number > earlier.number, f"{turn}: {later} is not newer than {earlier}"
 
 
+def sees_pages(live: LiveAgent) -> bool:
+    """Whether the model is sent page previews: the catalog says it reads images."""
+    return live.run.model.reads_images
+
+
 async def assert_pages_checked(
     live: LiveAgent, frames: list[dict[str, Any]], turn: str
 ) -> None:
-    """The agent opened every page preview of the version it ended the turn on."""
+    """The agent opened every page preview of the version it ended the turn on.
+
+    A text-only model is told to check the script and the render's text instead
+    (the skill), so only a model that reads images is held to the previews.
+    """
     made = await last_version(live, frames, turn)
+    if not sees_pages(live):
+        return
     previews = (
         get_storage_settings().agent_working_dir(live.workspace_id)
         / "outputs"

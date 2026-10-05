@@ -15,7 +15,7 @@ from modules.documents.source_figures import figure_file
 from shared.db import create_session_factory
 from tests.live import demo_sources
 from tests.live.live_agent import LiveAgent, steps
-from tests.live.turn_renders import ready_versions
+from tests.live.turn_renders import ready_versions, sees_pages
 
 pytestmark = pytest.mark.live
 
@@ -76,6 +76,8 @@ async def test_the_agent_drafts_edits_and_exports_a_proposal(live: LiveAgent) ->
     )
     assert len(pictures) >= 2, f"{name} has no chart beside the logo"
 
+    if not sees_pages(live):
+        return
     checked = [
         s
         for reply in replies
