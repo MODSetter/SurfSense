@@ -38,10 +38,14 @@ class TurnScope:
     # False when the address names no agent thread of the workspace.
     known: bool = True
 
-    def selected(self) -> frozenset[int]:
-        """The sources the thread may use; refused when the thread is unknown."""
+    def require_known(self) -> None:
+        """Refuse a call from an address naming no agent thread of the workspace."""
         if not self.known:
             raise ToolCallError(_UNKNOWN)
+
+    def selected(self) -> frozenset[int]:
+        """The sources the thread may use; refused when the thread is unknown."""
+        self.require_known()
         return self.document_ids
 
     def refuse_unselected(self, source_ids: Iterable[int]) -> None:

@@ -156,6 +156,38 @@ async def test_a_call_from_no_agent_thread_of_the_workspace_is_refused_not_widen
     assert "send the message again" in searched
 
 
+@pytest.mark.usefixtures("stub_model", "model_reads_images")
+@pytest.mark.parametrize("caller", ["no such thread", "a chat thread", "elsewhere"])
+async def test_a_document_tool_from_no_agent_thread_of_the_workspace_is_refused(
+    tools: ToolEndpoint, studio_worker: None, caller: str
+) -> None:
+    """A render writes its previews into its thread's folder, which no such address has."""
+    workspace_id, elsewhere = await tools.workspace(), await tools.workspace()
+    made, _ = await tools.call(workspace_id, "render_document", render())
+    thread = {
+        "no such thread": 999_999,
+        "a chat thread": tools.thread(workspace_id, agent=False),
+        "elsewhere": tools.thread(elsewhere),
+    }[caller]
+
+    rendered, render_refused = await tools.call(
+        workspace_id, "render_document", render(), thread=thread
+    )
+    read, read_refused = await tools.call(
+        workspace_id,
+        "read_document",
+        {"artifact_id": _artifact_id(made)},
+        thread=thread,
+    )
+
+    assert (render_refused, read_refused) == (True, True), (rendered, read)
+    assert "send the message again" in rendered
+    assert "two-phase rollout" not in read
+    listed = await tools.client.get(f"/workspaces/{workspace_id}/artifacts")
+    assert len(listed.json()) == 1
+    assert not tools.folder(workspace_id, thread).exists()
+
+
 async def test_the_address_without_a_thread_is_gone(tools: ToolEndpoint) -> None:
     """Every thread registers its own address; a workspace-wide one would serve any turn."""
     workspace_id = await tools.workspace()

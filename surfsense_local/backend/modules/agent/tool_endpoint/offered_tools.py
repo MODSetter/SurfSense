@@ -54,6 +54,8 @@ async def call(
         )
     arguments = params.get("arguments") or {}
     try:
+        # Even a tool needing no sources writes into, or reads for, its thread.
+        scope.require_known()
         if tool.needs_image_input and not _model_sees_images():
             raise ToolCallError(
                 "The selected model cannot read images, so this tool cannot show it "
