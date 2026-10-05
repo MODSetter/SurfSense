@@ -27,4 +27,4 @@ The [proposal](../proposals/embedding-model-choice.md) lets a new install choose
 - A same-width replacement is now detected, because the row names the model, closing the gap ADR 0007 recorded.
 - Locking is the one place outside migrations that emits DDL, safe only because it runs on an empty table.
 - Workers wait until the API has migrated the database before taking a job. Electron starts them together, and a job queued before an update would otherwise run against the old schema.
-- The bundled bge-small file can never change without a re-embed. Its FP16 weights stay, int8 or not ([search](../architecture/search.md), Known gaps).
+- The bundled bge-small file can never change without a re-embed. Its FP16 weights stay, int8 or not ([embedding](../architecture/embedding.md#choosing)).

@@ -1,6 +1,6 @@
 # ADR 0007: Embeddings come from a bundled bge-small model run in process on the CPU
 
-- **Status:** Accepted; amended by [ADR 0036](0036-the-index-records-its-embedder.md): the width comes from the index's own record, and bge-small is the default rather than the only embedder. The bundled file is FP16, not the int8 the Decision names: see the correction at the end
+- **Status:** Accepted; amended by [ADR 0036](0036-the-index-records-its-embedder.md): the width comes from the index's own record, and bge-small is the default rather than the only embedder; the bundled file is FP16, not the int8 the Decision names (66,465,124 bytes, measured in [embedding](../architecture/embedding.md#choosing), [#1996](https://github.com/MODSetter/SurfSense/issues/1996))
 - **Date:** 2026-09-04
 - **Source:** [Umbrella plan L106](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L106), [Data model L220–224](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00c-data-model.md#L220-L224)
 
@@ -20,7 +20,3 @@ Ingest and search both need embeddings, and the app has to produce them with no 
 - The model ships in the installer's `models/` resources, beside the voice and parser packs ([`electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml)).
 - Changing the embedding model means reindexing. There is no migration between two embedding spaces. The API refuses to start, and says to reindex, when the index's vector width differs from the configured model's; a replacement model with the same width is not detected.
 - OpenAI-compatible connections do not carry embeddings ([ADR 0015](0015-openai-compatible-connections.md)).
-
-## Correction, 2026-10-02
-
-The Decision says "int8 ONNX". The file bundled since this decision, `model_optimized.onnx` from `Qdrant/bge-small-en-v1.5-onnx-Q`, stores FLOAT16 weights; the repo's name says quantized and its only ONNX file is not. "384 dimensions" and "about 66 MB" (66,465,124 bytes) are right. The decision itself stands: that file, bundled and run in process on the CPU. What it measures at, and why an int8 export does not replace it, is in [embedding](../architecture/embedding.md#choosing) ([#1996](https://github.com/MODSetter/SurfSense/issues/1996)).
