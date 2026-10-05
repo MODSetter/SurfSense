@@ -2,7 +2,11 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt
 
-ScopeIds = Annotated[list[PositiveInt], Field(max_length=1000)]
+# Bounds the request body, not a workspace: the sources tree sends one id per
+# file unticked singly. Each list reaches SQL as one json_each parameter.
+MAX_SCOPE_IDS = 50_000
+
+ScopeIds = Annotated[list[PositiveInt], Field(max_length=MAX_SCOPE_IDS)]
 
 
 class SourceScope(BaseModel):

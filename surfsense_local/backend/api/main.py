@@ -30,6 +30,7 @@ from modules.embedding.huggingface.router import (
 from modules.embedding.router import router as embedding_router
 from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
+from modules.folders.finish_deletes import finish_interrupted_deletes
 from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
@@ -86,6 +87,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ensure_default_workspace(session)
             session.commit()
         app.state.session_factory = session_factory
+        # A thread too: a large subtree takes a while, and it is out of every
+        # scope and the tree meanwhile.
+        threading.Thread(
+            target=_finish_folder_deletes,
+            args=(session_factory,),
+            name="folder-deletes",
+            daemon=True,
+        ).start()
         # Off the startup path, on a thread. Both halves are slow for the same
         # reason: the preset is priced against the devices, and taking the
         # device probe costs about 19 seconds on a Mac the first time, while
@@ -106,6 +115,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         engine.dispose()
+
+
+def _finish_folder_deletes(session_factory: sessionmaker[Session]) -> None:
+    try:
+        finish_interrupted_deletes(session_factory)
+    except Exception:
+        logger.exception("could not finish the folder deletes left at startup")
 
 
 def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
