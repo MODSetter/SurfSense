@@ -127,5 +127,5 @@ markers = [
     "unit: pure logic tests, no database or external services",
     "integration: tests that run against a real SQLite database built by migrations",
     "packaging: freezes or runs the binaries the app ships; slow, opt-in",
-    "live: calls Claude Sonnet through the real agent path; skipped unless SURFSENSE_LIVE_TESTS=1 and ANTHROPIC_API_KEY are set, costs money",
+    "live: calls a paid model (Claude Sonnet unless SURFSENSE_LIVE_MODEL says otherwise) through the real agent path; skipped unless SURFSENSE_LIVE_TESTS=1 and the provider's key are set, costs money",
 ]

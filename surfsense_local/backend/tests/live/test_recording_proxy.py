@@ -15,6 +15,8 @@ import httpx
 import pytest
 from PIL import Image
 
+from tests.live.live_model import PROVIDERS, LiveModel
+from tests.live.model_prices import ANTHROPIC_PRICES
 from tests.live.recording_proxy import RecordingProxy
 from tests.live.spend_ledger import SpendLedger, Usage
 
@@ -26,6 +28,12 @@ USAGE = {
     "completion_tokens": 40,
     "prompt_tokens_details": {"cached_tokens": 200},
 }
+SONNET = LiveModel(
+    "claude-sonnet-5-5", PROVIDERS["anthropic"], ANTHROPIC_PRICES["claude-sonnet-5-5"]
+)
+HAIKU = LiveModel(
+    "claude-haiku-4-5", PROVIDERS["anthropic"], ANTHROPIC_PRICES["claude-haiku-4-5"]
+)
 
 
 @dataclass
@@ -35,6 +43,9 @@ class Upstream:
     url: str = ""
     headers: list[dict[str, str]] = field(default_factory=list)
     bodies: list[dict] = field(default_factory=list)
+    usage: dict = field(default_factory=lambda: USAGE)
+    # OpenRouter names the provider it routed a call to; Anthropic names none.
+    provider: str | None = None
 
 
 class _Answers(BaseHTTPRequestHandler):
@@ -78,12 +89,15 @@ class _Answers(BaseHTTPRequestHandler):
                     }
                 ]
             },
-            {"choices": [], "usage": USAGE},
+            {"choices": [], "usage": upstream.usage},
         ]
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
         for chunk in chunks:
+            chunk = {"id": "gen-stand-in-1", **chunk}
+            if upstream.provider:
+                chunk["provider"] = upstream.provider
             self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")
 
@@ -158,14 +172,14 @@ def test_a_reply_streams_through_and_its_usage_is_charged(
     upstream: Upstream, ledger: SpendLedger
 ) -> None:
     """SurfSense gets the stream as sent; cached prompt tokens are charged at their own rate."""
-    with RecordingProxy(upstream.url, KEY, ledger, case="smoke") as proxy:
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
         reply = _chat(proxy)
 
     assert reply.status_code == 200
     assert reply.text.endswith("data: [DONE]\n\n")
     spent = Usage(input_tokens=1000, output_tokens=40, cache_read_tokens=200)
     assert proxy.usage() == spent
-    assert ledger.total() == spent
+    assert ledger.usage(SONNET.label) == spent
     (exchange,) = proxy.exchanges
     assert exchange.reply_text == "Hi"
     assert exchange.tool_calls == [{"name": "read", "arguments": '{"a":1}'}]
@@ -176,7 +190,7 @@ def test_the_key_goes_upstream_in_place_of_the_placeholder_and_is_never_recorded
     upstream: Upstream, ledger: SpendLedger
 ) -> None:
     """The key stays in memory: not in the transcript, not in the ledger."""
-    with RecordingProxy(upstream.url, KEY, ledger, case="smoke") as proxy:
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
         _chat(proxy)
 
     (headers,) = upstream.headers
@@ -189,7 +203,7 @@ def test_usage_is_asked_for_on_every_streamed_request(
     upstream: Upstream, ledger: SpendLedger
 ) -> None:
     """Without it a streamed reply carries no usage, and spend could not be exact."""
-    with RecordingProxy(upstream.url, KEY, ledger, case="smoke") as proxy:
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
         _chat(proxy)
 
     assert upstream.bodies[0]["stream_options"] == {"include_usage": True}
@@ -200,9 +214,11 @@ def test_a_request_that_could_reach_the_stop_never_leaves(
 ) -> None:
     """The stop holds inside a run too, before a call is paid for."""
     ledger = SpendLedger(tmp_path / "spend.json", stop_dollars=1.0)
-    ledger.add(Usage(input_tokens=499_000), case="earlier")  # $0.998
+    ledger.add(
+        Usage(input_tokens=499_000), SONNET.prices, case="earlier", model="m"
+    )  # $0.998
 
-    with RecordingProxy(upstream.url, KEY, ledger, case="smoke") as proxy:
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
         reply = _chat(proxy)
 
     assert reply.status_code == 400
@@ -216,7 +232,9 @@ def test_images_a_request_carries_are_counted_and_kept_out_of_the_transcript(
 ) -> None:
     """Whether a page image reached the model is the question; its bytes are not."""
     image = "data:image/png;base64," + "A" * 4000
-    with RecordingProxy(upstream.url, KEY, ledger, case="images") as proxy:
+    with RecordingProxy(
+        upstream.url, KEY, ledger, case="images", model=SONNET
+    ) as proxy:
         httpx.post(
             f"{proxy.url}/chat/completions",
             json={
@@ -243,15 +261,17 @@ def test_a_reply_cut_off_before_its_usage_is_charged_at_the_worst_case(
     breaking_upstream: Upstream, ledger: SpendLedger
 ) -> None:
     """Anthropic bills what it read and wrote before the break; $0 would let the stop come late."""
-    with RecordingProxy(breaking_upstream.url, KEY, ledger, case="demo") as proxy:
+    with RecordingProxy(
+        breaking_upstream.url, KEY, ledger, case="demo", model=SONNET
+    ) as proxy:
         _chat(proxy)
 
     (exchange,) = proxy.exchanges
     assert exchange.error is not None
     assert exchange.usage_estimated is True
     assert exchange.usage.output_tokens == 1000  # the request's max_tokens
-    assert exchange.usage.dollars > 0
-    assert ledger.total() == exchange.usage
+    assert SONNET.prices.dollars(exchange.usage) > 0
+    assert ledger.usage(SONNET.label) == exchange.usage
     (recorded,) = proxy.transcript()
     assert recorded["usage_estimated"] is True
 
@@ -273,7 +293,9 @@ def test_a_page_image_cut_off_with_its_reply_is_charged_by_its_pixels(
         {"type": "image_url", "image_url": {"url": image}},
     ]
 
-    with RecordingProxy(breaking_upstream.url, KEY, ledger, case="memo") as proxy:
+    with RecordingProxy(
+        breaking_upstream.url, KEY, ledger, case="memo", model=SONNET
+    ) as proxy:
         _chat(proxy, messages=[{"role": "user", "content": content}])
 
     (exchange,) = proxy.exchanges
@@ -305,8 +327,82 @@ def test_a_reply_with_its_usage_is_charged_as_reported(
     upstream: Upstream, ledger: SpendLedger
 ) -> None:
     """Only a reply that never said what it used is estimated."""
-    with RecordingProxy(upstream.url, KEY, ledger, case="smoke") as proxy:
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
         _chat(proxy)
 
     (recorded,) = proxy.transcript()
     assert recorded["usage_estimated"] is False
+
+
+def test_a_call_is_charged_at_the_chosen_models_prices_under_its_name(
+    upstream: Upstream, ledger: SpendLedger
+) -> None:
+    """A ladder run on Haiku must not book Sonnet's rates."""
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=HAIKU) as proxy:
+        _chat(proxy)
+
+    spent = Usage(input_tokens=1000, output_tokens=40, cache_read_tokens=200)
+    assert ledger.usage(HAIKU.label) == spent
+    assert ledger.dollars() == pytest.approx(HAIKU.prices.dollars(spent))
+    assert ledger.dollars() == pytest.approx((1000 * 1 + 40 * 5 + 200 * 0.1) / 1e6)
+
+
+def test_openrouters_cache_writes_are_charged_as_cache_writes(
+    upstream: Upstream, ledger: SpendLedger
+) -> None:
+    """OpenRouter reports them inside the prompt's details, not beside it as Anthropic does."""
+    upstream.usage = {
+        "prompt_tokens": 1200,
+        "completion_tokens": 40,
+        "prompt_tokens_details": {"cached_tokens": 200, "cache_write_tokens": 300},
+    }
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
+        _chat(proxy)
+
+    assert proxy.usage() == Usage(
+        input_tokens=700,
+        output_tokens=40,
+        cache_read_tokens=200,
+        cache_write_tokens=300,
+    )
+
+
+def test_each_call_records_where_it_went_and_its_headers_without_the_key(
+    upstream: Upstream, ledger: SpendLedger
+) -> None:
+    """A run folder shows which provider answered and what SurfSense sent it."""
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
+        _chat(proxy)
+
+    (recorded,) = proxy.transcript()
+    assert recorded["upstream"] == f"{upstream.url}/chat/completions"
+    assert recorded["sent_headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer [REDACTED]",
+    }
+    assert recorded["reply_id"] == "gen-stand-in-1"
+    assert KEY not in json.dumps(recorded)
+
+
+def test_openrouters_own_cost_for_a_call_is_kept_beside_the_charge(
+    upstream: Upstream, ledger: SpendLedger
+) -> None:
+    """So a run's dollars can be checked against what OpenRouter says it billed."""
+    upstream.usage = {**USAGE, "cost": 0.0012}
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
+        _chat(proxy)
+
+    (recorded,) = proxy.transcript()
+    assert recorded["reported_cost"] == 0.0012
+
+
+def test_the_provider_openrouter_routed_a_call_to_is_recorded(
+    upstream: Upstream, ledger: SpendLedger
+) -> None:
+    """Calls in one run can land on providers with different prices and quantizations."""
+    upstream.provider = "Makora"
+    with RecordingProxy(upstream.url, KEY, ledger, case="smoke", model=SONNET) as proxy:
+        _chat(proxy)
+
+    (recorded,) = proxy.transcript()
+    assert recorded["served_by"] == "Makora"

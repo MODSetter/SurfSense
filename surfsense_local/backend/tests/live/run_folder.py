@@ -1,6 +1,7 @@
 """What one live run leaves for the maintainer: the transcript, every document version, its previews and its cost.
 
-Written to references/live-runs/<UTC timestamp>-<case>/, which git ignores.
+Written to <live runs>/<UTC timestamp>-<case>-<provider>-<model>/, by default under
+references/live-runs/, which git ignores.
 """
 
 import json
@@ -10,17 +11,21 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from tests.live.spend_ledger import LIVE_RUNS, SpendLedger, Usage
+from tests.live.live_model import LiveModel
+from tests.live.live_runs_dir import live_runs_dir
+from tests.live.spend_ledger import SpendLedger, Usage
 
 # A step that read a whole file would bury the turn; the full calls are in model-requests.json.
 _SHOWN_OUTPUT_CHARS = 2500
 
 
 class RunFolder:
-    def __init__(self, case: str, root: Path = LIVE_RUNS) -> None:
+    def __init__(self, case: str, model: LiveModel, root: Path | None = None) -> None:
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         self.case = case
-        self.path = root / f"{stamp}-{case}"
+        self.model = model
+        name = f"{stamp}-{case}-{model.provider.name}-{model.name}"
+        self.path = (root or live_runs_dir()) / _safe(name)
         self.path.mkdir(parents=True)
         self.turns: list[dict[str, Any]] = []
 
@@ -72,14 +77,20 @@ class RunFolder:
             "cost.json",
             json.dumps(
                 {
+                    "model": self.model.name,
+                    "provider": self.model.provider.name,
+                    "prices_per_million": self.model.prices.per_million(),
                     **usage.__dict__,
-                    "dollars": round(usage.dollars, 4),
+                    "dollars": round(self.model.prices.dollars(usage), 4),
                     "model_requests": len(exchanges),
-                    # Cut off before Anthropic said what they used: charged at the worst case.
+                    # Cut off before the provider said what they used: charged at the worst case.
                     "estimated_model_requests": sum(
                         1 for e in exchanges if e["usage_estimated"]
                     ),
-                    "ledger_dollars_after": round(ledger.total().dollars, 4),
+                    "ledger_dollars_after": round(ledger.dollars(), 4),
+                    # What OpenRouter says it billed. It routes each call to one of
+                    # several providers, most dearer than the listed price charged above.
+                    "reported_dollars": _reported_dollars(exchanges),
                 },
                 indent=2,
             ),
@@ -90,6 +101,10 @@ class RunFolder:
                 json.dumps(
                     {
                         "case": self.case,
+                        "model": self.model.name,
+                        "provider": self.model.provider.name,
+                        # Whether the app declared image input, from the manifest's row.
+                        "reads_images": self.model.reads_images,
                         "outcome": outcome,
                         "detail": detail,
                         "word_previews": word_previews,
@@ -147,3 +162,11 @@ def _step_lines(step: dict[str, Any]) -> list[str]:
 
 def _safe(name: str) -> str:
     return re.sub(r'[<>:"/\\|?*]+', "_", name)
+
+
+def _reported_dollars(exchanges: list[dict[str, Any]]) -> float | None:
+    """The provider's own bill for the run, or None when a call carried none."""
+    costs = [e.get("reported_cost") for e in exchanges]
+    if not costs or any(c is None for c in costs):
+        return None
+    return round(sum(costs), 4)
