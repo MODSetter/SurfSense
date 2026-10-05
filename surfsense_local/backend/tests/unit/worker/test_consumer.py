@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from modules.artifacts.tasks import studio_job
@@ -55,3 +57,27 @@ def test_revoke_pending_skips_the_matching_job() -> None:
     task = queue.ingest_queue.pending()[0]
     assert queue.ingest_queue.is_revoked(task)
     queue.ingest_queue.flush()
+
+
+def test_the_studio_worker_clears_run_folders_a_killed_worker_left(
+    monkeypatch: pytest.MonkeyPatch, data_dir: Path
+) -> None:
+    """A quit mid-run kills the script but leaves its folder: the script and copies of the sources' images."""
+
+    class FakeConsumer:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        def run(self) -> None:
+            pass
+
+    monkeypatch.setattr(consumer, "Consumer", FakeConsumer)
+    monkeypatch.setattr(consumer, "wait_for_schema", lambda: None)
+    monkeypatch.setattr(consumer, "fail_interrupted_documents", lambda _kinds: None)
+    left = data_dir / "tmp" / "document-scripts" / "0f1e2d3c"
+    (left / "images").mkdir(parents=True)
+    (left / "images" / "7-1.png").write_bytes(b"a figure")
+
+    consumer.consume("studio")
+
+    assert not left.exists()

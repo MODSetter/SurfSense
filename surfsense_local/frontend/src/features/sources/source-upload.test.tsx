@@ -65,7 +65,9 @@ function SourceHarness() {
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentIncluded}
         onToggleAll={sources.toggleAllIncluded}
-        onDropFiles={(files) => void sources.upload(files)}
+        onDropFiles={(entries, folderId) =>
+          void sources.uploadEntries(entries, folderId)
+        }
       />
     </TooltipProvider>
   )
@@ -469,7 +471,7 @@ describe("source upload", () => {
         }
         if (
           path ===
-            "/workspaces/1/documents?document_type=FILE&document_type=NOTE" &&
+            "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0" &&
           !uploaded
         ) {
           return Response.json([])
@@ -495,7 +497,7 @@ describe("source upload", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([{ ...pendingDocument, status: "ready" }])
         }
@@ -584,7 +586,7 @@ describe("source upload", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           listed += 1
           // Only the first load answers; a refetch never lands, so what shows
@@ -608,7 +610,7 @@ describe("source upload", () => {
 
     await screen.findByText("second.txt")
     const titles = screen
-      .getAllByRole("listitem")
+      .getAllByRole("treeitem")
       .map((row) => row.textContent ?? "")
     // Newest first, as the server lists them: the batch's later id leads.
     expect(titles.findIndex((t) => t.includes("second.txt"))).toBe(0)

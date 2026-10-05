@@ -1,5 +1,6 @@
 import { requestJson } from "@/lib/api"
 
+import type { CapabilityLevel } from "../capability/api"
 import type { ModelType } from "../model-type"
 import { getConnections } from "../remote/connections/api"
 import {
@@ -25,6 +26,8 @@ export type ProviderModel = {
   types: ModelType[]
   /** The slots it can fill, by the one rule selection and every picker share. */
   selectable_for: ModelType[]
+  /** Its measured level, for a model that can fill the chat slot. */
+  capability_level?: CapabilityLevel | null
 }
 
 /** A model that can fill the chat slot right now, from any source. */

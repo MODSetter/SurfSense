@@ -72,11 +72,14 @@ export function ReplyThinking({
   answerStarted,
   reasoning,
   progress = null,
+  preparing = null,
 }: {
   running: boolean
   answerStarted: boolean
   reasoning: ReplyReasoning | null
   progress?: ReplyProgress | null
+  // An agent turn's sources being put in its folder, before anything else.
+  preparing?: number | null
 }) {
   const status = replyStatus(running, answerStarted, reasoning)
   if (!status) {
@@ -87,6 +90,7 @@ export function ReplyThinking({
       status={status}
       reasoning={reasoning}
       read={status === "pending" ? readFraction(progress) : null}
+      preparing={status === "pending" && preparing ? preparing : null}
     />
   )
 }
@@ -108,15 +112,29 @@ function readingLabel(fraction: number) {
   )
 }
 
+function preparingLabel(count: number) {
+  return intl.formatMessage(
+    {
+      id: "chat_reasoning_preparing_label",
+      defaultMessage:
+        "Preparing {count, plural, one {# source} other {# sources}}…",
+    },
+    { count }
+  )
+}
+
 function ReplyHeader({
   status,
   reasoning,
   read,
+  preparing,
 }: {
   status: ReplyStatus
   reasoning: ReplyReasoning | null
   // The fraction of the prompt read so far, or null with no figure to show.
   read: number | null
+  // Sources being prepared, or null when none are.
+  preparing: number | null
 }) {
   const working = status !== "done"
   // Open while the trace streams and folded once the answer starts, unless the
@@ -147,13 +165,19 @@ function ReplyHeader({
   })
   const label = !working
     ? doneLabel(reasoning?.durationMs ?? null)
-    : read === null
-      ? thinking
-      : readingLabel(read)
+    : preparing !== null
+      ? preparingLabel(preparing)
+      : read === null
+        ? thinking
+        : readingLabel(read)
   const announcedRead =
     read === null ? 0 : Math.floor(read / ANNOUNCED_STEP) * ANNOUNCED_STEP
   const announcement =
-    announcedRead > 0 ? readingLabel(announcedRead) : thinking
+    preparing !== null
+      ? preparingLabel(preparing)
+      : announcedRead > 0
+        ? readingLabel(announcedRead)
+        : thinking
 
   return (
     <div className="mb-3 w-full">

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
+from modules.llm.capability import capability_of
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.catalog.remote.rows import CUSTOM
@@ -274,14 +275,20 @@ async def list_connection_models(
             name=model.name,
             types=list(model.types),
             capability_source=model.capability_source,
-            selectable_for=[]
-            if model.unusable_reason
-            else selectable_for(model.types, model.capability_known),
+            selectable_for=slots,
             unusable_reason=model.unusable_reason,
             reads_images=not model.unusable_reason
             and remote_reads_images(model.name, connection.catalog_provider),
+            capability_level=capability_of(model.name, connection).level
+            if ModelType.TEXT_GEN in slots
+            else None,
         )
         for model in models
+        for slots in [
+            []
+            if model.unusable_reason
+            else selectable_for(model.types, model.capability_known)
+        ]
     ]
 
 

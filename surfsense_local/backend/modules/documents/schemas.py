@@ -1,7 +1,13 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, JsonValue, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    JsonValue,
+    PositiveInt,
+    StringConstraints,
+)
 
 from modules.documents.models import DocumentStatus, DocumentType
 
@@ -18,6 +24,8 @@ class NoteCreate(BaseModel):
     title: DocumentTitle
     content: str
     document_metadata: dict[str, JsonValue] | None = None
+    # The folder to file it in; the top of the Library when absent.
+    folder_id: PositiveInt | None = None
 
 
 class DocumentUpdate(BaseModel):
@@ -38,6 +46,9 @@ class DocumentRead(BaseModel):
     mime_type: str | None
     status: DocumentStatus
     error_message: str | None
+    # None only for an unfiled artifact, or a source the SET NULL backstop
+    # unfiled, which the tree shows at the top of the Library.
+    folder_id: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -74,10 +85,11 @@ class DocumentByChunkRead(BaseModel):
 
 
 class DuplicateRead(BaseModel):
-    """A file already held in this workspace, byte for byte."""
+    """A file already held in the folder it was added to, byte for byte."""
 
     filename: str
     document_id: int
+    folder_id: int | None
 
 
 class RejectedUploadRead(BaseModel):

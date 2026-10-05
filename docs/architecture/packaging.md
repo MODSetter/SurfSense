@@ -23,7 +23,7 @@ The asar holds only the Electron main and preload bundles. Everything else rides
 
 The app icon lives in `electron/build/icons/`: `packaged/` holds the `.icns`, `.ico` and `.png` that `electron-builder.yml` names per OS, and `dev/` a variant with a "DEV" badge, which `electron/src/main/dev-app-identity.ts` sets on the Dock, taskbar, window and About panel only while unpackaged, alongside the name "SurfSense Dev", because development runs inside Electron's own bundle and would otherwise show Electron's icon. The macOS menu bar name and the About panel icon stay Electron’s in development; only packaging changes them. Artwork on Windows and Linux fills its canvas; on macOS it sits at 824 of 1024 px with a transparent margin, Apple's icon grid, so `icon.icns` and `dev/icon-macos.png` carry that margin and the `.ico` and `.png` files do not.
 
-Packaged, Electron runs `resources/backend/api/api` and one `worker` process per queue, `ingest` and `studio`, and gives both `SURFSENSE_LOCAL_MODELS_DIR` pointing at `resources/models` and `HF_HUB_OFFLINE=1` (`electron/src/main/sidecars/python.ts`). In development the same sidecars run on the backend's `.venv` interpreter ([`overview.md`](overview.md) says why not `uv run`).
+Packaged, Electron runs `resources/backend/api/api` and one `worker` process per queue, `ingest` and `studio`, and gives both `SURFSENSE_LOCAL_MODELS_DIR` pointing at `resources/models` and `HF_HUB_OFFLINE=1` (`electron/src/main/sidecars/python.ts`). In development the same sidecars run on the backend's `.venv` interpreter ([`overview.md`](overview.md) says why not `uv run`). The Studio worker starts its own binary again, as `worker --run-document-script <folder>`, for each document script it runs, so a script imports only what the frozen worker carries: python-docx, ReportLab, python-pptx, xlsxwriter, openpyxl, matplotlib, Pillow and numpy ([studio](studio.md#script-documents)).
 
 ## Freezing the backend
 
@@ -40,11 +40,12 @@ What else each spec names, and why the analyser cannot find it on its own:
 |---|---|---|
 | `api.spec` | `collect_submodules("uvicorn")` | uvicorn loads its loop, protocol and lifespan implementations by string |
 | `api.spec` | `onnxruntime` and `tokenizers` libraries | the query encoder's native libraries load from C |
-| `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts, the agent's prompt | read by path or through `importlib.resources` |
+| `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts, the agent's prompt, the agent's `skills/*/SKILL.md` | read by path or through `importlib.resources`; opencode's configuration names the skills folder by path ([agent](agent.md#the-documents-skill)) |
 | `api.spec` | excludes Docling, torch, torchvision, transformers, pandas, scipy and OpenCV | only the worker parses files, and the analyser cannot tell these are optional |
 | `worker.spec` | the local model manifest, the remote model manifest | Studio finds its chosen image and audio models through the local catalog, and classifies a remote model through the same discovery the API uses; both files are read by path |
 | `worker.spec` | Docling and its packages, RapidOCR, transformers, torchvision | lazy and native imports Docling reaches only on the first PDF |
-| `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab | the Office formats run model-written code that imports them, so no static import exists |
+| `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab, openpyxl | the Office formats and document scripts run model-written code that imports them, so no static import exists; openpyxl, named in `pyproject.toml` though Docling brings it too, also reads every document script's workbook for its summary |
+| `worker.spec` | `matplotlib.pyplot`, `matplotlib.backends.backend_pdf`, `matplotlib.backends.backend_svg`, with the matplotlib hook set to the `Agg` backend | document scripts draw charts, and nothing imports matplotlib statically. Naming pyplot runs PyInstaller's hook, which adds `mpl-data` and the backend chosen; a chart saved as PDF or SVG, or `PdfPages`, imports its canvas by name, which the hook does not follow. `Agg` alone keeps Tk's GUI backend out, since scripts run with `MPLBACKEND=Agg` |
 | `worker.spec` | `modules.documents.tasks`, `modules.artifacts.tasks` | Huey resolves a task by its name |
 
 ## Model packs
@@ -134,12 +135,13 @@ The installer's version is the one the workflow resolved, passed as `-c.extraMet
 
 ## Packaging tests
 
-All five carry the `packaging` marker, which `pyproject.toml` excludes by default because two of them freeze a binary and one runs audio.cpp's server on real models:
+All six carry the `packaging` marker, which `pyproject.toml` excludes by default because three of them freeze a binary and one runs audio.cpp's server on real models:
 
 | Test | Proves |
 |---|---|
 | `test_frozen_boot.py` | a minimal frozen entry, `sys.frozen` true, migrates a real database from the bundled revisions, loads `vec0` and round-trips a vector through `chunk_vectors` |
 | `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; both binaries ship the remote manifest, the worker ships the local one, and the frozen API serves a curated row |
+| `test_frozen_document_scripts.py` | a frozen worker, started by the runner in script mode as a packaged app starts it, places a matplotlib chart in a Word file with no display, saves charts as SVG and PDF and a `PdfPages` PDF, and writes a deck with a native chart and workbooks with xlsxwriter and openpyxl |
 | `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing, and both `api.spec` and `worker.spec` bundle the local model manifest |
 | `test_license_key.py` | the compiled license keys exclude the fixture key |
 | `test_audiocpp_voicing.py` | the staged audio.cpp server, started with the sidecar's flags from the `server.json` the app writes, voices two turns of each curated model through the app's adapter, at the sample rate its entry names, then holds no model loaded; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` names a folder of the pinned files, each checked against its sha256, and then fails without a staged server; `build-audiocpp.yml` runs it on both builds |
@@ -150,3 +152,5 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 
 - No CI job generates an image with the staged `sd-server`; its gates are `--help` and the platform floors, not a picture.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
+- No packaging test checks that the frozen API carries the agent's `SKILL.md`; `api.spec` collects it, and it was checked by hand.
+- What matplotlib adds to the installer has not been measured against its size gate. A scratch freeze of the worker put it at about 15 MB unpacked under `_internal/matplotlib`, plus about 0.6 MB for contourpy and kiwisolver.

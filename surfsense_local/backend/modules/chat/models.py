@@ -27,6 +27,8 @@ class ChatThread(Base):
     # Set when the agent answers this thread: its turns live in that opencode
     # session, not in chat_messages. Chosen when the thread is opened, and kept.
     opencode_session_id: Mapped[str | None]
+    # The sources the user ticked, resolved on the server per turn; None is all.
+    source_scope: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

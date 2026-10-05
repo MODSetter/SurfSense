@@ -2,7 +2,8 @@ import { intl } from "@/i18n/intl"
 import { ApiError } from "@/lib/api"
 
 // English mirrors `_required()` in modules/artifacts/service.py, whose
-// `_required_code()` builds these codes for a refused create or regenerate;
+// `_required_code()` builds these codes for a refused create or regenerate
+// (a refine's `needs_chat` comes from studio_documents/fits.py);
 // the backend's own text stays the fallback for a code that has no line here.
 const studioErrorText: Record<string, () => string> = {
   needs_chat: () =>

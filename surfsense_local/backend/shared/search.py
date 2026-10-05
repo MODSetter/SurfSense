@@ -1,5 +1,7 @@
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
@@ -7,6 +9,9 @@ from sqlalchemy.orm import Session
 from modules.embedding.active import ActiveIndex, require_active_index
 from modules.embedding.vector_table import checked
 from shared.tokenizer import terms
+
+if TYPE_CHECKING:
+    from modules.source_scope.resolve import ResolvedScope
 
 # Each leg proposes this many for recall; the blend below orders the union.
 CANDIDATES = 20
@@ -33,6 +38,7 @@ def retrieve(
     query: str,
     top_k: int = 5,
     document_ids: Sequence[int] | None = None,
+    scope: "ResolvedScope | None" = None,
 ) -> list[Hit]:
     """Rank a workspace's chunks against a query.
 
@@ -41,12 +47,19 @@ def retrieve(
     Meaning alone used to decide it, which left an exact term findable only
     where the embedder happened to agree: a bare asset tag returned manuals in
     other languages while the document holding it ranked nowhere.
+
+    `scope`, resolved on the server, wins over `document_ids`; both narrow the
+    search inside each leg, so a small scope is never starved by the rest.
     """
+    if scope is not None:
+        document_ids = scope.ids
     if not query.strip() or (document_ids is not None and not document_ids):
         return []
 
     selected_document_ids = (
-        tuple(dict.fromkeys(document_ids)) if document_ids is not None else None
+        json.dumps(list(dict.fromkeys(document_ids)))
+        if document_ids is not None
+        else None
     )
 
     # Lazy: pulls onnxruntime and the model, which only chat and ingest need.
@@ -76,7 +89,7 @@ def _keyword_leg(
     session: Session,
     workspace_id: int,
     query: str,
-    document_ids: Sequence[int] | None,
+    document_ids: str | None,
 ) -> list[tuple[int, float]]:
     # Split by the index's own rule, or the question asks for terms it never
     # held: `स्कैनर` cut at its virama is `स` + `नर`, and this leg then abstains
@@ -114,10 +127,13 @@ def _matching(
     session: Session,
     workspace_id: int,
     match: str,
-    document_ids: Sequence[int] | None,
+    document_ids: str | None,
     within: Sequence[int] | None = None,
 ) -> list[int]:
-    """The workspace's chunks matching an FTS5 expression, best BM25 first."""
+    """The workspace's chunks matching an FTS5 expression, best BM25 first.
+
+    `document_ids` is a JSON array, bound once whatever its length.
+    """
     sql = (
         "SELECT c.id FROM chunks_fts "
         "JOIN chunks c ON c.id = chunks_fts.rowid "
@@ -127,9 +143,8 @@ def _matching(
     params: dict[str, object] = {"match": match, "ws": workspace_id, "k": CANDIDATES}
     expanding = []
     if document_ids is not None:
-        sql += "AND c.document_id IN :document_ids "
-        params["document_ids"] = list(document_ids)
-        expanding.append(bindparam("document_ids", expanding=True))
+        sql += "AND c.document_id IN (SELECT value FROM json_each(:document_ids)) "
+        params["document_ids"] = document_ids
     if within is not None:
         sql += "AND c.id IN :within "
         params["within"] = list(within)
@@ -144,25 +159,32 @@ def _vector_leg(
     vector_table: str,
     workspace_id: int,
     vector: bytes,
-    document_ids: Sequence[int] | None,
+    document_ids: str | None,
 ) -> list[int]:
-    """The nearest chunks, proposed for ranking rather than scored.
+    """The nearest chunks within the workspace or scope, proposed for ranking.
 
     `_best` measures every candidate's cosine, so a chunk this leg did not
     reach is unmeasured rather than unrelated.
     """
-    # KNN scans the whole index (its own CTE, as vec0 wants), then the workspace
-    # filter applies. ponytail: fine for a few small local workspaces; widen k if
-    # a workspace's hits start falling outside the global top CANDIDATES.
+    # Filtered inside the KNN, in its own CTE as vec0 wants: sqlite-vec 0.1.9
+    # applies `rowid IN (...)` before taking k, so another workspace's or an
+    # unticked folder's chunks can never crowd these out.
+    within = (
+        "SELECT value FROM json_each(:document_ids)"
+        if document_ids is not None
+        else "SELECT id FROM documents WHERE workspace_id = :ws"
+    )
     sql = (
         "WITH knn AS ("
         f"  SELECT rowid, distance FROM {checked(vector_table)} "
-        "  WHERE embedding MATCH :vector AND k = :k"
+        "  WHERE embedding MATCH :vector AND k = :k "
+        "  AND rowid IN (SELECT c.id FROM chunks c "
+        f"                WHERE c.document_id IN ({within}))"
         ") "
         "SELECT c.id, knn.distance FROM knn "
         "JOIN chunks c ON c.id = knn.rowid "
         "JOIN documents d ON d.id = c.document_id "
-        "WHERE d.workspace_id = :ws "
+        "WHERE d.workspace_id = :ws"
     )
     params: dict[str, object] = {
         "vector": vector,
@@ -170,12 +192,8 @@ def _vector_leg(
         "ws": workspace_id,
     }
     if document_ids is not None:
-        sql += "AND c.document_id IN :document_ids"
-        params["document_ids"] = list(document_ids)
-    statement = text(sql)
-    if document_ids is not None:
-        statement = statement.bindparams(bindparam("document_ids", expanding=True))
-    return [row.id for row in session.execute(statement, params)]
+        params["document_ids"] = document_ids
+    return [row.id for row in session.execute(text(sql), params)]
 
 
 def _best(

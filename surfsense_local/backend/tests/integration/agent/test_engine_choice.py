@@ -1,4 +1,4 @@
-"""Which engine a new thread gets, from what the selected model is known to do."""
+"""Which engine a new thread gets, from what the selected model is measured and known to do."""
 
 import json
 import threading
@@ -12,6 +12,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from modules.agent.engine_choice import selected_model_can_run_agent
+from modules.llm.capability.agent_trial import set_agent_trial
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings
@@ -20,6 +21,10 @@ from shared.db import create_session_factory
 pytestmark = pytest.mark.integration
 
 LOCAL_MODEL = "Qwen3-8B-UD-Q4_K_XL"
+# Nothing is sent to these: the choice reads the catalog and the capability list.
+ANTHROPIC = "https://api.anthropic.com/v1"
+OPENAI = "https://api.openai.com/v1"
+OPENROUTER = "https://openrouter.ai/api/v1"
 
 
 @pytest.fixture
@@ -30,12 +35,20 @@ def session(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> Iterator[Session
         yield session
 
 
+@pytest.fixture
+def no_switch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app as it ships: no developer switch."""
+    monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
+
+
 @dataclass
 class LocalRuntime:
     """llama-server in router mode, as far as the engine choice reads it."""
 
     # What `/props` reports about the model's chat template.
     template_caps: dict = field(default_factory=dict)
+    # The window llama-server loaded the model with.
+    n_ctx: int = 32768
 
 
 class _LocalHandler(BaseHTTPRequestHandler):
@@ -58,7 +71,7 @@ class _LocalHandler(BaseHTTPRequestHandler):
         elif path == "/props":
             reply = {
                 "chat_template_caps": runtime.template_caps,
-                "default_generation_settings": {"n_ctx": 32768},
+                "default_generation_settings": {"n_ctx": runtime.n_ctx},
             }
         else:
             self.send_error(404)
@@ -91,34 +104,41 @@ def local_runtime(monkeypatch: pytest.MonkeyPatch) -> Iterator[LocalRuntime]:
     server.server_close()
 
 
-def select_local(session: Session) -> None:
+def select_local(session: Session, *, opted_in: bool = False) -> None:
     """Select a model the local runtime serves."""
-    session.add(
-        SelectedModel(
-            model_type=ModelType.TEXT_GEN, provider="llamacpp", name=LOCAL_MODEL
-        )
+    selected = SelectedModel(
+        model_type=ModelType.TEXT_GEN, provider="llamacpp", name=LOCAL_MODEL
     )
+    set_agent_trial(selected, opted_in)
+    session.add(selected)
     session.commit()
 
 
-def select_remote(session: Session, name: str, catalog_provider: str) -> None:
-    """Select a model behind a remote connection that names its catalog provider."""
+def select_remote(
+    session: Session,
+    name: str,
+    catalog_provider: str,
+    *,
+    base_url: str = "http://127.0.0.1:1/v1",
+    opted_in: bool = False,
+) -> None:
+    """Select a model behind a connection that names its catalog provider."""
     connection = ProviderConnection(
         label="Remote",
         provider="openai_compatible",
-        base_url="http://127.0.0.1:1/v1",
+        base_url=base_url,
         catalog_provider=catalog_provider,
     )
     session.add(connection)
     session.flush()
-    session.add(
-        SelectedModel(
-            model_type=ModelType.TEXT_GEN,
-            provider="openai_compatible",
-            connection_id=connection.id,
-            name=name,
-        )
+    selected = SelectedModel(
+        model_type=ModelType.TEXT_GEN,
+        provider="openai_compatible",
+        connection_id=connection.id,
+        name=name,
     )
+    set_agent_trial(selected, opted_in)
+    session.add(selected)
     session.commit()
 
 
@@ -147,12 +167,90 @@ async def test_with_the_switch_a_model_the_catalog_does_not_know_gets_the_agent(
     assert await selected_model_can_run_agent(session) is True
 
 
-async def test_without_the_switch_even_a_model_that_calls_tools_gets_the_chat(
-    session: Session, monkeypatch: pytest.MonkeyPatch
+async def test_without_the_switch_or_an_opt_in_an_unmeasured_model_gets_the_chat(
+    session: Session, no_switch: None
 ) -> None:
-    """Calling tools is not calling them well: only the tested list, or the switch, lets one in."""
-    monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
-    select_remote(session, "gpt-4o-mini", "openai")
+    """Calling tools is not calling them well: a measured pass, the opt-in or the switch lets one in."""
+    select_remote(session, "gpt-4o-mini", "openai", base_url=OPENAI)
+
+    assert await selected_model_can_run_agent(session) is False
+
+
+@pytest.mark.parametrize(
+    ("name", "catalog_provider", "base_url"),
+    [
+        ("claude-opus-5-5", "anthropic", ANTHROPIC),
+        ("anthropic/claude-haiku-4.5", "openrouter", OPENROUTER),  # near the bar
+    ],
+)
+async def test_a_model_measured_at_or_near_the_bar_gets_the_agent(
+    session: Session, no_switch: None, name: str, catalog_provider: str, base_url: str
+) -> None:
+    """Opus passed every case; Haiku passed 5 of 8 and may need a nudge."""
+    select_remote(session, name, catalog_provider, base_url=base_url)
+
+    assert await selected_model_can_run_agent(session) is True
+
+
+async def test_a_model_measured_to_fail_gets_the_chat_even_opted_in(
+    session: Session, no_switch: None
+) -> None:
+    """The opt-in is for a model nobody measured, not one that failed."""
+    select_remote(
+        session,
+        "google/gemma-4-31b-it",
+        "openrouter",
+        base_url=OPENROUTER,
+        opted_in=True,
+    )
+
+    assert await selected_model_can_run_agent(session) is False
+
+
+async def test_the_switch_lets_in_even_a_model_measured_to_fail(
+    session: Session,
+) -> None:
+    """A developer measuring a model needs it on the agent whatever the list says."""
+    select_remote(session, "google/gemma-4-31b-it", "openrouter", base_url=OPENROUTER)
+
+    assert await selected_model_can_run_agent(session) is True
+
+
+async def test_an_unmeasured_model_the_user_opted_in_gets_the_agent(
+    session: Session, no_switch: None
+) -> None:
+    """The user's opt-in, once the catalog confirms its tool calls and window."""
+    select_remote(session, "gpt-4o-mini", "openai", base_url=OPENAI, opted_in=True)
+
+    assert await selected_model_can_run_agent(session) is True
+
+
+async def test_an_opt_in_needs_tool_calls_the_catalog_confirms(
+    session: Session, no_switch: None
+) -> None:
+    """A model the catalog says nothing of is the switch's to try, not the user's."""
+    select_remote(
+        session,
+        "anthropic/claude-sonnet-99",
+        "openrouter",
+        base_url=OPENROUTER,
+        opted_in=True,
+    )
+
+    assert await selected_model_can_run_agent(session) is False
+
+
+async def test_an_opt_in_needs_a_window_the_agent_fits_in(
+    session: Session, no_switch: None
+) -> None:
+    """Berget serves Mistral Small 3.2 at 32,000 tokens, under the 32,768 floor."""
+    select_remote(
+        session,
+        "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+        "berget",
+        base_url="https://api.berget.ai/v1",
+        opted_in=True,
+    )
 
     assert await selected_model_can_run_agent(session) is False
 
@@ -183,5 +281,26 @@ async def test_a_local_model_whose_runtime_cannot_be_read_gets_the_chat(
     """A thread must open whatever state the runtime is in, and unread is not confirmed."""
     monkeypatch.setattr(get_llm_settings(), "llamacpp_base_url", "http://127.0.0.1:9")
     select_local(session)
+
+    assert await selected_model_can_run_agent(session) is False
+
+
+async def test_an_opted_in_local_model_whose_template_calls_tools_gets_the_agent(
+    session: Session, no_switch: None, local_runtime: LocalRuntime
+) -> None:
+    """The opt-in reads the same template caps the switch does."""
+    local_runtime.template_caps = {"supports_tools": True, "supports_tool_calls": True}
+    select_local(session, opted_in=True)
+
+    assert await selected_model_can_run_agent(session) is True
+
+
+async def test_an_opted_in_local_model_loaded_with_a_short_window_gets_the_chat(
+    session: Session, no_switch: None, local_runtime: LocalRuntime
+) -> None:
+    """opencode would compact on every step below the 32,768 floor."""
+    local_runtime.template_caps = {"supports_tools": True, "supports_tool_calls": True}
+    local_runtime.n_ctx = 16384
+    select_local(session, opted_in=True)
 
     assert await selected_model_can_run_agent(session) is False
