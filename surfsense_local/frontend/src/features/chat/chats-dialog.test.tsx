@@ -183,11 +183,20 @@ describe("ChatsDialog, with replies running", () => {
       />
     )
 
-    const row = (name: string) =>
-      screen.getByRole("button", { name }).closest("div") as HTMLElement
-    expect(row("Thread 1").textContent).toContain("Writing…")
-    expect(row("Thread 2").textContent).toContain("Waiting")
-    expect(row("Thread 3").textContent).toContain("New reply")
-    expect(row("Thread 4").textContent).not.toMatch(/Writing|Waiting|New reply/)
+    // What a screen reader hears after the title.
+    const description = (name: string) =>
+      (
+        screen.getByRole("button", { name }).getAttribute("aria-describedby") ??
+        ""
+      )
+        .split(" ")
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(" ")
+    expect(description("Thread 1")).toMatch(/^Writing a reply /)
+    expect(description("Thread 2")).toMatch(
+      /^Waiting for another reply \(1st in line\) /
+    )
+    expect(description("Thread 3")).toMatch(/^New reply /)
+    expect(description("Thread 4")).not.toMatch(/Writing|Waiting|New reply/)
   })
 })

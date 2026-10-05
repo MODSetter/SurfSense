@@ -1,6 +1,7 @@
 import { useRef, useState, type SubmitEvent } from "react"
 
 import {
+  ClockIcon,
   EllipsisIcon,
   Loader2Icon,
   PencilEdit02Icon,
@@ -334,10 +335,15 @@ export function ChatsDialog({
                       )}
                       aria-current={selected ? "page" : undefined}
                       // Named by the title alone: read as content, the time
-                      // runs into it ("Q3 rollup2 weeks ago"). It stays a
-                      // description, so a screen reader still hears it.
+                      // runs into it ("Q3 rollup2 weeks ago"). The status and
+                      // time are descriptions, so a screen reader still hears
+                      // them; text inside a named button is not read.
                       aria-label={title}
-                      aria-describedby={`chat-row-time-${thread.id}`}
+                      aria-describedby={
+                        unread || runState
+                          ? `chat-row-status-${thread.id} chat-row-time-${thread.id}`
+                          : `chat-row-time-${thread.id}`
+                      }
                       onClick={() => {
                         onSelect(thread.id)
                         onOpenChange(false)
@@ -346,16 +352,56 @@ export function ChatsDialog({
                       onMouseLeave={onRowMouseLeave}
                     >
                       {unread ? (
-                        <span className="flex shrink-0 items-center">
+                        <span className="flex w-3 shrink-0 items-center justify-center">
                           <span
                             aria-hidden
                             className="size-1.5 rounded-full bg-primary"
                           />
-                          <span className="sr-only">
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
                             {intl.formatMessage({
                               id: "chat_chats_dialog_unread_label",
                               defaultMessage: "New reply",
                             })}
+                          </span>
+                        </span>
+                      ) : runState?.state === "running" ? (
+                        // Where the unread dot goes, which this reply becomes.
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <Loader2Icon
+                            aria-hidden
+                            className="size-3 animate-spin text-muted-foreground motion-reduce:animate-none"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage({
+                              id: "chat_chats_dialog_writing_label",
+                              defaultMessage: "Writing a reply",
+                            })}
+                          </span>
+                        </span>
+                      ) : runState?.state === "queued" ? (
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <ClockIcon
+                            aria-hidden
+                            className="size-3 text-muted-foreground"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage(
+                              {
+                                id: "chat_chats_dialog_waiting_label",
+                                defaultMessage:
+                                  "Waiting for another reply ({position, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} in line)",
+                              },
+                              { position: runState.position }
+                            )}
                           </span>
                         </span>
                       ) : null}
@@ -372,49 +418,17 @@ export function ChatsDialog({
                           onComplete={onTitleAnimationComplete}
                         />
                       </span>
-                      {runState ? (
-                        // In place of the time, which a running thread is
-                        // about to change anyway; it keeps the row's order.
-                        <span
-                          id={`chat-row-time-${thread.id}`}
-                          className={cn(
-                            "flex shrink-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground transition-[opacity,width]",
-                            "group-focus-within:w-0 group-focus-within:opacity-0",
-                            "group-hover:w-0 group-hover:opacity-0",
-                            openDropdownId === thread.id && "w-0 opacity-0"
-                          )}
-                        >
-                          {runState.state === "running" ? (
-                            <>
-                              <Loader2Icon
-                                aria-hidden
-                                className="size-3 animate-spin motion-reduce:animate-none"
-                              />
-                              {intl.formatMessage({
-                                id: "chat_chats_dialog_writing_label",
-                                defaultMessage: "Writing…",
-                              })}
-                            </>
-                          ) : (
-                            intl.formatMessage({
-                              id: "chat_chats_dialog_waiting_label",
-                              defaultMessage: "Waiting",
-                            })
-                          )}
-                        </span>
-                      ) : (
-                        <RelativeTime
-                          id={`chat-row-time-${thread.id}`}
-                          date={new Date(thread.updated_at)}
-                          showTooltip={false}
-                          className={cn(
-                            "shrink-0 overflow-hidden text-xs text-muted-foreground transition-[opacity,width]",
-                            "group-focus-within:w-0 group-focus-within:opacity-0",
-                            "group-hover:w-0 group-hover:opacity-0",
-                            openDropdownId === thread.id && "w-0 opacity-0"
-                          )}
-                        />
-                      )}
+                      <RelativeTime
+                        id={`chat-row-time-${thread.id}`}
+                        date={new Date(thread.updated_at)}
+                        showTooltip={false}
+                        className={cn(
+                          "shrink-0 overflow-hidden text-xs text-muted-foreground transition-[opacity,width]",
+                          "group-focus-within:w-0 group-focus-within:opacity-0",
+                          "group-hover:w-0 group-hover:opacity-0",
+                          openDropdownId === thread.id && "w-0 opacity-0"
+                        )}
+                      />
                     </Button>
                     <div className="absolute inset-y-0 right-0 flex items-center rounded-r-lg py-1 pr-1">
                       <DropdownMenu

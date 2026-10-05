@@ -127,7 +127,25 @@ describe("LeftSidebar", () => {
 })
 
 describe("LeftSidebar, with replies elsewhere", () => {
-  it("counts the other threads still writing or waiting on the Chats row", () => {
+  it("marks unread replies ahead of others still writing, without a count", () => {
+    render(
+      <LeftSidebar
+        {...baseProps()}
+        activeThreadId={1}
+        runStates={{
+          2: { state: "running" },
+          3: { state: "queued", position: 1 },
+        }}
+        unreadThreadIds={[4, 5]}
+      />
+    )
+
+    const chats = screen.getByRole("button", { name: /^Chats/ })
+    expect(chats.textContent).toBe("Chats")
+    expect(chats.getAttribute("aria-label")).toBe("Chats, 2 new replies")
+  })
+
+  it("says other threads are writing or waiting once none is unread, without a count", () => {
     render(
       <LeftSidebar
         {...baseProps()}
@@ -137,28 +155,15 @@ describe("LeftSidebar, with replies elsewhere", () => {
           2: { state: "running" },
           3: { state: "queued", position: 1 },
         }}
-        unreadThreadIds={[4]}
+        unreadThreadIds={[1]}
       />
     )
 
     const chats = screen.getByRole("button", { name: /^Chats/ })
-    expect(chats.textContent).toContain("2")
+    expect(chats.textContent).toBe("Chats")
     expect(chats.getAttribute("aria-label")).toBe(
       "Chats, 2 replies being written"
     )
-  })
-
-  it("counts unread replies once nothing else is writing", () => {
-    render(
-      <LeftSidebar
-        {...baseProps()}
-        activeThreadId={1}
-        unreadThreadIds={[2, 3]}
-      />
-    )
-
-    const chats = screen.getByRole("button", { name: /^Chats/ })
-    expect(chats.getAttribute("aria-label")).toBe("Chats, 2 new replies")
   })
 
   it("looks as it always did with nothing running and nothing unread", () => {

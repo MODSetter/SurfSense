@@ -51,7 +51,7 @@ function SidebarNavButton({
       {indicator ? (
         <span
           aria-hidden
-          className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
+          className="ml-auto flex items-center text-muted-foreground"
         >
           {indicator}
         </span>
@@ -61,9 +61,9 @@ function SidebarNavButton({
 }
 
 /**
- * What the Chats row says about threads other than the open one: how many are
- * writing or waiting, else how many finished unread. The dialog is closed most
- * of the time, so without it nothing on screen says a reply is on its way.
+ * What the Chats row says about threads other than the open one: a dot when a
+ * reply is unread, else a spinner while any is writing or waiting. One mark,
+ * the one to act on first; the counts are for screen readers.
  */
 function chatsActivity(
   activeThreadId: number | null,
@@ -71,14 +71,25 @@ function chatsActivity(
   unreadThreadIds: number[]
 ): { indicator: ReactNode; ariaLabel: string } | null {
   const elsewhere = (id: number) => id !== activeThreadId
+  const unread = unreadThreadIds.filter(elsewhere).length
+  if (unread > 0) {
+    return {
+      indicator: <span className="size-1.5 rounded-full bg-primary" />,
+      ariaLabel: intl.formatMessage(
+        {
+          id: "dashboard_sidebar_chats_unread_aria",
+          defaultMessage:
+            "Chats, {count, plural, one {# new reply} other {# new replies}}",
+        },
+        { count: unread }
+      ),
+    }
+  }
   const running = Object.keys(runStates).map(Number).filter(elsewhere).length
   if (running > 0) {
     return {
       indicator: (
-        <>
-          <Loader2Icon className="size-3 animate-spin motion-reduce:animate-none" />
-          {intl.formatNumber(running)}
-        </>
+        <Loader2Icon className="size-3 animate-spin motion-reduce:animate-none" />
       ),
       ariaLabel: intl.formatMessage(
         {
@@ -87,25 +98,6 @@ function chatsActivity(
             "Chats, {count, plural, one {# reply} other {# replies}} being written",
         },
         { count: running }
-      ),
-    }
-  }
-  const unread = unreadThreadIds.filter(elsewhere).length
-  if (unread > 0) {
-    return {
-      indicator: (
-        <>
-          <span className="size-1.5 rounded-full bg-primary" />
-          {intl.formatNumber(unread)}
-        </>
-      ),
-      ariaLabel: intl.formatMessage(
-        {
-          id: "dashboard_sidebar_chats_unread_aria",
-          defaultMessage:
-            "Chats, {count, plural, one {# new reply} other {# new replies}}",
-        },
-        { count: unread }
       ),
     }
   }
