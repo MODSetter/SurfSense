@@ -70,7 +70,9 @@ async def build_messages(
     ]
     budget = max(0, history_budget - IMAGE_TOKENS * len(images))
     kept, start_id = await _within_budget(turns, budget, token_count)
-    question = f"{excerpts}\n\n{user_text}" if excerpts else user_text
+    # Labelled, or a short follow-up after the passages reads as being about the
+    # last one: Qwen3 1.7B answered "And the X300?" about the X200 it named.
+    question = f"{excerpts}\n\nQuestion: {user_text}" if excerpts else user_text
     messages = [
         Message("system", system),
         *kept,

@@ -3,7 +3,7 @@
 A chat thread belongs to a workspace. Each user message retrieves its own context from that workspace, the selected generation model streams an answer grounded in those passages, and each claim can cite the passage it came from. The server owns the conversation: both turns are stored before the reply streams and the assistant's text is written when it ends, citations are resolved to chunk ids before they are stored, and the frontend's live copy of a streaming reply gives way to the stored turns once they catch up.
 
 **Code:** [`modules/chat/`](../../surfsense_local/backend/modules/chat/), [`shared/search.py`](../../surfsense_local/backend/shared/search.py), [`frontend/src/features/chat/`](../../surfsense_local/frontend/src/features/chat/)
-**Decisions:** [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0011](../adr/0011-llama-cpp-local-runtime.md), [ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)
+**Decisions:** [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0011](../adr/0011-llama-cpp-local-runtime.md), [ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md), [ADR 0039](../adr/0039-prompts-grow-at-the-end.md)
 
 ## Endpoints
 
@@ -38,10 +38,11 @@ These are excerpts from the user's knowledge base, selected for this query. ...
 </document>
 </retrieved_context>
 
-        <the question>
+        Question: <the question>
 ```
 
 - The passages change with every question, and llama-server reuses a prompt only up to its first changed token, so they come after the history rather than ahead of it. Earlier questions reach the model without their passages, as they did before. Measured on Qwen3 1.7B at an 8,192-token window, with answers of about 450 tokens: turn 7 read 3,873 tokens of its prompt instead of 6,304.
+- The question is labelled. Unlabelled after the passages, Qwen3 1.7B answered the chat eval's "And the X300?" about the X200 its last passage named, in three runs of three. Labelled, it scored the expected facts and the supporting passage in 24 of 24 answers, against 23 and 24 with the passages in the system message.
 - Hits are numbered 1 to N in rank order and grouped under their document, in the order each document first appears. The model cites `[n]`. The numbers are per message.
 - The instruction block tells the model to answer from the sources, put a label right after the claim it supports, cite only what the sources back, say when the context does not hold the answer and then answer from its own knowledge if it can, and reply in the question's language, with a one-line example. Explicit rules earn their keep on small local models.
 - It ships as three markdown files in [`modules/chat/prompts/`](../../surfsense_local/backend/modules/chat/prompts/): `compact.md`, `capable.md` and `frontier.md`. All three carry the same citation rules, except where the [chat eval](../proposals/chat-eval.md) measured `compact.md` on Qwen3 1.7B: when the sources fall short, it answers from its own knowledge only with general knowledge, never guesses a detail of the user's own documents, products or people, labels neither sentence, and shows an example of each. `capable.md` adds a work order and `frontier.md` advice on how to shape an answer. `build_context(hits, tier)` returns it with the excerpts and their citations, loading the one for the selected model's prompt tier, which comes from the fingerprint recorded when the model was chosen, or from the model's name when none was recorded ([`local-models/selection.md`](local-models/selection.md)); it is not a user setting.

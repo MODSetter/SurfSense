@@ -291,7 +291,9 @@ async def test_a_followup_keeps_the_system_message_and_asks_with_its_own_passage
 ) -> None:
     """llama-server reuses a prompt only up to its first changed token. With the
     passages in the system message, every follow-up re-read its whole history;
-    with them in the question, it reads from the previous question on."""
+    with them in the question, it reads from the previous question on. The
+    question is labelled after them: unlabelled, Qwen3 1.7B answered "And the
+    X300?" about the X200 its last passage named, in three runs of three."""
     workspace_id, _ids = _seed(engine)
     thread_id = await _open_thread(client, workspace_id)
 
@@ -306,10 +308,10 @@ async def test_a_followup_keeps_the_system_message_and_asks_with_its_own_passage
     assert first[0] == second[0]
     assert FINANCE not in first[0]["content"]
     assert FINANCE in first[-1]["content"]
-    assert first[-1]["content"].endswith("what happened to revenue?")
+    assert first[-1]["content"].endswith("\n\nQuestion: what happened to revenue?")
     assert {"role": "user", "content": "what happened to revenue?"} in second
     assert FINANCE in second[-1]["content"]
-    assert second[-1]["content"].endswith("and after the launch?")
+    assert second[-1]["content"].endswith("\n\nQuestion: and after the launch?")
 
 
 async def test_a_trimmed_history_starts_where_it_did_on_the_next_turn(
