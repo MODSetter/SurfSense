@@ -157,6 +157,13 @@ def _base_version(
             f"Artifact {base_id} was not made from a document script, so it has no "
             "versions to continue."
         )
+    # Studio's Markdown, or a Refine not written yet: Refine rewrites those (07, decision 8).
+    if document_script(base.artifact_metadata) is None:
+        raise ScriptDocumentRefusedError(
+            f"Artifact {base_id} was made by Studio and keeps no script, so it has "
+            "no script to change here. Make a new document without artifact_id, or "
+            "tell the user to refine it in Studio."
+        )
     # The version switcher shows one document; a PDF of it is a document of its own.
     if base.format != format:
         raise ScriptDocumentRefusedError(

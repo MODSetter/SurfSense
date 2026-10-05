@@ -15,6 +15,8 @@ from modules.agent.previews import Previews
 from modules.agent.tool_endpoint import list_images, render_document
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.service import create_script_document
+from modules.artifacts.script_documents.spec import DocumentSpec
+from modules.artifacts.script_documents.version import ArtifactVersion
 from modules.artifacts.studio_documents.recipe import RECIPE_KEY, drafted
 from modules.artifacts.studio_documents.service import create_refine_version
 from modules.documents.models import Document, DocumentStatus, DocumentType
@@ -708,6 +710,46 @@ async def test_reading_a_document_studio_drafted_says_it_has_no_script(
 
     assert is_error is True
     assert "no script" in text
+
+
+async def test_a_document_studio_drafted_in_markdown_cannot_be_continued_here(
+    tools: ToolEndpoint, engine: Engine, studio_worker: None
+) -> None:
+    """Studio's Markdown is Refine's to rewrite; a script written blind would join its versions."""
+    workspace_id = await tools.workspace()
+    with create_session_factory(engine)() as session:
+        document = Document(
+            workspace_id=workspace_id,
+            title="Report",
+            document_type=DocumentType.ARTIFACT,
+            status=DocumentStatus.READY,
+        )
+        session.add(document)
+        session.flush()
+        drafted_in_studio = Artifact(
+            document_id=document.id, workspace_id=workspace_id, format="docx"
+        )
+        session.add(drafted_in_studio)
+        session.flush()
+        drafted_in_studio.artifact_metadata = {
+            "spec": DocumentSpec(
+                "markdown", "# Report\n\nText.", "docx", ()
+            ).as_metadata(),
+            "version": ArtifactVersion(drafted_in_studio.id, 1, None).as_metadata(),
+            RECIPE_KEY: drafted(),
+            "source_document_ids": [],
+            "prompt": None,
+        }
+        session.commit()
+        drafted_id = drafted_in_studio.id
+
+    text, is_error = await tools.call(
+        workspace_id, "render_document", render(artifact_id=drafted_id)
+    )
+
+    assert is_error is True, text
+    assert "no script" in text
+    assert [a["id"] for a in await _listed(tools, workspace_id)] == [drafted_id]
 
 
 async def test_reading_another_workspaces_document_is_refused(
