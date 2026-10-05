@@ -206,7 +206,7 @@ async def send_message(
     )
     _refuse_images_past_window(len(images), n_ctx, prompt_chars)
     found = await _source_images(session, hits, sees, n_ctx, len(images))
-    messages = await build_messages(
+    prompt = await build_messages(
         grounding.instruction,
         history,
         payload.text,
@@ -214,6 +214,7 @@ async def send_message(
         images=[image.as_part() for image in (*images, *found)],
         history_budget=history_budget(n_ctx),
         token_count=_token_counter(generator, selected.name),
+        history_start_id=thread.history_start_message_id,
     )
 
     activity_key = model_key(selected.provider, selected.name, selected.connection_id)
@@ -224,7 +225,7 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text, images
+            session, _open_turn, thread, payload.text, images, prompt.history_start_id
         )
         user_created_at = _iso(user_message.created_at)
     except Exception:
@@ -272,7 +273,7 @@ async def send_message(
             try:
                 async for delta in generator.chat_deltas(
                     selected.name,
-                    messages,
+                    prompt.messages,
                     max_tokens=answer_max_tokens(n_ctx),
                     # None leaves the model to its own default.
                     reasoning=None if payload.thinking else False,
@@ -536,7 +537,10 @@ def _open_turn(
     thread: ChatThread,
     text: str,
     images: list[NormalisedImage],
+    history_start_id: int | None,
 ) -> tuple[ChatMessage, ChatMessage]:
+    # Stored with the turn, so the next one starts its history at the same message.
+    thread.history_start_message_id = history_start_id
     references = [
         store.store(image, thread.workspace_id, thread.id) for image in images
     ]

@@ -27,6 +27,10 @@ class ChatThread(Base):
     # Set when the agent answers this thread: its turns live in that opencode
     # session, not in chat_messages. Chosen when the thread is opened, and kept.
     opencode_session_id: Mapped[str | None]
+    # The oldest message the model is still sent once history was trimmed. Kept
+    # so the next turn starts there too: the runtime reuses a prompt only up to
+    # its first changed token.
+    history_start_message_id: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

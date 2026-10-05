@@ -7,7 +7,13 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
-from modules.chat.budget import ANSWER_RESERVE_TOKENS, QUESTION_CHARS
+from modules.chat.budget import (
+    ANSWER_RESERVE_TOKENS,
+    EXCERPTS_TOKENS,
+    QUESTION_CHARS,
+    QUESTION_TOKENS,
+    SYSTEM_PROMPT_TOKENS,
+)
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.model_type import ModelType
@@ -304,6 +310,33 @@ async def test_a_followup_keeps_the_system_message_and_asks_with_its_own_passage
     assert {"role": "user", "content": "what happened to revenue?"} in second
     assert FINANCE in second[-1]["content"]
     assert second[-1]["content"].endswith("and after the launch?")
+
+
+async def test_a_trimmed_history_starts_where_it_did_on_the_next_turn(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """Trimmed to the brim, every turn past the budget moved where the history
+    starts, and llama-server re-read all of it. Trimmed with room to spare, the
+    next turn starts at the same question."""
+    # 40 tokens of history at one token a word: three exchanges fit, a fourth does not.
+    fixed = SYSTEM_PROMPT_TOKENS + EXCERPTS_TOKENS + QUESTION_TOKENS
+    set_props_n_ctx(fixed + ANSWER_RESERVE_TOKENS + 40)
+    set_tokens_per_word(1)
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    for n in range(6):
+        await _send(client, thread_id, f"question number {n} about revenue")
+
+    first_questions = [
+        next(m["content"] for m in request["messages"][1:] if m["role"] == "user")
+        for request in llamacpp_server
+        if request["messages"][0]["role"] == "system"
+    ]
+    first_cut = next(
+        turn for turn, text in enumerate(first_questions) if "number 0" not in text
+    )
+    assert first_questions[first_cut + 1] == first_questions[first_cut]
 
 
 async def test_a_thinking_model_shows_its_reasoning_before_the_answer(
