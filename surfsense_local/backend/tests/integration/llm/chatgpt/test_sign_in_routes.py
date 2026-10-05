@@ -267,6 +267,32 @@ async def test_a_sign_in_host_turned_off_is_not_called_to_sign_out(
     assert "Could not revoke" not in caplog.text
 
 
+async def test_signing_in_again_revokes_the_grant_it_replaces(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """Overwriting live tokens would otherwise leave their grant open at OpenAI."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    replaced = fake_openai.issued_refresh[-1]
+
+    again = await _sign_in(client, connection_id=connection_id)
+
+    assert again["status"] == "signed_in"
+    assert [form["token"] for form in fake_openai.revocations] == [replaced]
+    assert fake_openai.issued_refresh[-1] not in fake_openai.revoked_refresh
+
+
+async def test_signing_in_again_after_signing_out_revokes_nothing_more(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """The sign-out already ended that grant; there is nothing left to replace."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    await _sign_in(client, connection_id=connection_id)
+
+    assert len(fake_openai.revocations) == 1
+
+
 async def test_a_label_already_taken_is_refused_before_the_browser_opens(
     client: AsyncClient, fake_openai: FakeOpenAI
 ) -> None:

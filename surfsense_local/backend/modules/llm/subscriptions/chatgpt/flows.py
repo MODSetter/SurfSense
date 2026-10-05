@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 
-from modules.llm.subscriptions.chatgpt import account
+from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import (
     AGENT_NAME,
     DYNAMIC_CLIENT,
@@ -183,11 +183,22 @@ def _save(
     connection_id: int | None,
 ) -> int:
     with session_factory() as session:
+        replaced = (
+            None
+            if connection_id is None
+            else revocation.tokens_to_revoke(
+                account.chatgpt_connection(session, connection_id)
+            )
+        )
         saved = account.save_sign_in(
             session, tokens, label=label, connection_id=connection_id
         )
+        revoke = replaced is not None and revocation.may_revoke(session)
         session.commit()
-        return saved
+    # After the commit, as on sign-out: the new sign-in stands whatever OpenAI says.
+    if revoke:
+        revocation.revoke(replaced)
+    return saved
 
 
 def _fail(flow: Flow, message: str) -> None:
