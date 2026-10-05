@@ -47,7 +47,7 @@ QUESTION_TOKENS = 1024
 IMAGE_TOKENS = 1400
 
 # The cheapest image the code knows: Gemma 3's fixed 256. A refusal prices at
-# this, so it only stops a turn no projector could fit.
+# this, so it only stops a turn that overflows even at Gemma 3's 256.
 SMALLEST_IMAGE_TOKENS = 256
 
 # What MessageText refuses past, at the wire (modules/chat/schemas.py). One
@@ -91,7 +91,7 @@ def image_room(n_ctx: int | None, text_chars: int) -> int | None:
     """The most images the window could take, or None when it is unknown.
 
     A lower bound on the turn's cost: the answer reserve, the turn's own text
-    and the cheapest projector. IMAGE_TOKENS stays the price the history trim
+    and Gemma 3's 256 per image. IMAGE_TOKENS stays the price the history trim
     uses; as a limit it would refuse turns Gemma 3 answers.
     """
     if n_ctx is None:

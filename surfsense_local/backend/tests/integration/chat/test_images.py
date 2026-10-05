@@ -106,7 +106,7 @@ async def test_images_that_outgrow_the_window_are_refused_and_nothing_is_kept(
     data_dir: Path,
 ) -> None:
     """2,048 tokens hold at most four 256-token images once the answer is
-    reserved, fewer with the turn's text: four overflow on any projector."""
+    reserved, fewer with the turn's text: four overflow even at 256 each."""
     set_sees(True)
     set_props_n_ctx(2048)
     workspace_id, _ = _seed(engine)

@@ -417,8 +417,8 @@ async def _accepted_images(
 def _refuse_images_past_window(
     attached: int, n_ctx: int | None, text_chars: int
 ) -> None:
-    """Refuse before anything is stored a turn whose images no projector could
-    fit: trimming history cannot make room for them, so the model would only
+    """Refuse before anything is stored a turn whose images overflow even at
+    Gemma 3's 256 each: trimming history cannot make room for them, so the model would only
     fail it later as `context_too_long`."""
     room = image_room(n_ctx, text_chars)
     if room is None or attached <= room:
