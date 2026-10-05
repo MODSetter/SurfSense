@@ -15,6 +15,14 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value ? value : null
 }
 
+/** The title the source-pages tool's result opens with, for a turn whose
+ *  scope names no titles: every source, or more than 200. */
+function pagedSourceTitle(step: AgentStep, documentId: number): string | null {
+  const first = step.output?.split("\n", 1)[0] ?? ""
+  const found = first.match(/^Source (\d+) \("(.*)"\) (?:has|is) /)
+  return found && Number(found[1]) === documentId ? found[2] : null
+}
+
 /** A document's title inside a sentence. */
 const documentTitle = (chunks: ReactNode[]) => (
   <em className="text-foreground">{chunks}</em>
@@ -151,7 +159,8 @@ export function stepLabel(
     case "surfsense_source_pages": {
       const title =
         typeof input.document_id === "number"
-          ? sourceTitle(input.document_id)
+          ? (sourceTitle(input.document_id) ??
+            pagedSourceTitle(step, input.document_id))
           : null
       return title
         ? intl.formatMessage(

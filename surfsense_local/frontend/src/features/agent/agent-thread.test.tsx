@@ -452,6 +452,50 @@ describe("an agent thread", () => {
     ).toBeGreaterThan(0)
   })
 
+  it("names the source a reply looked at the pages of on every source", async () => {
+    // A turn on every source, or past 200, carries no titles to name it by.
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Match the brand guide" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "It uses navy headings.",
+            steps: [
+              {
+                id: "prt_3",
+                tool: "surfsense_source_pages",
+                status: "completed",
+                title: "",
+                input: { document_id: 8 },
+                output:
+                  'Source 8 ("Brand guide") has 3 pages.\nPages to open with read, at most 1000 px on their long side:\n- sources/pages/8-p1.png',
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("It uses navy headings.")).toBeTruthy()
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent === "Looked at pages of Brand guide"
+      ).length
+    ).toBeGreaterThan(0)
+  })
+
   it("names the source a reply looks at the pages of as it streams", async () => {
     backend({
       first: [
