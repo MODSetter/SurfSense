@@ -1,13 +1,18 @@
 """The podcast pipeline: a reviewed brief becomes an outline, then segments."""
 
+from collections.abc import AsyncIterator
+from types import SimpleNamespace
+
 import pytest
 
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
 from modules.llm.profile import Tier
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
+from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline, pipeline
 from worker.studio.shared import generate
+from worker.studio.shared.artifact import Source
 
 pytestmark = pytest.mark.unit
 
@@ -68,14 +73,16 @@ SEGMENTS = [
 
 def test_the_segment_prompt_places_the_beat_and_continues_from_the_recap() -> None:
     """The model knows where it is in the episode and what was just said."""
-    opening = draft.prompt(Tier.CAPABLE, BRIEF, SEGMENTS[0], 1, 2, None)
+    opening = draft.segment_prompt(Tier.CAPABLE, SEGMENTS[0], 1, 2, None)
     assert "segment 1 of 2" in opening
     assert "opening segment" in opening
     assert "- say hi" in opening and "about 100 words" in opening
 
-    middle = draft.prompt(Tier.CAPABLE, BRIEF, SEGMENTS[1], 2, 2, "Sam: Welcome.")
+    middle = draft.segment_prompt(Tier.CAPABLE, SEGMENTS[1], 2, 2, "Sam: Welcome.")
     assert "Sam: Welcome." in middle and "do not repeat" in middle
-    assert "1. Sam (host)" in middle and "pt-BR" in middle
+
+    episode = draft.prompt(Tier.CAPABLE, BRIEF)
+    assert "1. Sam (host)" in episode and "pt-BR" in episode
 
 
 def test_turns_are_attributed_by_slot_or_name_and_strangers_are_dropped() -> None:
@@ -113,7 +120,7 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
     replies = iter(
         ["not json", '{"turns": [{"speaker": 1, "text": "Hi."}]}', "no", "no"]
     )
-    prompts: list[str] = []
+    prompts: list[str | None] = []
     repairs: list[generate.Repair | None] = []
 
     def fake_run_model(
@@ -121,10 +128,11 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         system: str,
         sources: list,
         *,
+        after_sources: str | None = None,
         repair: generate.Repair | None = None,
         max_tokens: int | None = None,
     ) -> str:
-        prompts.append(system)
+        prompts.append(after_sources)
         repairs.append(repair)
         return next(replies)
 
@@ -159,6 +167,7 @@ def test_each_segment_is_capped_by_its_target_words_or_a_planned_segment(
         system: str,
         sources: list,
         *,
+        after_sources: str | None = None,
         repair: generate.Repair | None = None,
         max_tokens: int | None = None,
     ) -> str:
@@ -171,6 +180,40 @@ def test_each_segment_is_capped_by_its_target_words_or_a_planned_segment(
 
     # The 100-word opening and its retry at a 250-word segment's, then the 300-word one.
     assert caps == [3000, 3000, 3600]
+
+
+class RecordingGenerator:
+    """A Generator that answers every call with one segment and keeps each request."""
+
+    def __init__(self, reply: str) -> None:
+        self.reply = reply
+        self.requests: list[list[Message]] = []
+
+    async def chat(
+        self, model: str, messages: list[Message], **_: object
+    ) -> AsyncIterator[str]:
+        self.requests.append(messages)
+        yield self.reply
+
+
+def test_every_segment_reads_the_same_sources_before_what_is_its_own() -> None:
+    """The runtime reuses a prompt only up to its first changed token. Measured on
+    Qwen3 1.7B: with the segment line first, each of four segments re-read 5,500
+    tokens of sources, 38 s each; with it after them, 0.65 s."""
+    recorder = RecordingGenerator('{"turns": [{"speaker": 1, "text": "Hi."}]}')
+    selection = SimpleNamespace(provider="llamacpp", name="qwen3", tier=Tier.CAPABLE)
+    sources = [Source(1, "Saturn notes", "Galileo saw the rings in 1610.")]
+
+    draft.draft(ResolvedGeneration(selection, recorder), BRIEF, SEGMENTS, sources)
+
+    (first_system, first_user), (second_system, second_user) = recorder.requests
+    assert first_system == second_system
+    assert "segment 1 of 2" not in first_system.content
+    grounding = "# Saturn notes\n\nGalileo saw the rings in 1610."
+    assert first_user.content.startswith(grounding)
+    assert second_user.content.startswith(grounding)
+    assert "segment 1 of 2" in first_user.content
+    assert "segment 2 of 2" in second_user.content
 
 
 class FakeVoice:
@@ -203,7 +246,12 @@ def _episode(monkeypatch: pytest.MonkeyPatch, *replies: str) -> tuple[FakeVoice,
     prompts: list[str] = []
 
     def fake_run_model(
-        model: object, system: str, sources: list, *, max_tokens: int | None = None
+        model: object,
+        system: str,
+        sources: list,
+        *,
+        after_sources: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         prompts.append(system)
         return next(queue)

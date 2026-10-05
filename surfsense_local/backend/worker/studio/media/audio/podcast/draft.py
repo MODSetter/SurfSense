@@ -40,14 +40,16 @@ def draft(
 ) -> list[Turn]:
     """Every segment in order, each drafted with a recap of the ones before."""
     turns: list[Turn] = []
+    system = prompt(model.tier, brief)
     for position, segment in enumerate(segments, start=1):
-        text = prompt(
-            model.tier, brief, segment, position, len(segments), recap(turns, brief)
+        text = segment_prompt(
+            model.tier, segment, position, len(segments), recap(turns, brief)
         )
         turns.extend(
             _draft_one(
                 model,
                 brief,
+                system,
                 text,
                 position,
                 len(segments),
@@ -59,14 +61,8 @@ def draft(
     return turns
 
 
-def prompt(
-    tier: Tier,
-    brief: PodcastBrief,
-    segment: Segment,
-    position: int,
-    total: int,
-    recap: str | None,
-) -> str:
+def prompt(tier: Tier, brief: PodcastBrief) -> str:
+    """What every segment of the episode shares, so the runtime reads it once."""
     return prompting.load(
         __package__,
         tier,
@@ -74,6 +70,21 @@ def prompt(
         language=brief.language,
         style=brief.style.value,
         roster=roster(brief),
+    )
+
+
+def segment_prompt(
+    tier: Tier,
+    segment: Segment,
+    position: int,
+    total: int,
+    recap: str | None,
+) -> str:
+    """What only this segment is asked for, sent after the sources."""
+    return prompting.load(
+        __package__,
+        tier,
+        case="segment",
         continuity=_continuity(recap),
         position=position,
         total=total,
@@ -121,6 +132,7 @@ def recap(turns: list[Turn], brief: PodcastBrief) -> str | None:
 def _draft_one(
     model: ResolvedGeneration,
     brief: PodcastBrief,
+    system: str,
     text: str,
     position: int,
     total: int,
@@ -128,7 +140,9 @@ def _draft_one(
     *,
     max_tokens: int,
 ) -> list[Turn]:
-    reply = generate.run_model(model, text, sources, max_tokens=max_tokens)
+    reply = generate.run_model(
+        model, system, sources, after_sources=text, max_tokens=max_tokens
+    )
     try:
         return parse(reply, brief)
     except ValueError as first:
@@ -137,8 +151,9 @@ def _draft_one(
         )
     retry = generate.run_model(
         model,
-        text,
+        system,
         sources,
+        after_sources=text,
         repair=generate.Repair(reply, _JSON_NUDGE),
         max_tokens=max_tokens,
     )

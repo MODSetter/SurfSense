@@ -29,6 +29,7 @@ def run_model(
     system: str,
     sources: list[Source],
     *,
+    after_sources: str | None = None,
     repair: Repair | None = None,
     max_tokens: int | None = None,
     json_schema: dict | None = None,
@@ -38,6 +39,11 @@ def run_model(
     Every kind that asks the model to write (content, web, office, podcast) goes
     through here; each collects the stream the worker cannot await lazily.
 
+    A job that calls the model several times over the same sources passes what
+    differs per call as `after_sources`. The runtime reuses a prompt only up to
+    its first changed token, so anything ahead of the sources makes every call
+    read them again.
+
     A retry passes `repair`, which replays the failed reply as the model's own
     turn before asking for the correction. Without it an error naming a line
     points at a script the model was never shown, so it can only start over.
@@ -46,9 +52,12 @@ def run_model(
     An endpoint that ignores it still answers, and `parse_json` reads that.
     """
     selected = model.selection
+    grounding = _grounding(sources)
+    if after_sources is not None:
+        grounding = f"{grounding}\n\n{after_sources}"
     messages = [
         Message(role="system", content=system),
-        Message(role="user", content=_grounding(sources)),
+        Message(role="user", content=grounding),
     ]
     if repair is not None:
         messages += [
