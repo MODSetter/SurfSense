@@ -14,12 +14,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
-from modules.agent.agent_threads.forget_sessions import forget_sessions
+from modules.agent.agent_threads.forget_sessions import forget_thread
 from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
 from modules.agent.agent_threads.turn import agent_turn
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import selected_model_can_run_agent
+from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error, empty_reply_error
@@ -131,10 +132,16 @@ async def list_messages(
 )
 async def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
     workspace_id, thread_id = thread.workspace_id, thread.id
+    folder = None
     if thread.opencode_session_id is not None:
-        await forget_sessions(workspace_id, [thread.opencode_session_id])
+        folder = await forget_thread(
+            workspace_id, thread_id, thread.opencode_session_id
+        )
     await transact(session, _delete_thread, thread)
     store.remove_thread(workspace_id, thread_id)
+    if folder is not None:
+        # Unlinks the views; their cached texts stay for the threads still using them.
+        await run_in_threadpool(remove_thread_folder, folder)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

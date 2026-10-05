@@ -107,14 +107,15 @@ def turn_reply(
 def _user_content(parts: list[dict[str, Any]]) -> dict[str, Any]:
     """The user's own words, and the sources the turn was given, without the note naming them.
 
-    `scope` holds the ticked ids; the thread's reader names them.
+    `scope` holds the ticked ids, or past the note's cap their count; the
+    thread's reader names them.
     """
     content: dict[str, Any] = {
         "text": _text([part for part in parts if not is_scope_note(part)])
     }
     scope = noted_scope(parts)
     if scope is not None:
-        content["scope"] = {"document_ids": scope}
+        content["scope"] = scope
     return content
 
 

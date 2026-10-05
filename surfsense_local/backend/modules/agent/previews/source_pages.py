@@ -16,7 +16,7 @@ from modules.agent.previews.page_images import (
     draw_chosen_pages,
     page_count,
 )
-from modules.agent.sources_folder import page_image_path
+from modules.agent.thread_folder.source_images import page_image_path
 
 # Big enough to read a heading's font and a table's lines, small enough for one attachment.
 LONG_SIDE_PX = 1000
@@ -40,9 +40,9 @@ class SourcePages:
 
 
 def source_pages(
-    workspace_id: int, document_id: int, original: Path, asked: list[int] | None
+    folder: Path, document_id: int, original: Path, asked: list[int] | None
 ) -> SourcePages:
-    """Draw the pages asked for, or the first ones, under `sources/pages/`.
+    """Draw the pages asked for, or the first ones, under the thread folder's `sources/pages/`.
 
     `asked` is sorted, without repeats, and at most PAGE_LIMIT long. Raises
     PagesRefusedError for a page the source is known not to have.
@@ -53,13 +53,13 @@ def source_pages(
         data = original.read_bytes()
         total = page_count(data)
         pages = _checked(asked, total, unit)
-        return _drawn(workspace_id, document_id, data, pages, _count(total, unit))
+        return _drawn(folder, document_id, data, pages, _count(total, unit))
     if suffix == ".pptx":
         total = slide_count(original) or 0
         pages = _checked(asked, total, unit)
-        return _printed(workspace_id, document_id, original, "pptx", pages, total)
+        return _printed(folder, document_id, original, "pptx", pages, total)
     pages = asked or list(range(1, PAGE_LIMIT + 1))
-    return _printed(workspace_id, document_id, original, "docx", pages, None)
+    return _printed(folder, document_id, original, "docx", pages, None)
 
 
 def _checked(asked: list[int] | None, total: int, unit: str) -> list[int]:
@@ -75,7 +75,7 @@ def _checked(asked: list[int] | None, total: int, unit: str) -> list[int]:
 
 
 def _printed(
-    workspace_id: int,
+    folder: Path,
     document_id: int,
     original: Path,
     format: docx_snapshots.SnapshotFormat,
@@ -105,11 +105,11 @@ def _printed(
             f"the desktop app printed {printed} {unit}s for the {len(pages)} asked for.",
         )
     count = _count_line(original, total, unit, pages[-1])
-    return _drawn(workspace_id, document_id, pdf, pages, count, in_order=True)
+    return _drawn(folder, document_id, pdf, pages, count, in_order=True)
 
 
 def _drawn(
-    workspace_id: int,
+    folder: Path,
     document_id: int,
     pdf: bytes,
     pages: list[int],
@@ -122,7 +122,7 @@ def _drawn(
         (
             position if in_order else page - 1,
             page,
-            page_image_path(workspace_id, document_id, page),
+            page_image_path(folder, document_id, page),
         )
         for position, page in enumerate(pages)
     ]

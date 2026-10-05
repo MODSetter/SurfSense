@@ -13,12 +13,11 @@ from modules.agent.previews.source_pages import (
     SourcePages,
     source_pages,
 )
-from modules.agent.sources_folder import PAGES, SOURCES
+from modules.agent.thread_folder.layout import PAGES, SOURCES
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
-from shared.config import get_storage_settings
 
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 # The snapshot page lays Word out with docx-preview, told to skip both.
@@ -72,10 +71,10 @@ def draw(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     # Drawing a Word file or a deck waits on Electron; no transaction may stay open.
     session.commit()
     try:
-        drawn = source_pages(scope.workspace_id, document_id, original, asked)
+        drawn = source_pages(scope.folder, document_id, original, asked)
     except PagesRefusedError as refused:
         raise ToolCallError(f'Source {document_id} ("{title}") {refused}') from refused
-    return _shown(scope.workspace_id, document_id, title, original, drawn)
+    return _shown(scope.folder, document_id, title, original, drawn)
 
 
 def _asked(pages: object) -> list[int] | None:
@@ -130,9 +129,8 @@ def _paged_original(
 
 
 def _shown(
-    workspace_id: int, document_id: int, title: str, original: Path, drawn: SourcePages
+    folder: Path, document_id: int, title: str, original: Path, drawn: SourcePages
 ) -> str:
-    folder = get_storage_settings().agent_working_dir(workspace_id)
     unit = PAGED_SUFFIXES[original.suffix.lower()]
     lines = [f'Source {document_id} ("{title}") has {drawn.count}.']
     if drawn.pages:

@@ -74,8 +74,8 @@ async def client(opencode: RunningOpencode) -> AsyncIterator[OpencodeClient]:
 
 @pytest.fixture
 def folder(tmp_path: Path) -> Path:
-    """The folder a turn works in, laid out as a workspace's is: `…/<id>/agent`."""
-    work = tmp_path / "workspaces" / "1" / "agent"
+    """The folder a thread works in, laid out as one is: `…/<id>/agent/threads/<thread>`."""
+    work = tmp_path / "workspaces" / "1" / "agent" / "threads" / "7"
     (work / "outputs").mkdir(parents=True)
     return work
 
@@ -235,6 +235,31 @@ async def test_a_deleted_session_is_gone(client: OpencodeClient, folder: Path) -
     assert session_id not in await client.session_ids(folder)
 
 
+async def test_a_session_says_the_folder_it_was_made_in(
+    client: OpencodeClient, folder: Path
+) -> None:
+    """A session cannot move; whether it is a thread's own tells a legacy thread apart."""
+    session_id = await client.create_session(folder, "Thread 1")
+
+    assert Path(await client.session_directory(session_id)) == folder
+
+
+async def test_a_disposed_folder_still_reads_its_sessions_back(
+    client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
+) -> None:
+    """Disposing frees the folder's instance; the next call starts another from the stored session."""
+    scripted_model.replies = [("text", "Revenue rose.")]
+    session_id = await client.create_session(folder, "Thread 1")
+    async with EventLog(client, folder) as log:
+        await client.send_turn(folder, session_id, "Q3?", model=MODEL)
+        await log.until(idle(session_id))
+
+    await client.dispose_instance(folder)
+
+    messages = await client.messages(folder, session_id)
+    assert [m["info"]["role"] for m in messages] == ["user", "assistant"]
+
+
 def write_call(path: str, content: str) -> tuple[str, str]:
     """A scripted `write` tool call, as a model would make it."""
     return (
@@ -319,17 +344,23 @@ def read_call(path: str) -> tuple[str, str]:
     return ("call", json.dumps({"name": "read", "arguments": {"filePath": path}}))
 
 
-# Paths whose name holds `agent/outputs/` but which opencode loads as configuration,
-# SurfSense rebuilds as sources, or every workspace shares.
+_OUTPUTS_OF_A_THREAD = Path("agent", "threads", "7", "outputs")
+
+# Paths whose name holds a thread's `outputs/` but which opencode loads as
+# configuration, SurfSense rebuilds as sources, every workspace shares, or
+# another thread owns.
 _NOT_OUTPUTS = {
     "skills": lambda folder, opencode: (
-        skills_folder().resolve() / "zzz-probe" / "agent" / "outputs" / "SKILL.md"
+        skills_folder().resolve() / "zzz-probe" / _OUTPUTS_OF_A_THREAD / "SKILL.md"
     ),
     "agent definitions": lambda folder, opencode: (
-        folder / ".opencode" / "agent" / "outputs" / "x.md"
+        folder / ".opencode" / _OUTPUTS_OF_A_THREAD / "x.md"
     ),
     "sources": lambda folder, opencode: (
-        folder / "sources" / "agent" / "outputs" / "x.md"
+        folder / "sources" / _OUTPUTS_OF_A_THREAD / "x.md"
+    ),
+    "a mirrored folder named outputs": lambda folder, opencode: (
+        folder / "sources" / "Library" / "outputs" / "x.md"
     ),
     "long tool output": lambda folder, opencode: (
         opencode.agent_dir
@@ -337,10 +368,13 @@ _NOT_OUTPUTS = {
         / "data"
         / "opencode"
         / "tool-output"
-        / "agent"
-        / "outputs"
+        / _OUTPUTS_OF_A_THREAD
         / "x.md"
     ),
+    "another thread's outputs": lambda folder, opencode: (
+        folder.parent / "8" / "outputs" / "x.md"
+    ),
+    "an instruction file": lambda folder, opencode: folder / "outputs" / "AGENTS.md",
 }
 
 
@@ -352,7 +386,7 @@ async def test_a_path_that_only_names_outputs_is_refused(
     opencode: RunningOpencode,
     where: str,
 ) -> None:
-    """Only the workspace's own outputs folder is writable, however a path spells it."""
+    """Only the thread's own outputs folder is writable, however a path spells it."""
     target = _NOT_OUTPUTS[where](folder, opencode)
     scripted_model.replies = [
         write_call(str(target), "---\nname: surfsense\n---\nPlanted."),

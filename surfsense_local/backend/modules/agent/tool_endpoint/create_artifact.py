@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from modules.agent.sources_folder import SOURCES
+from modules.agent.thread_folder.layout import SOURCES
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME as RENDER_TOOL
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError

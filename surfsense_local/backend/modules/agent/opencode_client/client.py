@@ -81,6 +81,20 @@ class OpencodeClient:
         reply = await self._http.delete(f"/session/{session_id}", params=_in(directory))
         reply.raise_for_status()
 
+    async def session_directory(self, session_id: str) -> str:
+        """The folder a session was created in, where every call about it runs."""
+        reply = await self._http.get(f"/session/{session_id}")
+        reply.raise_for_status()
+        return reply.json()["directory"]
+
+    async def dispose_instance(self, directory: Path) -> None:
+        """Drop the folder's instance: its MCP clients, its config and its memory.
+
+        opencode keeps one per folder until it exits; the next call there starts a new one.
+        """
+        reply = await self._http.post("/instance/dispose", params=_in(directory))
+        reply.raise_for_status()
+
     async def session_ids(self, directory: Path) -> set[str]:
         """The sessions opencode holds for this folder."""
         reply = await self._http.get("/session", params=_in(directory))

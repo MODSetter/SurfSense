@@ -42,16 +42,34 @@ def _permission(skills: Path) -> dict[str, Any]:
         # opencode matches an edit's path relative to the project root, which for a
         # folder outside git is "/", so the rule names the folder from any root.
         # "*" also spans folders, so the denies after it refuse paths that only
-        # contain "agent/outputs/": opencode loads agent definitions from
-        # .opencode/ and skills from the skills folder, SurfSense greps sources/,
-        # and every workspace reads opencode's tool-output folder.
+        # contain a thread's outputs/: a mirrored folder named "outputs" must not
+        # open sources/, opencode loads agent definitions from .opencode/ and
+        # skills from the skills folder, and every thread reads opencode's
+        # tool-output folder. Another thread's outputs/ is outside this thread's
+        # folder, which external_directory refuses.
         "edit": {
             "*": "deny",
-            "*/agent/outputs/*": "allow",
-            "*/agent/sources/*": "deny",
+            "*/agent/threads/*/outputs/*": "allow",
+            "*/agent/threads/*/sources/*": "deny",
             "*/.opencode/*": "deny",
             "*/opencode/tool-output/*": "deny",
             f"*{skills.relative_to(skills.anchor).as_posix()}/*": "deny",
+            # opencode reads these as instructions. Case-insensitive on Windows
+            # only; the variants cover macOS.
+            **{
+                f"*{name}": "deny"
+                for name in (
+                    "AGENTS.md",
+                    "agents.md",
+                    "Agents.md",
+                    "CONTEXT.md",
+                    "context.md",
+                    "Context.md",
+                    "CLAUDE.md",
+                    "claude.md",
+                    "Claude.md",
+                )
+            },
         },
         # Only the skills folder, which a skill may point into. On macOS and Linux
         # opencode checks an absolute path as written, so "<skills>/../.." would

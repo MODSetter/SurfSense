@@ -12,6 +12,7 @@ import {
   type PermissionReply,
   type PermissionRequest,
 } from "@/features/agent/api"
+import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
 import { errorToast } from "@/features/feedback/error-toast"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { ApiError } from "@/lib/api"
@@ -38,8 +39,12 @@ import { chatKeys } from "./query-keys"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
 import { readThinkingOn } from "./thinking-preference"
 
+/** A backend error kind, or a refusal the app recognises before any stream:
+ *  a turn on an agent thread that predates per-chat folders. */
+export type ChatTurnErrorKind = ChatErrorKind | "agent_thread_outdated"
+
 export type ChatTurnError = {
-  kind: ChatErrorKind
+  kind: ChatTurnErrorKind
   message: string
   provider: string
   retryText: string
@@ -734,6 +739,20 @@ export function useChatRuntime({
           cause.message.includes("no chat model selected")
         ) {
           onModelRequired()
+        } else if (
+          isOutdatedThreadRefusal(cause) &&
+          requestVersion.current === version
+        ) {
+          setChatErrors((current) => ({
+            ...current,
+            [String(assistantId)]: {
+              kind: "agent_thread_outdated",
+              message: "",
+              provider: "",
+              retryText: text,
+              retryImages: images,
+            },
+          }))
         } else if (isAbort(cause) && threadId !== null) {
           void queryClient.invalidateQueries({
             queryKey: chatKeys.messages(threadId),

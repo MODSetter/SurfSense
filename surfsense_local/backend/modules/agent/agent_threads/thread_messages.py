@@ -32,7 +32,8 @@ async def agent_thread_messages(
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     except (AgentUnavailableError, OpencodeVersionError) as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    folder = get_storage_settings().agent_working_dir(thread.workspace_id)
+    # A session's own calls run where it was made, so a legacy thread reads back too.
+    folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
     try:
         messages = await ready.client.messages(folder, session_id)
     except httpx.HTTPError as error:

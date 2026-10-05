@@ -19,7 +19,7 @@ from sqlalchemy import Engine
 
 from modules.agent.previews import docx_snapshots
 from modules.agent.previews.docx_snapshots import SnapshotRequest
-from modules.agent.tool_endpoint.turn_scope import remember_turn_scope
+from modules.source_scope.schemas import SourceScope
 from shared.config import get_storage_settings
 from tests.integration.agent.conftest import declare_image_input
 from tests.integration.agent.test_office_documents import _uploaded
@@ -67,10 +67,6 @@ def _pptx(slides: int) -> bytes:
 
 def _call(document_id: int, **arguments: object) -> dict[str, object]:
     return {"document_id": document_id, **arguments}
-
-
-def _folder(workspace_id: int):
-    return get_storage_settings().agent_working_dir(workspace_id)
 
 
 @pytest.fixture
@@ -121,7 +117,7 @@ async def test_a_pdfs_first_pages_are_drawn_where_the_agent_reads_them(
     for page in (1, 2, 3, 4):
         relative = f"sources/pages/{source_id}-p{page}.png"
         assert f"- {relative}" in text
-        with Image.open(_folder(workspace_id) / relative) as image:
+        with Image.open(tools.folder(workspace_id) / relative) as image:
             assert max(image.size) == 1000
             assert image.height > image.width
     assert f"{source_id}-p5.png" not in text
@@ -143,7 +139,7 @@ async def test_the_pages_asked_for_are_the_pages_drawn(
     )
 
     assert is_error is False, text
-    pages = _folder(workspace_id) / "sources" / "pages"
+    pages = tools.folder(workspace_id) / "sources" / "pages"
     with Image.open(pages / f"{source_id}-p5.png") as five:
         assert five.width == 1000 and five.height < 1000
     with Image.open(pages / f"{source_id}-p2.png") as two:
@@ -226,7 +222,7 @@ async def test_a_16_9_slide_is_drawn_no_wider_than_1000_px(
     text, is_error = await tools.call(workspace_id, "source_pages", _call(source_id))
 
     assert is_error is False, text
-    page = _folder(workspace_id) / "sources" / "pages" / f"{source_id}-p1.png"
+    page = tools.folder(workspace_id) / "sources" / "pages" / f"{source_id}-p1.png"
     with Image.open(page) as image:
         assert image.width == 1000
 
@@ -347,22 +343,21 @@ async def test_a_source_outside_the_workspace_or_the_turn_is_refused(
     ticked = _uploaded(engine, workspace_id, "Plan.pdf", _pdf(A4))
     unticked = _uploaded(engine, workspace_id, "Brand.pdf", _pdf(A4))
     theirs = _uploaded(engine, elsewhere, "Theirs.pdf", _pdf(A4))
-    token = remember_turn_scope(workspace_id, [ticked, theirs])
+    thread = tools.thread(workspace_id, SourceScope(document_ids=[ticked]))
 
     outside, outside_error = await tools.call(
-        workspace_id, "source_pages", _call(unticked), token=token
+        workspace_id, "source_pages", _call(unticked), thread=thread
     )
     foreign, foreign_error = await tools.call(
-        workspace_id, "source_pages", _call(theirs), token=token
+        workspace_id, "source_pages", _call(theirs), thread=thread
     )
 
     assert outside_error is True
     assert f"Source {unticked} is not selected" in outside
     assert foreign_error is True
-    assert "not a source in this workspace" in foreign
-    assert not (_folder(workspace_id) / "sources" / "pages").exists() or not list(
-        (_folder(workspace_id) / "sources" / "pages").iterdir()
-    )
+    assert f"Source {theirs} is not selected" in foreign
+    pages = tools.folder(workspace_id, thread) / "sources" / "pages"
+    assert not pages.exists() or not list(pages.iterdir())
 
 
 async def test_a_model_that_reads_no_images_is_not_offered_the_tool(

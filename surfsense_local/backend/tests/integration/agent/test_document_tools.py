@@ -5,6 +5,7 @@ import sqlite3
 import threading
 import time
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -222,7 +223,7 @@ async def test_a_pdf_render_counts_its_pages_and_lists_previews_to_open(
     assert is_error is False, text
     artifact_id = _artifact_id(text)
     assert "2 pages" in text
-    folder = get_storage_settings().agent_working_dir(workspace_id)
+    folder = tools.folder(workspace_id)
     previews = [
         f"outputs/previews/{artifact_id}-v1/page-1.png",
         f"outputs/previews/{artifact_id}-v1/page-2.png",
@@ -268,9 +269,8 @@ async def test_word_previews_say_they_leave_out_headers_and_footers(
 ) -> None:
     """A header logo the preview cannot show is not a missing image to render again for."""
     workspace_id = await tools.workspace()
-    folder = get_storage_settings().agent_working_dir(workspace_id)
 
-    def previews_for(artifact: Artifact, time_left: float) -> Previews:
+    def previews_for(artifact: Artifact, folder: Path, time_left: float) -> Previews:
         return Previews(
             [folder / "outputs" / "previews" / f"{artifact.id}-v1" / "page-1.png"]
         )
@@ -307,7 +307,7 @@ async def test_the_word_preview_gets_only_the_time_the_call_has_left(
     """opencode gives up on the whole call, so the preview cannot have its full 30 s late in it."""
     given: list[float] = []
 
-    def previews_for(_artifact: Artifact, time_left: float) -> Previews:
+    def previews_for(_artifact: Artifact, _folder: Path, time_left: float) -> Previews:
         given.append(time_left)
         return Previews([], "not drawn in this test")
 
@@ -788,7 +788,7 @@ async def test_a_listed_image_can_be_opened_from_the_sources_folder(
     text, _ = await tools.call(workspace_id, "list_images", {"source_ids": [report]})
 
     kept = figures_dir(storage.document_dir(workspace_id, report))
-    shown = storage.agent_working_dir(workspace_id) / "sources" / "figures"
+    shown = tools.folder(workspace_id) / "sources" / "figures"
     for n in (1, 2):
         assert f"sources/figures/{report}-{n}.png" in text
         copied = (shown / f"{report}-{n}.png").read_bytes()
@@ -836,14 +836,19 @@ async def test_listing_says_which_sources_have_no_images_or_are_not_here(
     foreign = _logo_source(engine, elsewhere)
 
     text, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [note]}
+    )
+    theirs, refused = await tools.call(
         workspace_id, "list_images", {"source_ids": [note, foreign]}
     )
 
     assert is_error is False
     assert f"Source {note}" in text and "no images" in text
-    assert f"Source {foreign}: not a source in this workspace." in text
-    assert f"{foreign}-1" not in text
-    shown = get_storage_settings().agent_working_dir(workspace_id) / "sources"
+    # Another workspace's source is never among this thread's.
+    assert refused is True
+    assert f"Source {foreign} is not selected" in theirs
+    assert f"{foreign}-1" not in theirs
+    shown = tools.folder(workspace_id) / "sources"
     assert not (shown / "figures").exists()
 
 
@@ -862,7 +867,7 @@ async def test_a_preview_that_breaks_still_reports_the_ready_version(
 ) -> None:
     """The version is made; an error result would send the model to make it again."""
 
-    def broken(_artifact: Artifact, time_left: float) -> None:
+    def broken(_artifact: Artifact, _folder: Path, time_left: float) -> None:
         raise OSError("disk full")
 
     monkeypatch.setattr(render_document, "previews_for", broken)

@@ -160,6 +160,10 @@ function WorkspaceDashboard({
     modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
 
   const closeInspect = () => setInspect(null)
+  const startNewChat = () => {
+    closeInspect()
+    chat.startNewChat()
+  }
   const closeSourcePreview = () => {
     setSourcePreviewId(null)
     writeSourcePreview(workspace.id, null)
@@ -265,10 +269,7 @@ function WorkspaceDashboard({
               autoNamingThreadId={chat.autoNamingThreadId}
               animatingTitleThreadId={chat.animatingTitleThreadId}
               isLoadingThreads={chat.isLoadingThreads}
-              onNewChat={() => {
-                closeInspect()
-                chat.startNewChat()
-              }}
+              onNewChat={startNewChat}
               onSelectThread={(threadId) => {
                 if (threadId !== chat.activeThreadId) closeInspect()
                 chat.selectThread(threadId)
@@ -397,6 +398,7 @@ function WorkspaceDashboard({
             onModelSetup={onModelRequired}
             onModelSelected={onModelSelected}
             onRetry={chat.retry}
+            onNewChat={startNewChat}
             sourceCount={sources.includedDocumentIds.length}
             onUploadSources={(files) => void sources.upload(files)}
             isUploadingSources={sources.isUploading}

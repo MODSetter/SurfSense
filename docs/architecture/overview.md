@@ -80,7 +80,8 @@ The rules that keep the processes out of each other's way:
 └── data/workspaces/<id>/
     ├── documents/<id>/       the upload, under its own name
     ├── chats/<id>/           images a thread's turns carried
-    └── artifacts/<id>/       an artifact's rendered file, named by role
+    ├── artifacts/<id>/       an artifact's rendered file, named by role
+    └── agent/                each agent thread's folder and the text its sources link to
 ```
 
 - The bundled embedding, parser and voice models are read from `SURFSENSE_LOCAL_MODELS_DIR`: the app's resources when packaged, `backend/models` under `pnpm dev`, and `<data dir>/models` for a bare `uv run`.

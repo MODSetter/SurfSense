@@ -3,16 +3,20 @@
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
+import httpx
 import pytest
 from sqlalchemy import Engine, select
 
+from modules.artifacts.models import Artifact
+from modules.chat import router as chat_router
 from modules.chat.models import ChatThread
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
-from tests.integration.agent.conftest import AgentAPI
+from tests.integration.agent.conftest import AGENT_MODEL, AgentAPI
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
@@ -62,9 +66,9 @@ def of_type(frames: list[Frame], kind: str) -> list[Frame]:
     return [frame for frame in frames if frame["type"] == kind]
 
 
-def working_folder(workspace_id: int):
-    """Where the workspace's agent works."""
-    return get_storage_settings().agent_working_dir(workspace_id)
+def thread_folder(workspace_id: int, thread_id: int) -> Path:
+    """Where one agent thread works."""
+    return get_storage_settings().thread_working_dir(workspace_id, thread_id)
 
 
 async def test_a_new_thread_uses_the_agent_when_the_model_may(
@@ -74,10 +78,11 @@ async def test_a_new_thread_uses_the_agent_when_the_model_may(
     thread = await open_thread(agent_api, "Research")
 
     assert thread["uses_agent"] is True
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
     async with agent_api.opencode() as opencode:
-        assert (
-            len(await opencode.session_ids(working_folder(agent_api.workspace_id))) == 1
-        )
+        (session_id,) = await opencode.session_ids(folder)
+        # The thread's own folder, which holds only the sources it may use.
+        assert Path(await opencode.session_directory(session_id)) == folder
 
 
 async def test_without_the_agent_a_new_thread_is_a_chat(
@@ -154,7 +159,8 @@ async def test_the_sources_are_in_the_folder_before_the_turn(
 
     await send(agent_api, thread["id"], "When do we ship?")
 
-    source = working_folder(agent_api.workspace_id) / "sources" / f"Plan [{note_id}].md"
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    source = folder / "sources" / f"Plan [{note_id}].md"
     assert source.read_text(encoding="utf-8") == "Ship on Friday."
 
 
@@ -371,7 +377,7 @@ async def test_closing_the_stream_stops_the_turn(agent_api: AgentAPI) -> None:
     """Leaving the thread is the stop button: the agent must not keep working unseen."""
     agent_api.model.replies = [("stall", "Thinking about")]
     thread = await open_thread(agent_api)
-    folder = working_folder(agent_api.workspace_id)
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
 
     async with agent_api.http.stream(
         "POST", f"/chat/threads/{thread['id']}/messages", json={"text": "Go"}
@@ -386,31 +392,151 @@ async def test_closing_the_stream_stops_the_turn(agent_api: AgentAPI) -> None:
             await asyncio.sleep(0.2)
 
 
-async def test_deleting_the_thread_deletes_its_session(agent_api: AgentAPI) -> None:
-    """A deleted thread leaves no conversation behind in opencode."""
+async def test_deleting_the_thread_deletes_its_session_instance_and_folder(
+    agent_api: AgentAPI, engine: Engine
+) -> None:
+    """A deleted thread leaves no conversation, no instance and no files behind; its documents stay."""
     thread = await open_thread(agent_api)
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
+    await send(agent_api, thread["id"], "Hello")
+    assert "surfsense" in await _tool_servers(agent_api, folder)
     session_id = await _session_of(thread["id"])
+    artifact = _artifact(engine, agent_api.workspace_id, thread["id"])
 
     reply = await agent_api.http.delete(f"/chat/threads/{thread['id']}")
 
     assert reply.status_code == 204
     async with agent_api.opencode() as opencode:
-        assert session_id not in await opencode.session_ids(
-            working_folder(agent_api.workspace_id)
-        )
+        assert session_id not in await opencode.session_ids(folder)
+    # A fresh instance starts without the thread's tools: the old one was disposed.
+    assert "surfsense" not in await _tool_servers(agent_api, folder)
+    assert not folder.exists()
+    listed = await agent_api.http.get(f"/workspaces/{agent_api.workspace_id}/artifacts")
+    assert [a["id"] for a in listed.json()] == [artifact]
+
+
+async def test_a_new_thread_never_starts_in_what_a_deleted_one_left(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SQLite gives a deleted newest thread's id to the next, and with it the folder's path."""
+    thread = await open_thread(agent_api)
+    await send(agent_api, thread["id"], "Hello")
+    left = thread_folder(agent_api.workspace_id, thread["id"]) / "outputs" / "notes.md"
+    left.write_text("From sources the next chat may not use.", encoding="utf-8")
+    # As on Windows while a file in it is still open.
+    monkeypatch.setattr(chat_router, "remove_thread_folder", lambda _folder: None)
+    deleted = await agent_api.http.delete(f"/chat/threads/{thread['id']}")
+    assert deleted.status_code == 204
+
+    reopened = await open_thread(agent_api)
+
+    assert reopened["id"] == thread["id"]
+    assert reopened["uses_agent"] is True
+    assert not left.exists()
+
+
+async def test_a_thread_started_in_the_shared_folder_reads_back_but_takes_no_turn(
+    agent_api: AgentAPI,
+) -> None:
+    """Its session sits where every thread's folder is in reach, and a session cannot move."""
+    thread = await open_thread(agent_api)
+    shared = get_storage_settings().agent_working_dir(agent_api.workspace_id)
+    agent_api.model.replies = [("text", "Revenue rose.")]
+    async with agent_api.opencode() as opencode:
+        legacy = await opencode.create_session(shared, "Before folders")
+        async with asyncio.timeout(30):
+            await opencode.send_turn(shared, legacy, "Q3?", model=AGENT_MODEL)
+            while (
+                await opencode.status(shared, legacy) != "idle"
+                or len(await opencode.messages(shared, legacy)) < 2
+            ):
+                await asyncio.sleep(0.2)
+    _store_session(thread["id"], legacy)
+
+    refused = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "And Q4?"}
+    )
+    history = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"] == (
+        "This agent chat was started before each chat kept its own sources. "
+        "Start a new chat to continue."
+    )
+    assert history.status_code == 200
+    assert [turn["content"]["text"] for turn in history.json()] == [
+        "Q3?",
+        "Revenue rose.",
+    ]
+    assert len(agent_api.model.requests) == 1
+
+
+async def test_two_threads_at_once_keep_their_own_tools(agent_api: AgentAPI) -> None:
+    """Each thread's instance holds the address naming it, so neither turn uses the other's."""
+    first, second = await open_thread(agent_api), await open_thread(agent_api)
+
+    await send(agent_api, first["id"], "Hello")
+    await send(agent_api, second["id"], "Hello")
+
+    for thread in (first, second):
+        folder = thread_folder(agent_api.workspace_id, thread["id"])
+        servers = await _tool_servers(agent_api, folder)
+        assert servers["surfsense"]["status"] == "connected"
 
 
 async def test_deleting_the_workspace_deletes_its_sessions(agent_api: AgentAPI) -> None:
     """The workspace's folder goes with it, and so must the sessions that worked there."""
     thread = await open_thread(agent_api)
     session_id = await _session_of(thread["id"])
-    folder = working_folder(agent_api.workspace_id)
+    folder = thread_folder(agent_api.workspace_id, thread["id"])
 
     reply = await agent_api.http.delete(f"/workspaces/{agent_api.workspace_id}")
 
     assert reply.status_code == 204
     async with agent_api.opencode() as opencode:
         assert session_id not in await opencode.session_ids(folder)
+
+
+async def _tool_servers(api: AgentAPI, folder: Path) -> dict:
+    """The MCP servers the folder's opencode instance holds, by name."""
+    async with httpx.AsyncClient(
+        base_url=api.opencode_url, auth=("opencode", api.password)
+    ) as http:
+        reply = await http.get("/mcp", params={"directory": str(folder)})
+    reply.raise_for_status()
+    return reply.json()
+
+
+def _store_session(thread_id: int, session_id: str) -> None:
+    """Point a thread at a session, as one opened before thread folders is."""
+    with create_session_factory(
+        create_db_engine(get_storage_settings().database_path)
+    )() as session:
+        session.get(ChatThread, thread_id).opencode_session_id = session_id
+        session.commit()
+
+
+def _artifact(engine: Engine, workspace_id: int, thread_id: int) -> int:
+    """A ready Studio artifact the thread made, which its deletion must keep."""
+    with create_session_factory(engine)() as session:
+        document = Document(
+            workspace_id=workspace_id,
+            title="Quiz",
+            document_type=DocumentType.ARTIFACT,
+            status=DocumentStatus.READY,
+            content="Q1?",
+        )
+        session.add(document)
+        session.flush()
+        artifact = Artifact(
+            workspace_id=workspace_id,
+            document_id=document.id,
+            chat_thread_id=thread_id,
+            format="quiz",
+        )
+        session.add(artifact)
+        session.commit()
+        return artifact.id
 
 
 async def _session_of(thread_id: int) -> str:

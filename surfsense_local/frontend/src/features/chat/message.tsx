@@ -263,11 +263,13 @@ export function AssistantMessage({
   onCitation,
   onModelSetup,
   onRetry,
+  onNewChat,
 }: {
   citations: Citation[]
   onCitation: (chunkId: number) => void
   onModelSetup: () => void
   onRetry: (assistantId: string) => void
+  onNewChat: () => void
 }) {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
@@ -278,7 +280,11 @@ export function AssistantMessage({
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>
       </CitationProvider>
-      <ChatErrorNotice onModelSetup={onModelSetup} onRetry={onRetry} />
+      <ChatErrorNotice
+        onModelSetup={onModelSetup}
+        onRetry={onRetry}
+        onNewChat={onNewChat}
+      />
       <MessageActions hideWhenRunning timestampRight className="top-0.5" />
     </MessagePrimitive.Root>
   )

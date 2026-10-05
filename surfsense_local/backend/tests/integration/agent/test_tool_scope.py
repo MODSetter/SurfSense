@@ -4,12 +4,9 @@ import pytest
 from reportlab.lib.pagesizes import A4
 from sqlalchemy import Engine
 
-from modules.agent.agent_threads.turn_sources import turn_sources
-from modules.agent.tool_endpoint.turn_scope import remember_turn_scope
-from modules.chat.models import ChatThread
-from modules.chat.schemas import MessageCreate
-from modules.documents.models import Document
+from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.folders.ensure_path import ensure_folder_path
+from modules.folders.models import Folder
 from modules.source_roots.managed_root import ensure_managed_root
 from modules.source_scope.schemas import SourceScope
 from shared.db import create_session_factory
@@ -53,12 +50,44 @@ async def test_a_search_finds_only_the_ticked_sources(
         workspace_id,
         "search_sources",
         SEARCH,
-        token=remember_turn_scope(workspace_id, [ticked]),
+        thread=tools.thread(workspace_id, SourceScope(document_ids=[ticked])),
     )
 
     assert is_error is False, text
     assert f'cite="[{ticked_chunk}]"' in text
     assert f'cite="[{unticked_chunk}]"' not in text
+
+
+async def test_a_passage_is_labelled_with_its_file_in_the_users_folders(
+    tools: ToolEndpoint, engine: Engine, real_model: object
+) -> None:
+    """The label is the path the agent opens it at in its own folder."""
+    workspace_id = await tools.workspace()
+    ticked, _ = ingest(engine, workspace_id, "Plan", "We ship on Friday.")
+    with create_session_factory(engine)() as session:
+        library = ensure_managed_root(session, workspace_id)
+        research = Folder(
+            workspace_id=workspace_id,
+            root_id=library.root_id,
+            parent_id=library.id,
+            name="Research",
+            name_key="research",
+        )
+        session.add(research)
+        session.flush()
+        session.get(Document, ticked).folder_id = research.id
+        session.commit()
+        research_id = research.id
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "search_sources",
+        SEARCH,
+        thread=tools.thread(workspace_id, SourceScope(folder_ids=[research_id])),
+    )
+
+    assert is_error is False, text
+    assert f'source="sources/Library/Research/Plan [{ticked}].md"' in text
 
 
 async def test_with_nothing_ticked_a_search_finds_nothing_and_says_why(
@@ -72,7 +101,7 @@ async def test_with_nothing_ticked_a_search_finds_nothing_and_says_why(
         workspace_id,
         "search_sources",
         SEARCH,
-        token=remember_turn_scope(workspace_id, []),
+        thread=tools.thread(workspace_id, SourceScope()),
     )
 
     assert f"[{chunk}]" not in text
@@ -92,7 +121,7 @@ async def test_a_search_that_finds_nothing_points_only_at_the_ticked_files(
         workspace_id,
         "search_sources",
         SEARCH,
-        token=remember_turn_scope(workspace_id, [ticked]),
+        thread=tools.thread(workspace_id, SourceScope(document_ids=[ticked])),
     )
 
     assert "No passage matched" in text
@@ -100,20 +129,25 @@ async def test_a_search_that_finds_nothing_points_only_at_the_ticked_files(
     assert "selected sources' files" in text
 
 
-@pytest.mark.parametrize("token", [None, "made-up"])
-async def test_a_call_from_no_known_turn_is_refused_not_widened(
-    tools: ToolEndpoint, engine: Engine, real_model: object, token: str | None
+@pytest.mark.parametrize("caller", ["no such thread", "a chat thread", "elsewhere"])
+async def test_a_call_from_no_agent_thread_of_the_workspace_is_refused_not_widened(
+    tools: ToolEndpoint, engine: Engine, real_model: object, caller: str
 ) -> None:
-    """Without its turn's scope a tool cannot tell which sources it may read."""
-    workspace_id = await tools.workspace()
+    """Without its thread's scope a tool cannot tell which sources it may read."""
+    workspace_id, elsewhere = await tools.workspace(), await tools.workspace()
     _, chunk = ingest(engine, workspace_id, "Plan", "We ship on Friday.")
     report = _report_source(engine, workspace_id)
+    thread = {
+        "no such thread": 999_999,
+        "a chat thread": tools.thread(workspace_id, agent=False),
+        "elsewhere": tools.thread(elsewhere),
+    }[caller]
 
     searched, search_refused = await tools.call(
-        workspace_id, "search_sources", SEARCH, token=token
+        workspace_id, "search_sources", SEARCH, thread=thread
     )
     listed, list_refused = await tools.call(
-        workspace_id, "list_images", {"source_ids": [report]}, token=token
+        workspace_id, "list_images", {"source_ids": [report]}, thread=thread
     )
 
     assert (search_refused, list_refused) == (True, True)
@@ -122,21 +156,88 @@ async def test_a_call_from_no_known_turn_is_refused_not_widened(
     assert "send the message again" in searched
 
 
-async def test_another_workspaces_turn_cannot_lend_its_scope(
-    tools: ToolEndpoint, engine: Engine, real_model: object
-) -> None:
-    """A token names the workspace it was made for."""
-    workspace_id, elsewhere = await tools.workspace(), await tools.workspace()
-    ingest(engine, workspace_id, "Plan", "We ship on Friday.")
+async def test_the_address_without_a_thread_is_gone(tools: ToolEndpoint) -> None:
+    """Every thread registers its own address; a workspace-wide one would serve any turn."""
+    workspace_id = await tools.workspace()
 
-    _, is_error = await tools.call(
-        workspace_id,
-        "search_sources",
-        SEARCH,
-        token=remember_turn_scope(elsewhere, None),
+    reply = await tools.client.post(
+        f"/agent/tools/workspaces/{workspace_id}",
+        params={"scope": "anything"},
+        json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        headers={"Authorization": f"Bearer {tools.launch_key}"},
+    )
+
+    assert reply.status_code == 404
+
+
+async def test_a_call_follows_ticks_stored_since_the_turn_began(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """The thread's stored scope is read on every call, not kept from the turn."""
+    workspace_id = await tools.workspace()
+    first = _report_source(engine, workspace_id)
+    second = _report_source(engine, workspace_id)
+    thread = tools.thread(workspace_id, SourceScope(document_ids=[first]))
+    stored = await tools.client.put(
+        f"/chat/threads/{thread}/source-scope", json={"document_ids": [second]}
+    )
+    assert stored.status_code == 200, stored.text
+
+    refused, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [first]}, thread=thread
+    )
+    listed, _ = await tools.call(
+        workspace_id, "list_images", {"source_ids": [second]}, thread=thread
+    )
+
+    assert is_error is True and f"Source {first} is not selected" in refused
+    assert f"{second}-1" in listed
+
+
+async def test_every_source_still_means_only_what_the_scope_resolves_to(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """A thread that ticked everything is held to its ready sources too."""
+    workspace_id = await tools.workspace()
+    pending = ready_note(engine, workspace_id)
+    with create_session_factory(engine)() as session:
+        session.get(Document, pending).status = DocumentStatus.PENDING
+        session.commit()
+
+    text, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [pending]}
     )
 
     assert is_error is True
+    assert f"Source {pending} is not selected" in text
+
+
+async def test_a_refusal_in_a_wide_scope_names_a_few_ids_not_all(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """Every id of 5,000 would put 30 KB in front of the model on each refusal."""
+    workspace_id = await tools.workspace()
+    with create_session_factory(engine)() as session:
+        session.add_all(
+            Document(
+                workspace_id=workspace_id,
+                title=f"n{n}",
+                document_type=DocumentType.NOTE,
+                status=DocumentStatus.READY,
+                content="x",
+            )
+            for n in range(5000)
+        )
+        session.commit()
+    theirs = ready_note(engine, await tools.workspace())
+
+    text, is_error = await tools.call(
+        workspace_id, "list_images", {"source_ids": [theirs]}
+    )
+
+    assert is_error is True
+    assert len(text) < 1000
+    assert "and 4980 more" in text and "sources/" in text
 
 
 async def test_listing_images_of_an_unticked_source_is_refused(
@@ -151,7 +252,7 @@ async def test_listing_images_of_an_unticked_source_is_refused(
         workspace_id,
         "list_images",
         {"source_ids": [ticked, unticked]},
-        token=remember_turn_scope(workspace_id, [ticked]),
+        thread=tools.thread(workspace_id, SourceScope(document_ids=[ticked])),
     )
 
     assert is_error is True
@@ -175,7 +276,7 @@ async def test_starting_studio_from_an_unticked_source_is_refused(
         workspace_id,
         "create_artifact",
         {"format": "quiz", "source_ids": [unticked]},
-        token=remember_turn_scope(workspace_id, [ticked]),
+        thread=tools.thread(workspace_id, SourceScope(document_ids=[ticked])),
     )
 
     assert is_error is True
@@ -197,7 +298,7 @@ async def test_a_render_cannot_place_an_unticked_sources_image(
         workspace_id,
         "render_document",
         render(script=LOGO.format(name=name), images=[name]),
-        token=remember_turn_scope(workspace_id, [ticked]),
+        thread=tools.thread(workspace_id, SourceScope(document_ids=[ticked])),
     )
 
     assert is_error is True
@@ -213,20 +314,20 @@ async def test_the_agents_own_documents_stay_usable_whatever_is_ticked(
 ) -> None:
     """A document the agent made is its output, not a source the user ticks."""
     workspace_id = await tools.workspace()
-    nothing = remember_turn_scope(workspace_id, [])
+    nothing = tools.thread(workspace_id, SourceScope())
     first, _ = await tools.call(workspace_id, "render_document", render())
 
     script, read_refused = await tools.call(
         workspace_id,
         "read_document",
         {"artifact_id": _artifact_id(first)},
-        token=nothing,
+        thread=nothing,
     )
     second, render_refused = await tools.call(
         workspace_id,
         "render_document",
         render(artifact_id=_artifact_id(first)),
-        token=nothing,
+        thread=nothing,
     )
 
     assert (read_refused, render_refused) == (False, False), (script, second)
@@ -245,7 +346,7 @@ async def test_a_render_cannot_start_from_an_unticked_sources_template(
         workspace_id,
         "render_document",
         render_deck(script=DECK_FROM_TEMPLATE, template_source_id=unticked),
-        token=remember_turn_scope(workspace_id, [ticked]),
+        thread=tools.thread(workspace_id, SourceScope(document_ids=[ticked])),
     )
 
     assert is_error is True
@@ -274,7 +375,7 @@ async def test_a_next_version_cannot_keep_a_template_the_turn_no_longer_ticks(
         workspace_id,
         "render_document",
         render_deck(script=DECK_FROM_TEMPLATE, artifact_id=_artifact_id(first)),
-        token=remember_turn_scope(workspace_id, []),
+        thread=tools.thread(workspace_id, SourceScope()),
     )
 
     assert is_error is True
@@ -298,43 +399,33 @@ def _filed_in_folders(
     return folders
 
 
-def _folder_turn(engine: Engine, workspace_id: int, folder_id: int) -> str:
-    """The token a turn sent with one ticked folder registers its tools with."""
-    with create_session_factory(engine)() as session:
-        thread = ChatThread(workspace_id=workspace_id, opencode_session_id="ses_1")
-        session.add(thread)
-        session.flush()
-        sources = turn_sources(
-            session,
-            thread,
-            MessageCreate(text="hi", source_scope=SourceScope(folder_ids=[folder_id])),
-        )
-        session.commit()
-    return remember_turn_scope(workspace_id, sources.document_ids)
+def _folder_thread(tools: ToolEndpoint, workspace_id: int, folder_id: int) -> int:
+    """An agent thread whose stored ticks are one folder, as sending a turn leaves it."""
+    return tools.thread(workspace_id, SourceScope(folder_ids=[folder_id]))
 
 
 @pytest.mark.usefixtures("stub_model")
 async def test_a_template_counts_as_ticked_when_its_folder_is(
     tools: ToolEndpoint, engine: Engine, studio_worker: None
 ) -> None:
-    """A ticked folder's sources reach the turn's token, templates among them."""
+    """A ticked folder's sources reach the thread's tools, templates among them."""
     workspace_id = await tools.workspace()
     brand = _uploaded(engine, workspace_id, "Brand.pptx", _brand_deck())
     other = _uploaded(engine, workspace_id, "Other.pptx", _brand_deck())
     folders = _filed_in_folders(engine, workspace_id, {brand: "Brand", other: "Old"})
-    token = _folder_turn(engine, workspace_id, folders["Brand"])
+    thread = _folder_thread(tools, workspace_id, folders["Brand"])
 
     refused, refused_is_error = await tools.call(
         workspace_id,
         "render_document",
         render_deck(script=DECK_FROM_TEMPLATE, template_source_id=other),
-        token=token,
+        thread=thread,
     )
     made, made_is_error = await tools.call(
         workspace_id,
         "render_document",
         render_deck(script=DECK_FROM_TEMPLATE, template_source_id=brand),
-        token=token,
+        thread=thread,
     )
 
     assert refused_is_error is True
@@ -352,13 +443,13 @@ async def test_a_sources_pages_are_drawn_only_when_its_folder_is_ticked(
     guide = _uploaded(engine, workspace_id, "Guide.pdf", _pdf(A4))
     memo = _uploaded(engine, workspace_id, "Memo.pdf", _pdf(A4))
     folders = _filed_in_folders(engine, workspace_id, {guide: "Brand", memo: "Old"})
-    token = _folder_turn(engine, workspace_id, folders["Brand"])
+    thread = _folder_thread(tools, workspace_id, folders["Brand"])
 
     refused, refused_is_error = await tools.call(
-        workspace_id, "source_pages", {"document_id": memo}, token=token
+        workspace_id, "source_pages", {"document_id": memo}, thread=thread
     )
     drawn, drawn_is_error = await tools.call(
-        workspace_id, "source_pages", {"document_id": guide}, token=token
+        workspace_id, "source_pages", {"document_id": guide}, thread=thread
     )
 
     assert refused_is_error is True

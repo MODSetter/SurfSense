@@ -3,6 +3,7 @@
 It goes to opencode as a synthetic part beside the user's words, so it lives in
 the session and survives compaction; its first line is SurfSense's own tag, so
 reading the thread back can take it out of the user's text and show the scope.
+The thread's folder holds only its sources, so the note names no files.
 """
 
 import re
@@ -12,19 +13,16 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from modules.agent.sources_folder import SOURCES, source_file_names
+from modules.agent.thread_folder.layout import SOURCES
 from modules.documents.models import Document
 
-_TAG = re.compile(r"\[surfsense-scope: (none|\d+(?:,\d+)*)\]")
+_TAG = re.compile(r"\[surfsense-scope: (none|count=\d+|\d+(?:,\d+)*)\]")
 
-# Past this many, files are named by number: every turn's note stays in the session.
-NAMED_FILES = 20
+# Past this many, the tag counts the sources: every turn's note stays in the
+# session, and 5,000 ids are about 30 KB.
+TAGGED_IDS = 200
 
-_USE_ONLY = (
-    "Use only these. Do not search, open or cite any other file in "
-    f"{SOURCES}/. If they do not hold what the request needs, say so and ask the "
-    "user to select more sources."
-)
+_EARLIER = "Passages read earlier from other sources no longer apply."
 _NONE_SELECTED = (
     "No sources are selected for this request. Do not search, open or cite any "
     f"file in {SOURCES}/. Answer from the conversation, or ask the user to select "
@@ -37,9 +35,7 @@ _STILL_READING = (
 )
 
 
-def scope_note(
-    session: Session, workspace_id: int, ids: Sequence[int], indexing: int = 0
-) -> str:
+def scope_note(ids: Sequence[int], indexing: int = 0) -> str:
     """The note for a turn's sources, already checked or resolved as a chat's are.
 
     `indexing` counts ticked sources not ready yet, so a ticked folder still
@@ -52,23 +48,29 @@ def scope_note(
             else f"{indexing} selected sources are"
         )
         why = _STILL_READING.format(selected=selected) if indexing else _NONE_SELECTED
-        return f"[surfsense-scope: none]\n{why}"
-    tag = f"[surfsense-scope: {','.join(map(str, ids))}]"
-    if len(ids) > NAMED_FILES:
-        return "\n".join(
-            [
-                tag,
-                f"The user selected {len(ids)} sources for this request: the files "
-                f"in {SOURCES}/ whose number in brackets is on the line above.",
-                _USE_ONLY,
-            ]
-        )
-    files = source_file_names(session, workspace_id)
-    # A ticked source with no text has no file; the tools still keep to it.
-    named = [f"- {SOURCES}/{files[i]}" for i in ids if i in files]
-    return "\n".join(
-        [tag, "The user selected these sources for this request:", *named, _USE_ONLY]
+        return f"[surfsense-scope: none]\n{why} {_EARLIER}"
+    tag = (
+        f"[surfsense-scope: {','.join(map(str, ids))}]"
+        if len(ids) <= TAGGED_IDS
+        else f"[surfsense-scope: count={len(ids)}]"
     )
+    chose = (
+        f"1 source for this chat; it is the file in {SOURCES}/. Use only that one."
+        if len(ids) == 1
+        else f"{len(ids)} sources for this chat; they are the files in {SOURCES}/. "
+        "Use only those."
+    )
+    return f"{tag}\nThe user chose {chose} {_EARLIER}"
+
+
+def shown_scope(
+    session: Session, workspace_id: int, ids: Sequence[int]
+) -> dict[str, Any]:
+    """How the turn shows its sources: by title, or counted past TAGGED_IDS, as read back."""
+    if len(ids) > TAGGED_IDS:
+        return {"document_ids": [], "titles": [], "count": len(ids)}
+    titles = scope_titles(session, workspace_id, ids)
+    return {"document_ids": list(ids), "titles": [titles[i] for i in ids]}
 
 
 def is_scope_note(part: dict[str, Any]) -> bool:
@@ -80,12 +82,16 @@ def is_scope_note(part: dict[str, Any]) -> bool:
     )
 
 
-def noted_scope(parts: list[dict[str, Any]]) -> list[int] | None:
-    """The ticked ids a user message's note names; None when it carries none."""
+def noted_scope(parts: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The scope a user message's note names, ids or a count; None when it carries none."""
     for part in parts:
         if is_scope_note(part):
-            ids = _TAG.match(part["text"]).group(1)
-            return [] if ids == "none" else [int(i) for i in ids.split(",")]
+            said = _TAG.match(part["text"]).group(1)
+            if said == "none":
+                return {"document_ids": []}
+            if said.startswith("count="):
+                return {"document_ids": [], "count": int(said.removeprefix("count="))}
+            return {"document_ids": [int(i) for i in said.split(",")]}
     return None
 
 
@@ -107,7 +113,10 @@ def scope_titles(
 def name_scopes(
     session: Session, workspace_id: int, turns: list[dict[str, Any]]
 ) -> None:
-    """Give each turn's scope its sources' titles; a source deleted since drops out."""
+    """Give each turn's scope its sources' titles; a source deleted since drops out.
+
+    A counted scope keeps its count and names nothing.
+    """
     scopes = [turn["content"]["scope"] for turn in turns if "scope" in turn["content"]]
     titles = scope_titles(
         session, workspace_id, [i for scope in scopes for i in scope["document_ids"]]

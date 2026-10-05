@@ -171,7 +171,7 @@ def render(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str
             f"Artifact {started.artifact_id} was deleted before it was ready."
         )
     if outcome.status is DocumentStatus.READY:
-        return _made(session, workspace_id, started, deadline)
+        return _made(session, scope.folder, started, deadline)
     if outcome.status is DocumentStatus.FAILED:
         raise ToolCallError(_failed(started, outcome))
     if outcome.status is DocumentStatus.CANCELLED:
@@ -227,8 +227,6 @@ def _refuse_unselected_images(scope: TurnScope, images: list[str]) -> None:
     if not images:
         return
     selected = scope.selected()
-    if selected is None:
-        return
     for name in images:
         parsed = parse_figure_name(name)
         # A name no source has is the service's to refuse, as before.
@@ -291,9 +289,7 @@ def _create(session: Session, workspace_id: int, request: _Request) -> Artifact:
         raise ToolCallError(str(refused)) from refused
 
 
-def _made(
-    session: Session, workspace_id: int, started: _Started, deadline: float
-) -> str:
+def _made(session: Session, folder: Path, started: _Started, deadline: float) -> str:
     """What the ready version holds, and the pages the agent can look at by the deadline."""
     rendered = RenderedArtifact(started.artifact_id, started.title, started.version)
     read = _read_ready(session, started, deadline)
@@ -312,7 +308,7 @@ def _made(
         heading, body, check = "Its summary:", text, WORKBOOK_HAS_NO_PAGES
     else:
         heading, body = "Its text begins:", _opening(text)
-        check = _previews(artifact, workspace_id, deadline)
+        check = _previews(artifact, folder, deadline)
     return "\n".join(
         [
             first_line(rendered),
@@ -365,7 +361,7 @@ def _opening(text: str) -> str:
     return f"{text[:TEXT_CHARS]}… ({len(text) - TEXT_CHARS:,} more characters)"
 
 
-def _previews(artifact: Artifact, workspace_id: int, deadline: float) -> str:
+def _previews(artifact: Artifact, folder: Path, deadline: float) -> str:
     """The preview pages as paths the agent's `read` opens, and why any are missing."""
     if not declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE):
         return (
@@ -373,14 +369,13 @@ def _previews(artifact: Artifact, workspace_id: int, deadline: float) -> str:
             "script and the text above instead."
         )
     try:
-        previews = previews_for(artifact, time_left=deadline - time.monotonic())
+        previews = previews_for(artifact, folder, time_left=deadline - time.monotonic())
     # The version is made; a preview that breaks must not send the model to make it again.
     except Exception:
         logger.exception("previews of artifact %s failed", artifact.id)
         return "No page previews: drawing them failed."
     if not previews.pages:
         return f"No page previews: {previews.reason or 'none were drawn.'}"
-    folder = get_storage_settings().agent_working_dir(workspace_id)
     pages = [f"- {_relative(page, folder)}" for page in previews.pages]
     missing = [previews.reason] if previews.reason else []
     caveat = {"docx": [WORD_PREVIEWS_LEAVE_OUT], "pptx": [SLIDE_PREVIEWS_DIFFER]}
