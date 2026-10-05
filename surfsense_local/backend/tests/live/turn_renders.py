@@ -30,6 +30,22 @@ def rendered_ids(frames: list[dict[str, Any]]) -> list[int]:
     ]
 
 
+def ready_versions(artifacts: list[dict[str, Any]]) -> dict[tuple[str, int], list[int]]:
+    """Each document's ready version numbers, oldest first, keyed by (format, root).
+
+    A render whose script failed still takes its version number, so a document
+    can start at v2: its first ready version is not always v1.
+    """
+    documents: dict[tuple[str, int], list[int]] = {}
+    for artifact in artifacts:
+        version = artifact["version"]
+        if artifact["status"] != "ready" or version is None:
+            continue
+        key = (artifact["format"], version["root_id"])
+        documents.setdefault(key, []).append(version["number"])
+    return {key: sorted(numbers) for key, numbers in sorted(documents.items())}
+
+
 def previews_opened(frames: list[dict[str, Any]]) -> set[tuple[int, int, int]]:
     """(artifact id, version, page) of every page preview the agent opened with read."""
     opened = set()
@@ -85,11 +101,22 @@ def assert_next_version(earlier: Version, later: Version, turn: str) -> None:
     assert later.number > earlier.number, f"{turn}: {later} is not newer than {earlier}"
 
 
+def sees_pages(live: LiveAgent) -> bool:
+    """Whether the model is sent page previews: the catalog says it reads images."""
+    return live.run.model.reads_images
+
+
 async def assert_pages_checked(
     live: LiveAgent, frames: list[dict[str, Any]], turn: str
 ) -> None:
-    """The agent opened every page preview of the version it ended the turn on."""
+    """The agent opened every page preview of the version it ended the turn on.
+
+    A text-only model is told to check the script and the render's text instead
+    (the skill), so only a model that reads images is held to the previews.
+    """
     made = await last_version(live, frames, turn)
+    if not sees_pages(live):
+        return
     previews = (
         get_storage_settings().agent_working_dir(live.workspace_id)
         / "outputs"

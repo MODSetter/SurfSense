@@ -1,13 +1,16 @@
 """What a turn rendered and which page previews the agent opened, read from its frames."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from tests.live.turn_renders import (
     Version,
+    assert_pages_checked,
     pages_left_unread,
     previews_opened,
+    ready_versions,
     rendered_ids,
 )
 
@@ -81,3 +84,57 @@ def test_a_page_the_version_has_but_the_agent_never_opened_is_left_unread(
     unread = pages_left_unread(frames, Version(5, "docx", 1, 3), tmp_path)
 
     assert unread == [2]
+
+
+def test_a_document_whose_first_render_failed_starts_at_v2() -> None:
+    """A failed render keeps its number, so a PDF made on the second try is v2 and v3."""
+    artifacts = [
+        {"status": "ready", "format": "docx", "version": {"root_id": 1, "number": 2}},
+        {"status": "ready", "format": "docx", "version": {"root_id": 1, "number": 1}},
+        {"status": "failed", "format": "pdf", "version": {"root_id": 4, "number": 1}},
+        {"status": "ready", "format": "pdf", "version": {"root_id": 4, "number": 3}},
+        {"status": "ready", "format": "pdf", "version": {"root_id": 4, "number": 2}},
+        {"status": "generating", "format": "pdf", "version": None},
+    ]
+
+    assert ready_versions(artifacts) == {("docx", 1): [1, 2], ("pdf", 4): [2, 3]}
+
+
+def _live(reads_images: bool) -> SimpleNamespace:
+    """A run whose one render made v1 of a Word file, with no page previews drawn."""
+
+    async def artifacts() -> list[dict]:
+        return [
+            {
+                "id": 9,
+                "status": "ready",
+                "format": "docx",
+                "version": {"root_id": 9, "number": 1},
+            }
+        ]
+
+    return SimpleNamespace(
+        workspace_id=987654321,
+        artifacts=artifacts,
+        run=SimpleNamespace(model=SimpleNamespace(reads_images=reads_images)),
+    )
+
+
+_RENDERED = [_step("a", "surfsense_render_document", "completed", artifact={"id": 9})]
+
+
+async def test_a_model_that_reads_images_is_held_to_the_page_previews() -> None:
+    """With nothing opened, a model sent previews has not checked its pages."""
+    with pytest.raises(AssertionError, match="no page previews to check"):
+        await assert_pages_checked(_live(reads_images=True), _RENDERED, "turn 1")
+
+
+async def test_a_text_only_model_checks_the_script_not_the_previews() -> None:
+    """The skill tells a model read cannot show images to skip them, so its render is enough."""
+    await assert_pages_checked(_live(reads_images=False), _RENDERED, "turn 1")
+
+
+async def test_a_text_only_model_still_has_to_render_a_version() -> None:
+    """Skipping the previews does not excuse a turn that rendered nothing."""
+    with pytest.raises(AssertionError, match="no version was rendered"):
+        await assert_pages_checked(_live(reads_images=False), [], "turn 1")
