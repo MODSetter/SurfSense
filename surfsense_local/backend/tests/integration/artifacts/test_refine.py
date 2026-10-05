@@ -10,6 +10,7 @@ from huey import Huey
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from modules.agent.model_window import selected_model_window
 from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import StudioJobCreate
 from modules.artifacts.script_documents.service import create_script_document
@@ -359,6 +360,31 @@ async def test_a_document_longer_than_the_models_window_is_refused_with_a_reason
     assert "too long for Qwen3-4B" in response.json()["detail"]
     assert _count(session) == before
     assert studio_queue.pending_count() == 0
+
+
+async def test_refining_without_a_chat_model_says_so_as_a_code(
+    client: AsyncClient,
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    local_model: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Refine box shows the interface's own sentence, as for a refused create."""
+    first = _markdown_v1(session, workspace, logo_source, monkeypatch)
+    monkeypatch.setattr(
+        "modules.artifacts.studio_documents.fits.selected_model_window",
+        selected_model_window,
+    )
+    session.delete(session.get(SelectedModel, ModelType.TEXT_GEN))
+
+    response = await _refine(client, session, first.id, "Make it shorter")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "message": "Needs a chat model",
+        "code": "needs_chat",
+    }
 
 
 async def test_an_artifact_without_a_spec_cannot_be_refined(

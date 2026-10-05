@@ -23,7 +23,11 @@ async def require_rewrite_fits(
         # A local model's window is what llama-server loads it with, so it may load.
         model, window = await selected_model_window(session)
     except ModelResolutionError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Needs a chat model") from error
+        # With its code, as a refused create sends it, so the interface translates it.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {"message": "Needs a chat model", "code": "needs_chat"},
+        ) from error
     reason = too_long_reason(
         rewrite.base.text, rewrite.instruction, model, window, figures_chars
     )
