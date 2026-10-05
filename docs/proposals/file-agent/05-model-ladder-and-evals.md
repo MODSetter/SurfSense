@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/providers/anthropic_messages/
   - surfsense_local/backend/modules/llm/providers/openai_compatible/
@@ -33,6 +33,8 @@ code:
 ---
 
 # Model ladder and evals
+
+**Status, 4 Oct 2026:** a first cut of P4a and P4b's rows is built on `slice/capability` ([model capabilities](../../architecture/model-capabilities.md)). `capability_of(model, connection)` gives each chat model one of four levels from a list shipped with the app, written by `scripts/write_capability_list.py` from the first ladder's screening results (11 models, one run per cell, marked provisional); the engine choice and Studio's Word and PDF path follow it, `TESTED_MODELS` is gone, and a model not measured can run the agent once the user turns on "Try the agent". It differs from section 4: the list is `capability/measured/capabilities.json`, keyed by a canonical model id and where the model was served rather than path, build and window; `capability_of` reads no database and has no `apply_org_policy()`, confirmations, format availability or rungs; and the tier still comes from `classify()`. P0 to P3 and P5 to P7 are not built.
 
 > SurfSense learns what each model can do by measuring it, never by its size or its prompt tier. Claude reaches the app through Anthropic's own Messages API, with prompt caching, enforced schemas and a spend ledger, so the first column of the matrix measures Claude rather than a compatibility layer. A job × model matrix, run at the app's own settings with the skills project's graders, measures the jobs and the free-form file work users are offered, walks down from Opus to a 4B local model, and holds one OpenAI and one Gemini column beside Claude. Each result lands in a reviewed capability manifest shipped with the app. One function, `capability_of()`, reads that manifest and returns the capability that the product shape in [06](06-product-shape.md) shows: which engine new threads get, how each job runs, which Studio formats and edit rungs are offered, whether the agent may ask for the shell, and the window it needs. An unmeasured model keeps everything it has today, labelled "not measured"; only a measured failure takes something away.
 

@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modules.llm.capability.level import Level
+from modules.llm.capability.schemas import CapabilityRead
 from modules.llm.connections.service import CapabilitySource
 from modules.llm.image_server_state import ImageServerState
 from modules.llm.model_type import ModelType
@@ -30,6 +32,8 @@ class ModelRead(BaseModel):
     types: list[ModelType] = []
     # The slots it can fill, by the one rule selection and every picker share.
     selectable_for: list[ModelType] = []
+    # Its measured level, for a model that can fill the chat slot.
+    capability_level: Level | None = None
 
 
 class ModelDeleteRead(BaseModel):
@@ -77,6 +81,8 @@ class ConnectionModelRead(BaseModel):
     # Set when the manifest says this model cannot be called through the
     # provider the connection names; the row stays, filling no slot.
     unusable_reason: str | None = None
+    # Its measured level, for a model that can fill the chat slot.
+    capability_level: Level | None = None
 
 
 class RuntimeFileRead(BaseModel):
@@ -135,6 +141,8 @@ class SelectionRead(BaseModel):
     updated_at: datetime
     # Whether the composer offers images; worked out per read, never stored.
     reads_images: bool = False
+    # The text model's measured level and agent trial; None for other slots.
+    capability: CapabilityRead | None = None
 
 
 class OnboardingStatusRead(BaseModel):

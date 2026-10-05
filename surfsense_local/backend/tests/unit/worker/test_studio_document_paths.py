@@ -27,6 +27,7 @@ def _model(provider: str, tier: Tier) -> ResolvedGeneration:
         {
             "provider": provider,
             "name": "m",
+            "connection": None,
             "tier": tier,
             "fingerprint": Fingerprint(provider, "m"),
         },
@@ -86,8 +87,30 @@ def _selected(provider: str, base_url: str | None) -> SelectedModel:
 def test_a_model_served_from_this_computer_is_small_and_a_remote_one_strong(
     provider: str, base_url: str | None, strong: bool
 ) -> None:
-    """The provisional rule: remote is strong, local is small, whatever serves it."""
+    """For a model not measured: remote is strong, local is small, whatever serves it."""
     assert writes_script(_selected(provider, base_url)) is strong
+
+
+@pytest.mark.parametrize(
+    ("name", "base_url", "script"),
+    [
+        ("claude-opus-5-5", "https://api.anthropic.com/v1", True),
+        ("anthropic/claude-haiku-4.5", "https://openrouter.ai/api/v1", True),
+        # Measured and failed: remote, and still Markdown.
+        ("google/gemma-4-31b-it", "https://openrouter.ai/api/v1", False),
+        ("qwen/qwen3.5-9b", "http://127.0.0.1:1234/v1", False),
+        # A pass measured remotely does not hold on this computer: today's rule.
+        ("qwen/qwen3.8-27b", "http://127.0.0.1:1234/v1", False),
+    ],
+)
+def test_a_measured_level_picks_the_path_where_it_holds(
+    name: str, base_url: str, script: bool
+) -> None:
+    """Measured: the level decides; otherwise today's local and remote rule."""
+    selected = _selected("openai_compatible", base_url)
+    selected.name = name
+
+    assert writes_script(selected) is script
 
 
 @pytest.mark.parametrize("tier", list(Tier))

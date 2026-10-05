@@ -53,6 +53,7 @@ def small_model(session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
         {
             "provider": "llamacpp",
             "name": "m",
+            "connection": None,
             "tier": Tier.CAPABLE,
             "fingerprint": Fingerprint("llamacpp", "m"),
         },

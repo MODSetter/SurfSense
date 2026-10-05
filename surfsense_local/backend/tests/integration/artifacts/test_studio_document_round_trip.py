@@ -105,6 +105,7 @@ def _choose(session: Session, monkeypatch: pytest.MonkeyPatch, provider: str) ->
         {
             "provider": provider,
             "name": "m",
+            "connection": None,
             "tier": Tier.CAPABLE,
             "fingerprint": Fingerprint(provider, "m"),
         },

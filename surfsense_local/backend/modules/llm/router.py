@@ -10,6 +10,9 @@ from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.capability import capability_of
+from modules.llm.capability.read import capability_read
+from modules.llm.capability.router import router as capability_router
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
 from modules.llm.catalog.local.router import router as local_catalog_router
@@ -52,6 +55,7 @@ router.include_router(remote_catalog_router)
 router.include_router(chatgpt_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
+router.include_router(capability_router)
 
 
 @router.get(
@@ -111,9 +115,13 @@ async def list_models(provider: ProviderDep) -> list[ModelRead]:
             capabilities=list(model.capabilities),
             display_name=model.display_name or model.name,
             types=list(model.types),
-            selectable_for=selectable_for(model.types, model.known),
+            selectable_for=slots,
+            capability_level=capability_of(model.name, None).level
+            if provider.name == llamacpp.PROVIDER and ModelType.TEXT_GEN in slots
+            else None,
         )
         for model in await provider.models()
+        for slots in [selectable_for(model.types, model.known)]
     ]
 
 
@@ -329,7 +337,8 @@ async def _selection_read(session: Session, selected: SelectedModel) -> Selectio
 def _read_with_provider(
     session: Session, selected: SelectedModel
 ) -> tuple[SelectionRead, str | None]:
-    return (
-        SelectionRead.model_validate(selected),
-        connection_catalog_provider(session, selected),
-    )
+    read = SelectionRead.model_validate(selected)
+    catalog_provider = connection_catalog_provider(session, selected)
+    if selected.model_type is ModelType.TEXT_GEN:
+        read.capability = capability_read(selected, catalog_provider)
+    return read, catalog_provider

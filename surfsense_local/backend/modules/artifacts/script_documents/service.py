@@ -21,6 +21,7 @@ from modules.artifacts.script_documents.version import (
     next_version_number,
     version_of,
 )
+from modules.artifacts.studio_documents.recipe import studio_made
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures import figure_file, parse_figure_name
@@ -31,6 +32,11 @@ logger = logging.getLogger(__name__)
 
 TITLE_CHARS = 200
 SCRIPT_CHARS = 200_000
+
+# 07, decision 8: Studio's documents are refined in Studio, the agent's in its chat.
+MADE_IN_STUDIO = (
+    "This document was made in Studio: refine it there, or make a new document."
+)
 
 
 class ScriptDocumentRefusedError(Exception):
@@ -155,6 +161,8 @@ def _base_version(
         raise ScriptDocumentRefusedError(
             f"There is no artifact {base_id} in this workspace."
         )
+    if studio_made(base.artifact_metadata):
+        raise ScriptDocumentRefusedError(MADE_IN_STUDIO)
     version = version_of(base.artifact_metadata)
     if version is None:
         raise ScriptDocumentRefusedError(

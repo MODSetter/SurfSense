@@ -35,6 +35,14 @@ datas.append(
         "modules/llm/catalog/remote/manifest",
     )
 )
+# Read by path, so the analyser cannot see it. Without it every model reads as
+# not measured in a frozen build only, and no model gets the agent.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "capability" / "measured" / "capabilities.json"),
+        "modules/llm/capability/measured",
+    )
+)
 
 # Chat's three prompts are read through importlib.resources, not imported.
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
