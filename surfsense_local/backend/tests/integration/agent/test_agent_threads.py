@@ -18,6 +18,9 @@ from modules.chat import router as chat_router
 from modules.chat.models import ChatThread
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.capability.agent_trial import set_agent_trial
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from tests.integration.agent.conftest import AGENT_MODEL, AgentAPI
@@ -92,7 +95,7 @@ async def test_a_new_thread_uses_the_agent_when_the_model_may(
 async def test_without_the_agent_a_new_thread_is_a_chat(
     agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No model is on the tested list, so only the developer switch lets one in."""
+    """A model not measured and not opted in gets the chat without the developer switch."""
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
 
     thread = await open_thread(agent_api)
@@ -697,3 +700,39 @@ async def _session_of(thread_id: int) -> str:
         )
     assert session_id
     return session_id
+
+
+def _set_text_model(*, name: str | None = None, trial: bool | None = None) -> None:
+    """Change the chat model or its agent trial, as Settings would."""
+    with create_session_factory(
+        create_db_engine(get_storage_settings().database_path)
+    )() as session:
+        selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+        if name is not None:
+            selected.name = name
+        if trial is not None:
+            set_agent_trial(selected, trial)
+        session.commit()
+
+
+async def test_an_agent_threads_next_turn_follows_the_models_level_and_opt_in(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A thread keeps its engine, but its model must still be one the agent may run."""
+    thread = await open_thread(agent_api)
+    monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
+    url = f"/chat/threads/{thread['id']}/messages"
+
+    not_opted_in = await agent_api.http.post(url, json={"text": "Hello"})
+    _set_text_model(trial=True)
+    agent_api.model.replies = [("text", "Hi.")]
+    opted_in = await send(agent_api, thread["id"], "Hello")
+    _set_text_model(name="qwen/qwen3.5-9b")
+    measured_to_fail = await agent_api.http.post(url, json={"text": "Again"})
+
+    assert not_opted_in.status_code == 409
+    assert "cannot run the agent" in not_opted_in.json()["detail"]
+    assert of_type(opted_in, "completed")[0]["text"] == "Hi."
+    assert measured_to_fail.status_code == 409
+    assert "cannot run the agent" in measured_to_fail.json()["detail"]
+    assert len(agent_api.model.requests) == 1
