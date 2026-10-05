@@ -6,7 +6,7 @@ import { intl } from "@/i18n/intl"
 import { translatedChatError } from "./chat-error-text"
 import type { ChatTurnError } from "./use-chat-runtime"
 
-type Action = "model-setup" | "new-chat" | "retry" | "none"
+type Action = "model-setup" | "retry" | "new-chat" | "none"
 
 function actionFor(error: ChatTurnError): Action {
   switch (error.kind) {
@@ -19,15 +19,15 @@ function actionFor(error: ChatTurnError): Action {
       // A bad base URL is a Model setup fix; a local runtime that isn't
       // running isn't — there's no settings action that starts it.
       return error.provider === "llamacpp" ? "none" : "model-setup"
+    // The thread can only be read now; a retry is refused the same way.
+    case "agent_thread_outdated":
+      return "new-chat"
     // A reached plan limit: retrying cannot help until the plan's window resets.
     case "subscription_limit":
     case "context_too_long":
       // The notice text already says to start a new chat or pick a model
       // with a larger window — Retry would resend the same overlong turn.
       return "none"
-    // The thread keeps its engine, so only a new thread takes this model.
-    case "agent_model_unsupported":
-      return "new-chat"
     default:
       return "retry"
   }
@@ -35,12 +35,12 @@ function actionFor(error: ChatTurnError): Action {
 
 export function ChatErrorNotice({
   onModelSetup,
-  onNewChat,
   onRetry,
+  onNewChat,
 }: {
   onModelSetup: () => void
-  onNewChat: () => void
   onRetry: (assistantId: string) => void
+  onNewChat: () => void
 }) {
   const messageId = useAuiState(({ message }) => message.id)
   const error = useAuiState(({ message }) =>
@@ -81,7 +81,7 @@ export function ChatErrorNotice({
           >
             {intl.formatMessage({
               id: "chat_failed_reply_new_chat_button",
-              defaultMessage: "New chat",
+              defaultMessage: "Start a new chat",
             })}
           </Button>
         ) : action === "retry" ? (

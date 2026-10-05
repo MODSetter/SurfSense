@@ -2,22 +2,33 @@
 
 import json
 import os
+import re
 import stat
 from pathlib import Path
 
 import pytest
 
-from modules.agent.opencode_config import AgentSetup, write_opencode_config
+from modules.agent.opencode_config import (
+    AgentSetup,
+    declares_image_input,
+    write_opencode_config,
+)
 
 pytestmark = pytest.mark.unit
 
 ENDPOINT = "http://127.0.0.1:8123/agent/model/v1"
 
 
-def setup(window: int = 32768, model: str = "Qwen3-8B-UD-Q4_K_XL") -> AgentSetup:
+def setup(
+    window: int = 32768, model: str = "Qwen3-8B-UD-Q4_K_XL", reads_images: bool = False
+) -> AgentSetup:
     """What the API knows when it first needs the agent."""
     return AgentSetup(
-        model=model, window=window, endpoint_url=ENDPOINT, launch_key="launch-key"
+        model=model,
+        window=window,
+        reads_images=reads_images,
+        endpoint_url=ENDPOINT,
+        launch_key="launch-key",
     )
 
 
@@ -55,6 +66,28 @@ def test_every_request_names_the_selected_model_titles_included(tmp_path: Path) 
     )
 
 
+def test_a_model_that_reads_images_is_shown_the_pages_the_agent_opens(
+    tmp_path: Path,
+) -> None:
+    """Without image input declared, opencode swaps each image `read` returns for an error text."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup(reads_images=True))
+
+    model = next(iter(written(path)["provider"]["surfsense"]["models"].values()))
+    assert model["modalities"] == {"input": ["text", "image"], "output": ["text"]}
+    assert model["attachment"] is True
+
+
+def test_a_model_that_reads_no_images_declares_none(tmp_path: Path) -> None:
+    """opencode then tells the model it cannot see the image, rather than sending one it refuses."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup(reads_images=False))
+
+    model = next(iter(written(path)["provider"]["surfsense"]["models"].values()))
+    assert "modalities" not in model
+    assert "attachment" not in model
+
+
 @pytest.mark.parametrize(
     ("window", "output", "reserved"),
     [
@@ -79,23 +112,98 @@ def test_limits_follow_the_window_the_model_was_loaded_with(
     assert config["compaction"] == {"auto": True, "reserved": reserved}
 
 
-def test_shell_commands_ask_and_files_are_written_only_to_outputs(
-    tmp_path: Path,
-) -> None:
-    """The sources stay read-only and every command waits for the user."""
+def test_the_agent_has_no_shell_and_writes_only_to_outputs(tmp_path: Path) -> None:
+    """Document scripts reach the runner through a tool; no other program runs (ADR 0039)."""
     path = tmp_path / "opencode.json"
     write_opencode_config(path, setup())
 
-    permission = written(path)["permission"]
-    assert permission["bash"] == "ask"
-    # The last matching rule wins, so the allow comes after the deny.
-    assert list(permission["edit"].items()) == [
-        ("*", "deny"),
-        ("*/agent/outputs/*", "allow"),
-    ]
-    assert permission["external_directory"] == "deny"
-    for tool in ("webfetch", "websearch", "task", "question", "skill"):
+    config = written(path)
+    permission = config["permission"]
+    assert permission["bash"] == "deny"
+    # opencode spells an edit's path relative to "/", without the drive.
+    (skills,) = config["skills"]["paths"]
+    skills = Path(skills).relative_to(Path(skills).anchor).as_posix()
+    agent = "Users/me/SurfSense/workspaces/1/agent"
+    work = f"{agent}/threads/7"
+    rules = permission["edit"]
+    assert _opencode_decides(rules, f"{work}/outputs/report.md") == "allow"
+    assert _opencode_decides(rules, f"{work}/outputs/drafts/a.md") == "allow"
+    for refused in (
+        f"{work}/sources/Plan [1].md",
+        f"{work}/sources/Library/outputs/a.md",
+        f"{work}/sources/R/outputs/a.md",
+        f"{work}/sources/agent/threads/7/outputs/x.md",
+        f"{work}/.opencode/agent/threads/7/outputs/x.md",
+        f"{work}/outputs/agents.md",
+        f"{work}/outputs/AGENTS.md",
+        f"{work}/outputs/drafts/Context.md",
+        f"{work}/outputs/CLAUDE.md",
+        # Where every thread once worked.
+        f"{agent}/outputs/a.md",
+        f"{agent}/sources/Plan [1].md",
+        "Users/me/SurfSense/agent/opencode/data/opencode/tool-output/agent/threads/7/outputs/x",
+        f"{skills}/x/agent/threads/7/outputs/SKILL.md",
+        "Users/me/elsewhere.md",
+    ):
+        assert _opencode_decides(rules, refused) == "deny", refused
+    for tool in ("webfetch", "websearch", "task", "question"):
         assert permission[tool] == "deny", tool
+
+
+def test_only_surfsenses_documents_skill_loads_from_the_shipped_folder(
+    tmp_path: Path,
+) -> None:
+    """opencode's built-in skills and any the user installed stay out of SurfSense's agent."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    config = written(path)
+    (skills,) = config["skills"]["paths"]
+    assert (Path(skills) / "surfsense-documents" / "SKILL.md").is_file()
+    assert list(config["permission"]["skill"].items()) == [
+        ("*", "deny"),
+        ("surfsense-documents", "allow"),
+    ]
+
+
+def test_outside_its_folder_the_agent_reads_only_the_skills(tmp_path: Path) -> None:
+    """A skill may point at files beside it; every other folder outside stays shut."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    config = written(path)
+    (skills,) = config["skills"]["paths"]
+    assert list(config["permission"]["external_directory"].items()) == [
+        ("*", "deny"),
+        (str(Path(skills) / "*"), "allow"),
+        ("*/../*", "deny"),
+    ]
+
+
+def _opencode_decides(rules: dict[str, str], folder_glob: str) -> str:
+    """opencode's rule: '*' is any text, '\\' is '/', and the last rule that matches wins."""
+
+    def matches(pattern: str) -> bool:
+        pattern = re.escape(pattern.replace("\\", "/")).replace(r"\*", ".*")
+        return re.fullmatch(pattern, folder_glob.replace("\\", "/"), re.S) is not None
+
+    return [action for pattern, action in rules.items() if matches(pattern)][-1]
+
+
+def test_a_path_that_climbs_out_of_the_skills_folder_is_refused(
+    tmp_path: Path,
+) -> None:
+    """On macOS and Linux opencode checks an absolute path as written, '..' and all."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    config = written(path)
+    (skills,) = config["skills"]["paths"]
+    rules = config["permission"]["external_directory"]
+    skills = skills.replace("\\", "/")
+    assert _opencode_decides(rules, f"{skills}/surfsense-documents/*") == "allow"
+    climbing = f"{skills}/../../../../../Users/me/.ssh/*"
+    assert _opencode_decides(rules, climbing) == "deny"
 
 
 def test_sharing_snapshots_and_updates_are_off_and_waiting_is_long(
@@ -155,5 +263,34 @@ def test_the_prompt_names_the_tools_as_opencode_shows_them(tmp_path: Path) -> No
 
     config = written(path)
     prompt = config["agent"][config["default_agent"]]["prompt"]
-    assert "surfsense_search_sources" in prompt
-    assert "surfsense_create_artifact" in prompt
+    for tool in (
+        "surfsense_search_sources",
+        "surfsense_create_artifact",
+        "surfsense_render_document",
+        "surfsense_read_document",
+        "surfsense_list_images",
+    ):
+        assert tool in prompt, tool
+
+
+def test_the_prompt_asks_for_no_shell(tmp_path: Path) -> None:
+    """The shell is denied, so a prompt that offers one sends the model at a wall."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    config = written(path)
+    prompt = config["agent"][config["default_agent"]]["prompt"]
+    assert "shell command" not in prompt.lower()
+    assert "approve" not in prompt.lower()
+
+
+@pytest.mark.parametrize("reads_images", [True, False])
+def test_the_written_file_says_whether_the_model_is_shown_images(
+    tmp_path: Path, reads_images: bool
+) -> None:
+    """The render tool draws previews only for a model opencode will show them to."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup(reads_images=reads_images))
+
+    assert declares_image_input(path) is reads_images
+    assert declares_image_input(tmp_path / "none.json") is False

@@ -7,12 +7,16 @@ the agent adds three: `agent-step` for a tool call's progress, and
 
 from typing import Any
 
-from modules.agent.agent_threads.replies import iso_from_ms, reply_id
+from modules.agent.agent_threads.compaction import is_summary
+from modules.agent.agent_threads.replies import PARAGRAPH, iso_from_ms, reply_id
 from modules.agent.agent_threads.steps import step_of
 from modules.agent.opencode_client import Event
 
 Frame = dict[str, Any]
 _STREAMED = {"text": "delta", "reasoning": "reasoning"}
+# What opencode reports when a request is too long, then compacts and carries on from.
+_OVERFLOW = "ContextOverflowError"
+_TOO_LONG = "The conversation is too long to continue here; start a new thread."
 
 
 class TurnFrames:
@@ -23,8 +27,10 @@ class TurnFrames:
         self._roles: dict[str, str] = {}
         self._kinds: dict[str, str] = {}
         self._streamed: dict[str, int] = {}
+        self._answered: set[str] = set()
         self._step_status: dict[str, str] = {}
         self._thought: set[str] = set()
+        self._failed = False
         self.user_message_id: str | None = None
         self.finished = False
 
@@ -46,6 +52,11 @@ class TurnFrames:
     def _message(self, properties: dict[str, Any]) -> list[Frame]:
         """Learn whose message it is; the turn's own user message opens the reply."""
         info = properties["info"]
+        # A compaction's summary is opencode's note to itself, never the reply.
+        if is_summary(info):
+            self._roles[info["id"]] = "summary"
+            # One that failed ends the turn; when it was too long, only the summary says so.
+            return self._failure(_reason(info["error"])) if info.get("error") else []
         self._roles[info["id"]] = info["role"]
         if info["role"] != "user" or self.user_message_id is not None:
             return []
@@ -82,7 +93,7 @@ class TurnFrames:
         self._streamed[properties["partID"]] = self._streamed.get(
             properties["partID"], 0
         ) + len(properties["delta"])
-        return [{"type": _STREAMED[kind], "text": properties["delta"]}]
+        return self._shown(properties["partID"], properties["delta"])
 
     def _catch_up(self, part_id: str, text: str) -> list[Frame]:
         """The end of a part's text that no delta streamed, so nothing is lost."""
@@ -90,7 +101,20 @@ class TurnFrames:
         if len(text) <= streamed:
             return []
         self._streamed[part_id] = len(text)
-        return [{"type": _STREAMED[self._kinds[part_id]], "text": text[streamed:]}]
+        return self._shown(part_id, text[streamed:])
+
+    def _shown(self, part_id: str, text: str) -> list[Frame]:
+        """A part's next text; a later answer part opens a new paragraph.
+
+        opencode starts a new part after each tool call, and its text begins with
+        no break of its own.
+        """
+        kind = self._kinds[part_id]
+        if kind == "text" and text.strip() and part_id not in self._answered:
+            if self._answered:
+                text = PARAGRAPH + text
+            self._answered.add(part_id)
+        return [{"type": _STREAMED[kind], "text": text}]
 
     def _thinking_ended(self, part: dict[str, Any]) -> list[Frame]:
         """How long a reasoning part took, once, when it ends."""
@@ -138,11 +162,15 @@ class TurnFrames:
     def _error(self, properties: dict[str, Any]) -> list[Frame]:
         """The turn failed; opencode says why in the error's data."""
         error = properties.get("error") or {}
-        message = (
-            (error.get("data") or {}).get("message")
-            or error.get("name")
-            or "The agent stopped with an error."
-        )
+        if error.get("name") == _OVERFLOW:
+            return []  # opencode compacts and carries on (compaction.auto is on)
+        return self._failure(_reason(error))
+
+    def _failure(self, message: str) -> list[Frame]:
+        """The turn's one error frame: opencode can report a failure twice."""
+        if self._failed:
+            return []
+        self._failed = True
         return [
             {
                 "type": "error",
@@ -157,3 +185,14 @@ class TurnFrames:
         if self.user_message_id is not None:
             self.finished = True
         return []
+
+
+def _reason(error: dict[str, Any]) -> str:
+    """What to tell the user about an error opencode reports."""
+    if error.get("name") == _OVERFLOW:
+        return _TOO_LONG
+    return (
+        (error.get("data") or {}).get("message")
+        or error.get("name")
+        or "The agent stopped with an error."
+    )

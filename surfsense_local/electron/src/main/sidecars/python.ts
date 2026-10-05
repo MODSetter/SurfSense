@@ -78,6 +78,8 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
           SURFSENSE_LOCAL_OPENCODE_URL: ctx.opencodeUrl,
           SURFSENSE_LOCAL_OPENCODE_PASSWORD: ctx.opencodePassword,
         }),
+      // The API alone checks it: only Electron may print the agent's Word previews.
+      ...(ctx.docxSnapshotKey && { SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY: ctx.docxSnapshotKey }),
     },
   }
 }

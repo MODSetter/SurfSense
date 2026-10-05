@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "provisional": true,
+  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific",
+  "models": [
+    {
+      "key": "claude-sonnet-5-5",
+      "match": {
+        "keys": [
+          "claude-sonnet-5-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "anthropic",
+      "host": "api.anthropic.com",
+      "model_id": "claude-sonnet-5-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 8,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed all 8 cases, on the code the cases were written against."
+    },
+    {
+      "key": "claude-opus-5-5",
+      "match": {
+        "keys": [
+          "claude-opus-5-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "anthropic",
+      "host": "api.anthropic.com",
+      "model_id": "claude-opus-5-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 8,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed all 8 cases and opened every page it rendered."
+    },
+    {
+      "key": "claude-haiku-4-5",
+      "match": {
+        "keys": [
+          "claude-haiku-4-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent_limited",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "anthropic",
+      "host": "api.anthropic.com",
+      "model_id": "claude-haiku-4-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 5,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed 5 of 8; in the other 3 it did not open its page previews, so ask it to check each page."
+    },
+    {
+      "key": "kimi-k3",
+      "match": {
+        "keys": [
+          "kimi-k3"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k3",
+      "reads_images": true,
+      "passes": {
+        "passed": 8,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed all 8 cases and checked every page it rendered."
+    },
+    {
+      "key": "glm-5-3",
+      "match": {
+        "keys": [
+          "glm-5-3"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5.3",
+      "reads_images": false,
+      "passes": {
+        "passed": 6,
+        "counted": 6,
+        "run": 7
+      },
+      "note": "Text-only: passed every case that needs no image; it cannot read a chart's values off a figure."
+    },
+    {
+      "key": "deepseek-v4-pro-0813",
+      "match": {
+        "keys": [
+          "deepseek-v4-pro-0813"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v4-pro-0813",
+      "reads_images": false,
+      "passes": {
+        "passed": 6,
+        "counted": 6,
+        "run": 7
+      },
+      "note": "Text-only: passed every case that needs no image; it cannot read a chart's values off a figure."
+    },
+    {
+      "key": "qwen3-8-27b",
+      "match": {
+        "keys": [
+          "qwen3-8-27b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.8-27b",
+      "reads_images": true,
+      "passes": {
+        "passed": 8,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed all 8 cases and checked every page it rendered."
+    },
+    {
+      "key": "qwen3-6-35b-a3b",
+      "match": {
+        "keys": [
+          "qwen3-6-35b-a3b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.6-35b-a3b",
+      "reads_images": true,
+      "passes": {
+        "passed": 4,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed 4 of 8; looped without rendering in the demo and retyped preview paths wrongly."
+    },
+    {
+      "key": "gemma-4-31b-it",
+      "match": {
+        "keys": [
+          "gemma-4-31b-it"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemma-4-31b-it",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed 2 of 8; never opened its page previews and made a new document instead of a version."
+    },
+    {
+      "key": "ministral-14b-2512",
+      "match": {
+        "keys": [
+          "ministral-14b-2512"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/ministral-14b-2512",
+      "reads_images": true,
+      "passes": {
+        "passed": 3,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed 3 of 8; skipped its page previews and made no document for a request that named no format."
+    },
+    {
+      "key": "qwen3-5-9b",
+      "match": {
+        "keys": [
+          "qwen3-5-9b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "create-and-edit",
+      "suite_version": 1,
+      "measured_on": "2026-10-04",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-9b",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 8,
+        "run": 8
+      },
+      "note": "Passed 1 of 8; many script errors, a silently dropped logo and no citation marker."
+    }
+  ]
+}

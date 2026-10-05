@@ -12,7 +12,9 @@ import {
   type PermissionReply,
   type PermissionRequest,
 } from "@/features/agent/api"
+import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
 import { errorToast } from "@/features/feedback/error-toast"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
 
@@ -37,8 +39,12 @@ import { chatKeys } from "./query-keys"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
 import { readThinkingOn } from "./thinking-preference"
 
+/** A backend error kind, or a refusal the app recognises before any stream:
+ *  a turn on an agent thread that predates per-chat folders. */
+export type ChatTurnErrorKind = ChatErrorKind | "agent_thread_outdated"
+
 export type ChatTurnError = {
-  kind: ChatErrorKind
+  kind: ChatTurnErrorKind
   message: string
   provider: string
   retryText: string
@@ -136,8 +142,8 @@ function areLiveMessagesPersisted(
 function stepFrom(
   event: Extract<ChatStreamEvent, { type: "agent-step" }>
 ): AgentStep {
-  const { id, tool, status, title, input, output, error } = event
-  return { id, tool, status, title, input, output, error }
+  const { id, tool, status, title, input, output, error, artifact } = event
+  return { id, tool, status, title, input, output, error, artifact }
 }
 
 /** The request a `permission-request` frame describes. */
@@ -194,6 +200,8 @@ function toRuntimeMessage(
             }
           : null,
         progress: message.content.progress ?? null,
+        preparing: message.content.preparing ?? null,
+        scope: message.content.scope ?? null,
       },
     },
   }
@@ -203,6 +211,8 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  selectedSourceTitles,
+  sourceScope = null,
   readsImages,
   canSkipThinking,
   onModelRequired,
@@ -210,6 +220,10 @@ export function useChatRuntime({
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // Each selected source's title, in the order of `selectedDocumentIds`.
+  selectedSourceTitles: string[]
+  // What the server resolves into the turn's sources, so none is left out.
+  sourceScope?: SourceScope | null
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
@@ -416,6 +430,8 @@ export function useChatRuntime({
 
       let threadId =
         conversationView.status === "active" ? conversationView.threadId : null
+      let usesAgent =
+        threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
       let userMessageId: number | string | null = null
       let assistantMessageId: number | string | null = null
       // Declared here (not inside the try) so the catch block below can still
@@ -423,6 +439,7 @@ export function useChatRuntime({
       // remapped these to real ids.
       let userId: number | string = `optimistic-user-${version}`
       let assistantId: number | string = `optimistic-assistant-${version}`
+      let preparing = false
       inFlightReply.current = String(assistantId)
       try {
         if (threadId === null) {
@@ -435,6 +452,7 @@ export function useChatRuntime({
             return
           }
           threadId = thread.id
+          usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(
             chatKeys.threads(workspaceId),
             (current = []) => [
@@ -460,6 +478,15 @@ export function useChatRuntime({
             content: {
               text,
               ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
+              // The agent works from these alone; a chat's turn shows no line.
+              ...(usesAgent
+                ? {
+                    scope: {
+                      document_ids: selectedDocumentIds,
+                      titles: selectedSourceTitles,
+                    },
+                  }
+                : {}),
             },
             created_at: null,
             completed_at: null,
@@ -478,13 +505,47 @@ export function useChatRuntime({
           text,
           images,
           selectedDocumentIds,
+          sourceScope,
           !canSkipThinking || readThinkingOn(),
           controller.signal,
           (event) => {
             if (requestVersion.current !== version) {
               return
             }
-            if (event.type === "accepted") {
+            // Shown from the first frame until any other arrives.
+            if (preparing && event.type !== "agent-preparing") {
+              preparing = false
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: { ...message.content, preparing: undefined },
+                        }
+                      : message
+                  ) ?? null
+              )
+            }
+            if (event.type === "agent-preparing") {
+              preparing = true
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            preparing: event.count,
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "accepted") {
               const previousUserId = userId
               const previousAssistantId = assistantId
               const nextUserId = event.user_message_id
@@ -525,6 +586,20 @@ export function useChatRuntime({
                               ? { text: event.text }
                               : {}),
                           },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "agent-scope") {
+              // The server's resolution replaces the panel's guess.
+              const targetId = userId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: { ...message.content, scope: event.scope },
                         }
                       : message
                   ) ?? null
@@ -713,15 +788,14 @@ export function useChatRuntime({
         ) {
           onModelRequired()
         } else if (
-          cause instanceof ApiError &&
-          cause.code === "agent_model_unsupported" &&
+          isOutdatedThreadRefusal(cause) &&
           requestVersion.current === version
         ) {
           setChatErrors((current) => ({
             ...current,
             [String(assistantId)]: {
-              kind: "agent_model_unsupported",
-              message: cause.message,
+              kind: "agent_thread_outdated",
+              message: "",
               provider: "",
               retryText: text,
               retryImages: images,
@@ -765,6 +839,9 @@ export function useChatRuntime({
       onModelRequired,
       queryClient,
       selectedDocumentIds,
+      selectedSourceTitles,
+      sourceScope,
+      threads,
       workspaceId,
     ]
   )

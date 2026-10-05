@@ -4,9 +4,10 @@ from collections.abc import Sequence
 from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from api.dependencies import SessionDep
-from modules.artifacts.dependencies import ArtifactDep
+from api.dependencies import SessionDep, transact
+from modules.artifacts.dependencies import ArtifactDep, get_artifact
 from modules.artifacts.flashcard_progress import (
     apply_flashcard_mark,
     apply_flashcard_order,
@@ -39,6 +40,8 @@ from modules.artifacts.service import (
     list_formats,
     regenerate_artifact,
 )
+from modules.artifacts.studio_documents.fits import require_rewrite_fits
+from modules.artifacts.studio_documents.recipe import Refinement, refinement
 from modules.documents.models import Document, DocumentType
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.workspaces.dependencies import WorkspaceDep
@@ -110,7 +113,20 @@ def read_artifact(artifact: ArtifactDep) -> ArtifactDetail:
     status_code=status.HTTP_202_ACCEPTED,
     summary="Generate a finished or failed artifact again",
 )
-def regenerate(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+async def regenerate(artifact_id: int, session: SessionDep) -> ArtifactRead:
+    # A refine's Retry asks for the same rewrite, of the model selected now.
+    rewrite = await transact(session, _rewrite_to_repeat, artifact_id)
+    if rewrite is not None:
+        await require_rewrite_fits(session, artifact_id, rewrite)
+    return await transact(session, _regenerate, artifact_id)
+
+
+def _rewrite_to_repeat(session: Session, artifact_id: int) -> Refinement | None:
+    return refinement(get_artifact(artifact_id, session).artifact_metadata)
+
+
+def _regenerate(session: Session, artifact_id: int) -> ArtifactRead:
+    artifact = get_artifact(artifact_id, session)
     return ArtifactRead.of(regenerate_artifact(session, artifact))
 
 

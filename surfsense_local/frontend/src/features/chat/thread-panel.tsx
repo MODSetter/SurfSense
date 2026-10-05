@@ -84,8 +84,8 @@ export function ThreadPanel({
   onCitation,
   onModelSetup,
   onModelSelected,
-  onNewChat,
   onRetry,
+  onNewChat,
   sourceCount,
   onTitleAnimationComplete,
   autoNamingThreadId,
@@ -108,8 +108,8 @@ export function ThreadPanel({
   onCitation: (chunkId: number) => void
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
-  onNewChat: () => void
   onRetry: (assistantId: string) => void
+  onNewChat: () => void
   onTitleAnimationComplete: () => void
   autoNamingThreadId: number | null
   onRename: (id: number, title: string) => Promise<boolean>
@@ -338,8 +338,8 @@ export function ThreadPanel({
                       citations={citationsFrom(message)}
                       onCitation={onCitation}
                       onModelSetup={onModelSetup}
-                      onNewChat={onNewChat}
                       onRetry={onRetry}
+                      onNewChat={onNewChat}
                     />
                   )
                 }
