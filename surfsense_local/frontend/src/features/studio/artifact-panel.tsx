@@ -13,6 +13,7 @@ import {
   type ArtifactFile,
 } from "./api"
 import { getArtifactViewer } from "./viewers/registry"
+import { studioKeys } from "./query-keys"
 
 const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
   primary: () =>
@@ -35,7 +36,7 @@ export function ArtifactPanel({
   onClose: () => void
 }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["artifact-panel", artifactId],
+    queryKey: studioKeys.artifact(artifactId),
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
   const [actionsContainer, setActionsContainer] =

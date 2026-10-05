@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, renderHook, waitFor } from "@testing-library/react"
+import { createElement, type ReactNode } from "react"
+import { QueryClientProvider } from "@tanstack/react-query"
+import {
+  cleanup,
+  renderHook as renderBareHook,
+  waitFor,
+} from "@testing-library/react"
 import { toast } from "sonner"
+
+import { createQueryClient } from "@/lib/query-client"
 
 import { useStudio } from "./use-studio"
 import type { Artifact } from "./api"
@@ -64,6 +72,19 @@ function studioApi(lists: Artifact[][]) {
   return { stream, listReads: () => listed }
 }
 
+/** Each hook with its own query cache, as the app gives it one. */
+function renderHook<Result, Props>(
+  hook: (props: Props) => Result,
+  options?: { initialProps: Props }
+) {
+  const client = createQueryClient()
+  return renderBareHook(hook, {
+    ...options,
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children),
+  })
+}
+
 type Studio = { current: ReturnType<typeof useStudio> }
 
 /** The list as it was at mount, then the workspace saying it changed. */
@@ -101,7 +122,9 @@ describe("useStudio", () => {
   })
 
   it("reads a running list again after a while, in case a notice was lost", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    })
     const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
 
     const { result } = renderHook(() => useStudio(1))

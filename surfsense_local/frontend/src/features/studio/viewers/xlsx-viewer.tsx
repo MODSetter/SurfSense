@@ -15,6 +15,7 @@ import {
   type SheetView,
 } from "./parse-workbook"
 import { VIEWER_PADDING } from "./viewer-layout"
+import { studioKeys } from "../query-keys"
 
 function columnLabel(index: number): string {
   let n = index
@@ -99,7 +100,7 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["artifact-workbook", artifact.id],
+    queryKey: [...studioKeys.artifact(artifact.id), "workbook"],
     queryFn: async () => {
       if (!primary) throw new Error("This artifact has no file to preview")
       if (primary.size_bytes > MAX_VIEWER_BYTES) {

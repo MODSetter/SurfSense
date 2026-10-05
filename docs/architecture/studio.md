@@ -126,7 +126,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - Every Studio model call turns thinking off. Measured on Qwen3 1.7B: with it on, a mindmap over a 12,000-token prompt thought past 15,000 tokens without answering, holding the runtime's only slot so chat queued behind it.
 - **A job the app quit in the middle of** is failed with `interrupted when the app closed` when the Studio worker next starts, before it takes a job ([`interrupted_documents.py`](../../surfsense_local/backend/worker/interrupted_documents.py)): Huey dropped the job as it started it, so nothing else would end it, and Regenerate would refuse it forever.
 - **Regenerate** refuses a job still `pending` or `processing`, rechecks availability, resets the document to `pending`, clears the error, increments `generation` and re-enqueues with the same sources, prompt and options. The new run replaces the files and the indexed body; the artifact and its document keep their ids.
-- Each transition the Studio worker makes sends an `artifacts` event keyed by artifact id; the API's own changes, to `pending` and `cancelled`, send none. The artifact list reloads on each event, and still refetches every 10 seconds while a job is running, in case a notice was lost ([`overview.md`](overview.md#freshness)).
+- Each transition the Studio worker makes sends an `artifacts` event keyed by artifact id; the API's own changes, to `pending` and `cancelled`, send none. The artifact list reloads on each event, and so does an open artifact, and the list still refetches every 10 seconds while a job is running, in case a notice was lost ([`overview.md`](overview.md#freshness)).
 
 ## Routes
 
