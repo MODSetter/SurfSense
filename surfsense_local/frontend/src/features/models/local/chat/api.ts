@@ -108,6 +108,11 @@ export type LocalRow = {
   support: LocalSupport
   runnable: boolean
   not_runnable_reason: string | null
+  /**
+   * The reason as a code, which `notRunnableReason()` has a line for in the
+   * interface's language; absent for a reason that has none.
+   */
+  not_runnable_code?: string | null
   builds: LocalBuild[]
   /** Curated models only. */
   default_quantization: string | null

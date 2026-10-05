@@ -168,6 +168,7 @@ async def test_a_runnable_repo_resolves_to_a_build_and_what_it_will_be(
     body = reply.json()
     assert reply.status_code == 200, body
     assert body["row"]["runnable"] and body["row"]["not_runnable_reason"] is None
+    assert body["row"]["not_runnable_code"] is None
     assert body["row"]["engine"] == "onnxruntime"
     build = build_of(body)
     assert build["footprint_bytes"] == 118_000_000 + 17_000_000
@@ -184,6 +185,9 @@ async def test_a_repo_without_onnx_says_why_it_cannot_run(
 
     assert not body["row"]["runnable"]
     assert "ONNX" in body["row"]["not_runnable_reason"]
+    # The embedder check's own sentence has no code: not the embedding group's,
+    # whose words would replace it on screen.
+    assert body["row"]["not_runnable_code"] is None
     assert body["row"]["builds"] == []
 
 

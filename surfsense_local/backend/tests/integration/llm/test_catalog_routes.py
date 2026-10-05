@@ -59,6 +59,11 @@ async def test_every_local_row_has_one_shape(client: AsyncClient) -> None:
     for row in body["rows"]:
         assert row["source"] == "local"
         assert {"types", "selectable_for", "support", "builds", "runnable"} <= set(row)
+        # A reason and its code come and go together with `runnable`.
+        assert {"not_runnable_reason", "not_runnable_code"} <= set(row)
+        if row["runnable"]:
+            assert row["not_runnable_reason"] is None
+            assert row["not_runnable_code"] is None
         assert "reads_images" in row["support"]
         for build in row["builds"]:
             assert {

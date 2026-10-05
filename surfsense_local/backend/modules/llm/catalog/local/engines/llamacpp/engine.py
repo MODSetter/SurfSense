@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
+from modules.llm.catalog.local.classifier import UNSUPPORTED_REASON, NotRunnableCode
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
 from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
@@ -148,7 +149,8 @@ class LlamaCppEngine:
             )
         if ModelType.TEXT_GEN not in checked.classification.types:
             raise InstallRefusedError(
-                checked.classification.reason or "SurfSense cannot run this model."
+                checked.classification.reason or UNSUPPORTED_REASON,
+                checked.classification.code or NotRunnableCode.UNSUPPORTED,
             )
         if checked.fit.state is FitState.TOO_BIG:
             raise InstallRefusedError(_TOO_BIG, InstallCode.TOO_BIG)

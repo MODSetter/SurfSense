@@ -1,5 +1,6 @@
 import { intl } from "@/i18n/intl"
 
+import { notRunnableReason } from "../local/chat/not-runnable-text"
 import { useLocalChatCatalog } from "../local/chat/use-local-chat-catalog"
 import { useConnections } from "../remote/connections/use-connections"
 import { useSelection } from "../selection/use-selection"
@@ -49,7 +50,7 @@ export function useChatModels(): YourModels {
               ]
             : [],
           note: !row.runnable
-            ? row.not_runnable_reason
+            ? notRunnableReason(row)
             : rename
               ? intl.formatMessage(
                   {

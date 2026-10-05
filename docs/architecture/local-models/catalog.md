@@ -347,6 +347,15 @@ not running here. A row is runnable when the engine that offered it is the one
 the registry gives its type: sd.cpp's image rows run, while the same image model
 found through llama.cpp's search does not, and keeps its sentence.
 
+Each group also has a code, a `NotRunnableCode`, which the row carries as
+`not_runnable_code` beside `not_runnable_reason`. The renderer shows its own
+line for a code it knows, in the interface language, and the English sentence
+otherwise
+([`not-runnable-text.ts`](../../../surfsense_local/frontend/src/features/models/local/chat/not-runnable-text.ts), [localization](../localization.md#backend-text)).
+A row that no group refuses says "SurfSense cannot run this model." under the
+code `unsupported`. A Hugging Face embedder repo that fails its check words the
+refusal itself, and that row has no code.
+
 A diffusion GGUF from sd.cpp's converter carries no metadata at all, not even
 `general.architecture`, so the sd.cpp slice reads its architecture from tensor
 names, as sd.cpp does
@@ -508,10 +517,11 @@ the renderer shows its own line for a code it knows, in the interface language,
 and the frame's English `message` for one it does not
 ([`install-text.ts`](../../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts), [localization](../localization.md#backend-text)).
 A refusal for disk space is `not_enough_disk` with `needed_bytes` and
-`free_bytes` raw, so each language formats the sizes itself. Two refusals have a
-`null` code and stay English: a searched file of a type the runtime cannot run,
-whose sentence is the row's `not_runnable_reason`, and a Hugging Face embedder
-that fails its check.
+`free_bytes` raw, so each language formats the sizes itself. A searched file of
+a type the runtime cannot run is refused with the classifier's sentence and its
+`NotRunnableCode`, as a row is, so the toast is worded like a row's reason. One
+refusal has a `null` code and stays English: a Hugging Face embedder that fails
+its check.
 
 The API fetches each file of the build from
 `https://huggingface.co/{repo}/resolve/{revision}/{path}` into the models folder

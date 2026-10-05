@@ -6,7 +6,11 @@ from dataclasses import replace
 
 from modules.embedding.spec import EmbedderSpec
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
-from modules.llm.catalog.local.classifier import classify
+from modules.llm.catalog.local.classifier import (
+    UNSUPPORTED_REASON,
+    NotRunnableCode,
+    classify,
+)
 from modules.llm.catalog.local.engines.onnxruntime import ENGINE
 from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.catalog.local.installs import InstalledBuild
@@ -129,11 +133,13 @@ def searched_row(repo: str, build: BuildRow | None, reason: str | None) -> Local
     one build, or none and why."""
     classification = classify("", "feature-extraction")
     if build is None:
-        # No build to offer: classified as nothing, so the row says why.
+        # No build to offer: classified as nothing, so the row says why. The
+        # embedder check's own sentence has no code.
         classification = replace(
             classification,
             types=(),
-            reason=reason or "SurfSense cannot run this model.",
+            reason=reason or UNSUPPORTED_REASON,
+            code=None if reason else NotRunnableCode.UNSUPPORTED,
         )
     return LocalRow(
         id=repo,
