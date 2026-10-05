@@ -1,14 +1,32 @@
 import { useRef, useState, type DragEvent } from "react"
 
-function carriesFiles(event: DragEvent) {
+import { filesOfDrop } from "./folder-upload/dropped-files"
+import type { UploadEntry } from "./folder-upload/upload-plan"
+
+// A folder row marks itself as a drop target; anywhere else is the top level.
+export const DROP_FOLDER_ATTRIBUTE = "data-drop-folder"
+
+function dropFolderOf(event: DragEvent): number | null {
+  const target = event.target instanceof Element ? event.target : null
+  const value = target
+    ?.closest(`[${DROP_FOLDER_ATTRIBUTE}]`)
+    ?.getAttribute(DROP_FOLDER_ATTRIBUTE)
+  return value ? Number(value) : null
+}
+
+export function carriesFiles(event: DragEvent) {
   return event.dataTransfer.types.includes("Files")
 }
 
 /**
- * A region that takes dropped files. `active` while files are dragged over it,
- * counted across child elements, since entering a child leaves the parent.
+ * A region that takes dropped files and folders. `active` while files are
+ * dragged over it, counted across child elements, since entering a child
+ * leaves the parent.
  */
-export function useFileDrop(onDrop: ((files: File[]) => void) | undefined) {
+export function useFileDrop(
+  onDrop:
+    ((entries: UploadEntry[], folderId: number | null) => void) | undefined
+) {
   const [active, setActive] = useState(false)
   const depth = useRef(0)
 
@@ -39,8 +57,9 @@ export function useFileDrop(onDrop: ((files: File[]) => void) | undefined) {
           if (!carriesFiles(event)) return
           event.preventDefault()
           reset()
-          const files = Array.from(event.dataTransfer.files)
-          if (files.length > 0) onDrop(files)
+          void filesOfDrop(event.dataTransfer).then((entries) => {
+            if (entries.length > 0) onDrop(entries, dropFolderOf(event))
+          })
         },
       }
     : {}

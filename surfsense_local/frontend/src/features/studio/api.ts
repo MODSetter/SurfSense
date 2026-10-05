@@ -1,5 +1,6 @@
 import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 import type { DocumentStatus } from "@/features/sources/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import type { ModelType } from "@/features/models/model-type"
 
 export type StudioFormat = {
@@ -75,6 +76,8 @@ export type ArtifactDetail = Artifact & {
 export type StudioJobCreate = {
   format: string
   document_ids: number[]
+  // What the server resolves into the job's sources, folders included.
+  source_scope?: SourceScope
   prompt?: string
   options?: PodcastBrief
 }

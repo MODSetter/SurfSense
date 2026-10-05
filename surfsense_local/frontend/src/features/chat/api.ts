@@ -1,4 +1,5 @@
 import type { AgentStep } from "@/features/agent/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import { parseSseStream, type ChatStreamEvent, type Citation } from "./sse"
@@ -100,11 +101,15 @@ export function renameThread(
   })
 }
 
+// The API's cap on `document_ids`; past it the scope alone says what is ticked.
+const MAX_DOCUMENT_IDS = 1000
+
 export async function streamMessage(
   threadId: number,
   text: string,
   images: ImageUpload[],
   documentIds: number[],
+  sourceScope: SourceScope | null,
   thinking: boolean,
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
@@ -117,7 +122,11 @@ export async function streamMessage(
     },
     body: JSON.stringify({
       text,
-      document_ids: documentIds,
+      // Still sent beside the scope: the agent reads the id list.
+      ...(documentIds.length <= MAX_DOCUMENT_IDS
+        ? { document_ids: documentIds }
+        : {}),
+      ...(sourceScope ? { source_scope: sourceScope } : {}),
       // Only when there are some, so a text turn sends exactly what it did.
       ...(images.length > 0 ? { images } : {}),
       // Only when off, for the same reason: on is the API's default.

@@ -13,6 +13,7 @@ import {
   type PermissionRequest,
 } from "@/features/agent/api"
 import { errorToast } from "@/features/feedback/error-toast"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
 
@@ -199,6 +200,7 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  sourceScope = null,
   readsImages,
   canSkipThinking,
   onModelRequired,
@@ -206,6 +208,8 @@ export function useChatRuntime({
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // What the server resolves into the turn's sources, so none is left out.
+  sourceScope?: SourceScope | null
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
@@ -466,6 +470,7 @@ export function useChatRuntime({
           text,
           images,
           selectedDocumentIds,
+          sourceScope,
           !canSkipThinking || readThinkingOn(),
           controller.signal,
           (event) => {
@@ -737,6 +742,7 @@ export function useChatRuntime({
       onModelRequired,
       queryClient,
       selectedDocumentIds,
+      sourceScope,
       workspaceId,
     ]
   )
