@@ -1,4 +1,5 @@
-import type { AgentStep } from "@/features/agent/api"
+import type { AgentStep, TurnSources } from "@/features/agent/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import {
@@ -25,7 +26,9 @@ export type ChatThread = {
 export type TurnEnding =
   | {
       type: "error"
-      kind: ChatErrorKind
+      // `agent_thread_outdated` is client only: the API refuses that turn
+      // before any frame.
+      kind: ChatErrorKind | "agent_thread_outdated"
       message: string
       provider?: string
       // Client only: our own request failed before the API could classify it.
@@ -53,6 +56,8 @@ export type MessageContent = {
   images?: StoredImage[]
   // An agent reply's tool calls, in the order it made them.
   steps?: AgentStep[]
+  // An agent turn's sources, on the user's message.
+  scope?: TurnSources
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
   // Client only: how far the model has read the prompt, while it waits.
@@ -60,6 +65,8 @@ export type MessageContent = {
   ending?: TurnEnding
   // Client only: the reply's place in line for the local runtime.
   queue?: { position: number }
+  // Client only: the sources an agent turn is preparing, until its next frame.
+  preparing?: number
 }
 
 export type ChatMessage = {
@@ -124,11 +131,15 @@ export function renameThread(
   })
 }
 
+// The API's cap on `document_ids`; past it the scope alone says what is ticked.
+const MAX_DOCUMENT_IDS = 1000
+
 export async function* streamMessage(
   threadId: number,
   text: string,
   images: ImageUpload[],
   documentIds: number[],
+  sourceScope: SourceScope | null,
   thinking: boolean,
   retryOf: number | null,
   signal: AbortSignal
@@ -141,7 +152,11 @@ export async function* streamMessage(
     },
     body: JSON.stringify({
       text,
-      document_ids: documentIds,
+      // The server ignores these when a scope comes with them.
+      ...(documentIds.length <= MAX_DOCUMENT_IDS
+        ? { document_ids: documentIds }
+        : {}),
+      ...(sourceScope ? { source_scope: sourceScope } : {}),
       // Only when there are some, so a text turn sends exactly what it did.
       ...(images.length > 0 ? { images } : {}),
       // Only when off, for the same reason: on is the API's default.

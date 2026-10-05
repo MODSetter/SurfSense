@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from modules.chat.budget import QUESTION_CHARS
 from modules.chat.models import MessageRole
+from modules.source_scope.schemas import SourceScope
 
 ThreadTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
@@ -29,9 +30,14 @@ class ImageUpload(BaseModel):
 
 
 class ThreadCreate(BaseModel):
-    """Fields a client supplies when opening a thread."""
+    """Fields a client supplies when opening a thread.
+
+    `source_scope` is the new chat's drafted ticks; omitted, the thread uses
+    every source.
+    """
 
     title: ThreadTitle = "New chat"
+    source_scope: SourceScope | None = None
 
 
 class ThreadUpdate(BaseModel):
@@ -49,6 +55,8 @@ class ThreadRead(BaseModel):
     workspace_id: int
     title: str | None
     uses_agent: bool
+    # None: the thread never stored ticks and uses every source.
+    source_scope: SourceScope | None
     created_at: datetime
     updated_at: datetime
     # Whether a reply is being generated for it right now.
@@ -58,15 +66,18 @@ class ThreadRead(BaseModel):
 class MessageCreate(BaseModel):
     """The user's turn; the assistant's is streamed, not posted.
 
-    `document_ids` is the RAG scope for this turn. Omit it to search the whole
-    workspace. An empty list retrieves nothing. `images` reach only a model
-    that reads them; any other gets a 409. `thinking` off asks for the answer
-    with no trace, which only the local runtime can be told. `retry_of` names
-    the thread's latest reply when it failed or was cut off, which this turn
-    replaces.
+    `source_scope` is resolved on the server, stored on the thread and used for
+    this turn; omitted, the thread's stored scope is used. `document_ids` is the
+    older explicit list, kept for plugins and older clients: used only when no
+    `source_scope` is sent, it must name ready sources, and an empty list
+    retrieves nothing. `images` reach only a model that reads them; any other
+    gets a 409. `thinking` off asks for the answer with no trace, which only the
+    local runtime can be told. `retry_of` names the thread's latest reply when
+    it failed or was cut off, which this turn replaces.
     """
 
     text: MessageText
+    source_scope: SourceScope | None = None
     document_ids: Annotated[list[DocumentId], Field(max_length=1000)] | None = None
     images: Annotated[list[ImageUpload], Field(max_length=MAX_IMAGES)] = []
     thinking: bool = True

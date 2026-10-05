@@ -16,12 +16,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
-from modules.agent.agent_threads.forget_sessions import forget_sessions
+from modules.agent.agent_threads.forget_sessions import forget_thread
 from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
 from modules.agent.agent_threads.turn import agent_turn
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import selected_model_can_run_agent
+from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import (
     IMAGE_TOKENS,
     answer_max_tokens,
@@ -68,6 +69,9 @@ from modules.llm.resolution import (
     ResolvedGeneration,
     resolve_generation,
 )
+from modules.source_scope.resolve import resolve_scope
+from modules.source_scope.schemas import SourceScope
+from modules.source_scope.thread_scope import store_thread_scope, thread_scope
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import Hit, retrieve
 
@@ -91,7 +95,9 @@ async def create_thread(
 
     Chosen here and kept: the thread's turns live with whichever engine got it.
     """
-    thread = await transact(session, _new_thread, workspace.id, payload.title)
+    thread = await transact(
+        session, _new_thread, workspace.id, payload.title, payload.source_scope
+    )
     if await selected_model_can_run_agent(session):
         session_id = await open_agent_session(session, thread, launch_key)
         if session_id is not None:
@@ -151,10 +157,16 @@ async def list_messages(
 )
 async def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
     workspace_id, thread_id = thread.workspace_id, thread.id
+    folder = None
     if thread.opencode_session_id is not None:
-        await forget_sessions(workspace_id, [thread.opencode_session_id])
+        folder = await forget_thread(
+            workspace_id, thread_id, thread.opencode_session_id
+        )
     await transact(session, _delete_thread, thread)
     store.remove_thread(workspace_id, thread_id)
+    if folder is not None:
+        # Unlinks the views; their cached texts stay for the threads still using them.
+        await run_in_threadpool(remove_thread_folder, folder)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -206,7 +218,9 @@ async def send_message(
         return await agent_turn(session, thread, payload, launch_key)
     if runs.get(thread.id) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "this thread is still answering")
-    resolved, history, hits, retried = await transact(session, _ground, thread, payload)
+    resolved, history, hits, retried, scope_record = await transact(
+        session, _ground, thread, payload
+    )
     selected = resolved.selection
     generator = resolved.generator
     # Asked once: it gates attachments and decides whether sources send pictures.
@@ -243,7 +257,7 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text, images, retried
+            session, _open_turn, thread, payload.text, images, retried, scope_record
         )
         user_created_at = _iso(user_message.created_at)
         if retried:
@@ -557,11 +571,15 @@ def _normalised(uploads: list[ImageUpload]) -> list[NormalisedImage]:
 # The stream's session work, each piece one short transaction off the event loop.
 
 
-def _new_thread(session: Session, workspace_id: int, title: str) -> ChatThread:
+def _new_thread(
+    session: Session, workspace_id: int, title: str, scope: SourceScope | None
+) -> ChatThread:
     """Insert the thread; the id and timestamps come from the database."""
     thread = ChatThread(workspace_id=workspace_id, title=title)
     session.add(thread)
     session.flush()
+    if scope is not None:
+        store_thread_scope(session, thread, scope)
     session.refresh(thread)
     return thread
 
@@ -588,15 +606,29 @@ def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]
 
 def _ground(
     session: Session, thread: ChatThread, payload: MessageCreate
-) -> tuple[ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage]]:
-    """The model to answer with, the turns so far, the passages to cite, and
-    the failed turn a retry replaces."""
+) -> tuple[
+    ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage], dict
+]:
+    """The model to answer with, the turns so far, the passages to cite, the
+    failed turn a retry replaces, and what the user turn records of the sources
+    it used."""
     try:
         resolved = resolve_generation(session)
     except ModelResolutionError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
-    if payload.document_ids is not None:
+    # A sent scope is stored and used in this one transaction, so ticking a box
+    # and pressing Enter cannot race. An explicit id list keeps today's meaning.
+    scope = None
+    record: dict = {}
+    if payload.source_scope is not None:
+        stored, scope = store_thread_scope(session, thread, payload.source_scope)
+        record = scope.record(stored)
+    elif payload.document_ids is not None:
         load_selected_sources(session, thread.workspace_id, payload.document_ids)
+    else:
+        stored = thread_scope(thread)
+        scope = resolve_scope(session, thread.workspace_id, stored)
+        record = scope.record(stored)
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
     from modules.embedding.encoder import missing_files
 
@@ -616,9 +648,13 @@ def _ground(
     if retried:
         history = history[:-2]
     hits = retrieve(
-        session, thread.workspace_id, payload.text, document_ids=payload.document_ids
+        session,
+        thread.workspace_id,
+        payload.text,
+        document_ids=payload.document_ids,
+        scope=scope,
     )
-    return resolved, history, hits, retried
+    return resolved, history, hits, retried, record
 
 
 # The endings a retry may replace. A stopped or completed reply is the
@@ -651,6 +687,7 @@ def _open_turn(
     text: str,
     images: list[NormalisedImage],
     replaces: list[ChatMessage],
+    scope_record: dict,
 ) -> tuple[ChatMessage, ChatMessage]:
     # In the same transaction as the new turn, so a retry never shows the
     # question twice or loses it.
@@ -660,7 +697,11 @@ def _open_turn(
         store.store(image, thread.workspace_id, thread.id) for image in images
     ]
     # `images` only when there are some, so every row before them stays as it was.
-    content: dict = {"text": text, **({"images": references} if references else {})}
+    content: dict = {
+        "text": text,
+        **({"images": references} if references else {}),
+        **scope_record,
+    }
     user_message = ChatMessage(
         chat_thread_id=thread.id, role=MessageRole.USER, content=content
     )

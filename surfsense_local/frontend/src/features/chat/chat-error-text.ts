@@ -1,9 +1,9 @@
 import { intl } from "@/i18n/intl"
 
-import type { ChatErrorKind } from "./sse"
+import type { ChatTurnErrorKind } from "./use-chat-runtime"
 
 // English mirrors modules/chat/errors.py; the backend's own text stays the fallback.
-const chatErrorText: Record<ChatErrorKind, () => string> = {
+const chatErrorText: Record<ChatTurnErrorKind, () => string> = {
   provider_auth: () =>
     intl.formatMessage({
       id: "chat_error_provider_auth",
@@ -67,6 +67,12 @@ const chatErrorText: Record<ChatErrorKind, () => string> = {
       defaultMessage:
         "The replies running together ran out of room in the local model’s memory. Try again.",
     }),
+  agent_thread_outdated: () =>
+    intl.formatMessage({
+      id: "chat_error_agent_thread_outdated",
+      defaultMessage:
+        "This agent chat was started before each chat kept its own sources. Start a new chat to continue.",
+    }),
   unknown: () =>
     intl.formatMessage({
       id: "chat_error_unknown",
@@ -106,7 +112,7 @@ export function translatedChatError(error: {
     })
   }
   const text = Object.hasOwn(chatErrorText, error.kind)
-    ? chatErrorText[error.kind as ChatErrorKind]
+    ? chatErrorText[error.kind as ChatTurnErrorKind]
     : undefined
   return text ? text() : error.message
 }

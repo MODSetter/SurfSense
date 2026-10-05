@@ -25,7 +25,7 @@ async def selected_model_window(session: Session) -> tuple[str, int]:
     A local model's is the window llama-server loaded it with; a remote one's is
     what the remote catalog records for it.
     """
-    selected, catalog_provider = await transact(session, _selected)
+    selected, catalog_provider = await transact(session, selected_text_model)
     if selected.provider == llamacpp.PROVIDER:
         window = await _local_window(selected.name)
     else:
@@ -33,7 +33,7 @@ async def selected_model_window(session: Session) -> tuple[str, int]:
     return selected.name, window or FALLBACK_WINDOW
 
 
-def _selected(session: Session) -> tuple[SelectedModel, str | None]:
+def selected_text_model(session: Session) -> tuple[SelectedModel, str | None]:
     """The selected text model, and the catalog provider its connection names."""
     selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     if selected is None:

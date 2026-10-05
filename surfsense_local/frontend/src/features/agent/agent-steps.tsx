@@ -1,13 +1,15 @@
 import {
+  ArrowRightIcon,
   CheckIcon,
   ChevronRightIcon,
   CircleAlertIcon,
 } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import type { AgentStep } from "./api"
+import type { AgentStep, TurnSources } from "./api"
 import { stepLabel } from "./step-label"
 
 function StepStatus({ status }: { status: AgentStep["status"] }) {
@@ -36,16 +38,40 @@ function StepStatus({ status }: { status: AgentStep["status"] }) {
   )
 }
 
-/** One step: what it did, and what it returned, folded until asked for. */
-function StepLine({ step }: { step: AgentStep }) {
+/** One step: what it did, and what it returned, folded until asked for. A
+ *  step that made a document opens it instead of folding what it returned,
+ *  which was written for the model. */
+function StepLine({
+  step,
+  sourceTitle,
+}: {
+  step: AgentStep
+  sourceTitle: (documentId: number) => string | null
+}) {
+  const openArtifact = useOpenArtifact()
   const detail = step.error ?? step.output
   const line = (
     <span className="flex min-w-0 items-center gap-2">
       <StepStatus status={step.status} />
-      <span className="min-w-0 truncate">{stepLabel(step)}</span>
+      <span className="min-w-0 truncate">{stepLabel(step, sourceTitle)}</span>
     </span>
   )
-  if (!detail) {
+  const made = step.artifact
+  if (made && openArtifact) {
+    return (
+      <li className="py-0.5">
+        <button
+          type="button"
+          className="flex max-w-full cursor-pointer items-center gap-1 rounded-sm text-left outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => openArtifact(made.id)}
+        >
+          {line}
+          <ArrowRightIcon className="size-3.5 shrink-0" />
+        </button>
+      </li>
+    )
+  }
+  if (!detail || made) {
     return <li className="py-0.5">{line}</li>
   }
   return (
@@ -68,10 +94,21 @@ function StepLine({ step }: { step: AgentStep }) {
   )
 }
 
-/** The steps the agent took for one reply, above the answer they led to. */
-export function AgentSteps({ steps }: { steps: AgentStep[] }) {
+/** The steps the agent took for one reply, above the answer they led to.
+ *  `scope` is the turn's sources, which name a source a step used. */
+export function AgentSteps({
+  steps,
+  scope = null,
+}: {
+  steps: AgentStep[]
+  scope?: TurnSources | null
+}) {
   if (steps.length === 0) {
     return null
+  }
+  const sourceTitle = (documentId: number) => {
+    const index = scope?.document_ids.indexOf(documentId) ?? -1
+    return index >= 0 ? (scope?.titles[index] ?? null) : null
   }
   return (
     <ol
@@ -82,7 +119,7 @@ export function AgentSteps({ steps }: { steps: AgentStep[] }) {
       className="mb-3 flex flex-col text-sm text-muted-foreground"
     >
       {steps.map((step) => (
-        <StepLine key={step.id} step={step} />
+        <StepLine key={step.id} step={step} sourceTitle={sourceTitle} />
       ))}
     </ol>
   )

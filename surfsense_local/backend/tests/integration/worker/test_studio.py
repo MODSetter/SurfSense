@@ -26,8 +26,6 @@ from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from worker.studio import run
-from worker.studio.office.docx import docx
-from worker.studio.office.pdf import pdf
 from worker.studio.office.pptx import pptx
 from worker.studio.office.xlsx import xlsx
 from worker.studio.shared import persist
@@ -276,18 +274,8 @@ def test_quiz_becomes_a_question_file_and_a_question_list_body(
     assert "arrival facts" in seen[0]
 
 
-# --- Office: the model writes library code the runner executes to a real file. ---
-
-_DOCX_CODE = (
-    "from io import BytesIO\n"
-    "from docx import Document\n"
-    "d = Document()\n"
-    "d.add_heading('Cassini', 0)\n"
-    "d.add_paragraph('Reached Saturn in 2004.')\n"
-    "buf = BytesIO()\n"
-    "d.save(buf)\n"
-    "output_bytes = buf.getvalue()\n"
-)
+# --- Office: the model writes library code the runner executes to a real file.
+# Word and PDF take their own paths (tests/integration/artifacts/test_studio_documents.py). ---
 
 _PPTX_CODE = (
     "from io import BytesIO\n"
@@ -308,34 +296,6 @@ _XLSX_CODE = (
     "wb.close()\n"
     "output_bytes = buf.getvalue()\n"
 )
-
-_PDF_CODE = (
-    "from io import BytesIO\n"
-    "from reportlab.pdfgen import canvas\n"
-    "buf = BytesIO()\n"
-    "c = canvas.Canvas(buf)\n"
-    "c.drawString(72, 720, 'Cassini')\n"
-    "c.showPage()\n"
-    "c.save()\n"
-    "output_bytes = buf.getvalue()\n"
-)
-
-
-def test_docx_runs_generated_python_docx_code(
-    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Document: the model's python-docx code runs to a real .docx (a zip)."""
-    seen = _capture_model(monkeypatch, _DOCX_CODE)
-    artifact = make_artifact(session, fmt="docx", prompt="a one-page brief")
-
-    run(artifact.id)
-
-    session.expire_all()
-    assert artifact.document.status is DocumentStatus.READY, (
-        artifact.document.error_message
-    )
-    _one_file(artifact, docx.mime, b"PK\x03\x04")
-    assert "a one-page brief" in seen[0]
 
 
 def test_pptx_runs_generated_python_pptx_code(
@@ -370,23 +330,6 @@ def test_xlsx_runs_generated_xlsxwriter_code(
     )
     _one_file(artifact, xlsx.mime, b"PK\x03\x04")
     assert "one column" in seen[0]
-
-
-def test_pdf_runs_generated_reportlab_code(
-    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """PDF: the model's ReportLab code runs to a real .pdf."""
-    seen = _capture_model(monkeypatch, _PDF_CODE)
-    artifact = make_artifact(session, fmt="pdf", prompt="a cover page")
-
-    run(artifact.id)
-
-    session.expire_all()
-    assert artifact.document.status is DocumentStatus.READY, (
-        artifact.document.error_message
-    )
-    _one_file(artifact, pdf.mime, b"%PDF")
-    assert "a cover page" in seen[0]
 
 
 # --- Media: audio synthesised offline, images drawn over a BYO key. ---

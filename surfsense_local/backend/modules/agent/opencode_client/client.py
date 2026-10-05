@@ -81,6 +81,20 @@ class OpencodeClient:
         reply = await self._http.delete(f"/session/{session_id}", params=_in(directory))
         reply.raise_for_status()
 
+    async def session_directory(self, session_id: str) -> str:
+        """The folder a session was created in, where every call about it runs."""
+        reply = await self._http.get(f"/session/{session_id}")
+        reply.raise_for_status()
+        return reply.json()["directory"]
+
+    async def dispose_instance(self, directory: Path) -> None:
+        """Drop the folder's instance: its MCP clients, its config and its memory.
+
+        opencode keeps one per folder until it exits; the next call there starts a new one.
+        """
+        reply = await self._http.post("/instance/dispose", params=_in(directory))
+        reply.raise_for_status()
+
     async def session_ids(self, directory: Path) -> set[str]:
         """The sessions opencode holds for this folder."""
         reply = await self._http.get("/session", params=_in(directory))
@@ -102,17 +116,28 @@ class OpencodeClient:
         return reply.json()
 
     async def send_turn(
-        self, directory: Path, session_id: str, text: str, *, model: str
+        self,
+        directory: Path,
+        session_id: str,
+        text: str,
+        *,
+        model: str,
+        note: str | None = None,
     ) -> None:
         """Start a turn and return at once; what happens next arrives as events.
 
         The model is named on every turn, so a session keeps working after the
-        selected model, and with it opencode's configuration, changes.
+        selected model, and with it opencode's configuration, changes. A `note`
+        goes beside the user's words as a synthetic part: the model reads it,
+        and it is marked as not the user's.
         """
+        parts: list[dict[str, Any]] = [{"type": "text", "text": text}]
+        if note is not None:
+            parts.append({"type": "text", "text": note, "synthetic": True})
         body = {
             "agent": AGENT,
             "model": {"providerID": PROVIDER, "modelID": model},
-            "parts": [{"type": "text", "text": text}],
+            "parts": parts,
         }
         reply = await self._http.post(
             f"/session/{session_id}/prompt_async", params=_in(directory), json=body
@@ -138,11 +163,18 @@ class OpencodeClient:
         answered.raise_for_status()
 
     async def add_tool_server(
-        self, directory: Path, name: str, url: str, headers: dict[str, str]
+        self,
+        directory: Path,
+        name: str,
+        url: str,
+        headers: dict[str, str],
+        *,
+        timeout_seconds: int,
     ) -> str:
         """Point the folder's opencode at a remote MCP server; its status once it tried to connect.
 
         Kept by that folder's instance alone, and forgotten when opencode reloads.
+        A call to one of its tools fails after `timeout_seconds`.
         """
         added = await self._http.post(
             "/mcp",
@@ -155,6 +187,7 @@ class OpencodeClient:
                     "headers": headers,
                     # Otherwise a refused key starts OAuth discovery against SurfSense.
                     "oauth": False,
+                    "timeout": timeout_seconds * 1000,
                 },
             },
         )

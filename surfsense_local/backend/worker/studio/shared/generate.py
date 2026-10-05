@@ -45,7 +45,6 @@ def run_model(
     A JSON format passes `json_schema`, which the runtime turns into a grammar.
     An endpoint that ignores it still answers, and `parse_json` reads that.
     """
-    selected = model.selection
     messages = [
         Message(role="system", content=system),
         Message(role="user", content=_grounding(sources)),
@@ -55,13 +54,32 @@ def run_model(
             Message(role="assistant", content=repair.reply),
             Message(role="user", content=repair.instruction),
         ]
+    return complete(
+        model,
+        messages,
+        max_tokens=max_tokens,
+        json_schema=json_schema,
+        grounding_chars=sum(len(source.content) for source in sources),
+    )
+
+
+def complete(
+    model: ResolvedGeneration,
+    messages: list[Message],
+    *,
+    max_tokens: int | None = None,
+    json_schema: dict | None = None,
+    grounding_chars: int = 0,
+) -> str:
+    """One reply to a conversation Studio composed, collected whole."""
+    selected = model.selection
     started = time.monotonic()
     logger.info(
         "studio: model %s/%s starting on the %s prompt (%s source chars)",
         selected.provider,
         selected.name,
         model.tier,
-        sum(len(source.content) for source in sources),
+        grounding_chars,
     )
     # Thinking off: a small model can reason until the window runs out, holding
     # the runtime's only slot, and Studio's structured output gains little.

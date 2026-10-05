@@ -17,6 +17,7 @@ from worker.studio.media.audio.podcast import pipeline as podcast
 from worker.studio.media.visual.image import pipeline as image
 from worker.studio.media.visual.infographic import pipeline as infographic
 from worker.studio.office import pipeline as office
+from worker.studio.office.document import pipeline as document
 from worker.studio.office.docx import docx
 from worker.studio.office.pdf import pdf
 from worker.studio.office.pptx import pptx
@@ -42,6 +43,10 @@ class Kind(enum.StrEnum):
     PODCAST = "podcast"
 
 
+# The formats whose drafts may place the sources' figures.
+PLACES_FIGURES = frozenset({Kind.DOCX, Kind.PDF})
+
+
 def pipeline_for(kind: Kind) -> Render:
     match kind:
         case Kind.SUMMARY:
@@ -55,13 +60,13 @@ def pipeline_for(kind: Kind) -> Render:
         case Kind.HTML:
             return html.render
         case Kind.DOCX:
-            return partial(office.render, docx)
+            return partial(document.render, docx)
         case Kind.PPTX:
             return partial(office.render, pptx)
         case Kind.XLSX:
             return partial(office.render, xlsx)
         case Kind.PDF:
-            return partial(office.render, pdf)
+            return partial(document.render, pdf)
         case Kind.IMAGE:
             return image.render
         case Kind.INFOGRAPHIC:

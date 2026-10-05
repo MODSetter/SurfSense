@@ -62,7 +62,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Accepted |
 | 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |
-| 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted |
+| 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted, in part superseded by 0039 |
 | 0029 | [Interface text lives in ICU MessageFormat catalogs, one flat JSON file per language](0029-icu-translation-catalogs.md) | Accepted |
 | 0030 | [FormatJS renders interface text from precompiled, bundled catalogs, with no network at build or run time](0030-formatjs-renders-interface-text.md) | Accepted |
 | 0031 | [Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25](0031-ranking-blends-absolute-leg-scores.md) | Accepted, amended by 0032 and 0033 |
@@ -73,3 +73,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |
+| 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
+| 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |

@@ -3,7 +3,7 @@
 The local runtime serves up to four replies at once from one shared cache, and every request that generates on it is admitted first, by one gate in the API. Remote models are never admitted: each provider has its own servers.
 
 **Code:** [`modules/llm/admission/`](../../../surfsense_local/backend/modules/llm/admission/), [`modules/llm/model_route/`](../../../surfsense_local/backend/modules/llm/model_route/), [`modules/llm/fit/plan_load.py`](../../../surfsense_local/backend/modules/llm/fit/plan_load.py), [`providers/llamacpp/preset.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/preset.py)
-**Decisions:** [ADR 0039](../../adr/0039-the-api-is-the-only-path-to-a-text-model.md), [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md)
+**Decisions:** [ADR 0048](../../adr/0048-the-api-is-the-only-path-to-a-text-model.md), [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md)
 
 ## Slots
 

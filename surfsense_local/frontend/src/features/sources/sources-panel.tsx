@@ -1,23 +1,16 @@
 import {
-  useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type ReactNode,
 } from "react"
 import {
-  Alert02Icon,
-  CancelCircleHalfDotIcon,
-  CursorRemoveSelection02Icon,
-  EllipsisIcon,
   FilePlus2Icon,
-  FolderOpenIcon,
+  FolderAddIcon,
+  FolderUploadIcon,
   PencilEdit02Icon,
-  PencilIcon,
-  RefreshCwIcon,
-  SquareDashedMousePointerIcon,
-  Trash2Icon,
-  ViewIcon,
+  SearchIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -32,7 +25,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,18 +39,43 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
-import { getFileViewer } from "@/features/file-viewers/registry"
+import type { UploadEntry } from "./folder-upload/upload-plan"
 import {
   NoteEditorDialog,
   type NoteActions,
   type NoteTarget,
 } from "./note-editor-dialog"
 import { RenameSourceDialog } from "./rename-source-dialog"
+import {
+  DeleteFolderDialog,
+  type FolderDeleteTarget,
+} from "./tree/delete-folder-dialog"
+import {
+  FolderNameDialog,
+  type FolderNameTarget,
+} from "./tree/folder-name-dialog"
+import type { FolderActions } from "./tree/use-folders"
+import { MoveToDialog, type MoveTarget } from "./tree/move-to-dialog"
+import type { Tick } from "./tree/scope-state"
+import {
+  documentsUnder,
+  folderIdFor,
+  indexSources,
+  type FolderKey,
+  type SourceIndex,
+} from "./tree/source-index"
+import { SourceTree, type FolderRowActions } from "./tree/source-tree"
+import type { DraggedSource } from "./tree/tree-drag"
+import { TOP_TICK } from "./tree/use-source-scope"
 import { useFileDrop } from "./use-file-drop"
-import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -69,325 +86,43 @@ import {
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-function SelectableSourceRow({
-  document,
-  selected,
-  highlighted,
-  rowRef,
-  onOpen,
-  onPreview,
-  onReveal,
-  onRetry,
-  onCancel,
-  onDelete,
-  onRename,
-  onEditNote,
-  isDeleting,
-  onSelectedChange,
-}: {
-  document: WorkspaceDocument
-  selected: boolean
-  highlighted: boolean
-  rowRef: (node: HTMLLIElement | null) => void
-  onOpen: () => void
-  onPreview: () => void
-  onReveal: () => void
-  onRetry: () => void
-  onCancel: () => void
-  onDelete: () => void
-  onRename?: () => void
-  onEditNote?: () => void
-  isDeleting: boolean
-  onSelectedChange: (selected: boolean) => void
-}) {
-  const ready = document.status === "ready"
-  const failed = document.status === "failed"
-  const cancelled = document.status === "cancelled"
-  const retryable = failed || cancelled
-  const ingesting =
-    document.status === "pending" || document.status === "processing"
-  const processing = document.status === "processing"
-  const openable = ready && document.document_type === "FILE"
-  const previewable = getFileViewer(document.mime_type) !== null
-  const titleActionable = previewable || openable
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [rowHovered, setRowHovered] = useState(false)
-  // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
-  // row (not just the retry icon) surfaces the actual error above the row.
-  const modifierHeld = useModifierHeld()
-
-  return (
-    <Tooltip open={retryable && modifierHeld && rowHovered}>
-      <TooltipTrigger
-        render={
-          <li
-            ref={rowRef}
-            aria-current={highlighted ? "true" : undefined}
-            className={cn(
-              "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
-              highlighted && "border-ring",
-              dropdownOpen && "bg-muted dark:bg-muted/50"
-            )}
-            onMouseEnter={() => setRowHovered(true)}
-            onMouseLeave={() => setRowHovered(false)}
-          >
-            <span className="relative flex size-7 shrink-0 items-center justify-center">
-              {ready ? (
-                <Checkbox
-                  checked={selected}
-                  aria-label={intl.formatMessage(
-                    {
-                      id: "sources_row_select_aria",
-                      defaultMessage: "Select {title}",
-                    },
-                    {
-                      title: document.title,
-                    }
-                  )}
-                  onClick={(event) => event.stopPropagation()}
-                  onCheckedChange={(checked) =>
-                    onSelectedChange(checked === true)
-                  }
-                />
-              ) : null}
-              {ingesting ? (
-                <Spinner
-                  className="size-4.5 text-muted-foreground"
-                  aria-label={intl.formatMessage(
-                    {
-                      id: "sources_row_processing_aria",
-                      defaultMessage: "Processing {title}",
-                    },
-                    {
-                      title: document.title,
-                    }
-                  )}
-                />
-              ) : null}
-              {retryable ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label={
-                          cancelled
-                            ? intl.formatMessage(
-                                {
-                                  id: "sources_row_retry_cancelled_aria",
-                                  defaultMessage: "Cancelled. Retry {title}",
-                                },
-                                {
-                                  title: document.title,
-                                }
-                              )
-                            : intl.formatMessage(
-                                {
-                                  id: "sources_row_retry_failed_aria",
-                                  defaultMessage:
-                                    "Ingestion failed. Retry {title}",
-                                },
-                                {
-                                  title: document.title,
-                                }
-                              )
-                        }
-                        className="relative hover:bg-transparent"
-                        onClick={onRetry}
-                      >
-                        <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                        <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
-                      </Button>
-                    }
-                  />
-                  <TooltipContent side="top" collisionPadding={8}>
-                    {cancelled
-                      ? intl.formatMessage({
-                          id: "sources_row_retry_cancelled_tooltip",
-                          defaultMessage: "Cancelled. Retry again.",
-                        })
-                      : intl.formatMessage({
-                          id: "sources_row_retry_failed_tooltip",
-                          defaultMessage: "Ingestion failed. Retry again.",
-                        })}
-                  </TooltipContent>
-                </Tooltip>
-              ) : null}
-            </span>
-            <button
-              type="button"
-              disabled={!titleActionable}
-              className={cn(
-                "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
-                dropdownOpen && "sidebar-row-title-fade-actions"
-              )}
-              onClick={
-                titleActionable ? (previewable ? onPreview : onOpen) : undefined
-              }
-            >
-              {document.title}
-            </button>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-1">
-              <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
-                      aria-label={intl.formatMessage(
-                        {
-                          id: "sources_row_actions_aria",
-                          defaultMessage: "Actions for {title}",
-                        },
-                        {
-                          title: document.title,
-                        }
-                      )}
-                    >
-                      <EllipsisIcon />
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={8}
-                  className="min-w-40"
-                >
-                  <DropdownMenuGroup>
-                    {previewable ? (
-                      <DropdownMenuItem onClick={onPreview}>
-                        <ViewIcon />
-                        {intl.formatMessage({
-                          id: "sources_row_menu_preview_label",
-                          defaultMessage: "Preview",
-                        })}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {openable ? (
-                      <>
-                        <DropdownMenuItem onClick={onOpen}>
-                          <ViewIcon />
-                          {intl.formatMessage({
-                            id: "sources_row_menu_open_label",
-                            defaultMessage: "Open",
-                          })}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={onReveal}>
-                          <FolderOpenIcon />
-                          {intl.formatMessage({
-                            id: "sources_row_menu_reveal_label",
-                            defaultMessage: "Show in folder",
-                          })}
-                        </DropdownMenuItem>
-                      </>
-                    ) : null}
-                    {ready ? (
-                      <DropdownMenuItem
-                        onClick={() => onSelectedChange(!selected)}
-                      >
-                        {selected ? (
-                          <CursorRemoveSelection02Icon />
-                        ) : (
-                          <SquareDashedMousePointerIcon />
-                        )}
-                        {selected
-                          ? intl.formatMessage({
-                              id: "sources_row_menu_deselect_label",
-                              defaultMessage: "Deselect",
-                            })
-                          : intl.formatMessage({
-                              id: "sources_row_menu_select_label",
-                              defaultMessage: "Select",
-                            })}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {retryable ? (
-                      <DropdownMenuItem onClick={onRetry}>
-                        <RefreshCwIcon />
-                        {intl.formatMessage({
-                          id: "sources_row_menu_retry_label",
-                          defaultMessage: "Retry",
-                        })}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {ingesting ? (
-                      <DropdownMenuItem onClick={onCancel}>
-                        <CancelCircleHalfDotIcon />
-                        {intl.formatMessage({
-                          id: "sources_row_menu_cancel_label",
-                          defaultMessage: "Cancel",
-                        })}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {onEditNote && document.document_type === "NOTE" ? (
-                      <DropdownMenuItem onClick={onEditNote}>
-                        <PencilEdit02Icon />
-                        {intl.formatMessage({
-                          id: "sources_row_menu_edit_note_label",
-                          defaultMessage: "Edit note",
-                        })}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {onRename ? (
-                      <DropdownMenuItem onClick={onRename}>
-                        <PencilIcon />
-                        {intl.formatMessage({
-                          id: "sources_row_menu_rename_label",
-                          defaultMessage: "Rename",
-                        })}
-                      </DropdownMenuItem>
-                    ) : null}
-                    <DropdownMenuItem
-                      variant="destructive"
-                      disabled={processing || isDeleting}
-                      onClick={onDelete}
-                    >
-                      <Trash2Icon />
-                      {intl.formatMessage({
-                        id: "sources_row_menu_delete_label",
-                        defaultMessage: "Delete",
-                      })}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </li>
-        }
-      />
-      <TooltipContent side="top" collisionPadding={8}>
-        {document.error_message ??
-          (cancelled
-            ? intl.formatMessage({
-                id: "sources_row_cancelled_status",
-                defaultMessage: "Cancelled",
-              })
-            : intl.formatMessage({
-                id: "sources_row_failed_status",
-                defaultMessage: "Ingestion failed",
-              }))}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
+// Past this many sources a flat list gets the name filter too.
+const FILTER_FROM_SOURCES = 20
 
 export function SourcesAddButton({
   isUploading,
   onUpload,
+  onUploadFolder,
 }: {
   isUploading: boolean
   onUpload: (files: File[]) => void
+  // Absent, Add offers files only.
+  onUploadFolder?: (entries: UploadEntry[]) => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
-  const chooseFiles = () => fileInput.current?.click()
+  const folderInput = useRef<HTMLInputElement>(null)
   const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
     onUpload(Array.from(event.target.files ?? []))
     event.target.value = ""
   }
+  const uploadSelectedFolder = (event: ChangeEvent<HTMLInputElement>) => {
+    onUploadFolder?.(
+      Array.from(event.target.files ?? []).map((file) => ({
+        file,
+        relativePath: file.webkitRelativePath || file.name,
+      }))
+    )
+    event.target.value = ""
+  }
+  const label = isUploading
+    ? intl.formatMessage({
+        id: "sources_add_uploading_status",
+        defaultMessage: "Uploading...",
+      })
+    : intl.formatMessage({
+        id: "sources_add_button",
+        defaultMessage: "Add",
+      })
 
   return (
     <>
@@ -404,30 +139,77 @@ export function SourcesAddButton({
         disabled={isUploading}
         onChange={uploadSelectedFiles}
       />
-      <Button
-        size="xs"
-        variant="outline"
-        disabled={isUploading}
-        onClick={chooseFiles}
-      >
-        {isUploading ? <Spinner /> : <FilePlus2Icon />}
-        {isUploading
-          ? intl.formatMessage({
-              id: "sources_add_uploading_status",
-              defaultMessage: "Uploading...",
-            })
-          : intl.formatMessage({
-              id: "sources_add_button",
-              defaultMessage: "Add",
+      {onUploadFolder ? (
+        <>
+          <Input
+            ref={(node) => {
+              folderInput.current = node
+              // React has no prop for it; Chromium picks a folder with it.
+              node?.setAttribute("webkitdirectory", "")
+            }}
+            type="file"
+            multiple
+            className="sr-only"
+            aria-label={intl.formatMessage({
+              id: "sources_add_folder_aria",
+              defaultMessage: "Upload a source folder",
             })}
-      </Button>
+            disabled={isUploading}
+            onChange={uploadSelectedFolder}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button size="xs" variant="outline" disabled={isUploading}>
+                  {isUploading ? <Spinner /> : <FilePlus2Icon />}
+                  {label}
+                </Button>
+              }
+            />
+            <DropdownMenuContent
+              align="end"
+              sideOffset={6}
+              className="min-w-40"
+            >
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => fileInput.current?.click()}>
+                  <FilePlus2Icon />
+                  {intl.formatMessage({
+                    id: "sources_add_files_label",
+                    defaultMessage: "Files…",
+                  })}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => folderInput.current?.click()}>
+                  <FolderUploadIcon />
+                  {intl.formatMessage({
+                    id: "sources_add_folder_label",
+                    defaultMessage: "Folder…",
+                  })}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      ) : (
+        <Button
+          size="xs"
+          variant="outline"
+          disabled={isUploading}
+          onClick={() => fileInput.current?.click()}
+        >
+          {isUploading ? <Spinner /> : <FilePlus2Icon />}
+          {label}
+        </Button>
+      )}
     </>
   )
 }
 
 export function SourcesPanel({
   documents,
+  index: givenIndex,
   selectedDocumentIds,
+  folderTicks,
   highlightedDocumentId,
   isLoading,
   isDeleting,
@@ -441,13 +223,18 @@ export function SourcesPanel({
   onDelete,
   onDeleteSelected,
   onSelectionChange,
+  onFolderSelectionChange,
   onToggleAll,
   onDropFiles,
   onRename,
+  folderActions,
   notes,
 }: {
   documents: WorkspaceDocument[]
+  // The sources in their folders; absent, the documents are one flat list.
+  index?: SourceIndex
   selectedDocumentIds: number[]
+  folderTicks?: ReadonlyMap<number, Tick>
   highlightedDocumentId: number | null
   isLoading: boolean
   isDeleting: boolean
@@ -461,15 +248,20 @@ export function SourcesPanel({
   onDelete: (documentId: number) => void
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
+  onFolderSelectionChange?: (folderId: number, selected: boolean) => void
   onToggleAll: () => void
-  // Files dropped on the panel. Absent, the panel takes no drop: the caller
-  // withholds it while an upload runs, as it disables Add.
-  onDropFiles?: (files: File[]) => void
+  // Files dropped on the panel, and the folder row they fell on (null for
+  // the top level). Absent, the panel takes no drop: the caller withholds it
+  // while an upload runs, as it disables Add.
+  onDropFiles?: (entries: UploadEntry[], folderId: number | null) => void
   // Absent, the panel offers no rename and no notes.
   onRename?: (documentId: number, title: string) => Promise<boolean>
+  // Absent, the panel offers no folders to make, move or delete.
+  folderActions?: FolderActions
   notes?: NoteActions
 }) {
-  const sourceRows = useRef(new Map<number, HTMLLIElement>())
+  const flatIndex = useMemo(() => indexSources([], documents), [documents])
+  const index = givenIndex ?? flatIndex
   const drop = useFileDrop(onDropFiles)
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
@@ -481,6 +273,16 @@ export function SourcesPanel({
   const [renameOpen, setRenameOpen] = useState(false)
   const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
+  const [folderNameTarget, setFolderNameTarget] =
+    useState<FolderNameTarget | null>(null)
+  const [folderNameOpen, setFolderNameOpen] = useState(false)
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null)
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [folderDeleteTarget, setFolderDeleteTarget] =
+    useState<FolderDeleteTarget | null>(null)
+  const [folderDeleteOpen, setFolderDeleteOpen] = useState(false)
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set())
+  const [filter, setFilter] = useState("")
   const openNote = (documentId: number | null) => {
     setNoteTarget({ documentId })
     setNoteOpen(true)
@@ -491,19 +293,79 @@ export function SourcesPanel({
       : deleteTarget
         ? 1
         : 0
-  useEffect(() => {
-    if (highlightedDocumentId === null) return
-    sourceRows.current
-      .get(highlightedDocumentId)
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
-  }, [highlightedDocumentId])
+  const hasFolders = index.folders.size > 0
+  // Folders are made in the root folder, so an API without one offers none.
+  const organizing = folderActions !== undefined && index.rootFolderId !== null
+  const showFilter = hasFolders || documents.length > FILTER_FROM_SOURCES
+
+  const setFolderExpanded = (folderId: number, open: boolean) =>
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (open) next.add(folderId)
+      else next.delete(folderId)
+      return next
+    })
+
+  const moveInto = async (
+    source: DraggedSource,
+    to: FolderKey
+  ): Promise<boolean> => {
+    const folderId = folderIdFor(index, to)
+    if (!folderActions || folderId === null) return false
+    const moved =
+      source.kind === "document"
+        ? await folderActions.moveDocuments([source.id], folderId)
+        : await folderActions.move(source.id, folderId)
+    if (moved && to !== null) setFolderExpanded(to, true)
+    return moved
+  }
+
+  const folderRowActions: FolderRowActions | undefined = organizing
+    ? {
+        onTickChange: (folderId, included) =>
+          onFolderSelectionChange?.(folderId, included),
+        onNewFolder: (parent) => {
+          setFolderNameTarget({ kind: "create", parentId: parent })
+          setFolderNameOpen(true)
+        },
+        onRename: (folder) => {
+          setFolderNameTarget({
+            kind: "rename",
+            folderId: folder.id,
+            name: folder.name,
+          })
+          setFolderNameOpen(true)
+        },
+        onDelete: (folder) => {
+          // The server's count: it knows the filed outputs the tree never lists.
+          void (
+            folderActions?.summarize(folder.id) ?? Promise.resolve(null)
+          ).then((summary) => {
+            setFolderDeleteTarget({
+              id: folder.id,
+              name: folder.name,
+              sources:
+                summary?.sources ?? documentsUnder(index, folder.id).length,
+              artifacts: summary?.artifacts ?? 0,
+            })
+            setFolderDeleteOpen(true)
+          })
+        },
+        onMoveRequest: (target) => {
+          setMoveTarget(target)
+          setMoveOpen(true)
+        },
+        onDrop: (source, to) => void moveInto(source, to),
+      }
+    : undefined
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
   const readyCount = documents.filter(
     (document) => document.status === "ready"
   ).length
-  const allSelected =
-    readyCount > 0 && selectedDocumentIds.length === readyCount
+  const allSelected = folderTicks
+    ? folderTicks.get(TOP_TICK) === "checked"
+    : readyCount > 0 && selectedDocumentIds.length === readyCount
   const listHeader = (
     // Wraps to a second line, rather than clipping, once a language's Select
     // all / Deselect all no longer fits beside the title and Add.
@@ -555,6 +417,32 @@ export function SourcesPanel({
               })}
             </Button>
           ) : null}
+          {organizing ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={intl.formatMessage({
+                      id: "sources_new_folder_aria",
+                      defaultMessage: "New folder",
+                    })}
+                    onClick={() => folderRowActions?.onNewFolder(null)}
+                  >
+                    <FolderAddIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent side="top">
+                {intl.formatMessage({
+                  id: "sources_new_folder_tooltip",
+                  defaultMessage: "New folder",
+                })}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           {addAction}
         </div>
       </div>
@@ -580,54 +468,81 @@ export function SourcesPanel({
         {...drop.handlers}
       >
         {drop.active ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-ring/60 bg-app-shell p-4 text-center text-sm text-muted-foreground">
-            {intl.formatMessage({
-              id: "sources_drop_label",
-              defaultMessage: "Drop files to add them as sources",
-            })}
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 z-10 flex justify-center rounded-xl border-2 border-dashed border-ring/60 p-4 text-center text-sm text-muted-foreground",
+              // Folder rows stay in sight, since a drop on one files into it.
+              hasFolders
+                ? "items-end bg-app-shell/40"
+                : "items-center bg-app-shell"
+            )}
+          >
+            <span
+              className={cn(hasFolders && "rounded-md bg-app-shell px-2 py-1")}
+            >
+              {intl.formatMessage({
+                id: "sources_drop_label",
+                defaultMessage: "Drop files to add them as sources",
+              })}
+            </span>
           </div>
         ) : null}
         {listHeader}
+        {showFilter ? (
+          <InputGroup className="mb-2 h-8 shrink-0">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={filter}
+              placeholder={intl.formatMessage({
+                id: "sources_filter_placeholder",
+                defaultMessage: "Filter by name",
+              })}
+              aria-label={intl.formatMessage({
+                id: "sources_filter_aria",
+                defaultMessage: "Filter sources by name",
+              })}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+          </InputGroup>
+        ) : null}
         <ScrollFade className="min-h-0 flex-1">
           {isLoading ? (
             <SkeletonSlabs />
-          ) : documents.length > 0 ? (
-            <ul className="flex list-none flex-col gap-1">
-              {documents.map((document) => (
-                <SelectableSourceRow
-                  key={document.id}
-                  document={document}
-                  selected={selectedDocumentIdSet.has(document.id)}
-                  highlighted={highlightedDocumentId === document.id}
-                  rowRef={(node) => {
-                    if (node) sourceRows.current.set(document.id, node)
-                    else sourceRows.current.delete(document.id)
-                  }}
-                  onOpen={() => onOpen(document.id)}
-                  onPreview={() => onPreview?.(document.id)}
-                  onReveal={() => onReveal(document.id)}
-                  onRetry={() => onRetry(document.id)}
-                  onCancel={() => onCancel(document.id)}
-                  onDelete={() => {
-                    setDeleteTarget(document)
-                    setDeleteOpen(true)
-                  }}
-                  onRename={
-                    onRename
-                      ? () => {
-                          setRenameTarget(document)
-                          setRenameOpen(true)
-                        }
-                      : undefined
-                  }
-                  onEditNote={notes ? () => openNote(document.id) : undefined}
-                  isDeleting={isDeleting}
-                  onSelectedChange={(selected) =>
-                    onSelectionChange(document.id, selected)
-                  }
-                />
-              ))}
-            </ul>
+          ) : documents.length > 0 || hasFolders ? (
+            <SourceTree
+              index={index}
+              expanded={expanded}
+              onExpandedChange={setFolderExpanded}
+              filter={filter}
+              selectedDocumentIds={selectedDocumentIdSet}
+              folderTicks={folderTicks ?? new Map()}
+              highlightedDocumentId={highlightedDocumentId}
+              isDeleting={isDeleting}
+              labelledBy="all-sources"
+              documentActions={{
+                onOpen,
+                onPreview,
+                onReveal,
+                onRetry,
+                onCancel,
+                onDelete: (document) => {
+                  setDeleteTarget(document)
+                  setDeleteOpen(true)
+                },
+                onRename: onRename
+                  ? (document) => {
+                      setRenameTarget(document)
+                      setRenameOpen(true)
+                    }
+                  : undefined,
+                onEditNote: notes ? (id) => openNote(id) : undefined,
+                onSelectionChange,
+              }}
+              folderActions={folderRowActions}
+            />
           ) : (
             <Empty className="min-h-0 border-0 px-2">
               <EmptyHeader>
@@ -745,6 +660,50 @@ export function SourcesPanel({
             if (!open) setNoteTarget(null)
           }}
         />
+      ) : null}
+      {folderActions ? (
+        <>
+          <FolderNameDialog
+            target={folderNameTarget}
+            open={folderNameOpen}
+            onOpenChange={setFolderNameOpen}
+            onOpenChangeComplete={(open) => {
+              if (!open) setFolderNameTarget(null)
+            }}
+            onSubmit={async (target, name) => {
+              if (target.kind === "rename") {
+                return folderActions.rename(target.folderId, name)
+              }
+              const created = await folderActions.create(
+                folderIdFor(index, target.parentId),
+                name
+              )
+              if (created && target.parentId !== null) {
+                setFolderExpanded(target.parentId, true)
+              }
+              return created
+            }}
+          />
+          <MoveToDialog
+            index={index}
+            target={moveTarget}
+            open={moveOpen}
+            onOpenChange={setMoveOpen}
+            onOpenChangeComplete={(open) => {
+              if (!open) setMoveTarget(null)
+            }}
+            onMove={(target, to) => moveInto(target, to)}
+          />
+          <DeleteFolderDialog
+            target={folderDeleteTarget}
+            open={folderDeleteOpen}
+            onOpenChange={setFolderDeleteOpen}
+            onOpenChangeComplete={(open) => {
+              if (!open) setFolderDeleteTarget(null)
+            }}
+            onDelete={(folderId) => void folderActions.remove(folderId)}
+          />
+        </>
       ) : null}
     </>
   )

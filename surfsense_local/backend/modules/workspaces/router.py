@@ -7,6 +7,7 @@ from sqlalchemy import select
 from api.dependencies import SessionDep
 from modules.agent.agent_threads.forget_sessions import forget_workspace_sessions
 from modules.plugins.stop_workspace_runs import stop_workspace_runs
+from modules.source_roots.managed_root import ensure_managed_root
 from modules.workspaces.dependencies import WorkspaceDep
 from modules.workspaces.models import Workspace
 from modules.workspaces.schemas import WorkspaceCreate, WorkspaceRead, WorkspaceUpdate
@@ -27,6 +28,7 @@ def create_workspace(payload: WorkspaceCreate, session: SessionDep) -> Workspace
     # The id and the timestamps are assigned by the database, and the response
     # needs them before the dependency commits.
     session.flush()
+    ensure_managed_root(session, workspace.id)
     return workspace
 
 

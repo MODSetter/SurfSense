@@ -73,6 +73,7 @@ export function ReplyThinking({
   reasoning,
   progress = null,
   queue = null,
+  preparing = null,
 }: {
   running: boolean
   answerStarted: boolean
@@ -80,6 +81,8 @@ export function ReplyThinking({
   progress?: ReplyProgress | null
   // The reply's place in line for the local runtime, while it waits there.
   queue?: { position: number } | null
+  // An agent turn's sources being put in its folder, before anything else.
+  preparing?: number | null
 }) {
   const status = replyStatus(running, answerStarted, reasoning)
   if (!status) {
@@ -91,6 +94,7 @@ export function ReplyThinking({
       reasoning={reasoning}
       read={status === "pending" ? readFraction(progress) : null}
       waiting={status === "pending" ? (queue?.position ?? null) : null}
+      preparing={status === "pending" && preparing ? preparing : null}
     />
   )
 }
@@ -123,11 +127,23 @@ function readingLabel(fraction: number) {
   )
 }
 
+function preparingLabel(count: number) {
+  return intl.formatMessage(
+    {
+      id: "chat_reasoning_preparing_label",
+      defaultMessage:
+        "Preparing {count, plural, one {# source} other {# sources}}…",
+    },
+    { count }
+  )
+}
+
 function ReplyHeader({
   status,
   reasoning,
   read,
   waiting = null,
+  preparing,
 }: {
   status: ReplyStatus
   reasoning: ReplyReasoning | null
@@ -135,6 +151,8 @@ function ReplyHeader({
   read: number | null
   // The place in line while the reply waits for the local runtime.
   waiting?: number | null
+  // Sources being prepared, or null when none are.
+  preparing: number | null
 }) {
   const working = status !== "done"
   // Open while the trace streams and folded once the answer starts, unless the
@@ -169,17 +187,21 @@ function ReplyHeader({
     ? doneLabel(reasoning?.durationMs ?? null)
     : waiting !== null
       ? waitingLabel(waiting)
-      : read === null
-        ? thinking
-        : readingLabel(read)
+      : preparing !== null
+        ? preparingLabel(preparing)
+        : read === null
+          ? thinking
+          : readingLabel(read)
   const announcedRead =
     read === null ? 0 : Math.floor(read / ANNOUNCED_STEP) * ANNOUNCED_STEP
   const announcement =
     waiting !== null
       ? waitingLabel(waiting)
-      : announcedRead > 0
-        ? readingLabel(announcedRead)
-        : thinking
+      : preparing !== null
+        ? preparingLabel(preparing)
+        : announcedRead > 0
+          ? readingLabel(announcedRead)
+          : thinking
 
   return (
     <div className="mb-3 w-full">

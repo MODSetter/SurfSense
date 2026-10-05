@@ -112,6 +112,7 @@ function renderRuntime() {
         workspaceId: WORKSPACE,
         canSend: true,
         selectedDocumentIds: [],
+        selectedSourceTitles: [],
         readsImages: false,
         canSkipThinking: false,
         onModelRequired: vi.fn(),

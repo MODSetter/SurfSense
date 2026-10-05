@@ -13,7 +13,8 @@ import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
 import { AgentSteps } from "@/features/agent/agent-steps"
-import type { AgentStep } from "@/features/agent/api"
+import type { AgentStep, TurnSources } from "@/features/agent/api"
+import { WorkingFrom } from "@/features/agent/working-from"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -93,6 +94,13 @@ function queueFrom(custom: unknown): { position: number } | null {
   return null
 }
 
+function preparingFrom(custom: unknown): number | null {
+  if (typeof custom === "object" && custom !== null && "preparing" in custom) {
+    return (custom.preparing as number | null) ?? null
+  }
+  return null
+}
+
 function MessageThinking() {
   const messageId = useAuiState(({ message }) => message.id)
   const completed = useAuiState(
@@ -113,6 +121,9 @@ function MessageThinking() {
     progressFrom(message.metadata.custom)
   )
   const queue = useAuiState(({ message }) => queueFrom(message.metadata.custom))
+  const preparing = useAuiState(({ message }) =>
+    preparingFrom(message.metadata.custom)
+  )
 
   return (
     <>
@@ -130,6 +141,7 @@ function MessageThinking() {
         reasoning={reasoning}
         progress={progress}
         queue={queue}
+        preparing={preparing}
       />
     </>
   )
@@ -149,7 +161,26 @@ function stepsFrom(custom: unknown): AgentStep[] {
 
 function MessageSteps() {
   const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
-  return <AgentSteps steps={steps} />
+  // The turn's sources are kept on the user's message this reply answers.
+  const scope = useAuiState(({ thread, message }) => {
+    const asked = thread.messages
+      .slice(0, message.index)
+      .findLast((candidate) => candidate.role === "user")
+    return asked ? scopeFrom(asked.metadata.custom) : null
+  })
+  return <AgentSteps steps={steps} scope={scope} />
+}
+
+function scopeFrom(custom: unknown): TurnSources | null {
+  if (typeof custom === "object" && custom !== null && "scope" in custom) {
+    return (custom.scope as TurnSources | null) ?? null
+  }
+  return null
+}
+
+function MessageScope() {
+  const scope = useAuiState(({ message }) => scopeFrom(message.metadata.custom))
+  return <WorkingFrom scope={scope} />
 }
 
 function MessageTimestamp() {
@@ -254,6 +285,9 @@ export function UserMessage() {
       <div className="max-w-[78%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-primary-foreground">
         <MessagePrimitive.Parts />
       </div>
+      <div className="mt-1.5 flex w-full justify-end empty:hidden">
+        <MessageScope />
+      </div>
       <MessageActions className="top-1" />
     </MessagePrimitive.Root>
   )
@@ -264,11 +298,13 @@ export function AssistantMessage({
   onCitation,
   onModelSetup,
   onRetry,
+  onNewChat,
 }: {
   citations: Citation[]
   onCitation: (chunkId: number) => void
   onModelSetup: () => void
   onRetry: (assistantId: string) => void
+  onNewChat: () => void
 }) {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
@@ -279,7 +315,11 @@ export function AssistantMessage({
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>
       </CitationProvider>
-      <ChatErrorNotice onModelSetup={onModelSetup} onRetry={onRetry} />
+      <ChatErrorNotice
+        onModelSetup={onModelSetup}
+        onRetry={onRetry}
+        onNewChat={onNewChat}
+      />
       <MessageActions hideWhenRunning timestampRight className="top-0.5" />
     </MessagePrimitive.Root>
   )

@@ -15,9 +15,10 @@ export type LivePair = [ChatMessage, ChatMessage]
  * `accepted` frame makes one, and the question's text is the stored turn's.
  */
 export function applyFrame(
-  pair: LivePair | null,
+  previous: LivePair | null,
   event: ChatStreamEvent
 ): LivePair | null {
+  const pair = withoutPreparing(previous, event)
   if (event.type === "accepted") {
     if (pair === null) {
       return [
@@ -48,6 +49,16 @@ export function applyFrame(
     reply((current) => ({ content: change(current) }))
 
   switch (event.type) {
+    case "agent-preparing":
+      return content((current) => ({ ...current, preparing: event.count }))
+    case "agent-scope": {
+      // The server's resolution replaces the panel's guess.
+      const [user, assistant] = pair
+      return [
+        { ...user, content: { ...user.content, scope: event.scope } },
+        assistant,
+      ]
+    }
     case "run-state":
       return content((current) =>
         event.state === "queued"
@@ -128,8 +139,22 @@ function turn(
 function stepFrom(
   event: Extract<ChatStreamEvent, { type: "agent-step" }>
 ): AgentStep {
-  const { id, tool, status, title, input, output, error } = event
-  return { id, tool, status, title, input, output, error }
+  const { id, tool, status, title, input, output, error, artifact } = event
+  return { id, tool, status, title, input, output, error, artifact }
+}
+
+/** An agent turn's preparing line shows from its frame until any other arrives. */
+function withoutPreparing(
+  pair: LivePair | null,
+  event: ChatStreamEvent
+): LivePair | null {
+  if (pair === null || event.type === "agent-preparing") return pair
+  const [user, assistant] = pair
+  if (assistant.content.preparing === undefined) return pair
+  return [
+    user,
+    { ...assistant, content: { ...assistant.content, preparing: undefined } },
+  ]
 }
 
 /** The reply's steps with this one added, or updated where it already is. */

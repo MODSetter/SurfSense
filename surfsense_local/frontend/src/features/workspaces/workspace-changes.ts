@@ -1,6 +1,7 @@
 import { followWorkspaceEvents } from "./api"
 
-export type WorkspaceChangeKind = "documents" | "artifacts" | "chat-runs"
+export type WorkspaceChangeKind =
+  "documents" | "artifacts" | "chat-runs" | "folders"
 
 /** Which rows changed and to what; absent when a dropped stream came back. */
 export type WorkspaceChange = { ids: number[]; status: string }

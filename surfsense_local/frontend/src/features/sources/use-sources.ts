@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
@@ -10,13 +10,23 @@ import {
   createNote,
   deleteDocument,
   getDocument,
-  isSupportedSourceFile,
   listDocuments,
   retryDocument,
   updateDocument,
   uploadDocuments,
+  type UploadOutcome,
   type WorkspaceDocument,
 } from "./api"
+import {
+  MAX_SOURCE_BYTES,
+  planUpload,
+  type UploadEntry,
+} from "./folder-upload/upload-plan"
+import { indexSources } from "./tree/source-index"
+import { useFolders } from "./tree/use-folders"
+import { useSourceScope } from "./tree/use-source-scope"
+
+const MAX_SOURCE_MEGABYTES = MAX_SOURCE_BYTES / 1024 / 1024
 
 // The worker's notices are best-effort: one lost while a row is in flight would
 // leave it stale, so the list is still re-read now and then until none is.
@@ -49,18 +59,9 @@ function wait(milliseconds: number, signal: AbortSignal) {
   })
 }
 
-function readyIdsOf(documents: WorkspaceDocument[]) {
-  return documents.flatMap((document) =>
-    document.status === "ready" ? [document.id] : []
-  )
-}
-
 export function useSources(workspaceId: number) {
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([])
   const [selectedDocumentIdSet, setSelectedDocumentIdSet] = useState(
-    () => new Set<number>()
-  )
-  const [excludedDocumentIdSet, setExcludedDocumentIdSet] = useState(
     () => new Set<number>()
   )
   const [isLoading, setIsLoading] = useState(true)
@@ -140,7 +141,7 @@ export function useSources(workspaceId: number) {
   }, [hasActiveIngestion, workspaceId])
 
   // Without the loading state: the list is on screen, and only its rows move.
-  useWorkspaceChanges(workspaceId, "documents", () => {
+  const reloadQuietly = () => {
     changeController.current?.abort()
     const controller = new AbortController()
     changeController.current = controller
@@ -154,7 +155,15 @@ export function useSources(workspaceId: number) {
       .catch(() => {
         // The next change, or the re-read while something ingests, reloads.
       })
-  })
+  }
+  useWorkspaceChanges(workspaceId, "documents", reloadQuietly)
+
+  const folders = useFolders(workspaceId, reloadQuietly)
+  const index = useMemo(
+    () => indexSources(folders.folders, documents),
+    [documents, folders.folders]
+  )
+  const scope = useSourceScope(index, documents)
 
   const refresh = async () => {
     listController.current?.abort()
@@ -322,34 +331,54 @@ export function useSources(workspaceId: number) {
     return { title: document.title, content: document.content ?? "" }
   }
 
-  const upload = async (files: File[]) => {
-    if (files.length === 0) {
+  const uploadFailed = (count: number, description: string) =>
+    errorToast(
+      intl.formatMessage(
+        {
+          id: "sources_upload_failed_toast",
+          defaultMessage:
+            "{count, plural, one {Couldn’t add your source} other {Couldn’t add your sources}}",
+        },
+        { count }
+      ),
+      { id: "source-upload-error", description }
+    )
+
+  /**
+   * Adds files, or a folder's files with their paths, under `folderId` (the
+   * top level when null). A folder goes up in several requests.
+   */
+  const uploadEntries = async (
+    entries: UploadEntry[],
+    folderId: number | null = null
+  ) => {
+    if (entries.length === 0) {
       return
     }
-    const supported = files.filter(isSupportedSourceFile)
-    const unsupported = files.filter((file) => !isSupportedSourceFile(file))
-    if (supported.length === 0) {
-      errorToast(
-        intl.formatMessage(
-          {
-            id: "sources_upload_failed_toast",
-            defaultMessage:
-              "{count, plural, one {Couldn’t add your source} other {Couldn’t add your sources}}",
-          },
-          { count: files.length }
-        ),
-        {
-          id: "source-upload-error",
-          description: intl.formatMessage(
-            {
-              id: "sources_upload_unsupported_error",
-              defaultMessage: "Unsupported file type: {files}",
-            },
-            {
-              files: unsupported.map((file) => file.name).join(", "),
-            }
-          ),
-        }
+    const fromFolder = entries.some((entry) => entry.relativePath !== null)
+    const plan = planUpload(entries)
+    const unsupportedNames = plan.unsupported.map((file) => file.name)
+    if (plan.batches.length === 0) {
+      uploadFailed(
+        entries.length,
+        plan.tooLarge.length > 0
+          ? intl.formatMessage(
+              {
+                id: "sources_upload_too_large_error",
+                defaultMessage: "Over {size, number, ::unit/megabyte}: {files}",
+              },
+              {
+                size: MAX_SOURCE_MEGABYTES,
+                files: plan.tooLarge.map((file) => file.name).join(", "),
+              }
+            )
+          : intl.formatMessage(
+              {
+                id: "sources_upload_unsupported_error",
+                defaultMessage: "Unsupported file type: {files}",
+              },
+              { files: unsupportedNames.join(", ") }
+            )
       )
       return
     }
@@ -358,25 +387,34 @@ export function useSources(workspaceId: number) {
     uploadController.current = controller
     setIsUploading(true)
     setError(null)
+    const outcome: UploadOutcome = { created: [], duplicates: [], rejected: [] }
     try {
-      const outcome = await uploadDocuments(
-        workspaceId,
-        supported,
-        controller.signal
-      )
-      if (uploadController.current !== controller) {
-        return
-      }
-      setDocuments((current) => {
-        const createdIds = new Set(
-          outcome.created.map((document) => document.id)
+      for (const batch of plan.batches) {
+        const answered = await uploadDocuments(
+          workspaceId,
+          batch.files,
+          controller.signal,
+          { folderId, relativePaths: batch.relativePaths }
         )
-        // In the server's order, newest first, so the next refetch moves nothing.
-        return [
-          ...[...outcome.created].reverse(),
-          ...current.filter((document) => !createdIds.has(document.id)),
-        ]
-      })
+        if (uploadController.current !== controller) {
+          return
+        }
+        outcome.created.push(...answered.created)
+        outcome.duplicates.push(...answered.duplicates)
+        outcome.rejected.push(...answered.rejected)
+        setDocuments((current) => {
+          const createdIds = new Set(
+            answered.created.map((document) => document.id)
+          )
+          // In the server's order, newest first, so the next refetch moves nothing.
+          return [
+            ...[...answered.created].reverse(),
+            ...current.filter((document) => !createdIds.has(document.id)),
+          ]
+        })
+        // A folder's paths made folders on the server.
+        if (batch.relativePaths) folders.reload()
+      }
       const count = outcome.created.length
       const title =
         count > 0
@@ -392,6 +430,19 @@ export function useSources(workspaceId: number) {
               id: "sources_upload_none_added_toast",
               defaultMessage: "No new sources added",
             })
+      const rejected = [
+        ...plan.tooLarge.map((file) => ({
+          filename: file.name,
+          reason: intl.formatMessage(
+            {
+              id: "sources_upload_too_large_reason_label",
+              defaultMessage: "Over {size, number, ::unit/megabyte}",
+            },
+            { size: MAX_SOURCE_MEGABYTES }
+          ),
+        })),
+        ...outcome.rejected,
+      ]
       const description = [
         count > 0
           ? intl.formatMessage({
@@ -399,38 +450,54 @@ export function useSources(workspaceId: number) {
               defaultMessage: "Ingestion is running in the background.",
             })
           : null,
-        outcome.duplicates.length > 0
-          ? intl.formatMessage(
-              {
-                id: "sources_upload_duplicates_body",
-                defaultMessage: "Already present: {files}",
-              },
-              {
-                files: outcome.duplicates
-                  .map((duplicate) => duplicate.filename)
-                  .join(", "),
-              }
-            )
-          : null,
-        unsupported.length > 0
-          ? intl.formatMessage(
-              {
-                id: "sources_upload_unsupported_body",
-                defaultMessage: "Not supported: {files}",
-              },
-              {
-                files: unsupported.map((file) => file.name).join(", "),
-              }
-            )
-          : null,
-        outcome.rejected.length > 0
+        outcome.duplicates.length === 0
+          ? null
+          : fromFolder
+            ? intl.formatMessage(
+                {
+                  id: "sources_upload_folder_duplicates_body",
+                  defaultMessage:
+                    "{count, plural, one {# file was already in its folder.} other {# files were already in their folders.}}",
+                },
+                { count: outcome.duplicates.length }
+              )
+            : intl.formatMessage(
+                {
+                  id: "sources_upload_duplicates_body",
+                  defaultMessage: "Already present: {files}",
+                },
+                {
+                  files: outcome.duplicates
+                    .map((duplicate) => duplicate.filename)
+                    .join(", "),
+                }
+              ),
+        unsupportedNames.length === 0
+          ? null
+          : fromFolder
+            ? intl.formatMessage(
+                {
+                  id: "sources_upload_folder_unsupported_body",
+                  defaultMessage:
+                    "{count, plural, one {Skipped # file of a type SurfSense can’t read.} other {Skipped # files of types SurfSense can’t read.}}",
+                },
+                { count: unsupportedNames.length }
+              )
+            : intl.formatMessage(
+                {
+                  id: "sources_upload_unsupported_body",
+                  defaultMessage: "Not supported: {files}",
+                },
+                { files: unsupportedNames.join(", ") }
+              ),
+        rejected.length > 0
           ? intl.formatMessage(
               {
                 id: "sources_upload_rejected_body",
                 defaultMessage: "Rejected: {files}",
               },
               {
-                files: outcome.rejected
+                files: rejected
                   .map((rejection) =>
                     intl.formatMessage(
                       {
@@ -461,20 +528,8 @@ export function useSources(workspaceId: number) {
       }
     } catch (cause) {
       if (!isAbort(cause) && uploadController.current === controller) {
-        errorToast(
-          intl.formatMessage(
-            {
-              id: "sources_upload_failed_toast",
-              defaultMessage:
-                "{count, plural, one {Couldn’t add your source} other {Couldn’t add your sources}}",
-            },
-            { count: files.length }
-          ),
-          {
-            id: "source-upload-error",
-            description: messageFrom(cause),
-          }
-        )
+        if (outcome.created.length > 0) folders.reload()
+        uploadFailed(entries.length, messageFrom(cause))
       }
     } finally {
       if (uploadController.current === controller) {
@@ -483,13 +538,14 @@ export function useSources(workspaceId: number) {
     }
   }
 
+  const upload = (files: File[], folderId: number | null = null) =>
+    uploadEntries(
+      files.map((file) => ({ file, relativePath: null })),
+      folderId
+    )
+
   const selectedDocumentIds = documents.flatMap((document) =>
     document.status === "ready" && selectedDocumentIdSet.has(document.id)
-      ? [document.id]
-      : []
-  )
-  const includedDocumentIds = documents.flatMap((document) =>
-    document.status === "ready" && !excludedDocumentIdSet.has(document.id)
       ? [document.id]
       : []
   )
@@ -504,26 +560,6 @@ export function useSources(workspaceId: number) {
       }
       return next
     })
-  }
-
-  const setDocumentIncluded = (documentId: number, included: boolean) => {
-    setExcludedDocumentIdSet((current) => {
-      const next = new Set(current)
-      if (included) {
-        next.delete(documentId)
-      } else {
-        next.add(documentId)
-      }
-      return next
-    })
-  }
-
-  const toggleAllIncluded = () => {
-    const readyIds = readyIdsOf(documents)
-    const allIncluded =
-      readyIds.length > 0 &&
-      readyIds.every((id) => !excludedDocumentIdSet.has(id))
-    setExcludedDocumentIdSet(allIncluded ? new Set(readyIds) : new Set())
   }
 
   const deleteOne = async (documentId: number) => {
@@ -590,8 +626,13 @@ export function useSources(workspaceId: number) {
 
   return {
     documents,
+    folders: folders.folders,
+    folderActions: folders.actions,
+    index,
     selectedDocumentIds,
-    includedDocumentIds,
+    includedDocumentIds: scope.includedDocumentIds,
+    sourceScope: scope.scope,
+    folderTicks: scope.ticks,
     isLoading,
     isUploading,
     isDeleting,
@@ -608,8 +649,10 @@ export function useSources(workspaceId: number) {
     deleteOne,
     deleteSelected,
     setDocumentSelected,
-    setDocumentIncluded,
-    toggleAllIncluded,
+    setDocumentIncluded: scope.setDocumentIncluded,
+    setFolderIncluded: scope.setFolderIncluded,
+    toggleAllIncluded: scope.toggleAllIncluded,
     upload,
+    uploadEntries,
   }
 }

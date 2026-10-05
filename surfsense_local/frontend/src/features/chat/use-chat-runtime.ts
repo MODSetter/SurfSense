@@ -17,8 +17,11 @@ import {
   answerPermission,
   type PermissionReply,
   type PermissionRequest,
+  type TurnSources,
 } from "@/features/agent/api"
+import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
 import { errorToast } from "@/features/feedback/error-toast"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { subscribeToWorkspaceChanges } from "@/features/workspaces/workspace-changes"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
@@ -64,9 +67,13 @@ import { markRead, markUnread, readUnread } from "./runs/unread-replies"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
 import { readThinkingOn } from "./thinking-preference"
 
+/** A backend error kind, or a refusal the app recognises before any stream:
+ *  a turn on an agent thread that predates per-chat folders. */
+export type ChatTurnErrorKind = ChatErrorKind | "agent_thread_outdated"
+
 export type ChatTurnError = {
   // `interrupted`: the app closed under the reply; no frame carries it.
-  kind: ChatErrorKind | "interrupted"
+  kind: ChatTurnErrorKind | "interrupted"
   message: string
   provider: string
   /** The request failed before an SSE frame classified the backend error. */
@@ -233,6 +240,8 @@ function toRuntimeMessage(
           : null,
         progress: message.content.progress ?? null,
         queue: message.content.queue ?? null,
+        preparing: message.content.preparing ?? null,
+        scope: message.content.scope ?? null,
       },
     },
   }
@@ -241,7 +250,8 @@ function toRuntimeMessage(
 function optimisticPair(
   version: number,
   text: string,
-  images: ImageUpload[]
+  images: ImageUpload[],
+  scope: TurnSources | null
 ): LivePair {
   return [
     {
@@ -250,6 +260,7 @@ function optimisticPair(
       content: {
         text,
         ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
+        ...(scope ? { scope } : {}),
       },
       created_at: null,
       completed_at: null,
@@ -268,6 +279,8 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  selectedSourceTitles,
+  sourceScope = null,
   readsImages,
   canSkipThinking,
   onModelRequired,
@@ -275,6 +288,10 @@ export function useChatRuntime({
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // Each selected source's title, in the order of `selectedDocumentIds`.
+  selectedSourceTitles: string[]
+  // What the server resolves into the turn's sources, so none is left out.
+  sourceScope?: SourceScope | null
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
@@ -601,6 +618,8 @@ export function useChatRuntime({
       const version = ++requestVersion.current
       let threadId =
         conversationView.status === "active" ? conversationView.threadId : null
+      let usesAgent =
+        threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
@@ -612,6 +631,7 @@ export function useChatRuntime({
             return
           }
           threadId = thread.id
+          usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(
             chatKeys.threads(workspaceId),
             (current = []) => [
@@ -634,7 +654,18 @@ export function useChatRuntime({
 
       const runThreadId = threadId
       const signal = beginRun(runThreadId, {
-        pair: optimisticPair(version, text, images),
+        pair: optimisticPair(
+          version,
+          text,
+          images,
+          // The agent works from these alone; a chat's turn shows no line.
+          usesAgent
+            ? {
+                document_ids: selectedDocumentIds,
+                titles: selectedSourceTitles,
+              }
+            : null
+        ),
         replaces,
         retry: { text, images },
       })
@@ -646,6 +677,7 @@ export function useChatRuntime({
             text,
             images,
             selectedDocumentIds,
+            sourceScope,
             !canSkipThinking || readThinkingOn(),
             retryOf,
             signal
@@ -659,6 +691,21 @@ export function useChatRuntime({
         ) {
           dropRun(runThreadId)
           onModelRequired()
+        } else if (isOutdatedThreadRefusal(cause)) {
+          updatePair(runThreadId, ([user, assistant]) => [
+            user,
+            {
+              ...assistant,
+              content: {
+                ...assistant.content,
+                ending: {
+                  type: "error",
+                  kind: "agent_thread_outdated",
+                  message: "",
+                },
+              },
+            },
+          ])
         } else if (!isAbort(cause)) {
           // The request to our own backend failed before any SSE frame could
           // classify it (network drop, bad response, etc.) — "unknown" maps
@@ -694,6 +741,9 @@ export function useChatRuntime({
       onModelRequired,
       queryClient,
       selectedDocumentIds,
+      selectedSourceTitles,
+      sourceScope,
+      threads,
       workspaceId,
     ]
   )

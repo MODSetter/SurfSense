@@ -10,7 +10,7 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }))
 
-const LIST = "document_type=FILE&document_type=NOTE"
+const LIST = "document_type=FILE&document_type=NOTE&limit=200&offset=0"
 
 function source(id: number, title: string) {
   return {

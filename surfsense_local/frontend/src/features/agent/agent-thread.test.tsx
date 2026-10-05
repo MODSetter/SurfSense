@@ -75,6 +75,25 @@ function pausedStream(first: unknown[], gate: Promise<void>, rest: unknown[]) {
 
 type Backend = {
   answers: { requestId: string; reply: string }[]
+  sent: { document_ids?: number[]; source_scope?: { all: boolean } }[]
+}
+
+// The version a completed render made, as the API reads it back.
+const PROPOSAL = {
+  id: 40,
+  document_id: 140,
+  format: "summary",
+  generation: 1,
+  title: "Client proposal",
+  status: "ready",
+  error_message: null,
+  content: "The proposal body.",
+  files: [],
+  created_at: "2026-10-04T00:00:00Z",
+  updated_at: "2026-10-04T00:00:00Z",
+  version: { root_id: 40, number: 1, parent_id: null },
+  spec_kind: "python",
+  refinable: false,
 }
 
 /**
@@ -88,8 +107,9 @@ function backend({
   waitFor: waiting = [] as string[],
   stored = [] as unknown[],
   storedAfter = null as unknown[] | null,
+  documents = [] as unknown[],
 } = {}): Backend {
-  const state: Backend = { answers: [] }
+  const state: Backend = { answers: [], sent: [] }
   let sent = false
   let release: () => void = () => {}
   const gate = new Promise<void>((resolve) => {
@@ -105,8 +125,11 @@ function backend({
           { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
-      if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+      if (path.startsWith("/workspaces/1/documents")) {
+        return Response.json(documents)
+      }
       if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+      if (path === "/artifacts/40") return Response.json(PROPOSAL)
       const answer = path.match(/^\/chat\/threads\/10\/permissions\/(.+)$/)
       if (answer && init?.method === "POST") {
         const { reply } = JSON.parse(String(init.body)) as { reply: string }
@@ -120,6 +143,7 @@ function backend({
       }
       if (path === "/chat/threads/10/messages" && init?.method === "POST") {
         sent = true
+        state.sent.push(JSON.parse(String(init.body)))
         return new Response(pausedStream(first, gate, rest), {
           headers: { "Content-Type": "text/event-stream" },
         })
@@ -275,6 +299,102 @@ describe("an agent thread", () => {
     ).toBeTruthy()
   })
 
+  it("shows the sources a turn works from as it is sent", async () => {
+    const state = backend({
+      first: [ACCEPTED],
+      waitFor: ["never"],
+      documents: [
+        {
+          id: 5,
+          title: "Plan.pdf",
+          document_type: "FILE",
+          mime_type: "application/pdf",
+          status: "ready",
+          error_message: null,
+          created_at: "2026-10-01T00:00:00Z",
+          updated_at: "2026-10-01T00:00:00Z",
+        },
+      ],
+    })
+    renderAgentThread()
+    await screen.findByText("Plan.pdf")
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Working from Plan.pdf")).toBeTruthy()
+    expect(state.sent[0].document_ids).toEqual([5])
+  })
+
+  it("says how many sources it prepares before the turn begins", async () => {
+    backend({
+      first: [{ type: "agent-preparing", count: 1200 }],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(
+      (await screen.findAllByText("Preparing 1,200 sources…")).length
+    ).toBeGreaterThan(0)
+  })
+
+  it("stops saying it prepares sources once the next frame comes", async () => {
+    backend({
+      first: [{ type: "agent-preparing", count: 3 }, ACCEPTED],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect((await screen.findAllByText("Thinking")).length).toBeGreaterThan(0)
+    expect(screen.queryAllByText("Preparing 3 sources…")).toEqual([])
+  })
+
+  it("shows the sources the server resolved the ticks into", async () => {
+    const resolved = Array.from({ length: 300 }, (_, index) => index + 1)
+    const state = backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-scope",
+          scope: {
+            document_ids: resolved,
+            titles: resolved.map((id) => `Report ${id}`),
+          },
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Working from 300 sources")).toBeTruthy()
+    expect(state.sent[0].source_scope?.all).toBe(true)
+  })
+
+  it("shows the sources a stored turn worked from", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: {
+            text: "Compare them",
+            scope: {
+              document_ids: [1, 2, 3, 4],
+              titles: ["Plan", "Budget", "Memo", "Contract"],
+            },
+          },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("Compare them")).toBeTruthy()
+    expect(screen.getByText("Working from 4 sources")).toBeTruthy()
+  })
+
   it("shows the steps a stored reply took", async () => {
     backend({
       stored: [
@@ -310,6 +430,123 @@ describe("an agent thread", () => {
 
     expect(await screen.findByText("ls sources")).toBeTruthy()
     expect(await screen.findByText("There are two.")).toBeTruthy()
+  })
+
+  it("names the source a stored reply looked at the pages of", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: {
+            text: "Match the brand guide",
+            scope: { document_ids: [7, 8], titles: ["Notes", "Brand guide"] },
+          },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "It uses navy headings.",
+            steps: [
+              {
+                id: "prt_3",
+                tool: "surfsense_source_pages",
+                status: "completed",
+                title: "",
+                input: { document_id: 8 },
+                output: "",
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("It uses navy headings.")).toBeTruthy()
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent === "Looked at pages of Brand guide"
+      ).length
+    ).toBeGreaterThan(0)
+  })
+
+  it("names the source a reply looked at the pages of on every source", async () => {
+    // A turn on every source, or past 200, carries no titles to name it by.
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Match the brand guide" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "It uses navy headings.",
+            steps: [
+              {
+                id: "prt_3",
+                tool: "surfsense_source_pages",
+                status: "completed",
+                title: "",
+                input: { document_id: 8 },
+                output:
+                  'Source 8 ("Brand guide") has 3 pages.\nPages to open with read, at most 1000 px on their long side:\n- sources/pages/8-p1.png',
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("It uses navy headings.")).toBeTruthy()
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent === "Looked at pages of Brand guide"
+      ).length
+    ).toBeGreaterThan(0)
+  })
+
+  it("names the source a reply looks at the pages of as it streams", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-scope",
+          scope: { document_ids: [8], titles: ["Brand guide"] },
+        },
+        step("running", {
+          tool: "surfsense_source_pages",
+          input: { document_id: 8 },
+        }),
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("Match the brand guide")
+
+    expect(
+      (
+        await screen.findAllByText(
+          (_, element) =>
+            element?.textContent === "Looked at pages of Brand guide"
+        )
+      ).length
+    ).toBeGreaterThan(0)
   })
 
   it("names SurfSense's own tools in words, not by their tool names", async () => {
@@ -393,5 +630,169 @@ describe("an agent thread", () => {
     await screen.findByText("Stored once.")
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.getAllByText("Stored once.")).toHaveLength(1)
+  })
+
+  it("opens the document a render made in Studio from its step", async () => {
+    const renderStep = {
+      id: "prt_5",
+      tool: "surfsense_render_document",
+      title: null,
+      input: { title: "Client proposal", format: "docx", script: "..." },
+    }
+    backend({
+      first: [
+        ACCEPTED,
+        { type: "agent-step", status: "running", ...renderStep },
+      ],
+      rest: [
+        {
+          type: "agent-step",
+          status: "completed",
+          ...renderStep,
+          output: "Rendered artifact 40, version 1.",
+          artifact: { id: 40, title: "Client proposal", version: 1 },
+        },
+        { type: "completed", assistant_completed_at: null, text: "Done." },
+      ],
+    })
+    renderAgentThread()
+    const user = await ask("Draft the proposal")
+
+    await user.click(
+      await screen.findByRole("button", { name: "Created Client proposal v1" })
+    )
+    expect(await screen.findByText("The proposal body.")).toBeTruthy()
+    expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
+  })
+
+  it("says which version a stored reply’s render updated", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Make it shorter" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Shorter now.",
+            steps: [
+              {
+                id: "prt_6",
+                tool: "surfsense_render_document",
+                status: "completed",
+                title: "",
+                input: { title: "Client proposal", format: "docx" },
+                output: "Rendered artifact 41, version 2.",
+                artifact: { id: 41, title: "Client proposal", version: 2 },
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Updated Client proposal to v2",
+      })
+    ).toBeTruthy()
+  })
+
+  it("says a render created a document whose earlier versions all failed", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Draft the proposal" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Fixed the script.",
+            steps: [
+              {
+                id: "prt_6",
+                tool: "surfsense_render_document",
+                status: "completed",
+                title: "",
+                input: { title: "Client proposal", format: "docx" },
+                output: "Rendered artifact 41, version 2.",
+                // v1's script failed, so v2 is the first the user can open.
+                artifact: {
+                  id: 41,
+                  title: "Client proposal",
+                  version: 2,
+                  created: true,
+                },
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(
+      await screen.findByRole("button", { name: "Created Client proposal v2" })
+    ).toBeTruthy()
+  })
+
+  it("shows why a render failed instead of a document to open", async () => {
+    const failure =
+      "The script failed: AttributeError: 'Document' object has no attribute 'add_tabel'"
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Draft the proposal" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Fixing the script.",
+            steps: [
+              {
+                id: "prt_7",
+                tool: "surfsense_render_document",
+                // The tool's error result: opencode ends the step in error.
+                status: "error",
+                title: "",
+                input: { title: "Client proposal", format: "docx" },
+                error: failure,
+                artifact: null,
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+    const user = userEvent.setup()
+
+    await user.click(
+      await screen.findByText("Ran the document script for", { exact: false })
+    )
+    expect(screen.getByText(failure)).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Created|Updated/ })).toBeNull()
   })
 })

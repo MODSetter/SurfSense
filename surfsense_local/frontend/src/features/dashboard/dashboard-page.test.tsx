@@ -91,7 +91,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -183,7 +183,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -454,7 +454,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -613,7 +613,8 @@ describe("dashboard chat", () => {
         ])
       }
       if (
-        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
       ) {
         return Response.json([])
       }
@@ -697,7 +698,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -767,7 +768,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([
             {
@@ -941,6 +942,13 @@ describe("dashboard chat", () => {
     expect(JSON.parse(String(send?.[1]?.body))).toEqual({
       text: "What is indexed?",
       document_ids: [20],
+      source_scope: {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
     })
   })
 
@@ -991,7 +999,7 @@ describe("dashboard chat", () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
       expect(fetchMock).toHaveBeenCalledWith(
-        "/workspaces/2/documents?document_type=FILE&document_type=NOTE",
+        "/workspaces/2/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0",
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
     })
@@ -1016,7 +1024,8 @@ describe("dashboard chat", () => {
         ])
       }
       if (
-        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
       ) {
         return Response.json([pdf])
       }
@@ -1174,7 +1183,11 @@ describe("dashboard chat", () => {
             recommended_id: null,
           })
         }
-        if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
+        if (
+          path.endsWith(
+            "/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+          )
+        ) {
           return Response.json([])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
@@ -1320,6 +1333,114 @@ describe("dashboard chat", () => {
     )
   })
 
+  it("sends a ticked folder as the turn's source scope", async () => {
+    const filed = (id: number, title: string, folderId: number) => ({
+      id,
+      title,
+      document_type: "FILE",
+      mime_type: null,
+      status: "ready",
+      error_message: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+      folder_id: folderId,
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === "/llm/catalog/local") {
+          return Response.json({ rows: [], recommended_id: null })
+        }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+        ) {
+          return Response.json([
+            filed(20, "Guide.txt", 1),
+            filed(21, "Paper.txt", 2),
+          ])
+        }
+        if (path === "/workspaces/1/folders") {
+          return Response.json([
+            { id: 1, parent_id: null, name: "Library" },
+            { id: 2, parent_id: 1, name: "Research" },
+          ])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "Scoped",
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"From the folder"}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z","text":"From the folder"}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "Qwen3-1.7B-Q4_K_M",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(
+      screen.getByRole("checkbox", { name: "Select folder Research" })
+    )
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(await screen.findByText("From the folder")).toBeTruthy()
+    const send = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/chat/threads/10/messages" && init?.method === "POST"
+    )
+    expect(JSON.parse(String(send?.[1]?.body))).toEqual({
+      text: "Scoped",
+      document_ids: [21],
+      source_scope: {
+        all: false,
+        folder_ids: [2],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+    })
+  })
+
   it("sends a turn with thinking off once the composer switch is off", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -1398,6 +1519,13 @@ describe("dashboard chat", () => {
     expect(JSON.parse(String(send?.[1]?.body))).toEqual({
       text: "Quick one",
       document_ids: [],
+      source_scope: {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
       thinking: false,
     })
   })
@@ -1413,7 +1541,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -1497,7 +1625,11 @@ describe("dashboard chat", () => {
             { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
-        if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
+        if (
+          path.endsWith(
+            "/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+          )
+        ) {
           return Response.json([])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
@@ -1628,7 +1760,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -1698,7 +1830,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([
             {
@@ -1775,7 +1907,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -1900,7 +2032,8 @@ describe("dashboard chat", () => {
         ])
       }
       if (
-        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
       ) {
         return Response.json([])
       }

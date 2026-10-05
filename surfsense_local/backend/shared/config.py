@@ -55,8 +55,23 @@ class StorageSettings(BaseSettings):
         return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
 
     def agent_working_dir(self, workspace_id: int) -> Path:
-        """The folder the agent works in for one workspace, gone with the workspace."""
+        """The workspace's agent folder: its threads' folders and their text cache.
+
+        Before each thread had its own, every thread worked here; such a thread
+        is legacy, and only its history is still read.
+        """
         return self.workspace_dir(workspace_id) / "agent"
+
+    def agent_threads_dir(self, workspace_id: int) -> Path:
+        return self.agent_working_dir(workspace_id) / "threads"
+
+    def thread_working_dir(self, workspace_id: int, thread_id: int) -> Path:
+        """The folder one agent thread works in: its sources and its outputs."""
+        return self.agent_threads_dir(workspace_id) / str(thread_id)
+
+    def agent_text_dir(self, workspace_id: int) -> Path:
+        """One file per source text version, hard-linked into each thread that uses it."""
+        return self.agent_working_dir(workspace_id) / "text"
 
     @property
     def agent_dir(self) -> Path:
