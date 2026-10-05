@@ -16,13 +16,15 @@ Today a reply belongs to the HTTP request that asked for it. `POST /chat/threads
 
 The local runtime serves one request at a time: every preset pins `parallel = 1` ([runtime](../../architecture/local-models/runtime.md), The preset file). The fit estimate assumes the same: `n_seq_max` is 1 in [`kv_cells.py`](../../../surfsense_local/backend/modules/llm/fit/kv_cells.py) and `SLOTS = 1` in [`compute_buffers.py`](../../../surfsense_local/backend/modules/llm/fit/compute_buffers.py).
 
+Background runs cover chat threads. Agent threads keep today's behaviour, where closing the stream stops the turn; their requests still pass admission, because they share llama-server's cache.
+
 Facts are checked against this repo and llama.cpp `b11050` (the build the app pins) as of 5 Oct 2026.
 
 ## Parts
 
 | Part | File | Delivers | Depends on |
 |---|---|---|---|
-| **Runs** | [`01-runs.md`](01-runs.md) | replies survive switching threads and reloads; running threads show in the sidebar; Stop is its own route | nothing |
+| **Runs** | [`01-runs.md`](01-runs.md) | replies survive switching threads and reloads; running, queued and unread threads show in the Chats dialog and on the sidebar's Chats button; Stop is its own route | nothing |
 | **Admission** | [`02-admission.md`](02-admission.md) | one queue in front of llama-server for chat, agent and Studio; a visible "waiting" state; chat ahead of Studio | runs |
 | **Parallel slots** | [`03-parallel-slots.md`](03-parallel-slots.md) | up to four local replies at once from one shared cache | admission |
 | **Partial replies** | [`04-partial-replies.md`](04-partial-replies.md) | a quit or crash keeps the reply's text and the user's question, marked cut off | runs |
@@ -39,10 +41,12 @@ Each part ships on its own. Parallel slots never ship without admission: with a 
 | What survives | Switching thread or workspace, and reloading the window. Not quitting: `window-all-closed` quits the app on every platform ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts)), so closing the window is quitting. |
 | Quitting with replies running | Electron asks first, then has the API stop and commit every run before it stops the sidecars. A live run also saves its text every 5 seconds, so a crash loses at most that. A cut-off reply is marked interrupted at the next start ([`04-partial-replies.md`](04-partial-replies.md)). |
 | Existing clients | Unchanged. `POST .../messages` still starts a turn and streams it; everything new is added routes and frames. |
+| Agent threads | Not runs. An agent turn still ends when its stream closes; moving it onto runs is separate work. |
 | Who reaches llama-server to generate | Only the API. The agent already does, through its model endpoint ([agent](../../architecture/agent.md), The model endpoint); Studio's worker moves behind the API too. |
-| Admission | A slot and a token budget, both read from what llama-server reports it allocated. First come, first served, with interactive work ahead of Studio. |
+| Where admission sits | In process for the API's own calls and for the agent's model endpoint, which already runs in the API. An HTTP gateway only for Studio, the one caller in another process. |
+| Admission | A slot and a token budget, both read from what llama-server reports it allocated. First come, first served, with interactive work ahead of Studio and no ageing. A prompt's cost is estimated, not counted. |
 | Remote connections | Run in the background like local ones, with no admission. |
-| Slots | Ask for four, with one unified cache. When four are not resident even at an 8,192 window, step down one slot at a time, then widen the window as far as that count allows. A model that spills even at one slot keeps four. Metal keeps four. |
+| Slots | Ask for four on every backend, with one unified cache. When four are not resident even at an 8,192 window, step down one slot at a time, then widen the window as far as that count allows. A model that spills even at one slot keeps four. Metal keeps four. No per-machine measurement gates it: what slots change is llama.cpp's own arithmetic, and `--fit` spills rather than fails ([`03-parallel-slots.md`](03-parallel-slots.md)). |
 
 ## Out of scope
 
@@ -50,13 +54,21 @@ Each part ships on its own. Parallel slots never ship without admission: with a 
 - Pre-empting a running Studio job for a chat.
 - Concurrency limits for remote connections.
 - Regenerating or branching, which the chat's non-goals already exclude.
+- Agent threads as runs.
 
-## Open questions
+## Before each part
 
-Each part lists its own. Across them:
+Nothing is left to decide before building. What remains is checked at a named point, each with the path to take. None is a measurement on one machine that would decide for others.
 
-- Whether the internal gateway for Studio ([`02-admission.md`](02-admission.md)) should also replace the agent's direct `ModelAddress` to llama-server, so there is one gated path instead of two gated callers.
-- How often more than two replies actually overlap. Parts 1 and 2 can log it before part 3 decides how much measuring Metal deserves.
+| Part | Check | When | Path |
+|---|---|---|---|
+| Runs | none | | |
+| Admission | Whether `/props` reports `total_slots` at `b11050` | before writing the pool | if it does not, the pool takes the slot count the preset wrote |
+| Admission | How often more than two replies overlap | logged from the first release with runs | decides whether part 3 keeps asking for four slots |
+| Parallel slots | none before it ships | | |
+| Parallel slots | Whether 8,192 at four slots instead of 16,384 at one shows in answers | once the [chat eval](../chat-eval.md) runs | ships regardless; the eval decides whether to revisit the order |
+| Partial replies | Whether 3 seconds is enough for `stop-all` with four runs while ingest holds the lock | while building it | tune the bound; the quit waits no longer than it |
+| Partial replies | Whether a crash today leaves a blank reply, and closing the window today keeps a partial one | before the early bug fix | reproduce both by hand; both are read from the code |
 
 ## On shipping
 

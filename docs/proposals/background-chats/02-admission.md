@@ -30,6 +30,8 @@ One pool per loaded model on llama-server, because in router mode each model is 
 
 A pool is dropped when its model unloads and rebuilt from `/props` when it loads again, since a reload can change both.
 
+Whether `b11050` reports `total_slots` in `/props` is checked before the pool is written. If it does not, the pool takes the slot count the preset wrote for that model.
+
 ## The rule
 
 A request is admitted when a slot is free and the tokens already committed plus its cost fit the budget. When nothing is committed it is admitted regardless, so one long request is never refused for being long. The window, not admission, is what refuses an oversize prompt.
@@ -66,8 +68,8 @@ At the gateway's HTTP seam, against a scripted llama-server whose `/props` sets 
 - A generating request stopped mid-stream releases its slot and tokens.
 - `/props` and `/models` pass through while every slot is busy.
 
-## Open questions
+## Decided
 
-- Whether the agent's `ModelAddress` should point at the gateway too, leaving one gated route instead of a gated relay and a gated gateway.
-- Whether the API should count tokens with llama-server's `/tokenize` instead of estimating. Exact, but one more request before every turn, while the model may be loading.
-- How long Studio waits behind chats before it is moved up. Strict priority can starve it under constant chatting; one person rarely does that, so the first version has no ageing.
+- **The agent is admitted in its relay, not through the gateway.** The relay already runs in the API, so it takes the in-process path chat takes, and opencode keeps calling the same route. The gateway exists only for Studio, the one caller in another process.
+- **A prompt's cost is estimated, not counted.** `/tokenize` is exact, but it is one more request before every turn, while the model may still be loading. If the estimate admits too few requests in practice, counting replaces it.
+- **Studio has no ageing.** Strict priority could starve it under constant chatting, which one person rarely does. If Studio jobs are seen waiting on chats, ageing is added then.

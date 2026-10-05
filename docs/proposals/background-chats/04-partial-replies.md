@@ -51,7 +51,7 @@ Today's blank reply after a crash can be fixed before runs exist, as a bug fix: 
 - A live run's row holds its text, citations resolved, within 5 seconds; a save that cannot get the lock is skipped and the run's final write still lands.
 - A run with no answer text writes nothing before it ends.
 
-## Open questions
+## Checks
 
-- Whether closing the window today does commit the partial reply before the API is stopped. The order is read from the code, not observed.
-- Whether 3 seconds is enough for `stop-all` with four runs and ingest holding the lock, and whether Electron's quit should wait on a progress indicator instead of a fixed bound.
+- **Before the early bug fix,** reproduce both facts read from the code: that a crash leaves a blank reply, and that closing the window today keeps a partial one. The design does not depend on the second; it only confirms what today does.
+- **While building `stop-all`,** measure it with four runs and ingest holding the lock. Tune the 3-second bound to what that takes; the quit never waits longer than the bound, and the 5-second saves cover whatever it cuts off. No progress indicator in the first version.

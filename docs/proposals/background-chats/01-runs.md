@@ -1,11 +1,12 @@
 # Runs
 
-A run is one reply being generated: a chat turn or an agent turn. The API starts it as a background task and keeps it until it ends; any number of connections can follow it, and losing all of them does not stop it. Reloading the window, switching thread or switching workspace drops a follower, never the run.
+A run is one chat reply being generated. The API starts it as a background task and keeps it until it ends; any number of connections can follow it, and losing all of them does not stop it. Reloading the window, switching thread or switching workspace drops a follower, never the run.
 
 ## The run
 
 - **Keyed by thread.** At most one active run per thread, held in an in-memory registry in the API process. A send to a thread with an active run is `409`.
-- **What it runs.** The generator that `POST .../messages` drives today, for chat and agent threads alike, unchanged. The run task reads it to the end; the response no longer does.
+- **What it runs.** The generator that `POST .../messages` drives today for a chat thread, unchanged. The run task reads it to the end; the response no longer does.
+- **Agent threads are not runs.** Their turns stream as today and end when the stream closes. They keep their turns in opencode, so nothing below about stored endings, Retry or history applies to them.
 - **What it holds.** Every frame the generator yields, in order, each with a sequence number starting at 1, plus its state: `queued` or `running`. A run is held only while it is active.
 - **What it owns.** The model's in-use mark and the cleanup the response's shielded `finally` does today: storing the reply and how it ended, and releasing the mark. Moving them from the response to the run removes the reason for the shield.
 - **It leaves the registry only after its reply is stored.** So there is no moment when the run is gone and the database does not yet hold its reply. A follower that arrives after that gets `404` and reads the stored turns, which hold everything the run sent.
@@ -22,7 +23,7 @@ A chat thread's assistant turn stores how it ended in its content, as `ending`, 
 | Stopped | `{"type": "stopped"}` | the reply's text, marked stopped |
 | Cut off by a quit | `{"type": "interrupted"}`, written at startup ([`04-partial-replies.md`](04-partial-replies.md)) | the reply's text, marked "Interrupted when the app closed" |
 
-`ending` lives in the JSON `content` column, so it needs no migration. Agent threads keep their turns in opencode and are not covered here.
+`ending` lives in the JSON `content` column, so it needs no migration.
 
 ### A failed turn is kept
 
@@ -65,21 +66,65 @@ History is every stored turn today ([`history.py`](../../../surfsense_local/back
 
 ## Telling other windows
 
-The API publishes a `chat-runs` event on `/workspaces/{id}/events`, `{"ids": [thread ids], "status": "running" | "done"}`, when a run starts and ends, as it does for documents and artifacts ([overview](../../architecture/overview.md), Freshness). The thread list reloads on it.
+The API publishes a `chat-runs` event on `/workspaces/{id}/events`, `{"ids": [thread ids], "status": "running" | "done"}`, when a run starts and ends, as it does for documents and artifacts ([overview](../../architecture/overview.md), Freshness). The thread list behind the Chats dialog and the Chats button reloads on it.
 
 ## The frontend
 
+### State
+
 - **Runs move out of the per-thread runtime** into a store keyed by thread id, which holds each followed run's live copy, its last sequence number and its state. The runtime of the active thread reads from it, so leaving a thread no longer drops its reply.
 - **Opening a thread with `running: true`** follows its run with `after` set to what the store already has (0 if nothing), then folds into the stored turns as today, once both ids are stored. A `404` means the run ended in between, and the stored turns are read instead.
+- **Reloading the window** loses the store, not the runs. Every running thread is followed again from `after=0` when opened, and the live copy is rebuilt from the replay.
 - **A reply's error and stopped mark come from its stored `ending`,** and from live frames only while its run is followed. The per-thread error and stopped state that is cleared on every thread switch goes.
 - **Retry** sends `retry_of` and is offered only on the latest turn.
-- **Stop** calls `run/stop` instead of aborting the request.
-- **The thread list** shows running threads with a spinner and "Waiting" for a queued run.
-- **Reloading the window** loses the store, not the runs. Every running thread is followed again from `after=0` when opened, and the live copy is rebuilt from the replay.
+- **Stop** calls `run/stop` instead of aborting the request, and works on a queued run as on a running one.
+- **Unread replies** are the threads whose run ended while another thread was open. They are kept in `localStorage` per workspace, beside the remembered open thread, and a thread leaves the set when it is opened. Per machine is enough for one user on one machine; a cleared store only loses the dots.
+
+### What the user sees
+
+The sidebar's Chats button ([`left-sidebar.tsx`](../../../surfsense_local/frontend/src/features/dashboard/left-sidebar.tsx)) carries the count. The Chats dialog it opens is closed most of the time, so without the count nothing on screen says a reply is being written, or has arrived, elsewhere.
+
+```text
+ Nothing elsewhere          Two running elsewhere      One unread elsewhere
+ ✎  New chat                ✎  New chat                ✎  New chat
+ 💬 Chats                   💬 Chats       ◌ 2         💬 Chats       ● 1
+```
+
+- It counts threads other than the open one: running and queued with a spinner, and unread with a dot once none is running. Nothing shows when there is neither, so the button looks as it does today.
+
+The Chats dialog ([`chats-dialog.tsx`](../../../surfsense_local/frontend/src/features/chat/chats-dialog.tsx)) marks each row:
+
+```text
+ ┌─ Chats ─────────────────────────────────── ✕ ┐
+ │ ◌  Q3 report summary          Writing…    ⋯  │  running
+ │ ⧗  Refund policy questions    Waiting     ⋯  │  queued for the model
+ │ ●  Pricing comparison         5 min ago   ⋯  │  finished or failed, not yet opened
+ │    Marketing plan draft       just now    ⋯  │  open thread
+ │    Casual greeting            2 h ago     ⋯  │  idle, as today
+ └──────────────────────────────────────────────┘
+```
+
+- A running or queued row shows its state in place of the relative time. Rows keep their order, so a thread does not jump when it starts or ends.
+- A failed reply is unread like a finished one, so a failure made in the background is not missed.
+
+The open thread shows a queued run in the thinking header's place:
+
+```text
+ ┌──────────────────────────────┐        ┌──────────────────────────────┐
+ │ You: Summarise Q3 report     │        │ You: Summarise Q3 report     │
+ │ ⧗ Waiting for another reply  │  ───>  │ ⁘ Thinking                   │
+ │   (2nd in line)     [■ Stop] │        │   …then the reply   [■ Stop] │
+ └──────────────────────────────┘        └──────────────────────────────┘
+```
+
+- It is the same header that says "Thinking" and "Reading 42%", so it moves on to Thinking without restarting, and the position follows `run-state`.
+- Everything else in the thread looks as it does today: the endings above render as today's error notice, stopped mark and Retry, now from what is stored.
+
+All new text goes into the interface messages and is translated with the rest.
 
 ## Quitting
 
-- **Electron asks** before quitting while any run is active: "N replies are still being written. Quit anyway?" It learns the count from the API, at quit time only.
+- **Electron asks** before quitting while any run is active, in a native dialog: "N replies are still being written. Quitting saves what they have so far.", with Cancel and Quit. It learns the count from the API, at quit time only, and asks nothing when no run is active.
 - **What a quit keeps** (stopping runs before the sidecars, saving live text, settling turns at startup) is [`04-partial-replies.md`](04-partial-replies.md).
 
 ## Why runs are not stored
@@ -108,7 +153,11 @@ At the HTTP seam, against a scripted generator:
 - `retry_of` on the latest failed turn deletes that pair and stores the new one; on any other turn it is `409`.
 - History for the next turn skips a failed pair with no text and keeps a failed reply with text.
 - Deleting a thread with a run ends the run.
+- A send to an agent thread streams as today, and closing its stream stops the turn.
 
-## Open questions
+In the frontend, against a scripted stream:
 
-- Whether an agent turn's `permission-request` should be answerable from a window that reattached after it was sent. The frame replays, so it should, but the dialog's state has to come from the replay.
+- Switching away from a streaming thread and back shows the reply so far, then the rest live.
+- A run that ends while another thread is open marks its row and the Chats button unread; opening the thread clears both.
+- A queued run shows "Waiting for another reply" with its position, then Thinking, without the header restarting.
+- A failed turn loaded from storage shows its error and Retry; Retry on any turn but the latest is not offered.
