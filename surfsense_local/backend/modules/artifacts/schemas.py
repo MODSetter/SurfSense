@@ -12,15 +12,22 @@ from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_s
 from modules.artifacts.script_documents.spec import SpecKind, spec_kind
 from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
+from modules.source_scope.schemas import SourceScope
 
 Prompt = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 
 
 class StudioJobCreate(BaseModel):
-    """A request to generate one artifact from a workspace's documents."""
+    """A request to generate one artifact from a workspace's documents.
+
+    `source_scope` is resolved on the server and recorded, so regenerate can
+    re-resolve it. `document_ids` is the older explicit list, used only when no
+    scope is sent.
+    """
 
     format: str
-    document_ids: list[int]
+    source_scope: SourceScope | None = None
+    document_ids: list[int] | None = None
     prompt: Prompt | None = None
     options: dict | None = None
 

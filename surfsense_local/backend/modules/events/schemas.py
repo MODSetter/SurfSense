@@ -8,6 +8,7 @@ class EventKind(enum.StrEnum):
 
     DOCUMENTS = "documents"
     ARTIFACTS = "artifacts"
+    FOLDERS = "folders"
 
 
 class InternalEvent(BaseModel):

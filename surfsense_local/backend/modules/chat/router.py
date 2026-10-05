@@ -52,6 +52,9 @@ from modules.llm.resolution import (
     ResolvedGeneration,
     resolve_generation,
 )
+from modules.source_scope.resolve import resolve_scope
+from modules.source_scope.schemas import SourceScope
+from modules.source_scope.thread_scope import store_thread_scope, thread_scope
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import Hit, retrieve
 
@@ -75,7 +78,9 @@ async def create_thread(
 
     Chosen here and kept: the thread's turns live with whichever engine got it.
     """
-    thread = await transact(session, _new_thread, workspace.id, payload.title)
+    thread = await transact(
+        session, _new_thread, workspace.id, payload.title, payload.source_scope
+    )
     if await selected_model_can_run_agent(session):
         session_id = await open_agent_session(session, thread, launch_key)
         if session_id is not None:
@@ -176,8 +181,12 @@ async def send_message(
     launch_key: LaunchKeyDep,
 ) -> StreamingResponse:
     if thread.uses_agent:
+        if payload.source_scope is not None:
+            payload = await transact(session, _scoped_for_agent, thread, payload)
         return await agent_turn(session, thread, payload, launch_key)
-    resolved, history, hits = await transact(session, _ground, thread, payload)
+    resolved, history, hits, scope_record = await transact(
+        session, _ground, thread, payload
+    )
     selected = resolved.selection
     generator = resolved.generator
     # Asked once: it gates attachments and decides whether sources send pictures.
@@ -213,7 +222,7 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text, images
+            session, _open_turn, thread, payload.text, images, scope_record
         )
         user_created_at = _iso(user_message.created_at)
     except Exception:
@@ -439,11 +448,15 @@ def _normalised(uploads: list[ImageUpload]) -> list[NormalisedImage]:
 # The stream's session work, each piece one short transaction off the event loop.
 
 
-def _new_thread(session: Session, workspace_id: int, title: str) -> ChatThread:
+def _new_thread(
+    session: Session, workspace_id: int, title: str, scope: SourceScope | None
+) -> ChatThread:
     """Insert the thread; the id and timestamps come from the database."""
     thread = ChatThread(workspace_id=workspace_id, title=title)
     session.add(thread)
     session.flush()
+    if scope is not None:
+        store_thread_scope(session, thread, scope)
     session.refresh(thread)
     return thread
 
@@ -468,16 +481,40 @@ def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]
     ).all()
 
 
+def _scoped_for_agent(
+    session: Session, thread: ChatThread, payload: MessageCreate
+) -> MessageCreate:
+    """Store the scope, and hand the agent its ready ids as `document_ids`.
+
+    The agent reads only the id list, where an omitted one means every source,
+    so a scope too big for the client to list must never arrive as no list.
+    """
+    _, resolved = store_thread_scope(session, thread, payload.source_scope)
+    return payload.model_copy(update={"document_ids": resolved.ids})
+
+
 def _ground(
     session: Session, thread: ChatThread, payload: MessageCreate
-) -> tuple[ResolvedGeneration, Sequence[ChatMessage], list[Hit]]:
-    """The model to answer with, the turns so far, and the passages to cite."""
+) -> tuple[ResolvedGeneration, Sequence[ChatMessage], list[Hit], dict]:
+    """The model to answer with, the turns so far, the passages to cite, and
+    what the user turn records of the sources it used."""
     try:
         resolved = resolve_generation(session)
     except ModelResolutionError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
-    if payload.document_ids is not None:
+    # A sent scope is stored and used in this one transaction, so ticking a box
+    # and pressing Enter cannot race. An explicit id list keeps today's meaning.
+    scope = None
+    record: dict = {}
+    if payload.source_scope is not None:
+        stored, scope = store_thread_scope(session, thread, payload.source_scope)
+        record = scope.record(stored)
+    elif payload.document_ids is not None:
         load_selected_sources(session, thread.workspace_id, payload.document_ids)
+    else:
+        stored = thread_scope(thread)
+        scope = resolve_scope(session, thread.workspace_id, stored)
+        record = scope.record(stored)
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
     from modules.embedding.encoder import missing_files
 
@@ -494,9 +531,13 @@ def _ground(
         .order_by(ChatMessage.created_at)
     ).all()
     hits = retrieve(
-        session, thread.workspace_id, payload.text, document_ids=payload.document_ids
+        session,
+        thread.workspace_id,
+        payload.text,
+        document_ids=payload.document_ids,
+        scope=scope,
     )
-    return resolved, history, hits
+    return resolved, history, hits, record
 
 
 def _open_turn(
@@ -504,12 +545,17 @@ def _open_turn(
     thread: ChatThread,
     text: str,
     images: list[NormalisedImage],
+    scope_record: dict,
 ) -> tuple[ChatMessage, ChatMessage]:
     references = [
         store.store(image, thread.workspace_id, thread.id) for image in images
     ]
     # `images` only when there are some, so every row before them stays as it was.
-    content: dict = {"text": text, **({"images": references} if references else {})}
+    content: dict = {
+        "text": text,
+        **({"images": references} if references else {}),
+        **scope_record,
+    }
     user_message = ChatMessage(
         chat_thread_id=thread.id, role=MessageRole.USER, content=content
     )

@@ -29,6 +29,7 @@ from modules.embedding.huggingface.router import (
 from modules.embedding.router import router as embedding_router
 from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
+from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -39,6 +40,7 @@ from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
 from modules.resource_usage.router import router as resource_usage_router
+from modules.source_scope.router import router as source_scope_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
@@ -74,9 +76,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """The API owns migrations; the worker only ever reads and writes rows."""
-    engine = create_db_engine(get_storage_settings().database_path)
+    storage = get_storage_settings()
+    engine = create_db_engine(storage.database_path)
     try:
-        upgrade_to_head(engine)
+        upgrade_to_head(engine, backups_dir=storage.data_dir / "backups")
         session_factory = create_session_factory(engine)
         with session_factory() as session:
             ensure_default_workspace(session)
@@ -161,8 +164,10 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
+    app.include_router(folders_router)
     app.include_router(llm_router)
     app.include_router(chat_router)
+    app.include_router(source_scope_router)
     app.include_router(artifacts_router)
     app.include_router(podcast_router)
     app.include_router(events_router)

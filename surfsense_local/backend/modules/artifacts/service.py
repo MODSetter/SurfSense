@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
@@ -16,6 +17,8 @@ from modules.llm.resolution import (
     ModelResolutionError,
     speech_selected,
 )
+from modules.source_scope.resolve import pruned, resolve_scope
+from modules.source_scope.schemas import SourceScope
 from modules.workspaces.models import Workspace
 from worker.jobs import cancel_studio_job
 
@@ -60,7 +63,7 @@ def create_artifact_job(
     if not available:
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
-    documents = _resolve_sources(session, workspace.id, payload.document_ids)
+    source_ids, recorded_scope = _resolve_sources(session, workspace.id, payload)
     options = _resolve_options(session, fmt, payload.options)
 
     document = Document(
@@ -78,7 +81,8 @@ def create_artifact_job(
         format=fmt.key,
         created_by_tool_call_id=tool_call_id,
         artifact_metadata={
-            "source_document_ids": [doc.id for doc in documents],
+            "source_document_ids": source_ids,
+            **recorded_scope,
             "prompt": payload.prompt,
             "options": options,
         },
@@ -109,6 +113,10 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
         available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
         if not available:
             raise HTTPException(status.HTTP_409_CONFLICT, reason)
+        artifact.artifact_metadata = {
+            **(artifact.artifact_metadata or {}),
+            "source_document_ids": _replayed_sources(session, artifact),
+        }
 
     document.status = DocumentStatus.PENDING
     document.error_message = None
@@ -131,13 +139,58 @@ def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
 
 
 def _resolve_sources(
-    session: Session, workspace_id: int, document_ids: list[int]
-) -> list[Document]:
-    if not document_ids:
+    session: Session, workspace_id: int, payload: StudioJobCreate
+) -> tuple[list[int], dict]:
+    """The job's source ids, and what the artifact records of the scope."""
+    if payload.source_scope is None:
+        if not payload.document_ids:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
+            )
+        documents = load_selected_sources(session, workspace_id, payload.document_ids)
+        return [doc.id for doc in documents], {}
+    resolved = resolve_scope(session, workspace_id, payload.source_scope)
+    if not resolved.ids:
+        if resolved.counts.indexing:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "the chosen sources are still indexing"
+            )
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
         )
-    return load_selected_sources(session, workspace_id, document_ids)
+    scope = pruned(payload.source_scope, resolved)
+    return resolved.ids, {"source_scope": scope.model_dump()}
+
+
+def _replayed_sources(session: Session, artifact: Artifact) -> list[int]:
+    """A recorded scope re-resolved, so files added since are used; else the
+    recorded ids that still exist. Never the artifact's own document."""
+    meta = artifact.artifact_metadata or {}
+    if meta.get("source_scope") is not None:
+        ids = resolve_scope(
+            session,
+            artifact.workspace_id,
+            SourceScope.model_validate(meta["source_scope"]),
+            exclude_document_ids=[artifact.document_id],
+        ).ids
+    else:
+        recorded = [
+            i for i in meta.get("source_document_ids", []) if i != artifact.document_id
+        ]
+        existing = set(
+            session.scalars(
+                select(Document.id).where(
+                    Document.id.in_(recorded),
+                    Document.workspace_id == artifact.workspace_id,
+                )
+            )
+        )
+        ids = [i for i in recorded if i in existing]
+    if not ids:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "None of this artifact's sources are left."
+        )
+    return ids
 
 
 def _resolve_options(session: Session, fmt: Format, raw: dict | None) -> dict | None:
@@ -195,6 +248,6 @@ def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
 
 
 def _required(missing: list[ModelType]) -> str:
-    """"Needs a chat model and an image model", in a fixed reading order."""
+    """ "Needs a chat model and an image model", in a fixed reading order."""
     phrases = [_TYPE_PHRASES[kind] for kind in _TYPE_ORDER if kind in missing]
     return f"Needs {' and '.join(phrases)}"
