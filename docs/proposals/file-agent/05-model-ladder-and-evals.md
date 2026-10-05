@@ -36,6 +36,8 @@ code:
 
 > SurfSense learns what each model can do by measuring it, never by its size or its prompt tier. Claude reaches the app through Anthropic's own Messages API, with prompt caching, enforced schemas and a spend ledger, so the first column of the matrix measures Claude rather than a compatibility layer. A job × model matrix, run at the app's own settings with the skills project's graders, measures the jobs and the free-form file work users are offered, walks down from Opus to a 4B local model, and holds one OpenAI and one Gemini column beside Claude. Each result lands in a reviewed capability manifest shipped with the app. One function, `capability_of()`, reads that manifest and returns the capability that the product shape in [06](06-product-shape.md) shows: which engine new threads get, how each job runs, which Studio formats and edit rungs are offered, whether the agent may ask for the shell, and the window it needs. An unmeasured model keeps everything it has today, labelled "not measured"; only a measured failure takes something away.
 
+**Status, 4 Oct 2026:** proposed. A first screening row exists: the [create-and-edit slice](07-create-and-edit-mvp.md)'s eight live cases, run once per cell through Anthropic's compatibility layer, pass on Opus 5.5 and Sonnet 5.5, and five of eight pass on Haiku 4.5 ([08](08-model-ladder-results.md)). The live tests choose their model and provider (Anthropic or OpenRouter) from the environment ([07-dev-setup](07-dev-setup.md#live-tests)), so the open-model and 27–35B columns can be screened the same way. They are not committed rows: n=1, the dev app, no native provider.
+
 ## Today
 
 Everything in this section was checked in the repo on 2026-10-03 unless marked otherwise.
