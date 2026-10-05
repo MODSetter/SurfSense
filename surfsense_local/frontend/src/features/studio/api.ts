@@ -294,11 +294,16 @@ export function reorderFlashcards(
 
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the
 // fetch helper injects itself.
+/** The generation is in the URL so a regenerated file is a new resource: an
+ *  `<img>` or `<audio>` would otherwise keep showing the cached one. */
 export function fileUrl(
   artifactId: number,
-  role: ArtifactFile["role"]
+  role: ArtifactFile["role"],
+  generation: number
 ): string {
-  return apiUrl(`/artifacts/${artifactId}/files/${role}`)
+  return apiUrl(
+    `/artifacts/${artifactId}/files/${role}?generation=${generation}`
+  )
 }
 
 /** The same file, sent as an attachment. The API is another origin than the
@@ -308,5 +313,5 @@ export function downloadUrl(
   artifactId: number,
   role: ArtifactFile["role"]
 ): string {
-  return `${fileUrl(artifactId, role)}?download=1`
+  return apiUrl(`/artifacts/${artifactId}/files/${role}?download=1`)
 }

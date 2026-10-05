@@ -109,7 +109,9 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
           `Workbook is too large to preview (${primary.size_bytes} bytes)`
         )
       }
-      const response = await fetch(fileUrl(artifact.id, "primary"))
+      const response = await fetch(
+        fileUrl(artifact.id, "primary", artifact.generation)
+      )
       if (!response.ok) {
         throw new Error(`Could not load workbook (${response.status})`)
       }

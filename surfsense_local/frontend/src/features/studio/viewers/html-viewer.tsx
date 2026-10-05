@@ -24,7 +24,9 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
       // the API's _INLINE_UNSAFE), which only affects navigation — fetch()
       // ignores it and returns the body normally, so we render it via
       // srcDoc into a sandboxed iframe instead of pointing src at the URL.
-      const response = await fetch(fileUrl(artifact.id, "primary"))
+      const response = await fetch(
+        fileUrl(artifact.id, "primary", artifact.generation)
+      )
       if (!response.ok) {
         throw new Error(`Could not load page (${response.status})`)
       }

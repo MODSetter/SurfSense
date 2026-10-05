@@ -110,7 +110,7 @@ describe("artifact panel", () => {
             updated_at: "2026-09-06T00:00:00Z",
           })
         }
-        if (path === "/artifacts/13/files/primary") {
+        if (path.startsWith("/artifacts/13/files/primary")) {
           return Response.json({
             schema_version: 1,
             title: "Cassini",

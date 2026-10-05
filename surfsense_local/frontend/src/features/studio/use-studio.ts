@@ -146,11 +146,15 @@ export function useStudio(workspaceId: number, selectionToken = "") {
       ? messageFrom(loadError)
       : null)
 
-  const setList = (update: (current: Artifact[]) => Artifact[]) =>
-    queryClient.setQueryData<Artifact[]>(
-      studioKeys.artifacts(workspaceId),
-      (current = []) => update(current)
+  // A read that began before the action would carry the list from before it,
+  // so it is cancelled before the action's result goes in.
+  const setList = async (update: (current: Artifact[]) => Artifact[]) => {
+    const list = studioKeys.artifacts(workspaceId)
+    await queryClient.cancelQueries({ queryKey: list })
+    queryClient.setQueryData<Artifact[]>(list, (current = []) =>
+      update(current)
     )
+  }
   const replace = (updated: Artifact) =>
     setList((current) =>
       current.map((artifact) =>
@@ -163,7 +167,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     setActionError(null)
     try {
       const artifact = await createJob(workspaceId, job)
-      setList((current) => [artifact, ...current])
+      await setList((current) => [artifact, ...current])
       return true
     } catch (cause) {
       setActionError(messageFrom(cause))
@@ -178,7 +182,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
   const regenerate = async (artifactId: number) => {
     setActionError(null)
     try {
-      replace(await regenerateArtifact(artifactId))
+      await replace(await regenerateArtifact(artifactId))
     } catch (cause) {
       setActionError(messageFrom(cause))
     }
@@ -187,7 +191,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
   const cancel = async (artifactId: number) => {
     setActionError(null)
     try {
-      replace(await cancelArtifact(artifactId))
+      await replace(await cancelArtifact(artifactId))
     } catch (cause) {
       setActionError(messageFrom(cause))
     }
@@ -197,7 +201,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     setActionError(null)
     try {
       await deleteArtifact(artifactId)
-      setList((current) => current.filter((a) => a.id !== artifactId))
+      await setList((current) => current.filter((a) => a.id !== artifactId))
     } catch (cause) {
       setActionError(messageFrom(cause))
     }

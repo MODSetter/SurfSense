@@ -171,6 +171,40 @@ describe("useStudio", () => {
     expect(result.current.artifacts[0]?.status).toBe("ready")
   })
 
+  it("keeps a created artifact when a list read started before it lands after", async () => {
+    const stream = eventStream()
+    let answerSecondRead!: (response: Response) => void
+    let listed = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (init?.method === "POST") {
+          return Response.json(artifact({ id: 2, status: "pending" }))
+        }
+        if (listed++ === 0)
+          return Response.json([artifact({ status: "ready" })])
+        return new Promise<Response>((resolve) => {
+          answerSecondRead = resolve
+        })
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    stream.connected()
+    stream.artifactsChanged([1])
+    await waitFor(() => expect(listed).toBe(2))
+    await result.current.create({ format: "summary", document_ids: [1] })
+    // The read began before the job existed, so its answer lacks it.
+    answerSecondRead(Response.json([artifact({ status: "ready" })]))
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(result.current.artifacts.map((a) => a.id)).toEqual([2, 1])
+  })
+
   it("shows a success toast once a running artifact turns ready", async () => {
     const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
 
