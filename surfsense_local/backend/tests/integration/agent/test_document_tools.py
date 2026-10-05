@@ -13,9 +13,12 @@ from sqlalchemy import Engine, select, update
 from modules.agent.previews import Previews
 from modules.agent.tool_endpoint import list_images, render_document
 from modules.artifacts.models import Artifact
+from modules.artifacts.script_documents.service import create_script_document
+from modules.artifacts.studio_documents.service import create_refine_version
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures.layout import figures_dir, write_index
 from modules.documents.tasks import extract_figures
+from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from shared.queue import ingest_queue
@@ -866,3 +869,34 @@ async def test_a_preview_that_breaks_still_reports_the_ready_version(
     assert is_error is False
     assert text.startswith("Rendered artifact ")
     assert "No page previews: drawing them failed." in text
+
+
+async def test_reading_a_document_refined_in_studio_skips_the_version_with_no_script_yet(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """A Refine's version keeps its script only once it renders; until then, and
+    if it fails, the newest script is the one before it."""
+    workspace_id = await tools.workspace()
+    with create_session_factory(engine)() as session:
+        first = create_script_document(
+            session,
+            session.get(Workspace, workspace_id),
+            title="Client proposal",
+            format="docx",
+            script=WORD.format(closing="Signed."),
+            base_artifact_id=None,
+            image_names=[],
+        )
+        first_id = first.id
+        first.document.status = DocumentStatus.READY  # as its run left it
+        session.commit()
+        # As the refine route leaves it: pending, its rewrite not written yet.
+        create_refine_version(session, first_id, "Shorter")
+
+    text, is_error = await tools.call(
+        workspace_id, "read_document", {"artifact_id": first_id}
+    )
+
+    assert is_error is False, text
+    assert f"Its newest is version 1, artifact {first_id}" in text
+    assert "We propose a two-phase rollout" in text

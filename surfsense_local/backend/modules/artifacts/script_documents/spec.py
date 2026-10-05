@@ -26,6 +26,24 @@ class DocumentScript:
         }
 
 
+@dataclass(frozen=True)
+class DocumentSpec:
+    """Either kind of spec a Word or PDF version keeps: Markdown or a script."""
+
+    kind: SpecKind
+    text: str
+    format: DocumentFormat
+    images: tuple[str, ...]
+
+    def as_metadata(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "text": self.text,
+            "format": self.format,
+            "images": list(self.images),
+        }
+
+
 def spec_kind(metadata: dict[str, Any] | None) -> SpecKind | None:
     """The kind of spec an artifact keeps; None when Studio drafted it and kept none."""
     spec = (metadata or {}).get("spec")
@@ -40,4 +58,21 @@ def document_script(metadata: dict[str, Any] | None) -> DocumentScript | None:
     spec = metadata["spec"]
     return DocumentScript(
         text=spec["text"], format=spec["format"], images=tuple(spec["images"])
+    )
+
+
+def document_spec(metadata: dict[str, Any] | None) -> DocumentSpec | None:
+    """The spec of either kind an artifact keeps, or None when it keeps none."""
+    kind = spec_kind(metadata)
+    if kind is None:
+        return None
+    return spec_from_metadata(metadata["spec"])
+
+
+def spec_from_metadata(spec: dict[str, Any]) -> DocumentSpec:
+    return DocumentSpec(
+        kind=spec["kind"],
+        text=spec["text"],
+        format=spec["format"],
+        images=tuple(spec.get("images") or ()),
     )

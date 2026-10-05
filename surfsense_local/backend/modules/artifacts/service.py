@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
-from modules.artifacts.script_documents.spec import document_script
+from modules.artifacts.studio_documents.recipe import renders_as_stored
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
@@ -105,7 +105,7 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
         raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
     # A document script runs as stored: its format's models are never asked.
-    if document_script(artifact.artifact_metadata) is None:
+    if not renders_as_stored(artifact.artifact_metadata):
         available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
         if not available:
             raise HTTPException(status.HTTP_409_CONFLICT, reason)

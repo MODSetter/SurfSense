@@ -15,8 +15,11 @@ dependencies = [
     "gguf==0.19.0",
     "httpx>=0.28.1",
     "huey>=3.3.4",
-    # Charts in document scripts (worker/document_script/): a script draws one
-    # and places the PNG in its Word file or PDF.
+    # Parses the Markdown a small model writes for Studio's Word and PDF builders
+    # (worker/studio/office/markdown). rich brings it too; named so it cannot vanish.
+    "markdown-it-py>=4.0",
+    # Charts in document scripts (worker/document_script/), which draw one and
+    # place the PNG, and in Studio's Markdown builders' chart blocks.
     "matplotlib>=3.11.2",
     "onnxruntime>=1.20",
     # Chat images are normalised before they are stored or sent

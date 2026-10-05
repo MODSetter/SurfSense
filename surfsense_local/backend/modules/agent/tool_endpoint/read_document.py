@@ -112,12 +112,14 @@ def _rest(page: ScriptPage) -> str:
 
 
 def _newest_version(session: Session, workspace_id: int, root: int) -> Artifact:
+    """The newest version holding a script: a Studio Refine's has none until it renders."""
     version = Artifact.artifact_metadata["version"]
     return session.scalars(
         select(Artifact)
         .where(
             Artifact.workspace_id == workspace_id,
             version["root"].as_integer() == root,
+            Artifact.artifact_metadata["spec"]["kind"].as_string() == "python",
         )
         .order_by(version["number"].as_integer().desc())
         .limit(1)

@@ -13,6 +13,14 @@ from modules.artifacts.script_documents.spec import (
     document_script,
     spec_kind,
 )
+from modules.artifacts.script_documents.version import ArtifactVersion
+from modules.artifacts.studio_documents.recipe import (
+    RECIPE_KEY,
+    Refinement,
+    drafted,
+    refinement,
+    renders_as_stored,
+)
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
@@ -33,6 +41,10 @@ from shared.db import create_db_engine, create_session_factory, is_locked
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
+from worker.studio.office.document import figure_shelf
+from worker.studio.office.document.refine import refine
+from worker.studio.office.docx import docx
+from worker.studio.office.pdf import pdf
 from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist
@@ -41,6 +53,8 @@ from worker.studio.shared.artifact import Built
 logger = logging.getLogger(__name__)
 
 MESSAGE_CHARS = 500
+
+_DOCUMENT_OFFICE = {"docx": docx, "pdf": pdf}
 
 
 class NoModelSelectedError(RuntimeError):
@@ -72,11 +86,15 @@ def _generate(session: Session, artifact: Artifact) -> None:
     notify_artifact_updates(artifact)
 
     try:
-        script = document_script(artifact.artifact_metadata)
-        if script is None:
-            built = _draft(session, artifact, document)
-        else:
+        meta = artifact.artifact_metadata
+        refining = refinement(meta)
+        script = document_script(meta) if renders_as_stored(meta) else None
+        if refining is not None:
+            built = _refine(session, artifact, document, refining)
+        elif script is not None:
             built = _run_script(session, artifact, document, script)
+        else:
+            built = _draft(session, artifact, document)
         raise_if_cancelled(session, document)
 
         logger.info(
@@ -85,6 +103,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
         )
         persist.persist(session, artifact, document, built)
+        if built.spec is not None:
+            _keep_spec(artifact, built.spec)
 
         if not finish_job(
             session,
@@ -131,6 +151,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # renders a fix as a new version, which a retry turning READY would race.
         if spec_kind(artifact.artifact_metadata) == "python":
             return
+        # A refine is one call the user asked for; Retry asks again if they want.
+        if refinement(artifact.artifact_metadata) is not None:
+            return
         raise  # Huey retries; a later success clears the message.
 
 
@@ -143,6 +166,8 @@ def _draft(session: Session, artifact: Artifact, document: Document) -> Built:
     # The prompt is what to search for, where the format reads passages.
     query = prompt if fmt.grounding is Grounding.PASSAGES else None
     sources = gather.gather(session, meta.get("source_document_ids", []), query)
+    if kind in job_router.PLACES_FIGURES:
+        sources = figure_shelf.with_figures(session, artifact.workspace_id, sources)
     logger.info(
         "studio: artifact %s gathered %s sources (%s chars)",
         artifact.id,
@@ -176,6 +201,37 @@ def _run_script(
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
         return script_document.render(title, script, images)
+
+
+def _refine(
+    session: Session, artifact: Artifact, document: Document, refining: Refinement
+) -> Built:
+    """One call rewrites the base version's spec; the figures it may place are its sources'."""
+    meta = artifact.artifact_metadata or {}
+    model = _choose_model(session, ModelType.TEXT_GEN)
+    figures = figure_shelf.figures_of(
+        session, artifact.workspace_id, meta.get("source_document_ids", [])
+    )
+    title = document.title
+    session.commit()
+    raise_if_cancelled(session, document)
+
+    with cancellation.watching(lambda: _check_cancelled(session, document)):
+        return refine(
+            _DOCUMENT_OFFICE[refining.base.format], model, refining, figures, title
+        )
+
+
+def _keep_spec(artifact: Artifact, spec: dict) -> None:
+    """A Studio draft's spec becomes v1 of its own document; a refine already has its version."""
+    meta = dict(artifact.artifact_metadata or {})
+    meta["spec"] = spec
+    meta.setdefault(
+        "version",
+        ArtifactVersion(root=artifact.id, number=1, parent=None).as_metadata(),
+    )
+    meta.setdefault(RECIPE_KEY, drafted())
+    artifact.artifact_metadata = meta
 
 
 def _check_cancelled(session: Session, document: Document) -> None:
