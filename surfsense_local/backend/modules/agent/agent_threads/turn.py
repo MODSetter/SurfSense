@@ -141,6 +141,8 @@ async def _stream(
             yield _frame(_not_prepared(error))
             yield _DONE
             return
+        # The turn's first call into its instance: one being disposed is finished first.
+        await live_instances.wait_for_disposal(folder)
         await register_thread_tools(client, folder, workspace_id, thread.id, launch_key)
         begin_turn(thread.id)
         if sending.sources.shown is not None:
