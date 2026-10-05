@@ -11,6 +11,7 @@ markdown without any external ETL/OCR service:
 from __future__ import annotations
 
 import csv
+import io
 from collections.abc import Callable
 from pathlib import Path
 
@@ -58,9 +59,10 @@ def _read_text(file_path: str) -> str:
     return Path(file_path).read_text(encoding="latin-1")
 
 
-def _escape_pipe(cell: str) -> str:
-    """Escape literal pipe characters inside a markdown table cell."""
-    return cell.replace("|", "\\|")
+def _escape_cell(cell: str) -> str:
+    """Keep a CSV cell's text inside its markdown table cell."""
+    # A quoted field may span lines, and a raw newline would end the table row.
+    return "<br>".join(cell.replace("|", "\\|").splitlines())
 
 
 def csv_to_markdown(file_path: str, *, delimiter: str = ",") -> str:
@@ -70,7 +72,8 @@ def csv_to_markdown(file_path: str, *, delimiter: str = ",") -> str:
     empty string so the caller can decide how to handle it.
     """
     text = _read_text(file_path)
-    reader = csv.reader(text.splitlines(), delimiter=delimiter)
+    # Lines are not split first: a quoted field may contain a line break.
+    reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     rows = list(reader)
 
     if not rows:
@@ -81,13 +84,13 @@ def csv_to_markdown(file_path: str, *, delimiter: str = ",") -> str:
 
     lines: list[str] = []
 
-    header_cells = [_escape_pipe(c.strip()) for c in header]
+    header_cells = [_escape_cell(c.strip()) for c in header]
     lines.append("| " + " | ".join(header_cells) + " |")
     lines.append("| " + " | ".join(["---"] * col_count) + " |")
 
     for row in body:
         padded = row + [""] * (col_count - len(row))
-        cells = [_escape_pipe(c.strip()) for c in padded[:col_count]]
+        cells = [_escape_cell(c.strip()) for c in padded[:col_count]]
         lines.append("| " + " | ".join(cells) + " |")
 
     return "\n".join(lines) + "\n"

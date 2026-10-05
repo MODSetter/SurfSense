@@ -92,6 +92,24 @@ async def test_extract_csv_returns_markdown_table(tmp_path):
     assert result.content_type == "direct_convert"
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+async def test_extract_csv_keeps_a_quoted_line_break_in_its_cell(tmp_path, newline):
+    """A quoted field spanning lines stays one cell, with the break kept as <br>."""
+    csv_file = tmp_path / "notes.csv"
+    csv_file.write_bytes(
+        newline.join(
+            ["name,note", 'Alice,"line one', 'line two"', "Bob,plain", ""]
+        ).encode()
+    )
+
+    result = await EtlPipelineService().extract(
+        EtlRequest(file_path=str(csv_file), filename="notes.csv")
+    )
+
+    assert "| Alice | line one<br>line two |" in result.markdown_content
+    assert "| Bob | plain |" in result.markdown_content
+
+
 async def test_extract_tsv_returns_markdown_table(tmp_path):
     """A .tsv file is converted to a markdown table."""
     tsv_file = tmp_path / "data.tsv"
