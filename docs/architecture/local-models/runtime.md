@@ -9,7 +9,7 @@ shaping rule is to assume nothing worked until something says it did, because
 llama.cpp's common failures exit 0 and look like success.
 
 **Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/electron/src/main/sidecars/llamacpp.ts`](../../../surfsense_local/electron/src/main/sidecars/llamacpp.ts), [`surfsense_local/electron/src/main/index.ts`](../../../surfsense_local/electron/src/main/index.ts) (preset watcher), [`surfsense_local/electron/scripts/fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs)
-**Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md)
+**Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md), [ADR 0039](../../adr/0039-prompts-grow-at-the-end.md)
 
 How each model's window and cache precision are chosen is in
 [`fit.md`](fit.md); how models reach the directory is in

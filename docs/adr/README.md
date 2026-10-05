@@ -73,3 +73,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |
+| 0039 | [A prompt changes only at its end, so the cached start of it is never read again](0039-prompts-grow-at-the-end.md) | Accepted |

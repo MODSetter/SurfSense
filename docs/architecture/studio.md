@@ -3,7 +3,7 @@
 Studio turns a selection of sources into a deliverable: a summary, a Word document, slides, a spreadsheet, a web page, a PDF, a mind map, flashcards, a quiz, a podcast, an image or an infographic. The user picks a format and sources and may add a prompt; a background job has the selected model write the content, and the app renders it, as a file for ten of the twelve formats. DOCX, PPTX, XLSX and PDF are rendered by model-written code instead (Known gaps). Each result is an ordinary `ARTIFACT` document, searchable and citable like any source, with a sidecar row for the format and the bytes.
 
 **Code:** [`modules/artifacts/`](../../surfsense_local/backend/modules/artifacts/), [`worker/studio/`](../../surfsense_local/backend/worker/studio/), [`frontend/src/features/studio/`](../../surfsense_local/frontend/src/features/studio/)
-**Decisions:** [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0010](../adr/0010-studio-builders-not-sandboxes.md), [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md)
+**Decisions:** [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0010](../adr/0010-studio-builders-not-sandboxes.md), [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md), [ADR 0039](../adr/0039-prompts-grow-at-the-end.md)
 
 The tables, `artifacts` and `artifact_files`, are in [`data-model.md`](data-model.md#artifacts-and-artifact_files).
 

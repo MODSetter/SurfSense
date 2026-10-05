@@ -5,7 +5,7 @@
 A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
 **Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/models/remote/`](../../surfsense_local/frontend/src/features/models/remote/)
-**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
+**Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md), [ADR 0039](../adr/0039-prompts-grow-at-the-end.md)
 
 ## Terms
 
