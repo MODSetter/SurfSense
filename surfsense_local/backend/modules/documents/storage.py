@@ -145,9 +145,10 @@ def stream_upload(upload: UploadFile, directory: Path) -> StreamedUpload:
     digest = hashlib.sha256()
     written = 0
 
-    with NamedTemporaryFile(dir=directory, delete=False) as temporary:
-        path = Path(temporary.name)
-        try:
+    path: Path | None = None
+    try:
+        with NamedTemporaryFile(dir=directory, delete=False) as temporary:
+            path = Path(temporary.name)
             while chunk := upload.file.read(READ_SIZE):
                 written += len(chunk)
                 if written > MAX_UPLOAD_BYTES:
@@ -158,8 +159,10 @@ def stream_upload(upload: UploadFile, directory: Path) -> StreamedUpload:
                     )
                 digest.update(chunk)
                 temporary.write(chunk)
-        except BaseException:
+    except BaseException:
+        # Removed once closed: Windows cannot delete a file that is still open.
+        if path is not None:
             path.unlink(missing_ok=True)
-            raise
+        raise
 
     return StreamedUpload(path, digest.hexdigest(), written)

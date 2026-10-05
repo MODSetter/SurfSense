@@ -116,6 +116,52 @@ afterEach(() => {
 })
 
 describe("studio panel", () => {
+  it("sends the ticked folders as the job's source scope", async () => {
+    const onGenerate = vi.fn(async () => true)
+    const scope = {
+      all: false,
+      folder_ids: [2],
+      excluded_folder_ids: [],
+      document_ids: [],
+      excluded_document_ids: [],
+    }
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <StudioPanel
+          workspaceId={1}
+          documents={[readyDocument]}
+          selectedDocumentIds={[4]}
+          sourceScope={scope}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+          formats={[
+            {
+              key: "summary",
+              label: "Summary",
+              requires_model_types: ["text_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ]}
+          isCreating={false}
+          error={null}
+          onGenerate={onGenerate}
+          onSetUpVoices={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Summary" }))
+    await user.click(screen.getByRole("button", { name: /Generate/ }))
+
+    expect(onGenerate).toHaveBeenCalledWith({
+      format: "summary",
+      document_ids: [4],
+      source_scope: scope,
+    })
+  })
+
   it("shows the catalog cards before formats load", () => {
     render(
       <TooltipProvider>

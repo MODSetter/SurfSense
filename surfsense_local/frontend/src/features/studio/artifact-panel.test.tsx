@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
 
+import type { Artifact } from "./api"
 import { ArtifactPanel } from "./artifact-panel"
 import { useStudio } from "./use-studio"
 
@@ -25,8 +26,16 @@ function summary(content: string, generation: number) {
 
 /** The Studio list and an open artifact, as the dashboard shows them. */
 function OpenArtifact() {
-  useStudio(1)
-  return <ArtifactPanel artifactId={12} onClose={vi.fn()} />
+  const studio = useStudio(1)
+  return (
+    <ArtifactPanel
+      artifactId={12}
+      artifacts={studio.artifacts}
+      onOpenVersion={vi.fn()}
+      onRefine={studio.refine}
+      onClose={vi.fn()}
+    />
+  )
 }
 
 afterEach(() => {
@@ -67,7 +76,15 @@ describe("artifact panel", () => {
     )
     const user = userEvent.setup()
 
-    render(<ArtifactPanel artifactId={12} onClose={onClose} />)
+    render(
+      <ArtifactPanel
+        artifactId={12}
+        artifacts={[]}
+        onOpenVersion={vi.fn()}
+        onRefine={vi.fn()}
+        onClose={onClose}
+      />
+    )
 
     expect(
       await screen.findByRole("complementary", { name: "Artifact" })
@@ -121,7 +138,15 @@ describe("artifact panel", () => {
       })
     )
 
-    render(<ArtifactPanel artifactId={13} onClose={vi.fn()} />)
+    render(
+      <ArtifactPanel
+        artifactId={13}
+        artifacts={[]}
+        onOpenVersion={vi.fn()}
+        onRefine={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
 
     expect(
       await screen.findByRole("button", { name: "Reveal answer" })
@@ -174,5 +199,381 @@ describe("artifact panel", () => {
 
     // The same event that reloads the list reloads what is open from it.
     expect(await screen.findByText("Saturn has 274 moons.")).toBeTruthy()
+  })
+})
+
+describe("artifact panel versions", () => {
+  function proposal(
+    id: number,
+    number: number,
+    extra: Partial<Omit<Artifact, "version">> = {}
+  ) {
+    return {
+      id,
+      document_id: id + 100,
+      format: "pdf",
+      generation: 1,
+      title: "Client proposal",
+      status: "ready",
+      error_message: null,
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      updated_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: "python",
+      refinable: false,
+      ...extra,
+    } satisfies Artifact
+  }
+  const [v1, v2, v3] = [proposal(30, 1), proposal(31, 2), proposal(32, 3)]
+
+  // Each version's body names it, so the test can tell which one is shown.
+  function serveDetails() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const id = Number(String(input).match(/^\/artifacts\/(\d+)$/)?.[1])
+        const version = [v1, v2, v3].find((candidate) => candidate.id === id)
+        if (!version) {
+          return Response.json({ detail: "not found" }, { status: 404 })
+        }
+        return Response.json({
+          ...version,
+          format: "summary",
+          content: `Body of v${version.version.number}`,
+          files: [],
+          quiz_state: null,
+          flashcard_state: null,
+        })
+      })
+    )
+  }
+
+  it("lists the document’s versions and opens the one chosen", async () => {
+    serveDetails()
+    const onOpenVersion = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <ArtifactPanel
+        artifactId={31}
+        artifacts={[proposal(33, 4, { status: "failed" }), v3, v2, v1]}
+        onOpenVersion={onOpenVersion}
+        onRefine={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(await screen.findByText("Body of v2")).toBeTruthy()
+    await user.click(
+      screen.getByRole("button", { name: "Showing v2. Choose a version" })
+    )
+    expect(
+      (await screen.findAllByRole("menuitemradio")).map((item) =>
+        item.textContent?.trim()
+      )
+    ).toEqual(["v1", "v2", "v3", "v4 Failed"])
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: "v4 Failed" })
+        .getAttribute("aria-disabled")
+    ).toBe("true")
+    await user.click(screen.getByRole("menuitemradio", { name: "v1" }))
+    expect(onOpenVersion).toHaveBeenCalledExactlyOnceWith(30)
+  })
+
+  it("opens a newer version of the document once it is ready", async () => {
+    serveDetails()
+    const onOpenVersion = vi.fn()
+    const panel = (artifacts: Artifact[]) => (
+      <ArtifactPanel
+        artifactId={30}
+        artifacts={artifacts}
+        onOpenVersion={onOpenVersion}
+        onRefine={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    // Opening an older version on purpose does not jump to the newest.
+    const { rerender } = render(panel([v2, v1]))
+    expect(await screen.findByText("Body of v1")).toBeTruthy()
+    expect(onOpenVersion).not.toHaveBeenCalled()
+
+    rerender(panel([{ ...v3, status: "processing" }, v2, v1]))
+    expect(onOpenVersion).not.toHaveBeenCalled()
+
+    rerender(panel([v3, v2, v1]))
+    expect(onOpenVersion).toHaveBeenCalledExactlyOnceWith(32)
+  })
+
+  it("stays on an older version while the newest one is run again", async () => {
+    serveDetails()
+    const onOpenVersion = vi.fn()
+    const panel = (artifacts: Artifact[]) => (
+      <ArtifactPanel
+        artifactId={30}
+        artifacts={artifacts}
+        onOpenVersion={onOpenVersion}
+        onRefine={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    const { rerender } = render(panel([v3, v2, v1]))
+    expect(await screen.findByText("Body of v1")).toBeTruthy()
+
+    // Regenerate acts on the newest version; it is not a new one.
+    rerender(panel([{ ...v3, status: "pending" }, v2, v1]))
+    rerender(panel([v3, v2, v1]))
+    expect(onOpenVersion).not.toHaveBeenCalled()
+  })
+
+  it("shows no version switcher for an artifact without versions", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          id: 12,
+          document_id: 4,
+          format: "summary",
+          generation: 1,
+          title: "Weekly summary",
+          status: "ready",
+          error_message: null,
+          content: "Saturn is a gas giant.",
+          files: [],
+          created_at: "2026-09-06T00:00:00Z",
+          updated_at: "2026-09-06T00:00:00Z",
+          version: null,
+          spec_kind: null,
+          refinable: false,
+        })
+      )
+    )
+
+    render(
+      <ArtifactPanel
+        artifactId={12}
+        artifacts={[
+          {
+            id: 12,
+            document_id: 4,
+            format: "summary",
+            generation: 1,
+            title: "Weekly summary",
+            status: "ready",
+            error_message: null,
+            created_at: "2026-09-06T00:00:00Z",
+            updated_at: "2026-09-06T00:00:00Z",
+            version: null,
+            spec_kind: null,
+            refinable: false,
+          },
+        ]}
+        onOpenVersion={vi.fn()}
+        onRefine={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: /Choose a version/ })
+    ).toBeNull()
+  })
+})
+
+describe("artifact panel refine", () => {
+  function report(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      id,
+      document_id: id + 100,
+      format: "docx",
+      generation: 1,
+      title: "Quarterly report",
+      status: "ready",
+      error_message: null,
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      updated_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 40, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: "markdown",
+      refinable: true,
+      ...extra,
+    } satisfies Artifact
+  }
+
+  // The body is served as a summary so the test needs no Word renderer; the
+  // list entry is what says the document is Word.
+  function serveDetail(artifact: Artifact) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          ...artifact,
+          format: "summary",
+          content: "Body of the report",
+          files: [],
+          quiz_state: null,
+          flashcard_state: null,
+        })
+      )
+    )
+  }
+
+  function panel(
+    artifacts: Artifact[],
+    onRefine: (artifactId: number, instruction: string) => Promise<void>
+  ) {
+    return (
+      <ArtifactPanel
+        artifactId={40}
+        artifacts={artifacts}
+        onOpenVersion={vi.fn()}
+        onRefine={onRefine}
+        onClose={vi.fn()}
+      />
+    )
+  }
+
+  it("sends the instruction to make the next version of the open document", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const onRefine = vi.fn(async () => {})
+    const user = userEvent.setup()
+
+    render(panel([v1], onRefine))
+
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    const button = screen.getByRole("button", { name: "Refine" })
+    expect(button.hasAttribute("disabled")).toBe(true)
+    await user.type(
+      screen.getByRole("textbox", { name: "How to change this document" }),
+      "Add a chart of the revenue"
+    )
+    await user.click(button)
+
+    expect(onRefine).toHaveBeenCalledExactlyOnceWith(
+      40,
+      "Add a chart of the revenue"
+    )
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "How to change this document",
+        }) as HTMLTextAreaElement
+      ).value
+    ).toBe("")
+  })
+
+  it("offers Refine on a PDF Studio wrote as a script too", async () => {
+    const v1 = report(40, 1, { format: "pdf", spec_kind: "python" })
+    serveDetail(v1)
+
+    render(
+      panel(
+        [v1],
+        vi.fn(async () => {})
+      )
+    )
+
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Refine" })).toBeTruthy()
+  })
+
+  it("holds the instruction to the 2,000 characters the API takes", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+
+    render(panel([v1], vi.fn()))
+
+    const box = await screen.findByRole("textbox", {
+      name: "How to change this document",
+    })
+    expect(box.getAttribute("maxlength")).toBe("2000")
+  })
+
+  it("waits while a version of the document is being made", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const user = userEvent.setup()
+
+    render(panel([report(41, 2, { status: "processing" }), v1], vi.fn()))
+
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    await user.type(
+      screen.getByRole("textbox", { name: "How to change this document" }),
+      "Shorter"
+    )
+    expect(
+      screen.getByRole("button", { name: "Refine" }).hasAttribute("disabled")
+    ).toBe(true)
+  })
+
+  it("shows why the API refused, and keeps the instruction", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const onRefine = vi.fn(async () => {
+      throw new Error("This document is too long for the selected model.")
+    })
+    const user = userEvent.setup()
+
+    render(panel([v1], onRefine))
+
+    const box = await screen.findByRole("textbox", {
+      name: "How to change this document",
+    })
+    await user.type(box, "Translate it to French")
+    await user.click(screen.getByRole("button", { name: "Refine" }))
+
+    expect(
+      await screen.findByText(
+        "This document is too long for the selected model."
+      )
+    ).toBeTruthy()
+    expect((box as HTMLTextAreaElement).value).toBe("Translate it to French")
+  })
+
+  it("offers no Refine on a summary, or on a document kept without a spec", async () => {
+    const summary = report(40, 1, {
+      format: "summary",
+      spec_kind: null,
+      refinable: false,
+    })
+    serveDetail(summary)
+
+    const { unmount } = render(panel([summary], vi.fn()))
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+    unmount()
+
+    const drafted = report(40, 1, {
+      spec_kind: null,
+      version: null,
+      refinable: false,
+    })
+    serveDetail(drafted)
+    render(panel([drafted], vi.fn()))
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+  })
+
+  it("offers no Refine on a document the agent wrote, which it edits in chat", async () => {
+    const script = report(40, 1, { spec_kind: "python", refinable: false })
+    serveDetail(script)
+
+    render(panel([script], vi.fn()))
+
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+  })
+
+  it("offers no Refine until the open version is ready", async () => {
+    const failed = report(40, 1, { status: "failed", refinable: false })
+    serveDetail(failed)
+
+    render(panel([failed], vi.fn()))
+
+    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
   })
 })

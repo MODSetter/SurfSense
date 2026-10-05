@@ -63,8 +63,13 @@ async def test_the_same_bytes_are_not_ingested_twice(
 
     assert second.status_code == 201
     assert second.json()["created"] == []
+    original = first.json()["created"][0]
     assert second.json()["duplicates"] == [
-        {"filename": "renamed.pdf", "document_id": first.json()["created"][0]["id"]}
+        {
+            "filename": "renamed.pdf",
+            "document_id": original["id"],
+            "folder_id": original["folder_id"],
+        }
     ]
 
 

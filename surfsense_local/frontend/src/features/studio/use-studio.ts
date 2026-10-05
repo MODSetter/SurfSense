@@ -16,11 +16,13 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
+  refineArtifact,
   regenerateArtifact,
   type Artifact,
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
+import { canRetry } from "./can-retry"
 import { studioKeys } from "./query-keys"
 import { translatedStudioError } from "./studio-error-text"
 
@@ -61,7 +63,12 @@ function announceFinished(before: Artifact[], after: Artifact[]) {
           { name: artifact.title }
         )
       )
-    } else if (artifact.status === "failed") {
+    } else if (
+      artifact.status === "failed" &&
+      // A script's own failure goes back to the agent that wrote it, and a
+      // retry would only run the same script again: no toast to retry.
+      canRetry(artifact)
+    ) {
       // The raw error (often a multi-line HTTP exception) belongs in
       // the row's own Ctrl/Cmd-hover tooltip, not a toast.
       errorToast(
@@ -188,6 +195,16 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     }
   }
 
+  // Rejects with the API's reason, for the Refine box to show where it was typed.
+  const refine = async (artifactId: number, instruction: string) => {
+    const next = await refineArtifact(artifactId, instruction)
+    // A re-read of the list may have brought it in first.
+    await setList((current) => [
+      next,
+      ...current.filter((artifact) => artifact.id !== next.id),
+    ])
+  }
+
   const cancel = async (artifactId: number) => {
     setActionError(null)
     try {
@@ -215,6 +232,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     error,
     create,
     regenerate,
+    refine,
     cancel,
     remove,
     clearError: () => {

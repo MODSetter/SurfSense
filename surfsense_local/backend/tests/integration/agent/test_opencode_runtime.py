@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from modules.agent.model_window import selected_model_window
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
 from modules.agent.opencode_runtime import AgentUnavailableError, ready_opencode
@@ -73,6 +74,7 @@ async def test_it_waits_for_the_configuration_it_just_wrote(
     old = AgentSetup(
         model="remote-model",
         window=32768,
+        reads_images=False,
         endpoint_url="http://127.0.0.1:1/v1",
         launch_key="old-key",
     )
@@ -97,3 +99,46 @@ async def test_it_waits_for_the_configuration_it_just_wrote(
     assert ready.model == "remote-model"
     # Applied by opencode's own reload: no restart, so no turn elsewhere is cut off by one later.
     assert electron.starts == 1
+
+
+async def test_a_model_that_comes_to_read_images_is_reloaded_with_image_input(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same model, window and key, but now it reads images: the configuration served is not this one."""
+    needs_staged_opencode()
+    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+    assert selected is not None
+    selected.name = "gpt-4o-mini"
+    session.get(ProviderConnection, selected.connection_id).catalog_provider = "openai"
+    session.commit()
+    _, window = await selected_model_window(session)
+    agent_dir: Path = get_storage_settings().agent_dir
+    port, password = free_port(), secrets.token_urlsafe(16)
+    monkeypatch.setattr(
+        get_agent_settings(), "opencode_url", f"http://127.0.0.1:{port}"
+    )
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", password)
+    without_images = AgentSetup(
+        model="gpt-4o-mini",
+        window=window,
+        reads_images=False,
+        endpoint_url="http://127.0.0.1:1/v1",
+        launch_key="same-key",
+    )
+    write_opencode_config(agent_dir / "opencode.json", without_images)
+
+    with StandInForElectron(agent_dir, port, password) as electron:
+        assert electron.running is not None
+        await asyncio.to_thread(wait_until_healthy, electron.running)
+        async with OpencodeClient(electron.running.url, password) as earlier:
+            await earlier.config()  # opencode reads the folder's configuration now
+
+        ready = await ready_opencode(session, launch_key="same-key")
+        try:
+            loaded = await ready.client.config()
+        finally:
+            await ready.client.close()
+
+    model = loaded["provider"]["surfsense"]["models"]["gpt-4o-mini"]
+    assert model["modalities"]["input"] == ["text", "image"]
+    assert model["attachment"] is True

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { buttonVariants } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
@@ -9,9 +9,18 @@ import { intl } from "@/i18n/intl"
 import {
   downloadUrl,
   readArtifact,
+  type Artifact,
   type ArtifactDetail,
   type ArtifactFile,
 } from "./api"
+import {
+  newestReady,
+  versionsOf,
+  type VersionedArtifact,
+} from "./artifact-versions"
+import { canRefine } from "./can-refine"
+import { RefineBox } from "./refine-box"
+import { VersionSwitcher } from "./version-switcher"
 import { getArtifactViewer } from "./viewers/registry"
 import { studioKeys } from "./query-keys"
 
@@ -28,17 +37,58 @@ const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
     }),
 }
 
+/**
+ * Opens a newer version of the shown document once it is ready, as the agent
+ * makes one. Only a version that appears while the panel is open counts, so
+ * opening an older one on purpose stays put. The highest version seen never
+ * drops, so the newest one being run again is not a new one.
+ */
+function useFollowNewestVersion(
+  versions: VersionedArtifact[],
+  onOpenVersion: (artifactId: number) => void
+) {
+  const rootId = versions[0]?.version.root_id ?? null
+  const newest = newestReady(versions)
+  const seen = useRef<{ rootId: number; highest: number } | null>(null)
+  useEffect(() => {
+    const number = newest?.version.number ?? 0
+    if (rootId === null || seen.current?.rootId !== rootId) {
+      seen.current = rootId === null ? null : { rootId, highest: number }
+      return
+    }
+    if (newest && number > seen.current.highest) {
+      seen.current = { rootId, highest: number }
+      onOpenVersion(newest.id)
+    }
+  }, [rootId, newest, onOpenVersion])
+}
+
 export function ArtifactPanel({
   artifactId,
+  artifacts,
+  onOpenVersion,
+  onRefine,
   onClose,
 }: {
   artifactId: number
+  /** The workspace's artifacts, where the shown one's versions are found. */
+  artifacts: Artifact[]
+  onOpenVersion: (artifactId: number) => void
+  /** Rejects with the reason the next version was refused. */
+  onRefine: (artifactId: number, instruction: string) => Promise<void>
   onClose: () => void
 }) {
   const { data, isLoading, error } = useQuery({
     queryKey: studioKeys.artifact(artifactId),
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
+  const versions = versionsOf(artifacts, artifactId)
+  useFollowNewestVersion(versions, onOpenVersion)
+  // The list follows each run's status; the detail is read once.
+  const shown = artifacts.find((artifact) => artifact.id === artifactId) ?? data
+  const versionRunning = versions.some(
+    (version) => version.status === "pending" || version.status === "processing"
+  )
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
 
@@ -69,6 +119,11 @@ export function ArtifactPanel({
       flush
       actions={
         <>
+          <VersionSwitcher
+            versions={versions}
+            openId={artifactId}
+            onOpen={onOpenVersion}
+          />
           {/* Where a viewer's own controls (mindmap's fit, pdf's zoom)
               portal in — see ArtifactViewerProps.actionsContainer. */}
           <div ref={setActionsContainer} className="flex items-center gap-1" />
@@ -96,31 +151,41 @@ export function ArtifactPanel({
         </>
       }
     >
-      {/* The one viewable stage every artifact format renders into: same
-          size and position below the shared header, regardless of format.
-          No padding here — a viewer that wants breathing room (like
-          DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
-          can sit flush against the panel edges. */}
-      <div className="h-full overflow-y-auto">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Spinner />
-          </div>
-        ) : null}
-        {error ? (
-          <div className="flex h-full items-center justify-center px-5 text-center">
-            <p className="text-sm text-destructive">
-              {error instanceof Error
-                ? error.message
-                : intl.formatMessage({
-                    id: "studio_artifact_panel_load_error",
-                    defaultMessage: "Failed to load artifact",
-                  })}
-            </p>
-          </div>
-        ) : null}
-        {!isLoading && !error && data ? (
-          <Viewer artifact={data} actionsContainer={actionsContainer} />
+      <div className="flex h-full flex-col">
+        {/* The one viewable stage every artifact format renders into: same
+            size and position below the shared header, regardless of format.
+            No padding here — a viewer that wants breathing room (like
+            DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
+            can sit flush against the panel edges. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <Spinner />
+            </div>
+          ) : null}
+          {error ? (
+            <div className="flex h-full items-center justify-center px-5 text-center">
+              <p className="text-sm text-destructive">
+                {error instanceof Error
+                  ? error.message
+                  : intl.formatMessage({
+                      id: "studio_artifact_panel_load_error",
+                      defaultMessage: "Failed to load artifact",
+                    })}
+              </p>
+            </div>
+          ) : null}
+          {!isLoading && !error && data ? (
+            <Viewer artifact={data} actionsContainer={actionsContainer} />
+          ) : null}
+        </div>
+        {!isLoading && !error && shown && canRefine(shown) ? (
+          <RefineBox
+            key={artifactId}
+            artifactId={artifactId}
+            versionRunning={versionRunning}
+            onRefine={onRefine}
+          />
         ) : null}
       </div>
     </DetailPanel>

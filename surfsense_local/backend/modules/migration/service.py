@@ -10,13 +10,15 @@ from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import stored_name
 from modules.documents.storage import stream_upload, validate_upload
-from modules.documents.tasks import ingest_document
+from modules.documents.tasks import PRIORITY_BULK, ingest_document
+from modules.folders.ensure_path import ensure_folder_path
 from modules.migration.schemas import (
     ExportedThread,
     ExportedThreads,
     Manifest,
     ManifestDocument,
 )
+from modules.source_roots.managed_root import ensure_managed_root
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 
@@ -36,6 +38,7 @@ def find_or_create_workspaces(
             workspace = Workspace(name=exported.name, cloud_id=exported.id)
             session.add(workspace)
             session.flush()
+            ensure_managed_root(session, workspace.id)
             found.append((workspace, True))
         else:
             found.append((workspace, False))
@@ -92,9 +95,17 @@ def _import_document(
             logger.warning("skipped %s: %s", exported.path, failure)
             streamed.path.unlink()
             return
+        # workspaces/<id>/documents/<folder path>/<file>: the hierarchy
+        # becomes folders, and stays in the metadata as provenance.
+        folder_path = "/".join(path.parts[3:-1])
+        folder = ensure_folder_path(
+            session, ensure_managed_root(session, workspace_id), path.parts[3:-1]
+        )
+        # Per folder, so two hosted folders holding the same bytes both arrive.
         twin = session.scalar(
             select(Document).where(
                 Document.workspace_id == workspace_id,
+                Document.folder_id == folder.id,
                 Document.dedup_key == streamed.digest,
             )
         )
@@ -102,14 +113,13 @@ def _import_document(
             streamed.path.unlink()
             return
 
-        # workspaces/<id>/documents/<folder path>/<file>: the hierarchy is kept
-        # as data, since the local schema has no folder table.
-        folder_path = "/".join(path.parts[3:-1])
         document = Document(
             workspace_id=workspace_id,
             title=exported.title,
             document_type=DocumentType.FILE,
+            folder_id=folder.id,
             dedup_key=streamed.digest,
+            content_hash=streamed.digest,
             document_metadata={
                 "mime_type": mime_type,
                 "size_bytes": streamed.size,
@@ -134,7 +144,7 @@ def _import_document(
         destination / stored_name(exported.title, path.suffix.lower())
     )
     session.commit()
-    ingest_document(document.id)
+    ingest_document(document.id, priority=PRIORITY_BULK)
 
 
 def _import_thread(

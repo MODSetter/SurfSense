@@ -1,6 +1,6 @@
 import { followWorkspaceEvents } from "./api"
 
-export type WorkspaceChangeKind = "documents" | "artifacts"
+export type WorkspaceChangeKind = "documents" | "artifacts" | "folders"
 
 type Listener = () => void
 

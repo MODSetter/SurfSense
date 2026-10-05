@@ -36,7 +36,11 @@ import {
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
   FilterIcon as FilterIconData,
+  Folder01Icon as Folder01IconData,
+  FolderAddIcon as FolderAddIconData,
   FolderOpenIcon as FolderOpenIconData,
+  FolderTransferIcon as FolderTransferIconData,
+  FolderUploadIcon as FolderUploadIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
   LayoutGridIcon as LayoutGridIconData,
@@ -147,7 +151,11 @@ export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FilePlusCornerIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
+export const Folder01Icon = createIcon(Folder01IconData)
+export const FolderAddIcon = createIcon(FolderAddIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
+export const FolderTransferIcon = createIcon(FolderTransferIconData)
+export const FolderUploadIcon = createIcon(FolderUploadIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)

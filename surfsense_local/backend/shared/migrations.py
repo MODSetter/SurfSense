@@ -9,15 +9,25 @@ from sqlalchemy.orm import Session
 from alembic import command
 from modules.embedding.active import active_index
 from modules.embedding.vector_table import declared_width
+from shared.migration_snapshot import snapshot_before_upgrade
 
 _REVISIONS = Path(__file__).resolve().parent.parent / "alembic"
 
 
-def upgrade_to_head(engine: Engine) -> None:
+def upgrade_to_head(engine: Engine, *, backups_dir: Path | None = None) -> None:
     """Apply pending migrations. The API runs this; besides locking the embedder,
-    nothing else in the app emits DDL."""
+    nothing else in the app emits DDL.
+
+    With `backups_dir`, an existing database behind head is copied there first,
+    and nothing migrates if the copy fails.
+    """
     config = _config()
     config.attributes["engine"] = engine
+    if backups_dir is not None:
+        head = ScriptDirectory.from_config(config).get_current_head()
+        current = _current_revision(engine)
+        if current is not None and head is not None and current != head:
+            snapshot_before_upgrade(engine, backups_dir, current, head)
     command.upgrade(config, "head")
 
     _check_embedding_width(engine)
@@ -26,8 +36,12 @@ def upgrade_to_head(engine: Engine) -> None:
 def is_migrated(engine: Engine) -> bool:
     """Whether the database is at this code's latest revision."""
     head = ScriptDirectory.from_config(_config()).get_current_head()
+    return _current_revision(engine) == head
+
+
+def _current_revision(engine: Engine) -> str | None:
     with engine.connect() as connection:
-        return MigrationContext.configure(connection).get_current_revision() == head
+        return MigrationContext.configure(connection).get_current_revision()
 
 
 def _config() -> Config:
