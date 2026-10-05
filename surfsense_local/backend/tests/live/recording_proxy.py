@@ -272,7 +272,7 @@ def _worst_case_usage(body: dict[str, Any], prices: Prices) -> Usage:
     """
     text_chars = len(json.dumps(body))
     image_tokens = 0
-    for _, _, url in _image_parts(body):
+    for _, _, url in image_parts(body):
         pixels = _pixels(url)
         if pixels is not None:
             text_chars -= len(url)
@@ -304,11 +304,11 @@ def _images_in(body: dict[str, Any]) -> list[dict[str, Any]]:
             "role": role,
             "mime": url.split(";", 1)[0].removeprefix("data:"),
         }
-        for index, role, url in _image_parts(body)
+        for index, role, url in image_parts(body)
     ]
 
 
-def _image_parts(body: dict[str, Any]) -> list[tuple[int, str | None, str]]:
+def image_parts(body: dict[str, Any]) -> list[tuple[int, str | None, str]]:
     """Each image part's message index, that message's role, and its URL."""
     found = []
     for index, message in enumerate(body.get("messages") or []):

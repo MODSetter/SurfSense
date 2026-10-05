@@ -5,7 +5,6 @@
 
 import hashlib
 import io
-import json
 import zipfile
 
 import docx
@@ -15,7 +14,7 @@ from modules.documents.source_figures import figure_file
 from shared.db import create_session_factory
 from tests.live import demo_sources
 from tests.live.live_agent import LiveAgent, steps
-from tests.live.turn_renders import ready_versions, sees_pages
+from tests.live.turn_renders import assert_pages_checked, ready_versions, sees_pages
 
 pytestmark = pytest.mark.live
 
@@ -78,16 +77,13 @@ async def test_the_agent_drafts_edits_and_exports_a_proposal(live: LiveAgent) ->
 
     if not sees_pages(live):
         return
-    checked = [
-        s
-        for reply in replies
-        for s in steps(reply, "read")
-        if "previews" in json.dumps(s.get("input")) and s["status"] == "completed"
-    ]
-    assert checked, "the agent never opened a page preview"
+    # Renders attach their pages, so no `read` of a preview is needed.
     assert [e for e in live.proxy.exchanges if e.images], (
-        "the agent opened previews, but no page image reached the model"
+        "no page image reached the model"
     )
+    # Any image counts above, even a refused one or the logo; these need the pages.
+    for turn, reply in enumerate(replies, start=1):
+        await assert_pages_checked(live, reply, f"turn {turn}")
 
 
 def _pictures(word: bytes) -> set[str]:

@@ -1,14 +1,19 @@
-"""What a turn rendered and which page previews the agent opened, read from its frames."""
+"""What a turn rendered and which page previews reached the agent, read from its frames and requests."""
 
+import base64
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from PIL import Image
 
+from modules.agent.previews.inline_images import inline_image
+from tests.live.recording_proxy import Exchange
 from tests.live.turn_renders import (
     Version,
     assert_pages_checked,
     pages_left_unread,
+    pages_sent_inline,
     previews_opened,
     ready_versions,
     rendered_ids,
@@ -117,6 +122,7 @@ def _live(reads_images: bool) -> SimpleNamespace:
         workspace_id=987654321,
         artifacts=artifacts,
         run=SimpleNamespace(model=SimpleNamespace(reads_images=reads_images)),
+        proxy=SimpleNamespace(exchanges=[]),
     )
 
 
@@ -138,3 +144,62 @@ async def test_a_text_only_model_still_has_to_render_a_version() -> None:
     """Skipping the previews does not excuse a turn that rendered nothing."""
     with pytest.raises(AssertionError, match="no version was rendered"):
         await assert_pages_checked(_live(reads_images=False), [], "turn 1")
+
+
+def _drawn(tmp_path: Path, pages: int) -> Path:
+    """Real page previews of v1 of artifact 5, each a different colour."""
+    folder = tmp_path / "5-v1"
+    folder.mkdir()
+    for n in range(1, pages + 1):
+        colour = (40 * n, 120, 200 - 40 * n)
+        Image.new("RGB", (1000, 1415), colour).save(folder / f"page-{n}.png")
+    return folder
+
+
+def _carrying(url: str, status: int = 200, role: str = "user") -> Exchange:
+    """A request whose message after the tool step holds one image."""
+    message = {
+        "role": role,
+        "content": [
+            {"type": "text", "text": "Attached media from tool result:"},
+            {"type": "image_url", "image_url": {"url": url}},
+        ],
+    }
+    return Exchange(request={"messages": [message]}, status=status)
+
+
+def _url(mime: str, data: bytes) -> str:
+    return f"data:{mime};base64,{base64.b64encode(data).decode()}"
+
+
+_V1 = Version(5, "pdf", 5, 1)
+
+
+def test_a_page_whose_inline_image_reached_the_model_was_sent(tmp_path: Path) -> None:
+    """The exact bytes the render attached, in a request that came back."""
+    folder = _drawn(tmp_path, 2)
+    page_1 = inline_image(folder / "page-1.png").data
+    sent = [_carrying(_url("image/jpeg", page_1))]
+
+    assert pages_sent_inline(sent, _V1, tmp_path) == {1}
+    assert pages_left_unread([], _V1, tmp_path, sent) == [2]
+
+
+def test_a_page_opened_with_read_is_not_sent_inline(tmp_path: Path) -> None:
+    """`read` sends the PNG on disk, never the attached JPEG."""
+    folder = _drawn(tmp_path, 1)
+    png = (folder / "page-1.png").read_bytes()
+
+    sent = [_carrying(_url("image/png", png))]
+
+    assert pages_sent_inline(sent, _V1, tmp_path) == set()
+
+
+def test_a_request_the_provider_refused_sent_nothing(tmp_path: Path) -> None:
+    """A 400 means the model never saw the image."""
+    folder = _drawn(tmp_path, 1)
+    page_1 = inline_image(folder / "page-1.png").data
+
+    sent = [_carrying(_url("image/jpeg", page_1), status=400)]
+
+    assert pages_sent_inline(sent, _V1, tmp_path) == set()
