@@ -5,6 +5,7 @@ PDF version the agent can look at: the calls a model makes across the three turn
 of 07-create-and-edit-mvp, with no model and no network.
 """
 
+import re
 from io import BytesIO
 
 import docx
@@ -166,7 +167,7 @@ async def test_the_agent_drafts_edits_and_checks_a_document_from_its_sources(
     assert await _pictures_in_word(tools, second_id) == 2
 
     # Turn 3: a PDF for the client, a document of its own, with pages to check.
-    pdf, is_error = await tools.call(
+    pdf, images, is_error = await tools.call_content(
         workspace_id,
         "render_document",
         {
@@ -180,16 +181,12 @@ async def test_the_agent_drafts_edits_and_checks_a_document_from_its_sources(
     pdf_id, pdf_version = _made(pdf)
     assert pdf_version == 1
     assert "2 pages" in pdf
+    assert len(images) == 2
     agent_folder = get_storage_settings().agent_working_dir(workspace_id)
-    previews = [
-        line.removeprefix("- ") for line in pdf.splitlines() if "previews/" in line
-    ]
-    assert previews == [
-        f"outputs/previews/{pdf_id}-v1/page-1.png",
-        f"outputs/previews/{pdf_id}-v1/page-2.png",
-    ]
-    for preview in previews:
-        with Image.open(agent_folder / preview) as page:
+    (copies,) = re.findall(r"Larger copies are in (\S+/) as page-<n>\.png", pdf)
+    assert copies == f"outputs/previews/{pdf_id}-v1/"
+    for n in (1, 2):
+        with Image.open(agent_folder / copies / f"page-{n}.png") as page:
             assert page.width == 1000
 
     listed = await tools.client.get(f"/workspaces/{workspace_id}/artifacts")

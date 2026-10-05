@@ -1,5 +1,7 @@
 """The tools offered to opencode, and one call to them."""
 
+import base64
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -14,9 +16,21 @@ from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
-from modules.agent.tool_endpoint.tool import Tool, ToolCallError
+from modules.agent.tool_endpoint.tool import (
+    InlineImage,
+    Tool,
+    ToolCallError,
+    ToolResult,
+)
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from shared.config import get_storage_settings
+
+logger = logging.getLogger(__name__)
+
+IMAGES_LEFT_OUT = (
+    "The images were left out: the selected model cannot read images. Work from "
+    "the text above instead."
+)
 
 # In a fixed order, so a local model's prompt cache holds from turn to turn.
 TOOLS: dict[str, Tool] = {
@@ -60,12 +74,14 @@ async def call(
                 "anything. Work from the sources' text instead."
             )
         if tool.waits:
-            text = await run_in_threadpool(tool.run, session, scope, arguments)
+            made = await run_in_threadpool(tool.run, session, scope, arguments)
         else:
-            text = await transact(session, tool.run, scope, arguments)
+            made = await transact(session, tool.run, scope, arguments)
     except ToolCallError as refused:
-        return replies.result(message, _content(str(refused), is_error=True))
-    return replies.result(message, _content(text, is_error=False))
+        return replies.result(message, _content(str(refused), (), is_error=True))
+    if isinstance(made, ToolResult):
+        return replies.result(message, _content(made.text, made.images, is_error=False))
+    return replies.result(message, _content(made, (), is_error=False))
 
 
 def _model_sees_images() -> bool:
@@ -73,6 +89,29 @@ def _model_sees_images() -> bool:
     return declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE)
 
 
-def _content(text: str, *, is_error: bool) -> dict[str, Any]:
-    """A tool result: one text item, which opencode passes to the model as it is."""
-    return {"content": [{"type": "text", "text": text}], "isError": is_error}
+def _content(
+    text: str, images: tuple[InlineImage, ...], *, is_error: bool
+) -> dict[str, Any]:
+    """A tool result: one text item, which opencode passes to the model as it is,
+    then the images, which opencode attaches after the step.
+
+    The model must still read images now: opencode turns each image sent to one
+    that cannot into an error it is told to report.
+    """
+    if images and not _model_sees_images():
+        logger.warning(
+            "dropped %d image(s) from a tool result: the model reads no images now",
+            len(images),
+        )
+        # The text says images come with it; the model must learn none did.
+        text, images = f"{text}\n{IMAGES_LEFT_OUT}", ()
+    items: list[dict[str, Any]] = [{"type": "text", "text": text}]
+    items += [
+        {
+            "type": "image",
+            "data": base64.b64encode(image.data).decode("ascii"),
+            "mimeType": image.mime,
+        }
+        for image in images
+    ]
+    return {"content": items, "isError": is_error}

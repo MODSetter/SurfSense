@@ -220,19 +220,23 @@ def _slides_pdf(pages: int) -> bytes:
 async def test_a_deck_render_is_a_studio_version_whose_slides_electron_prints_as_a_deck(
     tools: ToolEndpoint, studio_worker: None, electron: list[SnapshotRequest]
 ) -> None:
-    """End to end: the version Studio lists, the pptx print request, and the slides the model opens."""
+    """End to end: the version Studio lists, the pptx print request, and the slides the model is shown."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(workspace_id, "render_document", render())
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render()
+    )
 
     assert is_error is False, text
     artifact_id = _artifact_id(text)
     assert [(r.format, r.artifact_id, r.source_file, r.pages) for r in electron] == [
         ("pptx", artifact_id, None, "1-4")
     ]
-    assert "Slide previews to check with `read`:" in text
-    for slide in (1, 2):
-        assert f"- outputs/previews/{artifact_id}-v1/page-{slide}.png" in text
+    assert (
+        f"The slide previews of version 1 of artifact {artifact_id} come with this "
+        "result as images, in order: slide 1, slide 2." in text
+    )
+    assert [item["mimeType"] for item in images] == ["image/jpeg", "image/jpeg"]
     assert "differ a little from PowerPoint" in text
     listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
     assert [
@@ -246,13 +250,14 @@ async def test_a_workbook_render_returns_its_summary_to_check_in_place_of_pages(
     """A workbook has no pages; its sheets, rows and formulas are what the model checks."""
     workspace_id = await tools.workspace()
 
-    text, is_error = await tools.call(
+    text, images, is_error = await tools.call_content(
         workspace_id,
         "render_document",
         render(title="Costs", format="xlsx", script=WORKBOOK),
     )
 
     assert is_error is False, text
+    assert images == []
     assert "An Excel workbook of 1 sheet." in text
     assert 'Sheet "Costs": A1:B4\nYear | Cost\n2024 | 120' in text
     assert "- Costs!B4: =SUM(B2:B3)" in text

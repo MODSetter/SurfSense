@@ -4,9 +4,11 @@ PDF pages are drawn in the API. Word and PowerPoint pages come back as a PDF
 from Electron, which a thread plays here on the snapshot queue itself.
 """
 
+import base64
 import threading
 from collections.abc import Callable, Iterator
 from io import BytesIO
+from pathlib import Path
 
 import docx
 import pptx
@@ -19,6 +21,8 @@ from sqlalchemy import Engine
 
 from modules.agent.previews import docx_snapshots
 from modules.agent.previews.docx_snapshots import SnapshotRequest
+from modules.agent.previews.inline_images import inline_image
+from modules.agent.tool_endpoint import source_pages
 from modules.agent.tool_endpoint.turn_scope import remember_turn_scope
 from shared.config import get_storage_settings
 from tests.integration.agent.conftest import declare_image_input
@@ -73,6 +77,16 @@ def _folder(workspace_id: int):
     return get_storage_settings().agent_working_dir(workspace_id)
 
 
+def _sizes(images: list[dict]) -> list[tuple[int, int]]:
+    """Each image item's width and height, as the model's provider decodes it."""
+    sizes = []
+    for item in images:
+        assert item["mimeType"] == "image/jpeg"
+        with Image.open(BytesIO(base64.b64decode(item["data"]))) as image:
+            sizes.append(image.size)
+    return sizes
+
+
 @pytest.fixture
 def electron(
     fresh_snapshots: docx_snapshots.DocxSnapshots,
@@ -106,25 +120,30 @@ def electron(
         thread.join(timeout=5)
 
 
-async def test_a_pdfs_first_pages_are_drawn_where_the_agent_reads_them(
+async def test_a_pdfs_first_pages_come_back_as_images(
     tools: ToolEndpoint, engine: Engine
 ) -> None:
-    """By default the first four pages, each at most 1,000 px on its long side."""
+    """By default the first four pages, shown with the result and kept at 1,000 px for a closer look."""
     workspace_id = await tools.workspace()
     original = _pdf(*[A4] * 6)
     source_id = _uploaded(engine, workspace_id, "Brand guide.pdf", original)
 
-    text, is_error = await tools.call(workspace_id, "source_pages", _call(source_id))
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
 
     assert is_error is False, text
     assert f'Source {source_id} ("Brand guide.pdf") has 6 pages.' in text
+    assert "Pages 1, 2, 3 and 4 come with this result as images, in order." in text
+    assert len(images) == 4
+    assert all(height > width for width, height in _sizes(images))
     for page in (1, 2, 3, 4):
         relative = f"sources/pages/{source_id}-p{page}.png"
-        assert f"- {relative}" in text
         with Image.open(_folder(workspace_id) / relative) as image:
             assert max(image.size) == 1000
             assert image.height > image.width
-    assert f"{source_id}-p5.png" not in text
+    assert not (_folder(workspace_id) / f"sources/pages/{source_id}-p5.png").exists()
+    assert f"sources/pages/ as {source_id}-p<n>.png" in text
     folder = get_storage_settings().document_dir(workspace_id, source_id)
     assert (folder / "Brand guide.pdf").read_bytes() == original
 
@@ -138,17 +157,47 @@ async def test_the_pages_asked_for_are_the_pages_drawn(
         engine, workspace_id, "Brand.pdf", _pdf(A4, A4, A4, A4, landscape(A4))
     )
 
-    text, is_error = await tools.call(
+    text, images, is_error = await tools.call_content(
         workspace_id, "source_pages", _call(source_id, pages=[5, 2])
     )
 
     assert is_error is False, text
+    assert "Pages 2 and 5 come with this result as images, in order." in text
+    (two_w, two_h), (five_w, five_h) = _sizes(images)
+    assert two_h > two_w
+    assert five_w > five_h
     pages = _folder(workspace_id) / "sources" / "pages"
     with Image.open(pages / f"{source_id}-p5.png") as five:
         assert five.width == 1000 and five.height < 1000
     with Image.open(pages / f"{source_id}-p2.png") as two:
         assert two.height == 1000
-    assert text.index("-p2.png") < text.index("-p5.png")
+
+
+async def test_a_source_page_that_cannot_be_attached_is_named(
+    tools: ToolEndpoint, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other pages still come; the one that broke is left on disk to open."""
+
+    def page_2_breaks(path: Path):
+        if path.name.endswith("-p2.png"):
+            raise OSError("cannot identify image file")
+        return inline_image(path)
+
+    monkeypatch.setattr(source_pages, "inline_image", page_2_breaks)
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Brand.pdf", _pdf(A4, A4))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
+
+    assert is_error is False, text
+    assert len(images) == 1
+    assert "Page 1 comes with this result as an image." in text
+    assert (
+        f"Page 2 could not be attached; open sources/pages/{source_id}-p2.png "
+        "with read." in text
+    )
 
 
 @pytest.mark.parametrize(
@@ -183,7 +232,9 @@ async def test_a_word_sources_pages_are_printed_by_electron_from_its_original(
     source_id = _uploaded(engine, workspace_id, "Letterhead.docx", _docx())
     served = electron(lambda request: _pdf(A4, A4))
 
-    text, is_error = await tools.call(workspace_id, "source_pages", _call(source_id))
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
 
     assert is_error is False, text
     (request,) = served
@@ -191,7 +242,8 @@ async def test_a_word_sources_pages_are_printed_by_electron_from_its_original(
     assert request.source_file is not None
     assert request.source_file.name == "Letterhead.docx"
     assert "has 2 pages" in text
-    assert f"- sources/pages/{source_id}-p2.png" in text
+    assert "Pages 1 and 2 come with this result as images, in order." in text
+    assert len(images) == 2
     assert "headers and footers" in text
 
 
@@ -203,15 +255,15 @@ async def test_a_decks_slides_are_counted_and_printed_as_asked(
     source_id = _uploaded(engine, workspace_id, "Brand.pptx", _pptx(6))
     served = electron(lambda request: _pdf(landscape(A4), landscape(A4)))
 
-    text, is_error = await tools.call(
+    text, images, is_error = await tools.call_content(
         workspace_id, "source_pages", _call(source_id, pages=[6, 3])
     )
 
     assert is_error is False, text
     assert [(r.format, r.pages) for r in served] == [("pptx", "3,6")]
     assert f'Source {source_id} ("Brand.pptx") has 6 slides.' in text
-    assert f"- sources/pages/{source_id}-p3.png" in text
-    assert f"- sources/pages/{source_id}-p6.png" in text
+    assert "Slides 3 and 6 come with this result as images, in order." in text
+    assert len(images) == 2
 
 
 async def test_a_16_9_slide_is_drawn_no_wider_than_1000_px(

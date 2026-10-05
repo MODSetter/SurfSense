@@ -49,7 +49,14 @@ def test_the_skill_says_what_the_agent_can_look_at_and_what_previews_leave_out()
         "If `read` cannot show you the image, place that figure with its caption "
         "and tell the user" in text
     )
-    assert "When `read` cannot show you the previews" in text
+    # The pages come with the render; a text-only model is told so in the result.
+    assert "When the result says there are no previews" in text
+    assert "Then look at every page the result shows before you go on." in text
+    # Opening a preview again sends the page twice, and both copies stay.
+    assert (
+        "Open a preview file with `read` only when you need a closer look at one "
+        "page: every image stays in the conversation." in text
+    )
 
 
 def test_the_word_example_renders_a_document_with_its_table_and_chart() -> None:
