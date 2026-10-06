@@ -31,9 +31,9 @@ export type ChatThread = {
 export type TurnEnding =
   | {
       type: "error"
-      // `agent_thread_outdated` is client only: the API refuses that turn
-      // before any frame.
-      kind: ChatErrorKind | "agent_thread_outdated"
+      // `agent_thread_outdated` and `agent_model_unsupported` are client
+      // only: the API refuses those turns before any frame.
+      kind: ChatErrorKind | "agent_thread_outdated" | "agent_model_unsupported"
       message: string
       provider?: string
       // Client only: our own request failed before the API could classify it.

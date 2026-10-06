@@ -112,6 +112,7 @@
   "chat_composer_upload_sources_label": "소스 업로드",
   "chat_composer_upload_sources_tooltip": "이 워크스페이스의 소스에 파일 추가",
   "chat_composer_upload_sources_uploading_tooltip": "업로드 중...",
+  "chat_error_agent_model_unsupported": "이 스레드는 선택한 모델로 계속할 수 없습니다. 이 모델을 쓰려면 새 채팅을 시작하거나 다른 모델을 선택하세요.",
   "chat_error_agent_thread_outdated": "이 에이전트 채팅은 채팅마다 자체 소스를 갖기 전에 시작되었습니다. 계속하려면 새 채팅을 시작하세요.",
   "chat_error_context_too_long": "이 대화는 모델의 컨텍스트 창에 담기에 너무 깁니다. 새 채팅을 시작하거나 더 큰 창을 가진 모델을 선택하세요.",
   "chat_error_interrupted": "앱이 종료되어 중단되었습니다.",

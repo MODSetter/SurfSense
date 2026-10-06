@@ -20,6 +20,7 @@ import {
   type TurnSources,
 } from "@/features/agent/api"
 import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
+import { isUnsupportedModelRefusal } from "@/features/agent/unsupported-model"
 import { errorToast } from "@/features/feedback/error-toast"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { subscribeToWorkspaceChanges } from "@/features/workspaces/workspace-changes"
@@ -68,7 +69,8 @@ import { readThinkingOn } from "./thinking-preference"
 
 /** A backend error kind, or a refusal the app recognises before any stream:
  *  a turn on an agent thread that predates per-chat folders. */
-export type ChatTurnErrorKind = ChatErrorKind | "agent_thread_outdated"
+export type ChatTurnErrorKind =
+  ChatErrorKind | "agent_thread_outdated" | "agent_model_unsupported"
 
 export type ChatTurnError = {
   // `interrupted`: the app closed under the reply; no frame carries it.
@@ -733,6 +735,21 @@ export function useChatRuntime({
                 ending: {
                   type: "error",
                   kind: "agent_thread_outdated",
+                  message: "",
+                },
+              },
+            },
+          ])
+        } else if (isUnsupportedModelRefusal(cause)) {
+          updatePair(runThreadId, ([user, assistant]) => [
+            user,
+            {
+              ...assistant,
+              content: {
+                ...assistant.content,
+                ending: {
+                  type: "error",
+                  kind: "agent_model_unsupported",
                   message: "",
                 },
               },

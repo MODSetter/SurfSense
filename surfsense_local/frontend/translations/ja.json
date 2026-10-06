@@ -112,6 +112,7 @@
   "chat_composer_upload_sources_label": "ソースをアップロード",
   "chat_composer_upload_sources_tooltip": "このワークスペースのソースにファイルを追加",
   "chat_composer_upload_sources_uploading_tooltip": "アップロード中…",
+  "chat_error_agent_model_unsupported": "このスレッドは選択したモデルでは続けられません。このモデルを使うには新しいチャットを始めるか、別のモデルを選んでください。",
   "chat_error_agent_thread_outdated": "このエージェントチャットは、チャットごとにソースを持つようになる前に始まりました。続けるには新しいチャットを始めてください。",
   "chat_error_context_too_long": "この会話はモデルのコンテキストウィンドウに収まらない長さです。新しいチャットを始めるか、より大きなウィンドウのモデルを選んでください。",
   "chat_error_interrupted": "アプリが閉じられたため中断されました。",

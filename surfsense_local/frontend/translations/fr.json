@@ -112,6 +112,7 @@
   "chat_composer_upload_sources_label": "Envoyer des sources",
   "chat_composer_upload_sources_tooltip": "Ajouter des fichiers aux sources de cet espace de travail",
   "chat_composer_upload_sources_uploading_tooltip": "Envoi…",
+  "chat_error_agent_model_unsupported": "Cette conversation ne peut pas continuer avec le modèle sélectionné. Démarrez un nouveau chat pour l’utiliser, ou choisissez un autre modèle.",
   "chat_error_agent_thread_outdated": "Ce chat avec l’agent a été démarré avant que chaque chat ait ses propres sources. Démarrez un nouveau chat pour continuer.",
   "chat_error_context_too_long": "Cette conversation est trop longue pour la fenêtre de contexte du modèle. Démarrez un nouveau chat ou choisissez un modèle avec une fenêtre plus grande.",
   "chat_error_interrupted": "Interrompu à la fermeture de l’application.",
