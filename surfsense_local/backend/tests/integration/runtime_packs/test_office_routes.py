@@ -3,13 +3,14 @@
 import asyncio
 import hashlib
 import json
+import threading
 from pathlib import Path
 
 import httpx
 import pytest
 from httpx import AsyncClient
 
-from modules.runtime_packs.office import layout
+from modules.runtime_packs.office import layout, records
 from modules.runtime_packs.office import router as office_router
 from modules.runtime_packs.office.install import OfficeInstaller
 from modules.runtime_packs.office.pin import HOST, Packaging, PackFile
@@ -36,6 +37,9 @@ class Office:
         self.requests: list[str] = []
         self.smoked: list[OfficeRuntime] = []
         self.smoke_error: Exception | None = None
+        self.unpacked: list[Path] = []
+        # Set to hold an unpack where msiexec or tar would still be writing.
+        self.unpack_gate: threading.Event | None = None
 
     def transport(self) -> httpx.MockTransport:
         def reply(request: httpx.Request) -> httpx.Response:
@@ -50,6 +54,9 @@ class Office:
 
     def unpack(self, packaging: Packaging, upstream: Path, into: Path) -> Path:
         assert upstream.read_bytes() == UPSTREAM
+        self.unpacked.append(into)
+        if self.unpack_gate is not None:
+            assert self.unpack_gate.wait(10)
         program_in(into).parent.mkdir(parents=True)
         program_in(into).write_bytes(b"")
         return into
@@ -80,6 +87,14 @@ def office(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Office:
         lambda: [tmp_path / "found"],
     )
     return stand_in
+
+
+async def _reached(client: AsyncClient, state: str) -> None:
+    for _ in range(200):
+        if (await client.get("/runtime-packs/office")).json()["state"] == state:
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError(f"the install never reached {state}")
 
 
 async def _settled(client: AsyncClient) -> dict:
@@ -175,6 +190,78 @@ async def test_removing_it_deletes_the_pack(
     assert removed.status_code == 200
     assert removed.json()["state"] == "not_installed"
     assert not any(layout.versions_dir().iterdir())
+
+
+async def test_installing_again_while_the_pack_is_installed_is_refused(
+    client: AsyncClient, office: Office
+) -> None:
+    """A reinstall deleted the version folder in place, under a LibreOffice run using it."""
+    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.post("/runtime-packs/office/install")
+    await _settled(client)
+
+    again = await client.post("/runtime-packs/office/install")
+
+    assert again.status_code == 409
+    assert again.json()["detail"]["code"] == "already_installed"
+    assert len(office.unpacked) == 1
+    assert office_runtime() == OfficeRuntime(
+        program_in(layout.versions_dir() / "26.8.1.1"), "26.8.1.1", "pack"
+    )
+
+
+async def test_removing_a_pack_in_use_forgets_nothing(
+    client: AsyncClient,
+    office: Office,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows refuses the rename while LibreOffice runs: the confirmed install stays chosen too."""
+    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.post("/runtime-packs/office/install")
+    await _settled(client)
+    _found_install(tmp_path / "found", "26.8")
+    await client.post("/runtime-packs/office/use-installed")
+    renamed = Path.rename
+
+    def held(self: Path, target: Path) -> Path:
+        if self.parent == layout.versions_dir():
+            raise PermissionError("in use by soffice.bin")
+        return renamed(self, target)
+
+    monkeypatch.setattr(Path, "rename", held)
+
+    refused = await client.delete("/runtime-packs/office")
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["code"] == "in_use"
+    assert records.read_confirmed() is not None
+    assert records.read_pack() is not None
+
+
+async def test_a_cancel_while_unpacking_waits_for_the_unpack_to_stop(
+    client: AsyncClient, office: Office
+) -> None:
+    """msiexec and tar run on after a cancel; a new install must not unpack beside them."""
+    office.unpack_gate = threading.Event()
+    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.post("/runtime-packs/office/install")
+    await _reached(client, "unpacking")
+    try:
+        cancelling = asyncio.create_task(client.delete("/runtime-packs/office"))
+        await asyncio.sleep(0.2)
+
+        again = await client.post("/runtime-packs/office/install")
+
+        assert not cancelling.done()
+        assert again.status_code == 409
+        assert again.json()["detail"]["code"] == "already_running"
+    finally:
+        office.unpack_gate.set()
+    cancelled = await cancelling
+    assert cancelled.json()["state"] == "not_installed"
+    assert len(office.unpacked) == 1
+    assert list(layout.versions_dir().iterdir()) == []
 
 
 async def test_an_installed_libreoffice_on_a_supported_branch_is_used_once_confirmed(

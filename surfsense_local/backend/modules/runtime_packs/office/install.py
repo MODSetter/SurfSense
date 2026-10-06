@@ -10,6 +10,7 @@ import logging
 import os
 import shutil
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -79,7 +80,11 @@ class OfficeInstaller:
         self._task = asyncio.create_task(self._run(self.file))
 
     async def cancel(self) -> bool:
-        """Stop a running install; a partial download stays for the next attempt."""
+        """Stop a running install; a partial download stays for the next attempt.
+
+        Returns once an unpack or check under way has ended, so nothing still
+        writes into the version folders.
+        """
         if not self.running():
             return False
         self._task.cancel()
@@ -88,19 +93,18 @@ class OfficeInstaller:
         return True
 
     def remove(self) -> None:
-        """Forget a confirmed LibreOffice and delete the pack. Raises OfficeInUseError."""
-        records.write_confirmed(None)
+        """Forget a confirmed LibreOffice and delete the pack. Raises OfficeInUseError.
+
+        The pack is moved aside first, so a refused move changes nothing.
+        """
         pack = records.read_pack()
+        removed = None
         if pack is not None:
-            folder = layout.versions_dir() / Path(pack.root).parts[0]
-            if folder.exists():
-                removed = folder.with_name(f"{folder.name}{_REMOVED}{int(time.time())}")
-                try:
-                    folder.rename(removed)
-                except OSError as error:
-                    raise OfficeInUseError(str(error)) from error
-                shutil.rmtree(removed, ignore_errors=True)
-            records.write_pack(None)
+            removed = _moved_aside(layout.versions_dir() / Path(pack.root).parts[0])
+        records.write_confirmed(None)
+        records.write_pack(None)
+        if removed is not None:
+            shutil.rmtree(removed, ignore_errors=True)
         shutil.rmtree(layout.downloads_dir(), ignore_errors=True)
         self.activity.error = None
         self._changed()
@@ -137,17 +141,25 @@ class OfficeInstaller:
         ):
             self._set("downloading", progress.completed, progress.total)
         self._set("unpacking")
-        staging = layout.versions_dir() / f"{file.version}{_STAGING}{os.getpid()}"
-        shutil.rmtree(staging, ignore_errors=True)
+        # Its own per attempt, so no attempt ever unpacks into another's folder.
+        staging = (
+            layout.versions_dir()
+            / f"{file.version}{_STAGING}{os.getpid()}-{uuid.uuid4().hex[:8]}"
+        )
         try:
             root = await self._checked(file, upstream, staging)
-        # A failed build is over a gigabyte; a cancelled one is swept on the next start.
-        except Exception:
+        # A failed or cancelled build is over a gigabyte, and nothing writes to it now.
+        except BaseException:
             await asyncio.to_thread(shutil.rmtree, staging, ignore_errors=True)
             raise
         final = layout.versions_dir() / file.version
-        if final.exists():
-            shutil.rmtree(final)
+        # Unrecorded, but never deleted in place: a run may still hold it.
+        try:
+            aside = _moved_aside(final)
+        except OfficeInUseError as error:
+            raise _StepFailedError("in_use", str(error)) from error
+        if aside is not None:
+            await asyncio.to_thread(shutil.rmtree, aside, ignore_errors=True)
         staging.rename(final)
         relative = (final / root.relative_to(staging)).relative_to(
             layout.versions_dir()
@@ -159,13 +171,11 @@ class OfficeInstaller:
     async def _checked(self, file: PackFile, upstream: Path, staging: Path) -> Path:
         """Unpack into `staging` and run the smoke there; the install root inside it."""
         try:
-            root = await asyncio.to_thread(
-                self._unpack, file.packaging, upstream, staging
-            )
+            root = await _to_its_end(self._unpack, file.packaging, upstream, staging)
         except Exception as error:
             raise _StepFailedError("unpack_failed", str(error)) from error
         self._set("checking")
-        await asyncio.to_thread(
+        await _to_its_end(
             self.smoke, OfficeRuntime(program_in(root), file.version, "pack")
         )
         return root
@@ -190,6 +200,29 @@ class _StepFailedError(Exception):
     def __init__(self, code: str, message: str) -> None:
         self.code = code
         super().__init__(message)
+
+
+async def _to_its_end[T](call: Callable[..., T], *args: object) -> T:
+    """`call` in a thread; a cancel waits for it to end, since msiexec, tar and soffice run on."""
+    work = asyncio.ensure_future(asyncio.to_thread(call, *args))
+    try:
+        return await asyncio.shield(work)
+    except asyncio.CancelledError:
+        with contextlib.suppress(Exception):
+            await work
+        raise
+
+
+def _moved_aside(folder: Path) -> Path | None:
+    """`folder` renamed for deleting, or None when it is gone. Raises OfficeInUseError."""
+    if not folder.exists():
+        return None
+    aside = folder.with_name(f"{folder.name}{_REMOVED}{time.time_ns()}")
+    try:
+        folder.rename(aside)
+    except OSError as error:
+        raise OfficeInUseError(str(error)) from error
+    return aside
 
 
 def _sweep_leftovers() -> None:

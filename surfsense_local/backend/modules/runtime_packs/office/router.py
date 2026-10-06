@@ -18,6 +18,7 @@ from modules.runtime_packs.office.confirm import ConfirmRefusedError, confirm_in
 from modules.runtime_packs.office.install import OfficeInstaller, OfficeInUseError
 from modules.runtime_packs.office.pin import FILES
 from modules.runtime_packs.office.platform_key import this_platform
+from modules.runtime_packs.office.runtime import OfficeRuntime, office_runtime
 from modules.runtime_packs.office.schemas import OfficeStatusRead
 from modules.runtime_packs.office.status import DESTINATION, office_status
 
@@ -87,12 +88,21 @@ async def install_office(
             "unsupported_platform",
             "no LibreOffice build is pinned for this platform",
         )
+    # 403 egress_disabled names the host, so the interface can ask for it.
+    await transact(session, egress.require, DESTINATION)
+    # A reinstall would replace the folder a LibreOffice run may be using.
+    runtime = await asyncio.to_thread(office_runtime)
+    if isinstance(runtime, OfficeRuntime) and runtime.source == "pack":
+        raise _refuse(
+            status.HTTP_409_CONFLICT,
+            "already_installed",
+            "Office support is installed; remove it first",
+        )
+    # Checked after the last await, so two requests cannot both start one.
     if installer.running():
         raise _refuse(
             status.HTTP_409_CONFLICT, "already_running", "Office support is installing"
         )
-    # 403 egress_disabled names the host, so the interface can ask for it.
-    await transact(session, egress.require, DESTINATION)
     installer.start()
     return office_status(installer)
 
