@@ -181,3 +181,70 @@ async def test_a_used_up_plan_says_so_in_a_status_opencode_does_not_retry(
 
     assert status == 403
     assert json.loads(text)["error"]["code"] == "subscription_limit"
+
+
+def select_responses_model(sessions: sessionmaker[Session], base_url: str) -> None:
+    """Choose Sakana's fugu, which the manifest records as served only on /responses."""
+    with sessions() as session:
+        connection = ProviderConnection(
+            label="Sakana",
+            provider="openai_compatible",
+            base_url=base_url,
+            catalog_provider="sakana",
+        )
+        connection.api_key = "sakana-key"
+        session.add(connection)
+        session.flush()
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="openai_compatible",
+                connection_id=connection.id,
+                name="fugu",
+            )
+        )
+        session.commit()
+
+
+def _events(text: str) -> list[dict]:
+    return [
+        json.loads(line.removeprefix("data: "))
+        for line in text.splitlines()
+        if line.startswith("data: ")
+    ]
+
+
+async def test_a_reply_cut_off_before_it_ends_reaches_opencode_as_a_failure(
+    endpoint: Endpoint, model_server: StubModel
+) -> None:
+    """opencode's provider takes a stream that just stops as a finished step,
+    so the relay says it broke, as the chat does for the same reply."""
+    model_server.frames = [
+        json.dumps({"type": "response.output_text.delta", "delta": "Half"})
+    ]
+    select_responses_model(endpoint.sessions, f"{model_server.url}/v1")
+
+    status, text = await responses(endpoint, request())
+
+    assert status == 200
+    assert _events(text)[-1]["type"] == "error"
+
+
+async def test_a_reply_that_ends_is_passed_on_with_nothing_added(
+    endpoint: Endpoint, model_server: StubModel
+) -> None:
+    """A stream that reaches its own terminal event is the model's, unchanged."""
+    completed = {"type": "response.completed", "response": {"status": "completed"}}
+    model_server.frames = [
+        json.dumps({"type": "response.output_text.delta", "delta": "Whole"}),
+        json.dumps(completed),
+    ]
+    select_responses_model(endpoint.sessions, f"{model_server.url}/v1")
+
+    status, text = await responses(endpoint, request())
+
+    assert status == 200
+    assert [event["type"] for event in _events(text)] == [
+        "response.output_text.delta",
+        "response.completed",
+    ]

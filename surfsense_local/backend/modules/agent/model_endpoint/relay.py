@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 
 from modules.agent.model_endpoint.error_replies import as_error_body, error_reply
 from modules.agent.model_endpoint.model_address import ModelAddress
+from modules.llm.providers.openai_responses.stream_endings import ENDINGS
 
 # Connecting is the one step with a budget: a runtime that is not running
 # refuses at once, and a remote host that cannot be reached should say so.
@@ -34,15 +35,44 @@ Refusal = Callable[[int, bytes], tuple[int, bytes]]
 class Wire:
     """How a route's stream ends and says it broke, as opencode's provider for it reads."""
 
-    # The closing line the model may leave out, or None when the route has none.
-    done: str | None
+    # Whether this line ends the reply.
+    ends: Callable[[str], bool]
+    # What follows a stream the model stopped without ending.
+    unended: str
     failure: Callable[[str], dict[str, Any]]
 
 
-CHAT_COMPLETIONS = Wire(_DONE, lambda message: {"error": {"message": message}})
-# A Responses stream ends on its own `response.completed`; a break is an `error` event.
+def _sse(event: dict[str, Any]) -> str:
+    return f"data: {json.dumps(event)}\n\n"
+
+
+def _responses_failure(message: str) -> dict[str, Any]:
+    return {"type": "error", "sequence_number": 0, "message": message}
+
+
+def _responses_ends(line: str) -> bool:
+    """A Responses stream ends only on its own terminal event, never on silence."""
+    if not line.startswith("data:"):
+        return False
+    try:
+        event = json.loads(line[len("data:") :])
+    except ValueError:
+        return False
+    return isinstance(event, dict) and event.get("type") in ENDINGS
+
+
+# A model may leave `[DONE]` out; a stream that stops is taken as ended.
+CHAT_COMPLETIONS = Wire(
+    lambda line: line.strip() == _DONE,
+    f"{_DONE}\n\n",
+    lambda message: {"error": {"message": message}},
+)
+# opencode's provider takes a stream that just stops as a finished step, so a
+# Responses stream that stops before its terminal event is told as a failure.
 RESPONSES = Wire(
-    None, lambda message: {"type": "error", "sequence_number": 0, "message": message}
+    _responses_ends,
+    _sse(_responses_failure("the model stopped before finishing its reply")),
+    _responses_failure,
 )
 
 
@@ -107,21 +137,22 @@ async def _frames(
     done: Callable[[], Awaitable[None]],
     wire: Wire,
 ) -> AsyncIterator[bytes]:
-    """The model's SSE lines as they arrive, closed by the route's own last line."""
-    ended = wire.done is None
+    """The model's SSE lines as they arrive, always ended as the route's provider expects."""
+    ended = False
     try:
         async for line in reply.aiter_lines():
-            ended = ended or line.strip() == wire.done
+            ended = ended or wire.ends(line)
             yield f"{line}\n".encode()
     except httpx.HTTPError as failure:
-        error = wire.failure(f"the model stopped answering: {_reason(failure)}")
-        yield f"data: {json.dumps(error)}\n\n".encode()
+        broke = _sse(wire.failure(f"the model stopped answering: {_reason(failure)}"))
+        ended = ended or wire.ends(broke.strip())
+        yield broke.encode()
     finally:
         # Starlette cancels this on a disconnect; the model must still be released.
         with anyio.CancelScope(shield=True):
             await _close(client, done, reply)
     if not ended:
-        yield f"{wire.done}\n\n".encode()
+        yield wire.unended.encode()
 
 
 async def _close(
