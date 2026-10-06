@@ -12,7 +12,7 @@ import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
-import { SourcesAddButton, SourcesPanel } from "../sources-panel"
+import { SourcesPanel } from "../sources-panel"
 import { useSources } from "../use-sources"
 
 vi.mock("sonner", () => ({
@@ -133,13 +133,11 @@ function TreeHarness() {
         isLoading={sources.isLoading}
         isDeleting={sources.isDeleting}
         error={sources.error}
-        addAction={
-          <SourcesAddButton
-            isUploading={sources.isUploading}
-            onUpload={(files) => void sources.upload(files)}
-            onUploadFolder={(entries) => void sources.uploadEntries(entries)}
-          />
-        }
+        upload={{
+          isUploading: sources.isUploading,
+          onUpload: (files) => void sources.upload(files),
+          onUploadFolder: (entries) => void sources.uploadEntries(entries),
+        }}
         onOpen={vi.fn()}
         onReveal={vi.fn()}
         onRetry={vi.fn()}
@@ -312,7 +310,10 @@ describe("source tree", () => {
     render(<TreeHarness />)
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "New folder" }))
+    await user.click(screen.getByRole("button", { name: "Add sources" }))
+    await user.click(
+      await screen.findByRole("menuitem", { name: "New folder" })
+    )
     const dialog = await screen.findByRole("dialog", { name: "New folder" })
     await user.type(within(dialog).getByLabelText("Name"), "Archive")
     await user.click(within(dialog).getByRole("button", { name: "Create" }))
@@ -402,7 +403,10 @@ describe("source tree", () => {
     render(<TreeHarness />)
     const research = await screen.findByRole("treeitem", { name: "Research" })
     // A second top-level folder to drag Research into.
-    await user.click(screen.getByRole("button", { name: "New folder" }))
+    await user.click(screen.getByRole("button", { name: "Add sources" }))
+    await user.click(
+      await screen.findByRole("menuitem", { name: "New folder" })
+    )
     const dialog = await screen.findByRole("dialog", { name: "New folder" })
     await user.type(within(dialog).getByLabelText("Name"), "Archive")
     await user.click(within(dialog).getByRole("button", { name: "Create" }))
@@ -457,6 +461,7 @@ describe("source tree", () => {
     render(<TreeHarness />)
 
     await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Filter sources" }))
     await user.type(
       screen.getByRole("searchbox", { name: "Filter sources by name" }),
       "DEEP"
@@ -477,6 +482,29 @@ describe("source tree", () => {
       "nothing like it"
     )
     expect(screen.getByText("No sources match “nothing like it”")).toBeTruthy()
+  })
+
+  it("keeps the filter out of sight until asked, and Escape clears it", async () => {
+    folderApi()
+    const user = userEvent.setup()
+    render(<TreeHarness />)
+
+    await screen.findByRole("treeitem", { name: "Research" })
+    expect(screen.queryByRole("searchbox")).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Filter sources" }))
+    const field = screen.getByRole("searchbox", {
+      name: "Filter sources by name",
+    })
+    expect(document.activeElement).toBe(field)
+    await user.type(field, "DEEP")
+    await user.keyboard("{Escape}")
+
+    expect(screen.queryByRole("searchbox")).toBeNull()
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Filter sources" })
+    )
+    expect(screen.getByRole("treeitem", { name: "notes.md" })).toBeTruthy()
   })
 
   it("uploads a folder dropped on a folder row into it, with each file's path", async () => {

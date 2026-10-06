@@ -1988,7 +1988,9 @@ describe("dashboard chat", () => {
       sourcesScroll?.contains(screen.getByRole("heading", { name: "Sources" }))
     ).toBe(false)
     expect(
-      sourcesScroll?.contains(screen.getByRole("button", { name: "Add" }))
+      sourcesScroll?.contains(
+        screen.getByRole("button", { name: "Add sources" })
+      )
     ).toBe(false)
     expect(sourcesScroll).toBeTruthy()
 

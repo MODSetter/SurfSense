@@ -11,7 +11,7 @@ import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
-import { SourcesAddButton, SourcesPanel } from "./sources-panel"
+import { SourcesPanel } from "./sources-panel"
 import { useSources } from "./use-sources"
 
 vi.mock("sonner", () => ({
@@ -51,12 +51,10 @@ function SourceHarness() {
         isLoading={sources.isLoading}
         isDeleting={sources.isDeleting}
         error={sources.error}
-        addAction={
-          <SourcesAddButton
-            isUploading={sources.isUploading}
-            onUpload={(files) => void sources.upload(files)}
-          />
-        }
+        upload={{
+          isUploading: sources.isUploading,
+          onUpload: (files) => void sources.upload(files),
+        }}
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}

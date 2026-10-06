@@ -1,17 +1,5 @@
-import {
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from "react"
-import {
-  FilePlus2Icon,
-  FolderAddIcon,
-  FolderUploadIcon,
-  PencilEdit02Icon,
-  SearchIcon,
-} from "@/components/ui/icons"
+import { useMemo, useRef, useState } from "react"
+import { FilePlus2Icon, SearchIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -26,27 +14,16 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
-import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
+import { AddSourcesMenu, type SourceUploads } from "./add-sources-menu"
+import type { WorkspaceDocument } from "./api"
 import type { UploadEntry } from "./folder-upload/upload-plan"
 import {
   NoteEditorDialog,
@@ -54,6 +31,7 @@ import {
   type NoteTarget,
 } from "./note-editor-dialog"
 import { RenameSourceDialog } from "./rename-source-dialog"
+import { SourceFilterField } from "./source-filter-field"
 import {
   DeleteFolderDialog,
   type FolderDeleteTarget,
@@ -76,8 +54,6 @@ import { SourceTree, type FolderRowActions } from "./tree/source-tree"
 import type { DraggedSource } from "./tree/tree-drag"
 import { TOP_TICK } from "./tree/use-source-scope"
 import { useFileDrop } from "./use-file-drop"
-import { Input } from "@/components/ui/input"
-import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
   TooltipContent,
@@ -85,125 +61,6 @@ import {
 } from "@/components/ui/tooltip"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
-
-// Past this many sources a flat list gets the name filter too.
-const FILTER_FROM_SOURCES = 20
-
-export function SourcesAddButton({
-  isUploading,
-  onUpload,
-  onUploadFolder,
-}: {
-  isUploading: boolean
-  onUpload: (files: File[]) => void
-  // Absent, Add offers files only.
-  onUploadFolder?: (entries: UploadEntry[]) => void
-}) {
-  const fileInput = useRef<HTMLInputElement>(null)
-  const folderInput = useRef<HTMLInputElement>(null)
-  const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
-    onUpload(Array.from(event.target.files ?? []))
-    event.target.value = ""
-  }
-  const uploadSelectedFolder = (event: ChangeEvent<HTMLInputElement>) => {
-    onUploadFolder?.(
-      Array.from(event.target.files ?? []).map((file) => ({
-        file,
-        relativePath: file.webkitRelativePath || file.name,
-      }))
-    )
-    event.target.value = ""
-  }
-  const label = isUploading
-    ? intl.formatMessage({
-        id: "sources_add_uploading_status",
-        defaultMessage: "Uploading...",
-      })
-    : intl.formatMessage({
-        id: "sources_add_button",
-        defaultMessage: "Add",
-      })
-
-  return (
-    <>
-      <Input
-        ref={fileInput}
-        type="file"
-        multiple
-        accept={SOURCE_FILE_ACCEPT}
-        className="sr-only"
-        aria-label={intl.formatMessage({
-          id: "sources_add_file_aria",
-          defaultMessage: "Upload source files",
-        })}
-        disabled={isUploading}
-        onChange={uploadSelectedFiles}
-      />
-      {onUploadFolder ? (
-        <>
-          <Input
-            ref={(node) => {
-              folderInput.current = node
-              // React has no prop for it; Chromium picks a folder with it.
-              node?.setAttribute("webkitdirectory", "")
-            }}
-            type="file"
-            multiple
-            className="sr-only"
-            aria-label={intl.formatMessage({
-              id: "sources_add_folder_aria",
-              defaultMessage: "Upload a source folder",
-            })}
-            disabled={isUploading}
-            onChange={uploadSelectedFolder}
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button size="xs" variant="outline" disabled={isUploading}>
-                  {isUploading ? <Spinner /> : <FilePlus2Icon />}
-                  {label}
-                </Button>
-              }
-            />
-            <DropdownMenuContent
-              align="end"
-              sideOffset={6}
-              className="min-w-40"
-            >
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => fileInput.current?.click()}>
-                  <FilePlus2Icon />
-                  {intl.formatMessage({
-                    id: "sources_add_files_label",
-                    defaultMessage: "Files…",
-                  })}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => folderInput.current?.click()}>
-                  <FolderUploadIcon />
-                  {intl.formatMessage({
-                    id: "sources_add_folder_label",
-                    defaultMessage: "Folder…",
-                  })}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </>
-      ) : (
-        <Button
-          size="xs"
-          variant="outline"
-          disabled={isUploading}
-          onClick={() => fileInput.current?.click()}
-        >
-          {isUploading ? <Spinner /> : <FilePlus2Icon />}
-          {label}
-        </Button>
-      )}
-    </>
-  )
-}
 
 export function SourcesPanel({
   documents,
@@ -214,7 +71,7 @@ export function SourcesPanel({
   isLoading,
   isDeleting,
   error,
-  addAction,
+  upload,
   onOpen,
   onPreview,
   onReveal,
@@ -239,7 +96,8 @@ export function SourcesPanel({
   isLoading: boolean
   isDeleting: boolean
   error: string | null
-  addAction?: ReactNode
+  // Absent, the panel offers no upload.
+  upload?: SourceUploads
   onOpen: (documentId: number) => void
   onPreview?: (documentId: number) => void
   onReveal: (documentId: number) => void
@@ -283,6 +141,14 @@ export function SourcesPanel({
   const [folderDeleteOpen, setFolderDeleteOpen] = useState(false)
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set())
   const [filter, setFilter] = useState("")
+  const [filterOpen, setFilterOpen] = useState(false)
+  // Focus goes to the search button once it mounts in the field's place.
+  const refocusFilterButton = useRef(false)
+  const closeFilter = (returnFocus: boolean) => {
+    setFilter("")
+    setFilterOpen(false)
+    refocusFilterButton.current = returnFocus
+  }
   const openNote = (documentId: number | null) => {
     setNoteTarget({ documentId })
     setNoteOpen(true)
@@ -296,7 +162,7 @@ export function SourcesPanel({
   const hasFolders = index.folders.size > 0
   // Folders are made in the root folder, so an API without one offers none.
   const organizing = folderActions !== undefined && index.rootFolderId !== null
-  const showFilter = hasFolders || documents.length > FILTER_FROM_SOURCES
+  const filterable = hasFolders || documents.length > 0
 
   const setFolderExpanded = (folderId: number, open: boolean) =>
     setExpanded((current) => {
@@ -360,92 +226,113 @@ export function SourcesPanel({
     : undefined
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
-  const readyCount = documents.filter(
+  const readyDocuments = documents.filter(
     (document) => document.status === "ready"
+  )
+  const readyCount = readyDocuments.length
+  const selectedReadyCount = readyDocuments.filter((document) =>
+    selectedDocumentIdSet.has(document.id)
   ).length
   const allSelected = folderTicks
     ? folderTicks.get(TOP_TICK) === "checked"
     : readyCount > 0 && selectedDocumentIds.length === readyCount
+  const toggleAllLabel = allSelected
+    ? intl.formatMessage({
+        id: "sources_list_deselect_all_button",
+        defaultMessage: "Deselect all",
+      })
+    : intl.formatMessage({
+        id: "sources_list_select_all_button",
+        defaultMessage: "Select all",
+      })
   const listHeader = (
-    // Wraps to a second line, rather than clipping, once a language's Select
-    // all / Deselect all no longer fits beside the title and Add.
-    <div className="mb-2 flex min-h-7 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
-      {/* The title takes nearly all spare room on a shared line, keeping the
-      buttons together at the right; alone on the second line, the buttons get
-      it all, so Add alone moves to the right edge. */}
+    <div className="mb-2 flex min-h-7 shrink-0 items-center gap-1">
+      {/* Kept for screen readers while the filter covers it: the list is
+      labelled by it. */}
       <h3
         id="all-sources"
-        className="grow-999 px-1 text-sm font-medium text-muted-foreground"
+        className={cn(
+          "min-w-0 flex-1 truncate px-1 text-sm font-medium text-muted-foreground",
+          filterOpen && "sr-only"
+        )}
       >
         {intl.formatMessage({
           id: "sources_list_title",
           defaultMessage: "Sources",
         })}
       </h3>
-      <div className="flex grow items-center gap-1">
-        {readyCount > 0 ? (
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            className="text-muted-foreground"
-            onClick={onToggleAll}
-          >
-            {allSelected
-              ? intl.formatMessage({
-                  id: "sources_list_deselect_all_button",
-                  defaultMessage: "Deselect all",
-                })
-              : intl.formatMessage({
-                  id: "sources_list_select_all_button",
-                  defaultMessage: "Select all",
+      {filterOpen ? (
+        <SourceFilterField
+          value={filter}
+          onChange={setFilter}
+          onClose={closeFilter}
+        />
+      ) : null}
+      {readyCount > 0 && !filterOpen ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                // Held in place while hidden, so the header never shifts.
+                className="text-muted-foreground tabular-nums opacity-0 transition-opacity duration-150 group-hover/sources:opacity-100 focus-visible:opacity-100"
+                aria-label={toggleAllLabel}
+                onClick={onToggleAll}
+              >
+                {intl.formatMessage(
+                  {
+                    id: "sources_list_selected_status",
+                    defaultMessage: "{selected, number}/{total, number}",
+                  },
+                  { selected: selectedReadyCount, total: readyCount }
+                )}
+              </Button>
+            }
+          />
+          <TooltipContent side="top">{toggleAllLabel}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {filterable && !filterOpen ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                ref={(node) => {
+                  if (!node || !refocusFilterButton.current) return
+                  refocusFilterButton.current = false
+                  node.focus()
+                }}
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                aria-label={intl.formatMessage({
+                  id: "sources_filter_open_aria",
+                  defaultMessage: "Filter sources",
                 })}
-          </Button>
-        ) : null}
-        <div className="ml-auto flex items-center gap-1">
-          {notes ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => openNote(null)}
-            >
-              <PencilEdit02Icon data-icon="inline-start" />
-              {intl.formatMessage({
-                id: "sources_new_note_button",
-                defaultMessage: "New note",
-              })}
-            </Button>
-          ) : null}
-          {organizing ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={intl.formatMessage({
-                      id: "sources_new_folder_aria",
-                      defaultMessage: "New folder",
-                    })}
-                    onClick={() => folderRowActions?.onNewFolder(null)}
-                  >
-                    <FolderAddIcon />
-                  </Button>
-                }
-              />
-              <TooltipContent side="top">
-                {intl.formatMessage({
-                  id: "sources_new_folder_tooltip",
-                  defaultMessage: "New folder",
-                })}
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
-          {addAction}
-        </div>
-      </div>
+                onClick={() => setFilterOpen(true)}
+              >
+                <SearchIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="top">
+            {intl.formatMessage({
+              id: "sources_filter_open_tooltip",
+              defaultMessage: "Filter sources",
+            })}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+      <AddSourcesMenu
+        upload={upload}
+        onNewFolder={
+          organizing ? () => folderRowActions?.onNewFolder(null) : undefined
+        }
+        onNewNote={notes ? () => openNote(null) : undefined}
+      />
     </div>
   )
 
@@ -463,7 +350,7 @@ export function SourcesPanel({
         </Alert>
       ) : null}
       <section
-        className="relative flex h-full min-h-0 w-full min-w-0 flex-col"
+        className="group/sources relative flex h-full min-h-0 w-full min-w-0 flex-col"
         aria-labelledby="all-sources"
         {...drop.handlers}
       >
@@ -488,26 +375,6 @@ export function SourcesPanel({
           </div>
         ) : null}
         {listHeader}
-        {showFilter ? (
-          <InputGroup className="mb-2 h-8 shrink-0">
-            <InputGroupAddon>
-              <SearchIcon />
-            </InputGroupAddon>
-            <InputGroupInput
-              type="search"
-              value={filter}
-              placeholder={intl.formatMessage({
-                id: "sources_filter_placeholder",
-                defaultMessage: "Filter by name",
-              })}
-              aria-label={intl.formatMessage({
-                id: "sources_filter_aria",
-                defaultMessage: "Filter sources by name",
-              })}
-              onChange={(event) => setFilter(event.target.value)}
-            />
-          </InputGroup>
-        ) : null}
         <ScrollFade className="min-h-0 flex-1">
           {isLoading ? (
             <SkeletonSlabs />

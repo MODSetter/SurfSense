@@ -43,10 +43,7 @@ import {
   SettingsDialog,
   type SettingsSectionId,
 } from "@/features/settings/settings-dialog"
-import {
-  SourcesAddButton,
-  SourcesPanel,
-} from "@/features/sources/sources-panel"
+import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
 import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
@@ -329,15 +326,12 @@ function WorkspaceDashboard({
                     isLoading={sources.isLoading}
                     isDeleting={sources.isDeleting}
                     error={sources.error}
-                    addAction={
-                      <SourcesAddButton
-                        isUploading={sources.isUploading}
-                        onUpload={(files) => void sources.upload(files)}
-                        onUploadFolder={(entries) =>
-                          void sources.uploadEntries(entries)
-                        }
-                      />
-                    }
+                    upload={{
+                      isUploading: sources.isUploading,
+                      onUpload: (files) => void sources.upload(files),
+                      onUploadFolder: (entries) =>
+                        void sources.uploadEntries(entries),
+                    }}
                     onDropFiles={
                       sources.isUploading
                         ? undefined

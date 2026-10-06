@@ -3,10 +3,11 @@ import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
   CursorRemoveSelection02Icon,
+  Edit02Icon,
   EllipsisIcon,
+  ExternalLinkIcon,
   FolderOpenIcon,
   FolderTransferIcon,
-  PencilEdit02Icon,
   PencilIcon,
   RefreshCwIcon,
   SquareDashedMousePointerIcon,
@@ -245,7 +246,7 @@ export function DocumentRow({
                     {openable ? (
                       <>
                         <DropdownMenuItem onClick={onOpen}>
-                          <ViewIcon />
+                          <ExternalLinkIcon />
                           {intl.formatMessage({
                             id: "sources_row_menu_open_label",
                             defaultMessage: "Open",
@@ -300,7 +301,7 @@ export function DocumentRow({
                     ) : null}
                     {onEditNote && document.document_type === "NOTE" ? (
                       <DropdownMenuItem onClick={onEditNote}>
-                        <PencilEdit02Icon />
+                        <Edit02Icon />
                         {intl.formatMessage({
                           id: "sources_row_menu_edit_note_label",
                           defaultMessage: "Edit note",
