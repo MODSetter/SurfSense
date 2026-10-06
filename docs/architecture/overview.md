@@ -10,7 +10,7 @@ SurfSense is a desktop app for research over your own documents: add files, ask 
 A file is uploaded, parsed to markdown, cut into passages and embedded. A chat turn retrieves the passages nearest the question, and a model answers from them, citing each one. A Studio job hands the selected documents' text to a model and stores the result as a document, with a file for ten of its twelve formats. Every design choice follows from who this is for:
 
 - **One user.** There are no accounts, no auth and no users table. The API binds to `127.0.0.1` and accepts any origin, because the packaged renderer loads from `file://`.
-- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no telemetry or analytics code.
+- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, TDF's archive for the optional [Office pack](office-pack.md), and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no telemetry or analytics code.
 - **SQLite.** `surfsense.db` holds every table, the search index included: FTS5 for keywords, sqlite-vec for vectors. `huey.db` holds the job queues. Next to the hosted stack there is no Postgres or Zero, no Celery or Redis, no LangGraph and no Docker.
 
 ## Processes
@@ -128,7 +128,7 @@ The rules that keep the processes out of each other's way:
 - [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [admission and parallel slots](local-models/admission.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in English, Japanese and German.
-- [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).
+- [Egress](egress.md), [Office pack](office-pack.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).
 - [Contracts](../contracts/README.md) between the trees.
 
 ## Known gaps
