@@ -844,6 +844,32 @@ describe("artifact panel revised copy", () => {
     expect(screen.queryByRole("link", { name: "Download" })).toBeNull()
   })
 
+  it.each(["pending", "processing", "failed", "cancelled"] as const)(
+    "offers no download of a %s version, which has no file of its own yet",
+    async (status) => {
+      serveCopy(copy(50, 1, { status }))
+
+      render(panel([copy(50, 1, { status })]))
+
+      expect(
+        await screen.findByText("Revised copy of MSA_Acme.docx")
+      ).toBeTruthy()
+      expect(screen.queryByRole("link", { name: "With changes" })).toBeNull()
+      expect(screen.queryByRole("link", { name: "Clean" })).toBeNull()
+    }
+  )
+
+  it("offers the downloads once the version is ready", async () => {
+    serveCopy(copy(50, 1, { status: "processing" }))
+
+    const { rerender } = render(panel([copy(50, 1, { status: "processing" })]))
+    await screen.findByText("Revised copy of MSA_Acme.docx")
+    rerender(panel([copy(50, 1)]))
+
+    expect(screen.getByRole("link", { name: "With changes" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Clean" })).toBeTruthy()
+  })
+
   it("accepts or rejects every change as the next version", async () => {
     serveCopy(copy(50, 1))
     const onDecideAll = vi.fn(async () => {})

@@ -104,6 +104,8 @@ export function ArtifactPanel({
   const revision = data?.revision ?? null
   // A decision starts from the newest ready version, so only it offers one.
   const newestShown = (newestReady(versions)?.id ?? artifactId) === artifactId
+  // A version not ready has no file of its own to download.
+  const shownReady = (shown?.status ?? data?.status) === "ready"
 
   return (
     <DetailPanel
@@ -146,7 +148,9 @@ export function ArtifactPanel({
           {/* A flashcard deck's or quiz's only file is its raw JSON —
               nothing a user should download. */}
           {data && revision ? (
-            <RevisedCopyDownloads artifactId={data.id} revision={revision} />
+            shownReady ? (
+              <RevisedCopyDownloads artifactId={data.id} revision={revision} />
+            ) : null
           ) : data?.files.length &&
             data.format !== "flashcards" &&
             data.format !== "quiz" ? (
