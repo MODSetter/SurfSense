@@ -12,6 +12,8 @@ import {
   listArtifacts,
   listFormats,
   refineArtifact,
+  decideAllRevisions,
+  type RevisionDecision,
   regenerateArtifact,
   type Artifact,
   type StudioFormat,
@@ -267,6 +269,15 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     ])
   }
 
+  // Rejects with the API's reason, for the revised copy's bar to show.
+  const decideAll = async (artifactId: number, decision: RevisionDecision) => {
+    const next = await decideAllRevisions(artifactId, decision)
+    setArtifacts((current) => [
+      next,
+      ...current.filter((artifact) => artifact.id !== next.id),
+    ])
+  }
+
   const cancel = async (artifactId: number) => {
     setError(null)
     try {
@@ -300,6 +311,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     create,
     regenerate,
     refine,
+    decideAll,
     cancel,
     remove,
     clearError: () => setError(null),

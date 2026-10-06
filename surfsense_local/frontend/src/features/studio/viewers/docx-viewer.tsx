@@ -4,6 +4,7 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { FileIcon, ZoomInIcon, ZoomOutIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { markTrackedChanges } from "@/features/docx-snapshot/tracked-changes"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 
@@ -127,16 +128,19 @@ export function DocxViewer({
         // cancelled mid-render still finishes, and must not replace a later
         // version's pages. No altChunks: docx-preview puts their HTML in an
         // unsandboxed iframe, where a script the file carries would run. Data
-        // URLs, the only images and fonts the frame's policy lets in.
+        // URLs, the only images and fonts the frame's policy lets in. Tracked
+        // changes show, as a revised copy is reviewed by them.
         const rendered = pages.createElement("div")
         await renderAsync(buffer, rendered, rendered, {
           inWrapper: true,
           ignoreWidth: false,
           ignoreHeight: false,
           renderAltChunks: false,
+          renderChanges: true,
           useBase64URL: true,
         })
         if (cancelled) return
+        markTrackedChanges(rendered)
         disarmLinks(rendered)
         pages.body.replaceChildren(rendered)
 

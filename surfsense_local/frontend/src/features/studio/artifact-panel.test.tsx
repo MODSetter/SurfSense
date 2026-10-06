@@ -501,3 +501,182 @@ describe("artifact panel refine", () => {
     expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
   })
 })
+
+describe("artifact panel revised copy", () => {
+  function copy(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      id,
+      document_id: id + 100,
+      format: "summary",
+      generation: 1,
+      title: "MSA_Acme (revised)",
+      status: "ready",
+      error_message: null,
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      updated_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 50, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: null,
+      refinable: false,
+      ...extra,
+    } satisfies Artifact
+  }
+
+  // Served as a summary so the test needs no Word renderer; `revision` says
+  // which kind of file the copy is.
+  function serveCopy(
+    artifact: Artifact,
+    revision: Record<string, unknown> = {}
+  ) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          ...artifact,
+          content: "Payment is due within 45 days.",
+          files: [
+            {
+              role: "primary",
+              mime_type: "application/octet-stream",
+              size_bytes: 9,
+              original_filename: "MSA_Acme (revised).docx",
+            },
+          ],
+          quiz_state: null,
+          flashcard_state: null,
+          revision: {
+            derived_from_document_id: 42,
+            source_name: "MSA_Acme.docx",
+            counts: { changes: 7, comments: 1 },
+            applied: 4,
+            ...revision,
+          },
+        })
+      )
+    )
+  }
+
+  function panel(
+    artifacts: Artifact[],
+    onDecideAll: (
+      artifactId: number,
+      decision: "accept_all" | "reject_all"
+    ) => Promise<void> = vi.fn()
+  ) {
+    return (
+      <ArtifactPanel
+        artifactId={50}
+        artifacts={artifacts}
+        onOpenVersion={vi.fn()}
+        onRefine={vi.fn()}
+        onDecideAll={onDecideAll}
+        onClose={vi.fn()}
+      />
+    )
+  }
+
+  it("says which file it is a copy of and what it holds", async () => {
+    serveCopy(copy(50, 1))
+
+    render(panel([copy(50, 1)]))
+
+    expect(
+      await screen.findByText("Revised copy of MSA_Acme.docx")
+    ).toBeTruthy()
+    expect(screen.getByText("7 tracked changes, 1 comment")).toBeTruthy()
+  })
+
+  it("downloads the copy with its changes, or clean, under translated names", async () => {
+    serveCopy(copy(50, 1))
+
+    render(panel([copy(50, 1)]))
+
+    const changes = await screen.findByRole("link", { name: "With changes" })
+    expect(changes.getAttribute("href")).toMatch(
+      /\/artifacts\/50\/revised-copy\/download\?variant=changes&suffix=revised$/
+    )
+    expect(
+      screen.getByRole("link", { name: "Clean" }).getAttribute("href")
+    ).toMatch(
+      /\/artifacts\/50\/revised-copy\/download\?variant=clean&suffix=clean$/
+    )
+    expect(screen.queryByRole("link", { name: "Download" })).toBeNull()
+  })
+
+  it("accepts or rejects every change as the next version", async () => {
+    serveCopy(copy(50, 1))
+    const onDecideAll = vi.fn(async () => {})
+    const user = userEvent.setup()
+
+    render(panel([copy(50, 1)], onDecideAll))
+
+    await user.click(await screen.findByRole("button", { name: "Accept all" }))
+    await user.click(screen.getByRole("button", { name: "Reject all" }))
+    expect(onDecideAll.mock.calls).toEqual([
+      [50, "accept_all"],
+      [50, "reject_all"],
+    ])
+  })
+
+  it("offers no decision once no changes are left", async () => {
+    serveCopy(copy(50, 1), { counts: { changes: 0, comments: 0 } })
+
+    render(panel([copy(50, 1)]))
+
+    expect(
+      await screen.findByText("0 tracked changes, 0 comments")
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Accept all" })).toBeNull()
+  })
+
+  it("waits while a version of the copy is being made", async () => {
+    serveCopy(copy(50, 1))
+
+    render(panel([copy(51, 2, { status: "pending" }), copy(50, 1)]))
+
+    const accept = await screen.findByRole("button", { name: "Accept all" })
+    expect((accept as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it("offers no decision on an older version, which would decide the newest", async () => {
+    serveCopy(copy(50, 1))
+
+    render(panel([copy(51, 2), copy(50, 1)]))
+
+    expect(await screen.findByText("7 tracked changes, 1 comment")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Accept all" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Reject all" })).toBeNull()
+  })
+
+  it("shows why a decision was refused", async () => {
+    serveCopy(copy(50, 1))
+    const user = userEvent.setup()
+
+    render(
+      panel([copy(50, 1)], async () => {
+        throw new Error("Version 2 of this revised copy is still being made.")
+      })
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Accept all" }))
+    expect(
+      await screen.findByText(
+        "Version 2 of this revised copy is still being made."
+      )
+    ).toBeTruthy()
+  })
+
+  it("counts a workbook's changes in this version and offers no clean file", async () => {
+    serveCopy(copy(50, 1), {
+      source_name: "Pricing.xlsx",
+      counts: null,
+      applied: 3,
+    })
+
+    render(panel([copy(50, 1)]))
+
+    expect(await screen.findByText("3 changes in this version")).toBeTruthy()
+    expect(screen.getByRole("link", { name: "With changes" })).toBeTruthy()
+    expect(screen.queryByRole("link", { name: "Clean" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Accept all" })).toBeNull()
+  })
+})

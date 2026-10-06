@@ -417,3 +417,45 @@ describe("useStudio refine", () => {
     expect(result.current.artifacts.map((each) => each.id)).toEqual([40])
   })
 })
+
+describe("useStudio decide all", () => {
+  it("puts the version accepting every change in the list as soon as the API takes it", async () => {
+    const v1 = artifact({
+      id: 50,
+      format: "docx",
+      title: "MSA_Acme (revised)",
+      status: "ready",
+      version: { root_id: 50, number: 1, parent_id: null },
+    })
+    const v2 = {
+      ...v1,
+      id: 51,
+      status: "pending" as const,
+      version: { root_id: 50, number: 2, parent_id: 50 },
+    }
+    const calls: { path: string; init?: RequestInit }[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push({ path, init })
+        if (path.endsWith("/events")) return new Response(null, { status: 204 })
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (path.endsWith("/accept-all")) return Response.json(v2)
+        return Response.json([v1])
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await result.current.decideAll(50, "accept_all")
+
+    const sent = calls.find(
+      (call) => call.path === "/artifacts/50/revisions/accept-all"
+    )
+    expect(sent?.init?.method).toBe("POST")
+    await waitFor(() =>
+      expect(result.current.artifacts.map((each) => each.id)).toEqual([51, 50])
+    )
+  })
+})

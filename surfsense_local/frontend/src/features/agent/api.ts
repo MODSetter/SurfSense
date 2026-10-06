@@ -1,7 +1,7 @@
 import { requestVoid } from "@/lib/api"
 
-/** The Studio artifact a `surfsense_render_document` call made, once that
- *  version is ready. */
+/** The Studio artifact a `surfsense_render_document` or
+ *  `surfsense_revise_document` call made, once that version is ready. */
 export type RenderedArtifact = {
   id: number
   title: string
