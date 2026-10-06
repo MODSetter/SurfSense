@@ -45,7 +45,6 @@
   "agent_steps_source_pages_untitled_label": "Looked at pages of a source",
   "agent_steps_studio_label": "Started {format} in Studio",
   "agent_steps_write_label": "Wrote {file}",
-  "app_api_insufficient_space_error": "{message} ({required, number, ::unit/gigabyte .#} required, {available, number, ::unit/gigabyte .#} available)",
   "app_api_request_failed_error": "Request failed with status {status}",
   "app_bootstrap_loader_aria": "Starting SurfSense",
   "app_bootstrap_retry_button": "Retry",

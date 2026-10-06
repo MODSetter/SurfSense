@@ -45,7 +45,6 @@
   "agent_steps_source_pages_untitled_label": "ソースのページを確認",
   "agent_steps_studio_label": "Studioで{format}の作成を開始",
   "agent_steps_write_label": "{file}に書き込み",
-  "app_api_insufficient_space_error": "{message}（必要: {required, number, ::unit/gigabyte .#}、空き: {available, number, ::unit/gigabyte .#}）",
   "app_api_request_failed_error": "リクエストが失敗しました（ステータス {status}）",
   "app_bootstrap_loader_aria": "SurfSenseを起動しています",
   "app_bootstrap_retry_button": "再試行",
