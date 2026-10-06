@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and provider name.
+SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and provider name.
 
 `workspace` is the one product word languages disagree on, and each keeps its own habit: German and Brazilian Portuguese write Workspace, because both say it routinely and the translation is three times as wide in the sidebar; Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake; the rest translate it.
 

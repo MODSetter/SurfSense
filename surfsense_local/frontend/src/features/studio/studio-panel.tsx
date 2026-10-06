@@ -39,7 +39,7 @@ const FORMAT_HINTS: Record<string, () => string> = {
   summary: () =>
     intl.formatMessage({
       id: "studio_format_summary_tooltip",
-      defaultMessage: "Generate an AI summary based on your sources",
+      defaultMessage: "Generate an AI Markdown document based on your sources",
     }),
   docx: () =>
     intl.formatMessage({
@@ -175,10 +175,12 @@ function Composer({
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
-    <div className="relative">
+    // A taller dialog for every format: Generate stays at the bottom, and the
+    // source list, which takes this same box, shows more rows.
+    <div className="relative flex min-h-80 flex-col">
       <div
         className={cn(
-          "flex flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          "flex flex-1 flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
           view === "main"
             ? "opacity-100 blur-none"
             : "pointer-events-none invisible opacity-0 blur-sm"

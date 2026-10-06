@@ -147,7 +147,7 @@ def _one_file(artifact: Artifact, mime: str, magic: bytes) -> None:
 def test_summary_becomes_a_searchable_markdown_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Summary: the model's markdown is the body, indexed for search, with no file."""
+    """Markdown: the model's markdown is the body, indexed for search, and the file."""
     seen = _capture_model(
         monkeypatch,
         "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens.",
@@ -161,7 +161,7 @@ def test_summary_becomes_a_searchable_markdown_body(
         artifact.document.error_message
     )
     assert artifact.document.title == "Cassini"
-    assert artifact.files == []
+    _one_file(artifact, "text/markdown", b"# Cassini")
     assert "the arrival date" in seen[0]  # the user's focus reached the model
     keyword = session.scalar(
         text("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'Huygens'")
