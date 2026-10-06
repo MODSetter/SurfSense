@@ -1,7 +1,9 @@
 """What an Excel workbook a script wrote holds, as a summary the model checks instead of pages.
 
 A workbook has no pages to preview, so the agent reads this: each sheet's
-used range and first rows, and the formulas it found.
+used range and first rows, and the formulas it found. A formula's cell shows
+its value once LibreOffice has recalculated it, and its formula otherwise:
+a cached value the script's library wrote is 0 or blank, not a total.
 """
 
 import re
@@ -31,11 +33,19 @@ _CHART_PART = re.compile(r"xl/charts/chart\d+\.xml")
 _PLAIN_SHEET_NAME = re.compile(r"\w+")
 
 
-def workbook_summary(data: bytes) -> str:
-    """The workbook's sheets and charts counted, each sheet summarised, then its formulas."""
+def workbook_summary(data: bytes, *, recalculated: bool = False) -> str:
+    """The workbook's sheets and charts counted, each sheet summarised, then its formulas.
+
+    `recalculated` says the cached values are LibreOffice's, so rows show them.
+    """
     try:
         # Read-only streams the rows: a script may write a very long sheet.
         book = openpyxl.load_workbook(BytesIO(data), read_only=True)
+        cached = (
+            openpyxl.load_workbook(BytesIO(data), read_only=True, data_only=True)
+            if recalculated
+            else None
+        )
         charts = _chart_count(data)
     # A file that is not a workbook fails as a zip, key or value error.
     except Exception as error:
@@ -47,7 +57,8 @@ def workbook_summary(data: bytes) -> str:
         formulas: list[str] = []
         cells_left = CELLS_READ
         for sheet in sheets[:SHEETS]:
-            block, read = _sheet_block(sheet, formulas, cells_left)
+            values = cached[sheet.title] if cached is not None else None
+            block, read = _sheet_block(sheet, values, formulas, cells_left)
             blocks.append(block)
             cells_left -= read
         if len(sheets) > SHEETS:
@@ -56,6 +67,8 @@ def workbook_summary(data: bytes) -> str:
             blocks.append("\n".join(["Formulas:", *_formula_lines(formulas)]))
     finally:
         book.close()
+        if cached is not None:
+            cached.close()
     summary = "\n\n".join(blocks)
     if len(summary) > SUMMARY_CHARS:
         return f"{summary[:SUMMARY_CHARS]}… (summary cut)"
@@ -69,24 +82,32 @@ def _counts(sheets: int, charts: int) -> str:
     return f"{counted}."
 
 
-def _sheet_block(sheet: Any, formulas: list[str], cells_left: int) -> tuple[str, int]:
+def _sheet_block(
+    sheet: Any, cached: Any, formulas: list[str], cells_left: int
+) -> tuple[str, int]:
     """The sheet's name and used range, its first rows as a table, and how many
-    cells were read, about `cells_left` at most; its formulas go to `formulas`."""
+    cells were read, about `cells_left` at most; its formulas go to `formulas`.
+    `cached` is the same sheet read for values, when they are LibreOffice's."""
     rows: list[str] = []
     more = 0
     read = 0
     rows_read = 0
     cut = False
+    cached_rows = cached.iter_rows() if cached is not None else None
     for row in sheet.iter_rows():
         if read >= cells_left:
             cut = True
             break
+        cached_row = next(cached_rows, None) if cached_rows is not None else None
         read += len(row)
         rows_read += 1
         values = [_value(cell.value) for cell in row]
-        for cell, value in zip(row, values, strict=True):
+        for index, (cell, value) in enumerate(zip(row, values, strict=True)):
             if _is_formula(value):
                 formulas.append(f"{_reference(sheet.title)}{cell.coordinate}: {value}")
+                if cached_row is not None and index < len(cached_row):
+                    computed = cached_row[index].value
+                    values[index] = value if computed is None else computed
         if all(value is None for value in values):
             continue
         if len(rows) < ROWS:

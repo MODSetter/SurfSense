@@ -3,6 +3,7 @@
 from dataclasses import asdict
 from typing import Any
 
+from modules.agent.tool_endpoint.convert_document import TOOL_NAME as CONVERT_TOOL
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artifact
 
@@ -10,6 +11,8 @@ from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artif
 MAX_OUTPUT_CHARS = 4000
 # The name opencode gives SurfSense's render tool in a step.
 RENDER_STEP = f"{SERVER}_{TOOL_NAME}"
+# A conversion's result opens the same way, naming the PDF it made.
+CONVERT_STEP = f"{SERVER}_{CONVERT_TOOL}"
 
 
 def step_of(part: dict[str, Any]) -> dict[str, Any]:
@@ -26,7 +29,7 @@ def step_of(part: dict[str, Any]) -> dict[str, Any]:
         step["output"] = str(state["output"])[:MAX_OUTPUT_CHARS]
     if state.get("error") is not None:
         step["error"] = str(state["error"])
-    if step["tool"] == RENDER_STEP:
+    if step["tool"] in (RENDER_STEP, CONVERT_STEP):
         step["artifact"] = _rendered(state)
     return step
 

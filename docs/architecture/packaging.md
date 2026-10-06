@@ -48,6 +48,8 @@ What else each spec names, and why the analyser cannot find it on its own:
 | `worker.spec` | `matplotlib.pyplot`, `matplotlib.backends.backend_pdf`, `matplotlib.backends.backend_svg`, with the matplotlib hook set to the `Agg` backend | document scripts draw charts, and nothing imports matplotlib statically. Naming pyplot runs PyInstaller's hook, which adds `mpl-data` and the backend chosen; a chart saved as PDF or SVG, or `PdfPages`, imports its canvas by name, which the hook does not follow. `Agg` alone keeps Tk's GUI backend out, since scripts run with `MPLBACKEND=Agg` |
 | `worker.spec` | `modules.documents.tasks`, `modules.artifacts.tasks` | Huey resolves a task by its name |
 
+Office support adds nothing to either binary. LibreOffice is downloaded only when the user turns it on, or is the user's own, and runs as its own process from `<data>/runtime/office/` ([office pack](office-pack.md)): the API starts it for a Word or PowerPoint version's previews and a source's pages, the Studio worker for a workbook's recalculation and a PDF conversion. The worker writes recalculated values with lxml, which python-docx already brings; openpyxl reads LibreOffice's values in the worker only, so the API binary needs none.
+
 ## Model packs
 
 Three packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses, the first query embeds and the first podcast voices with no network. Every other audio model is downloaded like any other model ([`local-models/catalog.md`](local-models/catalog.md)).

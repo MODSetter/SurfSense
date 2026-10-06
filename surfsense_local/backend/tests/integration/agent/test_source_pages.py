@@ -28,6 +28,7 @@ from shared.config import get_storage_settings
 from tests.integration.agent.conftest import MAX_PATH, declare_image_input
 from tests.integration.agent.test_office_documents import _uploaded
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
+from tests.office_stand_in import office_on
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("model_reads_images")]
 
@@ -462,3 +463,71 @@ async def test_a_deck_with_no_slides_says_so(
     assert is_error is True
     assert "has no slides to draw" in text
     assert served == []
+
+
+async def test_with_office_support_a_word_source_is_laid_out_by_libreoffice(
+    tools: ToolEndpoint, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The whole file is laid out, so the count is exact and no desktop app is needed."""
+    office = office_on(monkeypatch, pages=7)
+    workspace_id = await tools.workspace()
+    original = _docx()
+    source_id = _uploaded(engine, workspace_id, "Letter.docx", original)
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id, pages=[2, 6])
+    )
+
+    assert is_error is False, text
+    assert f'Source {source_id} ("Letter.docx") has 7 pages.' in text
+    assert "Pages 2 and 6 come with this result as images, in order." in text
+    assert "Drawn by LibreOffice 26.8.1" in text
+    assert "SurfSense's Word viewer" not in text
+    assert len(images) == 2
+    assert office.read == [(".docx", original)]
+
+
+async def test_a_deck_libreoffice_lays_out_with_fewer_slides_is_printed_by_electron(
+    tools: ToolEndpoint,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    electron: Callable[[Callable[[SnapshotRequest], bytes]], list[SnapshotRequest]],
+) -> None:
+    """LibreOffice leaves hidden slides out; slide numbers must stay the deck's own."""
+    office_on(monkeypatch, pages=2)
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Review.pptx", _pptx(3))
+    served = electron(lambda request: _pdf(*[landscape(A4)] * 3))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
+
+    assert is_error is False, text
+    assert len(served) == 1
+    assert len(images) == 3
+    assert "LibreOffice" not in text
+
+
+async def test_when_libreoffice_fails_on_a_source_electron_prints_it_and_says_so(
+    tools: ToolEndpoint,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    electron: Callable[[Callable[[SnapshotRequest], bytes]], list[SnapshotRequest]],
+) -> None:
+    """Today's path is the fallback, and the model learns why it was taken."""
+    office_on(monkeypatch, failure="LibreOffice did not finish in time.")
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Review.pptx", _pptx(2))
+    electron(lambda request: _pdf(*[landscape(A4)] * 2))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
+
+    assert is_error is False, text
+    assert len(images) == 2
+    assert (
+        "LibreOffice did not finish in time. The desktop app printed these pages "
+        "instead."
+    ) in text

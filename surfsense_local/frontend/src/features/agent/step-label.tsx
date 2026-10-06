@@ -139,6 +139,21 @@ export function stepLabel(
       }
       break
     }
+    case "surfsense_convert_document": {
+      const made = step.artifact
+      return made
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_convert_label",
+              defaultMessage: "Converted <doc>{title}</doc> to PDF",
+            },
+            { title: made.title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_convert_untitled_label",
+            defaultMessage: "Converted a document to PDF",
+          })
+    }
     case "surfsense_read_document":
       return intl.formatMessage({
         id: "agent_steps_read_document_label",

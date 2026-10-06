@@ -27,6 +27,7 @@ from worker.studio.script_document.extracted_text import (
     pdf_text,
     word_text,
 )
+from worker.studio.script_document.recalculation import recalculate
 from worker.studio.script_document.workbook_summary import workbook_summary
 from worker.studio.shared.artifact import Built
 from worker.studio.shared.text import file_stem
@@ -125,10 +126,17 @@ def render(
         raise ScriptRunFailedError(
             f"the script wrote a file that is not a valid .{office.ext}"
         ) from error
+    output, metadata = result.output, None
+    if script.format == "xlsx":
+        recalculation = recalculate(output)
+        output, metadata = recalculation.data, {"recalculation": recalculation.record}
+        if recalculation.recalculated:
+            text = workbook_summary(output, recalculated=True)
     return Built(
         title=title,
         markdown=text or f"# {title}",
-        primary=result.output,
+        primary=output,
         primary_mime=office.mime,
         primary_filename=f"{file_stem(title, office.stem)}.{office.ext}",
+        metadata=metadata,
     )
