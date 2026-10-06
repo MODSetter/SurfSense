@@ -5,6 +5,11 @@ import httpx
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from modules.artifacts.converted_documents.conversion import (
+    Conversion,
+    conversion_of,
+)
+from modules.artifacts.converted_documents.input_file import input_file
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
@@ -41,6 +46,7 @@ from shared.db import create_db_engine, create_session_factory, is_locked
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
+from worker.studio.converted_document import pipeline as converted_document
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -89,7 +95,10 @@ def _generate(session: Session, artifact: Artifact) -> None:
         meta = artifact.artifact_metadata
         refining = refinement(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
-        if refining is not None:
+        converting = conversion_of(meta)
+        if converting is not None:
+            built = _convert(session, artifact, document, converting)
+        elif refining is not None:
             built = _refine(session, artifact, document, refining)
         elif script is not None:
             built = _run_script(session, artifact, document, script)
@@ -105,6 +114,11 @@ def _generate(session: Session, artifact: Artifact) -> None:
         persist.persist(session, artifact, document, built)
         if built.spec is not None:
             _keep_spec(artifact, built.spec)
+        if built.metadata is not None:
+            artifact.artifact_metadata = {
+                **(artifact.artifact_metadata or {}),
+                **built.metadata,
+            }
 
         if not finish_job(
             session,
@@ -151,6 +165,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # and renders a fix as a new version, which a retry turning READY would race.
         # A Studio draft's kept spec does not count: its Retry asks the model again.
         if renders_as_stored(artifact.artifact_metadata):
+            return
+        # The convert tool waits on this run; it reads FAILED and says why.
+        if conversion_of(artifact.artifact_metadata) is not None:
             return
         # A refine is one call the user asked for; Retry asks again if they want.
         if refinement(artifact.artifact_metadata) is not None:
@@ -213,6 +230,17 @@ def _run_script(
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
         return script_document.render(title, script, images, template)
+
+
+def _convert(
+    session: Session, artifact: Artifact, document: Document, converting: Conversion
+) -> Built:
+    """LibreOffice converts a copy of the version's or source's file; the file itself is only read."""
+    title, file = input_file(session, artifact.workspace_id, converting)
+    # A conversion may take a minute and a half; the write lock must not be held across it.
+    session.commit()
+    raise_if_cancelled(session, document)
+    return converted_document.convert(title, file)
 
 
 def _refine(

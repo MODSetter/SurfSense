@@ -150,3 +150,19 @@ def test_a_steps_attachments_never_reach_the_thread() -> None:
     (stored,) = reply["content"]["steps"]
     for step in (streamed, stored):
         assert step["artifact"] == {"id": 40, "title": "Client proposal", "version": 2}
+
+
+def test_a_finished_conversion_links_the_pdf_it_made() -> None:
+    """The thread opens the new PDF in Studio, as it opens a rendered version."""
+    step = step_of(
+        _tool_part(
+            "surfsense_convert_document",
+            "completed",
+            output=(
+                "Rendered artifact 41, version 1: Client proposal\n"
+                "A PDF of 3 pages, converted by LibreOffice 26.8.1 from artifact 40."
+            ),
+        )
+    )
+
+    assert step["artifact"] == {"id": 41, "title": "Client proposal", "version": 1}

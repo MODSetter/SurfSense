@@ -87,6 +87,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "render_document",
         "read_document",
         "list_images",
+        "convert_document",
     ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
@@ -105,6 +106,10 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     # A long script is read a page of lines at a time, under opencode's cut.
     assert listed["read_document"]["properties"]["offset"]["type"] == "integer"
     assert listed["list_images"]["required"] == ["source_ids"]
+    # Listed with Office support off too, so the tool list never changes mid-thread.
+    convert = listed["convert_document"]
+    assert convert["required"] == ["format"]
+    assert convert["properties"]["format"]["enum"] == ["pdf"]
     images = next(t for t in reply["result"]["tools"] if t["name"] == "list_images")
     # A model that reads no images is told what to do instead of charting guesses.
     assert "If read cannot show it to you" in images["description"]
@@ -117,7 +122,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
 async def test_a_model_that_reads_images_is_also_offered_source_pages(
     tools: ToolEndpoint,
 ) -> None:
-    """It comes last, so the tools before it keep their place in a cached prompt."""
+    """It comes after the tools every model gets, so they keep their place in a cached prompt."""
     workspace_id = await tools.workspace()
 
     reply = await tools.request(workspace_id, "tools/list")
@@ -130,6 +135,7 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "read_document",
         "list_images",
         "source_pages",
+        "convert_document",
     ]
     pages = listed["source_pages"]
     assert pages["required"] == ["document_id"]

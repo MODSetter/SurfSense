@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.tool_endpoint import replies
+from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
@@ -42,6 +43,7 @@ TOOLS: dict[str, Tool] = {
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
+        CONVERT_DOCUMENT,
     )
 }
 
