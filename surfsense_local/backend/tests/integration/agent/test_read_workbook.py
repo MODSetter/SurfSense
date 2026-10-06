@@ -211,3 +211,57 @@ async def test_a_revised_workbook_reads_as_its_newest_version(
     )
     assert "B2 = 15000" in text
     assert "B4 = =SUM(B2:B3)" in text
+
+
+def _wide_row_xlsx(columns: int) -> bytes:
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "Prices"
+    sheet.append([f"Price {column}" for column in range(columns)])
+    sheet.append(["after the wide row"])
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+async def test_a_row_too_wide_for_one_map_is_read_past(tools: ToolEndpoint) -> None:
+    """Calling again from the cut row cut it at the same cell, so the rest was never read."""
+    workspace_id = await tools.workspace()
+    source_id = _source(tools, workspace_id, "Prices.xlsx", _wide_row_xlsx(5000))
+    arguments: dict = {"document_id": source_id, "sheet": "Prices"}
+
+    first, _ = await tools.call(workspace_id, TOOL, arguments)
+    cut = first.splitlines()[-1]
+    offset = int(cut.split(" and offset ")[1].split()[0])
+    after, is_error = await tools.call(
+        workspace_id, TOOL, {**arguments, "offset": offset}
+    )
+
+    assert is_error is False, after
+    assert 'Row 1 of sheet "Prices" holds more cells than one map shows' in cut
+    assert 'A2 = "after the wide row"' in after
+
+
+def _many_sheets_xlsx(sheets: int) -> bytes:
+    book = openpyxl.Workbook()
+    book.active.title = "Sheet 0000"
+    for number in range(1, sheets):
+        book.create_sheet(f"Quarterly sheet {number:04d}")["A1"] = number
+    out = BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+async def test_a_workbook_of_many_sheets_stays_within_one_map(
+    tools: ToolEndpoint,
+) -> None:
+    """Every sheet's heading was added past the cut, and opencode cut the result mid-line."""
+    workspace_id = await tools.workspace()
+    source_id = _source(tools, workspace_id, "Quarters.xlsx", _many_sheets_xlsx(1200))
+
+    text, is_error = await tools.call(workspace_id, TOOL, {"document_id": source_id})
+
+    assert is_error is False, text
+    assert len(text.encode()) < 42_000
+    assert 'Sheet "Sheet 0000"' in text
+    assert "more sheets" in text

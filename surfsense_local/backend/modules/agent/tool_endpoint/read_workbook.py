@@ -126,12 +126,35 @@ def _sections(mapped: CellMap) -> list[str]:
         if sheet.left_out:
             cells = "cell" if sheet.left_out == 1 else "cells"
             lines.append(f"{sheet.left_out:,} more {cells} not shown.")
-    if mapped.cut_at is not None:
-        name, row = mapped.cut_at
+    if mapped.named or mapped.unnamed:
         lines.append("")
-        lines.append(
-            f'The map was cut at row {row} of sheet "{name}". Call again with sheet '
-            f'"{name}" and offset {row} to read on from there, or with another '
-            "sheet's name."
-        )
+        lines.append(_not_read(mapped))
+    cut = mapped.cut
+    if cut is not None:
+        lines.append("")
+        if cut.row_too_wide:
+            lines.append(
+                f'Row {cut.row} of sheet "{cut.sheet}" holds more cells than one map '
+                f"shows: those from {cut.column}{cut.row} on are left out. Call again "
+                f'with sheet "{cut.sheet}" and offset {cut.row + 1} to read on from '
+                "the next row."
+            )
+        else:
+            lines.append(
+                f'The map was cut at row {cut.row} of sheet "{cut.sheet}". Call again '
+                f'with sheet "{cut.sheet}" and offset {cut.row} to read on from there, '
+                "or with another sheet's name."
+            )
     return lines
+
+
+def _not_read(mapped: CellMap) -> str:
+    count = len(mapped.named) + mapped.unnamed
+    sheets = "sheet" if count == 1 else "sheets"
+    names = ", ".join(f'"{name}"' for name in mapped.named)
+    if mapped.unnamed:
+        names += f" and {mapped.unnamed:,} more"
+    return (
+        f"{count:,} more {sheets} not read here: {names}. Read one with sheet and "
+        "its name."
+    )

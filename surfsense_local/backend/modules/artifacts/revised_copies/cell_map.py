@@ -15,6 +15,9 @@ from openpyxl.utils import get_column_letter
 VALUE_CHARS = 200
 # Room for each sheet's heading and the notes after the cells.
 _HEADING_BYTES = 120
+# Headings may take this share of the budget; later sheets are only named.
+_HEADINGS_SHARE = 4
+_NAMES_BYTES = 4_000
 
 
 class SheetNotFoundError(Exception):
@@ -33,9 +36,21 @@ class SheetMap:
 
 
 @dataclass(frozen=True)
+class Cut:
+    """The first cell left out. `row_too_wide`: the row the read began on, so reading on from it shows the same cells."""
+
+    sheet: str
+    row: int
+    column: str
+    row_too_wide: bool
+
+
+@dataclass(frozen=True)
 class CellMap:
     sheets: list[SheetMap]
-    cut_at: tuple[str, int] | None  # the sheet and row the first cell left out is on
+    cut: Cut | None
+    named: list[str]  # sheets not read, past the headings' share
+    unnamed: int  # sheets past the names' room too
 
 
 def cell_map(path: Path, sheet: str | None, from_row: int, budget: int) -> CellMap:
@@ -51,13 +66,18 @@ def cell_map(path: Path, sheet: str | None, from_row: int, budget: int) -> CellM
             sheets = [s for s in sheets if s.title == sheet]
             if not sheets:
                 raise SheetNotFoundError(sheet, [s.title for s in book.worksheets])
+        read, skipped = _headed(sheets, budget // _HEADINGS_SHARE)
+        named, unnamed = _named(skipped)
+        # Headings are reserved first, so the cells never push the map past `budget`.
+        left = budget - sum(_heading(s.title) for s in read)
+        if skipped:
+            left -= _NAMES_BYTES
         maps: list[SheetMap] = []
-        cut_at: tuple[str, int] | None = None
-        left = budget
-        for worksheet in sheets:
+        cut: Cut | None = None
+        for index, worksheet in enumerate(read):
             mapped = SheetMap(worksheet.title)
-            left -= _HEADING_BYTES + len(worksheet.title.encode())
             corners: list[int] = []  # min row, min column, max row, max column
+            began: int | None = None  # the row of the first cell shown
             # A file's stored dimension can be wrong, and read-only mode trusts it.
             worksheet.reset_dimensions()
             for row in worksheet.iter_rows():
@@ -68,14 +88,18 @@ def cell_map(path: Path, sheet: str | None, from_row: int, budget: int) -> CellM
                     corners = _grown(corners, cell.row, cell.column)
                     if cell.row < from_row:
                         continue
-                    line = f"{get_column_letter(cell.column)}{cell.row} = {shown}"
+                    column = get_column_letter(cell.column)
+                    line = f"{column}{cell.row} = {shown}"
                     size = len(line.encode()) + 1
-                    if cut_at is None and size <= left:
+                    if cut is None and size <= left:
+                        began = cell.row if began is None else began
                         mapped.lines.append(line)
                         left -= size
                         continue
-                    if cut_at is None:
-                        cut_at = (worksheet.title, cell.row)
+                    if cut is None:
+                        # Reading on from this row would start where this read did.
+                        too_wide = index == 0 and began in (None, cell.row)
+                        cut = Cut(worksheet.title, cell.row, column, too_wide)
                     mapped.left_out += 1
             if corners:
                 top, first, bottom, last = corners
@@ -83,9 +107,35 @@ def cell_map(path: Path, sheet: str | None, from_row: int, budget: int) -> CellM
                     f"{get_column_letter(first)}{top}:{get_column_letter(last)}{bottom}"
                 )
             maps.append(mapped)
-        return CellMap(maps, cut_at)
+        return CellMap(maps, cut, named, unnamed)
     finally:
         book.close()
+
+
+def _heading(title: str) -> int:
+    return _HEADING_BYTES + len(title.encode())
+
+
+def _headed(sheets: list, room: int) -> tuple[list, list]:
+    """The sheets whose headings fit in `room`, at least one, and the rest."""
+    spent = 0
+    for index, worksheet in enumerate(sheets):
+        spent += _heading(worksheet.title)
+        if index and spent > room:
+            return sheets[:index], sheets[index:]
+    return sheets, []
+
+
+def _named(skipped: list) -> tuple[list[str], int]:
+    """The skipped sheets' names that fit in the names' room, and how many did not."""
+    names: list[str] = []
+    spent = 0
+    for worksheet in skipped:
+        spent += len(worksheet.title.encode()) + 4  # quotes, comma and space
+        if spent > _NAMES_BYTES - _HEADING_BYTES:
+            break
+        names.append(worksheet.title)
+    return names, len(skipped) - len(names)
 
 
 def _grown(corners: list[int], row: int, column: int) -> list[int]:
