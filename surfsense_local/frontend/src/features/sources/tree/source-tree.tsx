@@ -2,7 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
-  type DragEvent,
+  type HTMLAttributes,
   type KeyboardEvent,
 } from "react"
 
@@ -10,25 +10,13 @@ import { getFileViewer } from "@/features/file-viewers/registry"
 import { intl } from "@/i18n/intl"
 
 import type { WorkspaceDocument } from "../api"
-import { DROP_FOLDER_ATTRIBUTE, carriesFiles } from "../use-file-drop"
 import { DocumentRow } from "./document-row"
 import { FolderRow } from "./folder-row"
 import type { SourceFolder } from "./folders-api"
 import type { Tick } from "./scope-state"
-import {
-  TOP,
-  subtreeOf,
-  type FolderKey,
-  type SourceIndex,
-} from "./source-index"
-import {
-  carriesSource,
-  draggedSource,
-  startSourceDrag,
-  type DraggedSource,
-} from "./tree-drag"
-import type { TreeItemProps } from "./tree-item-props"
+import { TOP, type FolderKey, type SourceIndex } from "./source-index"
 import type { MoveTarget } from "./move-to-dialog"
+import type { RowDrag } from "./use-row-drag"
 import { visibleRows, type TreeRow } from "./visible-rows"
 
 // Each level indents by this much, past the first.
@@ -39,23 +27,6 @@ const ARIA_TICK = {
   unchecked: "false",
   mixed: "mixed",
 } as const satisfies Record<Tick, "true" | "false" | "mixed">
-
-function dropFolderOf(event: DragEvent): FolderKey {
-  const target = event.target instanceof Element ? event.target : null
-  const value = target
-    ?.closest(`[${DROP_FOLDER_ATTRIBUTE}]`)
-    ?.getAttribute(DROP_FOLDER_ATTRIBUTE)
-  return value ? Number(value) : TOP
-}
-
-/** Whether moving this row into that folder changes anything and is allowed. */
-function canDrop(index: SourceIndex, source: DraggedSource, to: FolderKey) {
-  if (source.kind === "document") {
-    return index.folderOfDocument.get(source.id) !== to
-  }
-  if (index.parentOf.get(source.id) === to) return false
-  return to === TOP || !subtreeOf(index, source.id).has(to)
-}
 
 export type DocumentRowActions = {
   onOpen: (documentId: number) => void
@@ -76,7 +47,6 @@ export type FolderRowActions = {
   onRename: (folder: SourceFolder) => void
   onDelete: (folder: SourceFolder) => void
   onMoveRequest: (target: MoveTarget) => void
-  onDrop: (source: DraggedSource, to: FolderKey) => void
 }
 
 export function SourceTree({
@@ -90,6 +60,8 @@ export function SourceTree({
   isDeleting,
   documentActions,
   folderActions,
+  dropFolder,
+  takesFiles,
   labelledBy,
 }: {
   index: SourceIndex
@@ -102,15 +74,24 @@ export function SourceTree({
   isDeleting: boolean
   documentActions: DocumentRowActions
   folderActions?: FolderRowActions
+  // The folder a drag over the panel would file into, lit up.
+  dropFolder: FolderKey | undefined
+  // Whether rows take files dropped from the desktop.
+  takesFiles: boolean
   labelledBy: string
 }) {
   const rows = visibleRows(index, expanded, filter)
   const rowElements = useRef(new Map<string, HTMLLIElement>())
   const documentElements = useRef(new Map<number, HTMLLIElement>())
   const [activeKey, setActiveKey] = useState<string | null>(null)
-  const [dropTarget, setDropTarget] = useState<FolderKey | undefined>(undefined)
   const focusable =
     rows.find((row) => row.key === activeKey)?.key ?? rows[0]?.key
+
+  const dragOf = (row: TreeRow): RowDrag => ({
+    into: row.kind === "folder" ? row.folder.id : row.parent,
+    movable: folderActions !== undefined,
+    takesFiles,
+  })
 
   useEffect(() => {
     if (highlightedDocumentId === null) return
@@ -221,8 +202,10 @@ export function SourceTree({
     }
   }
 
-  const itemPropsOf = (row: TreeRow, at: number): TreeItemProps => {
-    const holder = row.kind === "folder" ? row.folder.id : row.parent
+  const itemPropsOf = (
+    row: TreeRow,
+    at: number
+  ): HTMLAttributes<HTMLLIElement> => {
     return {
       role: "treeitem",
       "aria-level": row.level,
@@ -243,53 +226,12 @@ export function SourceTree({
         row.level > 1
           ? { paddingInlineStart: 4 + (row.level - 1) * INDENT_PX }
           : undefined,
-      ...(holder !== TOP ? { [DROP_FOLDER_ATTRIBUTE]: holder } : {}),
-      draggable: folderActions !== undefined,
-      onDragStart: folderActions
-        ? (event) =>
-            startSourceDrag(
-              event,
-              row.kind === "folder"
-                ? { kind: "folder", id: row.folder.id }
-                : { kind: "document", id: row.document.id }
-            )
-        : undefined,
       onFocus: (event) => {
         if (event.target === event.currentTarget) setActiveKey(row.key)
       },
       onKeyDown: (event) => onRowKeyDown(event, at),
     }
   }
-
-  // Files are taken by the panel, which reads the same row marker; rows
-  // moved inside the tree are taken here.
-  const dragHandlers = folderActions
-    ? {
-        onDragOver: (event: DragEvent<HTMLUListElement>) => {
-          const internal = carriesSource(event)
-          if (!internal && !carriesFiles(event)) return
-          if (internal) {
-            event.preventDefault()
-            event.dataTransfer.dropEffect = "move"
-          }
-          setDropTarget(dropFolderOf(event))
-        },
-        onDragLeave: (event: DragEvent<HTMLUListElement>) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-            setDropTarget(undefined)
-          }
-        },
-        onDrop: (event: DragEvent<HTMLUListElement>) => {
-          setDropTarget(undefined)
-          const source = carriesSource(event) ? draggedSource(event) : null
-          if (!source) return
-          event.preventDefault()
-          const to = dropFolderOf(event)
-          if (canDrop(index, source, to)) folderActions.onDrop(source, to)
-        },
-        onDragEnd: () => setDropTarget(undefined),
-      }
-    : {}
 
   if (rows.length === 0) {
     return filter.trim() ? (
@@ -310,7 +252,6 @@ export function SourceTree({
       role="tree"
       aria-labelledby={labelledBy}
       className="flex list-none flex-col gap-1"
-      {...dragHandlers}
     >
       {rows.map((row, at) =>
         row.kind === "folder" ? (
@@ -320,12 +261,13 @@ export function SourceTree({
             expanded={row.expanded}
             hasChildren={row.hasChildren}
             tick={folderTicks.get(row.folder.id) ?? "unchecked"}
-            dropping={dropTarget === row.folder.id}
+            dropping={dropFolder === row.folder.id}
             rowRef={(node) => {
               if (node) rowElements.current.set(row.key, node)
               else rowElements.current.delete(row.key)
             }}
             itemProps={itemPropsOf(row, at)}
+            drag={dragOf(row)}
             onToggleExpanded={() =>
               onExpandedChange(row.folder.id, !row.expanded)
             }
@@ -360,6 +302,7 @@ export function SourceTree({
               }
             }}
             itemProps={itemPropsOf(row, at)}
+            drag={dragOf(row)}
             onOpen={() => documentActions.onOpen(row.document.id)}
             onPreview={() => documentActions.onPreview?.(row.document.id)}
             onReveal={() => documentActions.onReveal(row.document.id)}

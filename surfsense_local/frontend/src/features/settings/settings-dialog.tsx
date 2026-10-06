@@ -210,8 +210,8 @@ const SETTINGS_SECTIONS = [
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
-  { id: "about", group: "app", icon: InformationCircleIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
+  { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {

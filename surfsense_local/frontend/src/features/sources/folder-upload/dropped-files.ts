@@ -1,4 +1,8 @@
+import { getFiles } from "@atlaskit/pragmatic-drag-and-drop/external/file"
+
 import type { UploadEntry } from "./upload-plan"
+
+type ContainsSource = Parameters<typeof getFiles>[0]["source"]
 
 // Chromium hands a directory's entries out in pages; an empty page ends it.
 function readAll(directory: FileSystemDirectoryEntry) {
@@ -36,22 +40,19 @@ async function walk(entry: FileSystemEntry, into: UploadEntry[]) {
 
 /**
  * The files of a drop, a dropped folder's at every depth with their paths
- * under it. Entries are taken before any await: the drop's list empties once
+ * under it. Entries are taken before any await: the drop's items empty once
  * its event returns.
  */
 export async function filesOfDrop(
-  dataTransfer: DataTransfer
+  source: ContainsSource
 ): Promise<UploadEntry[]> {
-  const entries = Array.from(dataTransfer.items ?? []).flatMap((item) => {
+  const entries = source.items.flatMap((item) => {
     const entry =
       item.kind === "file" ? (item.webkitGetAsEntry?.() ?? null) : null
     return entry ? [entry] : []
   })
   if (!entries.some((entry) => entry.isDirectory)) {
-    return Array.from(dataTransfer.files).map((file) => ({
-      file,
-      relativePath: null,
-    }))
+    return getFiles({ source }).map((file) => ({ file, relativePath: null }))
   }
   const collected: UploadEntry[] = []
   for (const entry of entries) await walk(entry, collected)
