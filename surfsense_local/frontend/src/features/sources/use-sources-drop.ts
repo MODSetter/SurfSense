@@ -100,7 +100,7 @@ export function useSourcesDrop({
       }),
       dropTargetForExternal({
         element,
-        canDrop: (args) => true ||
+        canDrop: (args) =>
           latest.current.onDropFiles !== undefined && containsFiles(args),
         getData: () => dropTargetData(TOP),
         onDragEnter: () => setFilesOver(true),
