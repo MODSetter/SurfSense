@@ -93,8 +93,11 @@ export function ArtifactPanel({
 
   return (
     <DetailPanel
+      // The list names a version before its body arrives, so a switch of
+      // version changes the title without passing through "Loading…".
       title={
         data?.title ??
+        shown?.title ??
         (isLoading
           ? intl.formatMessage({
               id: "studio_artifact_panel_loading_status",
@@ -179,14 +182,17 @@ export function ArtifactPanel({
           ) : null}
         </div>
         {/* Floats over the document, so the pages keep the panel's height;
-            their own bottom margin is what it covers at the end. */}
-        {!isLoading && !error && shown && canRefine(shown) ? (
+            their own bottom margin is what it covers at the end. One per
+            document, kept through a switch of version so the version being
+            made turns back into the button in place. */}
+        {!error && shown && canRefine(shown) ? (
           // Clicks pass through to the document beside the button. The
           // container is what the refine box measures its open width by.
           <div className="@container pointer-events-none absolute inset-x-0 bottom-0 flex justify-end px-3 pb-3">
             <RefineBox
-              key={artifactId}
+              key={shown.version?.root_id ?? artifactId}
               artifactId={artifactId}
+              versionShown={!isLoading}
               writingVersion={writing?.version.number ?? null}
               onRefine={onRefine}
             />

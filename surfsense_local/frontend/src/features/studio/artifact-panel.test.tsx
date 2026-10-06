@@ -346,11 +346,12 @@ describe("artifact panel refine", () => {
 
   function panel(
     artifacts: Artifact[],
-    onRefine: (artifactId: number, instruction: string) => Promise<void>
+    onRefine: (artifactId: number, instruction: string) => Promise<void>,
+    artifactId = 40
   ) {
     return (
       <ArtifactPanel
-        artifactId={40}
+        artifactId={artifactId}
         artifacts={artifacts}
         onOpenVersion={vi.fn()}
         onRefine={onRefine}
@@ -361,6 +362,95 @@ describe("artifact panel refine", () => {
 
   const OPEN = { name: "Refine this document" }
   const INSTRUCTION = { name: "How to change this document" }
+
+  // A detail read that answers only when the test lets it.
+  function serveDetailLater(artifact: Artifact, content: string) {
+    let answer = () => {}
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            answer = () =>
+              resolve(
+                Response.json({
+                  ...artifact,
+                  format: "summary",
+                  content,
+                  files: [],
+                  quiz_state: null,
+                  flashcard_state: null,
+                })
+              )
+          })
+      )
+    )
+    return () => answer()
+  }
+
+  it("keeps the box and its draft through a switch of version, and sends once the version shows", async () => {
+    const v1 = report(40, 1)
+    const v2 = report(41, 2)
+    serveDetail(v1)
+    const onRefine = vi.fn(async () => {})
+    const user = userEvent.setup()
+
+    const { rerender } = render(panel([v1, v2], onRefine))
+
+    await user.click(await screen.findByRole("button", OPEN))
+    const field = screen.getByRole("textbox", INSTRUCTION)
+    const box = field.closest("form")
+    await user.type(field, "Shorter")
+
+    const answer = serveDetailLater(v2, "Body of v2")
+    rerender(panel([v1, v2], onRefine, 41))
+
+    expect(box?.isConnected).toBe(true)
+    expect((field as HTMLTextAreaElement).value).toBe("Shorter")
+    const send = screen.getByRole("button", { name: "Refine" })
+    expect(send.hasAttribute("disabled")).toBe(true)
+
+    answer()
+    expect(await screen.findByText("Body of v2")).toBeTruthy()
+    expect(send.hasAttribute("disabled")).toBe(false)
+  })
+
+  it("names the version from the list while its body loads", async () => {
+    serveDetailLater(report(41, 2), "Body of v2")
+
+    render(panel([report(40, 1), report(41, 2)], vi.fn(), 41))
+
+    expect(await screen.findAllByText("Quarterly report")).not.toHaveLength(0)
+    expect(screen.queryByText("Loading…")).toBeNull()
+  })
+
+  it("forgets a refusal when another version opens", async () => {
+    const v1 = report(40, 1)
+    const v2 = report(41, 2)
+    serveDetail(v1)
+    const onRefine = vi.fn(async () => {
+      throw new Error("This document is too long for the selected model.")
+    })
+    const user = userEvent.setup()
+
+    const { rerender } = render(panel([v1, v2], onRefine))
+
+    await user.click(await screen.findByRole("button", OPEN))
+    await user.type(screen.getByRole("textbox", INSTRUCTION), "Translate it")
+    await user.click(screen.getByRole("button", { name: "Refine" }))
+    expect(
+      await screen.findByText(
+        "This document is too long for the selected model."
+      )
+    ).toBeTruthy()
+
+    serveDetail(v2)
+    rerender(panel([v1, v2], onRefine, 41))
+
+    expect(
+      screen.queryByText("This document is too long for the selected model.")
+    ).toBeNull()
+  })
 
   it("opens from its button with the cursor in the instruction", async () => {
     const v1 = report(40, 1)

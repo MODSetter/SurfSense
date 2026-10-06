@@ -34,10 +34,13 @@ const INSTRUCTION_CHARS = 2000
  *  document keeps the panel; the version being made shows in its place. */
 export function RefineBox({
   artifactId,
+  versionShown,
   writingVersion,
   onRefine,
 }: {
   artifactId: number
+  /** Whether that version's body is on screen; until then nothing is sent. */
+  versionShown: boolean
   /** The number of a version of this document being made; the next waits. */
   writingVersion: number | null
   onRefine: (artifactId: number, instruction: string) => Promise<void>
@@ -45,7 +48,12 @@ export function RefineBox({
   const [open, setOpen] = useState(false)
   const [instruction, setInstruction] = useState("")
   const [isSending, setIsSending] = useState(false)
-  const [refusal, setRefusal] = useState<string | null>(null)
+  // Kept with the version it refused, so another version opening clears it.
+  const [refused, setRefused] = useState<{
+    artifactId: number
+    reason: string
+  } | null>(null)
+  const refusal = refused?.artifactId === artifactId ? refused.reason : null
   const errorId = useId()
   const field = useRef<HTMLTextAreaElement>(null)
   const openButton = useRef<HTMLButtonElement>(null)
@@ -60,24 +68,24 @@ export function RefineBox({
   if (writingVersion !== null && writingVersion !== shownVersion) {
     setShownVersion(writingVersion)
   }
-  const blocked = empty || writingVersion !== null || isSending
+  const blocked = empty || !versionShown || writingVersion !== null || isSending
 
   const close = (returnFocus: boolean) => {
     setOpen(false)
-    setRefusal(null)
+    setRefused(null)
     refocusButton.current = returnFocus
   }
 
   const send = async () => {
     if (blocked) return
     setIsSending(true)
-    setRefusal(null)
+    setRefused(null)
     try {
       await onRefine(artifactId, instruction.trim())
       setInstruction("")
       close(false)
     } catch (cause) {
-      setRefusal(messageFrom(cause))
+      setRefused({ artifactId, reason: messageFrom(cause) })
     } finally {
       setIsSending(false)
     }
@@ -185,7 +193,7 @@ export function RefineBox({
             maxLength={INSTRUCTION_CHARS}
             onChange={(event) => {
               setInstruction(event.target.value)
-              setRefusal(null)
+              setRefused(null)
             }}
             onKeyDown={onKeyDown}
             aria-label={intl.formatMessage({
