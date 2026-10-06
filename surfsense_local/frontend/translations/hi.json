@@ -42,6 +42,8 @@
   "agent_steps_plan_label": "अपनी योजना अपडेट की",
   "agent_steps_read_document_label": "एक दस्तावेज़ की स्क्रिप्ट पढ़ी",
   "agent_steps_read_label": "{file} पढ़ी",
+  "agent_steps_read_workbook_label": "<doc>{title}</doc> के सेल पढ़े",
+  "agent_steps_read_workbook_untitled_label": "एक वर्कबुक के सेल पढ़े",
   "agent_steps_render_created_label": "<doc>{title}</doc> v{version, number} बनाया",
   "agent_steps_render_label": "<doc>{title}</doc> के लिए दस्तावेज़ स्क्रिप्ट चलाई",
   "agent_steps_render_updated_label": "<doc>{title}</doc> को v{version, number} में अपडेट किया",

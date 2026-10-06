@@ -96,6 +96,50 @@ describe("agent steps", () => {
     expect(screen.getByText("Looked for images in 2 sources")).toBeTruthy()
   })
 
+  it("names reading a workbook's cells by the workbook", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_20",
+            tool: "surfsense_read_document",
+            status: "completed",
+            title: null,
+            input: { document_id: 8 },
+          },
+          {
+            id: "prt_21",
+            tool: "surfsense_read_document",
+            status: "completed",
+            title: null,
+            input: { artifact_id: 61 },
+            output:
+              'Artifact 61, version 2 of the revised copy of "Pricing.xlsx", is a workbook. Each cell below …',
+          },
+          {
+            id: "prt_22",
+            tool: "surfsense_read_document",
+            status: "running",
+            title: null,
+            input: { document_id: 9 },
+          },
+        ]}
+        scope={{ document_ids: [8], titles: ["Budget.xlsx"] }}
+      />
+    )
+
+    // A finished step folds its result under its label.
+    expect(
+      screen
+        .getAllByRole("listitem")
+        .map((item) => (item.querySelector("summary") ?? item).textContent)
+    ).toEqual([
+      "Read the cells of Budget.xlsx",
+      "Read the cells of Pricing.xlsx",
+      "Read the cells of a workbook",
+    ])
+  })
+
   it.each([
     { format: "pptx", title: "Board deck" },
     { format: "xlsx", title: "Budget workbook" },

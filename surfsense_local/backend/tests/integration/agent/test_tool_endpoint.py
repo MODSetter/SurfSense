@@ -107,9 +107,13 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     assert "pptx for a PowerPoint deck" in render["properties"]["format"]["description"]
     assert "xlsx for an Excel workbook" in render["properties"]["format"]["description"]
     assert render["properties"]["template_source_id"]["type"] == "integer"
-    assert listed["read_document"]["required"] == ["artifact_id"]
+    read = listed["read_document"]
+    # A rendered document by artifact_id, or a workbook source by document_id.
+    assert "required" not in read
+    assert read["properties"]["document_id"]["type"] == "integer"
+    assert read["properties"]["sheet"]["type"] == "string"
     # A long script is read a page of lines at a time, under opencode's cut.
-    assert listed["read_document"]["properties"]["offset"]["type"] == "integer"
+    assert read["properties"]["offset"]["type"] == "integer"
     assert listed["list_images"]["required"] == ["source_ids"]
     # Listed with Office support off too, so the tool list never changes mid-thread.
     convert = listed["convert_document"]

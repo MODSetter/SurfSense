@@ -42,6 +42,8 @@
   "agent_steps_plan_label": "A mis à jour son plan",
   "agent_steps_read_document_label": "A lu le script d’un document",
   "agent_steps_read_label": "A lu {file}",
+  "agent_steps_read_workbook_label": "A lu les cellules de <doc>{title}</doc>",
+  "agent_steps_read_workbook_untitled_label": "A lu les cellules d’un classeur",
   "agent_steps_render_created_label": "A créé <doc>{title}</doc> v{version, number}",
   "agent_steps_render_label": "A exécuté le script du document <doc>{title}</doc>",
   "agent_steps_render_updated_label": "A mis à jour <doc>{title}</doc> en v{version, number}",

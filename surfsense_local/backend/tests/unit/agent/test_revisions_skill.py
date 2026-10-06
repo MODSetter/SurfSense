@@ -42,3 +42,14 @@ def test_the_skill_says_word_edits_are_always_tracked_and_the_file_is_untouched(
     assert "There is no way to edit without tracking" in text
     assert "Their file is never changed" in text
     assert "`artifact_id`" in text and "`document_id`" in text
+
+
+def test_a_workbook_s_cells_are_read_before_it_is_revised() -> None:
+    """Indexed text has no sheet names, addresses or formulas, so a guessed set_cell lands wrong."""
+    text = _skill()
+
+    assert (
+        "For a workbook, first read its cells with surfsense_read_document"
+        in LISTING["description"]
+    )
+    assert "`surfsense_read_document` with its `document_id`" in text

@@ -23,6 +23,16 @@ function pagedSourceTitle(step: AgentStep, documentId: number): string | null {
   return found && Number(found[1]) === documentId ? found[2] : null
 }
 
+/** The source a read of a revised workbook's cells names, from its result;
+ *  null when the read was of a rendered document's script. */
+function revisedWorkbookTitle(step: AgentStep): string | null {
+  const first = step.output?.split("\n", 1)[0] ?? ""
+  const found = first.match(
+    /^Artifact \d+, version \d+ of the revised copy of "(.*)", is a workbook\./
+  )
+  return found ? found[1] : null
+}
+
 /** A document's title inside a sentence. */
 const documentTitle = (chunks: ReactNode[]) => (
   <em className="text-foreground">{chunks}</em>
@@ -171,11 +181,32 @@ export function stepLabel(
         defaultMessage: "Edited a copy of a source file",
       })
     }
-    case "surfsense_read_document":
-      return intl.formatMessage({
-        id: "agent_steps_read_document_label",
-        defaultMessage: "Read the script behind a document",
-      })
+    case "surfsense_read_document": {
+      const workbook =
+        typeof input.document_id === "number"
+          ? (sourceTitle(input.document_id) ??
+            pagedSourceTitle(step, input.document_id) ??
+            "")
+          : revisedWorkbookTitle(step)
+      if (workbook === null) {
+        return intl.formatMessage({
+          id: "agent_steps_read_document_label",
+          defaultMessage: "Read the script behind a document",
+        })
+      }
+      return workbook
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_read_workbook_label",
+              defaultMessage: "Read the cells of <doc>{title}</doc>",
+            },
+            { title: workbook, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_read_workbook_untitled_label",
+            defaultMessage: "Read the cells of a workbook",
+          })
+    }
     case "surfsense_list_images":
       if (Array.isArray(input.source_ids)) {
         return intl.formatMessage(

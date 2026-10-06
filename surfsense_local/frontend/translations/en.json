@@ -42,6 +42,8 @@
   "agent_steps_plan_label": "Updated its plan",
   "agent_steps_read_document_label": "Read the script behind a document",
   "agent_steps_read_label": "Read {file}",
+  "agent_steps_read_workbook_label": "Read the cells of <doc>{title}</doc>",
+  "agent_steps_read_workbook_untitled_label": "Read the cells of a workbook",
   "agent_steps_render_created_label": "Created <doc>{title}</doc> v{version, number}",
   "agent_steps_render_label": "Ran the document script for <doc>{title}</doc>",
   "agent_steps_render_updated_label": "Updated <doc>{title}</doc> to v{version, number}",

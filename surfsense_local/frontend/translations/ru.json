@@ -42,6 +42,8 @@
   "agent_steps_plan_label": "Обновил план",
   "agent_steps_read_document_label": "Прочитал скрипт документа",
   "agent_steps_read_label": "Прочитал {file}",
+  "agent_steps_read_workbook_label": "Прочитал ячейки <doc>{title}</doc>",
+  "agent_steps_read_workbook_untitled_label": "Прочитал ячейки книги",
   "agent_steps_render_created_label": "Создал <doc>{title}</doc> v{version, number}",
   "agent_steps_render_label": "Выполнил скрипт документа <doc>{title}</doc>",
   "agent_steps_render_updated_label": "Обновил <doc>{title}</doc> до v{version, number}",

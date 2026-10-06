@@ -16,6 +16,7 @@ description: Edit the user's own Word (.docx), Excel (.xlsx, .xlsm) or PowerPoin
 ## Before you edit
 
 1. Read the file's text first (`read` on its file in `sources/`, or `surfsense_read_document`), so every quote you send is copied from what is really there.
+   For a workbook, read its cells with `surfsense_read_document` with its `document_id` (or the revised copy's `artifact_id`): it lists each sheet's name and used range, then every cell's address and value or formula. The text in `sources/` has no sheet names, cell addresses or formulas, so never guess them from it.
 2. Give `document_id` (the number at the end of the source's file name) for the first edit. The result names the revised copy's `artifact_id`; every later edit of the same file uses `artifact_id` instead, so the changes build on one copy.
 3. Send all the edits for one request in one call, in reading order. All of them apply or none do.
 
@@ -43,6 +44,7 @@ Headers, footers and footnotes cannot be edited yet: say so if the user asks.
 
 ## Excel
 
+- Take sheet names, addresses and formulas from the cells `surfsense_read_document` gave you.
 - `set_cell`: `sheet` (its name), `cell` (like `B7`) and either `value` (text, number, true/false, or null to clear) or `formula` (like `=SUM(B2:B6)`).
 - `set_range`: `sheet`, `range` (like `A2:C4`) and `values`, rows of values of exactly that shape.
 - Charts, shapes, formatting and other sheets are kept. Formulas are not recalculated in SurfSense: when the result says so, tell the user the totals update when the file is opened in Excel.

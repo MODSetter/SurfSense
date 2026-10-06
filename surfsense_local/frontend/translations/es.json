@@ -42,6 +42,8 @@
   "agent_steps_plan_label": "Actualizó su plan",
   "agent_steps_read_document_label": "Leyó el script de un documento",
   "agent_steps_read_label": "Leyó {file}",
+  "agent_steps_read_workbook_label": "Leyó las celdas de <doc>{title}</doc>",
+  "agent_steps_read_workbook_untitled_label": "Leyó las celdas de un libro",
   "agent_steps_render_created_label": "Creó <doc>{title}</doc> v{version, number}",
   "agent_steps_render_label": "Ejecutó el script del documento <doc>{title}</doc>",
   "agent_steps_render_updated_label": "Actualizó <doc>{title}</doc> a la v{version, number}",

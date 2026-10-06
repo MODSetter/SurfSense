@@ -42,6 +42,8 @@
   "agent_steps_plan_label": "Plan aktualisiert",
   "agent_steps_read_document_label": "Skript eines Dokuments gelesen",
   "agent_steps_read_label": "{file} gelesen",
+  "agent_steps_read_workbook_label": "Zellen von <doc>{title}</doc> gelesen",
+  "agent_steps_read_workbook_untitled_label": "Zellen einer Arbeitsmappe gelesen",
   "agent_steps_render_created_label": "<doc>{title}</doc> v{version, number} erstellt",
   "agent_steps_render_label": "Dokumentskript für <doc>{title}</doc> ausgeführt",
   "agent_steps_render_updated_label": "<doc>{title}</doc> auf v{version, number} aktualisiert",
