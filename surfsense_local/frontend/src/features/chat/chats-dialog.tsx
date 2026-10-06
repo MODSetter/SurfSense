@@ -191,10 +191,13 @@ export function ChatsDialog({
   const searchRef = useRef<HTMLInputElement>(null)
 
   // A separator between two rows hides whenever either of its neighbors is
-  // hovered or has its actions menu open, so the highlighted row reads as
-  // one unbroken block instead of being cut by the line above or below it.
+  // open, hovered or has its actions menu open, so the highlighted row reads
+  // as one unbroken block instead of being cut by the line above or below it.
   const rowActive = (thread: ChatThread | undefined) =>
-    thread != null && (thread.id === hoveredId || thread.id === openDropdownId)
+    thread != null &&
+    (thread.id === activeThreadId ||
+      thread.id === hoveredId ||
+      thread.id === openDropdownId)
 
   const needle = query.trim().toLowerCase()
   const untitled = intl.formatMessage({
@@ -460,7 +463,7 @@ export function ChatsDialog({
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                              className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
                               aria-label={intl.formatMessage(
                                 {
                                   id: "chat_chats_dialog_row_actions_aria",

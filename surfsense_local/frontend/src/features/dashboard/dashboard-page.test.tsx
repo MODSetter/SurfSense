@@ -1416,7 +1416,7 @@ describe("dashboard chat", () => {
     )
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     await user.click(
       screen.getByRole("checkbox", { name: "Select folder Research" })
     )

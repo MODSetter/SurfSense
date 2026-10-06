@@ -238,23 +238,20 @@ export function SourcesPanel({
     (document) => document.status === "ready"
   )
   const readyCount = readyDocuments.length
-  const selectedReadyCount = readyDocuments.filter((document) =>
-    selectedDocumentIdSet.has(document.id)
-  ).length
   const allSelected = folderTicks
     ? folderTicks.get(TOP_TICK) === "checked"
     : readyCount > 0 && selectedDocumentIds.length === readyCount
   const toggleAllLabel = allSelected
     ? intl.formatMessage({
-        id: "sources_list_deselect_all_button",
-        defaultMessage: "Deselect all",
+        id: "sources_list_clear_selection_button",
+        defaultMessage: "Clear",
       })
     : intl.formatMessage({
         id: "sources_list_select_all_button",
         defaultMessage: "Select all",
       })
   const listHeader = (
-    <div className="mb-2 flex min-h-7 shrink-0 items-center gap-1">
+    <div className="mb-2 flex min-h-7 shrink-0 items-center">
       {/* Kept for screen readers while the filter covers it: the list is
       labelled by it. */}
       <h3
@@ -277,30 +274,16 @@ export function SourcesPanel({
         />
       ) : null}
       {readyCount > 0 && !filterOpen ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                // Held in place while hidden, so the header never shifts.
-                className="text-muted-foreground tabular-nums opacity-0 transition-opacity duration-150 group-hover/sources:opacity-100 focus-visible:opacity-100"
-                aria-label={toggleAllLabel}
-                onClick={onToggleAll}
-              >
-                {intl.formatMessage(
-                  {
-                    id: "sources_list_selected_status",
-                    defaultMessage: "{selected, number}/{total, number}",
-                  },
-                  { selected: selectedReadyCount, total: readyCount }
-                )}
-              </Button>
-            }
-          />
-          <TooltipContent side="top">{toggleAllLabel}</TooltipContent>
-        </Tooltip>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          // Held in place while hidden, so the header never shifts.
+          className="text-sm text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/sources:opacity-100 focus-visible:opacity-100"
+          onClick={onToggleAll}
+        >
+          {toggleAllLabel}
+        </Button>
       ) : null}
       {filterable && !filterOpen ? (
         <Tooltip>
