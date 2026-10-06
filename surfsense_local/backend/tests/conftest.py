@@ -25,6 +25,7 @@ from shared.db import (
 )
 from shared.migrations import upgrade_to_head
 from shared.queue import ingest_queue, plugins_queue, studio_queue
+from tests.office_stand_in import office_off
 
 # A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
@@ -101,6 +102,13 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     ingest_queue.flush()
     studio_queue.flush()
     plugins_queue.flush()
+
+
+@pytest.fixture(autouse=True)
+def no_office_support(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Office support starts off in every test, whatever LibreOffice this machine has;
+    a test of the Office path turns it on (tests/office_stand_in.py)."""
+    office_off(monkeypatch)
 
 
 @pytest.fixture

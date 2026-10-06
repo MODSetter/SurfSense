@@ -11,6 +11,7 @@ import subprocess
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
+from typing import IO
 
 import psutil
 
@@ -22,18 +23,24 @@ _SUSPENDED = 0x4  # CREATE_SUSPENDED: nothing runs before the job holds it
 
 
 @contextmanager
-def process_tree(command: list[str], env: dict[str, str]) -> Iterator[subprocess.Popen]:
-    """Start the command with its stderr piped; leaving kills all that is left of it."""
+def process_tree(
+    command: list[str], env: dict[str, str], *, stdout: IO[bytes] | None = None
+) -> Iterator[subprocess.Popen]:
+    """Start the command with its stderr piped and its stdout into `stdout`, or
+    nowhere; leaving kills all that is left of it."""
+    output = subprocess.DEVNULL if stdout is None else stdout
     if sys.platform == "win32":
-        with _in_a_job(command, env) as process:
+        with _in_a_job(command, env, output) as process:
             yield process
     else:
-        with _in_a_process_group(command, env) as process:
+        with _in_a_process_group(command, env, output) as process:
             yield process
 
 
 @contextmanager
-def _in_a_job(command: list[str], env: dict[str, str]) -> Iterator[subprocess.Popen]:
+def _in_a_job(
+    command: list[str], env: dict[str, str], stdout: IO[bytes] | int
+) -> Iterator[subprocess.Popen]:
     from worker.document_script.windows_job import KillOnCloseJob
 
     job = KillOnCloseJob()
@@ -42,7 +49,7 @@ def _in_a_job(command: list[str], env: dict[str, str]) -> Iterator[subprocess.Po
             command,
             env=env,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
+            stdout=stdout,
             stderr=subprocess.PIPE,
             creationflags=_NO_WINDOW | _SUSPENDED,
         )
@@ -61,7 +68,7 @@ def _in_a_job(command: list[str], env: dict[str, str]) -> Iterator[subprocess.Po
 
 @contextmanager
 def _in_a_process_group(
-    command: list[str], env: dict[str, str]
+    command: list[str], env: dict[str, str], stdout: IO[bytes] | int
 ) -> Iterator[subprocess.Popen]:
     # Its own group, which a stop of the worker's group does not reach; the
     # child kills its group when the worker's end of stdin closes (child.py).
@@ -69,7 +76,7 @@ def _in_a_process_group(
         command,
         env=env,
         stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
+        stdout=stdout,
         stderr=subprocess.PIPE,
         process_group=0,
     )
