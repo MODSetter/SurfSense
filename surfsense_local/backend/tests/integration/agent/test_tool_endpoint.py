@@ -88,6 +88,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "read_document",
         "list_images",
         "convert_document",
+        "revise_document",
     ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
@@ -110,6 +111,11 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     convert = listed["convert_document"]
     assert convert["required"] == ["format"]
     assert convert["properties"]["format"]["enum"] == ["pdf"]
+    revise = listed["revise_document"]
+    # Which id, and which fields an operation needs, are checked in code: a
+    # flat schema is one more models fill in right.
+    assert revise["required"] == ["operations"]
+    assert revise["properties"]["operations"]["items"]["required"] == ["op"]
     images = next(t for t in reply["result"]["tools"] if t["name"] == "list_images")
     # A model that reads no images is told what to do instead of charting guesses.
     assert "If read cannot show it to you" in images["description"]
@@ -122,7 +128,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
 async def test_a_model_that_reads_images_is_also_offered_source_pages(
     tools: ToolEndpoint,
 ) -> None:
-    """It comes after the tools every model gets, so they keep their place in a cached prompt."""
+    """Added tools come after the others, so those keep their place in a cached prompt."""
     workspace_id = await tools.workspace()
 
     reply = await tools.request(workspace_id, "tools/list")
@@ -136,6 +142,7 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "list_images",
         "source_pages",
         "convert_document",
+        "revise_document",
     ]
     pages = listed["source_pages"]
     assert pages["required"] == ["document_id"]

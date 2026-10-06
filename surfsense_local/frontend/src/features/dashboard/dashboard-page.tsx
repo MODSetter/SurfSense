@@ -428,6 +428,7 @@ function WorkspaceDashboard({
                     artifacts={studio.artifacts}
                     onOpenVersion={openArtifact}
                     onRefine={studio.refine}
+                    onDecideAll={studio.decideAll}
                     onClose={closeInspect}
                   />
                 ) : null

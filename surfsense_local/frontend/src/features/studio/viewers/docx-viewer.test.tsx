@@ -10,6 +10,7 @@ import {
   vi,
 } from "vitest"
 
+import { CLAUSE_WITH_TRACKED_CHANGES } from "@/features/docx-snapshot/fixtures/clause-with-tracked-changes"
 import { LINKS_OF_EVERY_KIND } from "@/features/docx-snapshot/fixtures/links-of-every-kind"
 import { REPORT_WITH_ALT_CHUNK } from "@/features/docx-snapshot/fixtures/report-with-alt-chunk"
 import { STYLES_THAT_LOAD_REMOTE_IMAGES } from "@/features/docx-snapshot/fixtures/styles-that-load-remote-images"
@@ -164,6 +165,22 @@ describe("Word viewer", () => {
     // Set before the file's styles, so it already covers their first load.
     expect(pages.head.firstElementChild?.getAttribute("http-equiv")).toBe(
       "Content-Security-Policy"
+    )
+  })
+
+  it("shows tracked changes: insertions underlined, deletions struck through", async () => {
+    const pages = await open(CLAUSE_WITH_TRACKED_CHANGES)
+
+    const inserted = pages.querySelector("ins")
+    const deleted = pages.querySelector("del")
+    expect(inserted?.textContent).toBe("45")
+    expect(deleted?.textContent).toBe("30")
+    const view = pages.defaultView!
+    expect(view.getComputedStyle(inserted!).textDecorationLine).toContain(
+      "underline"
+    )
+    expect(view.getComputedStyle(deleted!).textDecorationLine).toContain(
+      "line-through"
     )
   })
 

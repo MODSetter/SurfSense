@@ -131,7 +131,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | `format` | text, not an enum |
 | `generation` | integer, `CHECK (generation > 0)`, bumped by each regenerate |
 | `created_by_tool_call_id`, `updated_by_tool_call_id` | provenance; a REST job passes none |
-| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)) |
+| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)); for a revised copy of the user's file its `revision`, which also records the `clean` and `external` Word files kept beside the primary in the artifact's folder, since `artifact_files.role` allows only `primary` and `preview` ([`studio.md`](studio.md#revised-copies)) |
 
 `artifacts` has no status column; its status is its document's. `artifact_files` keeps one immutable blob per role: `role` (`primary` or `preview`), `storage_key` (the path relative to the data directory), `original_filename`, `mime_type`, `size_bytes` (`CHECK > 0`) and `checksum_sha256`, unique on `(artifact_id, role)` and on `storage_key`. There is no `storage_backend` column, since there is one backend. See [`studio.md`](studio.md).
 

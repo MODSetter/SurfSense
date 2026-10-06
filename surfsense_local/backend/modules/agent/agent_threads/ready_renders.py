@@ -14,7 +14,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from modules.agent.agent_threads.steps import RENDER_STEP
+from modules.agent.agent_threads.steps import VERSION_STEPS
 from modules.agent.tool_endpoint.rendered_label import queued_artifact
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.artifacts.script_documents.version import version_of
@@ -36,7 +36,7 @@ def link_render(session: Session, workspace_id: int, step: dict[str, Any]) -> No
 
     A step whose version is gone keeps what its result named, without `created`.
     """
-    if step.get("tool") != RENDER_STEP:
+    if step.get("tool") not in VERSION_STEPS:
         return
     named = step.get("artifact")
     if named is None:

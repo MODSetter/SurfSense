@@ -132,6 +132,49 @@ describe("agent steps", () => {
     }
   )
 
+  it("opens the revised copy a revise made, named by its version", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_revise_document",
+              input: { artifact_id: 70, operations: [] },
+              artifact: { id: 71, title: "MSA_Acme (revised)", version: 2 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Revised MSA_Acme (revised) v2" })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(71)
+  })
+
+  it("names a revise that made nothing yet as an edit of a copy", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_revise_document",
+            status: "running",
+            input: { document_id: 42, operations: [] },
+            output: undefined,
+            artifact: null,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Edited a copy of a source file"
+    )
+  })
+
   it("names looking at a source's pages by the source's title", () => {
     render(
       <AgentSteps

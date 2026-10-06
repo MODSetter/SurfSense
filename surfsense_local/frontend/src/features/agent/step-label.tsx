@@ -154,6 +154,23 @@ export function stepLabel(
             defaultMessage: "Converted a document to PDF",
           })
     }
+    case "surfsense_revise_document": {
+      const made = step.artifact
+      if (made) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_revise_label",
+            defaultMessage: "Revised <doc>{title}</doc> v{version, number}",
+          },
+          { title: made.title, version: made.version, doc: documentTitle }
+        )
+      }
+      // Running, refused or failed: no version to name yet.
+      return intl.formatMessage({
+        id: "agent_steps_revise_pending_label",
+        defaultMessage: "Edited a copy of a source file",
+      })
+    }
     case "surfsense_read_document":
       return intl.formatMessage({
         id: "agent_steps_read_document_label",

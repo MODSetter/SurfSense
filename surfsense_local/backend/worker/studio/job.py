@@ -12,6 +12,7 @@ from modules.artifacts.converted_documents.conversion import (
 from modules.artifacts.converted_documents.input_file import input_file
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
+from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
     DocumentScript,
@@ -51,6 +52,8 @@ from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
 from worker.studio.office.pdf import pdf
+from worker.studio.revised_copy import pipeline as revised_copy
+from worker.studio.revised_copy.record import record as record_revision
 from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist
@@ -96,8 +99,12 @@ def _generate(session: Session, artifact: Artifact) -> None:
         refining = refinement(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
         converting = conversion_of(meta)
+        revised: revised_copy.Made | None = None
         if converting is not None:
             built = _convert(session, artifact, document, converting)
+        elif revision_of(meta) is not None:
+            revised = _revise(session, document, artifact)
+            built = revised.built
         elif refining is not None:
             built = _refine(session, artifact, document, refining)
         elif script is not None:
@@ -112,6 +119,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
         )
         persist.persist(session, artifact, document, built)
+        if revised is not None:
+            record_revision(artifact, revised)
         if built.spec is not None:
             _keep_spec(artifact, built.spec)
         if built.metadata is not None:
@@ -168,6 +177,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
             return
         # The convert tool waits on this run; it reads FAILED and says why.
         if conversion_of(artifact.artifact_metadata) is not None:
+            return
+        # The same edits on the same file fail the same way.
+        if revision_of(artifact.artifact_metadata) is not None:
             return
         # A refine is one call the user asked for; Retry asks again if they want.
         if refinement(artifact.artifact_metadata) is not None:
@@ -241,6 +253,16 @@ def _convert(
     session.commit()
     raise_if_cancelled(session, document)
     return converted_document.convert(title, file)
+
+
+def _revise(
+    session: Session, document: Document, artifact: Artifact
+) -> revised_copy.Made:
+    """An engine edits a copy of the input; no model is asked and no source is gathered."""
+    prepared = revised_copy.prepare(session, artifact)
+    session.commit()
+    raise_if_cancelled(session, document)
+    return revised_copy.make(prepared)
 
 
 def _refine(
