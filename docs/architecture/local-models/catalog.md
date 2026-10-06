@@ -717,7 +717,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `ins
 ## Known gaps
 
 - Only the three audio defaults are validated; `validated` is empty on every other build.
-- Of `sampling`, chat sends only `temperature` ([`runtime.md`](runtime.md)); `top_p`, `top_k` and `min_p` wait on the `Generator` protocol carrying them. `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
+- `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.
