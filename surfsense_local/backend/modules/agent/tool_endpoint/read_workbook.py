@@ -51,6 +51,7 @@ def read_source_workbook(
         f'Source {document_id} ("{document.title}") is a workbook. {CELLS_SENTENCE} '
         f"Revise it with surfsense_revise_document and document_id {document_id}."
     )
+    session.rollback()  # reads only; a big workbook takes seconds, past other writers' wait
     return _mapped(path, opening, arguments)
 
 
@@ -87,6 +88,7 @@ def read_revised_workbook(
         f"is a workbook. {CELLS_SENTENCE} Revise it with surfsense_revise_document "
         f"and artifact_id {ready.id}."
     )
+    session.rollback()  # reads only; a big workbook takes seconds, past other writers' wait
     return _mapped(path, opening, arguments)
 
 

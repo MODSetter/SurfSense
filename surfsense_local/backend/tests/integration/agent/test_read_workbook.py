@@ -4,7 +4,10 @@ from io import BytesIO
 
 import openpyxl
 import pytest
+from sqlalchemy import text, update
 
+from modules.agent.tool_endpoint import read_workbook
+from modules.documents.models import Document
 from modules.source_scope.schemas import SourceScope
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.artifacts.revised_copies.source_files import (
@@ -265,3 +268,30 @@ async def test_a_workbook_of_many_sheets_stays_within_one_map(
     assert len(text.encode()) < 42_000
     assert 'Sheet "Sheet 0000"' in text
     assert "more sheets" in text
+
+
+async def test_reading_a_workbook_does_not_hold_the_write_lock(
+    tools: ToolEndpoint, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A big workbook takes seconds to read, past the 5 s other writers wait for the lock."""
+    workspace_id = await tools.workspace()
+    source_id = _source(tools, workspace_id, "Budget.xlsx", _budget_xlsx())
+    written: list[bool] = []
+    reading = read_workbook.cell_map
+
+    def while_reading(*args: object) -> object:
+        with tools.sessions() as other:
+            other.execute(text("PRAGMA busy_timeout = 200"))
+            other.execute(
+                update(Document).where(Document.id == source_id).values(title="Renamed")
+            )
+            other.commit()
+            written.append(True)
+        return reading(*args)
+
+    monkeypatch.setattr(read_workbook, "cell_map", while_reading)
+
+    result, is_error = await tools.call(workspace_id, TOOL, {"document_id": source_id})
+
+    assert is_error is False, result
+    assert written == [True]
