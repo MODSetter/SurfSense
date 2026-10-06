@@ -1040,7 +1040,7 @@
   "studio_refine_instruction_placeholder": "서론을 짧게 하는 등 바꿀 내용을 설명하세요",
   "studio_refine_open_aria": "이 문서 다듬기",
   "studio_refine_submit_button": "다듬기",
-  "studio_refine_writing_status": "v{version, number} 작성 중…",
+  "studio_refine_writing_status": "버전 {version, number} 만드는 중…",
   "studio_request_unexpected_error": "예기치 않은 오류가 발생했습니다",
   "studio_source_picker_back_button": "소스 ({count, number}개 선택됨)",
   "studio_source_picker_deselect_all_button": "전체 선택 해제",

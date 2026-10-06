@@ -1040,7 +1040,7 @@
   "studio_refine_instruction_placeholder": "Beschreibe eine Änderung, etwa eine kürzere Einleitung",
   "studio_refine_open_aria": "Dieses Dokument überarbeiten",
   "studio_refine_submit_button": "Überarbeiten",
-  "studio_refine_writing_status": "v{version, number} wird geschrieben…",
+  "studio_refine_writing_status": "Version {version, number} wird erstellt…",
   "studio_request_unexpected_error": "Ein unerwarteter Fehler ist aufgetreten",
   "studio_source_picker_back_button": "Quellen ({count, number} ausgewählt)",
   "studio_source_picker_deselect_all_button": "Alle abwählen",

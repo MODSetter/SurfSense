@@ -1040,7 +1040,7 @@
   "studio_refine_instruction_placeholder": "Опишите изменение, например более короткое вступление",
   "studio_refine_open_aria": "Доработать документ",
   "studio_refine_submit_button": "Доработать",
-  "studio_refine_writing_status": "Пишется v{version, number}…",
+  "studio_refine_writing_status": "Создаётся версия {version, number}…",
   "studio_request_unexpected_error": "Произошла непредвиденная ошибка",
   "studio_source_picker_back_button": "Источники (выбрано {count, number})",
   "studio_source_picker_deselect_all_button": "Снять выделение",

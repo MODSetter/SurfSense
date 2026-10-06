@@ -1040,7 +1040,7 @@
   "studio_refine_instruction_placeholder": "Décrivez une modification, comme une introduction plus courte",
   "studio_refine_open_aria": "Affiner ce document",
   "studio_refine_submit_button": "Affiner",
-  "studio_refine_writing_status": "Rédaction de v{version, number}…",
+  "studio_refine_writing_status": "Création de la version {version, number}…",
   "studio_request_unexpected_error": "Une erreur inattendue s’est produite",
   "studio_source_picker_back_button": "Sources (sélectionnées : {count, number})",
   "studio_source_picker_deselect_all_button": "Tout désélectionner",

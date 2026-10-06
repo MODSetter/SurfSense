@@ -481,8 +481,33 @@ describe("artifact panel refine", () => {
     render(panel([v1, report(41, 2, { status: "processing" })], vi.fn()))
 
     expect(await screen.findByText("Body of the report")).toBeTruthy()
-    expect(screen.getByText("Writing v2…")).toBeTruthy()
+    expect(screen.getByRole("status").textContent).toBe("Making version 2…")
     expect(screen.queryByRole("button", OPEN)).toBeNull()
+  })
+
+  it("turns into the version being made and back in place, so it can animate", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const onRefine = vi.fn(async () => {})
+    const user = userEvent.setup()
+
+    const { rerender } = render(panel([v1], onRefine))
+
+    await user.click(await screen.findByRole("button", OPEN))
+    const box = screen.getByRole("textbox", INSTRUCTION).closest("form")
+    await user.type(screen.getByRole("textbox", INSTRUCTION), "Shorter")
+    await user.click(screen.getByRole("button", { name: "Refine" }))
+
+    const v2 = report(41, 2)
+    rerender(panel([v1, { ...v2, status: "processing" }], onRefine))
+    const status = screen.getByRole("status")
+    expect(status.textContent).toBe("Making version 2…")
+    expect(box?.contains(status)).toBe(true)
+
+    // v1 stays open, so the box is the same one when v2 is ready.
+    rerender(panel([v1, v2], onRefine))
+    expect(box?.contains(screen.getByRole("button", OPEN))).toBe(true)
+    expect(status.textContent).toBe("")
   })
 
   it("shows why the API refused, and keeps the instruction", async () => {
