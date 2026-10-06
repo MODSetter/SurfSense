@@ -1,12 +1,8 @@
 """SurfSense's features on a real LibreOffice: a PDF of a Word file, and a workbook's real totals.
 
-Runs the LibreOffice SURFSENSE_TEST_LIBREOFFICE names, else the one at the
-standard install path, through an explicit runtime: never as Office support's
-own choice, since a developer's install may be on an ended branch.
+Runs this machine's LibreOffice through the test seam (tests/installed_office.py).
 """
 
-import os
-import sys
 import time
 from io import BytesIO
 from pathlib import Path
@@ -18,8 +14,7 @@ import xlsxwriter
 
 from modules.agent.previews.page_images import page_count
 from modules.office_support.libreoffice import PackedLibreOffice
-from modules.runtime_packs.office.program import program_in
-from modules.runtime_packs.office.runtime import OfficeRuntime
+from tests.installed_office import installed_libreoffice
 from worker.studio.script_document.cached_values import with_cached_values
 
 pytestmark = pytest.mark.office
@@ -28,24 +23,10 @@ pytestmark = pytest.mark.office
 DEADLINE_SECONDS = 120
 
 
-def _installed() -> Path | None:
-    named = os.environ.get("SURFSENSE_TEST_LIBREOFFICE")
-    if named:
-        return Path(named)
-    if sys.platform == "win32":
-        return Path(os.environ.get("PROGRAMW6432", r"C:\Program Files")) / "LibreOffice"
-    if sys.platform == "darwin":
-        return Path("/Applications/LibreOffice.app")
-    return Path("/usr/lib/libreoffice")
-
-
 @pytest.fixture
 def office() -> PackedLibreOffice:
     """This machine's LibreOffice, named explicitly, as Settings would never pick an ended branch."""
-    root = _installed()
-    if root is None or not program_in(root).is_file():
-        pytest.skip("no LibreOffice installed; set SURFSENSE_TEST_LIBREOFFICE")
-    return PackedLibreOffice(OfficeRuntime(program_in(root), "test", "installed"))
+    return installed_libreoffice()
 
 
 def _deadline() -> float:
