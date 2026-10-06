@@ -14,6 +14,7 @@ from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
+from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
@@ -42,6 +43,7 @@ TOOLS: dict[str, Tool] = {
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
+        REVISE_DOCUMENT,
     )
 }
 

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
+from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
     DocumentScript,
@@ -45,6 +46,8 @@ from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
 from worker.studio.office.pdf import pdf
+from worker.studio.revised_copy import pipeline as revised_copy
+from worker.studio.revised_copy.record import record as record_revision
 from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist
@@ -89,7 +92,11 @@ def _generate(session: Session, artifact: Artifact) -> None:
         meta = artifact.artifact_metadata
         refining = refinement(meta)
         script = document_script(meta) if renders_as_stored(meta) else None
-        if refining is not None:
+        revised: revised_copy.Made | None = None
+        if revision_of(meta) is not None:
+            revised = _revise(session, document, artifact)
+            built = revised.built
+        elif refining is not None:
             built = _refine(session, artifact, document, refining)
         elif script is not None:
             built = _run_script(session, artifact, document, script)
@@ -103,6 +110,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
         )
         persist.persist(session, artifact, document, built)
+        if revised is not None:
+            record_revision(artifact, revised)
         if built.spec is not None:
             _keep_spec(artifact, built.spec)
 
@@ -151,6 +160,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         # and renders a fix as a new version, which a retry turning READY would race.
         # A Studio draft's kept spec does not count: its Retry asks the model again.
         if renders_as_stored(artifact.artifact_metadata):
+            return
+        # The same edits on the same file fail the same way.
+        if revision_of(artifact.artifact_metadata) is not None:
             return
         # A refine is one call the user asked for; Retry asks again if they want.
         if refinement(artifact.artifact_metadata) is not None:
@@ -213,6 +225,16 @@ def _run_script(
     # A cancel kills the script and everything it started.
     with cancellation.watching(lambda: _check_cancelled(session, document)):
         return script_document.render(title, script, images, template)
+
+
+def _revise(
+    session: Session, document: Document, artifact: Artifact
+) -> revised_copy.Made:
+    """An engine edits a copy of the input; no model is asked and no source is gathered."""
+    prepared = revised_copy.prepare(session, artifact)
+    session.commit()
+    raise_if_cancelled(session, document)
+    return revised_copy.make(prepared)
 
 
 def _refine(

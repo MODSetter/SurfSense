@@ -150,3 +150,15 @@ def test_a_steps_attachments_never_reach_the_thread() -> None:
     (stored,) = reply["content"]["steps"]
     for step in (streamed, stored):
         assert step["artifact"] == {"id": 40, "title": "Client proposal", "version": 2}
+
+
+def test_a_ready_revise_links_the_revised_copy_it_made() -> None:
+    """A revised copy's version opens from the thread as a render's does."""
+    output = (
+        "Rendered artifact 51, version 2: MSA_Acme (revised)\n"
+        "Revised copy of source 42 (MSA_Acme.docx), version 2 from version 1."
+    )
+
+    step = step_of(_tool_part("surfsense_revise_document", "completed", output=output))
+
+    assert step["artifact"] == {"id": 51, "title": "MSA_Acme (revised)", "version": 2}
