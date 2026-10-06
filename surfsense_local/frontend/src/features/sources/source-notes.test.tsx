@@ -14,7 +14,8 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }))
 
-const LIST = "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+const LIST =
+  "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
 
 const file = {
   id: 7,
@@ -141,7 +142,8 @@ describe("notes and renaming in the sources panel", () => {
     const user = userEvent.setup()
     render(<NotesHarness />)
 
-    await user.click(await screen.findByRole("button", { name: "New note" }))
+    await user.click(await screen.findByRole("button", { name: "Add sources" }))
+    await user.click(await screen.findByRole("menuitem", { name: "New note" }))
     await user.type(
       await screen.findByRole("textbox", { name: "Title" }),
       "Plan"

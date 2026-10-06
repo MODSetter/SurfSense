@@ -384,8 +384,10 @@ nothing chooses them.
 cache is padded to 256 cells on every backend, and a sliding-window layer
 allocates `min(pad(n_ctx), pad(n_swa + n_ubatch))`, because the batch being
 processed sits in the cache beside the window it attends to. `n_ubatch` is
-llama-server's default 512, and `n_seq_max` is 1, pinned by the `parallel = 1`
-every preset writes.
+llama-server's default 512. With more than one slot the cache is unified: a
+global layer's cells are shared by every slot, while a sliding layer holds a
+window per slot, `pad(n_swa × slots + n_ubatch)` ([admission](admission.md#slots)).
+Gemma 3 4B's cache at 16,384 is 752 MiB at one slot and 1,232 MiB at four.
 
 **Which layers hold the whole window** (`sliding_window.py`). Three sources, in
 the order llama.cpp consults them: a per-layer flag array in the header, then a
@@ -415,11 +417,12 @@ activation_width = max(12 * n_embd,
                        4 * n_ff,
                        n_used * (2 * n_embd + 3 * n_ff_exp) + 3 * n_ff_shared)
 
-flat  = int((activation_width * 512 + n_vocab * min(512, SLOTS)) * 4 * SAFETY)
+flat  = int((activation_width * 512 + n_vocab * min(512, slots)) * 4 * SAFETY)
 total = flat + 5_120 * n_ctx
 ```
 
-with `SAFETY = 1.20` and `SLOTS = 1`, matching the `parallel = 1` in every preset.
+with `SAFETY = 1.20` and `slots` the count the preset writes, one output row per
+slot decoding at once.
 
 The safety factor and the per-token slope are fitted, not derived, and the module
 says so. Qwen3 1.7B on Metal reported 102.24 MiB at 16,384 and 222.24 MiB at
@@ -550,8 +553,12 @@ approximate, and the screen puts `~` before it.
 
 ## The load plan
 
-`plan_load()` decides the window and the cache precision once, because llama.cpp
-fixes context at load and it cannot be renegotiated mid-conversation. The ceiling
+`plan_load()` decides the slot count, the window and the cache precision once,
+because llama.cpp fixes them at load and they cannot be renegotiated
+mid-conversation. The slots come first, from `planned_slots()`: four, or on a
+discrete card or the CPU the most from four down to one that stay resident at the
+floor, or four where none would; the window and precision are then planned at that
+count ([admission](admission.md#slots)). The ceiling
 is the model's own `context_length` and the floor is
 `min(CONTEXT_FLOOR_TOKENS, ceiling)`, so the cap beats the floor: a model trained
 to 4,096 tokens is not asked for 8,192.
@@ -567,8 +574,8 @@ to 4,096 tokens is not asked for 8,192.
   choice is per model because on a 6 GB card `f16` KV at a 16K window cannot
   allocate while `q8_0` runs (see Measurements).
 - **One precision rule for every caller.** `planned_precision()` is the same rule
-  with the `f16` fallback, and the curated rows, the recommendation and a searched
-  build's exact check all call it; a searched repo's listed builds are priced
+  with the `f16` fallback, priced at `planned_slots()`, and the curated rows, the
+  recommendation and a searched build's exact check all call it; a searched repo's listed builds are priced
   from their sizes and do not. Before it existed the badge priced `f16` while the
   loader chose `q8_0`, so a row read "Reduced speed" for a model the runtime then
   placed entirely on the device.

@@ -9,6 +9,7 @@ fails the run: CI sets the folder, and a skip there would pass unseen.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import io
 import os
@@ -29,9 +30,7 @@ from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn
-from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
 pytestmark = pytest.mark.packaging
 
@@ -191,7 +190,7 @@ def test_a_curated_model_voices_through_the_app_and_is_given_back(
     speech = AudioCppSpeech(
         VoicedModel(model.model_id, model.audio),
         base_url=server,
-        chat_runtime=RouterClient("http://router", transport=FakeRouter().transport()),
+        give_up_text_runtime=contextlib.nullcontext,
     )
     turns = [
         SpokenTurn(v, line) for v, line in zip(voices, LINES[language], strict=True)

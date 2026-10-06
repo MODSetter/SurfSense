@@ -8,6 +8,8 @@ class EventKind(enum.StrEnum):
 
     DOCUMENTS = "documents"
     ARTIFACTS = "artifacts"
+    CHAT_RUNS = "chat-runs"
+    FOLDERS = "folders"
 
 
 class InternalEvent(BaseModel):

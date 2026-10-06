@@ -77,6 +77,7 @@ function withAgent(): SidecarContext {
     opencodePort: 4321,
     opencodePassword: "launch-password",
     opencodeUrl: "http://127.0.0.1:4321",
+    docxSnapshotKey: "snapshot-key",
   }
 }
 
@@ -95,6 +96,22 @@ test("a worker is never told the agent's password", () => {
 
     assert.equal(worker.SURFSENSE_LOCAL_OPENCODE_PASSWORD, undefined, queue)
     assert.equal(worker.SURFSENSE_LOCAL_OPENCODE_URL, undefined, queue)
+  }
+})
+
+test("the API is told the key Electron presents when it prints Word previews", () => {
+  // Loopback is open to every local process; only the holder of this key may
+  // take a snapshot request or post the pages the agent checks.
+  const api = apiSpec(withAgent()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY, "snapshot-key")
+})
+
+test("a worker is never told the snapshot key", () => {
+  for (const queue of ["ingest", "studio"] as const) {
+    const worker = workerSpec(withAgent(), queue).env
+
+    assert.equal(worker.SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY, undefined, queue)
   }
 })
 

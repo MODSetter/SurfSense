@@ -8,7 +8,7 @@ from modules.chat.budget import (
     IMAGE_TOKENS,
 )
 from modules.chat.images import store
-from modules.chat.models import ChatMessage
+from modules.chat.models import ChatMessage, MessageRole
 from modules.llm.providers.types import Image, Message
 
 # A turn's exact cost by the model's own tokenizer, or None when it could not
@@ -55,6 +55,7 @@ async def build_messages(
     """
     # One earlier picture at most rides along: the newest, so a follow-up about
     # it works, and none once this turn brings its own.
+    history = _answered(history)
     resend = None if images else _newest_image_turn(history)
     turns = [
         (
@@ -79,6 +80,27 @@ async def build_messages(
         Message("user", question, images=tuple(images)),
     ]
     return ChatPrompt(messages, start_id if start_id is not None else history_start_id)
+
+
+# Endings whose empty reply means the model never answered at all.
+_UNANSWERED = frozenset({"error", "interrupted"})
+
+
+def _answered(history: Sequence[ChatMessage]) -> list[ChatMessage]:
+    """History without turns that failed before a word: an empty answer, or
+    a question left with none, would only confuse the model."""
+    kept: list[ChatMessage] = []
+    for row in history:
+        unanswered = (
+            row.role is MessageRole.ASSISTANT
+            and not message_text(row)
+            and row.content.get("ending", {}).get("type") in _UNANSWERED
+        )
+        if not unanswered:
+            kept.append(row)
+        elif kept and kept[-1].role is MessageRole.USER:
+            kept.pop()
+    return kept
 
 
 def message_text(row: ChatMessage) -> str:

@@ -22,6 +22,8 @@
     "@aiden0z/pptx-renderer": "^1.3.0",
     "@assistant-ui/react": "^0.15.18",
     "@assistant-ui/react-streamdown": "^0.3.13",
+    "@atlaskit/pragmatic-drag-and-drop": "^4.0.0",
+    "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "^3.2.1",
     "@base-ui/react": "^1.8.0",
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/instrument-sans": "^5.3.0",

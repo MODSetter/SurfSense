@@ -115,3 +115,59 @@ async def test_this_turns_images_are_paid_for_out_of_history() -> None:
 
     assert [m.content[0] for m in without] == ["a", "b"]
     assert [m.content[0] for m in kept] == ["b"]
+
+
+def _message(role: MessageRole, text: str, ending: dict | None = None) -> ChatMessage:
+    content: dict = {"text": text}
+    if ending is not None:
+        content["ending"] = ending
+    return ChatMessage(role=role, content=content)
+
+
+async def test_a_failed_turn_with_no_reply_is_left_out_with_its_question() -> None:
+    """The model never sees an empty answer, or two questions in a row."""
+    history = [
+        _message(MessageRole.USER, "first?"),
+        _message(
+            MessageRole.ASSISTANT,
+            "",
+            {"type": "error", "kind": "network", "message": "unreachable"},
+        ),
+        _message(MessageRole.USER, "second?"),
+        _message(MessageRole.ASSISTANT, "an answer"),
+    ]
+
+    kept = (await build_messages("SYSTEM", history, "third?")).messages[1:-1]
+
+    assert [(m.role, m.content) for m in kept] == [
+        ("user", "second?"),
+        ("assistant", "an answer"),
+    ]
+
+
+async def test_a_cut_off_turn_with_no_reply_is_left_out_with_its_question() -> None:
+    """A quit or crash before a word is the same: nothing was answered."""
+    history = [
+        _message(MessageRole.USER, "first?"),
+        _message(MessageRole.ASSISTANT, "", {"type": "interrupted"}),
+    ]
+
+    kept = (await build_messages("SYSTEM", history, "again?")).messages[1:-1]
+
+    assert kept == []
+
+
+async def test_a_failed_turn_that_wrote_something_stays_in_history() -> None:
+    """A partial reply is still what the model said, as it is today."""
+    history = [
+        _message(MessageRole.USER, "first?"),
+        _message(
+            MessageRole.ASSISTANT,
+            "Revenue climbed",
+            {"type": "error", "kind": "network", "message": "dropped"},
+        ),
+    ]
+
+    kept = (await build_messages("SYSTEM", history, "and then?")).messages[1:-1]
+
+    assert [m.content for m in kept] == ["first?", "Revenue climbed"]

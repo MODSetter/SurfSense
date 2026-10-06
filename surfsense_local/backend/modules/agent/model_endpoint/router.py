@@ -1,15 +1,18 @@
+from contextlib import AsyncExitStack
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 
 from api.dependencies import SessionDep, transact
 from modules.agent.launch_key import require_launch_key
+from modules.agent.model_endpoint.admission_messages import admission_messages
 from modules.agent.model_endpoint.error_replies import error_reply
 from modules.agent.model_endpoint.model_address import address_selected_model
 from modules.agent.model_endpoint.relay import relay
 from modules.agent.model_endpoint.request_shaping import shaped_request
 from modules.egress.service import EgressDeniedError
 from modules.llm.activity import ModelBusyError, model_activity
+from modules.llm.admission.pool import LineFullError, Priority
 from modules.llm.resolution import ModelResolutionError
 
 router = APIRouter(
@@ -23,6 +26,7 @@ router = APIRouter(
 async def complete_chat(
     payload: Annotated[dict[str, Any], Body()],
     session: SessionDep,
+    request: Request,
     # opencode names its session on every request it sends a model.
     affinity: Annotated[str | None, Header(alias="x-session-affinity")] = None,
 ) -> Response:
@@ -46,6 +50,37 @@ async def complete_chat(
         return error_reply(409, str(busy), "model_busy")
 
     body = shaped_request(payload, address, affinity)
-    return await relay(
-        address, body, lambda: model_activity.release_use(address.activity_key)
-    )
+    # Each step is admitted on its own and released when its reply ends, so a
+    # growing tool loop is priced afresh every step and holds no room while
+    # opencode runs a tool.
+    held = AsyncExitStack()
+    try:
+        if address.local_runtime:
+            await held.enter_async_context(
+                request.app.state.local_admission.admitted(
+                    address.name,
+                    admission_messages(body["messages"]),
+                    _max_tokens(payload),
+                    Priority.INTERACTIVE,
+                )
+            )
+    except BaseException as failure:
+        await model_activity.release_use(address.activity_key)
+        if isinstance(failure, LineFullError):
+            return error_reply(429, str(failure), "too_many_requests")
+        raise
+
+    async def done() -> None:
+        await held.aclose()
+        await model_activity.release_use(address.activity_key)
+
+    return await relay(address, body, done)
+
+
+def _max_tokens(payload: dict[str, Any]) -> int | None:
+    """The answer's cap as the request states it, under either spelling."""
+    for field in ("max_completion_tokens", "max_tokens"):
+        value = payload.get(field)
+        if isinstance(value, int) and value > 0:
+            return value
+    return None

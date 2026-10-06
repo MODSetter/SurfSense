@@ -9,7 +9,7 @@ shaping rule is to assume nothing worked until something says it did, because
 llama.cpp's common failures exit 0 and look like success.
 
 **Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/electron/src/main/sidecars/llamacpp.ts`](../../../surfsense_local/electron/src/main/sidecars/llamacpp.ts), [`surfsense_local/electron/src/main/index.ts`](../../../surfsense_local/electron/src/main/index.ts) (preset watcher), [`surfsense_local/electron/scripts/fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs)
-**Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md), [ADR 0039](../../adr/0039-prompts-grow-at-the-end.md)
+**Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md), [ADR 0049](../../adr/0049-prompts-grow-at-the-end.md)
 
 How each model's window and cache precision are chosen is in
 [`fit.md`](fit.md); how models reach the directory is in
@@ -172,7 +172,8 @@ router reports, which is the filename stem:
 [Qwen3-8B-Q4_K_M]
 model = /Users/…/models/Qwen3-8B-Q4_K_M.gguf
 ctx-size = 16384
-parallel = 1
+parallel = 4
+kv-unified = on                                ; only above one slot
 fit-target = 1024
 fit-ctx = 16384
 cache-ram = 3584
@@ -182,8 +183,10 @@ cache-type-v = q8_0
 flash-attn = on
 ```
 
-- `parallel = 1`. llama-server defaults to four slots, which sizes the KV cache
-  for concurrency this app never uses.
+- `parallel` is the slot count the load plan chose, up to four, and above one
+  `kv-unified = on` gives every slot the whole window from one shared cache
+  rather than a fraction each. Admission keeps the shared cache from
+  overflowing ([admission](admission.md)).
 - `fit-target` is pinned rather than inherited. The badge subtracted a specific
   margin, 1 GiB, so passing it makes the two agree by construction. A vision
   projector's bytes are added to it, because `--fit` allocates the projector
@@ -194,8 +197,8 @@ flash-attn = on
   context it chose itself. It is written anyway, so a later change to how the
   window is set cannot quietly hand the floor back to llama.cpp's 4096.
 - `cache-ram` is the host memory, in MiB, where llama-server keeps a prompt
-  when another caller takes the slot, so the caller that comes back has it read
-  back rather than read again. Measured on Qwen3 1.7B: an agent step after a
+  when its slot goes to another request, so the caller that comes back has it
+  read back rather than read again. Measured on Qwen3 1.7B: an agent step after a
   Studio call read 924 tokens with it and 6,634 without. It is a quarter of
   the memory the capacity budget gives a model, at most llama.cpp's own
   8,192 ([`fit/prompt_cache.py`](../../../surfsense_local/backend/modules/llm/fit/prompt_cache.py)),

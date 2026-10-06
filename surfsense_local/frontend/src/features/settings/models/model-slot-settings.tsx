@@ -45,6 +45,7 @@ export function ModelSlotSettings({
   onDelete,
   onSelected,
   onChatCleared,
+  inUseDetail,
 }: {
   title: string
   description: string
@@ -57,6 +58,8 @@ export function ModelSlotSettings({
   onDelete: (row: YourModelRow) => Promise<unknown>
   onSelected?: (selection: ModelSelection) => void
   onChatCleared?: () => void
+  /** Said under the model in use, such as what the chat model can do. */
+  inUseDetail?: ReactNode
 }) {
   // Only servers that can fill this slot count, so an empty slot still says so.
   const connections = useConnectionsServing(modelType)
@@ -163,6 +166,7 @@ export function ModelSlotSettings({
             <InUseSummary slot={slot} inUse={models.inUse} />
             {add}
           </div>
+          {inUseDetail}
 
           {models.canDownload || models.local.length > 0 || pending ? (
             <LocalModelsGroup

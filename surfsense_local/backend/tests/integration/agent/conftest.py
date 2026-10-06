@@ -1,6 +1,8 @@
 import json
+import os
 import secrets
 import threading
+from collections import Counter, OrderedDict
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -9,14 +11,18 @@ from pathlib import Path
 import httpx
 import pytest
 import pytest_asyncio
+from sqlalchemy import Engine
 
 from api.config import get_settings
+from modules.agent.agent_threads import live_instances
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
+from modules.agent.tool_endpoint import failed_renders
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
+from shared.queue import studio_queue
 from tests.integration.agent.opencode_harness import (
     MODEL,
     RunningOpencode,
@@ -28,6 +34,7 @@ from tests.integration.agent.opencode_harness import (
     start_opencode,
     wait_until_healthy,
 )
+from tests.integration.agent.tool_endpoint_client import ToolEndpoint, endpoint_over
 
 # The catalog records it as calling tools for the provider the connection names,
 # so a thread opened with it is the agent's; the scripted model answers in its place.
@@ -100,6 +107,44 @@ def beside_an_opencode(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def no_failed_renders(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test's database gives out thread ids from 1 again; a turn's count must not carry over."""
+    monkeypatch.setattr(failed_renders, "_failed", {})
+
+
+@pytest.fixture(autouse=True)
+def no_live_instances(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test starts its own opencode: another test's instances are not in it to free."""
+    monkeypatch.setattr(live_instances, "_used", OrderedDict())
+    monkeypatch.setattr(live_instances, "_turns", Counter())
+
+
+# MAX_PATH less its terminator: the most a path may hold where long paths are off.
+MAX_PATH = 259
+
+
+@pytest.fixture
+def long_paths_off(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Windows without long paths: a longer path is not found. Collects each one tried."""
+    too_long: list[str] = []
+
+    def within_max_path(call):
+        def checked(*paths: object, **kwargs: object):
+            for path in paths:
+                if isinstance(path, str | os.PathLike) and len(str(path)) > MAX_PATH:
+                    too_long.append(str(path))
+                    raise FileNotFoundError(3, "The path is too long", str(path))
+            return call(*paths, **kwargs)
+
+        return checked
+
+    monkeypatch.setattr(os, "link", within_max_path(os.link))
+    monkeypatch.setattr(os, "replace", within_max_path(os.replace))
+    monkeypatch.setattr(Path, "write_bytes", within_max_path(Path.write_bytes))
+    return too_long
+
+
 @pytest.fixture
 def model_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[StubModel]:
     """A real model server on a real port, which llama-server's address points at."""
@@ -140,6 +185,7 @@ def opencode(
     setup = AgentSetup(
         model=MODEL,
         window=32768,
+        reads_images=False,
         endpoint_url=f"{scripted_model.url}/v1",
         launch_key="launch-key",
     )
@@ -218,3 +264,48 @@ async def agent_api(
                 password,
                 workspace.json()["id"],
             )
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
+    """A fresh app on this test's database, its tool endpoint driven in-process."""
+    async with endpoint_over(engine) as endpoint:
+        yield endpoint
+
+
+def declare_image_input(reads_images: bool) -> None:
+    """The configuration the API writes for opencode, for a model that reads images or not."""
+    setup = AgentSetup(
+        model=MODEL,
+        window=32768,
+        reads_images=reads_images,
+        endpoint_url="http://127.0.0.1:9/v1",
+        launch_key="launch-key",
+    )
+    write_opencode_config(get_storage_settings().agent_dir / "opencode.json", setup)
+
+
+@pytest.fixture
+def model_reads_images() -> None:
+    """opencode configured for a model that reads images, which page previews are for."""
+    declare_image_input(True)
+
+
+@pytest.fixture
+def studio_worker() -> Iterator[None]:
+    """The worker's Studio consumer, on a thread: a render runs its script while the tool waits."""
+    stopping = threading.Event()
+
+    def consume() -> None:
+        while not stopping.is_set():
+            task = studio_queue.dequeue()
+            if task is None:
+                stopping.wait(0.05)
+            else:
+                studio_queue.execute(task)
+
+    thread = threading.Thread(target=consume, daemon=True)
+    thread.start()
+    yield
+    stopping.set()
+    thread.join(timeout=30)

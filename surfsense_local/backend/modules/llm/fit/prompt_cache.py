@@ -1,8 +1,8 @@
 """How much host memory llama-server may keep earlier prompts in.
 
-The runtime has one slot, which chat, Studio and the agent take in turn. When
-another caller takes it, the prompt it held is saved in RAM and read back when
-its caller returns, rather than being read again from the start.
+Chat, Studio and the agent share the runtime's few slots. When a slot goes to
+another request, the prompt it held is saved in RAM and read back when its
+caller returns, rather than being read again from the start.
 """
 
 from modules.llm.fit.budget import HardwareBudget

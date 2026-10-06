@@ -1,7 +1,7 @@
-"""The window and cache precision to load a model with.
+"""The window, cache precision and slot count to load a model with.
 
 Context is fixed at load, so this is decided once and cannot be renegotiated
-mid-conversation. Two rules shape it:
+mid-conversation. Three rules shape it:
 
 - **Prefer residency over window.** KV is allocated upfront and competes with the
   weights, so maximising context silently demotes a model out of GPU residency.
@@ -9,6 +9,10 @@ mid-conversation. Two rules shape it:
 - **Prefer f16 over q8_0.** Quality is identical, but quantized cache requires a
   working flash-attention kernel, and when one is unavailable llama.cpp falls
   back to CPU attention silently. Take that dependency only where it pays.
+- **Slots give way before residency does.** Four replies share one unified
+  cache, which costs only a sliding layer's extra windows. Where four do not
+  stay resident even at the floor, fewer do; where none would, four stay and
+  `--fit` places the layers, since cutting slots cannot rescue that load.
 """
 
 from dataclasses import dataclass
@@ -24,12 +28,17 @@ from modules.llm.fit.precision import FALLBACK, resident_precision
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
 
+# Replies the runtime serves at once, asked for on every backend. Fewer only
+# when four would push a resident model out of the graphics card.
+REQUESTED_SLOTS = 4
+
 
 @dataclass(frozen=True)
 class LoadPlan:
     n_ctx: int
     precision: KvPrecision
     verdict: FitVerdict
+    slots: int = 1
 
 
 def plan_load(
@@ -39,6 +48,55 @@ def plan_load(
     live: HardwareBudget | None = None,
     *,
     mmproj_bytes: int = 0,
+    slots: int | None = None,
+) -> LoadPlan:
+    """Choose the slots, then the widest window that stays resident with them.
+
+    Slots are priced at the floor: the question is whether a count can run
+    resident at all, and the window search after it gives back whatever memory
+    they leave. Unified memory keeps four, because its free-memory reading is
+    the least reliable figure the plan has and `--fit` spills rather than fails.
+    `slots` set skips the choice, for a caller that already knows the count.
+    """
+    if slots is None:
+        slots = planned_slots(shape, weights_bytes, budget, mmproj_bytes=mmproj_bytes)
+    return _plan_for(shape, weights_bytes, budget, live, mmproj_bytes, slots)
+
+
+def planned_slots(
+    shape: ModelShape,
+    weights_bytes: int,
+    budget: HardwareBudget,
+    *,
+    mmproj_bytes: int = 0,
+) -> int:
+    """How many replies a load serves at once: the most, up to four, that keep
+    the model resident at the floor, or four where none would or on unified
+    memory. One rule for the load and its badge, so the two cannot disagree."""
+    if budget.uma:
+        return REQUESTED_SLOTS
+    floor = min(CONTEXT_FLOOR_TOKENS, shape.context_length or CONTEXT_FLOOR_TOKENS)
+    for count in range(REQUESTED_SLOTS, 0, -1):
+        resident = resident_precision(
+            shape,
+            weights_bytes,
+            budget,
+            n_ctx=floor,
+            mmproj_bytes=mmproj_bytes,
+            slots=count,
+        )
+        if resident is not None:
+            return count
+    return REQUESTED_SLOTS
+
+
+def _plan_for(
+    shape: ModelShape,
+    weights_bytes: int,
+    budget: HardwareBudget,
+    live: HardwareBudget | None,
+    mmproj_bytes: int,
+    slots: int,
 ) -> LoadPlan:
     """Choose the widest window that stays resident, at the cheapest precision.
 
@@ -68,7 +126,12 @@ def plan_load(
     # The same rule the badge is drawn from, so the screen and the load cannot
     # describe different configurations of the same model.
     precision = resident_precision(
-        shape, weights_bytes, budget, n_ctx=floor, mmproj_bytes=mmproj_bytes
+        shape,
+        weights_bytes,
+        budget,
+        n_ctx=floor,
+        mmproj_bytes=mmproj_bytes,
+        slots=slots,
     )
 
     if precision is None:
@@ -84,7 +147,9 @@ def plan_load(
                 n_ctx=floor,
                 precision=FALLBACK,
                 mmproj_bytes=mmproj_bytes,
+                slots=slots,
             ),
+            slots=slots,
         )
 
     # Widened against whichever budget is tighter, because `live` is a cap and a
@@ -99,7 +164,7 @@ def plan_load(
     # PARTIAL for a row the catalog had badged FITS.
     widening = budget if live is None else min(budget, live, key=_headroom)
     n_ctx = _widest_resident(
-        shape, weights_bytes, widening, precision, ceiling, floor, mmproj_bytes
+        shape, weights_bytes, widening, precision, ceiling, floor, mmproj_bytes, slots
     )
     return LoadPlan(
         n_ctx=n_ctx,
@@ -111,7 +176,9 @@ def plan_load(
             n_ctx=n_ctx,
             precision=precision,
             mmproj_bytes=mmproj_bytes,
+            slots=slots,
         ),
+        slots=slots,
     )
 
 
@@ -128,6 +195,7 @@ def _widest_resident(
     ceiling: int,
     floor: int,
     mmproj_bytes: int = 0,
+    slots: int = 1,
 ) -> int:
     """Largest rung that stays resident, never a number between two rungs.
 
@@ -151,6 +219,7 @@ def _widest_resident(
                 n_ctx=n_ctx,
                 precision=precision,
                 mmproj_bytes=mmproj_bytes,
+                slots=slots,
             ).state
             is FitState.FITS
         )

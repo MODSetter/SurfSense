@@ -63,6 +63,7 @@ def write_preset(
                 fit_target_mib=fit_target_mib(mmproj_bytes),
                 prompt_cache_mib=prompt_cache,
                 mmproj_path=str(projector) if projector else None,
+                slots=plan.slots,
             )
         )
     write_presets(models_dir / PRESET_FILE, presets)
