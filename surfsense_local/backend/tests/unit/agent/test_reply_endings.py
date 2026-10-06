@@ -80,3 +80,40 @@ def test_a_failure_reads_as_the_error_the_live_turn_showed() -> None:
 def test_a_finished_reply_has_no_ending() -> None:
     """Only a reply that stopped early carries an ending."""
     assert _ending({"time": {"created": 2, "completed": 3}}) is None
+
+
+def _refused_by_plan(code: str) -> dict[str, Any]:
+    """opencode's record of a request SurfSense's relay refused for the plan."""
+    return {
+        "name": "APIError",
+        "data": {
+            "message": "Your ChatGPT plan's limit is reached.",
+            "statusCode": 403,
+            "isRetryable": False,
+            "responseBody": f'{{"error": {{"message": "limit", "code": "{code}"}}}}',
+        },
+    }
+
+
+@pytest.mark.parametrize("kind", ["subscription_limit", "subscription_sign_in"])
+def test_a_plan_refusal_reads_as_the_chats_own_kind(kind: str) -> None:
+    """The same notice and action as a chat reply on the plan."""
+    ending = _ending(
+        {"time": {"created": 2, "completed": 3}, "error": _refused_by_plan(kind)}
+    )
+
+    assert ending is not None and ending["kind"] == kind
+
+
+def test_a_live_plan_refusal_shows_the_same_kind() -> None:
+    """Read live or read back, the turn ends the same way."""
+    from modules.agent.agent_threads.turn_frames import TurnFrames
+    from modules.agent.opencode_client import Event
+
+    frames = TurnFrames("ses_1")
+    user = {"sessionID": "ses_1", "info": {"id": "u1", "role": "user"}}
+    frames.frames(Event(type="message.updated", properties=user))
+    failed = {"sessionID": "ses_1", "error": _refused_by_plan("subscription_limit")}
+    shown = frames.frames(Event(type="session.error", properties=failed))
+
+    assert [(f["type"], f["kind"]) for f in shown] == [("error", "subscription_limit")]

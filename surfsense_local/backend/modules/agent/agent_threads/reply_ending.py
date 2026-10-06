@@ -6,6 +6,7 @@ itself and reads an abort without that note as the app going away.
 
 from typing import Any
 
+from modules.agent.agent_threads.error_kind import error_kind
 from modules.agent.agent_threads.error_reason import error_reason
 
 ABORTED = "MessageAbortedError"
@@ -24,7 +25,11 @@ def reply_ending(
     if error is not None:
         if error.get("name") == ABORTED:
             return noted or {"type": "interrupted"}
-        return {"type": "error", "kind": "unknown", "message": error_reason(error)}
+        return {
+            "type": "error",
+            "kind": error_kind(error),
+            "message": error_reason(error),
+        }
     if live or last_step.get("time", {}).get("completed") is not None:
         return None
     return {"type": "interrupted"}

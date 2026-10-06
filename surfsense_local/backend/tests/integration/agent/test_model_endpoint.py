@@ -3,23 +3,16 @@
 import asyncio
 import json
 import socket
-from collections.abc import AsyncIterator
-from dataclasses import dataclass
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from api.main import create_app
-from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.admission.pool import Priority
 from modules.llm.model_type import ModelType
-from modules.llm.models import ProviderConnection, SelectedModel
+from modules.llm.models import SelectedModel
 from shared.config import get_llm_settings
-from shared.db import create_session_factory
 
-from .conftest import StubModel
+from .conftest import Endpoint, StubModel, select_remote
 
 pytestmark = pytest.mark.integration
 
@@ -27,62 +20,11 @@ ROUTE = "/agent/model/v1/chat/completions"
 LOCAL_MODEL = "Qwen3-8B-UD-Q4_K_XL"
 
 
-@dataclass
-class Endpoint:
-    """The app as opencode reaches it, with the key it was launched with."""
-
-    client: AsyncClient
-    launch_key: str
-    sessions: sessionmaker[Session]
-    admission: LocalAdmission
-
-    async def chat(self, body: dict, key: str | None = None) -> tuple[int, str]:
-        """Send one request as opencode's provider does; the reply's status and text."""
-        headers = {"Authorization": f"Bearer {self.launch_key if key is None else key}"}
-        reply = await self.client.post(ROUTE, json=body, headers=headers)
-        return reply.status_code, reply.text
-
-
-@pytest.fixture
-async def endpoint(engine: Engine) -> AsyncIterator[Endpoint]:
-    """A fresh app on this test's database, driven in-process."""
-    app = create_app()
-    app.state.session_factory = create_session_factory(engine)
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield Endpoint(
-            client,
-            app.state.agent_launch_key,
-            app.state.session_factory,
-            app.state.local_admission,
-        )
-
-
 def select_local(sessions: sessionmaker[Session], name: str = LOCAL_MODEL) -> None:
     """Choose a model the bundled llama-server runs."""
     with sessions() as session:
         session.add(
             SelectedModel(model_type=ModelType.TEXT_GEN, provider="llamacpp", name=name)
-        )
-        session.commit()
-
-
-def select_remote(sessions: sessionmaker[Session], base_url: str, api_key: str) -> None:
-    """Choose a model behind a remote OpenAI-compatible connection."""
-    with sessions() as session:
-        connection = ProviderConnection(
-            label="Remote", provider="openai_compatible", base_url=base_url
-        )
-        connection.api_key = api_key
-        session.add(connection)
-        session.flush()
-        session.add(
-            SelectedModel(
-                model_type=ModelType.TEXT_GEN,
-                provider="openai_compatible",
-                connection_id=connection.id,
-                name="remote-model",
-            )
         )
         session.commit()
 

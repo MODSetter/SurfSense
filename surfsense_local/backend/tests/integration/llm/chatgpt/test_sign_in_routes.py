@@ -169,6 +169,34 @@ async def test_signing_out_keeps_the_connection_and_signing_in_again_restores_it
     assert (await client.get("/llm/connections")).json()[0]["signed_in"] is True
 
 
+async def test_signing_in_again_while_signed_in_returns_as_the_same_client(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """OpenAI's returning-user path: the issued client and the last ID token, no new registration."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+
+    again = await _sign_in(client, connection_id=connection_id)
+
+    asked = fake_openai.authorized[-1]
+    assert again["status"] == "signed_in", again
+    assert asked["client_id"] == ISSUED_CLIENT
+    assert asked["id_token_hint"]
+
+
+async def test_a_renewal_answered_for_another_client_is_refused(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """The guide says to reject it rather than switch the connection's registration."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    fake_openai.callback_client = "app_someone_else"
+
+    again = await _sign_in(client, connection_id=connection_id)
+
+    assert again["status"] == "failed"
+    listed = (await client.get("/llm/connections")).json()
+    assert listed[0]["signed_in"] is True
+
+
 async def test_signing_out_revokes_the_refresh_token_at_openai(
     client: AsyncClient, fake_openai: FakeOpenAI
 ) -> None:

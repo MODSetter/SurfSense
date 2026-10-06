@@ -14,7 +14,7 @@ A chat thread can be the agent's. opencode, started by Electron, then answers it
 | Engine choice | `backend/modules/agent/engine_choice.py` | whether a thread opened now is the agent's |
 | Configuration | `opencode_config.py`, `prompts/agent.md`, `skills/` | the file opencode runs with, and the one skill it may load |
 | Readiness | `opencode_runtime.py`, `model_window.py`, `model_reads_images.py` | an opencode serving the current configuration |
-| Model endpoint | `model_endpoint/` | the one route opencode's provider calls, for every model |
+| Model endpoint | `model_endpoint/` | the two routes opencode's provider calls, one per wire API, for every model |
 | Tools | `tool_endpoint/` | SurfSense's search, Studio and document tools, served to opencode over MCP, one address per thread |
 | Thread folders | `thread_folder/` | each thread's folder: the text of the sources it may use, in the user's folders and linked from one cache per workspace, and copies of the figures and pages it was shown |
 | Previews | `previews/`, `electron/src/main/docx-snapshot/`, `frontend/src/features/docx-snapshot/` | page images of a document the agent made, so it can check them |
@@ -30,15 +30,15 @@ A new thread is the agent's when the selected text model's measured level is `ag
 ## From a thread to a running opencode
 
 1. **Electron, at boot.** Where an opencode is staged, Electron picks its port, a random password and a random Word snapshot key, passes them to the API alone, and removes any `agent/opencode.json` the last run left. opencode does not start yet. Where none is staged, Electron passes nothing, and the API mounts none of the routes opencode calls or that answer it: the model endpoint, the tool endpoint, the permission answer and the Word snapshot routes.
-2. **The API, when a thread first needs the agent.** `ready_opencode()` reads the selected model's window: what llama-server loaded a local model with, or the `context` the remote catalog records, else 32,768. It reads whether the model reads images ([Image input](#image-input)). It writes `<data>/agent/opencode.json`, readable by this user only, and only when its contents change.
+2. **The API, when a thread first needs the agent.** `ready_opencode()` reads the selected model's window: what llama-server loaded a local model with, what a ChatGPT plan states for its model, or the `context` the remote catalog records, else 32,768. It reads the route the model answers on. It reads whether the model reads images ([Image input](#image-input)). It writes `<data>/agent/opencode.json`, readable by this user only, and only when its contents change.
 3. **Electron, on that file.** Checked every 2 seconds: opencode starts once the file exists and stops when it goes. A crash restarts it, at most once every 10 seconds. A rewrite does not restart it.
-4. **The API, until opencode serves it.** opencode reads its configuration per folder, the first time the folder is used, and keeps what it read. So the API checks the running server's version is `1.18.34`, reads `GET /config`, and calls `POST /global/dispose` once if what is loaded is not the launch key, window and image input just written. It returns when they match, or after 60 seconds with "not ready". Every call has a timeout, because opencode accepts a connection a moment before it answers it.
+4. **The API, until opencode serves it.** opencode reads its configuration per folder, the first time the folder is used, and keeps what it read. So the API checks the running server's version is `1.18.34`, reads `GET /config`, and calls `POST /global/dispose` once if what is loaded is not the provider package, launch key, window and image input just written. It returns when they match, or after 60 seconds with "not ready". Every call has a timeout, because opencode accepts a connection a moment before it answers it.
 
 ## The configuration
 
 | Setting | Value |
 |---|---|
-| Provider | one, `surfsense`, on `@ai-sdk/openai-compatible`, at `http://<API host>:<API port>/agent/model/v1`, with the launch key as its API key; `enabled_providers` lists only it |
+| Provider | one, `surfsense`, at `http://<API host>:<API port>/agent/model/v1`, with the launch key as its API key; `enabled_providers` lists only it. Its package follows the route the selected model answers on ([connections](connections.md#the-route-a-model-answers-on)): `@ai-sdk/openai-compatible` for `/chat/completions`, `@ai-sdk/openai`, which calls `/responses`, for a ChatGPT plan's model or one recorded as served only there |
 | Models | `model` and `small_model` both name the selected model, so nothing asks for a second one the router would load in its place. Its entry declares `tool_call`, and image input (`modalities.input` `["text", "image"]` and `attachment: true`) only for a model that reads images |
 | Limits | `context` and `input` are the window W; `output` is min(W/4, 32,000); `compaction.reserved` is min(output, max(W/10, 8,192)), with `compaction.auto` on |
 | Waiting | `headerTimeout` off and `chunkTimeout` 30 minutes, because a local model can take minutes before its first byte |
@@ -90,12 +90,13 @@ Deleting a thread aborts and deletes its session, disposes its opencode instance
 
 ## The model endpoint
 
-`POST /agent/model/v1/chat/completions` ([`model_endpoint/`](../../surfsense_local/backend/modules/agent/model_endpoint/)) is opencode's only way to a model. It refuses a request without this process's launch key with `401`, resolves the selected model on every request, marks it in use while the turn runs, and on the local runtime admits each request as interactive work, beside chat ([admission](local-models/admission.md#admission)).
+`POST /agent/model/v1/chat/completions` and `POST /agent/model/v1/responses` ([`model_endpoint/`](../../surfsense_local/backend/modules/agent/model_endpoint/)) are opencode's only way to a model. Each refuses a request without this process's launch key with `401`, resolves the selected model on every request, answers `409` with code `wrong_route` when the model answers on the other route, and marks it in use while the turn runs. `/chat/completions` on the local runtime admits each request as interactive work, beside chat ([admission](local-models/admission.md#admission)).
 
 - **Local:** llama-server's router at `{llamacpp_base_url}/v1`, under the selected model's name.
 - **Remote:** the connection's URL with its own key, once `egress.require()` allows its host; a refused host answers `403` naming it, before any connection opens ([egress](egress.md)).
 - **The request:** `tools` and `tool_choice` pass through; every `system` and `developer` message is joined into one system message first, because local chat templates want one there; assistant turns with no text and no call are dropped; control tokens such as `<|im_end|>` in user and tool text are split by a zero-width space, because tool results carry the user's documents. Image parts pass through untouched. opencode names its session in `x-session-affinity` on every request; a remote host that routes a conversation by a key gets that name as one ([connections](connections.md#runtime)), so an agent's steps reach the machine that cached their prompt.
-- **The reply:** the model's own status and body pass through, so opencode reads a full window from llama-server's own wording and compacts. SurfSense's own errors are `{"error": {"message": …}}`. Every stream ends with `[DONE]`, added when the model leaves it out. There is no limit on waiting; opencode's configuration sets its own.
+- **The reply:** the model's own status and body pass through, so opencode reads a full window from llama-server's own wording and compacts. SurfSense's own errors are `{"error": {"message": …}}`. Every `/chat/completions` stream ends with `[DONE]`, added when the model leaves it out; a `/responses` stream ends on its own terminal event (`response.completed`, `response.incomplete`, `response.failed` or `error`, listed once in [`stream_endings.py`](../../surfsense_local/backend/modules/llm/providers/openai_responses/stream_endings.py) for the chat's client too), and one that stops or breaks before it gets an `error` event, because opencode's provider takes a stream that just stops as a finished step. There is no limit on waiting; opencode's configuration sets its own.
+- **`/responses`:** for a model recorded as served only there, the connection's URL with its key; for a ChatGPT plan, its token and the plan's limits ([`responses_relay/`](../../surfsense_local/backend/modules/agent/model_endpoint/responses_relay/), [ChatGPT subscription](chatgpt-subscription.md#the-agent)). The step passes through otherwise unchanged, under the selected model's name.
 
 ## SurfSense's tools
 

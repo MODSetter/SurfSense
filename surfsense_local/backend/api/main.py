@@ -13,6 +13,9 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from api.config import Settings, get_settings
 from modules.agent.agent_threads.router import router as agent_threads_router
 from modules.agent.launch_key import mint_launch_key
+from modules.agent.model_endpoint.responses_relay.router import (
+    router as agent_responses_router,
+)
 from modules.agent.model_endpoint.router import router as agent_model_router
 from modules.agent.previews.router import file_router as agent_preview_files_router
 from modules.agent.previews.router import router as agent_previews_router
@@ -209,6 +212,7 @@ def create_app() -> FastAPI:
     # Routes only opencode calls, or that answer it, exist only beside one.
     if get_agent_settings().has_opencode():
         app.include_router(agent_model_router)
+        app.include_router(agent_responses_router)
         app.include_router(agent_tools_router)
         app.include_router(agent_threads_router)
         app.include_router(agent_previews_router)
