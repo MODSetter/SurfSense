@@ -151,6 +151,7 @@ class OpenAICompatibleChatProvider:
         reasoning: bool | None = None,
         json_schema: dict | None = None,
         conversation: str | None = None,
+        sampling: dict[str, float | int] | None = None,
     ) -> AsyncIterator[Delta]:
         body: dict[str, object] = {
             "model": model,
@@ -162,6 +163,9 @@ class OpenAICompatibleChatProvider:
             body["max_tokens"] = max_tokens
         if temperature is not None:
             body["temperature"] = temperature
+        if sampling:
+            # Fields beyond OpenAI's that llama-server reads, such as top_k.
+            body.update(sampling)
         if json_schema is not None:
             # Masks every token that would produce invalid JSON, so malformed
             # output stops being something to repair afterwards.
