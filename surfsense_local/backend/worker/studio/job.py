@@ -6,6 +6,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
+from modules.artifacts.made_file import made_by
 from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
 from modules.artifacts.script_documents.spec import (
@@ -41,6 +42,7 @@ from shared.db import create_db_engine, create_session_factory, is_locked
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
+from worker.studio.made_file import pipeline as made_file
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -91,6 +93,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
         script = document_script(meta) if renders_as_stored(meta) else None
         if refining is not None:
             built = _refine(session, artifact, document, refining)
+        elif made_by(meta) is not None:
+            built = made_file.built(artifact, document.title)
         elif script is not None:
             built = _run_script(session, artifact, document, script)
         else:

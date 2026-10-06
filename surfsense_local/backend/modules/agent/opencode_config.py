@@ -25,8 +25,10 @@ RESERVE_FLOOR = 8_192
 # enough that a model which hangs mid-reply still ends the turn.
 CHUNK_TIMEOUT_MS = 30 * 60 * 1000
 
-# The one skill SurfSense ships: how to write a document script (ADR 0039).
+# The skills SurfSense ships: how to write a document script (ADR 0039).
 DOCUMENTS_SKILL = "surfsense-documents"
+# Which PDF tool fits a request, and how pages are named.
+PDF_SKILL = "surfsense-pdf"
 
 
 def skills_folder() -> Path:
@@ -88,7 +90,11 @@ def _permission(skills: Path) -> dict[str, Any]:
         # Asks through a form SurfSense does not show in this phase.
         "question": "deny",
         # Not opencode's built-in skills, nor any the user installed for their own opencode.
-        "skill": {"*": "deny", DOCUMENTS_SKILL: "allow"},
+        "skill": {
+            "*": "deny",
+            DOCUMENTS_SKILL: "allow",
+            PDF_SKILL: "allow",
+        },
     }
 
 

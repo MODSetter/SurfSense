@@ -12,6 +12,9 @@ from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.tool_endpoint import replies
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.pdf_form import PDF_FORM
+from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
+from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
@@ -42,6 +45,9 @@ TOOLS: dict[str, Tool] = {
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
+        PDF_PAGES,
+        PDF_STAMP,
+        PDF_FORM,
     )
 }
 

@@ -150,7 +150,7 @@ def test_the_agent_has_no_shell_and_writes_only_to_outputs(tmp_path: Path) -> No
         assert permission[tool] == "deny", tool
 
 
-def test_only_surfsenses_documents_skill_loads_from_the_shipped_folder(
+def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
     tmp_path: Path,
 ) -> None:
     """opencode's built-in skills and any the user installed stay out of SurfSense's agent."""
@@ -160,9 +160,11 @@ def test_only_surfsenses_documents_skill_loads_from_the_shipped_folder(
     config = written(path)
     (skills,) = config["skills"]["paths"]
     assert (Path(skills) / "surfsense-documents" / "SKILL.md").is_file()
+    assert (Path(skills) / "surfsense-pdf" / "SKILL.md").is_file()
     assert list(config["permission"]["skill"].items()) == [
         ("*", "deny"),
         ("surfsense-documents", "allow"),
+        ("surfsense-pdf", "allow"),
     ]
 
 
