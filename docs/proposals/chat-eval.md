@@ -50,7 +50,7 @@ The app's own Featherless connection cannot stand in for the local path, because
 So the script builds every request itself, on both sides, with the app's own functions rather than a copy, so the eval cannot drift from the app:
 
 1. **Tier.** `classify(from_name("llamacpp", <local file stem>))`: the tier the app gives the local build, used for the Featherless run too.
-2. **System message.** `build_context(hits, tier)` in [`modules/chat/prompt.py`](../../surfsense_local/backend/modules/chat/prompt.py).
+2. **Instruction and excerpts.** `build_context(hits, tier)` in [`modules/chat/prompt.py`](../../surfsense_local/backend/modules/chat/prompt.py): the instruction is the system message, and the excerpts go ahead of the question.
 3. **History.** `build_messages()` in [`modules/chat/history.py`](../../surfsense_local/backend/modules/chat/history.py), with `history_budget(CONTEXT_FLOOR_TOKENS)`. The app sizes the window per machine and never loads less than 8,192, so every machine and Featherless keep the same history.
 4. **Answer cap.** `max_tokens` of 1,024 (`ANSWER_RESERVE_TOKENS`) on both sides.
 5. **Sampling.** Sent explicitly and identically on both sides, from the manifest entry's `sampling` (`thinking`, or `non_thinking` for Gemma 3). The [model catalog](model-catalog.md) makes those the app's own. Until it does, the app's answer requests send none and run on llama-server's defaults, so its answers can differ from the eval's.

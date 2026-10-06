@@ -21,6 +21,7 @@ class ChatErrorKind(enum.StrEnum):
     CONTEXT_TOO_LONG = "context_too_long"
     SUBSCRIPTION_SIGN_IN = "subscription_sign_in"
     SUBSCRIPTION_LIMIT = "subscription_limit"
+    RUNTIME_BUSY = "runtime_busy"
     NETWORK = "network"
     TIMEOUT = "timeout"
     UNKNOWN = "unknown"
@@ -32,8 +33,7 @@ _MESSAGES: dict[ChatErrorKind, str] = {
         "The selected model couldn't be found — pick another in Model setup."
     ),
     ChatErrorKind.PROVIDER_RATE_LIMITED: (
-        "The model provider is rate-limiting requests right now. "
-        "Try again in a moment."
+        "The model provider is rate-limiting requests right now. Try again in a moment."
     ),
     ChatErrorKind.PROVIDER_UNAVAILABLE: (
         "The model provider is temporarily unavailable. Try again shortly."
@@ -52,6 +52,10 @@ _MESSAGES: dict[ChatErrorKind, str] = {
         "Your ChatGPT plan's usage limit is reached. "
         "It resets on its own; check your usage in ChatGPT's settings."
     ),
+    ChatErrorKind.RUNTIME_BUSY: (
+        "The replies running together ran out of room in the local model's "
+        "memory. Try again."
+    ),
     ChatErrorKind.TIMEOUT: "The model took too long to respond. Try again.",
     ChatErrorKind.UNKNOWN: "Something went wrong generating a reply. Try again.",
 }
@@ -62,8 +66,7 @@ _NETWORK_MESSAGES: dict[str, str] = {
     "llamacpp": "Couldn't reach the local model runtime. Restart SurfSense to start it again.",
 }
 _DEFAULT_NETWORK_MESSAGE = (
-    "Couldn't reach the model provider — "
-    "check the connection's URL in Model setup."
+    "Couldn't reach the model provider — check the connection's URL in Model setup."
 )
 
 _AUTH_STATUS_CODES = {401, 403}
@@ -79,6 +82,14 @@ _CONTEXT_TOO_LONG_ERROR_TYPE = "exceed_context_size_error"
 # and then aborts on. "Try again shortly" sends the reader into a retry loop
 # over something that can never work.
 _LOCAL_RUNTIME = "llamacpp"
+
+# What llama.cpp says when replies sharing one unified cache overflow it. It
+# ends every request involved, as a 500 like a model that failed to load, so
+# the message is the only thing that tells the two apart.
+_CACHE_FULL = (
+    "failed to find free space in the kv cache",
+    "failed to find a memory slot",
+)
 
 
 def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, str]:
@@ -110,7 +121,11 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         elif status_code == 400 and _is_context_too_long(exc.response):
             kind = ChatErrorKind.CONTEXT_TOO_LONG
         elif status_code == 500 and provider == _LOCAL_RUNTIME:
-            kind = ChatErrorKind.MODEL_CANNOT_RUN
+            kind = (
+                ChatErrorKind.RUNTIME_BUSY
+                if _is_cache_full(exc.response)
+                else ChatErrorKind.MODEL_CANNOT_RUN
+            )
         else:
             kind = ChatErrorKind.PROVIDER_UNAVAILABLE
         return kind, _MESSAGES[kind]
@@ -138,6 +153,17 @@ def _is_context_too_long(response: httpx.Response) -> bool:
     error = payload.get("error") if isinstance(payload, dict) else None
     error_type = error.get("type") if isinstance(error, dict) else None
     return error_type == _CONTEXT_TOO_LONG_ERROR_TYPE
+
+
+def _is_cache_full(response: httpx.Response) -> bool:
+    """Whether a local runtime's 500 is its shared cache running out of room."""
+    try:
+        payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    said = error.get("message") if isinstance(error, dict) else None
+    return isinstance(said, str) and said.casefold().startswith(_CACHE_FULL)
 
 
 def empty_reply_error() -> tuple[ChatErrorKind, str]:

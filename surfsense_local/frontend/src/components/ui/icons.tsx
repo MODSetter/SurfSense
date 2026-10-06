@@ -21,6 +21,7 @@ import {
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
+  Clock01Icon as Clock01IconData,
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
@@ -30,6 +31,7 @@ import {
   DownloadCircle02Icon as DownloadCircle02IconData,
   DownloadIcon as DownloadIconData,
   DotIcon as DotIconData,
+  Edit02Icon as Edit02IconData,
   EllipsisIcon as EllipsisIconData,
   File02Icon as File02IconData,
   FilePlusCornerIcon,
@@ -50,6 +52,7 @@ import {
   Loading03Icon,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
+  NoteAddIcon as NoteAddIconData,
   NotebookTextIcon as NotebookTextIconData,
   PencilEdit02Icon as PencilEdit02IconData,
   Pdf01Icon as Pdf01IconData,
@@ -134,6 +137,7 @@ export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
+export const ClockIcon = createIcon(Clock01IconData)
 export const ComputerEthernetIcon = createIcon(ComputerEthernetIconData)
 export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
@@ -145,6 +149,7 @@ export const CursorRemoveSelection02Icon = createIcon(
 export const Download01Icon = createIcon(Download01IconData)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)
+export const Edit02Icon = createIcon(Edit02IconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
@@ -167,6 +172,7 @@ export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
+export const NoteAddIcon = createIcon(NoteAddIconData)
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const Pdf01Icon = createIcon(Pdf01IconData)

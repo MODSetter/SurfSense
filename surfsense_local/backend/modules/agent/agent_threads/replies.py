@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from modules.agent.agent_threads.compaction import is_summary, turn_openers
+from modules.agent.agent_threads.reply_ending import reply_ending
 from modules.agent.agent_threads.scope_note import is_scope_note, noted_scope
 from modules.agent.agent_threads.steps import step_of
 from modules.chat.prompt import Citation, resolve_citations
@@ -35,11 +36,23 @@ def iso_from_ms(milliseconds: int | None) -> str | None:
 
 
 def thread_turns(
-    messages: list[dict[str, Any]], citations: list[Citation]
+    messages: list[dict[str, Any]],
+    citations: list[Citation],
+    noted: dict[str, dict[str, Any]] | None = None,
+    answering: bool = False,
 ) -> list[dict[str, Any]]:
-    """Each user message followed by the reply its steps make up, oldest first."""
+    """Each user message followed by the reply its steps make up, oldest first.
+
+    `noted` holds the endings SurfSense kept, by reply id; `answering` says the
+    latest reply is still being written.
+    """
     turns: list[dict[str, Any]] = []
     openers = turn_openers(messages)
+    opened = [
+        m["info"]["id"]
+        for m in messages
+        if m["info"]["role"] == "user" and openers[m["info"]["id"]] == m["info"]["id"]
+    ]
     for message in messages:
         info = message["info"]
         if info["role"] != "user" or openers[info["id"]] != info["id"]:
@@ -54,14 +67,19 @@ def thread_turns(
                 "completed_at": created,
             }
         )
-        reply = turn_reply(messages, info["id"], citations)
+        live = answering and info["id"] == opened[-1]
+        reply = turn_reply(messages, info["id"], citations, noted, live)
         if reply is not None:
             turns.append(reply)
     return turns
 
 
 def turn_reply(
-    messages: list[dict[str, Any]], user_message_id: str, citations: list[Citation]
+    messages: list[dict[str, Any]],
+    user_message_id: str,
+    citations: list[Citation],
+    noted: dict[str, dict[str, Any]] | None = None,
+    live: bool = False,
 ) -> dict[str, Any] | None:
     """The reply to one user message, or None while the agent has written nothing.
 
@@ -91,14 +109,20 @@ def turn_reply(
     ]
     times = [step["info"].get("time", {}) for step in steps]
     text, cited = resolve_citations(PARAGRAPH.join(texts), citations)
+    content: dict[str, Any] = {
+        "text": text,
+        "steps": tools,
+        "citations": [asdict(citation) for citation in cited],
+    }
+    ending = reply_ending(
+        steps[-1]["info"], (noted or {}).get(reply_id(user_message_id)), live
+    )
+    if ending is not None:
+        content["ending"] = ending
     return {
         "id": reply_id(user_message_id),
         "role": "assistant",
-        "content": {
-            "text": text,
-            "steps": tools,
-            "citations": [asdict(citation) for citation in cited],
-        },
+        "content": content,
         "created_at": iso_from_ms(times[0].get("created")),
         "completed_at": iso_from_ms(times[-1].get("completed")),
     }

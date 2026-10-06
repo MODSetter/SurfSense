@@ -10,6 +10,8 @@ type Action = "model-setup" | "retry" | "new-chat" | "none"
 
 function actionFor(error: ChatTurnError): Action {
   switch (error.kind) {
+    case "interrupted":
+      return error.retryable ? "retry" : "none"
     case "provider_auth":
     case "subscription_sign_in":
     case "provider_not_found":
@@ -31,7 +33,8 @@ function actionFor(error: ChatTurnError): Action {
       // with a larger window — Retry would resend the same overlong turn.
       return "none"
     default:
-      return "retry"
+      // An older failure is a record: only the latest reply is asked again.
+      return error.retryable ? "retry" : "none"
   }
 }
 

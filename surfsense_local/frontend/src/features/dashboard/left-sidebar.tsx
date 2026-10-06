@@ -1,11 +1,17 @@
 import { useState, type ComponentType, type ReactNode } from "react"
 
-import { Chat01Icon, PencilEdit02Icon } from "@/components/ui/icons"
+import {
+  Chat01Icon,
+  CircleAlertIcon,
+  Loader2Icon,
+  PencilEdit02Icon,
+} from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChatsDialog } from "@/features/chat/chats-dialog"
 import type { ChatThread } from "@/features/chat/api"
+import type { RunState } from "@/features/chat/runs/run-store"
 import { intl } from "@/i18n/intl"
 
 // A row rendered below "New chat" with the same look. Add an entry here (or
@@ -16,6 +22,9 @@ export type SidebarNavAction = {
   icon: ComponentType<{ className?: string }>
   onClick: () => void
   badge?: string
+  // Something happening behind the row, at its end; `ariaLabel` says it.
+  indicator?: ReactNode
+  ariaLabel?: string
 }
 
 function SidebarNavButton({
@@ -23,12 +32,15 @@ function SidebarNavButton({
   icon: Icon,
   onClick,
   badge,
+  indicator,
+  ariaLabel,
 }: Omit<SidebarNavAction, "key">) {
   return (
     <Button
       variant="ghost"
       className="w-full justify-start px-2"
       onClick={onClick}
+      aria-label={ariaLabel}
     >
       <Icon />
       <span className="text-left">{label}</span>
@@ -37,8 +49,77 @@ function SidebarNavButton({
           {badge}
         </Badge>
       ) : null}
+      {indicator ? (
+        <span
+          aria-hidden
+          className="ml-auto flex items-center text-muted-foreground"
+        >
+          {indicator}
+        </span>
+      ) : null}
     </Button>
   )
+}
+
+/**
+ * What the Chats row says about threads other than the open one: an alert when
+ * the agent waits on the user's approval, else a dot when a reply is unread,
+ * else a spinner while any is writing or waiting. One mark, the one to act on
+ * first; the counts are for screen readers.
+ */
+function chatsActivity(
+  activeThreadId: number | null,
+  runStates: Record<number, RunState>,
+  unreadThreadIds: number[]
+): { indicator: ReactNode; ariaLabel: string } | null {
+  const elsewhere = (id: number) => id !== activeThreadId
+  const asking = Object.entries(runStates).filter(
+    ([id, run]) => elsewhere(Number(id)) && run.state === "needs-approval"
+  ).length
+  if (asking > 0) {
+    return {
+      indicator: <CircleAlertIcon className="size-3 text-primary" />,
+      ariaLabel: intl.formatMessage(
+        {
+          id: "dashboard_sidebar_chats_needs_approval_aria",
+          defaultMessage:
+            "Chats, {count, plural, one {# reply} other {# replies}} waiting for your approval",
+        },
+        { count: asking }
+      ),
+    }
+  }
+  const unread = unreadThreadIds.filter(elsewhere).length
+  if (unread > 0) {
+    return {
+      indicator: <span className="size-1.5 rounded-full bg-primary" />,
+      ariaLabel: intl.formatMessage(
+        {
+          id: "dashboard_sidebar_chats_unread_aria",
+          defaultMessage:
+            "Chats, {count, plural, one {# new reply} other {# new replies}}",
+        },
+        { count: unread }
+      ),
+    }
+  }
+  const running = Object.keys(runStates).map(Number).filter(elsewhere).length
+  if (running > 0) {
+    return {
+      indicator: (
+        <Loader2Icon className="size-3 animate-spin motion-reduce:animate-none" />
+      ),
+      ariaLabel: intl.formatMessage(
+        {
+          id: "dashboard_sidebar_chats_running_aria",
+          defaultMessage:
+            "Chats, {count, plural, one {# reply} other {# replies}} being written",
+        },
+        { count: running }
+      ),
+    }
+  }
+  return null
 }
 
 // The always-visible left column: brand, "New chat", the "Chats" row that
@@ -55,6 +136,8 @@ export function LeftSidebar({
   onRenameThread,
   onDeleteThread,
   onTitleAnimationComplete,
+  runStates = {},
+  unreadThreadIds = [],
   actions = [],
   sources,
   footer,
@@ -69,6 +152,9 @@ export function LeftSidebar({
   onRenameThread: (id: number, title: string) => Promise<boolean>
   onDeleteThread: (id: number) => Promise<void>
   onTitleAnimationComplete: () => void
+  // Threads with a reply being written or waiting, and those finished unread.
+  runStates?: Record<number, RunState>
+  unreadThreadIds?: number[]
   // Extra rows below "Chats", same look. Append here to add one.
   actions?: SidebarNavAction[]
   // The workspace's sources list, already built by the caller (mirrors how
@@ -101,6 +187,7 @@ export function LeftSidebar({
             })}
             icon={Chat01Icon}
             onClick={() => setChatsOpen(true)}
+            {...chatsActivity(activeThreadId, runStates, unreadThreadIds)}
           />
           {actions.map(({ key, ...action }) => (
             <SidebarNavButton key={key} {...action} />
@@ -124,6 +211,8 @@ export function LeftSidebar({
         onRename={onRenameThread}
         onDelete={onDeleteThread}
         onTitleAnimationComplete={onTitleAnimationComplete}
+        runStates={runStates}
+        unreadThreadIds={unreadThreadIds}
       />
     </aside>
   )

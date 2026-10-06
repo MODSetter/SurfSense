@@ -1,3 +1,4 @@
+import contextlib
 import json
 import time
 from collections.abc import Iterator
@@ -12,7 +13,6 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import (
@@ -25,7 +25,6 @@ from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 from worker.studio import run
 from worker.studio.office.pptx import pptx
 from worker.studio.office.xlsx import xlsx
@@ -98,7 +97,8 @@ def make_artifact(
 
 def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     """Stub the generation model to answer `replies` in turn (the last one repeats),
-    recording each system prompt.
+    recording each prompt a builder wrote: its system prompt, and what it sends
+    after the sources.
 
     Every builder and office format assembles its real prompt and calls
     `run_model`, so recording here lets a test assert the user's focus reached it.
@@ -106,7 +106,7 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     seen: list[str] = []
 
     def fake(_session: object, system: str, _sources: object, **_retry: object) -> str:
-        seen.append(system)
+        seen.append(f"{system}\n\n{_retry.get('after_sources') or ''}")
         return replies[min(len(seen), len(replies)) - 1]
 
     monkeypatch.setattr("worker.studio.shared.generate.run_model", fake)
@@ -528,7 +528,7 @@ def test_a_podcast_cancelled_while_voicing_stops_at_the_next_turn(
     voice = AudioCppSpeech(
         VoicedModel("kokoro-82m", kokoro.audio),
         base_url="http://audio",
-        chat_runtime=RouterClient("http://router", transport=FakeRouter().transport()),
+        give_up_text_runtime=contextlib.nullcontext,
         transport=httpx.MockTransport(audio_server),
         available=lambda: 64 * 2**30,
     )

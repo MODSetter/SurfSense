@@ -63,7 +63,8 @@ async def test_a_model_that_sees_receives_the_image_and_the_turn_keeps_it(
 
     assert status == 200
     asked = llamacpp_server[-1]["messages"][-1]
-    assert asked["content"][0] == {"type": "text", "text": "what is this?"}
+    assert asked["content"][0]["type"] == "text"
+    assert asked["content"][0]["text"].endswith("what is this?")
     (part,) = image_parts(asked)
     assert part["image_url"]["url"].startswith("data:image/jpeg;base64,")
 
@@ -186,7 +187,8 @@ async def test_a_followup_resends_only_the_newest_image_turn(
     with_images = [m for m in sent if image_parts(m)]
     assert [m["content"][0]["text"] for m in with_images] == ["second chart"]
     assert "first chart" in [m["content"] for m in sent]
-    assert sent[-1] == {"role": "user", "content": "and the left axis?"}
+    assert sent[-1]["role"] == "user"
+    assert sent[-1]["content"].endswith("and the left axis?")
 
 
 async def test_deleting_a_thread_removes_its_images(
@@ -207,21 +209,29 @@ async def test_deleting_a_thread_removes_its_images(
     assert stored_images(data_dir) == []
 
 
-async def test_a_failed_reply_leaves_no_image_behind(
+async def test_a_failed_reply_keeps_its_image_until_it_is_retried(
     client: AsyncClient,
     engine: Engine,
     real_model: object,
     llamacpp_server_unauthorized: None,
     data_dir: Path,
 ) -> None:
-    """The turn is discarded, and so is the file only it referenced. The
-    runtime could not be asked whether the model sees, so the turn was let
-    through and failed on its own terms."""
+    """A failed turn is kept with what it carried; a retry replaces it, and
+    the file only the failed turn referenced goes with it. The runtime could
+    not be asked whether the model sees, so the turn was let through and
+    failed on its own terms."""
     workspace_id, _ = _seed(engine)
     thread_id = await _open_thread(client, workspace_id)
 
     status, _ = await send(client, thread_id, "what is this?", [picture()])
+    failed = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    kept = stored_images(data_dir)
+    await client.post(
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "what is this?", "retry_of": failed[1]["id"]},
+    )
 
     assert status == 200
-    assert (await client.get(f"/chat/threads/{thread_id}/messages")).json() == []
+    assert len(failed[0]["content"]["images"]) == 1
+    assert len(kept) == 1
     assert stored_images(data_dir) == []

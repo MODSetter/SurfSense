@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -46,6 +46,14 @@ class ThreadUpdate(BaseModel):
     title: ThreadTitle
 
 
+class RunStateRead(BaseModel):
+    """Where a thread's reply stands: `queued` with its place in line, `running`,
+    or `needs-approval` while it waits on the user."""
+
+    state: Literal["queued", "running", "needs-approval"]
+    position: int | None = None
+
+
 class ThreadRead(BaseModel):
     """A thread as the API returns it."""
 
@@ -59,6 +67,10 @@ class ThreadRead(BaseModel):
     source_scope: SourceScope | None
     created_at: datetime
     updated_at: datetime
+    # Whether a reply is being generated for it right now.
+    running: bool = False
+    # Where that reply stands; None when nothing is being generated.
+    run_state: RunStateRead | None = None
 
 
 class MessageCreate(BaseModel):
@@ -70,7 +82,8 @@ class MessageCreate(BaseModel):
     `source_scope` is sent, it must name ready sources, and an empty list
     retrieves nothing. `images` reach only a model that reads them; any other
     gets a 409. `thinking` off asks for the answer with no trace, which only the
-    local runtime can be told.
+    local runtime can be told. `retry_of` names the thread's latest reply when
+    it failed or was cut off, which this turn replaces.
     """
 
     text: MessageText
@@ -78,6 +91,7 @@ class MessageCreate(BaseModel):
     document_ids: Annotated[list[DocumentId], Field(max_length=1000)] | None = None
     images: Annotated[list[ImageUpload], Field(max_length=MAX_IMAGES)] = []
     thinking: bool = True
+    retry_of: Annotated[int, Field(gt=0)] | None = None
 
 
 class MessageRead(BaseModel):

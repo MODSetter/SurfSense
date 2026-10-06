@@ -8,15 +8,13 @@ the agent adds three: `agent-step` for a tool call's progress, and
 from typing import Any
 
 from modules.agent.agent_threads.compaction import is_summary
+from modules.agent.agent_threads.error_reason import OVERFLOW, error_reason
 from modules.agent.agent_threads.replies import PARAGRAPH, iso_from_ms, reply_id
 from modules.agent.agent_threads.steps import step_of
 from modules.agent.opencode_client import Event
 
 Frame = dict[str, Any]
 _STREAMED = {"text": "delta", "reasoning": "reasoning"}
-# What opencode reports when a request is too long, then compacts and carries on from.
-_OVERFLOW = "ContextOverflowError"
-_TOO_LONG = "The conversation is too long to continue here; start a new thread."
 
 
 class TurnFrames:
@@ -56,7 +54,9 @@ class TurnFrames:
         if is_summary(info):
             self._roles[info["id"]] = "summary"
             # One that failed ends the turn; when it was too long, only the summary says so.
-            return self._failure(_reason(info["error"])) if info.get("error") else []
+            return (
+                self._failure(error_reason(info["error"])) if info.get("error") else []
+            )
         self._roles[info["id"]] = info["role"]
         if info["role"] != "user" or self.user_message_id is not None:
             return []
@@ -162,9 +162,9 @@ class TurnFrames:
     def _error(self, properties: dict[str, Any]) -> list[Frame]:
         """The turn failed; opencode says why in the error's data."""
         error = properties.get("error") or {}
-        if error.get("name") == _OVERFLOW:
+        if error.get("name") == OVERFLOW:
             return []  # opencode compacts and carries on (compaction.auto is on)
-        return self._failure(_reason(error))
+        return self._failure(error_reason(error))
 
     def _failure(self, message: str) -> list[Frame]:
         """The turn's one error frame: opencode can report a failure twice."""
@@ -185,14 +185,3 @@ class TurnFrames:
         if self.user_message_id is not None:
             self.finished = True
         return []
-
-
-def _reason(error: dict[str, Any]) -> str:
-    """What to tell the user about an error opencode reports."""
-    if error.get("name") == _OVERFLOW:
-        return _TOO_LONG
-    return (
-        (error.get("data") or {}).get("message")
-        or error.get("name")
-        or "The agent stopped with an error."
-    )

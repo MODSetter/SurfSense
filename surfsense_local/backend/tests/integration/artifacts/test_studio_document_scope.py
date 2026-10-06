@@ -59,7 +59,7 @@ def small_model(session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
         },
     )()
     monkeypatch.setattr(
-        "worker.studio.job.resolve_generation",
+        "worker.studio.job.resolve_routed_generation",
         lambda _session: ResolvedGeneration(selection, None),
     )
 

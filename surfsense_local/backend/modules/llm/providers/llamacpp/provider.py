@@ -205,6 +205,7 @@ class LlamaCppProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
         """The answer text alone, for callers that have no use for the trace."""
         async for delta in self.chat_deltas(
@@ -214,6 +215,7 @@ class LlamaCppProvider:
             temperature=temperature,
             reasoning=reasoning,
             json_schema=json_schema,
+            conversation=conversation,
         ):
             if not delta.reasoning and delta.progress is None:
                 yield delta.text
@@ -227,7 +229,9 @@ class LlamaCppProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
+        # `conversation` routes nothing here: one slot, matched by its prefix.
         # Downgrade at the seam: `modules/chat` assembles one conversation and
         # never learns that templates differ.
         shaped = for_template(messages, await self.capabilities(model))

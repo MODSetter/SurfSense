@@ -1,12 +1,13 @@
-import { useState } from "react"
+import { useRef, useState, type HTMLAttributes } from "react"
 import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
   CursorRemoveSelection02Icon,
+  Edit02Icon,
   EllipsisIcon,
+  ExternalLinkIcon,
   FolderOpenIcon,
   FolderTransferIcon,
-  PencilEdit02Icon,
   PencilIcon,
   RefreshCwIcon,
   SquareDashedMousePointerIcon,
@@ -35,7 +36,7 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { WorkspaceDocument } from "../api"
-import type { TreeItemProps } from "./tree-item-props"
+import { useRowDrag, type RowDrag } from "./use-row-drag"
 
 export function DocumentRow({
   document,
@@ -54,6 +55,7 @@ export function DocumentRow({
   onSelectedChange,
   onMove,
   itemProps,
+  drag,
 }: {
   document: WorkspaceDocument
   selected: boolean
@@ -71,8 +73,9 @@ export function DocumentRow({
   onSelectedChange: (selected: boolean) => void
   // Absent with no folders to move to.
   onMove?: () => void
-  // The tree's own attributes for this row: role, level, focus and drag.
-  itemProps?: TreeItemProps
+  // The tree's own attributes for this row: role, level and focus.
+  itemProps: HTMLAttributes<HTMLLIElement>
+  drag: RowDrag
 }) {
   const ready = document.status === "ready"
   const failed = document.status === "failed"
@@ -89,6 +92,13 @@ export function DocumentRow({
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
   // row (not just the retry icon) surfaces the actual error above the row.
   const modifierHeld = useModifierHeld()
+  const element = useRef<HTMLLIElement>(null)
+  useRowDrag({
+    rowRef: element,
+    source: { kind: "document", id: document.id },
+    name: document.title,
+    drag,
+  })
 
   return (
     <Tooltip open={retryable && modifierHeld && rowHovered}>
@@ -96,7 +106,10 @@ export function DocumentRow({
         render={
           <li
             {...itemProps}
-            ref={rowRef}
+            ref={(node) => {
+              element.current = node
+              rowRef(node)
+            }}
             aria-current={highlighted ? "true" : undefined}
             className={cn(
               "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
@@ -245,7 +258,7 @@ export function DocumentRow({
                     {openable ? (
                       <>
                         <DropdownMenuItem onClick={onOpen}>
-                          <ViewIcon />
+                          <ExternalLinkIcon />
                           {intl.formatMessage({
                             id: "sources_row_menu_open_label",
                             defaultMessage: "Open",
@@ -300,7 +313,7 @@ export function DocumentRow({
                     ) : null}
                     {onEditNote && document.document_type === "NOTE" ? (
                       <DropdownMenuItem onClick={onEditNote}>
-                        <PencilEdit02Icon />
+                        <Edit02Icon />
                         {intl.formatMessage({
                           id: "sources_row_menu_edit_note_label",
                           defaultMessage: "Edit note",

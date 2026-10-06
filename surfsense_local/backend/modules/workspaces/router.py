@@ -6,6 +6,8 @@ from sqlalchemy import select
 
 from api.dependencies import SessionDep
 from modules.agent.agent_threads.forget_sessions import forget_workspace_sessions
+from modules.chat.runs.dependencies import ChatRunsDep
+from modules.chat.stop_workspace_replies import stop_workspace_replies
 from modules.plugins.stop_workspace_runs import stop_workspace_runs
 from modules.source_roots.managed_root import ensure_managed_root
 from modules.workspaces.dependencies import WorkspaceDep
@@ -65,10 +67,13 @@ def update_workspace(workspace: WorkspaceDep, payload: WorkspaceUpdate) -> Works
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a workspace and everything in it",
 )
-def delete_workspace(workspace: WorkspaceDep, session: SessionDep) -> Response:
+def delete_workspace(
+    workspace: WorkspaceDep, session: SessionDep, runs: ChatRunsDep
+) -> Response:
     # One tree per workspace, removed after the commit a rollback would undo.
     directory = get_storage_settings().workspace_dir(workspace.id)
 
+    stop_workspace_replies(session, runs, workspace.id)
     stop_workspace_runs(session, workspace.id)
     forget_workspace_sessions(session, workspace.id)
     session.delete(workspace)

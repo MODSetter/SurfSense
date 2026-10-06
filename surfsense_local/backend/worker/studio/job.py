@@ -22,6 +22,7 @@ from modules.artifacts.studio_documents.recipe import (
     renders_as_stored,
 )
 from modules.documents.models import Document, DocumentStatus
+from modules.llm.model_route.client import resolve_routed_generation
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
@@ -31,7 +32,6 @@ from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     ResolvedImageGeneration,
-    resolve_generation,
     resolve_image_generation,
     resolve_text_to_speech,
 )
@@ -280,6 +280,6 @@ def _choose_model(
             return resolve_image_generation(session)
         if model_type is ModelType.AUDIO_GEN:
             return resolve_text_to_speech(session)
-        return resolve_generation(session)
+        return resolve_routed_generation(session)
     except ModelResolutionError as error:
         raise NoModelSelectedError(str(error)) from error

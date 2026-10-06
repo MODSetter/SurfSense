@@ -338,6 +338,37 @@ async def test_an_approval_waits_for_the_users_yes(agent_api: AgentAPI) -> None:
     assert of_type(frames, "completed")[0]["text"] == "Listed."
 
 
+async def test_the_thread_list_says_a_turn_needs_approval(agent_api: AgentAPI) -> None:
+    """A window that is elsewhere learns the agent waits on the user, not that it
+    is still writing."""
+    agent_api.model.replies = [REPEATED, ("text", "Listed.")]
+    thread = await open_thread(agent_api)
+    states: list[dict | None] = []
+
+    async def state() -> dict | None:
+        listed = await agent_api.http.get(
+            f"/workspaces/{agent_api.workspace_id}/chat/threads"
+        )
+        return next(t["run_state"] for t in listed.json() if t["id"] == thread["id"])
+
+    async def approve(frame: Frame) -> None:
+        if frame["type"] == "permission-request":
+            states.append(await state())
+            await agent_api.http.post(
+                f"/chat/threads/{thread['id']}/permissions/{frame['id']}",
+                json={"reply": "once"},
+            )
+        elif frame["type"] == "permission-replied":
+            states.append(await state())
+
+    await send(agent_api, thread["id"], "List them", approve)
+
+    assert states == [
+        {"state": "needs-approval", "position": None},
+        {"state": "running", "position": None},
+    ]
+
+
 async def test_a_refused_approval_ends_the_turn(agent_api: AgentAPI) -> None:
     """Nothing it was asked about runs, and the stream still closes cleanly."""
     agent_api.model.replies = [REPEATED]
@@ -442,23 +473,124 @@ async def test_a_request_the_model_refuses_as_too_long_is_compacted_not_failed(
     ]
 
 
-async def test_closing_the_stream_stops_the_turn(agent_api: AgentAPI) -> None:
-    """Leaving the thread is the stop button: the agent must not keep working unseen."""
+async def test_a_turn_keeps_going_after_its_window_hangs_up(
+    agent_api: AgentAPI,
+) -> None:
+    """Leaving the thread drops the follower, never the turn: following it again
+    replays everything it sent, then the rest."""
+    agent_api.model.replies = [("stall", "Thinking about")]
+    thread = await open_thread(agent_api)
+
+    await hang_up_mid_turn(agent_api, thread["id"])
+    following = asyncio.create_task(follow(agent_api, thread["id"]))
+    await asyncio.sleep(0.5)
+    agent_api.model.release.set()
+    frames = await asyncio.wait_for(following, 30)
+
+    assert frames[0]["type"] == "agent-preparing"
+    assert "".join(f["text"] for f in of_type(frames, "delta")) == "Thinking about"
+    assert of_type(frames, "completed")[0]["text"] == "Thinking about"
+    assert frames[-1] == {"type": "done"}
+
+
+async def test_a_thread_takes_one_turn_at_a_time(agent_api: AgentAPI) -> None:
+    """A second message while the agent works would interleave two turns."""
+    agent_api.model.replies = [("stall", "Thinking about")]
+    thread = await open_thread(agent_api)
+
+    await hang_up_mid_turn(agent_api, thread["id"])
+    second = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "And?"}
+    )
+    agent_api.model.release.set()
+    await follow(agent_api, thread["id"])
+
+    assert second.status_code == 409
+
+
+async def test_stop_ends_the_turn_in_opencode(agent_api: AgentAPI) -> None:
+    """Stop is a route now, not a hang-up: the session is idle when it returns."""
     agent_api.model.replies = [("stall", "Thinking about")]
     thread = await open_thread(agent_api)
     folder = thread_folder(agent_api.workspace_id, thread["id"])
 
-    async with agent_api.http.stream(
-        "POST", f"/chat/threads/{thread['id']}/messages", json={"text": "Go"}
+    await hang_up_mid_turn(agent_api, thread["id"])
+    stopped = await agent_api.http.post(f"/chat/threads/{thread['id']}/run/stop")
+    session_id = await _session_of(thread["id"])
+    async with agent_api.opencode() as opencode:
+        status = await opencode.status(folder, session_id)
+    followed = await agent_api.http.get(f"/chat/threads/{thread['id']}/run")
+    agent_api.model.release.set()
+
+    assert stopped.status_code == 204
+    assert status == "idle"
+    assert followed.status_code == 404
+
+
+async def test_a_stopped_reply_reads_back_stopped_with_its_text(
+    agent_api: AgentAPI,
+) -> None:
+    """After a reload the thread still says the user cut this reply short."""
+    agent_api.model.replies = [("stall", "Thinking about")]
+    thread = await open_thread(agent_api)
+
+    await hang_up_mid_turn(agent_api, thread["id"])
+    await agent_api.http.post(f"/chat/threads/{thread['id']}/run/stop")
+    agent_api.model.release.set()
+    reply = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()[
+        -1
+    ]
+
+    assert reply["content"]["text"] == "Thinking about"
+    assert reply["content"]["ending"] == {"type": "stopped"}
+
+
+async def test_quitting_keeps_the_text_and_reads_back_interrupted(
+    agent_api: AgentAPI,
+) -> None:
+    """opencode marks a quit as it marks a stop; only SurfSense knows the app went away."""
+    agent_api.model.replies = [("stall", "Thinking about")]
+    thread = await open_thread(agent_api)
+
+    await hang_up_mid_turn(agent_api, thread["id"])
+    stopped = await agent_api.http.post("/chat/runs/stop-all")
+    agent_api.model.release.set()
+    reply = (await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")).json()[
+        -1
+    ]
+
+    assert stopped.status_code == 204
+    assert reply["content"]["text"] == "Thinking about"
+    assert reply["content"]["ending"] == {"type": "interrupted"}
+
+
+async def hang_up_mid_turn(api: AgentAPI, thread_id: int) -> None:
+    """Send a message and close the stream once the reply has started."""
+    async with api.http.stream(
+        "POST", f"/chat/threads/{thread_id}/messages", json={"text": "Go"}
     ) as reply:
+        assert reply.status_code == 200, await reply.aread()
         async for line in reply.aiter_lines():
             if '"type": "delta"' in line:
-                break
+                return
 
-    session_id = await _session_of(thread["id"])
-    async with agent_api.opencode() as opencode, asyncio.timeout(15):
-        while await opencode.status(folder, session_id) != "idle":
-            await asyncio.sleep(0.2)
+
+async def follow(api: AgentAPI, thread_id: int, after: int = 0) -> list[Frame]:
+    """Follow the thread's run from `after` to its end."""
+    frames: list[Frame] = []
+    async with api.http.stream(
+        "GET", f"/chat/threads/{thread_id}/run", params={"after": after}
+    ) as reply:
+        assert reply.status_code == 200, await reply.aread()
+        async for line in reply.aiter_lines():
+            if not line.startswith("data: "):
+                continue
+            data = line.removeprefix("data: ")
+            if data == "[DONE]":
+                frames.append({"type": "done"})
+                break
+            frames.append(json.loads(data))
+    return frames
 
 
 async def test_deleting_the_thread_deletes_its_session_instance_and_folder(

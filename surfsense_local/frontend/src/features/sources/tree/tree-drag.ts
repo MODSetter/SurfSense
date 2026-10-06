@@ -1,36 +1,30 @@
-import type { DragEvent } from "react"
-
-// A row dragged inside the tree; files from the desktop carry "Files" instead.
-const SOURCE_DRAG_TYPE = "application/x-surfsense-source"
+import type { FolderKey } from "./source-index"
 
 export type DraggedSource = { kind: "folder" | "document"; id: number }
 
-export function startSourceDrag(event: DragEvent, source: DraggedSource) {
-  event.dataTransfer.setData(SOURCE_DRAG_TYPE, JSON.stringify(source))
-  event.dataTransfer.effectAllowed = "move"
+type DragData = Record<string | symbol, unknown>
+
+// A row being dragged, so a drag from anywhere else is never moved.
+export const sourceDragData = (source: DraggedSource) => ({
+  type: "source",
+  ...source,
+})
+
+export function draggedSourceOf(data: DragData): DraggedSource | null {
+  const { type, kind, id } = data
+  return type === "source" &&
+    (kind === "folder" || kind === "document") &&
+    typeof id === "number"
+    ? { kind, id }
+    : null
 }
 
-export function carriesSource(event: DragEvent) {
-  return Array.from(event.dataTransfer.types).includes(SOURCE_DRAG_TYPE)
-}
+// Where a drop files into: a folder row into itself, a source row into the
+// folder holding it, the panel into the top level.
+export const dropTargetData = (into: FolderKey) => ({ type: "into", into })
 
-export function draggedSource(event: DragEvent): DraggedSource | null {
-  try {
-    const parsed: unknown = JSON.parse(
-      event.dataTransfer.getData(SOURCE_DRAG_TYPE)
-    )
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "kind" in parsed &&
-      "id" in parsed &&
-      (parsed.kind === "folder" || parsed.kind === "document") &&
-      typeof parsed.id === "number"
-    ) {
-      return { kind: parsed.kind, id: parsed.id }
-    }
-  } catch {
-    // Not one of ours.
-  }
-  return null
+export function dropFolderOf(
+  data: DragData | undefined
+): FolderKey | undefined {
+  return data?.type === "into" ? (data.into as FolderKey) : undefined
 }

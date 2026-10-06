@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import hashlib
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -29,6 +30,7 @@ def run_model(
     system: str,
     sources: list[Source],
     *,
+    after_sources: str | None = None,
     repair: Repair | None = None,
     max_tokens: int | None = None,
     json_schema: dict | None = None,
@@ -38,6 +40,11 @@ def run_model(
     Every kind that asks the model to write (content, web, office, podcast) goes
     through here; each collects the stream the worker cannot await lazily.
 
+    A job that calls the model several times over the same sources passes what
+    differs per call as `after_sources`. The runtime reuses a prompt only up to
+    its first changed token, so anything ahead of the sources makes every call
+    read them again.
+
     A retry passes `repair`, which replays the failed reply as the model's own
     turn before asking for the correction. Without it an error naming a line
     points at a script the model was never shown, so it can only start over.
@@ -45,9 +52,13 @@ def run_model(
     A JSON format passes `json_schema`, which the runtime turns into a grammar.
     An endpoint that ignores it still answers, and `parse_json` reads that.
     """
+    grounding = _grounding(sources)
+    conversation = _shared_start_key(system, grounding)
+    if after_sources is not None:
+        grounding = f"{grounding}\n\n{after_sources}"
     messages = [
         Message(role="system", content=system),
-        Message(role="user", content=_grounding(sources)),
+        Message(role="user", content=grounding),
     ]
     if repair is not None:
         messages += [
@@ -60,6 +71,7 @@ def run_model(
         max_tokens=max_tokens,
         json_schema=json_schema,
         grounding_chars=sum(len(source.content) for source in sources),
+        conversation=conversation,
     )
 
 
@@ -70,8 +82,13 @@ def complete(
     max_tokens: int | None = None,
     json_schema: dict | None = None,
     grounding_chars: int = 0,
+    conversation: str | None = None,
 ) -> str:
-    """One reply to a conversation Studio composed, collected whole."""
+    """One reply to a conversation Studio composed, collected whole.
+
+    `conversation` names calls that share their start, for an endpoint that
+    routes them to the cache holding it.
+    """
     selected = model.selection
     started = time.monotonic()
     logger.info(
@@ -91,6 +108,7 @@ def complete(
                 max_tokens=max_tokens,
                 reasoning=False,
                 json_schema=json_schema,
+                conversation=conversation,
             )
         )
     )
@@ -102,6 +120,13 @@ def complete(
         time.monotonic() - started,
     )
     return reply
+
+
+def _shared_start_key(system: str, grounding: str) -> str:
+    """One key for every call that opens with this system prompt and these
+    sources, so an endpoint that routes by it sends them to the cache holding them."""
+    digest = hashlib.sha256(f"{system}\n\n{grounding}".encode()).hexdigest()
+    return f"surfsense-studio-{digest[:24]}"
 
 
 async def _collect(stream: AsyncIterator[str]) -> str:
