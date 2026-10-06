@@ -3,6 +3,7 @@
 import asyncio
 import io
 import json
+import sys
 import wave
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -62,10 +63,14 @@ def test_the_voices_are_the_chosen_models_roster() -> None:
     """A Supertonic voice speaks every language the model does; a Kokoro voice
     speaks its own."""
     kokoro = AudioCppSpeech(
-        voiced("kokoro-82m", "kokoro-82m-q8_0"), base_url="", give_up_text_runtime=NO_CHAT
+        voiced("kokoro-82m", "kokoro-82m-q8_0"),
+        base_url="",
+        give_up_text_runtime=NO_CHAT,
     )
     supertonic = AudioCppSpeech(
-        voiced("supertonic-3", "supertonic-3-f16"), base_url="", give_up_text_runtime=NO_CHAT
+        voiced("supertonic-3", "supertonic-3-f16"),
+        base_url="",
+        give_up_text_runtime=NO_CHAT,
     )
 
     heart = next(v for v in kokoro.voices() if v.id == "af_heart")
@@ -145,8 +150,10 @@ def speak(model: VoicedModel, server: StubServer, turns, language="en-US", free=
     return asyncio.run(speech.synthesize(turns, language))
 
 
-def test_each_turn_is_one_request_and_the_turns_join_with_a_pause() -> None:
-    """0.35 s between speakers, as the podcast has always had, at the model's rate."""
+def test_each_turn_is_one_request_and_the_turns_join_with_a_pause(monkeypatch) -> None:
+    """0.35 s between speakers, as the podcast has always had, at the model's rate.
+    Read from the WAV, which an episode stays when no encoder is installed."""
+    monkeypatch.setitem(sys.modules, "lameenc", None)
     server = StubServer(frames=1000)
     turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
 
@@ -161,6 +168,32 @@ def test_each_turn_is_one_request_and_the_turns_join_with_a_pause() -> None:
         assert joined.getframerate() == 24000
         # Two turns of 1,000 frames around 8,400 frames of silence.
         assert joined.getnframes() == 10_400
+
+
+def test_the_episode_is_mp3_at_the_models_rate() -> None:
+    """About a sixth of the WAV, and the browser plays it as it did the WAV."""
+    turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
+
+    audio = speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), StubServer(24000), turns)
+
+    assert audio.media_type == "audio/mpeg"
+    header = audio.content[:4]
+    assert header[0] == 0xFF and header[1] & 0xE0 == 0xE0, "an MPEG frame first"
+    # MPEG-2's rate index 1 is 24 kHz, mono is channel mode 3.
+    assert (header[1] >> 3 & 0b11, header[2] >> 2 & 0b11) == (0b10, 1)
+    assert header[3] >> 6 == 0b11
+    assert len(audio.content) < len(wav(2 * 24000)) / 4
+
+
+def test_the_episode_stays_wav_without_an_encoder(monkeypatch) -> None:
+    """A checkout that skipped the dependency still gets an episode it can play."""
+    monkeypatch.setitem(sys.modules, "lameenc", None)
+    turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
+
+    audio = speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), StubServer(), turns)
+
+    assert audio.media_type == "audio/wav"
+    assert audio.content[:4] == b"RIFF"
 
 
 def test_the_language_is_sent_only_where_the_voice_speaks_several() -> None:

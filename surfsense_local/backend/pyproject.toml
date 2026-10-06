@@ -53,6 +53,7 @@ dependencies = [
     "torchvision>=0.17",
     "uvicorn[standard]>=0.34.0",
     "xlsxwriter>=3.2.9",
+    "lameenc>=1.8.4",
 ]
 
 [dependency-groups]

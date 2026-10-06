@@ -47,6 +47,7 @@ What else each spec names, and why the analyser cannot find it on its own:
 | `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab, openpyxl | the Office formats and document scripts run model-written code that imports them, so no static import exists; openpyxl, named in `pyproject.toml` though Docling brings it too, also reads every document script's workbook for its summary |
 | `worker.spec` | `matplotlib.pyplot`, `matplotlib.backends.backend_pdf`, `matplotlib.backends.backend_svg`, with the matplotlib hook set to the `Agg` backend | document scripts draw charts, and nothing imports matplotlib statically. Naming pyplot runs PyInstaller's hook, which adds `mpl-data` and the backend chosen; a chart saved as PDF or SVG, or `PdfPages`, imports its canvas by name, which the hook does not follow. `Agg` alone keeps Tk's GUI backend out, since scripts run with `MPLBACKEND=Agg` |
 | `worker.spec` | `modules.documents.tasks`, `modules.artifacts.tasks` | Huey resolves a task by its name |
+| `worker.spec` | `copy_metadata("lameenc")` | a podcast is encoded as MP3 by LAME, statically linked into `lameenc`'s extension, which the analyser finds by its import ([studio](studio.md#voicing-a-podcast)); LAME's LGPL licence text is only in the wheel's dist-info, which ships only when named |
 
 ## Model packs
 

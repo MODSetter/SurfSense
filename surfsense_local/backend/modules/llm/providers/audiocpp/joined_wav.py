@@ -1,5 +1,5 @@
-"""One WAV from each turn's, with a pause between speakers. WAV out: the
-browser plays it and the standard library writes it, with no encoder to ship.
+"""One WAV from each turn's, with a pause between speakers. WAV, because a
+pause is silent frames, which only PCM takes; encoded_episode makes it MP3.
 """
 
 import io
