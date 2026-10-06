@@ -18,13 +18,19 @@ from shared import cancellation
 from shared.config import get_storage_settings
 from worker.document_script.child_environment import child_environment
 from worker.document_script.kill_process_tree import process_tree
-from worker.document_script.run_folder import prepare_run_folder, require_plain_name
+from worker.document_script.run_folder import (
+    IMAGES_FOLDER,
+    prepare_run_folder,
+    require_plain_name,
+)
 
 logger = logging.getLogger(__name__)
 
 TRACEBACK_LINES = 30
 # Room for the error line and TRACEBACK_LINES of long traceback lines.
 STDERR_TAIL_BYTES = 64 * 1024
+# What an analysis prints is its result; past this it is a frame printed whole.
+STDOUT_HEAD_BYTES = 64 * 1024
 # How long output is still read after the tree is killed: a process that
 # escaped it (POSIX: one that left the group) can hold the pipe open for good.
 LAST_OUTPUT_SECONDS = 5
@@ -41,6 +47,19 @@ class ScriptResult:
     output: bytes | None
     error: str | None
     traceback_tail: str | None
+    seconds: float
+
+
+@dataclass(frozen=True)
+class ChildRun:
+    """How one script's process ended: its exit code, None when killed at the
+    limit, the start of what it printed and the end of its stderr."""
+
+    exit_code: int | None
+    stdout: str
+    # Bytes printed past the kept start.
+    stdout_cut: int
+    stderr: str
     seconds: float
 
 
@@ -62,16 +81,18 @@ def run_document_script(
     folder = run_folders_root() / uuid.uuid4().hex
     try:
         template_name = prepare_run_folder(folder, script, images, template)
-        started = time.monotonic()
-        exit_code, stderr = _run_child(
-            folder, output_name, template_name, timeout_seconds
-        )
-        seconds = time.monotonic() - started
-        if exit_code is None:
-            logger.info("document script: timed out after %ss", timeout_seconds)
+        contract = {
+            "OUTPUT_PATH": str(folder / output_name),
+            "IMAGES_DIR": str(folder / IMAGES_FOLDER),
+        }
+        if template_name is not None:
+            contract["TEMPLATE_PATH"] = str(folder / template_name)
+        child = run_child(folder, contract, timeout_seconds)
+        stderr, seconds = child.stderr, child.seconds
+        if child.exit_code is None:
             return _failed(f"timed out after {timeout_seconds:g} s", stderr, seconds)
-        if exit_code != 0:
-            return _failed(_error_line(exit_code, stderr), stderr, seconds)
+        if child.exit_code != 0:
+            return _failed(error_line(child.exit_code, stderr), stderr, seconds)
         return _read_output(folder / output_name, stderr, seconds)
     finally:
         shutil.rmtree(folder, ignore_errors=True)
@@ -82,20 +103,33 @@ def run_folders_root() -> Path:
     return get_storage_settings().data_dir / "tmp" / "document-scripts"
 
 
-def _run_child(
-    folder: Path, output_name: str, template_name: str | None, timeout_seconds: float
-) -> tuple[int | None, str]:
-    """The child's exit code, None when it was killed at the limit, and its stderr.
+def run_child(
+    folder: Path, contract: dict[str, str], timeout_seconds: float
+) -> ChildRun:
+    """Run the folder's script.py with `contract` in its environment.
 
     The run ends when the script's process does; whatever it left running is
-    killed then, not waited for.
+    killed then, not waited for. A cancelled job raises its error.
     """
     command = _child_command(folder)
-    environment = child_environment(folder, output_name, template_name)
+    environment = child_environment(folder, contract)
+    started = time.monotonic()
     with process_tree(command, environment) as process:
-        stderr = _StderrReader(process.stderr)
+        stdout = _PipeReader(process.stdout, STDOUT_HEAD_BYTES, keep_start=True)
+        stderr = _PipeReader(process.stderr, STDERR_TAIL_BYTES, keep_start=False)
         exit_code = _wait_for_exit(process, timeout_seconds)
-    return exit_code, stderr.text(timeout_seconds=LAST_OUTPUT_SECONDS)
+    seconds = time.monotonic() - started
+    if exit_code is None:
+        logger.info("script: timed out after %ss", timeout_seconds)
+    # Windows prints line ends as CRLF in text mode.
+    printed = stdout.text(timeout_seconds=LAST_OUTPUT_SECONDS)
+    return ChildRun(
+        exit_code=exit_code,
+        stdout=printed.replace("\r\n", "\n"),
+        stdout_cut=stdout.dropped,
+        stderr=stderr.text(timeout_seconds=LAST_OUTPUT_SECONDS),
+        seconds=seconds,
+    )
 
 
 def _wait_for_exit(process: subprocess.Popen, timeout_seconds: float) -> int | None:
@@ -108,25 +142,38 @@ def _wait_for_exit(process: subprocess.Popen, timeout_seconds: float) -> int | N
     return None
 
 
-class _StderrReader:
+class _PipeReader:
     """Reads the pipe on a thread, so waiting is on the process, not on the pipe:
-    a helper the script started may hold the pipe open after the script exits."""
+    a helper the script started may hold the pipe open after the script exits.
 
-    def __init__(self, pipe: IO[bytes]) -> None:
-        self._tail = bytearray()
+    Keeps only `limit` bytes, its start or its end: a runaway script can write
+    gigabytes in its two minutes. The pipe is drained either way, or the script
+    would block once it is full.
+    """
+
+    def __init__(self, pipe: IO[bytes], limit: int, *, keep_start: bool) -> None:
+        self._kept = bytearray()
+        self._limit = limit
+        self._keep_start = keep_start
+        self.dropped = 0
         self._thread = threading.Thread(target=self._read, args=(pipe,), daemon=True)
         self._thread.start()
 
     def _read(self, pipe: IO[bytes]) -> None:
-        """Keep only the end: a runaway script can write gigabytes in its two minutes."""
         with pipe:
             while chunk := pipe.read1(65536):
-                self._tail += chunk
-                del self._tail[:-STDERR_TAIL_BYTES]
+                self._kept += chunk
+                over = len(self._kept) - self._limit
+                if over > 0:
+                    self.dropped += over
+                    if self._keep_start:
+                        del self._kept[self._limit :]
+                    else:
+                        del self._kept[:over]
 
     def text(self, timeout_seconds: float) -> str:
         self._thread.join(timeout_seconds)
-        return bytes(self._tail).decode(errors="replace")
+        return bytes(self._kept).decode(errors="replace")
 
 
 def _child_command(folder: Path) -> list[str]:
@@ -147,14 +194,22 @@ def _read_output(path: Path, stderr: str, seconds: float) -> ScriptResult:
     )
 
 
-def _error_line(exit_code: int, stderr: str) -> str:
+def error_line(exit_code: int, stderr: str) -> str:
     """The exception line a traceback ends with, or the status when nothing printed."""
     lines = stderr.strip().splitlines()
     return lines[-1] if lines else f"the script exited with status {exit_code}"
 
 
+def traceback_tail(stderr: str) -> str | None:
+    """The last TRACEBACK_LINES of stderr: they name the script's failing line."""
+    return "\n".join(stderr.strip().splitlines()[-TRACEBACK_LINES:]) or None
+
+
 def _failed(error: str, stderr: str, seconds: float) -> ScriptResult:
-    tail = "\n".join(stderr.strip().splitlines()[-TRACEBACK_LINES:])
     return ScriptResult(
-        ok=False, output=None, error=error, traceback_tail=tail or None, seconds=seconds
+        ok=False,
+        output=None,
+        error=error,
+        traceback_tail=traceback_tail(stderr),
+        seconds=seconds,
     )

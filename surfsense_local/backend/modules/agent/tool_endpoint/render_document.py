@@ -131,8 +131,9 @@ LISTING: dict[str, Any] = {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": (
-                    "Names from surfsense_list_images of the source images the "
-                    "script places; each is at IMAGES_DIR/<name>.png."
+                    "Names of the images the script places: source images from "
+                    "surfsense_list_images, or charts from surfsense_analyze_data; "
+                    "each is at IMAGES_DIR/<name>.png."
                 ),
             },
             "template_source_id": {

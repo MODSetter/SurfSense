@@ -207,7 +207,9 @@ def _run_script(
     session: Session, artifact: Artifact, document: Document, script: DocumentScript
 ) -> Built:
     """The stored script runs as it is; no model is asked and no source is gathered."""
-    images = script_document.images_for(session, artifact.workspace_id, script)
+    images = script_document.images_for(
+        session, artifact.workspace_id, artifact.chat_thread_id, script
+    )
     template = script_document.template_for(session, artifact.workspace_id, script)
     title = document.title
     # The script may run for two minutes; the write lock must not be held across it.

@@ -87,6 +87,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "render_document",
         "read_document",
         "list_images",
+        "analyze_data",
         "pdf_pages",
         "pdf_stamp",
         "pdf_form",
@@ -125,6 +126,9 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     assert listed["pdf_stamp"]["required"] == ["kind"]
     assert listed["pdf_form"]["required"] == ["action"]
     assert listed["pdf_form"]["properties"]["fields"]["type"] == "object"
+    analysis = listed["analyze_data"]
+    assert analysis["required"] == ["title", "document_ids", "script"]
+    assert analysis["properties"]["document_ids"]["items"] == {"type": "integer"}
     for schema in listed.values():
         assert schema["type"] == "object"
         assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
@@ -147,6 +151,7 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "read_document",
         "list_images",
         "source_pages",
+        "analyze_data",
         "pdf_pages",
         "pdf_stamp",
         "pdf_form",

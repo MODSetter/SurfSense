@@ -23,7 +23,7 @@ _SUSPENDED = 0x4  # CREATE_SUSPENDED: nothing runs before the job holds it
 
 @contextmanager
 def process_tree(command: list[str], env: dict[str, str]) -> Iterator[subprocess.Popen]:
-    """Start the command with its stderr piped; leaving kills all that is left of it."""
+    """Start the command with its stdout and stderr piped; leaving kills all that is left of it."""
     if sys.platform == "win32":
         with _in_a_job(command, env) as process:
             yield process
@@ -42,7 +42,7 @@ def _in_a_job(command: list[str], env: dict[str, str]) -> Iterator[subprocess.Po
             command,
             env=env,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             creationflags=_NO_WINDOW | _SUSPENDED,
         )
@@ -69,7 +69,7 @@ def _in_a_process_group(
         command,
         env=env,
         stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         process_group=0,
     )

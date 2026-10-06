@@ -27,6 +27,8 @@ CHUNK_TIMEOUT_MS = 30 * 60 * 1000
 
 # The skills SurfSense ships: how to write a document script (ADR 0039).
 DOCUMENTS_SKILL = "surfsense-documents"
+# How to analyse spreadsheets and CSVs with surfsense_analyze_data.
+DATA_SKILL = "surfsense-data"
 # Which PDF tool fits a request, and how pages are named.
 PDF_SKILL = "surfsense-pdf"
 
@@ -93,6 +95,7 @@ def _permission(skills: Path) -> dict[str, Any]:
         "skill": {
             "*": "deny",
             DOCUMENTS_SKILL: "allow",
+            DATA_SKILL: "allow",
             PDF_SKILL: "allow",
         },
     }

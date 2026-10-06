@@ -76,3 +76,11 @@ def test_one_page_always_encodes_to_the_same_bytes(tmp_path: Path) -> None:
     page = _png(tmp_path, (1000, 1415), colour=(30, 120, 60))
 
     assert inline_image(page).data == inline_image(page).data
+
+
+def test_an_image_too_large_to_decode_safely_is_refused_unread(tmp_path: Path) -> None:
+    """A script can save a PNG of a few KB that decodes to gigabytes; it is never decoded."""
+    path = _png(tmp_path, (8000, 8000), mode="1", colour=1)
+
+    with pytest.raises(ValueError, match="too large"):
+        inline_image(path)
