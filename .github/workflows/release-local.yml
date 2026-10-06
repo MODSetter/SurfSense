@@ -247,6 +247,13 @@ jobs:
           if [ -f sdcpp.tar ]; then tar -xf sdcpp.tar && rm sdcpp.tar; fi
           node scripts/sdcpp/stage.mjs --strict
 
+      # After every staging step, since the native notices read the staged
+      # folders. Fails when an npm, Python or native dependency has no licence
+      # text and scripts/notices/allowed-without-text.json gives no reason.
+      - name: Generate third-party notices
+        working-directory: surfsense_local/electron
+        run: pnpm build:notices
+
       - name: Package installer
         working-directory: surfsense_local/electron
         env:
@@ -337,6 +344,15 @@ jobs:
           (cd "$DIR" && ./sd-server --help > /dev/null)
           test -f "$DIR/libggml-vulkan.so"
           test -f "$DIR/stable-diffusion.cpp.txt"
+
+      - name: Smoke the bundled notices (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -e
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/notices
+          test -s "$DIR/THIRD_PARTY_NOTICES.json"
+          test -s "$DIR/THIRD_PARTY_NOTICES.txt"
+          test ! -e "$DIR/fragments"
 
       - name: Upload installers
         uses: actions/upload-artifact@v7

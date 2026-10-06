@@ -46,6 +46,12 @@ extraResources:
   # electron-builder warns that the folder is missing and skips it.
   - from: opencode
     to: opencode
+  # Third-party licence notices for everything above (build:notices,
+  # scripts/notices/). The generators' fragments stay behind.
+  - from: notices
+    to: notices
+    filter:
+      - THIRD_PARTY_NOTICES.*
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
