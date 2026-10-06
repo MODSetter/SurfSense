@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
 
+from modules.llm.connections.conversation_fields import conversation_fields
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.model_type import ModelType
 from modules.llm.providers.openai_compatible.chat import (
@@ -146,6 +147,7 @@ class ResponsesChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
         async for delta in self.chat_deltas(
             model,
@@ -154,6 +156,7 @@ class ResponsesChatProvider:
             temperature=temperature,
             reasoning=reasoning,
             json_schema=json_schema,
+            conversation=conversation,
         ):
             if not delta.reasoning:
                 yield delta.text
@@ -167,6 +170,7 @@ class ResponsesChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
         body: dict[str, object] = {
             "model": model,
@@ -188,6 +192,14 @@ class ResponsesChatProvider:
             }
         if isinstance(self._credential, PlanToken):
             body = {k: v for k, v in body.items() if k not in REFUSED_FIELDS}
+            # Routes the conversation to the machine that cached its prompt. Not
+            # among the fields the plan's endpoint rejects, which name
+            # `prompt_cache_retention` (developers.openai.com/siwc, preview limitations).
+            if conversation:
+                body["prompt_cache_key"] = conversation
+        else:
+            # Only a host known to take a cache key gets one; a strict one rejects it.
+            body.update(conversation_fields(self._base_url, model, conversation))
         async for delta in with_deadlines(
             self._stream(body),
             first_item_seconds=FIRST_TOKEN_SECONDS,

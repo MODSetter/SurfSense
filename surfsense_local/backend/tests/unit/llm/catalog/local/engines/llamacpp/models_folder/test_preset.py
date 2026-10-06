@@ -15,15 +15,20 @@ from pathlib import Path
 
 import pytest
 
+from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
+    write_preset,
+)
 from modules.llm.catalog.local.engines.llamacpp.models_folder.readiness import (
     wait_until_servable,
 )
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     ProjectorNoticeKind,
+    scan,
 )
 from modules.llm.catalog.local.installs import projector_filename
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.service import LocalCatalogService
+from modules.llm.fit import HardwareBudget
 from modules.llm.providers.llamacpp import PRESET_FILE
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
 
@@ -283,6 +288,33 @@ def test_a_text_model_leaves_the_margin_at_llama_cpps_own_default(
     service.llamacpp.reprice()
 
     assert "fit-target = 1024" in (tmp_path / PRESET_FILE).read_text()
+
+
+def test_the_prompt_cache_takes_a_quarter_of_ram_up_to_llama_cpps_own_size(
+    tmp_path: Path,
+) -> None:
+    """llama-server keeps earlier prompts in RAM, so a caller that comes back is
+    not read again. At its own 8 GiB, a 1.7B model's server grew to 7.4 GB."""
+    a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
+    installed = scan(tmp_path, {})
+
+    write_preset(tmp_path, installed, a_budget(ram_gib=14), a_budget(ram_gib=14))
+    assert "cache-ram = 3584" in (tmp_path / PRESET_FILE).read_text()
+
+    write_preset(tmp_path, installed, a_budget(ram_gib=62), a_budget(ram_gib=62))
+    assert "cache-ram = 8192" in (tmp_path / PRESET_FILE).read_text()
+
+
+def a_budget(*, ram_gib: int) -> HardwareBudget:
+    """A machine with no graphics card and this much memory to give a model."""
+    return HardwareBudget(
+        device_free_bytes=0,
+        device_total_bytes=0,
+        fit_reserve_bytes=1024**3,
+        ram_available_bytes=ram_gib * 1024**3,
+        uma=False,
+        has_gpu=False,
+    )
 
 
 def test_a_lone_projector_is_never_attached_to_a_model_beside_it(

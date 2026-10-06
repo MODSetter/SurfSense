@@ -71,6 +71,7 @@ class RoutedGenerator:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
         body = {
             "model": None if self._model is None else self._model.model_dump(),
@@ -79,6 +80,7 @@ class RoutedGenerator:
             "temperature": temperature,
             "reasoning": reasoning,
             "json_schema": json_schema,
+            "conversation": conversation,
             "priority": self._priority,
         }
         timeout = httpx.Timeout(SILENCE_SECONDS, connect=5.0)
@@ -110,6 +112,7 @@ class RoutedGenerator:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
         async for text in self.chat(
             model,
@@ -118,6 +121,7 @@ class RoutedGenerator:
             temperature=temperature,
             reasoning=reasoning,
             json_schema=json_schema,
+            conversation=conversation,
         ):
             yield Delta(text=text)
 

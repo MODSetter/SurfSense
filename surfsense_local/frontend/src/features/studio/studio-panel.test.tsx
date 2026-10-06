@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { ArtifactList } from "./artifact-list"
 import { StudioPanel } from "./studio-panel"
@@ -440,9 +441,15 @@ describe("studio panel", () => {
 
     renderStudio()
 
-    const image = await screen.findByRole("button", { name: "Image" })
-    expect(image.getAttribute("aria-disabled")).toBe("true")
-    await user.hover(image)
+    // The catalog card shows first; the server's answer disables it.
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "Image" })
+          .getAttribute("aria-disabled")
+      ).toBe("true")
+    )
+    await user.hover(screen.getByRole("button", { name: "Image" }))
     expect(await screen.findByText("Needs an image model")).toBeTruthy()
   })
 

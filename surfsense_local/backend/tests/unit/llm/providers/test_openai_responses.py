@@ -111,6 +111,23 @@ async def test_a_plans_request_drops_the_cap_and_temperature_and_keeps_the_schem
     ]
 
 
+async def test_a_conversation_goes_with_its_cache_key() -> None:
+    """Requests sharing a key are routed to the machine likeliest to hold their
+    prompt. The plan's endpoint rejects `prompt_cache_retention`, not the key."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, text=_text("Hi"))
+
+    async for _ in _provider(handler).chat_deltas(
+        "gpt-5", [Message("user", "hi")], conversation="thread-7"
+    ):
+        pass
+
+    assert json.loads(seen[0].content)["prompt_cache_key"] == "thread-7"
+
+
 async def test_an_earlier_answer_goes_back_as_the_assistants_own_text() -> None:
     """History replays as plain turns, so the model sees what it said."""
     bodies: list[dict] = []
@@ -151,6 +168,27 @@ async def test_an_api_keys_request_carries_the_cap_and_temperature() -> None:
     body = json.loads(seen[0].content)
     assert seen[0].headers["authorization"] == "Bearer sk-1"
     assert (body["max_output_tokens"], body["temperature"]) == (64, 0.2)
+
+
+async def test_an_api_key_sends_a_cache_key_only_where_the_host_takes_one() -> None:
+    """A strict endpoint rejects a field it does not know, so only OpenAI's own gets it."""
+    bodies: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies[request.url.host] = json.loads(request.content)
+        return httpx.Response(200, text=_text("ok"))
+
+    for base in ("https://api.sakana.ai/v1", "https://api.openai.com/v1"):
+        provider = ResponsesChatProvider(
+            base, ApiKey("sk-1"), transport=httpx.MockTransport(handler)
+        )
+        async for _ in provider.chat(
+            "fugu", [Message("user", "hi")], conversation="thread-7"
+        ):
+            pass
+
+    assert "prompt_cache_key" not in bodies["api.sakana.ai"]
+    assert bodies["api.openai.com"]["prompt_cache_key"] == "thread-7"
 
 
 async def test_a_refused_api_key_is_a_refused_key_not_a_sign_in() -> None:

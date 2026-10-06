@@ -88,9 +88,12 @@ export function PdfViewer({
         // loadPdfViewerModule() then fetch — not Promise.all — so
         // pdf_viewer.mjs never starts before globalThis.pdfjsLib is set.
         const viewerModulePromise = loadPdfViewerModule()
-        const responsePromise = fetch(fileUrl(artifact.id, "primary"), {
-          signal: controller.signal,
-        })
+        const responsePromise = fetch(
+          fileUrl(artifact.id, "primary", artifact.generation),
+          {
+            signal: controller.signal,
+          }
+        )
         const [pdfjsLib, viewerModule, response] = await Promise.all([
           loadPdfjsLib(),
           viewerModulePromise,
@@ -190,7 +193,7 @@ export function PdfViewer({
       pdfViewerRef.current = null
       void loadingTask?.destroy()
     }
-  }, [artifact.id, primary, retryKey])
+  }, [artifact.id, artifact.generation, primary, retryKey])
 
   useEffect(() => {
     const container = containerRef.current

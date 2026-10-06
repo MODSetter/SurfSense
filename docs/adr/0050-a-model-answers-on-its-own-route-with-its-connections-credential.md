@@ -1,4 +1,4 @@
-# ADR 0049: A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines
+# ADR 0050: A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines
 
 - **Status:** Accepted
 - **Date:** 2026-10-07

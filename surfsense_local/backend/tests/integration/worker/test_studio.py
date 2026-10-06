@@ -97,7 +97,8 @@ def make_artifact(
 
 def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     """Stub the generation model to answer `replies` in turn (the last one repeats),
-    recording each system prompt.
+    recording each prompt a builder wrote: its system prompt, and what it sends
+    after the sources.
 
     Every builder and office format assembles its real prompt and calls
     `run_model`, so recording here lets a test assert the user's focus reached it.
@@ -105,7 +106,7 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     seen: list[str] = []
 
     def fake(_session: object, system: str, _sources: object, **_retry: object) -> str:
-        seen.append(system)
+        seen.append(f"{system}\n\n{_retry.get('after_sources') or ''}")
         return replies[min(len(seen), len(replies)) - 1]
 
     monkeypatch.setattr("worker.studio.shared.generate.run_model", fake)

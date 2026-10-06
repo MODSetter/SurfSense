@@ -55,6 +55,11 @@ SMALLEST_IMAGE_TOKENS = 256
 # and the budget prices the question at the same 1,024 for every window.
 QUESTION_CHARS = QUESTION_TOKENS * CHARS_PER_TOKEN
 
+# How far under its budget history is cut once it overflows, so the next turns
+# fit without moving where it starts. Cut to the brim, every later turn moved
+# it, and the runtime reuses a prompt only up to its first changed token.
+HISTORY_HEADROOM = 0.25
+
 # Today's number, kept as the fallback for a window this module cannot see:
 # unchanged so a remote model with no reported `n_ctx` behaves exactly as it
 # did before this budget existed.
