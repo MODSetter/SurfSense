@@ -97,7 +97,9 @@ export function DocxViewer({
             )
           )
         }
-        const response = await fetch(fileUrl(artifact.id, "primary"))
+        const response = await fetch(
+          fileUrl(artifact.id, "primary", artifact.generation)
+        )
         if (!response.ok) {
           throw new Error(
             intl.formatMessage(
@@ -165,7 +167,7 @@ export function DocxViewer({
     return () => {
       cancelled = true
     }
-  }, [artifact.id, primary, retryKey])
+  }, [artifact.id, artifact.generation, primary, retryKey])
 
   useEffect(() => {
     const body = frameRef.current?.contentDocument?.body
