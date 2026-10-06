@@ -1,3 +1,4 @@
+import contextlib
 from pathlib import Path
 
 from sqlalchemy import Engine
@@ -28,7 +29,10 @@ def snapshot_before_upgrade(
             raw.close()
         partial.replace(target)
     except Exception as error:
-        partial.unlink(missing_ok=True)
+        # Removing the partial file can fail too, as it does beneath a file on
+        # macOS and Linux; the copy's failure is the one to report.
+        with contextlib.suppress(OSError):
+            partial.unlink(missing_ok=True)
         raise RuntimeError(
             f"could not write a database snapshot to {target} before migrating: {error}"
         ) from error
