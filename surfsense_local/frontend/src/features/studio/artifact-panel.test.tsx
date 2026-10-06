@@ -359,7 +359,30 @@ describe("artifact panel refine", () => {
     )
   }
 
-  it("sends the instruction to make the next version of the open document", async () => {
+  const OPEN = { name: "Refine this document" }
+  const INSTRUCTION = { name: "How to change this document" }
+
+  it("opens from its button with the cursor in the instruction", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const user = userEvent.setup()
+
+    render(
+      panel(
+        [v1],
+        vi.fn(async () => {})
+      )
+    )
+
+    expect(screen.queryByRole("textbox", INSTRUCTION)).toBeNull()
+    await user.click(await screen.findByRole("button", OPEN))
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", INSTRUCTION)
+    )
+  })
+
+  it("sends the instruction to make the next version, then folds away", async () => {
     const v1 = report(40, 1)
     serveDetail(v1)
     const onRefine = vi.fn(async () => {})
@@ -367,11 +390,11 @@ describe("artifact panel refine", () => {
 
     render(panel([v1], onRefine))
 
-    expect(await screen.findByText("Body of the report")).toBeTruthy()
+    await user.click(await screen.findByRole("button", OPEN))
     const button = screen.getByRole("button", { name: "Refine" })
     expect(button.hasAttribute("disabled")).toBe(true)
     await user.type(
-      screen.getByRole("textbox", { name: "How to change this document" }),
+      screen.getByRole("textbox", INSTRUCTION),
       "Add a chart of the revenue"
     )
     await user.click(button)
@@ -380,13 +403,48 @@ describe("artifact panel refine", () => {
       40,
       "Add a chart of the revenue"
     )
+    expect(screen.queryByRole("textbox", INSTRUCTION)).toBeNull()
+  })
+
+  it("sends on Enter and keeps Shift+Enter for a new line", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const onRefine = vi.fn(async () => {})
+    const user = userEvent.setup()
+
+    render(panel([v1], onRefine))
+
+    await user.click(await screen.findByRole("button", OPEN))
+    const box = screen.getByRole("textbox", INSTRUCTION)
+    await user.type(box, "Shorter{Shift>}{Enter}{/Shift}Plainer")
+    expect(onRefine).not.toHaveBeenCalled()
+    await user.type(box, "{Enter}")
+
+    expect(onRefine).toHaveBeenCalledExactlyOnceWith(40, "Shorter\nPlainer")
+  })
+
+  it("folds away on Escape and keeps what was typed", async () => {
+    const v1 = report(40, 1)
+    serveDetail(v1)
+    const user = userEvent.setup()
+
+    render(
+      panel(
+        [v1],
+        vi.fn(async () => {})
+      )
+    )
+
+    await user.click(await screen.findByRole("button", OPEN))
+    await user.type(screen.getByRole("textbox", INSTRUCTION), "Shorter")
+    await user.keyboard("{Escape}")
+
+    expect(screen.queryByRole("textbox", INSTRUCTION)).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole("button", OPEN))
+    await user.click(screen.getByRole("button", OPEN))
     expect(
-      (
-        screen.getByRole("textbox", {
-          name: "How to change this document",
-        }) as HTMLTextAreaElement
-      ).value
-    ).toBe("")
+      (screen.getByRole("textbox", INSTRUCTION) as HTMLTextAreaElement).value
+    ).toBe("Shorter")
   })
 
   it("offers Refine on a PDF Studio wrote as a script too", async () => {
@@ -400,37 +458,31 @@ describe("artifact panel refine", () => {
       )
     )
 
-    expect(await screen.findByText("Body of the report")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Refine" })).toBeTruthy()
+    expect(await screen.findByRole("button", OPEN)).toBeTruthy()
   })
 
   it("holds the instruction to the 2,000 characters the API takes", async () => {
     const v1 = report(40, 1)
     serveDetail(v1)
+    const user = userEvent.setup()
 
     render(panel([v1], vi.fn()))
 
-    const box = await screen.findByRole("textbox", {
-      name: "How to change this document",
-    })
-    expect(box.getAttribute("maxlength")).toBe("2000")
+    await user.click(await screen.findByRole("button", OPEN))
+    expect(
+      screen.getByRole("textbox", INSTRUCTION).getAttribute("maxlength")
+    ).toBe("2000")
   })
 
-  it("waits while a version of the document is being made", async () => {
+  it("shows the version being written in the button’s place, and keeps the open one", async () => {
     const v1 = report(40, 1)
     serveDetail(v1)
-    const user = userEvent.setup()
 
-    render(panel([report(41, 2, { status: "processing" }), v1], vi.fn()))
+    render(panel([v1, report(41, 2, { status: "processing" })], vi.fn()))
 
     expect(await screen.findByText("Body of the report")).toBeTruthy()
-    await user.type(
-      screen.getByRole("textbox", { name: "How to change this document" }),
-      "Shorter"
-    )
-    expect(
-      screen.getByRole("button", { name: "Refine" }).hasAttribute("disabled")
-    ).toBe(true)
+    expect(screen.getByText("Writing v2…")).toBeTruthy()
+    expect(screen.queryByRole("button", OPEN)).toBeNull()
   })
 
   it("shows why the API refused, and keeps the instruction", async () => {
@@ -443,9 +495,8 @@ describe("artifact panel refine", () => {
 
     render(panel([v1], onRefine))
 
-    const box = await screen.findByRole("textbox", {
-      name: "How to change this document",
-    })
+    await user.click(await screen.findByRole("button", OPEN))
+    const box = screen.getByRole("textbox", INSTRUCTION)
     await user.type(box, "Translate it to French")
     await user.click(screen.getByRole("button", { name: "Refine" }))
 
@@ -467,7 +518,7 @@ describe("artifact panel refine", () => {
 
     const { unmount } = render(panel([summary], vi.fn()))
     expect(await screen.findByText("Body of the report")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+    expect(screen.queryByRole("button", OPEN)).toBeNull()
     unmount()
 
     const drafted = report(40, 1, {
@@ -478,7 +529,7 @@ describe("artifact panel refine", () => {
     serveDetail(drafted)
     render(panel([drafted], vi.fn()))
     expect(await screen.findByText("Body of the report")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+    expect(screen.queryByRole("button", OPEN)).toBeNull()
   })
 
   it("offers no Refine on a document the agent wrote, which it edits in chat", async () => {
@@ -488,7 +539,7 @@ describe("artifact panel refine", () => {
     render(panel([script], vi.fn()))
 
     expect(await screen.findByText("Body of the report")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+    expect(screen.queryByRole("button", OPEN)).toBeNull()
   })
 
   it("offers no Refine until the open version is ready", async () => {
@@ -498,6 +549,6 @@ describe("artifact panel refine", () => {
     render(panel([failed], vi.fn()))
 
     expect(await screen.findByText("Body of the report")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Refine" })).toBeNull()
+    expect(screen.queryByRole("button", OPEN)).toBeNull()
   })
 })

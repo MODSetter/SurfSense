@@ -85,7 +85,7 @@ export function ArtifactPanel({
   useFollowNewestVersion(versions, onOpenVersion)
   // The list follows each run's status; the detail is read once.
   const shown = artifacts.find((artifact) => artifact.id === artifactId) ?? data
-  const versionRunning = versions.some(
+  const writing = versions.find(
     (version) => version.status === "pending" || version.status === "processing"
   )
   const [actionsContainer, setActionsContainer] =
@@ -150,7 +150,7 @@ export function ArtifactPanel({
         </>
       }
     >
-      <div className="flex h-full flex-col">
+      <div className="relative flex h-full flex-col">
         {/* The one viewable stage every artifact format renders into: same
             size and position below the shared header, regardless of format.
             No padding here — a viewer that wants breathing room (like
@@ -178,13 +178,19 @@ export function ArtifactPanel({
             <Viewer artifact={data} actionsContainer={actionsContainer} />
           ) : null}
         </div>
+        {/* Floats over the document, so the pages keep the panel's height;
+            their own bottom margin is what it covers at the end. */}
         {!isLoading && !error && shown && canRefine(shown) ? (
-          <RefineBox
-            key={artifactId}
-            artifactId={artifactId}
-            versionRunning={versionRunning}
-            onRefine={onRefine}
-          />
+          // Clicks pass through to the document beside the button. The
+          // container is what the refine box measures its open width by.
+          <div className="@container pointer-events-none absolute inset-x-0 bottom-0 flex justify-end px-3 pb-3">
+            <RefineBox
+              key={artifactId}
+              artifactId={artifactId}
+              writingVersion={writing?.version.number ?? null}
+              onRefine={onRefine}
+            />
+          </div>
         ) : null}
       </div>
     </DetailPanel>
