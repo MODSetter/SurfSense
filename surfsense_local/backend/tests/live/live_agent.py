@@ -9,6 +9,8 @@ import httpx
 from sqlalchemy import Engine
 
 from modules.artifacts.models import Artifact
+from modules.documents.models import Document
+from modules.documents.original_file import original_path
 from shared.db import create_session_factory
 from tests.integration.agent.test_agent_threads import open_thread, send
 from tests.live.recording_proxy import RecordingProxy
@@ -90,6 +92,15 @@ class LiveAgent:
         primary = await self.http.get(f"/artifacts/{artifact_id}/files/primary")
         primary.raise_for_status()
         return primary.content
+
+    def original(self, document_id: int) -> bytes:
+        """The user's own file as it is on disk now."""
+        with create_session_factory(self.engine)() as session:
+            document = session.get(Document, document_id)
+            assert document is not None
+            path = original_path(document)
+            assert path is not None, f"source {document_id}'s file is gone"
+            return path.read_bytes()
 
     def spec(self, artifact_id: int) -> dict[str, Any]:
         """The script and images a version was rendered from."""

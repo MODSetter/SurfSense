@@ -208,9 +208,14 @@ def _connect_model(engine: Engine, proxy_url: str, model: LiveModel) -> None:
 
 
 async def _keep_outputs(agent: LiveAgent) -> None:
-    """Every version the agent rendered, its script, and the previews it was shown."""
+    """Every version the agent rendered and its script, every file a tool made, the previews it was shown and what each analysis saved."""
     for artifact in await agent.artifacts():
         if artifact["version"] is None:
+            # A file a tool made is stored before Studio indexes it.
+            made = await agent.http.get(f"/artifacts/{artifact['id']}/files/primary")
+            if made.is_success:
+                name = f"{artifact['id']}-{artifact['title']}.{artifact['format']}"
+                agent.run.keep_document(name, made.content, None)
             continue
         ready = artifact["status"] == "ready"
         number = artifact["version"]["number"]
@@ -221,3 +226,5 @@ async def _keep_outputs(agent: LiveAgent) -> None:
     threads = get_storage_settings().agent_threads_dir(agent.workspace_id)
     for previews in sorted(threads.glob("*/outputs/previews")):
         agent.run.keep_previews(previews)
+    for analysis in sorted(threads.glob("*/outputs/analysis")):
+        agent.run.keep_analysis(analysis)
