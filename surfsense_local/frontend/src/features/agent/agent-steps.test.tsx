@@ -156,6 +156,37 @@ describe("agent steps", () => {
     )
   })
 
+  it("names an analysis by its title, and one still being written without", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_7",
+            tool: "surfsense_analyze_data",
+            status: "completed",
+            title: null,
+            input: {
+              title: "Revenue by region",
+              document_ids: [3],
+              script: "...",
+            },
+          },
+          {
+            id: "prt_8",
+            tool: "surfsense_analyze_data",
+            status: "running",
+            title: null,
+            input: {},
+          },
+        ]}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual(["Ran the analysis Revenue by region", "Analysed data"])
+  })
+
   it("names looking at a source's pages when the turn named no sources", () => {
     render(
       <AgentSteps
@@ -175,5 +206,38 @@ describe("agent steps", () => {
     expect(screen.getByRole("listitem").textContent).toBe(
       "Looked at pages of a source"
     )
+  })
+
+  it("names each PDF tool's step by what it did, and one still being written", () => {
+    const step = (
+      id: string,
+      tool: string,
+      input: Record<string, unknown>
+    ): AgentStep => ({ id, tool, status: "completed", title: null, input })
+    render(
+      <AgentSteps
+        steps={[
+          step("prt_9", "surfsense_pdf_pages", { operation: "merge" }),
+          step("prt_10", "surfsense_pdf_pages", { operation: "split" }),
+          step("prt_11", "surfsense_pdf_stamp", { kind: "page_numbers" }),
+          step("prt_12", "surfsense_pdf_stamp", { kind: "watermark" }),
+          step("prt_13", "surfsense_pdf_form", { action: "list" }),
+          step("prt_14", "surfsense_pdf_form", { action: "fill" }),
+          step("prt_15", "surfsense_pdf_pages", {}),
+        ]}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual([
+      "Merged PDFs",
+      "Split a PDF",
+      "Numbered a PDF’s pages",
+      "Added a watermark to a PDF",
+      "Read a PDF form’s fields",
+      "Filled in a PDF form",
+      "Worked on PDF pages",
+    ])
   })
 })
