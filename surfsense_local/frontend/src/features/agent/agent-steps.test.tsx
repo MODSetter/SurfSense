@@ -176,4 +176,50 @@ describe("agent steps", () => {
       "Looked at pages of a source"
     )
   })
+
+  it("opens the PDF a conversion made, named by its document", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            {
+              id: "prt_7",
+              tool: "surfsense_convert_document",
+              status: "completed",
+              title: null,
+              input: { artifact_id: 40, format: "pdf" },
+              artifact: { id: 52, title: "Client proposal", version: 1 },
+            },
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Converted Client proposal to PDF" })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(52)
+  })
+
+  it("names a conversion still running without a document", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_8",
+            tool: "surfsense_convert_document",
+            status: "running",
+            title: null,
+            input: { document_id: 8, format: "pdf" },
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Converted a document to PDF"
+    )
+  })
 })
