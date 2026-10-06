@@ -87,6 +87,7 @@ async def generate(payload: GenerateRequest, request: Request) -> StreamingRespo
                     temperature=payload.temperature,
                     reasoning=payload.reasoning,
                     json_schema=payload.json_schema,
+                    conversation=payload.conversation,
                 ):
                     yield _frame({"type": "text", "text": text})
         except Exception as failure:

@@ -248,7 +248,8 @@ async def send_message(
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
-    context, citations = build_context(hits, resolved.tier)
+    grounding = build_context(hits, resolved.tier)
+    citations = grounding.citations
     logger.info(
         "chat: model %s/%s answering on the %s prompt (%s excerpts)",
         selected.provider,
@@ -257,15 +258,20 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
-    _refuse_images_past_window(len(images), n_ctx, len(context) + len(payload.text))
+    prompt_chars = (
+        len(grounding.instruction) + len(grounding.excerpts or "") + len(payload.text)
+    )
+    _refuse_images_past_window(len(images), n_ctx, prompt_chars)
     found = await _source_images(session, hits, sees, n_ctx, len(images))
-    messages = await build_messages(
-        context,
+    prompt = await build_messages(
+        grounding.instruction,
         history,
         payload.text,
+        excerpts=grounding.excerpts,
         images=[image.as_part() for image in (*images, *found)],
         history_budget=history_budget(n_ctx),
         token_count=_token_counter(generator, selected.name),
+        history_start_id=thread.history_start_message_id,
     )
 
     activity_key = model_key(selected.provider, selected.name, selected.connection_id)
@@ -276,7 +282,14 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text, images, retried, scope_record
+            session,
+            _open_turn,
+            thread,
+            payload.text,
+            images,
+            retried,
+            scope_record,
+            prompt.history_start_id,
         )
         user_created_at = _iso(user_message.created_at)
         if retried:
@@ -384,16 +397,18 @@ async def send_message(
                     max_tokens = answer_max_tokens(n_ctx)
                     if local:
                         async for place in wait_in_line(
-                            held, turn(messages, max_tokens)
+                            held, turn(prompt.messages, max_tokens)
                         ):
                             run.set_state(RunState("queued", place))
                     run.set_state(RunState("running"))
                     async for delta in generator.chat_deltas(
                         selected.name,
-                        messages,
+                        prompt.messages,
                         max_tokens=max_tokens,
                         # None leaves the model to its own default.
                         reasoning=None if payload.thinking else False,
+                        # An endpoint that routes by it keeps the thread on one cache.
+                        conversation=f"surfsense-thread-{thread.id}",
                     ):
                         if delta.progress is not None:
                             yield _frame(
@@ -710,11 +725,14 @@ def _open_turn(
     images: list[NormalisedImage],
     replaces: list[ChatMessage],
     scope_record: dict,
+    history_start_id: int | None,
 ) -> tuple[ChatMessage, ChatMessage]:
     # In the same transaction as the new turn, so a retry never shows the
     # question twice or loses it.
     for message in replaces:
         session.delete(message)
+    # Stored with the turn, so the next one starts its history at the same message.
+    thread.history_start_message_id = history_start_id
     references = [
         store.store(image, thread.workspace_id, thread.id) for image in images
     ]

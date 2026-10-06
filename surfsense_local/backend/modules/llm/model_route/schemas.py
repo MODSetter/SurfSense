@@ -62,4 +62,6 @@ class GenerateRequest(BaseModel):
     temperature: float | None = None
     reasoning: bool | None = None
     json_schema: dict[str, Any] | None = None
+    # Names calls that share their start, for an endpoint that routes by it.
+    conversation: str | None = None
     priority: RouteClass = RouteClass.BACKGROUND

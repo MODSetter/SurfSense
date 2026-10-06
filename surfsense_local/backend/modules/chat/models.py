@@ -29,6 +29,10 @@ class ChatThread(Base):
     opencode_session_id: Mapped[str | None]
     # The sources the user ticked, resolved on the server per turn; None is all.
     source_scope: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The oldest message the model is still sent once history was trimmed. Kept
+    # so the next turn starts there too: the runtime reuses a prompt only up to
+    # its first changed token.
+    history_start_message_id: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

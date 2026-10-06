@@ -75,3 +75,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
+| 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |

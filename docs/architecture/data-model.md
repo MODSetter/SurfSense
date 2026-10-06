@@ -114,7 +114,7 @@ One `active` row, enforced in code rather than by a singleton constraint, becaus
 
 | Table | Columns | Notes |
 |---|---|---|
-| `chat_threads` | `id`, `workspace_id`, `title`, `opencode_session_id`, `source_scope`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat". `opencode_session_id`, from `0021`, is set on a thread the agent answers, whose turns live in that opencode session rather than in `chat_messages` ([`chat.md`](chat.md#agent-threads)). `source_scope`, JSON from `0024`, holds the sources ticked for the thread; null means every source ([`chat.md`](chat.md#source-scope)) |
+| `chat_threads` | `id`, `workspace_id`, `title`, `opencode_session_id`, `source_scope`, `history_start_message_id`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat". `opencode_session_id`, from `0021`, is set on a thread the agent answers, whose turns live in that opencode session rather than in `chat_messages` ([`chat.md`](chat.md#agent-threads)). `source_scope`, JSON from `0024`, holds the sources ticked for the thread; null means every source ([`chat.md`](chat.md#source-scope)). `history_start_message_id`, from `0026`, is the oldest message the model is still sent once history was trimmed, and `NULL` until it first was ([`chat.md`](chat.md#message-assembly)) |
 | `chat_messages` | `id`, `chat_thread_id`, `role`, `content`, `created_at`, `completed_at` | `role` is `user`, `assistant` or `system`; `completed_at` arrived in `0002` |
 
 `content` is JSON: `{"text"}` for a user turn, plus `images: [{"key", "mime", "size_bytes", "sha256"}]` when it carried any, and `source_scope` with `resolved: {"count", "ids_sha256"}` when it was grounded on a scope, and `{"text", "citations"}` for an assistant turn, whose text carries `[citation:<chunk_id>]` markers. The server reads `text` to build the model's history, and a user turn's `images` for the newest turn that carried some; the citations are for the UI. Imported user turns also carry an empty `citations` list. Messages are indexed on `(chat_thread_id, created_at)` and cascade with their thread. Visibility, authorship, cloning, turn ids, token usage and LangGraph checkpoints are left out. See [`chat.md`](chat.md).
@@ -261,6 +261,7 @@ erDiagram
     int id PK
     int workspace_id FK
     text title
+    int history_start_message_id
     datetime created_at
     datetime updated_at
   }
@@ -373,6 +374,7 @@ erDiagram
 | `0022` | `0022_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
 | `0024` | `0024_thread_source_scope.py` | `chat_threads.source_scope`, by a plain `ALTER TABLE`; no row is backfilled, so every older thread uses every source |
 | `0025` | `0025_source_roots_and_folders.py` | `source_roots` and `folders`; a Library root and root folder per workspace; `documents.folder_id` by a plain `ALTER TABLE`; every `FILE` and `NOTE` filed, an imported `folder_path` becoming a chain of folders (case and normalization variants merged, levels past 8 joined with " / " into the eighth); `content_hash` filled from `dedup_key`; the dedup index swapped to per folder by `DROP` and `CREATE INDEX` |
+| `0026` | `0026_chat_history_start.py` | `chat_threads.history_start_message_id`, by a plain `ALTER TABLE`; no row is backfilled, so a thread sends its whole history until it first outgrows its budget |
 
 - Before the API applies a pending revision to an existing database, `upgrade_to_head` writes a `VACUUM INTO` copy to `<data>/backups/<from>-<to>.db` (via `.partial`, renamed once complete) and keeps the newest two ([`migration_snapshot.py`](../../surfsense_local/backend/shared/migration_snapshot.py)). A new database or one at head writes none. If the copy fails, nothing migrates and the API start fails with the reason. To restore: quit SurfSense, replace `surfsense.db` with the snapshot, and start the app.
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.

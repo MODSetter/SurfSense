@@ -102,6 +102,23 @@ async def test_the_answer_streams_and_the_request_holds_only_what_the_plan_takes
     ]
 
 
+async def test_a_conversation_goes_with_its_cache_key() -> None:
+    """Requests sharing a key are routed to the machine likeliest to hold their
+    prompt. The plan's endpoint rejects `prompt_cache_retention`, not the key."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, text=_text("Hi"))
+
+    async for _ in _provider(handler).chat_deltas(
+        "gpt-5", [Message("user", "hi")], conversation="thread-7"
+    ):
+        pass
+
+    assert json.loads(seen[0].content)["prompt_cache_key"] == "thread-7"
+
+
 async def test_an_earlier_answer_goes_back_as_the_assistants_own_text() -> None:
     """History replays as plain turns, so the model sees what it said."""
     bodies: list[dict] = []

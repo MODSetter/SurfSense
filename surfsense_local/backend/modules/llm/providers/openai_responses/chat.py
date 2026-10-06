@@ -111,8 +111,9 @@ class ResponsesChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
-        async for delta in self.chat_deltas(model, messages):
+        async for delta in self.chat_deltas(model, messages, conversation=conversation):
             if not delta.reasoning:
                 yield delta.text
 
@@ -125,13 +126,19 @@ class ResponsesChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
-        body = {
+        body: dict[str, object] = {
             "model": model,
             "input": input_items(messages),
             "store": False,
             "stream": True,
         }
+        # Routes the conversation to the machine that cached its prompt. Not
+        # among the fields the plan's endpoint rejects, which name
+        # `prompt_cache_retention` (developers.openai.com/siwc, preview limitations).
+        if conversation:
+            body["prompt_cache_key"] = conversation
         async for delta in with_deadlines(
             self._stream(body),
             first_item_seconds=FIRST_TOKEN_SECONDS,
