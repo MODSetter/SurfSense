@@ -24,10 +24,10 @@ _SUSPENDED = 0x4  # CREATE_SUSPENDED: nothing runs before the job holds it
 
 @contextmanager
 def process_tree(
-    command: list[str], env: dict[str, str], *, stdout: IO[bytes] | None = None
+    command: list[str], env: dict[str, str], *, stdout: IO[bytes] | int | None = None
 ) -> Iterator[subprocess.Popen]:
-    """Start the command with its stderr piped and its stdout into `stdout`, or
-    nowhere; leaving kills all that is left of it."""
+    """Start the command with its stderr piped and its stdout into `stdout`, a
+    file or subprocess.PIPE, or nowhere; leaving kills all that is left of it."""
     output = subprocess.DEVNULL if stdout is None else stdout
     if sys.platform == "win32":
         with _in_a_job(command, env, output) as process:

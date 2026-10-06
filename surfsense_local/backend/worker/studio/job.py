@@ -11,6 +11,7 @@ from modules.artifacts.converted_documents.conversion import (
 )
 from modules.artifacts.converted_documents.input_file import input_file
 from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
+from modules.artifacts.made_file import made_by
 from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.script_error import PREFIX, script_error
@@ -48,6 +49,7 @@ from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cance
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
 from worker.studio.converted_document import pipeline as converted_document
+from worker.studio.made_file import pipeline as made_file
 from worker.studio.office.document import figure_shelf
 from worker.studio.office.document.refine import refine
 from worker.studio.office.docx import docx
@@ -107,6 +109,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             built = revised.built
         elif refining is not None:
             built = _refine(session, artifact, document, refining)
+        elif made_by(meta) is not None:
+            built = made_file.built(artifact, document.title)
         elif script is not None:
             built = _run_script(session, artifact, document, script)
         else:
@@ -232,7 +236,9 @@ def _run_script(
     session: Session, artifact: Artifact, document: Document, script: DocumentScript
 ) -> Built:
     """The stored script runs as it is; no model is asked and no source is gathered."""
-    images = script_document.images_for(session, artifact.workspace_id, script)
+    images = script_document.images_for(
+        session, artifact.workspace_id, artifact.chat_thread_id, script
+    )
     template = script_document.template_for(session, artifact.workspace_id, script)
     title = document.title
     # The script may run for two minutes; the write lock must not be held across it.

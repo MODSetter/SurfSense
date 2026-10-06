@@ -7,6 +7,7 @@ either way; the agent's script document has no recipe: its spec is its source.
 from dataclasses import dataclass
 from typing import Any
 
+from modules.artifacts.made_file import made_by
 from modules.artifacts.script_documents.spec import (
     DocumentSpec,
     SpecKind,
@@ -57,7 +58,9 @@ def studio_made(metadata: dict[str, Any] | None) -> bool:
 
 
 def renders_as_stored(metadata: dict[str, Any] | None) -> bool:
-    """Whether the job runs the stored spec and asks no model: the agent's scripts."""
+    """Whether the job asks no model: the agent's scripts, and files a tool made."""
+    if made_by(metadata) is not None:
+        return True
     return spec_kind(metadata) is not None and not studio_made(metadata)
 
 

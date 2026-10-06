@@ -89,6 +89,10 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "list_images",
         "convert_document",
         "revise_document",
+        "analyze_data",
+        "pdf_pages",
+        "pdf_stamp",
+        "pdf_form",
     ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
@@ -119,6 +123,23 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     images = next(t for t in reply["result"]["tools"] if t["name"] == "list_images")
     # A model that reads no images is told what to do instead of charting guesses.
     assert "If read cannot show it to you" in images["description"]
+    # The PDF tools make new artifacts from a PDF named by id; a range is text.
+    assert listed["pdf_pages"]["required"] == ["operation"]
+    assert listed["pdf_pages"]["properties"]["operation"]["enum"] == [
+        "merge",
+        "extract",
+        "split",
+        "rotate",
+        "reorder",
+    ]
+    assert listed["pdf_pages"]["properties"]["pages"]["type"] == "string"
+    assert listed["pdf_pages"]["properties"]["angle"]["enum"] == [90, 180, 270]
+    assert listed["pdf_stamp"]["required"] == ["kind"]
+    assert listed["pdf_form"]["required"] == ["action"]
+    assert listed["pdf_form"]["properties"]["fields"]["type"] == "object"
+    analysis = listed["analyze_data"]
+    assert analysis["required"] == ["title", "document_ids", "script"]
+    assert analysis["properties"]["document_ids"]["items"] == {"type": "integer"}
     for schema in listed.values():
         assert schema["type"] == "object"
         assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
@@ -143,6 +164,10 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "source_pages",
         "convert_document",
         "revise_document",
+        "analyze_data",
+        "pdf_pages",
+        "pdf_stamp",
+        "pdf_form",
     ]
     pages = listed["source_pages"]
     assert pages["required"] == ["document_id"]

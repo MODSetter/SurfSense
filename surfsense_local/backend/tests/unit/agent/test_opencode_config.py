@@ -159,12 +159,19 @@ def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
 
     config = written(path)
     (skills,) = config["skills"]["paths"]
-    for name in ("surfsense-documents", "surfsense-revisions"):
+    for name in (
+        "surfsense-documents",
+        "surfsense-revisions",
+        "surfsense-data",
+        "surfsense-pdf",
+    ):
         assert (Path(skills) / name / "SKILL.md").is_file()
     assert list(config["permission"]["skill"].items()) == [
         ("*", "deny"),
         ("surfsense-documents", "allow"),
         ("surfsense-revisions", "allow"),
+        ("surfsense-data", "allow"),
+        ("surfsense-pdf", "allow"),
     ]
 
 

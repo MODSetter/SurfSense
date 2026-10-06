@@ -4,7 +4,9 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from modules.agent.data_analysis.chart_names import is_chart_name
 from modules.artifacts.models import Artifact
+from modules.artifacts.script_documents.script_images import script_image_file
 from modules.artifacts.script_documents.spec import (
     DOCUMENT_FORMATS,
     FORMAT_NAMES,
@@ -24,7 +26,7 @@ from modules.artifacts.script_documents.version import (
 from modules.artifacts.studio_documents.recipe import studio_made
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.documents.source_figures import figure_file, parse_figure_name
+from modules.documents.source_figures import parse_figure_name
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from modules.workspaces.models import Workspace
 
@@ -80,7 +82,7 @@ def create_script_document(
         ) from error
 
     images = tuple(dict.fromkeys(image_names))
-    source_ids = _image_sources(session, workspace.id, images)
+    source_ids = _image_sources(session, workspace.id, chat_thread_id, images)
     base = (
         None
         if base_artifact_id is None
@@ -139,18 +141,30 @@ def create_script_document(
 
 
 def _image_sources(
-    session: Session, workspace_id: int, names: tuple[str, ...]
+    session: Session,
+    workspace_id: int,
+    chat_thread_id: int | None,
+    names: tuple[str, ...],
 ) -> list[int]:
-    """The sources the named figures come from, refusing a name none of them has."""
+    """The sources the named figures come from, refusing a name none of them, nor
+    the chat's analyses, has. A chart is the chat's own output, made from no one source."""
     for name in names:
         try:
-            figure_file(session, workspace_id, name)
+            script_image_file(session, workspace_id, chat_thread_id, name)
         except LookupError as error:
-            raise ScriptDocumentRefusedError(
-                f'No source in this workspace has an image named "{name}".'
-            ) from error
-    # figure_file accepted each name, so each parses.
-    return list(dict.fromkeys(parse_figure_name(name)[0] for name in names))
+            raise ScriptDocumentRefusedError(_no_image(name)) from error
+    figures = [parse_figure_name(name) for name in names if not is_chart_name(name)]
+    # script_image_file accepted each name, so each figure's parses.
+    return list(dict.fromkeys(parsed[0] for parsed in figures if parsed is not None))
+
+
+def _no_image(name: str) -> str:
+    if is_chart_name(name):
+        return (
+            f'This chat has no analysis chart named "{name}": use a name '
+            "surfsense_analyze_data gave in this chat."
+        )
+    return f'No source in this workspace has an image named "{name}".'
 
 
 def _base_version(

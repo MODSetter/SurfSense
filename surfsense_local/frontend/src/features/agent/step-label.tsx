@@ -207,6 +207,48 @@ export function stepLabel(
             defaultMessage: "Looked at pages of a source",
           })
     }
+    case "surfsense_analyze_data": {
+      const title = text(input.title)
+      return title
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_analyze_data_label",
+              defaultMessage: "Ran the analysis <doc>{title}</doc>",
+            },
+            { title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_analyze_data_untitled_label",
+            defaultMessage: "Analysed data",
+          })
+    }
+    case "surfsense_pdf_pages":
+      return intl.formatMessage(
+        {
+          id: "agent_steps_pdf_pages_label",
+          defaultMessage:
+            "{operation, select, merge {Merged PDFs} extract {Took pages out of a PDF} split {Split a PDF} rotate {Rotated PDF pages} reorder {Reordered PDF pages} other {Worked on PDF pages}}",
+        },
+        { operation: text(input.operation) ?? "other" }
+      )
+    case "surfsense_pdf_stamp":
+      return intl.formatMessage(
+        {
+          id: "agent_steps_pdf_stamp_label",
+          defaultMessage:
+            "{kind, select, watermark {Added a watermark to a PDF} page_numbers {Numbered a PDF’s pages} header {Added a header to a PDF} footer {Added a footer to a PDF} other {Stamped a PDF}}",
+        },
+        { kind: text(input.kind) ?? "other" }
+      )
+    case "surfsense_pdf_form":
+      return intl.formatMessage(
+        {
+          id: "agent_steps_pdf_form_label",
+          defaultMessage:
+            "{action, select, list {Read a PDF form’s fields} fill {Filled in a PDF form} other {Worked on a PDF form}}",
+        },
+        { action: text(input.action) ?? "other" }
+      )
     case "glob":
       if (pattern) {
         return intl.formatMessage(

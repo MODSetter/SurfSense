@@ -50,6 +50,11 @@ class RunFolder:
         if previews.is_dir():
             shutil.copytree(previews, self.path / "previews", dirs_exist_ok=True)
 
+    def keep_analysis(self, analysis: Path) -> None:
+        """The tables and charts each analysis run saved, by run."""
+        if analysis.is_dir():
+            shutil.copytree(analysis, self.path / "analysis", dirs_exist_ok=True)
+
     def add_turn(self, text: str, frames: list[dict[str, Any]]) -> None:
         self.turns.append({"user": text, "frames": frames})
 
