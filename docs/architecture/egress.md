@@ -67,5 +67,5 @@ Settings › Network lists the App updates row and every destination with its ho
 
 ## Known gaps
 
-- The Office Studio formats run model-written code in the worker, and that code can open connections of its own ([studio](studio.md)).
+- Document scripts, Studio's Office formats and the agent's, run model-written code in the script runner's process, and that code can open connections of its own ([studio](studio.md#script-documents)).
 - Grants stored under the earlier destination names, `model_download`, `model_search` and `image_model_pull`, are not carried over to `host:huggingface.co`. Nothing reads them any more, so someone who had allowed model downloads is asked again, and the old rows stay in the table; revision 0012 still turns an Ollama-era `ollama_pull` grant into `model_download`.
