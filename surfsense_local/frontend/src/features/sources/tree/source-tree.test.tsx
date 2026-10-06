@@ -12,6 +12,7 @@ import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
+import { dropOn, fakeDataTransfer } from "../fake-data-transfer"
 import { SourcesPanel } from "../sources-panel"
 import { useSources } from "../use-sources"
 
@@ -163,21 +164,7 @@ const row = (name: string) => screen.getByRole("treeitem", { name })
 const scopeSent = () =>
   JSON.parse(screen.getByLabelText("Source scope").textContent ?? "null")
 
-/** A drag's data, carried from dragstart to drop as a browser would. */
-function dragData() {
-  const data = new Map<string, string>()
-  return {
-    get types() {
-      return [...data.keys()]
-    },
-    setData: (type: string, value: string) => data.set(type, value),
-    getData: (type: string) => data.get(type) ?? "",
-    effectAllowed: "",
-    dropEffect: "",
-  }
-}
-
-/** A folder dropped from the desktop, as Chromium's entry API hands it out. */
+/** A folder dropped from the desktop, as Chromium's entry API gives its entry. */
 function droppedFolder(name: string, files: Record<string, File>) {
   const fileEntry = (path: string, file: File) => ({
     isFile: true,
@@ -202,11 +189,7 @@ function droppedFolder(name: string, files: Record<string, File>) {
       }
     },
   }
-  return {
-    types: ["Files"],
-    files: [],
-    items: [{ kind: "file", webkitGetAsEntry: () => directory }],
-  }
+  return directory
 }
 
 beforeEach(() => {
@@ -412,10 +395,9 @@ describe("source tree", () => {
     await user.click(within(dialog).getByRole("button", { name: "Create" }))
     const archive = await screen.findByRole("treeitem", { name: "Archive" })
 
-    const dataTransfer = dragData()
+    const dataTransfer = fakeDataTransfer()
     fireEvent.dragStart(research, { dataTransfer })
-    fireEvent.dragOver(archive, { dataTransfer })
-    fireEvent.drop(archive, { dataTransfer })
+    dropOn(archive, dataTransfer)
 
     await waitFor(() =>
       expect(writes).toContainEqual({
@@ -515,13 +497,18 @@ describe("source tree", () => {
     const b = new File(["b"], "b.txt", { type: "text/plain" })
     const clutter = new File(["x"], "HEAD")
 
-    fireEvent.drop(research, {
-      dataTransfer: droppedFolder("Trip", {
-        "a.md": a,
-        "sub/b.txt": b,
-        ".git/HEAD": clutter,
-      }),
-    })
+    dropOn(
+      research,
+      fakeDataTransfer({
+        entries: [
+          droppedFolder("Trip", {
+            "a.md": a,
+            "sub/b.txt": b,
+            ".git/HEAD": clutter,
+          }),
+        ],
+      })
+    )
 
     await waitFor(() =>
       expect(

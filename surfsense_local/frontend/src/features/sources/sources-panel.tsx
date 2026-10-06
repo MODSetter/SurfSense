@@ -53,7 +53,8 @@ import {
 import { SourceTree, type FolderRowActions } from "./tree/source-tree"
 import type { DraggedSource } from "./tree/tree-drag"
 import { TOP_TICK } from "./tree/use-source-scope"
-import { useFileDrop } from "./use-file-drop"
+import { useDragAutoScroll } from "./use-drag-auto-scroll"
+import { useSourcesDrop } from "./use-sources-drop"
 import {
   Tooltip,
   TooltipContent,
@@ -120,7 +121,9 @@ export function SourcesPanel({
 }) {
   const flatIndex = useMemo(() => indexSources([], documents), [documents])
   const index = givenIndex ?? flatIndex
-  const drop = useFileDrop(onDropFiles)
+  const panel = useRef<HTMLElement>(null)
+  const listScroller = useRef<HTMLDivElement>(null)
+  useDragAutoScroll(listScroller)
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
   >(null)
@@ -185,6 +188,12 @@ export function SourcesPanel({
     if (moved && to !== null) setFolderExpanded(to, true)
     return moved
   }
+  const drop = useSourcesDrop({
+    panelRef: panel,
+    index,
+    onMove: (source, to) => void moveInto(source, to),
+    onDropFiles,
+  })
 
   const folderRowActions: FolderRowActions | undefined = organizing
     ? {
@@ -221,7 +230,6 @@ export function SourcesPanel({
           setMoveTarget(target)
           setMoveOpen(true)
         },
-        onDrop: (source, to) => void moveInto(source, to),
       }
     : undefined
 
@@ -350,32 +358,20 @@ export function SourcesPanel({
         </Alert>
       ) : null}
       <section
+        ref={panel}
         className="group/sources relative flex h-full min-h-0 w-full min-w-0 flex-col"
         aria-labelledby="all-sources"
-        {...drop.handlers}
       >
-        {drop.active ? (
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-0 z-10 flex justify-center rounded-xl border-2 border-dashed border-ring/60 p-4 text-center text-sm text-muted-foreground",
-              // Folder rows stay in sight, since a drop on one files into it.
-              hasFolders
-                ? "items-end bg-app-shell/40"
-                : "items-center bg-app-shell"
-            )}
-          >
-            <span
-              className={cn(hasFolders && "rounded-md bg-app-shell px-2 py-1")}
-            >
-              {intl.formatMessage({
-                id: "sources_drop_label",
-                defaultMessage: "Drop files to add them as sources",
-              })}
-            </span>
+        {drop.filesOver ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-ring/60 bg-app-shell p-4 text-center text-sm text-muted-foreground">
+            {intl.formatMessage({
+              id: "sources_drop_label",
+              defaultMessage: "Drop files to add them as sources",
+            })}
           </div>
         ) : null}
         {listHeader}
-        <ScrollFade className="min-h-0 flex-1">
+        <ScrollFade ref={listScroller} className="min-h-0 flex-1">
           {isLoading ? (
             <SkeletonSlabs />
           ) : documents.length > 0 || hasFolders ? (
@@ -409,6 +405,8 @@ export function SourcesPanel({
                 onSelectionChange,
               }}
               folderActions={folderRowActions}
+              dropFolder={drop.dropFolder}
+              takesFiles={onDropFiles !== undefined}
             />
           ) : (
             <Empty className="min-h-0 border-0 px-2">

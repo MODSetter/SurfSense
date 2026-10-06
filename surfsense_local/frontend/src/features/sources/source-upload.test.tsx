@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -11,6 +12,7 @@ import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
+import { dropOn, fakeDataTransfer } from "./fake-data-transfer"
 import { SourcesPanel } from "./sources-panel"
 import { useSources } from "./use-sources"
 
@@ -69,11 +71,6 @@ function SourceHarness() {
       />
     </TooltipProvider>
   )
-}
-
-/** A drag carrying these files, as Chromium reports one from the desktop. */
-function carrying(files: File[]) {
-  return { dataTransfer: { types: ["Files"], files } }
 }
 
 beforeEach(() => {
@@ -720,9 +717,13 @@ describe("source upload", () => {
       type: "text/plain",
     })
 
-    fireEvent.dragEnter(panel, carrying([file]))
-    expect(screen.getByText("Drop files to add them as sources")).toBeTruthy()
-    fireEvent.drop(panel, carrying([file]))
+    const dataTransfer = fakeDataTransfer({ files: [file] })
+    fireEvent.dragEnter(panel, { dataTransfer })
+    fireEvent.dragOver(panel, { dataTransfer })
+    expect(
+      await screen.findByText("Drop files to add them as sources")
+    ).toBeTruthy()
+    fireEvent.drop(panel, { dataTransfer })
 
     await waitFor(() => {
       const upload = fetchMock.mock.calls.find(
@@ -742,11 +743,16 @@ describe("source upload", () => {
     render(<SourceHarness />)
     await screen.findByText("No sources yet")
 
-    fireEvent.dragEnter(screen.getByRole("region", { name: "Sources" }), {
-      dataTransfer: { types: ["text/plain"], files: [] },
-    })
+    const panel = screen.getByRole("region", { name: "Sources" })
+    const dataTransfer = fakeDataTransfer({ types: ["text/plain"] })
+    fireEvent.dragEnter(panel, { dataTransfer })
+    fireEvent.dragOver(panel, { dataTransfer })
+    // A frame, when the panel would light up for files.
+    await act(() => new Promise(requestAnimationFrame))
 
     expect(screen.queryByText("Drop files to add them as sources")).toBeNull()
+    // Out of the window, which ends the drag.
+    fireEvent.dragLeave(panel, { dataTransfer })
   })
 
   it("refuses an unsupported dropped file before uploading", async () => {
@@ -755,9 +761,9 @@ describe("source upload", () => {
     render(<SourceHarness />)
     await screen.findByText("No sources yet")
 
-    fireEvent.drop(
+    dropOn(
       screen.getByRole("region", { name: "Sources" }),
-      carrying([new File(["content"], "unsupported.exe")])
+      fakeDataTransfer({ files: [new File(["content"], "unsupported.exe")] })
     )
 
     await waitFor(() =>

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState, type HTMLAttributes } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils"
 
 import type { SourceFolder } from "./folders-api"
 import type { Tick } from "./scope-state"
-import type { TreeItemProps } from "./tree-item-props"
+import { useRowDrag, type RowDrag } from "./use-row-drag"
 
 export function FolderRow({
   folder,
@@ -34,6 +34,7 @@ export function FolderRow({
   dropping,
   rowRef,
   itemProps,
+  drag,
   onToggleExpanded,
   onTickChange,
   onNewFolder,
@@ -48,7 +49,8 @@ export function FolderRow({
   // A drag is over this folder, and dropping would put it here.
   dropping: boolean
   rowRef: (node: HTMLLIElement | null) => void
-  itemProps: TreeItemProps
+  itemProps: HTMLAttributes<HTMLLIElement>
+  drag: RowDrag
   onToggleExpanded: () => void
   onTickChange: (included: boolean) => void
   onNewFolder: () => void
@@ -57,11 +59,21 @@ export function FolderRow({
   onDelete: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const element = useRef<HTMLLIElement>(null)
+  useRowDrag({
+    rowRef: element,
+    source: { kind: "folder", id: folder.id },
+    name: folder.name,
+    drag,
+  })
 
   return (
     <li
       {...itemProps}
-      ref={rowRef}
+      ref={(node) => {
+        element.current = node
+        rowRef(node)
+      }}
       className={cn(
         "group/source relative flex h-8 w-full min-w-0 items-center gap-1 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 outline-none select-none hover:bg-muted focus-visible:border-ring dark:hover:bg-muted/50",
         (menuOpen || dropping) && "bg-muted dark:bg-muted/50",
