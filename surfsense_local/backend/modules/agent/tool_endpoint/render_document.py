@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint.document_size import document_size
 from modules.agent.tool_endpoint.failed_renders import (
+    RENDERS,
     FailedRunError,
     stop_after_three_failures,
 )
@@ -398,5 +399,5 @@ def _failed(started: _Started, outcome: JobOutcome) -> str:
 
 
 RENDER_DOCUMENT = Tool(
-    listing=LISTING, run=stop_after_three_failures(render), waits=True
+    listing=LISTING, run=stop_after_three_failures(render, RENDERS), waits=True
 )

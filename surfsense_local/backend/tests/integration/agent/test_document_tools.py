@@ -605,7 +605,10 @@ async def test_after_three_failed_runs_the_next_render_is_refused_and_runs_nothi
     text, is_error = await tools.call(workspace_id, "render_document", render())
 
     assert is_error is True
-    assert "no more renders run until the user's next message" in text
+    assert (
+        "3 renders failed in this request, so no more renders or revisions run until "
+        "the user's next message" in text
+    )
     assert len(await _listed(tools, workspace_id)) == 4
 
 

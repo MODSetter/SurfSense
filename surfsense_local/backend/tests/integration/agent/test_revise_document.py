@@ -2,6 +2,7 @@
 
 import pytest
 
+from modules.agent.tool_endpoint import revise_document
 from modules.source_scope.schemas import SourceScope
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.artifacts.revised_copies.source_files import (
@@ -22,6 +23,11 @@ NAME = "MSA_Acme.docx"
 TOOL = "revise_document"
 REPLACE = {"op": "replace_text", "quote": "within 30 days", "text": "within 45 days"}
 MISSING = {"op": "replace_text", "quote": "within 31 days", "text": "within 45 days"}
+FAILING_RENDER = {
+    "title": "Cover note",
+    "format": "docx",
+    "script": "raise ValueError('no cover')\n",
+}
 
 
 def _source(tools: ToolEndpoint, workspace_id: int, name: str = NAME) -> int:
@@ -131,6 +137,60 @@ async def test_refusals_do_not_count_toward_the_three_failures_stop(
     )
 
     assert is_error is False, text
+
+
+def _versions_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The job finds other bytes than the edits were checked on, and fails the version."""
+    monkeypatch.setattr(revise_document, "sha256_of", lambda path: "0" * 64)
+
+
+async def test_after_three_failed_revisions_the_next_is_refused_naming_revisions(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The refusal names what failed: a model told renders failed looks for a render to fix."""
+    workspace_id = await tools.workspace()
+    source_id = _source(tools, workspace_id)
+    revise = {"document_id": source_id, "operations": [REPLACE]}
+    with monkeypatch.context() as patch:
+        _versions_fail(patch)
+        for _ in range(3):
+            _, is_error = await tools.call(workspace_id, TOOL, revise)
+            assert is_error is True
+
+    text, is_error = await tools.call(workspace_id, TOOL, revise)
+
+    assert is_error is True
+    assert text.startswith(
+        "3 revisions failed in this request, so no more renders or revisions run "
+        "until the user's next message."
+    )
+
+
+async def test_renders_and_revisions_share_the_turn_s_three_failures(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both make Studio versions, so a turn gets three failed ones in all, each named."""
+    workspace_id = await tools.workspace()
+    source_id = _source(tools, workspace_id)
+    revise = {"document_id": source_id, "operations": [REPLACE]}
+    with monkeypatch.context() as patch:
+        _versions_fail(patch)
+        await tools.call(workspace_id, TOOL, revise)
+    await tools.call(workspace_id, "render_document", FAILING_RENDER)
+    await tools.call(workspace_id, "render_document", FAILING_RENDER)
+
+    revised, revise_refused = await tools.call(workspace_id, TOOL, revise)
+    rendered, render_refused = await tools.call(
+        workspace_id, "render_document", FAILING_RENDER
+    )
+
+    assert (revise_refused, render_refused) == (True, True)
+    stop = (
+        "1 revision and 2 renders failed in this request, so no more renders or "
+        "revisions run until the user's next message."
+    )
+    assert revised.startswith(stop)
+    assert rendered.startswith(stop)
 
 
 async def test_a_source_the_user_did_not_select_is_refused(

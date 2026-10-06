@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.agent.tool_endpoint.failed_renders import (
+    REVISIONS,
     FailedRunError,
     stop_after_three_failures,
 )
@@ -362,5 +363,5 @@ def _start(
 
 
 REVISE_DOCUMENT = Tool(
-    listing=LISTING, run=stop_after_three_failures(revise), waits=True
+    listing=LISTING, run=stop_after_three_failures(revise, REVISIONS), waits=True
 )

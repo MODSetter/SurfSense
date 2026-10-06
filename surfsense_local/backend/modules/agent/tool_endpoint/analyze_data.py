@@ -27,6 +27,7 @@ from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.previews.inline_images import inline_image
 from modules.agent.thread_folder.layout import SOURCES
 from modules.agent.tool_endpoint.failed_renders import (
+    ANALYSES,
     FailedRunError,
     stop_after_three_failures,
 )
@@ -65,7 +66,6 @@ TABLES_SHOWN = 5
 TABLES_BYTES = 24_000
 # Each image costs about 1,000 tokens on every later request of the turn.
 CHARTS_SHOWN = 6
-RUNS = "analysis runs"
 STOP_RULE = (
     "If this is your third failed run for this request, stop and tell the user "
     "what failed."
@@ -307,5 +307,5 @@ def _error(outcome: AnalysisRun) -> str:
 
 
 ANALYZE_DATA = Tool(
-    listing=LISTING, run=stop_after_three_failures(analyse, RUNS), waits=True
+    listing=LISTING, run=stop_after_three_failures(analyse, ANALYSES), waits=True
 )
