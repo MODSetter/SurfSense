@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 from collections.abc import AsyncIterator
 
 import httpx
@@ -11,6 +12,8 @@ from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.prompt_reuse import chunk_reuse, log_reuse
 from modules.llm.providers.stream_deadline import with_deadlines
 from modules.llm.providers.types import Delta, Message, Model, PromptProgress
+
+logger = logging.getLogger(__name__)
 
 # Waiting for the first token is waiting for a model to load, which on a cold
 # file is tens of seconds and on a large one more. Once tokens are flowing, a
@@ -176,6 +179,26 @@ class OpenAICompatibleChatProvider:
             body.update(self._thinking_off)
         if self._prompt_progress is not None:
             body.update(self._prompt_progress)
+        try:
+            async for delta in self._deltas(body):
+                yield delta
+        except httpx.HTTPStatusError as error:
+            # Not every endpoint takes a schema: llama.cpp refuses one for some
+            # templates (issue #29006), and some hosted APIs for every model.
+            # The refusal comes before any token, and losing a whole Studio
+            # format to it is worse than an unconstrained answer, which the
+            # parser still reads.
+            if json_schema is None or error.response.status_code != 400:
+                raise
+            logger.warning(
+                "%s refused a json_schema request; retrying unconstrained", model
+            )
+            del body["response_format"]
+            async for delta in self._deltas(body):
+                yield delta
+
+    async def _deltas(self, body: dict[str, object]) -> AsyncIterator[Delta]:
+        """The reply under the waiting rules every chat request keeps."""
         async for delta in with_deadlines(
             self._stream(body),
             first_item_seconds=FIRST_TOKEN_SECONDS,

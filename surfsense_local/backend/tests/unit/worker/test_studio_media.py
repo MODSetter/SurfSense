@@ -6,7 +6,9 @@ from modules.llm.profile import Tier
 from modules.llm.providers.protocols import GeneratedImage
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual.image import pipeline as image
+from worker.studio.media.visual.image import schema as image_schema
 from worker.studio.media.visual.infographic import pipeline as infographic
+from worker.studio.media.visual.infographic import schema as infographic_schema
 from worker.studio.shared.artifact import Source
 
 pytestmark = pytest.mark.unit
@@ -38,7 +40,7 @@ def test_image_paints_the_prompt_the_writer_crafted_and_takes_its_title(
     the sources; the image model paints that, never the raw source text."""
     asked: list[str] = []
 
-    def writer(_model: object, system: str, _sources: object) -> str:
+    def writer(_model: object, system: str, _sources: object, **_kw: object) -> str:
         asked.append(system)
         return '{"title": "Saturn at Dusk", "prompt": "Saturn low over a cold sea"}'
 
@@ -66,7 +68,8 @@ def test_an_image_the_writer_left_untitled_is_named_after_its_sources(
 ) -> None:
     """Two images in a list must not both read "Image"."""
     monkeypatch.setattr(
-        "worker.studio.shared.generate.run_model", lambda *_: '{"prompt": "rings"}'
+        "worker.studio.shared.generate.run_model",
+        lambda *_, **__: '{"prompt": "rings"}',
     )
     sources = [Source(1, "Saturn facts", "rings"), Source(2, "Titan", "methane")]
 
@@ -80,7 +83,9 @@ def test_an_image_needs_a_prompt_from_the_writer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No prompt is a readable failure, not a blank painting."""
-    monkeypatch.setattr("worker.studio.shared.generate.run_model", lambda *_: "{}")
+    monkeypatch.setattr(
+        "worker.studio.shared.generate.run_model", lambda *_, **__: "{}"
+    )
     with pytest.raises(ValueError, match="prompt"):
         image.render(_painter([]), _writer(), [Source(1, "Saturn", "rings")], None)
 
@@ -91,7 +96,7 @@ def test_infographic_paints_the_brief_the_chat_model_wrote(
     """Two steps: the chat model distils the facts, the image model draws them."""
     monkeypatch.setattr(
         "worker.studio.shared.generate.run_model",
-        lambda *_: (
+        lambda *_, **__: (
             '{"title":"Saturn","summary":"Rings","sections":'
             '[{"label":"Count","value":"7","detail":"Main rings"}]}'
         ),
@@ -118,3 +123,40 @@ def test_infographic_paints_the_brief_the_chat_model_wrote(
     # The brief is the searchable body, so the picture is findable by its facts.
     assert built.title == "Saturn"
     assert "**7**" in built.markdown
+
+
+def _schemas_sent(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[dict | None]:
+    sent: list[dict | None] = []
+
+    def writer(*_args: object, json_schema: dict | None = None, **_kw: object) -> str:
+        sent.append(json_schema)
+        return reply
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", writer)
+    return sent
+
+
+def test_an_image_asks_the_writer_for_its_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No prompt in the reply means no painting, after the writer's time is spent."""
+    sent = _schemas_sent(monkeypatch, '{"title": "T", "prompt": "rings"}')
+
+    image.render(_painter([]), _writer(), [Source(1, "Saturn", "rings")], None)
+
+    assert sent == [image_schema.REPLY]
+    assert set(image_schema.REPLY["required"]) == {"title", "prompt"}
+
+
+def test_an_infographic_asks_the_writer_for_its_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The brief's sections become the panels the painter draws."""
+    sent = _schemas_sent(monkeypatch, '{"title": "T", "summary": "S", "sections": []}')
+
+    infographic.render(_painter([]), _writer(), [Source(1, "Saturn", "rings")], None)
+
+    section = infographic_schema.REPLY["properties"]["sections"]["items"]
+    assert sent == [infographic_schema.REPLY]
+    assert set(infographic_schema.REPLY["required"]) == {"title", "summary", "sections"}
+    assert set(section["required"]) == {"label", "value", "detail"}

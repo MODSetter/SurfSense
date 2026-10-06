@@ -9,6 +9,7 @@ from modules.llm.profile import Tier
 from worker.studio.content.flashcards import pipeline as flashcards
 from worker.studio.content.flashcards import schema as flashcards_schema
 from worker.studio.content.mindmap import pipeline as mindmap
+from worker.studio.content.mindmap import schema as mindmap_schema
 from worker.studio.content.quiz import pipeline as quiz
 from worker.studio.content.quiz import schema as quiz_schema
 from worker.studio.content.summary import pipeline as summary
@@ -101,6 +102,38 @@ def test_the_deck_schema_asks_for_what_the_builder_keeps() -> None:
 
     assert set(flashcards_schema.REPLY["required"]) == {"title", "cards"}
     assert set(card["required"]) == {"front", "back"}
+
+
+def test_a_mind_map_asks_the_model_for_its_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A reply off the shape loses the whole map, not one branch."""
+    sent: list[dict | None] = []
+
+    def fake_run_model(*_args: object, json_schema: dict | None = None, **_kw: object):
+        sent.append(json_schema)
+        return '{"title": "T", "nodes": []}'
+
+    monkeypatch.setattr(generate, "run_model", fake_run_model)
+
+    mindmap.render(SimpleNamespace(tier=Tier.COMPACT), [], None)
+
+    assert sent == [mindmap_schema.REPLY]
+
+
+def test_the_mind_map_schema_is_three_levels_of_labels_and_no_more() -> None:
+    """Every tier asks for a tree two or three levels deep. Written out rather
+    than recursive, so the grammar needs no $ref; a leaf declares no children,
+    and llama.cpp closes an object to the properties it declares."""
+    branch = mindmap_schema.REPLY["properties"]["nodes"]["items"]
+    child = branch["properties"]["children"]["items"]
+    leaf = child["properties"]["children"]["items"]
+
+    assert set(mindmap_schema.REPLY["required"]) == {"title", "nodes"}
+    for node in (branch, child, leaf):
+        assert node["required"] == ["label"]
+    assert "children" not in leaf["properties"]
+    assert "$ref" not in json.dumps(mindmap_schema.REPLY)
 
 
 def test_every_content_kind_is_asked_for_in_its_own_words_at_every_tier() -> None:
