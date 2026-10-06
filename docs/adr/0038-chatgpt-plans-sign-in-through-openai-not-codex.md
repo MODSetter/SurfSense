@@ -1,6 +1,6 @@
 # ADR 0038: A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client
 
-- **Status:** Accepted
+- **Status:** Accepted; its request body, and the consequence that a plan model has no tools or structured output, superseded by [ADR 0049](0049-a-model-answers-on-its-own-route-with-its-connections-credential.md)
 - **Date:** 2026-10-02
 - **Source:** [ChatGPT subscription proposal L22–34](https://github.com/MODSetter/SurfSense/blob/e9a1bd801fc9ac74a3c492fff40241701d6b9515/docs/proposals/chatgpt-subscription.md#L22-L34)
 

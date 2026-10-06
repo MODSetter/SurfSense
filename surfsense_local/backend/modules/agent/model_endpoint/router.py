@@ -7,7 +7,10 @@ from api.dependencies import SessionDep, transact
 from modules.agent.launch_key import require_launch_key
 from modules.agent.model_endpoint.admission_messages import admission_messages
 from modules.agent.model_endpoint.error_replies import error_reply
-from modules.agent.model_endpoint.model_address import address_selected_model
+from modules.agent.model_endpoint.model_address import (
+    WrongRouteError,
+    address_selected_model,
+)
 from modules.agent.model_endpoint.relay import relay
 from modules.agent.model_endpoint.request_shaping import shaped_messages
 from modules.egress.service import EgressDeniedError
@@ -32,7 +35,9 @@ async def complete_chat(
     app applies from opencode's next turn.
     """
     try:
-        address = await transact(session, address_selected_model)
+        address = await transact(session, address_selected_model, "chat_completions")
+    except WrongRouteError as failure:
+        return error_reply(409, str(failure), "wrong_route")
     except ModelResolutionError as failure:
         return error_reply(409, str(failure), "model_not_selected")
     except EgressDeniedError as refused:

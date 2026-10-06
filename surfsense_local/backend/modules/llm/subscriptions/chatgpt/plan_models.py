@@ -3,7 +3,7 @@ from sqlalchemy import Engine
 from modules.llm.connections.serves import connection_serves
 from modules.llm.connections.service import DiscoveredModel
 from modules.llm.models import ProviderConnection
-from modules.llm.providers.openai_responses import ResponsesChatProvider
+from modules.llm.providers.openai_responses import PlanToken, ResponsesChatProvider
 from modules.llm.subscriptions.chatgpt.tokens import ConnectionAccess
 
 
@@ -12,7 +12,7 @@ def plan_generator(
 ) -> ResponsesChatProvider:
     return ResponsesChatProvider(
         connection.base_url,
-        ConnectionAccess(engine, connection.id),
+        PlanToken(ConnectionAccess(engine, connection.id)),
         reads_images=reads_images,
     )
 

@@ -69,6 +69,9 @@ class ScriptedModel:
     url: str = ""
     replies: list[tuple[str, str]] = field(default_factory=list)
     requests: list[dict] = field(default_factory=list)
+    # Each request's path and Authorization header, in order.
+    paths: list[str] = field(default_factory=list)
+    bearers: list[str] = field(default_factory=list)
     release: threading.Event = field(default_factory=threading.Event)
 
 
@@ -85,15 +88,83 @@ def _chunk(delta: dict, finish: str | None = None, usage: dict | None = None) ->
     return "data: " + json.dumps(chunk) + "\n\n"
 
 
+def _responses_events(kind: str, value: str, request: dict) -> list[dict]:
+    """One Responses stream for a "text" or "call" reply, as OpenAI sends it.
+
+    A call to a tool offered inside a namespace names that namespace, as
+    OpenAI's does.
+    """
+    namespaces = {
+        tool["name"]: wrapper["name"]
+        for wrapper in request.get("tools") or []
+        if wrapper.get("type") == "namespace"
+        for tool in wrapper["tools"]
+    }
+    created = {"id": "resp_1", "created_at": 1, "model": request.get("model", "")}
+    if kind == "call":
+        wanted = json.loads(value)
+        arguments = json.dumps(wanted["arguments"])
+        item = {
+            "type": "function_call",
+            "id": "fc_1",
+            "call_id": "call_1",
+            "name": wanted["name"],
+            "namespace": namespaces.get(wanted["name"]),
+        }
+        output = [
+            {
+                "type": "response.output_item.added",
+                "output_index": 0,
+                "item": {**item, "arguments": ""},
+            },
+            {
+                "type": "response.function_call_arguments.delta",
+                "item_id": "fc_1",
+                "output_index": 0,
+                "delta": arguments,
+            },
+            {
+                "type": "response.output_item.done",
+                "output_index": 0,
+                "item": {**item, "arguments": arguments, "status": "completed"},
+            },
+        ]
+    else:
+        message = {"type": "message", "id": "msg_1"}
+        output = [
+            {"type": "response.output_item.added", "output_index": 0, "item": message},
+            {"type": "response.output_text.delta", "item_id": "msg_1", "delta": value},
+            {"type": "response.output_item.done", "output_index": 0, "item": message},
+        ]
+    usage = {"input_tokens": 10, "output_tokens": 5}
+    return [
+        {"type": "response.created", "response": created},
+        *output,
+        {"type": "response.completed", "response": {**created, "usage": usage}},
+    ]
+
+
 class ScriptedHandler(BaseHTTPRequestHandler):
     """Streams the next scripted reply for every chat request."""
 
     def do_POST(self) -> None:
         model: ScriptedModel = self.server.model  # type: ignore[attr-defined]
-        model.requests.append(
-            json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        )
+        request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        model.requests.append(request)
+        model.paths.append(self.path)
+        model.bearers.append(self.headers.get("Authorization", ""))
         kind, value = model.replies.pop(0) if model.replies else ("text", "Done.")
+        if self.path.endswith("/responses"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            self._send(
+                *(
+                    f"data: {json.dumps(event)}\n\n"
+                    for event in _responses_events(kind, value, request)
+                )
+            )
+            return
         if kind == "too-long":
             self._refuse_as_too_long()
             return
