@@ -1416,7 +1416,7 @@ describe("dashboard chat", () => {
     )
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     await user.click(
       screen.getByRole("checkbox", { name: "Select folder Research" })
     )
@@ -1918,7 +1918,7 @@ describe("dashboard chat", () => {
           return Response.json([
             {
               key: "summary",
-              label: "Summary",
+              label: "Markdown",
               requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
@@ -2010,7 +2010,7 @@ describe("dashboard chat", () => {
       )
     ).toBe(false)
     expect(artifactsScroll?.contains(weeklySummary)).toBe(true)
-    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Markdown" })).toBeTruthy()
     await user.click(weeklySummary)
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
     expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()

@@ -119,6 +119,7 @@ export function AddSourcesMenu({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
+                    className="text-muted-foreground"
                     aria-label={label}
                   >
                     {isUploading ? <Spinner /> : <PlusIcon />}

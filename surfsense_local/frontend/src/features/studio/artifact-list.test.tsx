@@ -338,7 +338,7 @@ describe("artifact list", () => {
       expect(screen.getByLabelText("Filter artifacts (1 active)")).toBeTruthy()
 
       await user.click(
-        await screen.findByRole("menuitemcheckbox", { name: /summary/i })
+        await screen.findByRole("menuitemcheckbox", { name: /markdown/i })
       )
       expect(
         screen.getByRole("button", { name: "Weekly summary" })

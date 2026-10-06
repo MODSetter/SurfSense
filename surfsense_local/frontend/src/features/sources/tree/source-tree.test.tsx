@@ -245,7 +245,7 @@ describe("source tree", () => {
     render(<TreeHarness />)
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     row("Research").focus()
     await user.keyboard(" ")
 
@@ -277,7 +277,7 @@ describe("source tree", () => {
 
     const research = await screen.findByRole("treeitem", { name: "Research" })
     expect(research.getAttribute("aria-checked")).toBe("true")
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     expect(research.getAttribute("aria-checked")).toBe("false")
     research.focus()
     await user.keyboard("{ArrowRight}")

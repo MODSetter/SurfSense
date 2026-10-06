@@ -455,7 +455,7 @@ function TypeFilter({
             size="icon-sm"
             variant="ghost"
             className={cn(
-              "relative size-6 shrink-0 text-muted-foreground data-popup-open:bg-accent",
+              "relative shrink-0 text-muted-foreground data-popup-open:bg-accent",
               selected.length > 0 && "text-foreground"
             )}
             aria-label={

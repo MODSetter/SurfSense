@@ -684,7 +684,7 @@ describe("source upload", () => {
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
     expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
