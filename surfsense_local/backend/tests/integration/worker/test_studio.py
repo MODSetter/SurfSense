@@ -1,3 +1,4 @@
+import contextlib
 import json
 import time
 from collections.abc import Iterator
@@ -12,7 +13,6 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import (
@@ -25,10 +25,7 @@ from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 from worker.studio import run
-from worker.studio.office.docx import docx
-from worker.studio.office.pdf import pdf
 from worker.studio.office.pptx import pptx
 from worker.studio.office.xlsx import xlsx
 from worker.studio.shared import persist
@@ -100,7 +97,8 @@ def make_artifact(
 
 def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     """Stub the generation model to answer `replies` in turn (the last one repeats),
-    recording each system prompt.
+    recording each prompt a builder wrote: its system prompt, and what it sends
+    after the sources.
 
     Every builder and office format assembles its real prompt and calls
     `run_model`, so recording here lets a test assert the user's focus reached it.
@@ -108,7 +106,7 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     seen: list[str] = []
 
     def fake(_session: object, system: str, _sources: object, **_retry: object) -> str:
-        seen.append(system)
+        seen.append(f"{system}\n\n{_retry.get('after_sources') or ''}")
         return replies[min(len(seen), len(replies)) - 1]
 
     monkeypatch.setattr("worker.studio.shared.generate.run_model", fake)
@@ -150,7 +148,7 @@ def _one_file(artifact: Artifact, mime: str, magic: bytes) -> None:
 def test_summary_becomes_a_searchable_markdown_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Summary: the model's markdown is the body, indexed for search, with no file."""
+    """Markdown: the model's markdown is the body, indexed for search, and the file."""
     seen = _capture_model(
         monkeypatch,
         "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens.",
@@ -164,7 +162,7 @@ def test_summary_becomes_a_searchable_markdown_body(
         artifact.document.error_message
     )
     assert artifact.document.title == "Cassini"
-    assert artifact.files == []
+    _one_file(artifact, "text/markdown", b"# Cassini")
     assert "the arrival date" in seen[0]  # the user's focus reached the model
     keyword = session.scalar(
         text("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'Huygens'")
@@ -277,18 +275,8 @@ def test_quiz_becomes_a_question_file_and_a_question_list_body(
     assert "arrival facts" in seen[0]
 
 
-# --- Office: the model writes library code the runner executes to a real file. ---
-
-_DOCX_CODE = (
-    "from io import BytesIO\n"
-    "from docx import Document\n"
-    "d = Document()\n"
-    "d.add_heading('Cassini', 0)\n"
-    "d.add_paragraph('Reached Saturn in 2004.')\n"
-    "buf = BytesIO()\n"
-    "d.save(buf)\n"
-    "output_bytes = buf.getvalue()\n"
-)
+# --- Office: the model writes library code the runner executes to a real file.
+# Word and PDF take their own paths (tests/integration/artifacts/test_studio_documents.py). ---
 
 _PPTX_CODE = (
     "from io import BytesIO\n"
@@ -309,34 +297,6 @@ _XLSX_CODE = (
     "wb.close()\n"
     "output_bytes = buf.getvalue()\n"
 )
-
-_PDF_CODE = (
-    "from io import BytesIO\n"
-    "from reportlab.pdfgen import canvas\n"
-    "buf = BytesIO()\n"
-    "c = canvas.Canvas(buf)\n"
-    "c.drawString(72, 720, 'Cassini')\n"
-    "c.showPage()\n"
-    "c.save()\n"
-    "output_bytes = buf.getvalue()\n"
-)
-
-
-def test_docx_runs_generated_python_docx_code(
-    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Document: the model's python-docx code runs to a real .docx (a zip)."""
-    seen = _capture_model(monkeypatch, _DOCX_CODE)
-    artifact = make_artifact(session, fmt="docx", prompt="a one-page brief")
-
-    run(artifact.id)
-
-    session.expire_all()
-    assert artifact.document.status is DocumentStatus.READY, (
-        artifact.document.error_message
-    )
-    _one_file(artifact, docx.mime, b"PK\x03\x04")
-    assert "a one-page brief" in seen[0]
 
 
 def test_pptx_runs_generated_python_pptx_code(
@@ -371,23 +331,6 @@ def test_xlsx_runs_generated_xlsxwriter_code(
     )
     _one_file(artifact, xlsx.mime, b"PK\x03\x04")
     assert "one column" in seen[0]
-
-
-def test_pdf_runs_generated_reportlab_code(
-    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """PDF: the model's ReportLab code runs to a real .pdf."""
-    seen = _capture_model(monkeypatch, _PDF_CODE)
-    artifact = make_artifact(session, fmt="pdf", prompt="a cover page")
-
-    run(artifact.id)
-
-    session.expire_all()
-    assert artifact.document.status is DocumentStatus.READY, (
-        artifact.document.error_message
-    )
-    _one_file(artifact, pdf.mime, b"%PDF")
-    assert "a cover page" in seen[0]
 
 
 # --- Media: audio synthesised offline, images drawn over a BYO key. ---
@@ -585,7 +528,7 @@ def test_a_podcast_cancelled_while_voicing_stops_at_the_next_turn(
     voice = AudioCppSpeech(
         VoicedModel("kokoro-82m", kokoro.audio),
         base_url="http://audio",
-        chat_runtime=RouterClient("http://router", transport=FakeRouter().transport()),
+        give_up_text_runtime=contextlib.nullcontext,
         transport=httpx.MockTransport(audio_server),
         available=lambda: 64 * 2**30,
     )

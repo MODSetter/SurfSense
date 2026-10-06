@@ -43,6 +43,7 @@ def resident_precision(
     *,
     n_ctx: int = CONTEXT_FLOOR_TOKENS,
     mmproj_bytes: int = 0,
+    slots: int = 1,
 ) -> KvPrecision | None:
     """The cheapest cache that keeps this build resident, or None if none does.
 
@@ -58,6 +59,7 @@ def resident_precision(
             n_ctx=n_ctx,
             precision=precision,
             mmproj_bytes=mmproj_bytes,
+            slots=slots,
         )
         if verdict.state is FitState.FITS:
             return precision
@@ -71,6 +73,7 @@ def planned_precision(
     *,
     n_ctx: int = CONTEXT_FLOOR_TOKENS,
     mmproj_bytes: int = 0,
+    slots: int = 1,
 ) -> KvPrecision:
     """The precision a load will use, resident or not.
 
@@ -79,7 +82,12 @@ def planned_precision(
     """
     return (
         resident_precision(
-            shape, weights_bytes, budget, n_ctx=n_ctx, mmproj_bytes=mmproj_bytes
+            shape,
+            weights_bytes,
+            budget,
+            n_ctx=n_ctx,
+            mmproj_bytes=mmproj_bytes,
+            slots=slots,
         )
         or FALLBACK
     )

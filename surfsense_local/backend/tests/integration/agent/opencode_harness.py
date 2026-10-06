@@ -26,6 +26,22 @@ STAGED = (
 )
 MODEL = "stub-model"
 
+# What Electron's launch passes on from the system (sidecars/opencode.ts); on
+# Windows the Bun binary dies at start (0xC0000409) without SYSTEMROOT.
+FROM_THE_SYSTEM = (
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TZ",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+)
+
 
 def needs_staged_opencode() -> None:
     """Skip unless the pinned opencode is staged in electron/opencode/."""
@@ -40,26 +56,92 @@ class ScriptedModel:
     """An OpenAI-compatible model that plays its replies in order, one per request.
 
     A reply is ("text", words), ("bash", command) for one shell call,
-    ("call", JSON of {"name", "arguments"}) for any other tool call, or
-    ("stall", words), which sends its words and then waits until released.
+    ("call", JSON of {"name", "arguments"}) for any other tool call, ("calls",
+    a JSON list of them) for several in one step, ("say-and-call", JSON of
+    {"say", "call"}) for words and then a call in one step, as Claude often
+    answers, ("call-filling-the-window",
+    JSON as for "call"), whose usage says the context is full so opencode
+    compacts before the next step, ("stall", words), which sends its words
+    and then waits until released, or ("too-long", ""), which refuses the
+    request as llama-server does one larger than its context.
     """
 
     url: str = ""
     replies: list[tuple[str, str]] = field(default_factory=list)
     requests: list[dict] = field(default_factory=list)
+    # Each request's path and Authorization header, in order.
+    paths: list[str] = field(default_factory=list)
+    bearers: list[str] = field(default_factory=list)
     release: threading.Event = field(default_factory=threading.Event)
 
 
-def _chunk(delta: dict, finish: str | None = None) -> str:
+# More tokens than any window SurfSense configures, so opencode's overflow check trips.
+_FULL_WINDOW_TOKENS = 2_000_000
+
+
+def _chunk(delta: dict, finish: str | None = None, usage: dict | None = None) -> str:
     """One streamed chat completion chunk, as an OpenAI-compatible server sends it."""
     choice = {"index": 0, "delta": delta, "finish_reason": finish}
-    return (
-        "data: "
-        + json.dumps(
-            {"id": "c1", "object": "chat.completion.chunk", "choices": [choice]}
-        )
-        + "\n\n"
-    )
+    chunk = {"id": "c1", "object": "chat.completion.chunk", "choices": [choice]}
+    if usage is not None:
+        chunk["usage"] = usage
+    return "data: " + json.dumps(chunk) + "\n\n"
+
+
+def _responses_events(kind: str, value: str, request: dict) -> list[dict]:
+    """One Responses stream for a "text" or "call" reply, as OpenAI sends it.
+
+    A call to a tool offered inside a namespace names that namespace, as
+    OpenAI's does.
+    """
+    namespaces = {
+        tool["name"]: wrapper["name"]
+        for wrapper in request.get("tools") or []
+        if wrapper.get("type") == "namespace"
+        for tool in wrapper["tools"]
+    }
+    created = {"id": "resp_1", "created_at": 1, "model": request.get("model", "")}
+    if kind == "call":
+        wanted = json.loads(value)
+        arguments = json.dumps(wanted["arguments"])
+        item = {
+            "type": "function_call",
+            "id": "fc_1",
+            "call_id": "call_1",
+            "name": wanted["name"],
+            "namespace": namespaces.get(wanted["name"]),
+        }
+        output = [
+            {
+                "type": "response.output_item.added",
+                "output_index": 0,
+                "item": {**item, "arguments": ""},
+            },
+            {
+                "type": "response.function_call_arguments.delta",
+                "item_id": "fc_1",
+                "output_index": 0,
+                "delta": arguments,
+            },
+            {
+                "type": "response.output_item.done",
+                "output_index": 0,
+                "item": {**item, "arguments": arguments, "status": "completed"},
+            },
+        ]
+    else:
+        message = {"type": "message", "id": "msg_1"}
+        output = [
+            {"type": "response.output_item.added", "output_index": 0, "item": message},
+            {"type": "response.output_text.delta", "item_id": "msg_1", "delta": value},
+            {"type": "response.output_item.done", "output_index": 0, "item": message},
+        ]
+    usage = {"input_tokens": 10, "output_tokens": 5}
+    return [
+        {"type": "response.created", "response": created},
+        *output,
+        {"type": "response.completed", "response": {**created, "usage": usage}},
+    ]
 
 
 class ScriptedHandler(BaseHTTPRequestHandler):
@@ -67,31 +149,68 @@ class ScriptedHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         model: ScriptedModel = self.server.model  # type: ignore[attr-defined]
-        model.requests.append(
-            json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        )
+        request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        model.requests.append(request)
+        model.paths.append(self.path)
+        model.bearers.append(self.headers.get("Authorization", ""))
         kind, value = model.replies.pop(0) if model.replies else ("text", "Done.")
+        if self.path.endswith("/responses"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            self._send(
+                *(
+                    f"data: {json.dumps(event)}\n\n"
+                    for event in _responses_events(kind, value, request)
+                )
+            )
+            return
+        if kind == "too-long":
+            self._refuse_as_too_long()
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        if kind in ("bash", "call"):
-            name, arguments = (
-                ("bash", json.dumps({"command": value, "description": "Run it"}))
+        if kind in ("bash", "call", "calls", "say-and-call", "call-filling-the-window"):
+            wanted = (
+                [
+                    {
+                        "name": "bash",
+                        "arguments": {"command": value, "description": "Run it"},
+                    }
+                ]
                 if kind == "bash"
-                else (
-                    json.loads(value)["name"],
-                    json.dumps(json.loads(value)["arguments"]),
-                )
+                else json.loads(value)
             )
-            call = {
-                "index": 0,
-                "id": "call_1",
-                "type": "function",
-                "function": {"name": name, "arguments": arguments},
-            }
+            if kind == "say-and-call":
+                self._send(_chunk({"role": "assistant", "content": wanted["say"]}))
+                wanted = wanted["call"]
+            calls = [
+                {
+                    "index": index,
+                    "id": f"call_{index + 1}",
+                    "type": "function",
+                    "function": {
+                        "name": call["name"],
+                        "arguments": json.dumps(call["arguments"]),
+                    },
+                }
+                for index, call in enumerate(
+                    wanted if isinstance(wanted, list) else [wanted]
+                )
+            ]
+            usage = (
+                {
+                    "prompt_tokens": _FULL_WINDOW_TOKENS,
+                    "completion_tokens": 10,
+                    "total_tokens": _FULL_WINDOW_TOKENS + 10,
+                }
+                if kind == "call-filling-the-window"
+                else None
+            )
             self._send(
-                _chunk({"role": "assistant", "tool_calls": [call]}),
-                _chunk({}, "tool_calls"),
+                _chunk({"role": "assistant", "tool_calls": calls}),
+                _chunk({}, "tool_calls", usage),
             )
         else:
             self._send(_chunk({"role": "assistant", "content": value}))
@@ -99,6 +218,24 @@ class ScriptedHandler(BaseHTTPRequestHandler):
                 model.release.wait(timeout=30)
             self._send(_chunk({}, "stop"))
         self._send("data: [DONE]\n\n")
+
+    def _refuse_as_too_long(self) -> None:
+        """llama-server's answer to a request larger than its context (b11050)."""
+        body = json.dumps(
+            {
+                "error": {
+                    "code": 400,
+                    "message": "request (40960 tokens) exceeds the available "
+                    "context size (32768 tokens), try increasing it",
+                    "type": "exceed_context_size_error",
+                }
+            }
+        ).encode()
+        self.send_response(400)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _send(self, *frames: str) -> None:
         """Write and flush, as a model streaming token by token does."""
@@ -154,8 +291,10 @@ def start_opencode(agent_dir: Path, port: int, password: str) -> RunningOpencode
     (config_folder / "package-lock.json").write_text(json.dumps(lock))
     nowhere = "http://127.0.0.1:9"
     env = {
+        **{name: os.environ[name] for name in FROM_THE_SYSTEM if name in os.environ},
         "PATH": f"{STAGED.parent}{os.pathsep}{os.environ.get('PATH', '')}",
         "HOME": str(home),
+        "USERPROFILE": str(home),
         "OPENCODE_TEST_HOME": str(home),
         "XDG_CONFIG_HOME": str(home / "config"),
         "XDG_DATA_HOME": str(home / "data"),

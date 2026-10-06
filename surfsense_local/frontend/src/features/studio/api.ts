@@ -1,5 +1,6 @@
 import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 import type { DocumentStatus } from "@/features/sources/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import type { ModelType } from "@/features/models/model-type"
 
 export type StudioFormat = {
@@ -12,6 +13,14 @@ export type StudioFormat = {
   unavailable_code?: string | null
 }
 
+/** Where an artifact sits in its document's line of versions. Each version is
+ *  its own artifact; the first one is the root (07-create-and-edit-mvp). */
+export type ArtifactVersion = {
+  root_id: number
+  number: number
+  parent_id: number | null
+}
+
 export type Artifact = {
   id: number
   document_id: number
@@ -22,6 +31,12 @@ export type Artifact = {
   error_message: string | null
   created_at: string
   updated_at: string
+  /** Null for an artifact made in one go, with no versions. */
+  version: ArtifactVersion | null
+  /** What the artifact is rendered from, kept so an edit can change it. */
+  spec_kind: "python" | "markdown" | null
+  /** A ready Word or PDF version Studio made, which Refine may rewrite. */
+  refinable: boolean
 }
 
 export type ArtifactFile = {
@@ -65,6 +80,8 @@ export type ArtifactDetail = Artifact & {
 export type StudioJobCreate = {
   format: string
   document_ids: number[]
+  // What the server resolves into the job's sources, folders included.
+  source_scope?: SourceScope
   prompt?: string
   options?: PodcastBrief
 }
@@ -186,6 +203,21 @@ export function regenerateArtifact(
   })
 }
 
+/** Makes the next version of a document from its spec rewritten to the
+ *  instruction; the answer is that version, still running. */
+export function refineArtifact(
+  artifactId: number,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/refine`, {
+    method: "POST",
+    body: JSON.stringify({ instruction }),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
 export function cancelArtifact(
   artifactId: number,
   signal?: AbortSignal
@@ -294,11 +326,16 @@ export function reorderFlashcards(
 
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the
 // fetch helper injects itself.
+/** The generation is in the URL so a regenerated file is a new resource: an
+ *  `<img>` or `<audio>` would otherwise keep showing the cached one. */
 export function fileUrl(
   artifactId: number,
-  role: ArtifactFile["role"]
+  role: ArtifactFile["role"],
+  generation: number
 ): string {
-  return apiUrl(`/artifacts/${artifactId}/files/${role}`)
+  return apiUrl(
+    `/artifacts/${artifactId}/files/${role}?generation=${generation}`
+  )
 }
 
 /** The same file, sent as an attachment. The API is another origin than the
@@ -308,5 +345,5 @@ export function downloadUrl(
   artifactId: number,
   role: ArtifactFile["role"]
 ): string {
-  return `${fileUrl(artifactId, role)}?download=1`
+  return apiUrl(`/artifacts/${artifactId}/files/${role}?download=1`)
 }

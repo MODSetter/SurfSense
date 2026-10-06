@@ -157,3 +157,64 @@ def test_a_machine_too_tight_for_the_next_rung_stays_on_the_floor_rung() -> None
     plan = plan_load(QWEN3_1_7B, 2900 * MIB, budget(5460))
 
     assert plan.n_ctx == CONTEXT_FLOOR_TOKENS
+
+
+GEMMA_LIKE = ModelShape(
+    "gemma3", 48, 8, 128, 128, 131072, 262144, sliding_window=1024
+)
+
+
+def card(free_mib: int) -> HardwareBudget:
+    """A discrete graphics card with plenty of host memory behind it."""
+    return HardwareBudget(
+        free_mib * MIB, free_mib * MIB, 1024 * MIB, 64 * 1024 * MIB, False, True
+    )
+
+
+def test_a_roomy_card_answers_four_replies_at_once() -> None:
+    """With memory to spare, the runtime serves four replies at once."""
+    plan = plan_load(QWEN3_1_7B, 1050 * MIB, card(24000))
+
+    assert plan.slots == 4
+    assert plan.verdict.state is FitState.FITS
+
+
+def test_a_model_with_no_sliding_layers_keeps_four_slots_and_its_window() -> None:
+    """Its cache is the window whatever the slot count, so slots cost nothing."""
+    plan = plan_load(QWEN3_1_7B, 1050 * MIB, budget(5460))
+    one_slot_window = plan_load(QWEN3_1_7B, 1050 * MIB, budget(5460), slots=1).n_ctx
+
+    assert plan.slots == 4
+    assert plan.n_ctx == one_slot_window
+
+
+def test_a_tight_card_gives_up_slots_before_it_gives_up_residency() -> None:
+    """Step down one slot at a time; a model that is resident alone stays resident."""
+    seen: dict[int, int] = {}
+    for free in range(1500, 4000, 25):
+        plan = plan_load(GEMMA_LIKE, 600 * MIB, card(free))
+        alone = plan_load(GEMMA_LIKE, 600 * MIB, card(free), slots=1)
+        if alone.verdict.state is FitState.FITS:
+            assert plan.verdict.state is FitState.FITS, free
+            seen[free] = plan.slots
+
+    assert {1, 2, 3} & set(seen.values())
+    counts = [seen[free] for free in sorted(seen)]
+    assert counts == sorted(counts)
+    assert counts[-1] == 4
+
+
+def test_unified_memory_keeps_four_slots() -> None:
+    """Apple silicon's free-memory reading is the least reliable figure the plan
+    has, so slots are not traded on it; the window is planned at four."""
+    for free in (2000, 3000, 5460):
+        assert plan_load(GEMMA_LIKE, 600 * MIB, budget(free)).slots == 4
+
+
+def test_a_model_that_spills_even_alone_keeps_four_slots() -> None:
+    """Cutting slots cannot make it resident, so it keeps them and --fit places it."""
+    plan = plan_load(QWEN3_1_7B, 9000 * MIB, card(6000))
+
+    assert plan.slots == 4
+    assert plan.n_ctx == CONTEXT_FLOOR_TOKENS
+    assert plan.verdict.state is FitState.PARTIAL

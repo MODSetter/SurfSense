@@ -12,6 +12,8 @@ export type WorkspaceDocument = {
   error_message: string | null
   created_at: string
   updated_at: string
+  // Absent from an API without folders; null for a source outside any folder.
+  folder_id?: number | null
 }
 
 // UX mirror of backend/modules/documents/storage.py UPLOAD_MIME_BY_SUFFIX.
@@ -52,7 +54,12 @@ export function isSupportedSourceFile(file: File): boolean {
 
 export type UploadOutcome = {
   created: WorkspaceDocument[]
-  duplicates: { filename: string; document_id: number }[]
+  // Per folder: the folder the same bytes already sit in.
+  duplicates: {
+    filename: string
+    document_id: number
+    folder_id?: number | null
+  }[]
   rejected: { filename: string; reason: string }[]
 }
 
@@ -85,14 +92,26 @@ export function getDocumentByChunk(
   )
 }
 
-export function listDocuments(
+// The API's largest page.
+export const DOCUMENT_PAGE = 200
+
+/** Every file and note, newest first, read page by page. */
+export async function listDocuments(
   workspaceId: number,
   signal?: AbortSignal
 ): Promise<WorkspaceDocument[]> {
-  return requestJson<WorkspaceDocument[]>(
-    `/workspaces/${workspaceId}/documents?document_type=FILE&document_type=NOTE`,
-    { signal }
-  )
+  const seen = new Map<number, WorkspaceDocument>()
+  for (let offset = 0; ; offset += DOCUMENT_PAGE) {
+    const page = await requestJson<WorkspaceDocument[]>(
+      `/workspaces/${workspaceId}/documents?document_type=FILE&document_type=NOTE&limit=${DOCUMENT_PAGE}&offset=${offset}`,
+      { signal }
+    )
+    // A source added meanwhile shifts the pages by one; the id keeps one copy.
+    for (const document of page) {
+      if (!seen.has(document.id)) seen.set(document.id, document)
+    }
+    if (page.length < DOCUMENT_PAGE) return [...seen.values()]
+  }
 }
 
 export function originalDocumentUrl(
@@ -136,11 +155,19 @@ export function deleteDocument(
 export function uploadDocuments(
   workspaceId: number,
   files: File[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  // Where the files go, and their paths under it when a folder was added.
+  place?: { folderId?: number | null; relativePaths?: string[] | null }
 ): Promise<UploadOutcome> {
   const body = new FormData()
   for (const file of files) {
     body.append("files", file)
+  }
+  if (place?.folderId != null) {
+    body.append("folder_id", String(place.folderId))
+  }
+  if (place?.relativePaths) {
+    body.append("relative_paths", JSON.stringify(place.relativePaths))
   }
   return requestJson<UploadOutcome>(
     `/workspaces/${workspaceId}/documents/upload`,

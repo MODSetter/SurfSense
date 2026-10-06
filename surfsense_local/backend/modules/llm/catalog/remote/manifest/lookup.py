@@ -9,13 +9,16 @@ prefix a vendor. An id nothing carries is unknown, never guessed.
 
 from collections import defaultdict
 from dataclasses import dataclass, fields
+from typing import Literal
 
 from modules.llm.catalog.remote.classifier import classify
 from modules.llm.catalog.remote.manifest.schema import Call, RemoteManifest, RemoteModel
 from modules.llm.catalog.remote.support import Supports, supports
 from modules.llm.model_type import ModelType
 
-__all__ = ["RemoteClassification", "RemoteLookup"]
+__all__ = ["CallRoute", "RemoteClassification", "RemoteLookup"]
+
+CallRoute = Literal["chat_completions", "responses"]
 
 
 @dataclass(frozen=True)
@@ -44,7 +47,9 @@ class RemoteLookup:
     def has_provider(self, provider: str) -> bool:
         return provider in self._manifest.providers
 
-    def classify(self, model_id: str, provider: str | None = None) -> RemoteClassification:
+    def classify(
+        self, model_id: str, provider: str | None = None
+    ) -> RemoteClassification:
         candidates = _candidates(model_id)
         served = self._manifest.providers.get(provider) if provider else None
         if served is not None:
@@ -70,6 +75,17 @@ class RemoteLookup:
                     return served.connect.reason
                 return call_reason(model.call)
         return None
+
+    def call_route(self, model_id: str, provider: str | None) -> CallRoute:
+        """The route a text model answers on: /responses where the provider a
+        connection names records it, /chat/completions otherwise."""
+        served = self._manifest.providers.get(provider) if provider else None
+        if served is not None:
+            for candidate in _candidates(model_id):
+                model = served.models.get(candidate)
+                if model is not None and model.call and model.call.route == "responses":
+                    return "responses"
+        return "chat_completions"
 
     def _maker(self, model_id: str) -> RemoteClassification | None:
         maker, _, rest = model_id.partition("/")
@@ -98,11 +114,11 @@ class RemoteLookup:
 
 def call_reason(call: Call | None) -> str | None:
     """Why a model's own `call` puts it out of reach, or None."""
-    if call is None:
+    if call is None or call.protocol is None:
         return None
-    if call.route == "responses":
-        return "Only served on /responses, which SurfSense does not call yet"
-    return f"Served through the {call.protocol} protocol, which SurfSense does not speak"
+    return (
+        f"Served through the {call.protocol} protocol, which SurfSense does not speak"
+    )
 
 
 def _candidates(model_id: str) -> tuple[str, ...]:
@@ -123,5 +139,8 @@ def _agreed_supports(each: list[Supports]) -> Supports:
         for field in fields(Supports)
     }
     return Supports(
-        **{name: next(iter(seen)) if len(seen) == 1 else None for name, seen in values.items()}
+        **{
+            name: next(iter(seen)) if len(seen) == 1 else None
+            for name, seen in values.items()
+        }
     )

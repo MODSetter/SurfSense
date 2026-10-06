@@ -30,6 +30,8 @@ from modules.llm.subscriptions.chatgpt.token_endpoint import (
     exchange_code,
 )
 from modules.llm.subscriptions.chatgpt.token_set import TokenSet
+from modules.llm.subscriptions.chatgpt.tokens import read_tokens
+from shared.secrets import UnreadableSecretError
 
 # Long enough to sign in and approve in a browser, short enough that an
 # abandoned flow does not hold a port.
@@ -75,10 +77,17 @@ class SignInFlows:
         connection_id: int | None,
     ) -> Flow:
         self._forget_settled()
+        returning = (
+            await asyncio.to_thread(_returning, session_factory, connection_id)
+            if connection_id is not None
+            else None
+        )
         pkce = Pkce()
         loopback = Loopback()
         redirect_uri = await loopback.open()
-        flow = Flow(secrets.token_urlsafe(16), _authorize_url(pkce, redirect_uri))
+        flow = Flow(
+            secrets.token_urlsafe(16), _authorize_url(pkce, redirect_uri, returning)
+        )
         self._flows[flow.id] = flow
         flow.task = asyncio.create_task(
             self._finish(
@@ -89,6 +98,7 @@ class SignInFlows:
                 session_factory,
                 label,
                 connection_id,
+                returning,
             )
         )
         return flow
@@ -106,11 +116,12 @@ class SignInFlows:
         session_factory: SessionFactory,
         label: str | None,
         connection_id: int | None,
+        returning: TokenSet | None,
     ) -> None:
         try:
             async with asyncio.timeout(SIGN_IN_SECONDS):
                 query = await loopback.callback()
-            tokens = await _tokens(query, pkce, redirect_uri)
+            tokens = await _tokens(query, pkce, redirect_uri, returning)
             flow.connection_id = await asyncio.to_thread(
                 _save, session_factory, tokens, label, connection_id
             )
@@ -131,9 +142,20 @@ class SignInFlows:
             loopback.close()
 
 
-def _authorize_url(pkce: Pkce, redirect_uri: str) -> str:
+def _returning(session_factory: SessionFactory, connection_id: int) -> TokenSet | None:
+    """The sign-in a connection still holds, which OpenAI's returning-user path reuses."""
+    with session_factory() as session:
+        connection = account.chatgpt_connection(session, connection_id)
+        try:
+            return read_tokens(connection)
+        except UnreadableSecretError:
+            # Tokens this install can no longer read: register afresh.
+            return None
+
+
+def _authorize_url(pkce: Pkce, redirect_uri: str, returning: TokenSet | None) -> str:
     query = {
-        "client_id": DYNAMIC_CLIENT,
+        "client_id": returning.client_id if returning else DYNAMIC_CLIENT,
         "agent_name_hint": AGENT_NAME,
         "ext_agent_host_id": host_id(),
         "response_type": "code",
@@ -145,10 +167,14 @@ def _authorize_url(pkce: Pkce, redirect_uri: str) -> str:
         "code_challenge_method": "S256",
         "code_challenge": pkce.challenge,
     }
+    if returning:
+        query["id_token_hint"] = returning.id_token
     return f"{get_endpoints().authorize_url}?{urlencode(query)}"
 
 
-async def _tokens(query: dict[str, str], pkce: Pkce, redirect_uri: str) -> TokenSet:
+async def _tokens(
+    query: dict[str, str], pkce: Pkce, redirect_uri: str, returning: TokenSet | None
+) -> TokenSet:
     if query.get("state") != pkce.state:
         raise _SignInFailedError("The sign-in answered a different request.")
     if "error" in query:
@@ -158,6 +184,9 @@ async def _tokens(query: dict[str, str], pkce: Pkce, redirect_uri: str) -> Token
     client_id, code = query.get("client_id"), query.get("code")
     if not client_id or not code:
         raise _SignInFailedError("OpenAI's answer carried no sign-in code.")
+    if returning and client_id != returning.client_id:
+        # OpenAI's guide: never let a renewal switch the connection's registration.
+        raise _SignInFailedError("OpenAI answered for a different registration.")
     reply = await exchange_code(client_id, code, pkce.verifier, redirect_uri)
     if PLAN_SCOPE not in str(reply.get("scope", "")).split():
         raise _SignInFailedError("ChatGPT plan usage was not allowed for SurfSense.")

@@ -68,3 +68,11 @@ def test_every_binary_that_reads_the_curated_manifest_ships_it(name: str) -> Non
     bundled = literal_data_paths(BACKEND / "bundling" / name)
 
     assert "modules/llm/catalog/local/manifest/models.json" in bundled
+
+
+@pytest.mark.parametrize("name", ["api.spec", "worker.spec"])
+def test_every_binary_that_reads_the_capability_list_ships_it(name: str) -> None:
+    """Without it the API gives no model the agent and Studio ignores what was measured."""
+    bundled = literal_data_paths(BACKEND / "bundling" / name)
+
+    assert "modules/llm/capability/measured/capabilities.json" in bundled

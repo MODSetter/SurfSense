@@ -25,6 +25,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
+import { capabilityLabel } from "@/features/models/capability/capability-label"
 import { getAvailableGenerationModels } from "@/features/models/chat-candidates/api"
 import { MODELS_QUERY_KEY } from "@/features/models/models-query"
 import {
@@ -230,6 +231,11 @@ export function ModelPicker({
                             </span>
                           ) : null}
                         </span>
+                        {candidate.capability_level ? (
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            {capabilityLabel(candidate.capability_level)}
+                          </span>
+                        ) : null}
                       </DropdownMenuRadioItem>
                     )
                   })}

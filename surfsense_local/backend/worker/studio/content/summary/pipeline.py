@@ -3,6 +3,7 @@ from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.text import slug
 
 MAX_TITLE = 200
 
@@ -20,13 +21,20 @@ def prompt(tier: Tier, user_prompt: str | None) -> str:
 
 
 def build(raw: str, _sources: list[Source]) -> Built:
-    # The markdown is the document body — no file, the summary is the artifact.
+    # The markdown is the body, and the same text is kept as the file to download.
     markdown = raw.strip()
-    return Built(title=_title(markdown), markdown=markdown)
+    title = _title(markdown)
+    return Built(
+        title=title,
+        markdown=markdown,
+        primary=markdown.encode(),
+        primary_mime="text/markdown",
+        primary_filename=f"{slug(title, 'markdown')}.md",
+    )
 
 
 def _title(markdown: str) -> str:
     for line in markdown.splitlines():
         if line.startswith("# "):
-            return line[2:].strip()[:MAX_TITLE] or "Summary"
-    return "Summary"
+            return line[2:].strip()[:MAX_TITLE] or "Markdown"
+    return "Markdown"

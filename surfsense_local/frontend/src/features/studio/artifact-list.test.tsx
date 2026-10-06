@@ -17,10 +17,15 @@ const artifact: Artifact = {
   error_message: null,
   created_at: "2026-09-06T00:00:00Z",
   updated_at: "2026-09-06T00:00:00Z",
+  version: null,
+  spec_kind: null,
+  refinable: false,
 }
 
-function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
-  return render(
+type ListProps = Partial<Parameters<typeof ArtifactList>[0]>
+
+function list(props: ListProps = {}) {
+  return (
     <TooltipProvider>
       <ArtifactList
         workspaceId={1}
@@ -33,6 +38,10 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
       />
     </TooltipProvider>
   )
+}
+
+function renderList(props: ListProps = {}) {
+  return render(list(props))
 }
 
 afterEach(cleanup)
@@ -329,7 +338,7 @@ describe("artifact list", () => {
       expect(screen.getByLabelText("Filter artifacts (1 active)")).toBeTruthy()
 
       await user.click(
-        await screen.findByRole("menuitemcheckbox", { name: /summary/i })
+        await screen.findByRole("menuitemcheckbox", { name: /markdown/i })
       )
       expect(
         screen.getByRole("button", { name: "Weekly summary" })
@@ -389,5 +398,273 @@ describe("artifact list", () => {
       ).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
     })
+  })
+})
+
+describe("artifact list versions", () => {
+  // A document the agent made and edited twice: each version is an artifact
+  // of its own, newest first as the API lists them.
+  function proposal(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      ...artifact,
+      id,
+      format: "docx",
+      title: "Client proposal",
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 30, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: "python",
+      refinable: false,
+      ...extra,
+    } satisfies Artifact
+  }
+  const [v1, v2, v3] = [proposal(30, 1), proposal(31, 2), proposal(32, 3)]
+
+  it("lists a document once, as its newest version with that version’s number", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    renderList({ artifacts: [v3, artifact, v2, v1], onOpen })
+
+    const rows = screen.getAllByRole("listitem")
+    expect(rows).toHaveLength(2)
+    expect(rows[0].textContent).toContain("Client proposal")
+    expect(rows[0].textContent).toContain("v3")
+    expect(rows[1].textContent).not.toMatch(/v\d/)
+    await user.click(screen.getByRole("button", { name: "Client proposal" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("opens the newest finished version while the next one is generating", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, { status: "pending" })
+    renderList({ artifacts: [v4, v3, v2, v1], onOpen })
+
+    expect(
+      screen.getByRole("status", { name: "Processing Client proposal" })
+    ).toBeTruthy()
+    expect(screen.getByText("v4")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Client proposal" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("counts a document once in the type filter", async () => {
+    const user = userEvent.setup()
+    renderList({ artifacts: [v3, artifact, v2, v1] })
+
+    await user.click(screen.getByLabelText("Filter artifacts"))
+    expect(
+      await screen.findByRole("menuitemcheckbox", { name: /word \(1\)/i })
+    ).toBeTruthy()
+  })
+
+  it("deletes every version of a document after confirm", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+    renderList({ artifacts: [v3, v2, v1], onDelete })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    expect(
+      screen.getByText(
+        "This permanently deletes all 3 versions of Client proposal and their generated files."
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete artifact" }))
+    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([30, 31, 32])
+  })
+
+  it("deletes a version made while the delete dialog is open", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+    const { rerender } = renderList({ artifacts: [v3, v2, v1], onDelete })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    const v4 = proposal(33, 4, { status: "pending" })
+    rerender(list({ artifacts: [v4, v3, v2, v1], onDelete }))
+
+    expect(
+      screen.getByText(
+        "This permanently deletes all 4 versions of Client proposal and their generated files."
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete artifact" }))
+    expect(onDelete.mock.calls.map(([id]) => id)).toEqual([30, 31, 32, 33])
+  })
+
+  it("will not delete once a version starts generating while the dialog is open", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+    const { rerender } = renderList({ artifacts: [v3, v2, v1], onDelete })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    const v4 = proposal(33, 4, { status: "processing" })
+    rerender(list({ artifacts: [v4, v3, v2, v1], onDelete }))
+
+    await user.click(screen.getByRole("button", { name: "Delete artifact" }))
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it("shows a document as its newest ready version when a later edit fails", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, {
+      status: "failed",
+      error_message: "Script error: AttributeError: boom",
+    })
+    renderList({ artifacts: [v4, v3, v2, v1], onOpen })
+
+    const row = screen.getByRole("listitem")
+    expect(screen.getByText("v3")).toBeTruthy()
+    expect(row.textContent).not.toContain("v4")
+    expect(
+      screen.queryByLabelText("Generation failed for Client proposal")
+    ).toBeNull()
+    const hint = screen.getByLabelText("Latest edit failed (v4). Showing v3.")
+    await user.hover(hint)
+    expect(
+      await screen.findByText("Latest edit failed (v4). Showing v3.", {
+        selector: "[data-side]",
+      })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Client proposal" }))
+    expect(onOpen).toHaveBeenCalledWith(32)
+  })
+
+  it("offers no retry for an edit its script failed, which would fail the same way", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, {
+      status: "failed",
+      error_message: "Script error: AttributeError: boom",
+    })
+    renderList({ artifacts: [v4, v3, v2, v1], onRegenerate })
+
+    expect(screen.queryByLabelText(/Retry Client proposal/)).toBeNull()
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: /Retry/ })).toBeNull()
+  })
+
+  it("retries an edit that failed outside its script", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, {
+      status: "failed",
+      error_message: "interrupted when the app closed",
+    })
+    renderList({ artifacts: [v4, v3, v2, v1], onRegenerate })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Retry v4" }))
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(33)
+  })
+
+  it("retries a script the app's closing interrupted, which would run again", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const interrupted = proposal(30, 1, {
+      status: "failed",
+      error_message: "interrupted when the app closed",
+    })
+    renderList({ artifacts: [interrupted], onRegenerate })
+
+    await user.click(
+      screen.getByLabelText("Generation failed. Retry Client proposal")
+    )
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(30)
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Client proposal" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Retry" }))
+    expect(onRegenerate).toHaveBeenCalledTimes(2)
+  })
+
+  it("explains a failed script on hover or focus when no version is ready", async () => {
+    const user = userEvent.setup()
+    const failed = proposal(30, 1, {
+      status: "failed",
+      error_message: "Script error: AttributeError: boom",
+    })
+    renderList({ artifacts: [failed] })
+
+    expect(screen.queryByLabelText(/Retry Client proposal/)).toBeNull()
+    const alert = screen.getByLabelText("Generation failed for Client proposal")
+    expect(alert.tabIndex).toBe(0)
+    await user.hover(alert)
+    expect(
+      await screen.findByText(
+        "The document script failed. Ask the agent to fix it."
+      )
+    ).toBeTruthy()
+  })
+
+  it("retries a cancelled script, which never got to run", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    const v4 = proposal(33, 4, { status: "cancelled" })
+    renderList({ artifacts: [v4, v3, v2, v1], onRegenerate })
+
+    await user.click(screen.getByLabelText("Cancelled. Retry Client proposal"))
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(33)
+  })
+})
+
+describe.each([
+  { format: "pptx", title: "Board deck" },
+  { format: "xlsx", title: "Budget workbook" },
+])("artifact list versions of an agent's $format", ({ format, title }) => {
+  // A deck or workbook the agent rendered is a script document like a Word one.
+  function made(id: number, number: number, extra: Partial<Artifact> = {}) {
+    return {
+      ...artifact,
+      id,
+      format,
+      title,
+      created_at: `2026-10-0${number}T00:00:00Z`,
+      version: { root_id: 50, number, parent_id: number > 1 ? id - 1 : null },
+      spec_kind: "python",
+      ...extra,
+    } satisfies Artifact
+  }
+
+  it("lists it once, as its newest version, and opens the newest ready one", async () => {
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    const v3 = made(52, 3, { status: "pending" })
+    renderList({ artifacts: [v3, made(51, 2), made(50, 1)], onOpen })
+
+    const rows = screen.getAllByRole("listitem")
+    expect(rows).toHaveLength(1)
+    expect(rows[0].textContent).toContain("v3")
+    await user.click(screen.getByRole("button", { name: title }))
+    expect(onOpen).toHaveBeenCalledWith(51)
+  })
+
+  it("offers no retry for a version its script failed", async () => {
+    const user = userEvent.setup()
+    const v2 = made(51, 2, {
+      status: "failed",
+      error_message: "Script error: KeyError: 'Title Slide'",
+    })
+    renderList({ artifacts: [v2, made(50, 1)] })
+
+    expect(screen.queryByLabelText(new RegExp(`Retry ${title}`))).toBeNull()
+    await user.click(
+      screen.getByRole("button", { name: `Actions for ${title}` })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Open" })).toBeTruthy()
+    expect(screen.queryByRole("menuitem", { name: /Retry/ })).toBeNull()
   })
 })

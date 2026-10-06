@@ -15,8 +15,26 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value ? value : null
 }
 
-/** What one step did, in a sentence whose subject is set as code. */
-export function stepLabel(step: AgentStep): ReactNode {
+/** The title the source-pages tool's result opens with, for a turn whose
+ *  scope names no titles: every source, or more than 200. */
+function pagedSourceTitle(step: AgentStep, documentId: number): string | null {
+  const first = step.output?.split("\n", 1)[0] ?? ""
+  const found = first.match(/^Source (\d+) \("(.*)"\) (?:has|is) /)
+  return found && Number(found[1]) === documentId ? found[2] : null
+}
+
+/** A document's title inside a sentence. */
+const documentTitle = (chunks: ReactNode[]) => (
+  <em className="text-foreground">{chunks}</em>
+)
+
+/** What one step did, in a sentence whose subject is set apart: code as
+ *  code, a document by its title. `sourceTitle` names a source by its id,
+ *  or null when the turn's scope does not hold it. */
+export function stepLabel(
+  step: AgentStep,
+  sourceTitle: (documentId: number) => string | null = () => null
+): ReactNode {
   const subject = (value: string) => (
     <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
       {value}
@@ -87,6 +105,75 @@ export function stepLabel(step: AgentStep): ReactNode {
         )
       }
       break
+    }
+    case "surfsense_render_document": {
+      const made = step.artifact
+      if (made) {
+        return (made.created ?? made.version === 1)
+          ? intl.formatMessage(
+              {
+                id: "agent_steps_render_created_label",
+                defaultMessage: "Created <doc>{title}</doc> v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+          : intl.formatMessage(
+              {
+                id: "agent_steps_render_updated_label",
+                defaultMessage:
+                  "Updated <doc>{title}</doc> to v{version, number}",
+              },
+              { title: made.title, version: made.version, doc: documentTitle }
+            )
+      }
+      // Running, or a run whose script failed: the title it was asked for.
+      const title = text(input.title)
+      if (title) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_render_label",
+            defaultMessage: "Ran the document script for <doc>{title}</doc>",
+          },
+          { title, doc: documentTitle }
+        )
+      }
+      break
+    }
+    case "surfsense_read_document":
+      return intl.formatMessage({
+        id: "agent_steps_read_document_label",
+        defaultMessage: "Read the script behind a document",
+      })
+    case "surfsense_list_images":
+      if (Array.isArray(input.source_ids)) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_list_images_label",
+            defaultMessage:
+              "Looked for images in {count, plural, one {# source} other {# sources}}",
+          },
+          { count: input.source_ids.length }
+        )
+      }
+      break
+    case "surfsense_source_pages": {
+      const title =
+        typeof input.document_id === "number"
+          ? (sourceTitle(input.document_id) ??
+            pagedSourceTitle(step, input.document_id))
+          : null
+      return title
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_source_pages_label",
+              defaultMessage: "Looked at pages of <doc>{title}</doc>",
+            },
+            { title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_source_pages_untitled_label",
+            defaultMessage: "Looked at pages of a source",
+          })
     }
     case "glob":
       if (pattern) {

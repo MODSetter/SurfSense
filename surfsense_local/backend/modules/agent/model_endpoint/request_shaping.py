@@ -3,6 +3,9 @@
 import re
 from typing import Any
 
+from modules.agent.model_endpoint.model_address import ModelAddress
+from modules.llm.connections.conversation_fields import conversation_fields
+
 _INSTRUCTIONS = {"system", "developer"}
 # Roles whose text can carry a source's words: what the user pastes, what a tool read.
 _UNTRUSTED = {"user", "tool"}
@@ -16,6 +19,19 @@ _CONTROL_TOKENS = (
     re.compile(r"\[(/?(?:INST|TOOL_CALLS|TOOL_RESULTS|AVAILABLE_TOOLS)\])"),
 )
 _UNSPLIT = {"<": "<​", "[": "[​"}
+
+
+def shaped_request(
+    payload: dict[str, Any], address: ModelAddress, session: str | None
+) -> dict[str, Any]:
+    """opencode's request for the selected model, under its name, keyed by its
+    session where the host routes a conversation to the cache that holds it."""
+    return {
+        **payload,
+        **conversation_fields(address.url, address.name, session),
+        "model": address.name,
+        "messages": shaped_messages(payload.get("messages") or []),
+    }
 
 
 def shaped_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -15,10 +15,11 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espea
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
+from modules.llm.catalog.local.engines.llamacpp.manifest_fields import SamplingSet
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     ProjectorNotice,
 )
-from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_temperature
+from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_sampling
 from modules.llm.catalog.local.engines.onnxruntime.engine import OnnxRuntimeEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
@@ -227,9 +228,11 @@ class LocalCatalogService:
             repo, lambda build, tag: self._tickets.mint(build, pipeline_tag=tag)
         )
 
-    def publisher_temperature(self, model: str, reasoning: bool | None) -> float | None:
+    def publisher_sampling(
+        self, model: str, reasoning: bool | None
+    ) -> SamplingSet | None:
         """What a curated chat model's publisher set for this mode, else None."""
-        return publisher_temperature(self._manifest.models, model, reasoning)
+        return publisher_sampling(self._manifest.models, model, reasoning)
 
     # installing -------------------------------------------------------------
 

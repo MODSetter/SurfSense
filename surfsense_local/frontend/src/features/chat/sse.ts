@@ -1,4 +1,8 @@
-import type { AgentStep, PermissionRequest } from "@/features/agent/api"
+import type {
+  AgentStep,
+  PermissionRequest,
+  TurnSources,
+} from "@/features/agent/api"
 
 export type Citation = {
   source_id: number
@@ -32,10 +36,21 @@ export type ChatStreamEvent =
       message: string
       provider: string
     }
+  // An agent turn's first frame: how many sources its folder is being given.
+  | { type: "agent-preparing"; count: number }
+  // The sources an agent turn works from, as the server resolved its ticks.
+  | { type: "agent-scope"; scope: TurnSources }
   | ({ type: "agent-step" } & AgentStep)
   | ({ type: "permission-request" } & PermissionRequest)
   | { type: "permission-replied"; id: string; reply: string }
+  // Where a run stands: waiting in line for the local runtime, answering, or
+  // waiting on the user to answer the agent.
+  | { type: "run-state"; state: "queued"; position: number }
+  | { type: "run-state"; state: "running" | "needs-approval" }
   | { type: "done" }
+
+/** A frame with the number the run gave it, for resuming where a window left off. */
+export type NumberedEvent = { seq: number | null; event: ChatStreamEvent }
 
 // Mirrors modules/chat/errors.py's ChatErrorKind — keep the two in sync.
 export type ChatErrorKind =
@@ -47,13 +62,14 @@ export type ChatErrorKind =
   | "context_too_long"
   | "subscription_sign_in"
   | "subscription_limit"
+  | "runtime_busy"
   | "network"
   | "timeout"
   | "unknown"
 
-function parseFrame(frame: string): ChatStreamEvent | null {
-  const data = frame
-    .split(/\r?\n/)
+function parseFrame(frame: string): NumberedEvent | null {
+  const lines = frame.split(/\r?\n/)
+  const data = lines
     .filter((line) => line.startsWith("data:"))
     .map((line) => line.slice(5).trimStart())
     .join("\n")
@@ -61,15 +77,25 @@ function parseFrame(frame: string): ChatStreamEvent | null {
   if (!data) {
     return null
   }
-  if (data === "[DONE]") {
-    return { type: "done" }
-  }
-  return JSON.parse(data) as ChatStreamEvent
+  const id = lines.find((line) => line.startsWith("id:"))
+  const seq = id ? Number(id.slice(3).trim()) : null
+  const event: ChatStreamEvent =
+    data === "[DONE]" ? { type: "done" } : (JSON.parse(data) as ChatStreamEvent)
+  return { seq: Number.isFinite(seq) ? seq : null, event }
 }
 
 export async function* parseSseStream(
   stream: ReadableStream<Uint8Array>
 ): AsyncGenerator<ChatStreamEvent> {
+  for await (const numbered of parseNumberedSseStream(stream)) {
+    yield numbered.event
+  }
+}
+
+/** The stream's frames with their numbers, however the bytes are chunked. */
+export async function* parseNumberedSseStream(
+  stream: ReadableStream<Uint8Array>
+): AsyncGenerator<NumberedEvent> {
   const reader = stream.getReader()
   const decoder = new TextDecoder()
   let buffer = ""

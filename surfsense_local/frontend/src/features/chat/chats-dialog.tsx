@@ -1,7 +1,10 @@
 import { useRef, useState, type SubmitEvent } from "react"
 
 import {
+  CircleAlertIcon,
+  ClockIcon,
   EllipsisIcon,
+  Loader2Icon,
   PencilEdit02Icon,
   PencilIcon,
   SearchIcon,
@@ -40,6 +43,7 @@ import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
 import type { ChatThread } from "./api"
+import type { RunState } from "./runs/run-store"
 
 export function RenameChatDialog({
   open,
@@ -159,6 +163,8 @@ export function ChatsDialog({
   onRename,
   onDelete,
   onTitleAnimationComplete,
+  runStates = {},
+  unreadThreadIds = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -172,6 +178,10 @@ export function ChatsDialog({
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
   onTitleAnimationComplete: () => void
+  // Threads with a reply being written or waiting for the local runtime.
+  runStates?: Record<number, RunState>
+  // Threads whose reply finished while another was open, not yet opened.
+  unreadThreadIds?: number[]
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
@@ -181,10 +191,13 @@ export function ChatsDialog({
   const searchRef = useRef<HTMLInputElement>(null)
 
   // A separator between two rows hides whenever either of its neighbors is
-  // hovered or has its actions menu open, so the highlighted row reads as
-  // one unbroken block instead of being cut by the line above or below it.
+  // open, hovered or has its actions menu open, so the highlighted row reads
+  // as one unbroken block instead of being cut by the line above or below it.
   const rowActive = (thread: ChatThread | undefined) =>
-    thread != null && (thread.id === hoveredId || thread.id === openDropdownId)
+    thread != null &&
+    (thread.id === activeThreadId ||
+      thread.id === hoveredId ||
+      thread.id === openDropdownId)
 
   const needle = query.trim().toLowerCase()
   const untitled = intl.formatMessage({
@@ -284,6 +297,8 @@ export function ChatsDialog({
               {visibleThreads.map((thread, index) => {
                 const selected = thread.id === activeThreadId
                 const title = thread.title || untitled
+                const runState = runStates[thread.id]
+                const unread = !runState && unreadThreadIds.includes(thread.id)
                 const showSeparator =
                   index > 0 &&
                   !rowActive(thread) &&
@@ -324,10 +339,15 @@ export function ChatsDialog({
                       )}
                       aria-current={selected ? "page" : undefined}
                       // Named by the title alone: read as content, the time
-                      // runs into it ("Q3 rollup2 weeks ago"). It stays a
-                      // description, so a screen reader still hears it.
+                      // runs into it ("Q3 rollup2 weeks ago"). The status and
+                      // time are descriptions, so a screen reader still hears
+                      // them; text inside a named button is not read.
                       aria-label={title}
-                      aria-describedby={`chat-row-time-${thread.id}`}
+                      aria-describedby={
+                        unread || runState
+                          ? `chat-row-status-${thread.id} chat-row-time-${thread.id}`
+                          : `chat-row-time-${thread.id}`
+                      }
                       onClick={() => {
                         onSelect(thread.id)
                         onOpenChange(false)
@@ -335,6 +355,77 @@ export function ChatsDialog({
                       onMouseEnter={onRowMouseEnter}
                       onMouseLeave={onRowMouseLeave}
                     >
+                      {unread ? (
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <span
+                            aria-hidden
+                            className="size-1.5 rounded-full bg-primary"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage({
+                              id: "chat_chats_dialog_unread_label",
+                              defaultMessage: "New reply",
+                            })}
+                          </span>
+                        </span>
+                      ) : runState?.state === "running" ? (
+                        // Where the unread dot goes, which this reply becomes.
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <Loader2Icon
+                            aria-hidden
+                            className="size-3 animate-spin text-muted-foreground motion-reduce:animate-none"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage({
+                              id: "chat_chats_dialog_writing_label",
+                              defaultMessage: "Writing a reply",
+                            })}
+                          </span>
+                        </span>
+                      ) : runState?.state === "queued" ? (
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <ClockIcon
+                            aria-hidden
+                            className="size-3 text-muted-foreground"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage(
+                              {
+                                id: "chat_chats_dialog_waiting_label",
+                                defaultMessage:
+                                  "Waiting for another reply ({position, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} in line)",
+                              },
+                              { position: runState.position }
+                            )}
+                          </span>
+                        </span>
+                      ) : runState?.state === "needs-approval" ? (
+                        // The one mark in the accent colour beside unread: it waits on the user.
+                        <span className="flex w-3 shrink-0 items-center justify-center">
+                          <CircleAlertIcon
+                            aria-hidden
+                            className="size-3 text-primary"
+                          />
+                          <span
+                            id={`chat-row-status-${thread.id}`}
+                            className="sr-only"
+                          >
+                            {intl.formatMessage({
+                              id: "chat_chats_dialog_needs_approval_label",
+                              defaultMessage: "Waiting for your approval",
+                            })}
+                          </span>
+                        </span>
+                      ) : null}
                       <span
                         className={cn(
                           "chats-dialog-title-fade chats-dialog-title-fade-focus-within min-w-0 flex-1 overflow-hidden text-left whitespace-nowrap",
@@ -372,7 +463,7 @@ export function ChatsDialog({
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                              className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
                               aria-label={intl.formatMessage(
                                 {
                                   id: "chat_chats_dialog_row_actions_aria",

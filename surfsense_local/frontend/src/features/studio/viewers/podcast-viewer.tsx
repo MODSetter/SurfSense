@@ -8,7 +8,9 @@ import { VIEWER_PADDING } from "./viewer-layout"
 
 export function PodcastViewer({ artifact }: { artifact: ArtifactDetail }) {
   const primary = artifact.files.find((file) => file.role === "primary")
-  const src = primary ? fileUrl(artifact.id, primary.role) : null
+  const src = primary
+    ? fileUrl(artifact.id, primary.role, artifact.generation)
+    : null
 
   return (
     <div className={`space-y-4 ${VIEWER_PADDING}`}>

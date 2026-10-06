@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and provider name.
+SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and provider name.
 
 `workspace` is the one product word languages disagree on, and each keeps its own habit: German and Brazilian Portuguese write Workspace, because both say it routinely and the translation is three times as wide in the sidebar; Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake; the rest translate it.
 
@@ -19,9 +19,12 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | privacy | プライバシー | 프라이버시 | 隐私 | गोपनीयता | Datenschutz † | privacidad | confidentialité | privacidade | конфиденциальность |
 | source (an added file or folder) | ソース | 소스 | 来源 | स्रोत | Quelle | fuente | source | fonte | источник |
 | note (a source the user writes) | メモ | 메모 | 笔记 | नोट | Notiz | nota | note | nota | заметка |
+| folder (holds sources in the sources panel) | フォルダー | 폴더 | 文件夹 | फ़ोल्डर | Ordner | carpeta | dossier | pasta | папка |
+| Library (the top of a workspace's folders) | ライブラリ | 라이브러리 | 资料库 | लाइब्रेरी | Bibliothek | Biblioteca | Bibliothèque | Biblioteca | Библиотека |
 | thinking (a model reasoning before it answers) | 考え中 / 考えました | 생각 | 思考 | सोचना | nachdenken | pensar | réflexion | pensar | размышления |
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
+| reply (the model's answer to a message) | 返信 | 답변 | 回复 | जवाब | Antwort | respuesta | réponse | resposta | ответ |
 | agent (the assistant that works through steps and tools) | エージェント | 에이전트 | 智能体 | एजेंट | Agent | agente | agent | agente | агент |
 | shell command | シェルコマンド | 셸 명령 | shell 命令 | शेल कमांड | Shell-Befehl | comando de shell | commande shell | comando de shell | команда оболочки |
 | model | モデル | 모델 | 模型 | मॉडल | Modell | modelo | modèle | modelo | модель |
@@ -37,6 +40,8 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
 | workspace | ワークスペース | 워크스페이스 | 工作区 | वर्कस्पेस | Workspace | espacio de trabajo | espace de travail | Workspace | рабочая область |
 | artifact (a Studio output) | 生成物 | 생성물 | 产物 | आर्टिफ़ैक्ट | Artefakt | artefacto | artefact | artefato | артефакт |
+| version (one of a document’s versions, shown as v1, v2) | バージョン | 버전 | 版本 | वर्ज़न | Version | versión | version | versão | версия |
+| script (the code the agent writes to make a document) | スクリプト | 스크립트 | 脚本 | स्क्रिप्ट | Skript | script | script | script | скрипт |
 | chunk (a cited passage) | チャンク | 청크 | 片段 | चंक | Abschnitt | fragmento | extrait | trecho | фрагмент |
 | citation | 引用 | 인용 | 引用 | उद्धरण | Quellenangabe | cita | citation | citação | цитата |
 | Model setup | モデル設定 | 모델 설정 | 模型设置 | मॉडल सेटअप | Modell-Einrichtung | Ajustes del modelo | Configuration du modèle | Configuração de modelos | Настройка модели |

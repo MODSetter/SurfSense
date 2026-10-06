@@ -1,0 +1,41 @@
+// "Proposal" in a Title style whose font name closes its CSS rule and adds a
+// global one loading https://tracker.example/beacon, and a VML rectangle whose
+// style loads https://tracker.example/vml. Zipped by hand, kept as base64
+// because Vite reads no .docx as an asset.
+const BASE64 = [
+  "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",
+  "AAAAAAUABQBAAQAAMQUAAAAA",
+].join("")
+
+export const STYLES_THAT_LOAD_REMOTE_IMAGES = Uint8Array.from(
+  atob(BASE64),
+  (char) => char.charCodeAt(0)
+)

@@ -4,9 +4,11 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from modules.llm.connections.conversation_fields import conversation_fields
 from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
+from modules.llm.providers.prompt_reuse import chunk_reuse, log_reuse
 from modules.llm.providers.stream_deadline import with_deadlines
 from modules.llm.providers.types import Delta, Message, Model, PromptProgress
 
@@ -124,6 +126,7 @@ class OpenAICompatibleChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
         """The answer text alone, for callers that have no use for the trace."""
         async for delta in self.chat_deltas(
@@ -133,6 +136,7 @@ class OpenAICompatibleChatProvider:
             temperature=temperature,
             reasoning=reasoning,
             json_schema=json_schema,
+            conversation=conversation,
         ):
             if not delta.reasoning and delta.progress is None:
                 yield delta.text
@@ -146,16 +150,22 @@ class OpenAICompatibleChatProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
+        sampling: dict[str, float | int] | None = None,
     ) -> AsyncIterator[Delta]:
         body: dict[str, object] = {
             "model": model,
             "messages": [_message(message) for message in messages],
             "stream": True,
+            **conversation_fields(self._base_url, model, conversation),
         }
         if max_tokens is not None:
             body["max_tokens"] = max_tokens
         if temperature is not None:
             body["temperature"] = temperature
+        if sampling:
+            # Fields beyond OpenAI's that llama-server reads, such as top_k.
+            body.update(sampling)
         if json_schema is not None:
             # Masks every token that would produce invalid JSON, so malformed
             # output stops being something to repair afterwards.
@@ -198,10 +208,15 @@ class OpenAICompatibleChatProvider:
                     request=reply.request,
                     response=reply,
                 )
+            reuse = None
             async for line in reply.aiter_lines():
                 delta = _delta(line)
                 if delta:
                     yield delta
+                elif (reported := _reuse(line)) is not None:
+                    reuse = reported
+            if reuse is not None:
+                log_reuse(str(body["model"]), reuse)
 
 
 def _message(message: Message) -> dict[str, object]:
@@ -262,6 +277,15 @@ def _delta(line: str) -> Delta | None:
     if isinstance(trace, str) and trace:
         return Delta(trace, reasoning=True)
     return None
+
+
+def _reuse(line: str) -> tuple[int, int] | None:
+    """What a chunk carrying no text says about the prompt it reused, if anything."""
+    payload = line[len("data:") :].strip() if line.startswith("data:") else ""
+    if not payload or payload == "[DONE]":
+        return None
+    chunk = json.loads(payload)
+    return chunk_reuse(chunk) if isinstance(chunk, dict) else None
 
 
 def _prompt_progress(reported: object) -> PromptProgress | None:
