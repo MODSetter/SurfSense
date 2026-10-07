@@ -55,8 +55,16 @@ describe("the code highlighter", () => {
     ["not-a-language", "plain words"],
     ["", "no language at all"],
   ])("colours %s exactly as @streamdown/code did", async (language, code) => {
+    const theirPlugin = createCodePlugin()
+    // Shiki stops colouring a line after 500 ms, which a busy machine can
+    // spend compiling a grammar's patterns the first time; each highlighter
+    // compiles them once here, on other text.
+    for (const plugin of [codeHighlighter, theirPlugin]) {
+      await tokensFrom(plugin, `${code}\n${code}`, language)
+    }
+
     const ours = await tokensFrom(codeHighlighter, code, language)
-    const theirs = await tokensFrom(createCodePlugin(), code, language)
+    const theirs = await tokensFrom(theirPlugin, code, language)
 
     expect(ours).toEqual(theirs)
   })
