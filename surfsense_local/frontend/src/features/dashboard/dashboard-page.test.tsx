@@ -1214,6 +1214,72 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
   })
 
+  it("starts the next chat in Basic once the API refuses Agentic by a gate the model's modes could not say", async () => {
+    const created: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      newChatServer((body) => {
+        created.push(body)
+        // A local model's tool calls are read only when a chat starts.
+        return created.length === 1
+          ? Response.json(
+              {
+                detail: {
+                  code: "tool_calls_unsupported",
+                  message:
+                    "This model can't use tools, so it can't run Agentic mode.",
+                },
+              },
+              { status: 409 }
+            )
+          : Response.json(NEW_THREAD, { status: 201 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("agentic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "Draft the board pack from the Q3 PDFs"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+    await user.click(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Basic (Q&A). Change mode.",
+      })
+    )
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+
+    expect(agentic.getAttribute("aria-disabled")).toBe("true")
+    expect(
+      within(agentic).getByText("This model can’t use tools.")
+    ).toBeTruthy()
+    await user.keyboard("{Escape}")
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    expect(created).toEqual([
+      { title: "New chat", mode: "agentic" },
+      { title: "New chat", mode: "basic" },
+    ])
+  })
+
   it("loads threads and sources for the selected workspace", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)

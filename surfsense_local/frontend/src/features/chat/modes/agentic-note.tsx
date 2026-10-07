@@ -2,6 +2,7 @@ import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 
 import { agenticReasonText, agenticReasonWarns } from "./mode-text"
+import { useChatModes } from "./new-chat-mode"
 
 /**
  * Under a new chat's composer once Agentic is picked: the model's score, the
@@ -14,7 +15,7 @@ export function AgenticNote({
   model: ModelSelection | null
   mode: ChatMode | null
 }) {
-  const modes = model?.capability?.modes
+  const modes = useChatModes(model)
   if (mode !== "agentic" || !modes || !agenticReasonWarns(modes.reason)) {
     return null
   }

@@ -29,7 +29,11 @@ import {
   modeDescription,
   modeLabel,
 } from "./mode-text"
-import { useNewChatMode, usePickNewChatMode } from "./new-chat-mode"
+import {
+  useChatModes,
+  useNewChatMode,
+  usePickNewChatMode,
+} from "./new-chat-mode"
 
 const MODE_ICON = { basic: Chat01Icon, agentic: BotIcon } as const
 
@@ -52,7 +56,7 @@ export function ModePicker({
 }) {
   const newChatMode = useNewChatMode(model)
   const pick = usePickNewChatMode()
-  const modes = model.capability?.modes
+  const modes = useChatModes(model)
   if (!modes || !newChatMode) return null
 
   if (threadMode === null) {

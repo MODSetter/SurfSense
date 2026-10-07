@@ -38,7 +38,7 @@ import {
 } from "./api"
 import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
 import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
-import type { NewChatChoice } from "./modes/new-chat-mode"
+import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -224,6 +224,7 @@ export function useChatRuntime({
   readsImages,
   canSkipThinking,
   newChatMode = null,
+  onAgenticGate,
   onModelRequired,
 }: {
   workspaceId: number
@@ -240,6 +241,8 @@ export function useChatRuntime({
   canSkipThinking: boolean
   // The mode a new chat opens in; null leaves it to the API's default.
   newChatMode?: NewChatChoice | null
+  // A gate the API refused an Agentic chat by, which the model's modes did not say.
+  onAgenticGate?: (gate: string) => void
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -663,6 +666,13 @@ export function useChatRuntime({
             returned: { text: typed, images },
           })
         }
+        if (
+          cause instanceof ApiError &&
+          cause.code !== null &&
+          AGENTIC_GATES.has(cause.code)
+        ) {
+          onAgenticGate?.(cause.code)
+        }
         errorToast(
           cause instanceof ApiError &&
             cause.code !== null &&
@@ -774,6 +784,7 @@ export function useChatRuntime({
       createThreadMutation,
       isRunning,
       newChatMode,
+      onAgenticGate,
       onModelRequired,
       queryClient,
       selectedDocumentIds,

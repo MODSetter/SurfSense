@@ -22,7 +22,10 @@ import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
-import { useNewChatChoice } from "@/features/chat/modes/new-chat-mode"
+import {
+  useBlockAgentic,
+  useNewChatChoice,
+} from "@/features/chat/modes/new-chat-mode"
 import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
@@ -136,6 +139,14 @@ function WorkspaceDashboard({
     )
     return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
   }, [sources.documents, sources.includedDocumentIds])
+  const blockAgentic = useBlockAgentic()
+  // Bound to the model the chat was asked on: the picker stays open meanwhile.
+  const onAgenticGate = useCallback(
+    (gate: string) => {
+      if (selection) blockAgentic(selection, gate)
+    },
+    [blockAgentic, selection]
+  )
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
@@ -145,6 +156,7 @@ function WorkspaceDashboard({
     readsImages: selection?.reads_images === true,
     canSkipThinking: canSkipThinking(selection),
     newChatMode: useNewChatChoice(selection),
+    onAgenticGate,
     onModelRequired,
   })
   const sourcePreview = sources.documents.find(
