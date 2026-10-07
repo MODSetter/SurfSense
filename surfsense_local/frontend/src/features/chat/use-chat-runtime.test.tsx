@@ -1,8 +1,16 @@
 import { Profiler, useLayoutEffect } from "react"
-import { useAui } from "@assistant-ui/react"
+import { INTERNAL, useAui } from "@assistant-ui/react"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { act, cleanup, render, waitFor } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest"
 
 import { createQueryClient } from "@/lib/query-client"
 
@@ -597,6 +605,30 @@ describe("useChatRuntime", () => {
 
   it("lets go of a sent image's picture once its stored turn shows it", async () => {
     const picture = "data:image/png;base64,aGVsbG8="
+    // Every message the runtime holds, on its shown branch or off it: what
+    // the thread's export leaves out is still in memory.
+    const repositories = new Set<
+      InstanceType<typeof INTERNAL.MessageRepository>
+    >()
+    const repository = INTERNAL.MessageRepository.prototype
+    const add = repository.addOrUpdateMessage
+    const spy = vi
+      .spyOn(repository, "addOrUpdateMessage")
+      .mockImplementation(function (this: typeof repository, ...args) {
+        repositories.add(this)
+        return add.apply(this, args)
+      })
+    onTestFinished(() => spy.mockRestore())
+    const held = () =>
+      [...repositories].flatMap((one) =>
+        [
+          ...(
+            one as unknown as {
+              messages: Map<string, { current: { id: string } }>
+            }
+          ).messages.values(),
+        ].map((node) => node.current)
+      )
     const { result } = renderRuntime({ readsImages: true })
     await openThread(result, 1)
     act(() => {
@@ -653,9 +685,12 @@ describe("useChatRuntime", () => {
     await waitFor(() => expect(assistantText(result)).toEqual(["A greeting."]))
     // assistant-ui keeps every message it was given; the placeholder question
     // held the picture after the stored turn took its place.
-    expect(JSON.stringify(result.current.thread.export())).not.toContain(
-      picture
-    )
+    expect(held().length).toBeGreaterThan(0)
+    expect(
+      held()
+        .filter((message) => JSON.stringify(message).includes(picture))
+        .map((message) => message.id)
+    ).toEqual([])
   })
 })
 
