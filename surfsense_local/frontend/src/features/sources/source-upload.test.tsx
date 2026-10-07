@@ -418,9 +418,9 @@ describe("source upload", () => {
       await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
       await screen.findByText("connection refused")
       rerender(panel(processing))
-      await waitFor(() =>
-        expect(screen.queryByText("connection refused")).toBeNull()
-      )
+      // The tooltip itself, not its text: while it fades out it is still in the
+      // document, and takes the error back as its text when the row fails again.
+      await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
       await user.keyboard("{/Control}")
       rerender(panel(failed))
       expect(screen.queryByText("connection refused")).toBeNull()
