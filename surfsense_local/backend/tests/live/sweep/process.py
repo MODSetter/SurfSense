@@ -11,6 +11,7 @@ from pathlib import Path
 import psutil
 
 _SAMPLE_SECONDS = 1.0
+_OWN_GROUP = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
 
 
 @dataclass(frozen=True)
@@ -73,8 +74,16 @@ def run_case(
     timed_out = False
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("wb") as output:
+        # Its own process group, so the terminal's Ctrl-C reaches only the runner,
+        # which lets the case finish; a second Ctrl-C kills it through kill_tree.
         child = subprocess.Popen(
-            command, cwd=cwd, env=env, stdout=output, stderr=subprocess.STDOUT
+            command,
+            cwd=cwd,
+            env=env,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            creationflags=_OWN_GROUP,
+            start_new_session=os.name != "nt",
         )
         while child.poll() is None:
             now = tree_working_set(child.pid)

@@ -1,6 +1,8 @@
 """The sweep's loop, driven by a stand-in case: lanes, retries, the re-run, the budget, the time limit, resume and its files."""
 
 import json
+import os
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +21,7 @@ from tests.live.sweep.runner import HARNESS_STREAK, Runner, Sweep
 pytestmark = pytest.mark.unit
 
 STAND_IN = Path(__file__).parent / "stand_in_case.py"
+BACKEND = Path(__file__).resolve().parents[3]
 PLENTY = 64 << 30
 
 
@@ -271,6 +274,28 @@ def test_an_account_refusal_stops_the_sweep_and_the_case_runs_again_on_resume(
     rows = {row["id"]: row for row in _results(tmp_path)["models"]}
     assert (rows["a/good"]["level"], rows["a/good"]["attempts"]) == ("agent", 4)
     assert rows["a/weak"]["level"] == "agent"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a Windows console's Ctrl-C")
+def test_a_first_ctrl_c_lets_the_case_in_flight_finish(tmp_path: Path) -> None:
+    """A terminal's Ctrl-C reaches every process on its console; the case must not take it as its own."""
+    hidden = subprocess.STARTUPINFO(
+        dwFlags=subprocess.STARTF_USESHOWWINDOW, wShowWindow=0
+    )
+
+    subprocess.run(
+        [sys.executable, "-m", "tests.live.sweep.ctrl_c_sweep", str(tmp_path)],
+        cwd=BACKEND,
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
+        startupinfo=hidden,
+        timeout=120,
+        check=True,
+    )
+
+    lines = AttemptLog(tmp_path / "sweep" / "attempts.jsonl").read()
+    assert [(a.case, a.outcome, a.reason) for a in lines] == [("smoke", "passed", "")]
+    log = (tmp_path / "sweep" / "runner.log").read_text("utf-8")
+    assert "Ctrl-C: no new cases" in log
 
 
 def test_the_report_reads_progress_from_the_sweeps_files(tmp_path: Path) -> None:
