@@ -459,6 +459,30 @@ describe("the trace's markdown", () => {
     expect(done.math).toBe(thinking.math)
   })
 
+  it("keeps code plain while the trace grows after the answer has started", () => {
+    // An agent reasons again after a tool call, under a header already done.
+    const text = "Plan.\n\n```ts\nconst a = 1\n"
+    const growing = (running: boolean, durationMs: number | null) => (
+      <ReplyThinking
+        running={running}
+        answerStarted
+        reasoning={{ text, durationMs }}
+      />
+    )
+    const plugins = () => seen.trace[seen.trace.length - 1].plugins as Plugins
+    const { rerender } = render(growing(true, null))
+    const streamed = plugins()
+
+    rerender(growing(true, 3_000))
+    const ended = plugins()
+    rerender(growing(false, null))
+    const stopped = plugins()
+
+    expect(streamed.code).toBeUndefined()
+    expect(ended.code).toBeDefined()
+    expect(stopped.code).toBeDefined()
+  })
+
   describe.each([
     ["an unclosed bold", "Plan first.\n\nThen **compare the quarters"],
     ["an open code fence", "Plan first.\n\n```ts\nconst total = 3\nconst"],

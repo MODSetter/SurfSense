@@ -107,6 +107,9 @@ export function ReplyThinking({
     <ReplyHeader
       status={status}
       reasoning={reasoning}
+      // Not the header's status: an agent reasons again after a tool call,
+      // under a header already done once its answer has started.
+      traceGrowing={running && reasoning?.durationMs === null}
       read={status === "pending" ? readFraction(progress) : null}
       waiting={status === "pending" ? (queue?.position ?? null) : null}
       preparing={status === "pending" && preparing ? preparing : null}
@@ -156,12 +159,15 @@ function preparingLabel(count: number) {
 function ReplyHeader({
   status,
   reasoning,
+  traceGrowing,
   read,
   waiting = null,
   preparing,
 }: {
   status: ReplyStatus
   reasoning: ReplyReasoning | null
+  // Whether reasoning still lands in the trace, so its code stays plain.
+  traceGrowing: boolean
   // The fraction of the prompt read so far, or null with no figure to show.
   read: number | null
   // The place in line while the reply waits for the local runtime.
@@ -320,9 +326,7 @@ function ReplyHeader({
               <Streamdown
                 parseIncompleteMarkdown={false}
                 plugins={
-                  status === "thinking"
-                    ? streamingStreamdownPlugins
-                    : streamdownPlugins
+                  traceGrowing ? streamingStreamdownPlugins : streamdownPlugins
                 }
                 rehypePlugins={traceRehypePlugins}
                 linkSafety={STREAMDOWN_LINK_SAFETY}
