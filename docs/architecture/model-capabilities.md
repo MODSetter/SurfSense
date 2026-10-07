@@ -1,6 +1,6 @@
 # Model capabilities
 
-What a chat model may do follows from what SurfSense measured of it, never from its size or its prompt tier. A list shipped with the app gives each measured model one of four levels; one function reads it for the selected model and its connection; the engine choice and Studio's Word and PDF path follow the level. An unmeasured model keeps what it has today, labelled "Not measured"; only a measured failure takes something away ([05](../proposals/file-agent/05-model-ladder-and-evals.md), decision 7).
+What SurfSense measured of a chat model, never its size or its prompt tier, decides two things: the mode a new chat starts in, and Studio's Word and PDF path. A list shipped with the app gives each measured model one of four levels; one function reads it for the selected model and its connection. No level takes a mode away: every model may choose Agentic, and only a technical gate keeps one out ([modes](#the-modes)). An unmeasured model is labelled "Not measured".
 
 **Code:** [`surfsense_local/backend/modules/llm/capability/`](../../surfsense_local/backend/modules/llm/capability/), [`surfsense_local/backend/scripts/capability_list/`](../../surfsense_local/backend/scripts/capability_list/), [`surfsense_local/frontend/src/features/models/capability/`](../../surfsense_local/frontend/src/features/models/capability/)
 
@@ -8,10 +8,10 @@ What a chat model may do follows from what SurfSense measured of it, never from 
 
 | Level | Means | New chats | Studio's Word and PDF |
 |---|---|---|---|
-| `agent` | measured, and passed the bar | the agent | a script |
-| `agent_limited` | measured, near the bar | the agent, labelled "may need nudges" | a script |
-| `studio_only` | measured, and failed | the chat | Markdown |
-| `not_measured` | no row holds for it | the chat, or the agent once the user turns on "Try the agent" | Markdown served from this computer, a script from a remote host |
+| `agent` | measured, and passed the bar | start Agentic | a script |
+| `agent_limited` | measured, near the bar | start Agentic, labelled "may need nudges" | a script |
+| `studio_only` | measured, and failed | start Basic (Q&A), Agentic offered with the score | Markdown |
+| `not_measured` | no row holds for it | start Basic (Q&A), Agentic offered as untested, or as a local copy of a model that passed | Markdown served from this computer, a script from a remote host |
 
 The bar, in [`verdict.py`](../../surfsense_local/backend/scripts/capability_list/verdict.py): the smoke and the multi-turn demo pass, at least 80% of the counted cases pass, and no failure was "made no document" or "looped". Near the bar is the same with at least 60%. Anything else measured is `studio_only`. A case that needs image input is not counted against a text-only model, and a case a gate stopped counts as not passed.
 
@@ -39,18 +39,25 @@ The result carries the level, a `Reason(code, values)` (`measured_pass`, `measur
 
 ## What follows from it
 
-- **Engine choice** ([`engine_choice.py`](../../surfsense_local/backend/modules/agent/engine_choice.py)): `agent` and `agent_limited` run the agent; `studio_only` never does; `not_measured` only with the user's opt-in. The model must then call tools and fit the agent: for a remote model the catalog's `tool_call` (a stated `false` refuses; unknown refuses an opted-in model, not a measured one) and `context` at or above 32,768 tokens; for a local model, llama-server's `supports_tool_calls` and loaded window ([`agent_gate.py`](../../surfsense_local/backend/modules/llm/capability/agent_gate.py)). `SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` still lets every model in, held only to a stated no on tool calls.
+- **A new chat's default mode** ([modes](#the-modes)): Agentic for `agent` and `agent_limited`, Basic (Q&A) for `studio_only` and `not_measured`.
 - **Studio** ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)): `writes_script()` is true for `agent` and `agent_limited`, false for `studio_only`, and the local or remote rule for `not_measured`.
 
-## The opt-in
+## The modes
 
-"Try the agent" is stored under `agent_trial` in the text selection's `settings` ([`agent_trial.py`](../../surfsense_local/backend/modules/llm/capability/agent_trial.py)), so it belongs to that model and is cleared when the slot takes another. It is offered only on a `not_measured` model whose catalog row does not rule it out; a local model's tool calls and window are checked when a chat starts, since reading them would load the model.
+A chat is Basic (Q&A), the chat engine's retrieval answers with Studio beside it, or Agentic, the [agent](agent.md). It is chosen when the chat starts and kept ([which threads get it](agent.md#which-threads-get-it)). `new_chat_modes(selected, facts)` ([`modes/new_chat.py`](../../surfsense_local/backend/modules/llm/capability/modes/new_chat.py)) says, synchronously and offline, what a new chat on the selected model may be:
+
+- **`agentic_allowed`**, and when not, **`blocked`**: a technical gate only, never a score. `agent_not_installed` when no opencode is staged; `tool_calls_unsupported` when the remote catalog states `tool_call: false`, or llama-server does not report `supports_tool_calls` for a local model's template; `window_below_floor` when the stated window is under 32,768 tokens ([`agent_gate.py`](../../surfsense_local/backend/modules/llm/capability/agent_gate.py)). A catalog that says nothing, and a runtime that cannot be read, allow it. A local model's tool calls and window are read when a chat starts, since reading them would load the model, so the selection read allows it until then.
+- **`default_mode`**: the mode the user last started a chat in with this model; else Agentic for `agent` and `agent_limited`, which hold only on a remote host; else Basic. A blocked Agentic defaults to Basic.
+- **`reason`**, what the switch says beside Agentic: `measured_pass` or `measured_near` with `passed` and `counted`; `measured_below`, a low scorer, with the same; `assumed`; `local_copy`, a copy on the user's own machine or network of a model whose row passed on a remote host, with that `host`; `untested`.
+- **`remembered_mode`**, under `chat_mode` in the text selection's `settings` ([`modes/remembered.py`](../../surfsense_local/backend/modules/llm/capability/modes/remembered.py)), written when a chat is opened with a mode. It belongs to that model and is cleared when the slot takes another. The `agent_trial` the modes replaced reads as Agentic, and the first write drops it.
+
+`SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` starts every model's new chats in Agentic and lifts the window floor, held only to a stated no on tool calls.
 
 ## API
 
-- `SelectionRead.capability` on `GET` and `PUT /llm/selection/text_gen` (null for other slots): `level`, `label_key` (the ICU select branch), `reason` (`code`, `values`), `note`, `measured` (`key`, `suite`, `assumed`, `suite_version`, `measured_on`, `provider`, `host`, `reads_images`, `passed`, `counted`, `provisional`, or null) and `agent_trial` (`offered`, `enabled`, `blocked`: `tool_calls_unconfirmed`, `window_below_floor` or null).
+- `SelectionRead.capability` on `GET` and `PUT /llm/selection/text_gen` (null for other slots): `level`, `label_key` (the ICU select branch), `reason` (`code`, `values`), `note`, `measured` (`key`, `suite`, `assumed`, `suite_version`, `measured_on`, `provider`, `host`, `reads_images`, `passed`, `counted`, `provisional`, or null) and `modes` (`agentic_allowed`, `blocked`, `default_mode`: `basic` or `agentic`, `reason` (`code`, `values`), `remembered_mode`).
 - `capability_level` on each row of `GET /llm/connections/{id}/models` and `GET /llm/providers/llamacpp/models` that can fill the chat slot.
-- `PUT /llm/selection/text_gen/agent-trial` with `{"enabled": bool}` answers the selection's capability. Turning it on answers `409` with `code` `measured` for a measured model, or the `blocked` code; `404` when no chat model is chosen.
+- `POST /workspaces/{id}/chat/threads` takes `mode` ([chat](chat.md#agent-threads)).
 
 The model picker labels each chat model "Agent", "Agent, may need nudges", "Studio only" or "Not measured". Settings › Models shows the chat model's level, its evidence line and note, and for a model not measured the "Try the agent" switch with one sentence of warning.
 

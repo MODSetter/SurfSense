@@ -1,4 +1,4 @@
-"""What the screens are told of a model's measured capability, and the user's opt-in to try the agent."""
+"""What the screens are told of a model's measured capability, and the modes a new chat on it may take."""
 
 import pytest
 from httpx import AsyncClient
@@ -6,17 +6,33 @@ from sqlalchemy import Engine
 
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
+from shared.config import get_agent_settings
 from shared.db import create_session_factory
 
 from . import conftest
 
 pytestmark = pytest.mark.integration
 
-URL = "/llm/selection/text_gen/agent-trial"
 OPENROUTER = "https://openrouter.ai/api/v1"
+OPENAI = "https://api.openai.com/v1"
 
 
-def _select(engine: Engine, name: str, catalog_provider: str, base_url: str) -> None:
+@pytest.fixture(autouse=True)
+def opencode_staged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """As an installer ships: opencode beside the API, no developer switch."""
+    settings = get_agent_settings()
+    monkeypatch.setattr(settings, "opencode_url", "http://127.0.0.1:9")
+    monkeypatch.setattr(settings, "opencode_password", "not-a-running-opencode")
+    monkeypatch.setattr(settings, "agent_untested_models", False)
+
+
+def _select(
+    engine: Engine,
+    name: str,
+    catalog_provider: str,
+    base_url: str,
+    settings: dict | None = None,
+) -> None:
     """A remote selection written as the selection route leaves it; nothing is sent to the host."""
     with create_session_factory(engine)() as session:
         connection = ProviderConnection(
@@ -33,6 +49,7 @@ def _select(engine: Engine, name: str, catalog_provider: str, base_url: str) -> 
                 provider="openai_compatible",
                 connection_id=connection.id,
                 name=name,
+                settings=settings,
             )
         )
         session.commit()
@@ -44,10 +61,10 @@ async def _capability(client: AsyncClient) -> dict:
     return reply.json()["capability"]
 
 
-async def test_a_measured_model_says_its_level_and_the_row_behind_it(
+async def test_a_measured_model_says_its_level_the_row_behind_it_and_starts_agentic(
     client: AsyncClient, engine: Engine
 ) -> None:
-    """The level, its reason as a code with values, and the evidence line."""
+    """The level, its reason as a code with values, the evidence line and the modes."""
     _select(engine, "anthropic/claude-haiku-4.5", "openrouter", OPENROUTER)
 
     capability = await _capability(client)
@@ -77,80 +94,105 @@ async def test_a_measured_model_says_its_level_and_the_row_behind_it(
         "counted": 8,
         "provisional": True,
     }
-    assert capability["agent_trial"] == {
-        "offered": False,
-        "enabled": False,
+    assert capability["modes"] == {
+        "agentic_allowed": True,
         "blocked": None,
+        "default_mode": "agentic",
+        "reason": {"code": "measured_near", "values": {"passed": 5, "counted": 8}},
+        "remembered_mode": None,
     }
 
 
-async def test_an_unmeasured_model_that_calls_tools_is_offered_the_trial(
+async def test_a_low_scorer_starts_basic_and_is_offered_agentic_with_its_score(
     client: AsyncClient, engine: Engine
 ) -> None:
-    """Off until the user turns it on."""
-    _select(engine, "gpt-4o-mini", "openai", "https://api.openai.com/v1")
+    """Gemma 4 31B passed 2 of 8: Agentic stays one choice away."""
+    _select(engine, "google/gemma-4-31b-it", "openrouter", OPENROUTER)
+
+    modes = (await _capability(client))["modes"]
+
+    assert modes["agentic_allowed"] is True
+    assert modes["default_mode"] == "basic"
+    assert modes["reason"] == {
+        "code": "measured_below",
+        "values": {"passed": 2, "counted": 8},
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "catalog_provider", "base_url"),
+    [
+        ("gpt-4o-mini", "openai", OPENAI),
+        # The catalog says nothing of its tool calls, which is not a no.
+        ("anthropic/claude-sonnet-99", "openrouter", OPENROUTER),
+    ],
+)
+async def test_an_untested_model_starts_basic_and_is_offered_agentic(
+    client: AsyncClient, engine: Engine, name: str, catalog_provider: str, base_url: str
+) -> None:
+    """With the untested warning, never refused."""
+    _select(engine, name, catalog_provider, base_url)
 
     capability = await _capability(client)
 
     assert capability["level"] == "not_measured"
-    assert capability["reason"] == {"code": "no_row", "values": {}}
     assert capability["measured"] is None
-    assert capability["agent_trial"] == {
-        "offered": True,
-        "enabled": False,
+    assert capability["modes"] == {
+        "agentic_allowed": True,
         "blocked": None,
+        "default_mode": "basic",
+        "reason": {"code": "untested", "values": {}},
+        "remembered_mode": None,
     }
 
 
-async def test_the_trial_is_kept_on_the_model_once_turned_on_and_off_again(
+async def test_a_model_that_cannot_call_tools_is_not_offered_agentic(
     client: AsyncClient, engine: Engine
 ) -> None:
-    """Stored on the selection, so every read says it."""
-    _select(engine, "gpt-4o-mini", "openai", "https://api.openai.com/v1")
+    """The catalog records `tool_call: false`; the reason goes with the disabled option."""
+    _select(engine, "gpt-3.5-turbo", "openai", OPENAI)
 
-    on = await client.put(URL, json={"enabled": True})
-    assert on.status_code == 200, on.text
-    assert on.json()["agent_trial"]["enabled"] is True
-    assert (await _capability(client))["agent_trial"]["enabled"] is True
+    modes = (await _capability(client))["modes"]
 
-    off = await client.put(URL, json={"enabled": False})
-    assert off.json()["agent_trial"]["enabled"] is False
+    assert (modes["agentic_allowed"], modes["blocked"]) == (
+        False,
+        "tool_calls_unsupported",
+    )
+    assert modes["default_mode"] == "basic"
 
 
-async def test_a_model_whose_tool_calls_nothing_confirms_cannot_be_opted_in(
+async def test_without_opencode_agentic_is_not_installed(
+    client: AsyncClient, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A build that stages no opencode offers Basic alone."""
+    monkeypatch.setattr(get_agent_settings(), "opencode_url", None)
+    _select(engine, "claude-opus-5-5", "anthropic", "https://api.anthropic.com/v1")
+
+    modes = (await _capability(client))["modes"]
+
+    assert (modes["agentic_allowed"], modes["blocked"]) == (
+        False,
+        "agent_not_installed",
+    )
+    assert modes["default_mode"] == "basic"
+
+
+async def test_the_old_agent_trial_reads_as_agentic_remembered(
     client: AsyncClient, engine: Engine
 ) -> None:
-    """Offered nowhere it would fail at the first step."""
-    _select(engine, "anthropic/claude-sonnet-99", "openrouter", OPENROUTER)
+    """A model the user turned "Try the agent" on for keeps starting Agentic."""
+    _select(engine, "gpt-4o-mini", "openai", OPENAI, settings={"agent_trial": True})
 
-    assert (await _capability(client))["agent_trial"] == {
-        "offered": False,
-        "enabled": False,
-        "blocked": "tool_calls_unconfirmed",
-    }
-    refused = await client.put(URL, json={"enabled": True})
-    assert refused.status_code == 409
-    assert refused.json()["detail"]["code"] == "tool_calls_unconfirmed"
+    modes = (await _capability(client))["modes"]
+
+    assert (modes["remembered_mode"], modes["default_mode"]) == ("agentic", "agentic")
 
 
-async def test_a_measured_model_takes_no_opt_in(
-    client: AsyncClient, engine: Engine
-) -> None:
-    """Its level decides: a pass runs the agent already, a failure never does."""
-    _select(engine, "google/gemma-4-31b-it", "openrouter", OPENROUTER)
-
-    refused = await client.put(URL, json={"enabled": True})
-
-    assert refused.status_code == 409
-    assert refused.json()["detail"]["code"] == "measured"
-
-
-async def test_the_trial_goes_when_the_slot_takes_another_model(
+async def test_the_remembered_mode_goes_when_the_slot_takes_another_model(
     client: AsyncClient, engine: Engine, llamacpp_server: str
 ) -> None:
-    """It belongs to the model it was given for."""
-    _select(engine, "gpt-4o-mini", "openai", "https://api.openai.com/v1")
-    await client.put(URL, json={"enabled": True})
+    """It belongs to the model it was chosen for."""
+    _select(engine, "gpt-4o-mini", "openai", OPENAI, settings={"chat_mode": "agentic"})
 
     chosen = await client.put(
         "/llm/selection/text_gen",
@@ -159,16 +201,26 @@ async def test_the_trial_goes_when_the_slot_takes_another_model(
 
     assert chosen.status_code == 200, chosen.text
     # A local model's tool calls are read when a chat starts, not on every read.
-    assert chosen.json()["capability"]["agent_trial"] == {
-        "offered": True,
-        "enabled": False,
+    assert chosen.json()["capability"]["modes"] == {
+        "agentic_allowed": True,
         "blocked": None,
+        "default_mode": "basic",
+        "reason": {"code": "untested", "values": {}},
+        "remembered_mode": None,
     }
 
 
-async def test_no_text_model_has_no_trial_to_set(client: AsyncClient) -> None:
-    """There is nothing to keep it on."""
-    assert (await client.put(URL, json={"enabled": True})).status_code == 404
+async def test_the_agent_trial_route_is_gone(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """The composer's mode switch replaced it."""
+    _select(engine, "gpt-4o-mini", "openai", OPENAI)
+
+    reply = await client.put(
+        "/llm/selection/text_gen/agent-trial", json={"enabled": True}
+    )
+
+    assert reply.status_code in (404, 405)
 
 
 async def test_the_model_lists_carry_each_chat_model_s_level(

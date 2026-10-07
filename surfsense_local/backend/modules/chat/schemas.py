@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from modules.chat.budget import QUESTION_CHARS
 from modules.chat.models import MessageRole
+from modules.llm.capability.modes import ChatMode
 from modules.source_scope.schemas import SourceScope
 
 ThreadTitle = Annotated[
@@ -33,11 +34,14 @@ class ThreadCreate(BaseModel):
     """Fields a client supplies when opening a thread.
 
     `source_scope` is the new chat's drafted ticks; omitted, the thread uses
-    every source.
+    every source. `mode` is Basic (Q&A) or Agentic, kept for the thread's life
+    and remembered as the selected model's default; omitted, the thread takes
+    that default.
     """
 
     title: ThreadTitle = "New chat"
     source_scope: SourceScope | None = None
+    mode: ChatMode | None = None
 
 
 class ThreadUpdate(BaseModel):
