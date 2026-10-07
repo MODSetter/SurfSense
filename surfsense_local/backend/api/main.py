@@ -51,6 +51,7 @@ from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
 from modules.resource_usage.router import router as resource_usage_router
+from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
@@ -209,6 +210,7 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
+    app.include_router(office_pack_router)
     # Routes only opencode calls, or that answer it, exist only beside one.
     if get_agent_settings().has_opencode():
         app.include_router(agent_model_router)

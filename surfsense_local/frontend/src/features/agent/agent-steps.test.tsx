@@ -96,6 +96,50 @@ describe("agent steps", () => {
     expect(screen.getByText("Looked for images in 2 sources")).toBeTruthy()
   })
 
+  it("names reading a workbook's cells by the workbook", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_20",
+            tool: "surfsense_read_document",
+            status: "completed",
+            title: null,
+            input: { document_id: 8 },
+          },
+          {
+            id: "prt_21",
+            tool: "surfsense_read_document",
+            status: "completed",
+            title: null,
+            input: { artifact_id: 61 },
+            output:
+              'Artifact 61, version 2 of the revised copy of "Pricing.xlsx", is a workbook. Each cell below …',
+          },
+          {
+            id: "prt_22",
+            tool: "surfsense_read_document",
+            status: "running",
+            title: null,
+            input: { document_id: 9 },
+          },
+        ]}
+        scope={{ document_ids: [8], titles: ["Budget.xlsx"] }}
+      />
+    )
+
+    // A finished step folds its result under its label.
+    expect(
+      screen
+        .getAllByRole("listitem")
+        .map((item) => (item.querySelector("summary") ?? item).textContent)
+    ).toEqual([
+      "Read the cells of Budget.xlsx",
+      "Read the cells of Pricing.xlsx",
+      "Read the cells of a workbook",
+    ])
+  })
+
   it.each([
     { format: "pptx", title: "Board deck" },
     { format: "xlsx", title: "Budget workbook" },
@@ -132,6 +176,49 @@ describe("agent steps", () => {
     }
   )
 
+  it("opens the revised copy a revise made, named by its version", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_revise_document",
+              input: { artifact_id: 70, operations: [] },
+              artifact: { id: 71, title: "MSA_Acme (revised)", version: 2 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Revised MSA_Acme (revised) v2" })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(71)
+  })
+
+  it("names a revise that made nothing yet as an edit of a copy", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_revise_document",
+            status: "running",
+            input: { document_id: 42, operations: [] },
+            output: undefined,
+            artifact: null,
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Edited a copy of a source file"
+    )
+  })
+
   it("names looking at a source's pages by the source's title", () => {
     render(
       <AgentSteps
@@ -156,6 +243,37 @@ describe("agent steps", () => {
     )
   })
 
+  it("names an analysis by its title, and one still being written without", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_7",
+            tool: "surfsense_analyze_data",
+            status: "completed",
+            title: null,
+            input: {
+              title: "Revenue by region",
+              document_ids: [3],
+              script: "...",
+            },
+          },
+          {
+            id: "prt_8",
+            tool: "surfsense_analyze_data",
+            status: "running",
+            title: null,
+            input: {},
+          },
+        ]}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual(["Ran the analysis Revenue by region", "Analysed data"])
+  })
+
   it("names looking at a source's pages when the turn named no sources", () => {
     render(
       <AgentSteps
@@ -175,5 +293,84 @@ describe("agent steps", () => {
     expect(screen.getByRole("listitem").textContent).toBe(
       "Looked at pages of a source"
     )
+  })
+
+  it("opens the PDF a conversion made, named by its document", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            {
+              id: "prt_7",
+              tool: "surfsense_convert_document",
+              status: "completed",
+              title: null,
+              input: { artifact_id: 40, format: "pdf" },
+              artifact: { id: 52, title: "Client proposal", version: 1 },
+            },
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Converted Client proposal to PDF" })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(52)
+  })
+
+  it("names a conversion still running without a document", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "prt_8",
+            tool: "surfsense_convert_document",
+            status: "running",
+            title: null,
+            input: { document_id: 8, format: "pdf" },
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Converted a document to PDF"
+    )
+  })
+
+  it("names each PDF tool's step by what it did, and one still being written", () => {
+    const step = (
+      id: string,
+      tool: string,
+      input: Record<string, unknown>
+    ): AgentStep => ({ id, tool, status: "completed", title: null, input })
+    render(
+      <AgentSteps
+        steps={[
+          step("prt_9", "surfsense_pdf_pages", { operation: "merge" }),
+          step("prt_10", "surfsense_pdf_pages", { operation: "split" }),
+          step("prt_11", "surfsense_pdf_stamp", { kind: "page_numbers" }),
+          step("prt_12", "surfsense_pdf_stamp", { kind: "watermark" }),
+          step("prt_13", "surfsense_pdf_form", { action: "list" }),
+          step("prt_14", "surfsense_pdf_form", { action: "fill" }),
+          step("prt_15", "surfsense_pdf_pages", {}),
+        ]}
+      />
+    )
+
+    expect(
+      screen.getAllByRole("listitem").map((item) => item.textContent)
+    ).toEqual([
+      "Merged PDFs",
+      "Split a PDF",
+      "Numbered a PDF’s pages",
+      "Added a watermark to a PDF",
+      "Read a PDF form’s fields",
+      "Filled in a PDF form",
+      "Worked on PDF pages",
+    ])
   })
 })

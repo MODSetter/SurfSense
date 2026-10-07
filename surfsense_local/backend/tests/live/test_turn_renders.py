@@ -12,6 +12,7 @@ from tests.live.recording_proxy import Exchange
 from tests.live.turn_renders import (
     Version,
     assert_pages_checked,
+    made_ids,
     pages_left_unread,
     pages_sent_inline,
     previews_opened,
@@ -37,6 +38,30 @@ def test_only_renders_that_completed_with_a_version_count() -> None:
     ]
 
     assert rendered_ids(frames) == [4, 6]
+
+
+def test_files_a_tool_made_are_named_by_its_result() -> None:
+    """A PDF tool's result names one new artifact, or lists several; a failed call made none."""
+    frames = [
+        _step(
+            "a",
+            "surfsense_pdf_pages",
+            "completed",
+            output="Made artifact 7: Reports (merged)\nA new PDF of 5 pages.",
+        ),
+        _step(
+            "b",
+            "surfsense_pdf_pages",
+            "completed",
+            output="Made 2 artifacts, each a new PDF in Studio.\n"
+            "- artifact 8: Report (page 1), 1 page\n"
+            "- artifact 9: Report (page 2), 1 page",
+        ),
+        _step("c", "surfsense_pdf_pages", "error", output="Made artifact 10: x"),
+        _step("d", "surfsense_pdf_stamp", "completed", output="Made artifact 11: y"),
+    ]
+
+    assert made_ids(frames, "surfsense_pdf_pages") == [7, 8, 9]
 
 
 def test_previews_opened_are_named_by_artifact_version_and_page() -> None:

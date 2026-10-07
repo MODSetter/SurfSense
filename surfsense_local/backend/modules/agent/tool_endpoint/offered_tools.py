@@ -10,10 +10,16 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.tool_endpoint import replies
+from modules.agent.tool_endpoint.analyze_data import ANALYZE_DATA
+from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.pdf_form import PDF_FORM
+from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
+from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
+from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
@@ -42,6 +48,12 @@ TOOLS: dict[str, Tool] = {
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
+        CONVERT_DOCUMENT,
+        REVISE_DOCUMENT,
+        ANALYZE_DATA,
+        PDF_PAGES,
+        PDF_STAMP,
+        PDF_FORM,
     )
 }
 
@@ -95,7 +107,8 @@ def _content(
     text: str, images: tuple[InlineImage, ...], *, is_error: bool
 ) -> dict[str, Any]:
     """A tool result: one text item, which opencode passes to the model as it is,
-    then the images, which opencode attaches after the step.
+    then the images: on /chat/completions opencode attaches them after the step,
+    on /responses it keeps them in the call's output.
 
     The model must still read images now: opencode turns each image sent to one
     that cannot into an error it is told to report.

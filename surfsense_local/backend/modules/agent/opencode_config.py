@@ -33,8 +33,14 @@ PROVIDER_PACKAGES: dict[CallRoute, str] = {
     "responses": "@ai-sdk/openai",
 }
 
-# The one skill SurfSense ships: how to write a document script (ADR 0039).
+# The skills SurfSense ships: how to write a document script (ADR 0039), and
+# how to revise the user's own file.
 DOCUMENTS_SKILL = "surfsense-documents"
+REVISIONS_SKILL = "surfsense-revisions"
+# How to analyse spreadsheets and CSVs with surfsense_analyze_data.
+DATA_SKILL = "surfsense-data"
+# Which PDF tool fits a request, and how pages are named.
+PDF_SKILL = "surfsense-pdf"
 
 
 def skills_folder() -> Path:
@@ -96,7 +102,13 @@ def _permission(skills: Path) -> dict[str, Any]:
         # Asks through a form SurfSense does not show in this phase.
         "question": "deny",
         # Not opencode's built-in skills, nor any the user installed for their own opencode.
-        "skill": {"*": "deny", DOCUMENTS_SKILL: "allow"},
+        "skill": {
+            "*": "deny",
+            DOCUMENTS_SKILL: "allow",
+            REVISIONS_SKILL: "allow",
+            DATA_SKILL: "allow",
+            PDF_SKILL: "allow",
+        },
     }
 
 

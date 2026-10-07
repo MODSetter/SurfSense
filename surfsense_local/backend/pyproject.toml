@@ -29,8 +29,14 @@ dependencies = [
     # Chat images are normalised before they are stored or sent
     # (modules/chat/images). Docling brings it too; named so it cannot vanish.
     "pillow>=12",
+    # Data analysis scripts read ticked spreadsheets and CSVs with it
+    # (worker/document_script). Docling brings it too; named so it cannot vanish.
+    "pandas>=3.0",
     "pathvalidate>=3.2",
     "pydantic-settings>=2.7.0",
+    # PDF utilities: merge, split, rotate, stamp and fill form fields
+    # (modules/agent/tool_endpoint). pypdfium2 renders; pypdf writes.
+    "pypdf>=6",
     # Reads the text of a PDF a document script wrote
     # (worker/studio/script_document). Docling brings it too; named so it
     # cannot vanish.
@@ -134,5 +140,6 @@ markers = [
     "unit: pure logic tests, no database or external services",
     "integration: tests that run against a real SQLite database built by migrations",
     "packaging: freezes or runs the binaries the app ships; slow, opt-in",
+    "office: runs a real LibreOffice through the test seam (SURFSENSE_TEST_LIBREOFFICE, else a standard install path); skipped when none is found",
     "live: calls a paid model (Claude Sonnet unless SURFSENSE_LIVE_MODEL says otherwise) through the real agent path; skipped unless SURFSENSE_LIVE_TESTS=1 and the provider's key are set, costs money",
 ]

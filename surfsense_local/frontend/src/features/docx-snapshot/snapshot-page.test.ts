@@ -10,6 +10,7 @@ import {
   type MockInstance,
 } from "vitest"
 
+import { CLAUSE_WITH_TRACKED_CHANGES } from "./fixtures/clause-with-tracked-changes"
 import { DECK_WITH_PICTURE } from "./fixtures/deck-with-picture"
 import { LETTER_WITH_HEADER_AND_FOOTER } from "./fixtures/letter-with-header-and-footer"
 import { LETTER_WITH_LOGO } from "./fixtures/letter-with-logo"
@@ -119,6 +120,22 @@ describe("layOutSnapshot", () => {
     expect(failure).toBeNull()
     expect(document.body.textContent).toContain("Quarterly report")
     expect(document.body.querySelector("iframe")).toBeNull()
+  })
+
+  it("shows tracked changes, so the agent checks a revised copy as the user sees it", async () => {
+    serve(new Response(CLAUSE_WITH_TRACKED_CHANGES))
+
+    const failure = await layOutSnapshot(
+      `?file=${encodeURIComponent(FILE_URL)}`,
+      document
+    )
+
+    expect(failure).toBeNull()
+    expect(document.body.querySelector("ins")?.textContent).toBe("45")
+    expect(document.body.querySelector("del")?.textContent).toBe("30")
+    expect(
+      getComputedStyle(document.body.querySelector("del")!).textDecorationLine
+    ).toContain("line-through")
   })
 
   it("leaves out headers and footers, as the agent is told it does", async () => {

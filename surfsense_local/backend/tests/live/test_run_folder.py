@@ -104,3 +104,16 @@ def test_the_cost_carries_what_openrouter_billed_when_every_call_says(
     assert cost["reported_dollars"] == pytest.approx(0.0153)
     cost = json.loads((unbilled.path / "cost.json").read_text(encoding="utf-8"))
     assert cost["reported_dollars"] is None
+
+
+def test_the_run_keeps_what_each_analysis_saved(tmp_path: Path) -> None:
+    """A wrong figure is traced from the chart and table the analysis left behind."""
+    run = RunFolder("sales-targets", HAIKU, root=tmp_path / "runs")
+    analysis = tmp_path / "thread" / "outputs" / "analysis"
+    (analysis / "a1b2c3d4").mkdir(parents=True)
+    (analysis / "a1b2c3d4" / "shortfall.png").write_bytes(b"png")
+
+    run.keep_analysis(analysis)
+
+    kept = run.path / "analysis" / "a1b2c3d4" / "shortfall.png"
+    assert kept.read_bytes() == b"png"
