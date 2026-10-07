@@ -21,28 +21,25 @@ export type Echo = (fd: 1 | 2, text: string) => void
 const ECHO_BACKLOG_BYTES = 1 << 20
 
 /**
- * An echo that never holds up the main thread. On Windows, Node writes to a
- * piped stdout synchronously, so a terminal that stops reading (a selection in
- * a console window) froze the whole UI; an fs stream writes from libuv's pool.
+ * On Windows Node writes a piped stdout synchronously, so a stalled terminal
+ * froze the UI; an fs stream writes from libuv's pool. Elsewhere Node queues a
+ * full pipe, which an fs stream would fail on instead (the pipe is non-blocking).
  */
-export function createEcho(
-  open: (fd: 1 | 2) => Writable = (fd) => createWriteStream("", { fd, autoClose: false }),
-): Echo {
+export function terminal(fd: 1 | 2, windows = isWindows): Writable {
+  if (windows) return createWriteStream("", { fd, autoClose: false })
+  return fd === 1 ? process.stdout : process.stderr
+}
+
+/** An echo that drops what a stalled terminal has not taken past the backlog. */
+export function createEcho(open: (fd: 1 | 2) => Writable = terminal): Echo {
   const streams = new Map<1 | 2, Writable | null>()
   return (fd, text) => {
     let stream = streams.get(fd)
     if (stream === undefined) {
       try {
-        const opened = open(fd)
+        stream = open(fd)
         // A terminal that went away, or no console at all, must not crash main.
-        // A full non-blocking pipe (macOS) is only a stall: the next line
-        // opens a fresh stream, and what was waiting is dropped.
-        opened.on("error", (error: NodeJS.ErrnoException) => {
-          if (streams.get(fd) !== opened) return
-          if (error.code === "EAGAIN") streams.delete(fd)
-          else streams.set(fd, null)
-        })
-        stream = opened
+        stream.on("error", () => streams.set(fd, null))
       } catch {
         stream = null
       }

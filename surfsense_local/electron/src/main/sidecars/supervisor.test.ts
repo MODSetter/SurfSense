@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { once } from "node:events"
-import { existsSync, mkdtempSync, readFileSync } from "node:fs"
+import { WriteStream, existsSync, mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Writable } from "node:stream"
@@ -8,7 +8,7 @@ import test from "node:test"
 
 import { sessionLog } from "../session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
-import { createEcho, startOne, stopNamed, type Sidecars } from "./supervisor.ts"
+import { createEcho, startOne, stopNamed, terminal, type Sidecars } from "./supervisor.ts"
 import type { SidecarSpec } from "./types.ts"
 
 /** A sidecar that runs `script` under this Node, from a scratch folder. */
@@ -169,29 +169,18 @@ test("a terminal that went away stops the mirror and does not crash", async () =
   assert.equal(writes, 1)
 })
 
-test("a pipe that was full for a moment does not end the mirror", async () => {
-  const written: string[] = []
-  const opens: Writable[] = []
-  const echo = createEcho(() => {
-    const full = opens.length === 0
-    const stream = new Writable({
-      write: (chunk, _encoding, done) => {
-        if (full) return done(Object.assign(new Error("write EAGAIN"), { code: "EAGAIN" }))
-        written.push(String(chunk))
-        done()
-      },
-    })
-    opens.push(stream)
-    return stream
-  })
+test("off Windows the mirror writes through Node's own stdout and stderr", () => {
+  // Node queues a full pipe there; an fs stream would fail on its non-blocking
+  // mode after a few tries, and the mirror would stop for the rest of the run.
+  assert.equal(terminal(1, false), process.stdout)
+  assert.equal(terminal(2, false), process.stderr)
+})
 
-  echo(1, "[api] lost to the stall\n")
-  await new Promise((resolve) => setImmediate(resolve))
-  echo(1, "[api] after it\n")
-  await new Promise((resolve) => setImmediate(resolve))
+test("on Windows the mirror writes from libuv's pool, not through process.stdout", () => {
+  const stream = terminal(2, true)
 
-  assert.equal(opens.length, 2)
-  assert.deepEqual(written, ["[api] after it\n"])
+  assert.ok(stream instanceof WriteStream)
+  assert.equal(Reflect.get(stream, "fd"), 2)
 })
 
 test("an echo with no terminal to open stays silent", () => {
