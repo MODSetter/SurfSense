@@ -105,4 +105,10 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # opencode arrives Developer ID signed by its vendor, with the hardened
+  # runtime, a timestamp and the five entitlements Bun needs. Re-signing it would
+  # swap those for ours, which lack disable-executable-page-protection. rg
+  # arrives only ad-hoc signed, so it is signed with the app.
+  signIgnore:
+    - "/Contents/Resources/opencode/opencode$"
   notarize: true

@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Electron's V8 JIT under the hardened runtime, and the JIT of Bun, which
-         opencode is built on; entitlementsInherit gives these to every nested binary. -->
+    <!-- Electron's V8 JIT under the hardened runtime. opencode, whose Bun JITs
+         too, keeps its vendor's signature and entitlements (signIgnore). -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
