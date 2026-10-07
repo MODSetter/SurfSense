@@ -14,6 +14,8 @@ const rendered = vi.hoisted(() => ({
   artifactRows: 0,
   studio: 0,
   sidebar: 0,
+  thread: 0,
+  rightPanel: 0,
 }))
 
 vi.mock("@/features/sources/tree/document-row", async (importOriginal) => {
@@ -48,6 +50,28 @@ vi.mock("@/features/dashboard/left-sidebar", async (importOriginal) => {
     ...actual,
     LeftSidebar: countRenders(actual.LeftSidebar, () => {
       rendered.sidebar += 1
+    }),
+  }
+})
+vi.mock("@/features/chat/thread-panel", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/features/chat/thread-panel")>()
+  const { countRenders } = await import("@/test-render-count")
+  return {
+    ...actual,
+    ThreadPanel: countRenders(actual.ThreadPanel, () => {
+      rendered.thread += 1
+    }),
+  }
+})
+vi.mock("@/features/dashboard/right-panel", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/features/dashboard/right-panel")>()
+  const { countRenders } = await import("@/test-render-count")
+  return {
+    ...actual,
+    RightPanel: countRenders(actual.RightPanel, () => {
+      rendered.rightPanel += 1
     }),
   }
 })
@@ -185,6 +209,8 @@ async function renderDashboard() {
   rendered.artifactRows = 0
   rendered.studio = 0
   rendered.sidebar = 0
+  rendered.thread = 0
+  rendered.rightPanel = 0
 }
 
 describe("what a dashboard render touches", () => {
@@ -234,7 +260,7 @@ describe("what a dashboard render touches", () => {
     })
   })
 
-  it("renders no source row, artifact row or Studio while a column edge is dragged", async () => {
+  it("renders nothing inside the columns while a column edge is dragged", async () => {
     await renderDashboard()
     const edge = screen.getByRole("separator", { name: "Resize sidebar" })
 
@@ -252,6 +278,8 @@ describe("what a dashboard render touches", () => {
       artifactRows: 0,
       studio: 0,
       sidebar: 0,
+      thread: 0,
+      rightPanel: 0,
     })
   })
 

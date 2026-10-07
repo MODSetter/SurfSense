@@ -12,8 +12,6 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { ResizeHandle } from "@/components/ui/resize-handle"
-import { SlideRail } from "@/components/ui/slide-rail"
 import {
   Tooltip,
   TooltipContent,
@@ -58,7 +56,6 @@ import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
-import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import {
   readRightPanelOpen,
@@ -66,10 +63,15 @@ import {
   writeRightPanelOpen,
   writeSourcePreview,
 } from "./chrome-prefs"
+import {
+  ColumnEdge,
+  DashboardColumns,
+  RightPanelRail,
+  SidebarColumn,
+} from "./dashboard-columns"
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
-import { useColumnWidths } from "./use-column-widths"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
 // Sources tab. Sources now live in the always-visible left sidebar, so the
@@ -146,12 +148,6 @@ function WorkspaceDashboard({
   const sourcePreviewOpen =
     sourcePreview?.document_type === "FILE" &&
     getFileViewer(sourcePreview.mime_type) !== null
-  const sectionRef = useRef<HTMLElement>(null)
-  const columns = useColumnWidths(sectionRef, {
-    sidebarWide: sourcePreviewOpen,
-    rightPanelOpen,
-    rightPanelWide: inspect !== null,
-  })
 
   useEffect(() => {
     if (sourcePreviewId === null || sources.isLoading) return
@@ -395,22 +391,18 @@ function WorkspaceDashboard({
             </Tooltip>
           </div>
         </div>
-        <section
-          ref={sectionRef}
-          className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+        {/* The widths live in here, so a drag of an edge renders the column
+          boxes and edges, not the sidebar, the thread or Studio. */}
+        <DashboardColumns
+          sidebarWide={sourcePreviewOpen}
+          rightPanelOpen={rightPanelOpen}
+          rightPanelWide={inspect !== null}
         >
           {/* A preview takes over the left column and widens it, as an
             inspected artifact does the right one; the right panel stays put.
             On a narrow window it gives way first, down to the sidebar's
             minimum, before the right panel does: the chat keeps its own. */}
-          <div
-            id={LEFT_COLUMN_ID}
-            className={cn(
-              "flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
-              !columns.animate && "transition-none"
-            )}
-            style={{ width: columns.sidebar.width }}
-          >
+          <SidebarColumn id={LEFT_COLUMN_ID}>
             {sourcePreviewOpen && sourcePreview ? (
               <SourcePreviewPanel
                 workspaceId={workspace.id}
@@ -442,15 +434,14 @@ function WorkspaceDashboard({
                 footer={sidebarFooter}
               />
             </div>
-          </div>
-          <ResizeHandle
-            side="start"
+          </SidebarColumn>
+          <ColumnEdge
+            column="sidebar"
             label={intl.formatMessage({
               id: "dashboard_sidebar_resize_aria",
               defaultMessage: "Resize sidebar",
             })}
             controls={LEFT_COLUMN_ID}
-            {...columns.sidebar.edge}
           />
           <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
             <ApprovalDialog
@@ -499,22 +490,16 @@ function WorkspaceDashboard({
           </div>
           {/* Collapsed, the rail has no edge to drag. */}
           {rightPanelOpen ? (
-            <ResizeHandle
-              side="end"
+            <ColumnEdge
+              column="rightPanel"
               label={intl.formatMessage({
                 id: "dashboard_right_panel_resize_aria",
                 defaultMessage: "Resize right panel",
               })}
               controls={RIGHT_PANEL_ID}
-              {...columns.rightPanel.edge}
             />
           ) : null}
-          <SlideRail
-            open={rightPanelOpen}
-            side="end"
-            width={columns.rightPanel.width}
-            animate={columns.animate}
-          >
+          <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
                 inspect={
@@ -565,8 +550,8 @@ function WorkspaceDashboard({
                 }
               />
             </div>
-          </SlideRail>
-        </section>
+          </RightPanelRail>
+        </DashboardColumns>
       </OpenArtifactContext.Provider>
     </OfficeOfferContext.Provider>
   )
