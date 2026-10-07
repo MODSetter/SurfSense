@@ -486,6 +486,36 @@ describe("useChatRuntime", () => {
     )
   })
 
+  it("drops a reply that ended elsewhere once a second read holds it", async () => {
+    const { result } = renderRuntime()
+    await openThread(result, 1)
+    sendIn(result, "How did revenue move?")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const reply = api.sendStreams[0]
+    act(() =>
+      reply.frame({
+        type: "accepted",
+        user_message_id: 11,
+        assistant_message_id: 12,
+        user_created_at: "2026-10-05T00:00:00Z",
+      })
+    )
+    await openThread(result, 2)
+
+    // The first read after the end lags the store; the next one holds it.
+    api.messages[1] = [
+      stored(11, "user", "How did revenue move?"),
+      stored(12, "assistant", "Revenue climbed."),
+    ]
+    api.nextReads[1] = [[]]
+    act(() =>
+      reply.frames([{ type: "delta", text: "Revenue climbed." }, "[DONE]"])
+    )
+
+    await waitFor(() => expect(liveRuns()).toEqual([]))
+    expect(result.current.activeThreadId).toBe(2)
+  })
+
   it("lets go of a sent image's picture once its stored turn shows it", async () => {
     const picture = "data:image/png;base64,aGVsbG8="
     const { result } = renderRuntime({ readsImages: true })

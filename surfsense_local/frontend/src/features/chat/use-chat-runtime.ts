@@ -379,10 +379,29 @@ export function useChatRuntime({
             dropRun(threadId)
           } else if (!isOptimistic(run.pair[1].id)) {
             // Read before the store caught up: read again, and the live copy
-            // goes once the stored turns hold it.
-            void queryClient.invalidateQueries({
-              queryKey: chatKeys.messages(threadId),
-            })
+            // goes once the stored turns hold it. A thread that is not open
+            // has nothing reading it again, so it is read here, or its run
+            // would stay until the thread is opened.
+            const open = threadId === activeThreadIdRef.current
+            await queryClient
+              .invalidateQueries({
+                queryKey: chatKeys.messages(threadId),
+                refetchType: open ? "active" : "all",
+              })
+              .catch(() => undefined)
+            const stored = queryClient.getQueryData<ChatMessage[]>(
+              chatKeys.messages(threadId)
+            )
+            const held = liveRun(threadId)
+            if (
+              !open &&
+              stored &&
+              held?.ended &&
+              held.pair?.[1].id === run.pair[1].id &&
+              storedTurnCaughtUp(stored, held.pair)
+            ) {
+              dropRun(threadId)
+            }
           }
           // An optimistic pair is a request that never reached the API; its
           // error stays on screen until the person moves on.
