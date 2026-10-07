@@ -1,6 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render as renderAtRoot,
+  screen,
+  waitFor,
+} from "@testing-library/react"
+import { tailBoundedRemend } from "@assistant-ui/react-streamdown"
+import { StrictMode } from "react"
+import { Streamdown } from "streamdown"
 
+import {
+  STREAMDOWN_LINK_SAFETY,
+  streamdownPlugins,
+  streamingStreamdownPlugins,
+} from "@/features/studio/viewers/streamdown-config"
 import { render } from "@/test-utils"
 
 import { ReplyThinking } from "./reply-thinking"
@@ -249,30 +264,84 @@ describe("ReplyThinking", () => {
     expect(trace.textContent).toContain("Image blocked")
   })
 
-  it("keeps the newest reasoning in view while it streams", () => {
+  it("keeps the newest reasoning in view while it streams", async () => {
     const { rerender } = render(streaming("First step."))
     const trace = screen.getByRole("region", { name: "Thinking" })
+    await nextFrame()
     layOut(trace, { scrollHeight: 400, clientHeight: 100, scrollTop: 0 })
 
     rerender(streaming("First step. Second step."))
+    await nextFrame()
 
     expect(trace.scrollTop).toBe(400)
   })
 
-  it("stops following once the reader scrolls up to read", () => {
+  it("stops following once the reader scrolls up to read", async () => {
     const { rerender } = render(streaming("First step."))
     const trace = screen.getByRole("region", { name: "Thinking" })
+    await nextFrame()
     layOut(trace, { scrollHeight: 400, clientHeight: 100, scrollTop: 100 })
     fireEvent.scroll(trace)
 
     layOut(trace, { scrollHeight: 600, clientHeight: 100, scrollTop: 100 })
     rerender(streaming("First step. Second step."))
+    await nextFrame()
 
     expect(trace.scrollTop).toBe(100)
+  })
+
+  it("keeps following after StrictMode remounts its effects, as in development", async () => {
+    const strict = (text: string) => <StrictMode>{streaming(text)}</StrictMode>
+    // At the root, as main.tsx has it: StrictMode inside a newly mounted
+    // wrapper does not remount effects.
+    const { rerender } = renderAtRoot(strict("First step."))
+    const trace = screen.getByRole("region", { name: "Thinking" })
+    await nextFrame()
+    layOut(trace, { scrollHeight: 400, clientHeight: 100, scrollTop: 0 })
+
+    rerender(strict("First step. Second step."))
+    await nextFrame()
+
+    expect(trace.scrollTop).toBe(400)
+  })
+
+  it("lays the trace out once a frame, however many tokens arrive in it", async () => {
+    const { rerender } = render(streaming("Step"))
+    const trace = screen.getByRole("region", { name: "Thinking" })
+    await nextFrame()
+    const layouts = measured(trace)
+
+    for (let token = 1; token <= 5; token += 1) {
+      rerender(streaming(`Step ${token}`))
+    }
+    await nextFrame()
+
+    expect(layouts()).toBe(1)
+    expect(trace.scrollTop).toBe(400)
+  })
+
+  it("does not lay out a folded trace", async () => {
+    const { container, rerender } = render(finished("Earlier reasoning."))
+    await nextFrame()
+    const layouts = measured(traceIn(container))
+
+    rerender(finished("Earlier reasoning, revised."))
+    await nextFrame()
+
+    expect(layouts()).toBe(0)
   })
 })
 
 describe("the trace's markdown", () => {
+  it("repairs only the unfinished tail, and Streamdown repairs nothing again", () => {
+    const text = "## Plan\n\nRead the note.\n\nThen **compare"
+    render(streaming(text))
+
+    const props = seen.trace[seen.trace.length - 1]
+    expect(props.parseIncompleteMarkdown).toBe(false)
+    expect(props.children).toBe(tailBoundedRemend(text))
+  })
+
   it("keeps its options across tokens, so a token never redraws the whole trace", () => {
     const { rerender } = render(streaming("First step."))
     const first = seen.trace[seen.trace.length - 1]
@@ -296,6 +365,41 @@ describe("the trace's markdown", () => {
     expect(done.code).toBeDefined()
     expect(done.math).toBe(thinking.math)
   })
+
+  describe.each([
+    ["an unclosed bold", "Plan first.\n\nThen **compare the quarters"],
+    ["an open code fence", "Plan first.\n\n```ts\nconst total = 3\nconst"],
+    ["an unclosed math block", "Plan first.\n\n$$\n\\sum_{k=1}^{n} k"],
+  ])("ending in %s", (_ending, text) => {
+    // Streamdown's own repair of the whole trace, as the trace had it.
+    const reference = (plugins: object) =>
+      render(
+        <Streamdown plugins={plugins} linkSafety={STREAMDOWN_LINK_SAFETY}>
+          {text}
+        </Streamdown>
+      ).container.firstElementChild!
+
+    it("renders as before while thinking", () => {
+      const expected = reference(streamingStreamdownPlugins)
+      const { container } = render(streaming(text))
+
+      expect(traceIn(container).firstElementChild?.innerHTML).toBe(
+        expected.innerHTML
+      )
+    })
+
+    it("renders as before once done", async () => {
+      const expected = reference(streamdownPlugins)
+      const { container } = render(finished(text))
+
+      // Coloured code lands a moment later, in both.
+      await waitFor(() =>
+        expect(traceIn(container).firstElementChild?.innerHTML).toBe(
+          expected.innerHTML
+        )
+      )
+    })
+  })
 })
 
 type Plugins = { code?: unknown; math?: unknown }
@@ -308,6 +412,33 @@ function finished(text: string) {
       reasoning={{ text, durationMs: 2_000 }}
     />
   )
+}
+
+/** The trace box, open or folded (a folded one is hidden from roles). */
+function traceIn(container: HTMLElement) {
+  return container.querySelector<HTMLElement>('[role="region"]')!
+}
+
+// The trace follows on the next frame, not in the render that changed it.
+function nextFrame() {
+  return act(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  )
+}
+
+/** Lays the trace out as 400px of content in a 100px box, and counts the
+ *  reads of its height, each one a layout in a browser. */
+function measured(element: HTMLElement) {
+  let reads = 0
+  layOut(element, { scrollHeight: 400, clientHeight: 100, scrollTop: 0 })
+  Object.defineProperty(element, "scrollHeight", {
+    configurable: true,
+    get: () => {
+      reads += 1
+      return 400
+    },
+  })
+  return () => reads
 }
 
 function streaming(text: string) {

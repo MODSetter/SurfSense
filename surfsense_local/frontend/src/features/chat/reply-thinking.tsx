@@ -1,5 +1,13 @@
 import { useScrollLock } from "@assistant-ui/react"
-import { useId, useLayoutEffect, useRef, useState } from "react"
+import { tailBoundedRemend } from "@assistant-ui/react-streamdown"
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { Streamdown, defaultRehypePlugins } from "streamdown"
 
 import { ChevronRightIcon } from "@/components/ui/icons"
@@ -173,13 +181,35 @@ function ReplyHeader({
   // moving the header out from under the click.
   const slideRef = useRef<HTMLDivElement>(null)
   const lockChatScroll = useScrollLock(slideRef, 300) // the slide's duration-300
+  // Reading scrollHeight lays the trace out, so it follows once a frame, not
+  // at every reasoning token, and not while folded.
+  const followFrame = useRef<number | null>(null)
 
   useLayoutEffect(() => {
-    const trace = traceRef.current
-    if (trace && following.current) {
-      trace.scrollTop = trace.scrollHeight
-    }
+    if (!open || followFrame.current !== null) return
+    followFrame.current = requestAnimationFrame(() => {
+      followFrame.current = null
+      const trace = traceRef.current
+      if (trace && following.current) {
+        trace.scrollTop = trace.scrollHeight
+      }
+    })
   }, [reasoning?.text, open])
+  useEffect(
+    () => () => {
+      if (followFrame.current !== null) {
+        cancelAnimationFrame(followFrame.current)
+        followFrame.current = null
+      }
+    },
+    []
+  )
+
+  // The tail is the only place an unclosed marker can be, so repairing it
+  // alone renders as Streamdown's whole-trace repair did, without rescanning
+  // the trace at every token.
+  const text = reasoning?.text ?? ""
+  const repaired = useMemo(() => tailBoundedRemend(text), [text])
 
   const thinking = intl.formatMessage({
     id: "chat_reasoning_thinking_label",
@@ -271,8 +301,9 @@ function ReplyHeader({
               }}
             >
               {/* Default mode: the trace streams in, unlike a viewer's
-                  finished artifact. */}
+                  finished artifact. Repaired above, so not again here. */}
               <Streamdown
+                parseIncompleteMarkdown={false}
                 plugins={
                   status === "thinking"
                     ? streamingStreamdownPlugins
@@ -281,7 +312,7 @@ function ReplyHeader({
                 rehypePlugins={traceRehypePlugins}
                 linkSafety={STREAMDOWN_LINK_SAFETY}
               >
-                {reasoning.text}
+                {repaired}
               </Streamdown>
             </ScrollFade>
           </div>
