@@ -51,6 +51,11 @@ const listeners = new Set<Listener>()
 const endedListeners = new Set<EndedListener>()
 const frameListeners = new Set<FrameListener>()
 let pendingNotice: ReturnType<typeof setTimeout> | null = null
+let lastNotice = Number.NEGATIVE_INFINITY
+
+// Text is told at most this often: each render reads the whole live reply, so
+// a fast model on a long reply would otherwise keep the window busy redrawing.
+export const TEXT_NOTICE_GAP_MS = 32
 
 /** Tell every subscriber now, of this change and of frames not yet told. */
 function notify() {
@@ -58,14 +63,19 @@ function notify() {
     clearTimeout(pendingNotice)
     pendingNotice = null
   }
+  lastNotice = performance.now()
   for (const listener of [...listeners]) listener()
 }
 
 // The frames of one network read are applied in microtasks, before any
-// timer runs, so one notice a macrotask later renders them all at once. Not
-// an animation frame: a hidden window gets none, and its replies still stream.
+// timer runs, so one notice a macrotask later renders them all at once, and
+// none comes sooner than TEXT_NOTICE_GAP_MS after the last. Not an animation
+// frame: a hidden window gets none, and its replies still stream.
 function notifySoon() {
-  pendingNotice ??= setTimeout(notify, 0)
+  pendingNotice ??= setTimeout(
+    notify,
+    Math.max(0, lastNotice + TEXT_NOTICE_GAP_MS - performance.now())
+  )
 }
 
 function sameState(a: RunState, b: RunState) {

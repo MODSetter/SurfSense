@@ -11,6 +11,7 @@ import {
   pump,
   runSummaries,
   subscribeToRuns,
+  TEXT_NOTICE_GAP_MS,
   updatePair,
 } from "./run-store"
 
@@ -67,8 +68,10 @@ const deltas = (count: number): ChatStreamEvent[] =>
     text: `${index} `,
   }))
 
-// Past the notice a read schedules, which goes out a macrotask after it.
-const afterNotice = () => new Promise((resolve) => setTimeout(resolve, 10))
+// Past the notice a read schedules: a macrotask after it, and no sooner than
+// the gap after the last notice.
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const afterNotice = () => wait(TEXT_NOTICE_GAP_MS + 10)
 
 const subscriptions: Array<() => void> = []
 function subscriber() {
@@ -82,6 +85,40 @@ afterEach(() => {
 })
 
 describe("run store", () => {
+  it("tells reads that come close together at most once a gap, and the last text always", async () => {
+    const run = followed()
+    await afterNotice()
+    const notices = subscriber()
+
+    // Ten reads a macrotask apart, each told on its own before the gap.
+    const start = performance.now()
+    for (let read = 0; read < 10; read++) {
+      run.read(deltas(1))
+      await wait(0)
+    }
+    const spent = performance.now() - start
+    await afterNotice()
+
+    expect(notices.mock.calls.length).toBeLessThan(10)
+    expect(notices.mock.calls.length).toBeLessThanOrEqual(
+      Math.ceil(spent / TEXT_NOTICE_GAP_MS) + 1
+    )
+    expect(liveRun(THREAD)?.pair?.[1].content.text).toBe("0 ".repeat(10))
+    await run.close()
+  })
+
+  it("tells a read that follows a quiet spell without waiting", async () => {
+    const run = followed()
+    await afterNotice()
+    const notices = subscriber()
+
+    run.read(deltas(1))
+    await wait(5)
+
+    expect(notices).toHaveBeenCalledTimes(1)
+    await run.close()
+  })
+
   it("tells subscribers once of the frames one network read brings", async () => {
     const run = followed()
     const notices = subscriber()
