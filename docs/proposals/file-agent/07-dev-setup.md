@@ -1,16 +1,17 @@
 # Create and edit: running the slice from a dev build
 
-How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` with Claude Sonnet, how the live tests spend real money on it, and the script for the demo video. Every build stages opencode, so only a model off the tested list needs a developer switch ([agent](../../architecture/agent.md)).
+How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` with Claude Sonnet, how the live tests spend real money on it, and the script for the demo video. Dev runs and installers stage the agent by default; a developer switch starts every model's new chats in Agentic ([agent](../../architecture/agent.md)).
 
 ## Run it
 
 **Before the first run:** the usual desktop setup from [`surfsense_local/`](../../../surfsense_local/)'s README (`uv sync` in `backend/`, `pnpm install` in `frontend/` and `electron/`), and an Anthropic API key of your own.
 
-1. **Start the app**, in one shell. `pnpm dev` runs `predev`, which stages opencode with `build:opencode` unless `SURFSENSE_LOCAL_OPENCODE_ENABLED=0` is set. The API inherits Electron's environment, which is where the switch must be. Leave the switch out to see what users get: a model on the tested list (`capabilities.json`) runs the agent, and any other uses the chat unless its "Try the agent" is on.
+1. **Start the app**, in one shell. `pnpm dev` runs `predev`, which stages opencode with `build:opencode` unless `SURFSENSE_LOCAL_OPENCODE_ENABLED=0` is set. The API inherits Electron's environment, which is where the developer switch must be. Leave the switch out to see what users get: a model on the tested list (`capabilities.json`) starts new chats in Agentic, any other in Basic (Q&A), and the composer's switch picks either for a new chat.
 
    ```bash
    cd surfsense_local/electron
-   export SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1   # optional: let any model run the agent, untested ones too
+   export SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1   # optional: start every model's new chats in Agentic
+   pnpm build:opencode
    pnpm dev
    ```
 

@@ -37,6 +37,8 @@ import {
   type ImageUpload,
 } from "./api"
 import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
+import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
+import type { NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -132,9 +134,12 @@ function lastThreadKey(workspaceId: number) {
 const NEW_CHAT = "new"
 
 export type ConversationView =
-  | { status: "new" }
+  // `returned` is what a refused new chat hands back to the composer.
+  | { status: "new"; returned?: ReturnedDraft }
   | { status: "creating" }
   | { status: "active"; threadId: number }
+
+export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
 function rememberThread(workspaceId: number, threadId: number | null) {
   try {
@@ -218,6 +223,7 @@ export function useChatRuntime({
   sourceScope = null,
   readsImages,
   canSkipThinking,
+  newChatMode = null,
   onModelRequired,
 }: {
   workspaceId: number
@@ -232,6 +238,8 @@ export function useChatRuntime({
   readsImages: boolean
   // Whether the selected model can be told not to think; no other is asked to.
   canSkipThinking: boolean
+  // The mode a new chat opens in; null leaves it to the API's default.
+  newChatMode?: NewChatChoice | null
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -296,8 +304,15 @@ export function useChatRuntime({
   const isRunning = activeRun !== null && !activeRun.ended
 
   const createThreadMutation = useMutation({
-    mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
-      createThread(workspaceId, title, signal),
+    mutationFn: ({
+      title,
+      mode,
+      signal,
+    }: {
+      title: string
+      mode: NewChatChoice | null
+      signal: AbortSignal
+    }) => createThread(workspaceId, title, mode, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
@@ -599,6 +614,7 @@ export function useChatRuntime({
           setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
+            mode: newChatMode,
             signal: new AbortController().signal,
           })
           if (requestVersion.current !== version) {
@@ -620,9 +636,20 @@ export function useChatRuntime({
         }
       } catch (cause) {
         if (requestVersion.current === version) {
-          setConversationView({ status: "new" })
+          // An Agentic chat may be refused after a minute's wait for the
+          // agent; what was typed comes back rather than being lost.
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
         }
-        errorToast(messageFrom(cause))
+        errorToast(
+          cause instanceof ApiError &&
+            cause.code !== null &&
+            AGENTIC_REFUSALS.has(cause.code)
+            ? agenticRefusedText(cause.code)
+            : messageFrom(cause)
+        )
         return
       }
 
@@ -726,6 +753,7 @@ export function useChatRuntime({
       conversationView,
       createThreadMutation,
       isRunning,
+      newChatMode,
       onModelRequired,
       queryClient,
       selectedDocumentIds,
