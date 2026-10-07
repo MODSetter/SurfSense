@@ -11,9 +11,14 @@ from shared.config import get_storage_settings
 from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
+from worker.ingestion.slideless_deck import describe_slideless_deck
 
 # Already text: read off disk rather than round-trip through Docling.
 TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
+
+
+class UnreadableFileError(Exception):
+    """Docling refused the file itself, so it would refuse the same bytes again."""
 
 
 def markdown_for(document: Document) -> str:
@@ -35,15 +40,27 @@ def _markdown_from(path: Path) -> str:
 
     converted = convert(path)
     keep_figures(path, converted)
-    return converted.export_to_markdown()
+    template = describe_slideless_deck(path)
+    return converted.export_to_markdown() if template is None else template
 
 
 def convert(path: Path) -> Any:
     """Docling's reading of a file: its DoclingDocument."""
+    if describe_slideless_deck(path) is not None:
+        from docling_core.types.doc import DoclingDocument
+
+        # Nothing for Docling to read, and it refuses a deck with no pages.
+        return DoclingDocument(name=path.stem)
+
     # First: it sets the environment docling reads as it is imported.
     converter = _converter()
+    from docling.exceptions import ConversionError
+
     source = as_page(path) if path.suffix.lower() in IMAGE_SUFFIXES else path
-    return converter.convert(source).document
+    try:
+        return converter.convert(source).document
+    except ConversionError as refused:
+        raise UnreadableFileError(str(refused)) from refused
 
 
 @lru_cache(maxsize=1)
