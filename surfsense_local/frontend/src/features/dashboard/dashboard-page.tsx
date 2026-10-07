@@ -66,7 +66,7 @@ import {
   writeRightPanelOpen,
   writeSourcePreview,
 } from "./chrome-prefs"
-import { LeftSidebar } from "./left-sidebar"
+import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
 import { useColumnWidths } from "./use-column-widths"
@@ -199,6 +199,123 @@ function WorkspaceDashboard({
     }),
     [sources.writeNote, sources.loadNote, sources.editNote]
   )
+  // Built once per change of what it shows, so the memoized sidebar skips
+  // every other render of this page.
+  const sourcesList = useMemo(
+    () => (
+      <aside
+        id={LEFT_SOURCES_ID}
+        aria-label={intl.formatMessage({
+          id: "dashboard_sources_aria",
+          defaultMessage: "Workspace sources",
+        })}
+        className="flex h-full min-h-0 min-w-0 flex-col"
+      >
+        <SourcesPanel
+          documents={sources.documents}
+          index={sources.index}
+          selectedDocumentIds={sources.includedDocumentIds}
+          folderTicks={sources.folderTicks}
+          highlightedDocumentId={null}
+          isLoading={sources.isLoading}
+          isDeleting={sources.isDeleting}
+          error={sources.error}
+          upload={sourceUploads}
+          onDropFiles={sources.isUploading ? undefined : sources.uploadEntries}
+          onOpen={sources.openOriginal}
+          onPreview={toggleSourcePreview}
+          onReveal={sources.revealOriginal}
+          onRetry={sources.retry}
+          onCancel={sources.cancel}
+          onDelete={sources.deleteOne}
+          onDeleteSelected={sources.deleteSelected}
+          onSelectionChange={sources.setDocumentIncluded}
+          onFolderSelectionChange={sources.setFolderIncluded}
+          onToggleAll={sources.toggleAllIncluded}
+          onRename={sources.rename}
+          folderActions={sources.folderActions}
+          notes={sourceNotes}
+        />
+      </aside>
+    ),
+    [
+      sources.documents,
+      sources.index,
+      sources.includedDocumentIds,
+      sources.folderTicks,
+      sources.isLoading,
+      sources.isDeleting,
+      sources.error,
+      sourceUploads,
+      sources.isUploading,
+      sources.uploadEntries,
+      sources.openOriginal,
+      toggleSourcePreview,
+      sources.revealOriginal,
+      sources.retry,
+      sources.cancel,
+      sources.deleteOne,
+      sources.deleteSelected,
+      sources.setDocumentIncluded,
+      sources.setFolderIncluded,
+      sources.toggleAllIncluded,
+      sources.rename,
+      sources.folderActions,
+      sourceNotes,
+    ]
+  )
+  const sidebarFooter = useMemo(
+    () => <SidebarFooter onOpenLicense={onOpenLicense} />,
+    [onOpenLicense]
+  )
+  const sidebarActions = useMemo<SidebarNavAction[]>(
+    () => [
+      {
+        key: "plugins",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_plugins_button",
+          defaultMessage: "Plugins",
+        }),
+        icon: UnplugIcon,
+        badge: intl.formatMessage({
+          id: "dashboard_sidebar_plugins_soon_label",
+          defaultMessage: "Coming soon",
+        }),
+        // TODO: open the plugins panel once it exists.
+        onClick: () =>
+          toast.info(
+            intl.formatMessage({
+              id: "dashboard_plugins_soon_toast",
+              defaultMessage: "Plugins are coming soon",
+            }),
+            {
+              description: intl.formatMessage({
+                id: "dashboard_plugins_soon_body",
+                defaultMessage:
+                  "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+              }),
+            }
+          ),
+      },
+    ],
+    []
+  )
+  // The sidebar's callbacks keep one identity and call the latest chat.
+  const sidebarNewChat = useStableCallback(() => startNewChat())
+  const sidebarSelectThread = useStableCallback((threadId: number) => {
+    if (threadId !== chat.activeThreadId) closeInspect()
+    chat.selectThread(threadId)
+  })
+  const sidebarRenameThread = useStableCallback(
+    (threadId: number, title: string) => chat.rename(threadId, title)
+  )
+  const sidebarDeleteThread = useStableCallback(async (threadId: number) => {
+    if (threadId === chat.activeThreadId) closeInspect()
+    await chat.removeThread(threadId)
+  })
+  const sidebarTitleAnimationComplete = useStableCallback(() =>
+    chat.finishTitleAnimation()
+  )
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -313,87 +430,16 @@ function WorkspaceDashboard({
                 autoNamingThreadId={chat.autoNamingThreadId}
                 animatingTitleThreadId={chat.animatingTitleThreadId}
                 isLoadingThreads={chat.isLoadingThreads}
-                onNewChat={startNewChat}
-                onSelectThread={(threadId) => {
-                  if (threadId !== chat.activeThreadId) closeInspect()
-                  chat.selectThread(threadId)
-                }}
-                onRenameThread={chat.rename}
-                onDeleteThread={async (threadId) => {
-                  if (threadId === chat.activeThreadId) closeInspect()
-                  await chat.removeThread(threadId)
-                }}
-                onTitleAnimationComplete={chat.finishTitleAnimation}
+                onNewChat={sidebarNewChat}
+                onSelectThread={sidebarSelectThread}
+                onRenameThread={sidebarRenameThread}
+                onDeleteThread={sidebarDeleteThread}
+                onTitleAnimationComplete={sidebarTitleAnimationComplete}
                 runStates={chat.runStates}
                 unreadThreadIds={chat.unreadThreadIds}
-                actions={[
-                  {
-                    key: "plugins",
-                    label: intl.formatMessage({
-                      id: "dashboard_sidebar_plugins_button",
-                      defaultMessage: "Plugins",
-                    }),
-                    icon: UnplugIcon,
-                    badge: intl.formatMessage({
-                      id: "dashboard_sidebar_plugins_soon_label",
-                      defaultMessage: "Coming soon",
-                    }),
-                    // TODO: open the plugins panel once it exists.
-                    onClick: () =>
-                      toast.info(
-                        intl.formatMessage({
-                          id: "dashboard_plugins_soon_toast",
-                          defaultMessage: "Plugins are coming soon",
-                        }),
-                        {
-                          description: intl.formatMessage({
-                            id: "dashboard_plugins_soon_body",
-                            defaultMessage:
-                              "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
-                          }),
-                        }
-                      ),
-                  },
-                ]}
-                sources={
-                  <aside
-                    id={LEFT_SOURCES_ID}
-                    aria-label={intl.formatMessage({
-                      id: "dashboard_sources_aria",
-                      defaultMessage: "Workspace sources",
-                    })}
-                    className="flex h-full min-h-0 min-w-0 flex-col"
-                  >
-                    <SourcesPanel
-                      documents={sources.documents}
-                      index={sources.index}
-                      selectedDocumentIds={sources.includedDocumentIds}
-                      folderTicks={sources.folderTicks}
-                      highlightedDocumentId={null}
-                      isLoading={sources.isLoading}
-                      isDeleting={sources.isDeleting}
-                      error={sources.error}
-                      upload={sourceUploads}
-                      onDropFiles={
-                        sources.isUploading ? undefined : sources.uploadEntries
-                      }
-                      onOpen={sources.openOriginal}
-                      onPreview={toggleSourcePreview}
-                      onReveal={sources.revealOriginal}
-                      onRetry={sources.retry}
-                      onCancel={sources.cancel}
-                      onDelete={sources.deleteOne}
-                      onDeleteSelected={sources.deleteSelected}
-                      onSelectionChange={sources.setDocumentIncluded}
-                      onFolderSelectionChange={sources.setFolderIncluded}
-                      onToggleAll={sources.toggleAllIncluded}
-                      onRename={sources.rename}
-                      folderActions={sources.folderActions}
-                      notes={sourceNotes}
-                    />
-                  </aside>
-                }
-                footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
+                actions={sidebarActions}
+                sources={sourcesList}
+                footer={sidebarFooter}
               />
             </div>
           </div>

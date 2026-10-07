@@ -13,6 +13,7 @@ const rendered = vi.hoisted(() => ({
   // Artifact rows, the only ones with a compact time.
   artifactRows: 0,
   studio: 0,
+  sidebar: 0,
 }))
 
 vi.mock("@/features/sources/tree/document-row", async (importOriginal) => {
@@ -36,6 +37,17 @@ vi.mock("@/components/relative-time", async (importOriginal) => {
     ...actual,
     RelativeTime: countRenders(actual.RelativeTime, ({ compact }) => {
       if (compact) rendered.artifactRows += 1
+    }),
+  }
+})
+vi.mock("@/features/dashboard/left-sidebar", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/features/dashboard/left-sidebar")>()
+  const { countRenders } = await import("@/test-render-count")
+  return {
+    ...actual,
+    LeftSidebar: countRenders(actual.LeftSidebar, () => {
+      rendered.sidebar += 1
     }),
   }
 })
@@ -172,6 +184,7 @@ async function renderDashboard() {
   rendered.documentRows = 0
   rendered.artifactRows = 0
   rendered.studio = 0
+  rendered.sidebar = 0
 }
 
 describe("what a dashboard render touches", () => {
@@ -214,7 +227,11 @@ describe("what a dashboard render touches", () => {
     }
 
     expect(await screen.findByText("Streamed reply text")).toBeTruthy()
-    expect(rendered).toEqual({ documentRows: 0, artifactRows: 0, studio: 0 })
+    expect(rendered).toMatchObject({
+      documentRows: 0,
+      artifactRows: 0,
+      studio: 0,
+    })
   })
 
   it("renders no source row, artifact row or Studio while a column edge is dragged", async () => {
@@ -230,7 +247,12 @@ describe("what a dashboard render touches", () => {
     expect(document.getElementById("workspace-left-column")?.style.width).toBe(
       "302px"
     )
-    expect(rendered).toEqual({ documentRows: 0, artifactRows: 0, studio: 0 })
+    expect(rendered).toEqual({
+      documentRows: 0,
+      artifactRows: 0,
+      studio: 0,
+      sidebar: 0,
+    })
   })
 
   it("renders no source row when a source preview opens", async () => {
