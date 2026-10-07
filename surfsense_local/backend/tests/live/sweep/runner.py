@@ -21,7 +21,7 @@ from typing import Any
 import psutil
 
 from tests.live.lane_ports import lane_block_base
-from tests.live.sweep import report, results
+from tests.live.sweep import report, results, runner_lock
 from tests.live.sweep.attempt import Attempt, classify, ledger_dollars
 from tests.live.sweep.attempt_log import AttemptLog
 from tests.live.sweep.budget import Budget, estimate
@@ -81,7 +81,7 @@ class Runner:
     def __init__(self, sweep: Sweep) -> None:
         self.sweep = sweep
         self.attempt_log = AttemptLog(sweep.out / "attempts.jsonl")
-        self.attempts = self.attempt_log.read()
+        self.attempts: list[Attempt] = []
         self.running: dict[tuple[str, str], Running] = {}
         self.finished: queue.Queue[tuple[Running, Process]] = queue.Queue()
         self.stopping = False
@@ -94,9 +94,14 @@ class Runner:
         self.started = time.time()
 
     def run(self) -> list[dict[str, Any]]:
-        """Until every model has its verdict, the budget is spent, or Ctrl-C."""
+        """Until every model has its verdict, the budget is spent, or Ctrl-C; SweepBusyError if another runner has the folder."""
+        with runner_lock.held(self.sweep.out):
+            # Read under the lock, so no other runner is still adding lines.
+            self.attempts = self.attempt_log.read()
+            return self._run()
+
+    def _run(self) -> list[dict[str, Any]]:
         sweep = self.sweep
-        sweep.out.mkdir(parents=True, exist_ok=True)
         self._record_interrupted()
         if sweep.retry_unresolved:
             self._reopen_unresolved()

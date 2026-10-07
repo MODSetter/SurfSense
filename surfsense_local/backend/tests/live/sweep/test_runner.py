@@ -4,6 +4,8 @@ import json
 import os
 import subprocess
 import sys
+import threading
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,6 +19,7 @@ from tests.live.sweep.budget import Budget
 from tests.live.sweep.model_list import ListedModel
 from tests.live.sweep.ram_guard import RamGuard
 from tests.live.sweep.runner import HARNESS_STREAK, Runner, Sweep
+from tests.live.sweep.runner_lock import SweepBusyError
 
 pytestmark = pytest.mark.unit
 
@@ -274,6 +277,32 @@ def test_an_account_refusal_stops_the_sweep_and_the_case_runs_again_on_resume(
     rows = {row["id"]: row for row in _results(tmp_path)["models"]}
     assert (rows["a/good"]["level"], rows["a/good"]["attempts"]) == ("agent", 4)
     assert rows["a/weak"]["level"] == "agent"
+
+
+def test_a_second_runner_on_the_same_folder_refuses_to_start(tmp_path: Path) -> None:
+    """Resuming while the first still runs would record its live case as interrupted and pay for it twice."""
+    sweep = _sweep(tmp_path, {}, [GOOD], guard=RamGuard(lanes=1))
+    sweep.child_env["STAND_IN_SECONDS"] = "1.0"
+    first = threading.Thread(target=Runner(sweep).run)
+    first.start()
+    trace = tmp_path / "trace"
+    deadline = time.monotonic() + 30
+    while not (trace.is_dir() and any(trace.iterdir())):
+        assert time.monotonic() < deadline, "the first runner never started its case"
+        time.sleep(0.05)
+
+    try:
+        with pytest.raises(SweepBusyError, match=f"pid {os.getpid()}"):
+            Runner(_sweep(tmp_path, {}, [GOOD], guard=RamGuard(lanes=1))).run()
+    finally:
+        first.join()
+
+    lines = AttemptLog(sweep.out / "attempts.jsonl").read()
+    assert [(a.case, a.number, a.outcome) for a in lines] == [
+        ("smoke", 1, "passed"),
+        ("pdf-brief", 1, "passed"),
+        ("board-pack", 1, "passed"),
+    ]
 
 
 @pytest.mark.skipif(os.name != "nt", reason="a Windows console's Ctrl-C")

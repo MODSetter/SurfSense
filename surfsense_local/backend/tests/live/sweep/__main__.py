@@ -26,6 +26,7 @@ from tests.live.sweep.plan import CASES
 from tests.live.sweep.ram_guard import FLOOR_GB, RamGuard
 from tests.live.sweep.results import write_atomic
 from tests.live.sweep.runner import Runner, Sweep
+from tests.live.sweep.runner_lock import SweepBusyError
 
 BACKEND = Path(__file__).resolve().parents[3]
 _FILES = {
@@ -133,7 +134,11 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         case_seconds=args.case_minutes * 60,
         retry_unresolved=args.retry_unresolved,
     )
-    Runner(sweep).run()
+    try:
+        Runner(sweep).run()
+    except SweepBusyError as busy:
+        print(busy, file=sys.stderr)  # noqa: T201
+        return 1
     print(report.read(out).text())  # noqa: T201
     return 0
 
