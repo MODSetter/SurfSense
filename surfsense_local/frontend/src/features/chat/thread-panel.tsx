@@ -3,7 +3,6 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,6 +25,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
@@ -68,19 +68,24 @@ type MessageHandlers = {
  * The thread's message renderer, made once. The handlers are read when a
  * message calls them, so new ones from the page re-render no message.
  */
-function useMessageRenderer(handlers: MessageHandlers) {
-  const latest = useRef(handlers)
-  useLayoutEffect(() => {
-    latest.current = handlers
-  })
+function useMessageRenderer({
+  onCitation,
+  onModelSetup,
+  onRetry,
+  onNewChat,
+}: MessageHandlers) {
+  const citation = useStableCallback(onCitation)
+  const modelSetup = useStableCallback(onModelSetup)
+  const retry = useStableCallback(onRetry)
+  const newChat = useStableCallback(onNewChat)
   const stable = useMemo<MessageHandlers>(
     () => ({
-      onCitation: (chunkId) => latest.current.onCitation(chunkId),
-      onModelSetup: () => latest.current.onModelSetup(),
-      onRetry: (assistantId) => latest.current.onRetry(assistantId),
-      onNewChat: () => latest.current.onNewChat(),
+      onCitation: citation,
+      onModelSetup: modelSetup,
+      onRetry: retry,
+      onNewChat: newChat,
     }),
-    []
+    [citation, modelSetup, retry, newChat]
   )
   return useCallback(
     ({ message }: { message: MessageState }) =>

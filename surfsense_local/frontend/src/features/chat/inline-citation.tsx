@@ -1,13 +1,7 @@
-import {
-  useCallback,
-  useContext,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from "react"
+import { useContext, useMemo, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import { CitationContext } from "./citation-context"
@@ -24,11 +18,7 @@ export function CitationProvider({
 }) {
   // The context changes with the citations alone: a new handler from the
   // page would otherwise re-render every reply's markdown and chips.
-  const latest = useRef(onCitation)
-  useLayoutEffect(() => {
-    latest.current = onCitation
-  })
-  const open = useCallback((chunkId: number) => latest.current(chunkId), [])
+  const open = useStableCallback(onCitation)
   const value = useMemo(
     () => ({ citations, onCitation: open }),
     [citations, open]

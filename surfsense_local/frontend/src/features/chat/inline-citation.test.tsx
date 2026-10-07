@@ -1,4 +1,4 @@
-import { memo } from "react"
+import { memo, useLayoutEffect } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen } from "@testing-library/react"
 
@@ -87,5 +87,30 @@ describe("InlineCitation", () => {
     expect(renders).toHaveBeenCalledTimes(1)
     expect(latest).toHaveBeenCalledWith(30)
     expect(first).not.toHaveBeenCalled()
+  })
+
+  it("gives a child's layout effect the handler of its own commit", () => {
+    // A parent's layout effects run after its children's.
+    function OpensOnMount({ chunkId }: { chunkId: number }) {
+      const context = useCitationContext()
+      useLayoutEffect(() => context?.onCitation(chunkId), [context, chunkId])
+      return null
+    }
+    const first = vi.fn()
+    const latest = vi.fn()
+
+    const { rerender } = render(
+      <CitationProvider citations={catalog} onCitation={first}>
+        <OpensOnMount chunkId={30} />
+      </CitationProvider>
+    )
+    rerender(
+      <CitationProvider citations={catalog} onCitation={latest}>
+        <OpensOnMount chunkId={31} />
+      </CitationProvider>
+    )
+
+    expect(first.mock.calls).toEqual([[30]])
+    expect(latest.mock.calls).toEqual([[31]])
   })
 })
