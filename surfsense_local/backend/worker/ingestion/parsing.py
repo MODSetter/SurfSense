@@ -18,7 +18,7 @@ TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
 
 
 class UnreadableFileError(Exception):
-    """Docling refused the file itself, so it would refuse the same bytes again."""
+    """Docling could not load the file's bytes, so it would refuse them again."""
 
 
 def markdown_for(document: Document) -> str:
@@ -54,13 +54,17 @@ def convert(path: Path) -> Any:
 
     # First: it sets the environment docling reads as it is imported.
     converter = _converter()
-    from docling.exceptions import ConversionError
+    from docling.exceptions import ConversionError, DocumentLoadError
 
     source = as_page(path) if path.suffix.lower() in IMAGE_SUFFIXES else path
     try:
         return converter.convert(source).document
     except ConversionError as refused:
-        raise UnreadableFileError(str(refused)) from refused
+        # Docling also reports a file it cannot open yet and a model that ran
+        # out of memory this way; only bytes it cannot load fail the same again.
+        if isinstance(refused.__cause__, DocumentLoadError):
+            raise UnreadableFileError(str(refused)) from refused
+        raise
 
 
 @lru_cache(maxsize=1)

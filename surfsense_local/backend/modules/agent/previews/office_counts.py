@@ -4,8 +4,10 @@ The API has no Office library to spare for a count, and a count needs only
 the package's index parts.
 """
 
+import lzma
 import re
 import zipfile
+import zlib
 from io import BytesIO
 from pathlib import Path
 
@@ -39,5 +41,15 @@ def _part(file: bytes | Path, name: str) -> bytes | None:
             BytesIO(file) if isinstance(file, bytes) else file
         ) as package:
             return package.read(name)
-    except (zipfile.BadZipFile, KeyError, OSError):
+    # A damaged entry raises while it inflates, past the archive's own checks.
+    except (
+        zipfile.BadZipFile,
+        KeyError,
+        OSError,
+        zlib.error,
+        lzma.LZMAError,
+        EOFError,
+        NotImplementedError,
+        RuntimeError,
+    ):
         return None

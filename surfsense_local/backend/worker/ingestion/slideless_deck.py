@@ -1,5 +1,6 @@
 """A PowerPoint file with no slides, like a template, which Docling refuses for having no pages."""
 
+import re
 from pathlib import Path
 
 from modules.agent.previews.office_counts import slide_count
@@ -26,7 +27,8 @@ def describe_slideless_deck(path: Path) -> str | None:
     try:
         blocks += _size(deck.slide_width, deck.slide_height)
         names = [
-            layout.name
+            # One line each: a break would read as a heading or another layout.
+            re.sub(r"\s*[\r\n]\s*", " ", layout.name)
             for master in deck.slide_masters
             for layout in master.slide_layouts
             if layout.name

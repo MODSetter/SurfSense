@@ -1,4 +1,5 @@
-"""Office files with nothing to read, such as a template, ingested with real Docling."""
+"""Office files with nothing to read, such as a template, ingested with real Docling,
+and which of Docling's failures are tried again."""
 
 import io
 import zipfile
@@ -96,6 +97,22 @@ def test_a_deck_with_no_slides_is_a_ready_template(
     assert read_index(folder) == []
 
 
+def test_a_layout_name_with_a_line_break_stays_one_layout(
+    session: Session, stub_model: None
+) -> None:
+    """A break inside a name must not read as a heading or another layout."""
+    deck = Presentation()
+    deck.slide_layouts[0].name = "Brand\n\n# Cover\r\n- Wide"
+    document = upload(session, "brand.pptx", saved(deck))
+
+    run(document.id)
+
+    session.expire_all()
+    content = document.content or ""
+    assert "- Brand # Cover - Wide\n- Title and Content" in content
+    assert "\n#" not in content
+
+
 def test_a_deck_with_slides_is_still_read_by_docling(
     session: Session, stub_model: None
 ) -> None:
@@ -150,3 +167,63 @@ def test_a_file_docling_refuses_fails_without_retries(
     assert "could not load document" in (document.error_message or "")
     assert ingest_queue.pending_count() == 0
     assert ingest_queue.scheduled_count() == 0
+
+
+def damaged(package: bytes, part: str) -> bytes:
+    """The package with one part's compressed bytes scrambled, as a bad disk or download leaves it."""
+    raw = bytearray(package)
+    with zipfile.ZipFile(io.BytesIO(package)) as opened:
+        entry = opened.getinfo(part)
+    start = entry.header_offset + 30 + len(entry.filename.encode()) + len(entry.extra)
+    for at in range(start + 2, start + min(40, entry.compress_size)):
+        raw[at] ^= 0xFF
+    return bytes(raw)
+
+
+def test_a_damaged_deck_is_refused_by_docling_without_retries(
+    session: Session, stub_model: None
+) -> None:
+    """Telling a template from a deck must not fail first: Docling says why."""
+    document = upload(
+        session, "damaged.pptx", damaged(template_deck(), "ppt/presentation.xml")
+    )
+
+    ingest_document(document.id)
+    ingest_queue.execute(ingest_queue.dequeue())
+
+    session.expire_all()
+    assert document.status is DocumentStatus.FAILED
+    assert (document.error_message or "").startswith("UnreadableFileError")
+    assert ingest_queue.pending_count() == 0
+    assert ingest_queue.scheduled_count() == 0
+
+
+def test_a_file_another_program_holds_open_is_tried_again(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Docling reports a file it cannot open yet like one it refuses; only the refusal is final."""
+    from docling.datamodel import document as docling_input
+
+    reads = docling_input.create_file_hash
+    held = [True]
+
+    def sharing_violation(path: object) -> str:
+        if held.pop() if held else False:
+            raise PermissionError(13, "The file is in use by another process")
+        return reads(path)
+
+    monkeypatch.setattr(docling_input, "create_file_hash", sharing_violation)
+    document = upload(session, "letter.docx", saved(WordDocument()))
+
+    ingest_document(document.id)
+    ingest_queue.execute(ingest_queue.dequeue())
+
+    session.expire_all()
+    assert document.status is DocumentStatus.FAILED
+    assert ingest_queue.pending_count() == 1
+    session.rollback()  # the retry writes the row this read holds
+
+    ingest_queue.execute(ingest_queue.dequeue())
+
+    session.expire_all()
+    assert document.status is DocumentStatus.READY
