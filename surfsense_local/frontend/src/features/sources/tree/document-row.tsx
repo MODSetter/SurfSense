@@ -91,7 +91,7 @@ export const DocumentRow = memo(function DocumentRow({
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
   // row (not just the retry icon) surfaces the actual error above the row.
-  const modifierHeld = useModifierHeld()
+  const [modifierHeld, seedModifier] = useModifierHeld(retryable && rowHovered)
   const element = useRef<HTMLLIElement | null>(null)
   const { register } = events
   // Stable, so React never detaches and attaches the row again on a render.
@@ -135,7 +135,7 @@ export const DocumentRow = memo(function DocumentRow({
     : undefined
 
   return (
-    <Tooltip open={retryable && modifierHeld && rowHovered}>
+    <Tooltip open={modifierHeld}>
       <TooltipTrigger
         render={
           <li
@@ -151,7 +151,10 @@ export const DocumentRow = memo(function DocumentRow({
               highlighted && "border-ring",
               dropdownOpen && "bg-muted dark:bg-muted/50"
             )}
-            onMouseEnter={() => setRowHovered(true)}
+            onMouseEnter={(event) => {
+              setRowHovered(true)
+              seedModifier(event)
+            }}
             onMouseLeave={() => setRowHovered(false)}
           >
             <span className="relative flex size-7 shrink-0 items-center justify-center">

@@ -320,6 +320,101 @@ describe("source upload", () => {
     )
   })
 
+  it("reveals the real error when Ctrl/Cmd was held before the row was hovered", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.keyboard("{Control>}")
+    await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+    const real = await screen.findByText("connection refused")
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    await user.keyboard("{/Control}")
+    await waitFor(() =>
+      expect(screen.queryByText("connection refused")).toBeNull()
+    )
+  })
+
+  it("listens for Ctrl/Cmd only while a failed row is hovered", async () => {
+    const ready = {
+      ...pendingDocument,
+      id: 1,
+      title: "ready.pdf",
+      status: "ready" as const,
+    }
+    const failed = {
+      ...pendingDocument,
+      id: 2,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const added = vi.spyOn(window, "addEventListener")
+    const removed = vi.spyOn(window, "removeEventListener")
+    const keydownListeners = () =>
+      added.mock.calls.filter(([type]) => type === "keydown").length -
+      removed.mock.calls.filter(([type]) => type === "keydown").length
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[ready, failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    const before = keydownListeners()
+
+    await user.hover(screen.getByRole("button", { name: "ready.pdf" }))
+    expect(keydownListeners()).toBe(before)
+    await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+    expect(keydownListeners()).toBe(before + 1)
+    await user.unhover(screen.getByRole("button", { name: "failed.pdf" }))
+    expect(keydownListeners()).toBe(before)
+
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
   it("offers per-source delete but disables it while processing", async () => {
     const onDelete = vi.fn()
     const user = userEvent.setup()

@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
+
+type Modifiers = { metaKey: boolean; ctrlKey: boolean }
 
 // Cmd on macOS, Ctrl everywhere else — the same modifier this app's other
 // shortcuts read via event.metaKey/event.ctrlKey (see theme-provider.tsx).
-export function useModifierHeld() {
+// It listens only while `enabled`: a list enables it for the one row hovered,
+// not for each of its rows. `seed` reads a pointer event's modifiers, for a key
+// pressed before the pointer arrived, whose keydown reached no listener.
+export function useModifierHeld(enabled: boolean) {
   const [held, setHeld] = useState(false)
 
   useEffect(() => {
+    if (!enabled) return
     const sync = (event: KeyboardEvent) => {
       setHeld(event.metaKey || event.ctrlKey)
     }
@@ -21,7 +27,12 @@ export function useModifierHeld() {
       window.removeEventListener("keyup", sync)
       window.removeEventListener("blur", clear)
     }
-  }, [])
+  }, [enabled])
 
-  return held
+  const seed = useCallback(
+    (event: Modifiers) => setHeld(event.metaKey || event.ctrlKey),
+    []
+  )
+
+  return [enabled && held, seed] as const
 }

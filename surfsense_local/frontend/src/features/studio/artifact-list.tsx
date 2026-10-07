@@ -155,11 +155,13 @@ const ArtifactRow = memo(function ArtifactRow({
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
   // row (not just the retry icon) surfaces the actual error above the row.
-  const modifierHeld = useModifierHeld()
+  const [modifierHeld, seedModifier] = useModifierHeld(
+    problem !== null && rowHovered
+  )
   const FormatIcon = FORMAT_ICONS[artifact.format] ?? FileIcon
 
   return (
-    <Tooltip open={problem !== null && modifierHeld && rowHovered}>
+    <Tooltip open={modifierHeld}>
       <TooltipTrigger
         render={
           <li
@@ -167,7 +169,10 @@ const ArtifactRow = memo(function ArtifactRow({
               "group group/artifact relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
               dropdownOpen && "bg-muted dark:bg-muted/50"
             )}
-            onMouseEnter={() => setRowHovered(true)}
+            onMouseEnter={(event) => {
+              setRowHovered(true)
+              seedModifier(event)
+            }}
             onMouseLeave={() => setRowHovered(false)}
           >
             <span className="relative flex size-7 shrink-0 items-center justify-center">
