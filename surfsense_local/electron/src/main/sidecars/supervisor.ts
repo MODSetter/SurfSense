@@ -33,9 +33,16 @@ export function createEcho(
     let stream = streams.get(fd)
     if (stream === undefined) {
       try {
-        stream = open(fd)
+        const opened = open(fd)
         // A terminal that went away, or no console at all, must not crash main.
-        stream.on("error", () => streams.set(fd, null))
+        // A full non-blocking pipe (macOS) is only a stall: the next line
+        // opens a fresh stream, and what was waiting is dropped.
+        opened.on("error", (error: NodeJS.ErrnoException) => {
+          if (streams.get(fd) !== opened) return
+          if (error.code === "EAGAIN") streams.delete(fd)
+          else streams.set(fd, null)
+        })
+        stream = opened
       } catch {
         stream = null
       }

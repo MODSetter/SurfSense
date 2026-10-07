@@ -169,6 +169,31 @@ test("a terminal that went away stops the mirror and does not crash", async () =
   assert.equal(writes, 1)
 })
 
+test("a pipe that was full for a moment does not end the mirror", async () => {
+  const written: string[] = []
+  const opens: Writable[] = []
+  const echo = createEcho(() => {
+    const full = opens.length === 0
+    const stream = new Writable({
+      write: (chunk, _encoding, done) => {
+        if (full) return done(Object.assign(new Error("write EAGAIN"), { code: "EAGAIN" }))
+        written.push(String(chunk))
+        done()
+      },
+    })
+    opens.push(stream)
+    return stream
+  })
+
+  echo(1, "[api] lost to the stall\n")
+  await new Promise((resolve) => setImmediate(resolve))
+  echo(1, "[api] after it\n")
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(opens.length, 2)
+  assert.deepEqual(written, ["[api] after it\n"])
+})
+
 test("an echo with no terminal to open stays silent", () => {
   const echo = createEcho(() => {
     throw new Error("EBADF: bad file descriptor")
