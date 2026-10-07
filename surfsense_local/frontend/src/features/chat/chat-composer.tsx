@@ -148,7 +148,8 @@ export function ChatComposer({
   blockedPlaceholder?: string
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
-  // Attach and paste take images only while the selected model reads them.
+  // Attach and paste take images only while the selected model reads them,
+  // and the chat is not Agentic.
   readsImages: boolean
   // The conversation the composer writes into, named for a screen reader.
   describedBy?: string
@@ -160,6 +161,9 @@ export function ChatComposer({
   onNewChat?: () => void
 }) {
   const newChatMode = useNewChatMode(model)
+  // The agent reads no attached images yet: an Agentic chat takes none. Images
+  // already attached stay in view, so they can be removed.
+  const agentic = (threadMode ?? newChatMode) === "agentic"
   // Said only once the cap is reached: that is the moment typing, or the tail
   // of a paste, stops landing, and the one moment it needs explaining.
   const atLimit = useAuiState(
@@ -177,6 +181,7 @@ export function ChatComposer({
   const addMenu = (className: string) => (
     <ComposerAddMenu
       readsImages={readsImages}
+      agentic={agentic}
       thinking={model ? { canSkip: canSkipThinking(model) } : undefined}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
@@ -241,7 +246,7 @@ export function ChatComposer({
                   })
           }
           submitMode="enter"
-          addAttachmentOnPaste={readsImages}
+          addAttachmentOnPaste={readsImages && !agentic}
           rows={1}
           maxLength={QUESTION_MAX_CHARS}
           aria-label={intl.formatMessage({

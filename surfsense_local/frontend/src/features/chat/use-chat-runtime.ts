@@ -609,6 +609,26 @@ export function useChatRuntime({
         conversationView.status === "active" ? conversationView.threadId : null
       let usesAgent =
         threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
+      const agentic =
+        threadId === null ? newChatMode?.mode === "agentic" : usesAgent
+      if (agentic && images.length > 0) {
+        // The agent would refuse the turn: a new chat's question comes back,
+        // and nothing is opened or sent.
+        if (threadId === null) {
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
+        }
+        errorToast(
+          intl.formatMessage({
+            id: "chat_runtime_agentic_images_toast",
+            defaultMessage:
+              "Agentic mode doesn’t read images yet. Ask about images in a Basic (Q&A) chat.",
+          })
+        )
+        return
+      }
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })

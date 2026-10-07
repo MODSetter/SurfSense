@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { DashboardPage } from "@/features/dashboard/dashboard-page"
@@ -27,6 +28,72 @@ function selection(readsImages: boolean): ModelSelection {
     updated_at: "2026-09-05T00:00:00Z",
     reads_images: readsImages,
   }
+}
+
+/** A model that reads images, whose new chats start in `mode`. */
+function startingIn(mode: "basic" | "agentic"): ModelSelection {
+  return {
+    ...selection(true),
+    capability: {
+      level: "not_measured",
+      label_key: "not_measured",
+      reason: { code: "no_row", values: {} },
+      note: null,
+      measured: null,
+      modes: {
+        agentic_allowed: true,
+        blocked: null,
+        default_mode: mode,
+        reason: { code: "untested", values: {} },
+        remembered_mode: null,
+      },
+    },
+  }
+}
+
+/** A workspace with no chats, recording each thread the composer asks to open. */
+function newChatBackend() {
+  const created: unknown[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "llamacpp", healthy: true, can_download: true },
+        ])
+      }
+      if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+      if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+        created.push(JSON.parse(String(init.body)))
+        return Response.json({ detail: "not expected" }, { status: 500 })
+      }
+      if (path === "/workspaces/1/chat/threads") return Response.json([])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+  )
+  return created
+}
+
+function renderNewChat(model: ModelSelection) {
+  render(
+    <TooltipProvider>
+      <DashboardPage
+        initialProviderAvailable={true}
+        selection={model}
+        initialWorkspaces={[workspace]}
+        onModelSelected={vi.fn()}
+      />
+    </TooltipProvider>
+  )
+}
+
+function pasteImage(input: HTMLElement) {
+  fireEvent.paste(input, {
+    clipboardData: {
+      files: [new File([PNG], "chart.png", { type: "image/png" })],
+    },
+  })
 }
 
 /** A backend with one thread whose history is `stored`, recording what is sent. */
@@ -237,6 +304,61 @@ describe("images in chat", () => {
     expect(
       await screen.findByRole("button", { name: "Remove image" })
     ).toBeTruthy()
+  })
+
+  it("takes no image in an Agentic chat, which the agent would refuse, and says why", async () => {
+    newChatBackend()
+    const user = userEvent.setup()
+    renderNewChat(startingIn("agentic"))
+    const input = await screen.findByRole("textbox", { name: "Message" })
+
+    pasteImage(input)
+    await user.click(
+      screen.getByRole("button", { name: "Add images, sources, and more" })
+    )
+    const attach = await screen.findByRole("menuitem", {
+      name: /^Attach images/,
+    })
+
+    expect(attach.getAttribute("aria-disabled")).toBe("true")
+    expect(
+      screen.getAllByText("Agentic mode doesn’t read images yet").length
+    ).toBeGreaterThan(0)
+    expect(screen.queryByRole("button", { name: "Remove image" })).toBeNull()
+  })
+
+  it("hands an image back, opening nothing, when the chat it was attached to turns Agentic", async () => {
+    const created = newChatBackend()
+    const shown = vi.spyOn(toast, "error")
+    const user = userEvent.setup()
+    renderNewChat(startingIn("basic"))
+    const input = await screen.findByRole("textbox", { name: "Message" })
+    pasteImage(input)
+    await screen.findByRole("button", { name: "Remove image" })
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Chat mode Basic (Q&A). Change mode.",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Agentic/ })
+    )
+    await user.type(input, "what does it show?{Enter}")
+
+    await waitFor(() =>
+      expect(shown).toHaveBeenCalledWith(
+        "Agentic mode doesn’t read images yet. Ask about images in a Basic (Q&A) chat.",
+        expect.anything()
+      )
+    )
+    await waitFor(() =>
+      expect((input as HTMLTextAreaElement).value).toBe("what does it show?")
+    )
+    expect(
+      await screen.findByRole("button", { name: "Remove image" })
+    ).toBeTruthy()
+    expect(created).toEqual([])
   })
 
   it("sends a text turn exactly as before", async () => {
