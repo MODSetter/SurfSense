@@ -53,3 +53,14 @@ def test_a_workbook_s_cells_are_read_before_it_is_revised() -> None:
         in LISTING["description"]
     )
     assert "`surfsense_read_document` with its `document_id`" in text
+
+
+def test_comments_justify_a_change_only_from_the_document_or_the_request() -> None:
+    """A rehearsal comment cited a state payment law no source or request named."""
+    text = _skill()
+
+    assert (
+        "A comment justifies a change only from the document itself or the user's request"
+        in text
+    )
+    assert "never cite laws, regulations, market practice" in text

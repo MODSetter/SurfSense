@@ -40,6 +40,10 @@ Every Word edit is a tracked change (shown underlined when inserted, struck thro
 - `add_comment`: a comment on `quote`. Any edit can carry a `comment` explaining it.
 - `internal: true` keeps a comment for the user only: it stays in their copy in SurfSense and is left out of both downloads. Use it for advice to the user ("push back on this"), never for notes meant for the other side.
 
+### What a comment may say
+
+A comment justifies a change only from the document itself or the user's request: quote the clause it fixes, the clause it matches, or what the user asked for. So never cite laws, regulations, market practice, "standard terms" or facts that are not in the sources or the request, even ones you believe are true; the other side reads these comments as the user's own claims. If a reason needs outside support, leave it out of the comment and tell the user in your answer that they may want to check it.
+
 Headers, footers and footnotes cannot be edited yet: say so if the user asks.
 
 ## Excel
