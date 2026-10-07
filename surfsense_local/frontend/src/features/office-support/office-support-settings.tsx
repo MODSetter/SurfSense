@@ -49,7 +49,8 @@ function failureOf(error: unknown, describe: (code: string) => string): string {
   return describe("")
 }
 
-/** `askConsent` opens the download's consent at once, as a thread's offer asks. */
+/** `askConsent` opens the download's consent at once, as a thread's offer asks,
+ *  unless this computer's own LibreOffice can be used without a download. */
 export function OfficeSupportSettings({
   askConsent = false,
 }: {
@@ -57,7 +58,9 @@ export function OfficeSupportSettings({
 }) {
   const client = useQueryClient()
   const status = useOfficeStatus()
-  const [consenting, setConsenting] = useState(askConsent)
+  const [consenting, setConsenting] = useState(false)
+  // The offer's ask, until the consent closes once.
+  const [asked, setAsked] = useState(askConsent)
   const receive = (next: OfficeStatus) =>
     client.setQueryData(officeQueryKey, next)
 
@@ -131,9 +134,14 @@ export function OfficeSupportSettings({
             <OfficeConsentDialog
               offer={office.offer}
               open={
-                consenting && !BUSY.has(office.state) && !ON.has(office.state)
+                (consenting || (asked && !office.detected?.usable)) &&
+                !BUSY.has(office.state) &&
+                !ON.has(office.state)
               }
-              onOpenChange={setConsenting}
+              onOpenChange={(open) => {
+                setConsenting(open)
+                if (!open) setAsked(false)
+              }}
               onDownload={() => {
                 if (office.offer) install.mutate(office.offer.destination)
               }}

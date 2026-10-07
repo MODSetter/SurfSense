@@ -227,6 +227,33 @@ describe("the Office support offer in an agent thread", () => {
     ).toEqual([])
   })
 
+  it("opens Settings without the download's consent when this computer's LibreOffice can be used", async () => {
+    backend({
+      now: office({
+        detected: {
+          path: "C:\\Program Files\\LibreOffice",
+          branch: "26.8",
+          usable: true,
+          refusal: null,
+        },
+      }),
+    })
+    const user = userEvent.setup()
+    renderThread()
+
+    const offer = await screen.findByRole("region", {
+      name: "Office support",
+    })
+    await user.click(
+      within(offer).getByRole("button", { name: "Turn on Office support" })
+    )
+
+    expect(
+      await screen.findByRole("button", { name: "Use the LibreOffice I have" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+  })
+
   it("never offers it again once dismissed", async () => {
     const calls = backend()
     const user = userEvent.setup()
