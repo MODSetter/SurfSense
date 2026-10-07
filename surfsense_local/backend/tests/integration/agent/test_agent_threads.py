@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import Engine, select
 from sqlalchemy.exc import OperationalError
 
-from modules.agent.agent_threads import live_instances
+from modules.agent.agent_threads import live_instances, thread_messages
 from modules.agent.agent_threads import turn as agent_turn
 from modules.artifacts.models import Artifact
 from modules.chat import router as chat_router
@@ -115,6 +115,38 @@ async def test_a_message_streams_the_agents_reply(agent_api: AgentAPI) -> None:
     assert "".join(f["text"] for f in of_type(frames, "delta")) == "Revenue rose in Q3."
     assert of_type(frames, "completed")[0]["text"] == "Revenue rose in Q3."
     assert frames[-1] == {"type": "done"}
+
+
+async def test_a_thread_is_read_back_off_the_event_loop(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A long thread's turns take tens of milliseconds to build; a reply
+    streaming meanwhile would wait on them."""
+    agent_api.model.replies = [("text", "Revenue rose in Q3.")]
+    thread = await open_thread(agent_api)
+    await send(agent_api, thread["id"], "What happened in Q3?")
+    on_loop: list[bool] = []
+
+    def recorded(work: Callable) -> Callable:
+        def run(*args: object) -> object:
+            try:
+                asyncio.get_running_loop()
+                on_loop.append(True)
+            except RuntimeError:
+                on_loop.append(False)
+            return work(*args)
+
+        return run
+
+    for name in ("searched_chunks", "thread_turns"):
+        monkeypatch.setattr(
+            thread_messages, name, recorded(getattr(thread_messages, name))
+        )
+
+    turns = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+
+    assert turns.json()[-1]["content"]["text"] == "Revenue rose in Q3."
+    assert on_loop == [False, False]
 
 
 async def test_an_unexpected_error_inside_the_stream_still_ends_it(
