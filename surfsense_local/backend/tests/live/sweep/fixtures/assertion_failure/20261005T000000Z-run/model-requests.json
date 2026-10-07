@@ -1,0 +1,38 @@
+[
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "CoreWeave",
+  "tool_calls": [
+   {
+    "name": "surfsense_search_sources"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "CoreWeave",
+  "tool_calls": [
+   {
+    "name": "skill"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "ModelRun",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "ModelRun",
+  "tool_calls": []
+ }
+]
