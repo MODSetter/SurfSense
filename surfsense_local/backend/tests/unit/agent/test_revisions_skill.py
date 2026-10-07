@@ -64,3 +64,12 @@ def test_comments_justify_a_change_only_from_the_document_or_the_request() -> No
         in text
     )
     assert "never cite laws, regulations, market practice" in text
+
+
+def test_the_comment_rule_holds_for_internal_comments_too() -> None:
+    """Internal advice reaches no other side, so the rule says it holds there as well."""
+    text = _skill()
+    rule = text.split("### What a comment may say")[1].split("\n## ")[0]
+
+    assert "Internal comments too" in rule
+    assert "Headers, footers and footnotes" not in rule
