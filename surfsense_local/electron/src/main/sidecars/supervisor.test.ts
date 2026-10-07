@@ -1,11 +1,14 @@
 import assert from "node:assert/strict"
+import { once } from "node:events"
 import { existsSync, mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { Writable } from "node:stream"
 import test from "node:test"
 
+import { sessionLog } from "../session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
-import { startOne, stopNamed, type Sidecars } from "./supervisor.ts"
+import { createEcho, startOne, stopNamed, type Sidecars } from "./supervisor.ts"
 import type { SidecarSpec } from "./types.ts"
 
 /** A sidecar that runs `script` under this Node, from a scratch folder. */
@@ -91,3 +94,88 @@ test(
     assert.equal(isAlive(grandchild), false)
   }
 )
+
+test("a sidecar's output is mirrored under its name and logged line by line", async () => {
+  const echoed: [1 | 2, string][] = []
+  const sidecars: Sidecars = new Map()
+  startOne(
+    sidecars,
+    nodeSidecar(
+      "mirrored",
+      "process.stdout.write('one\\ntwo\\n'); process.stderr.write('three\\n')",
+      {},
+    ),
+    undefined,
+    (fd, text) => echoed.push([fd, text]),
+  )
+  const child = sidecars.get("mirrored")
+  assert.ok(child)
+  await once(child, "close")
+  await new Promise((resolve) => setImmediate(resolve))
+
+  // Each read is mirrored whole under the name; the exit note may come first.
+  const mirrored = (to: 1 | 2) =>
+    echoed
+      .filter(([fd]) => fd === to)
+      .map(([, text]) => {
+        assert.ok(text.startsWith("[mirrored] "))
+        return text.slice("[mirrored] ".length)
+      })
+  assert.equal(mirrored(1).join(""), "one\ntwo\n")
+  assert.deepEqual(mirrored(2).sort(), ["crashed (code=0 signal=null)\n", "three\n"])
+  const logged = sessionLog
+    .lines()
+    .filter((line) => line.includes(" [mirrored] "))
+    .map((line) => line.slice(line.indexOf("[mirrored]")))
+  assert.deepEqual(logged.sort(), [
+    "[mirrored] crashed (code=0 signal=null)",
+    "[mirrored] one",
+    "[mirrored] three",
+    "[mirrored] two",
+  ])
+})
+
+/** A terminal that has stopped reading: nothing written ever completes. */
+function stalledTerminal(): Writable {
+  return new Writable({ write: () => {} })
+}
+
+test("a terminal that stops reading holds no more than 1 MB of mirrored output", () => {
+  const terminal = stalledTerminal()
+  const echo = createEcho(() => terminal)
+  const line = `[api] INFO:     127.0.0.1:60313 - "POST /chat HTTP/1.1" 200 OK ${"x".repeat(950)}\n`
+
+  for (let n = 0; n < 3000; n++) echo(1, line)
+
+  assert.ok(terminal.writableLength <= (1 << 20) + line.length)
+  assert.ok(terminal.writableLength >= (1 << 20) - line.length)
+})
+
+test("a terminal that went away stops the mirror and does not crash", async () => {
+  let writes = 0
+  const gone = new Writable({
+    write: (_chunk, _encoding, done) => {
+      writes++
+      done(Object.assign(new Error("write EPIPE"), { code: "EPIPE" }))
+    },
+  })
+  const echo = createEcho(() => gone)
+
+  echo(2, "[api] first\n")
+  await new Promise((resolve) => setImmediate(resolve))
+  echo(2, "[api] second\n")
+  echo(2, "[api] third\n")
+
+  assert.equal(writes, 1)
+})
+
+test("an echo with no terminal to open stays silent", () => {
+  const echo = createEcho(() => {
+    throw new Error("EBADF: bad file descriptor")
+  })
+
+  assert.doesNotThrow(() => {
+    echo(1, "[api] started\n")
+    echo(1, "[api] still running\n")
+  })
+})
