@@ -107,6 +107,19 @@ def test_the_cost_carries_what_openrouter_billed_when_every_call_says(
     assert cost["reported_dollars"] is None
 
 
+def test_the_result_carries_what_the_case_graded_but_did_not_check(
+    tmp_path: Path,
+) -> None:
+    """A quality signal the case records without failing on it, such as the board pack's stated assumptions."""
+    run = RunFolder("board-pack", HAIKU, root=tmp_path)
+    run.metrics["says_what_it_assumed"] = False
+
+    _finish(run, tmp_path, [])
+
+    result = json.loads((run.path / "result.json").read_text(encoding="utf-8"))
+    assert result["metrics"] == {"says_what_it_assumed": False}
+
+
 def test_the_run_keeps_what_each_analysis_saved(tmp_path: Path) -> None:
     """A wrong figure is traced from the chart and table the analysis left behind."""
     run = RunFolder("sales-targets", HAIKU, root=tmp_path / "runs")
