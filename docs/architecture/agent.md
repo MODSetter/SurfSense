@@ -244,7 +244,7 @@ A document script is another matter: it runs in the Studio worker's runner, whic
 
 - The measured levels that let a model in are screening runs of one per cell on remote hosts, so every model served from this computer is `not_measured` and runs the agent only once the user turns on "Try the agent" ([model capabilities](model-capabilities.md#known-gaps)).
 - The model endpoint neither simplifies tool schemas to what llama.cpp's grammar takes nor turns a tool call a model writes as text into a real one, so small local models stall where a remote one would not.
-- A file the agent writes to `outputs/` with its own tools does not become an artifact; only `surfsense_render_document` and the PDF tools make one. An analysis's tables and charts stay in `outputs/analysis/` too, outside Studio, until a document places them.
+- A file the agent writes to `outputs/` with its own tools does not become an artifact; only `surfsense_render_document`, `surfsense_revise_document`, `surfsense_convert_document` and the PDF tools make one. An analysis's tables and charts stay in `outputs/analysis/` too, outside Studio, until a document places them.
 - An analysis waits on the Studio worker's four threads. Behind four long Studio jobs it is dropped after 60 seconds unstarted, and the call waits out its 190 seconds before saying so.
 - A Studio job the agent starts with `surfsense_create_artifact` runs on the same local model as the agent, so the agent's next step waits behind it.
 - An artifact the agent starts with `surfsense_create_artifact` records neither the thread nor the step that made it, and one it renders records its thread but not the step: the tool call reaches SurfSense without the step.
