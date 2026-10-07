@@ -7,7 +7,7 @@ Report issue, a tab in Settings' App group below About, and a dialog opened from
 ## The session log
 
 - The main process keeps the newest 2,000 lines of this run in memory, each stamped with the local time and its source: every sidecar's stdout and stderr, by sidecar name, and its stop or crash; the window's console warnings and errors (`renderer`); electron-updater's own log (`updater`). Nothing is written to disk, so the log ends with the app.
-- Lines are cleaned as they arrive: colour codes stripped, the home directory replaced by `~` (as written, with forward slashes, and escaped as in a Python repr), anything past 2,000 characters cut. uvicorn's access lines for successful `GET`s are dropped, since the app polls the API; failed requests and writes stay.
+- Lines are cleaned as they arrive: colour codes stripped, the home directory replaced by `~` (as written, with forward slashes, and escaped as in a Python repr), anything past 2,000 characters cut. uvicorn's access lines for successful `GET`s are dropped, since the app polls the API; failed requests and writes stay. Each kept line is a copy of its own, so a cut line never keeps the whole text it came from in memory.
 - The renderer reads it through `window.surfsense.sessionLog.read()`. `session-log:read` answers only the app's own window. The dialog polls it every second while open, and follows the newest line unless the user has scrolled up.
 
 ## Reporting
