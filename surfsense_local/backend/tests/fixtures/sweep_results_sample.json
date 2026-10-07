@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-07",
+  "models": [
+    {
+      "id": "openai/gpt-5.2",
+      "key": "gpt-5-2",
+      "reads_images": true,
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "pass",
+      "passed": 2,
+      "counted": 2,
+      "run": 2,
+      "cost": 0.38,
+      "notes": "Clean on both."
+    },
+    {
+      "id": "mistralai/mistral-small-3.2-24b-instruct",
+      "key": "mistral-small-3-2-24b-instruct",
+      "reads_images": true,
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "fail",
+      "passed": 1,
+      "counted": 2,
+      "run": 2,
+      "cost": 0.05,
+      "notes": "Skipped the page previews on the board pack."
+    },
+    {
+      "id": "meta-llama/llama-4-scout",
+      "key": "llama-4-scout",
+      "reads_images": true,
+      "smoke": "fail",
+      "pdf_brief": null,
+      "board_pack": null,
+      "passed": 0,
+      "counted": 2,
+      "run": 0,
+      "cost": 0.01,
+      "notes": ["Answered in text.", "Never called a tool."]
+    },
+    {
+      "id": "qwen/qwen3.8-27b",
+      "key": "qwen3-8-27b",
+      "reads_images": true,
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "fail",
+      "passed": 1,
+      "counted": 2,
+      "run": 2,
+      "cost": 0.07,
+      "notes": "Already on the ladder."
+    },
+    {
+      "id": "google/gemma-4-31b",
+      "key": "gemma-4-31b",
+      "reads_images": true,
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "pass",
+      "passed": 2,
+      "counted": 2,
+      "run": 2,
+      "cost": 0.06,
+      "notes": "The ladder's gemma-4-31b-it under another name."
+    }
+  ],
+  "assumed": [
+    {
+      "id": "anthropic/claude-opus-4.6",
+      "key": "claude-opus-4-6",
+      "reads_images": true
+    },
+    {
+      "id": "openai/gpt-5.2",
+      "key": "gpt-5-2",
+      "reads_images": true
+    }
+  ]
+}

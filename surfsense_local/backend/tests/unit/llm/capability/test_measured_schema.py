@@ -60,3 +60,34 @@ def test_two_rows_one_server_spells_alike_are_refused() -> None:
 def test_rows_for_two_sizes_of_one_model_stand_together() -> None:
     """27B and 14B are two models."""
     assert len(_list(_row("qwen3-8-27b"), _row("qwen3-8-14b")).models) == 2
+
+
+def test_an_assumed_row_was_never_run() -> None:
+    """An expensive flagship assumed to pass carries no counts and the agent level."""
+    row = MeasuredModel.model_validate(
+        _row(
+            "claude-opus-4-6",
+            suite="assumed",
+            passes={"passed": 0, "counted": 0, "run": 0},
+            note="Not run: an expensive flagship assumed to pass",
+        )
+    )
+
+    assert row.assumed is True
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"passes": {"passed": 2, "counted": 2, "run": 2}},
+        {"level": "studio_only", "passes": {"passed": 0, "counted": 0, "run": 0}},
+    ],
+)
+def test_an_assumed_row_with_runs_or_below_the_bar_is_refused(
+    overrides: dict[str, Any],
+) -> None:
+    """Assumed means not run, and assumed to pass."""
+    with pytest.raises(ValidationError, match="assumed"):
+        MeasuredModel.model_validate(
+            _row("claude-opus-4-6", suite="assumed", **overrides)
+        )

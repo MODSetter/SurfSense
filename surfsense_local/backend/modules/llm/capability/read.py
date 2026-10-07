@@ -33,6 +33,8 @@ def capability_read(
         note=row.note if held else None,
         measured=MeasuredRead(
             key=row.key,
+            suite=row.suite,
+            assumed=row.assumed,
             suite_version=row.suite_version,
             measured_on=row.measured_on.isoformat(),
             provider=row.provider,

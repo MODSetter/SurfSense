@@ -21,7 +21,11 @@ The bar, in [`verdict.py`](../../surfsense_local/backend/scripts/capability_list
 
 Today's list is the 11 models of the first ladder results ([08](../proposals/file-agent/08-model-ladder-results.md)), suite `create-and-edit` v1, screening runs of one per cell, so it is provisional: Sonnet 5.5, Opus 5.5, Kimi K3, GLM-5.3, DeepSeek V4 Pro and Qwen3.8-27B are `agent`; Haiku 4.5 is `agent_limited`; Qwen3.6-35B-A3B, Gemma 4 31B, Ministral 14B and Qwen3.5-9B are `studio_only`.
 
-The list is written, never edited: `python scripts/write_capability_list.py [results.json]` (from `surfsense_local/backend`, with `.` on the path) applies the bar to a ladder results file and rewrites it. The input's shape is in [`ladder_input.py`](../../surfsense_local/backend/scripts/capability_list/ladder_input.py): per model, the id sent, provider, host, where it was served, date, `reads_images`, a note, and one outcome per case (`pass`, `fail`, `fail:<behaviour>` from [08's grouping of failures](../proposals/file-agent/08-model-ladder-results.md#what-the-failures-point-to), `n/a`, `not_run`). The committed input is `capability_list/ladder/create-and-edit-v1.json`, and a test fails when the shipped list is not what the generator writes from it.
+Two more suites add rows after the ladder's. `openrouter-screen` v1 is a screening on OpenRouter: a smoke check, then two cases, PDF brief and Board pack. Its row is `agent` when both pass and `studio_only` otherwise, with the counts (`passed` of `counted: 2`) and a note written from them; a pass is `served: remote`, a failure both. `assumed` lists an expensive flagship, $3 or more per million input tokens, at `agent` without runs: `passes` 0 of 0, note "Not run: an expensive flagship assumed to pass", and reason `assumed` rather than counts. The schema refuses an assumed row with runs or below `agent`.
+
+The list is written, never edited: `python scripts/write_capability_list.py [results.json]` (from `surfsense_local/backend`, with `.` on the path) applies the bar to a ladder results file and rewrites it. The input's shape is in [`ladder_input.py`](../../surfsense_local/backend/scripts/capability_list/ladder_input.py): per model, the id sent, provider, host, where it was served, date, `reads_images`, a note, and one outcome per case (`pass`, `fail`, `fail:<behaviour>` from [08's grouping of failures](../proposals/file-agent/08-model-ladder-results.md#what-the-failures-point-to), `n/a`, `not_run`). The committed input is `capability_list/ladder/create-and-edit-v1.json`, and a test fails when the shipped list's ladder rows are not what the generator writes from it. Rewriting them keeps every other suite's rows that no ladder row names.
+
+`python scripts/catalog_rows.py sweep-results.json [--date YYYY-MM-DD]` (same place) adds the sweep's rows: each screened model, then each assumed one. The input's shape is in [`sweep_input.py`](../../surfsense_local/backend/scripts/capability_list/sweep_input.py): `models`, each with `id`, `key`, `reads_images`, `smoke`, `pdf_brief`, `board_pack`, `passed`, `counted`, `run`, `cost` and `notes`, and `assumed`, each with `id`, `key` and `reads_images`; a top-level `date`, else `--date`, else today, is the row's date. A model the list already names keeps its row, by its key or by the looser one, so the ladder's 8-case rows stand over a screening and a screening over an assumption. The sweep's own `notes` and `cost` stay in its file.
 
 ## Matching
 
@@ -31,7 +35,7 @@ When no row has that key, a looser one, used only to find a row, matches how ano
 
 A pass holds only where it was measured. Every row today was measured on a remote host, so a model served from this computer (llama.cpp, or a loopback connection such as Ollama or LM Studio) or from a server on the user's own network (a private, link-local or carrier-grade NAT address, a single-label name, or a `.local`, `.lan`, `.internal` or `.home.arpa` name) with a passing row is `not_measured`, reason `measured_elsewhere`: a quantized copy there is a measurement not yet made. Such a server counts as `local` for `match.served` only; Studio's rule for a model not measured still counts it remote. A failure holds everywhere, since a copy of one's own is the same model or a smaller one.
 
-The result carries the level, a `Reason(code, values)` (`measured_pass`, `measured_near` or `measured_fail` with the pass counts, suite version and date; `measured_elsewhere` with the host; `alias`; `no_row`) and the row.
+The result carries the level, a `Reason(code, values)` (`measured_pass`, `measured_near` or `measured_fail` with the pass counts, suite version and date; `assumed`, with none; `measured_elsewhere` with the host; `alias`; `no_row`) and the row.
 
 ## What follows from it
 
@@ -44,7 +48,7 @@ The result carries the level, a `Reason(code, values)` (`measured_pass`, `measur
 
 ## API
 
-- `SelectionRead.capability` on `GET` and `PUT /llm/selection/text_gen` (null for other slots): `level`, `label_key` (the ICU select branch), `reason` (`code`, `values`), `note`, `measured` (`key`, `suite_version`, `measured_on`, `provider`, `host`, `reads_images`, `passed`, `counted`, `provisional`, or null) and `agent_trial` (`offered`, `enabled`, `blocked`: `tool_calls_unconfirmed`, `window_below_floor` or null).
+- `SelectionRead.capability` on `GET` and `PUT /llm/selection/text_gen` (null for other slots): `level`, `label_key` (the ICU select branch), `reason` (`code`, `values`), `note`, `measured` (`key`, `suite`, `assumed`, `suite_version`, `measured_on`, `provider`, `host`, `reads_images`, `passed`, `counted`, `provisional`, or null) and `agent_trial` (`offered`, `enabled`, `blocked`: `tool_calls_unconfirmed`, `window_below_floor` or null).
 - `capability_level` on each row of `GET /llm/connections/{id}/models` and `GET /llm/providers/llamacpp/models` that can fill the chat slot.
 - `PUT /llm/selection/text_gen/agent-trial` with `{"enabled": bool}` answers the selection's capability. Turning it on answers `409` with `code` `measured` for a measured model, or the `blocked` code; `404` when no chat model is chosen.
 

@@ -66,6 +66,8 @@ async def test_a_measured_model_says_its_level_and_the_row_behind_it(
     assert capability["note"]
     assert capability["measured"] == {
         "key": "claude-haiku-4-5",
+        "suite": "create-and-edit",
+        "assumed": False,
         "suite_version": 1,
         "measured_on": "2026-10-04",
         "provider": "anthropic",

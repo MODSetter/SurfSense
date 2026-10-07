@@ -56,6 +56,8 @@ def capability_of(model: str, connection: ProviderConnection | None) -> Capabili
             Level.NOT_MEASURED, Reason("measured_elsewhere", {"host": row.host}), row
         )
     level = Level(row.level)
+    if row.assumed:
+        return Capability(level, Reason("assumed"), row)
     values: dict[str, str | int] = {
         "passed": row.passes.passed,
         "counted": row.passes.counted,

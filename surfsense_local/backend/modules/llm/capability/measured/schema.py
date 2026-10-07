@@ -9,6 +9,11 @@ from modules.llm.capability.match_key import match_key
 from modules.llm.capability.model_key import model_key
 
 SCHEMA_VERSION = 1
+# The ladder's eight cases; the two-case screening on OpenRouter; flagships not run.
+LADDER_SUITE = "create-and-edit"
+SCREEN_SUITE = "openrouter-screen"
+ASSUMED_SUITE = "assumed"
+ASSUMED_NOTE = "Not run: an expensive flagship assumed to pass"
 
 Served = Literal["remote", "local"]
 
@@ -51,6 +56,10 @@ class MeasuredModel(BaseModel):
     # One line on what decided the level, in English: the model's description.
     note: str
 
+    @property
+    def assumed(self) -> bool:
+        return self.suite == ASSUMED_SUITE
+
     @model_validator(mode="after")
     def _keys_are_canonical(self) -> "MeasuredModel":
         if not self.match.keys or self.match.keys[0] != self.key:
@@ -58,6 +67,17 @@ class MeasuredModel(BaseModel):
         for key in self.match.keys:
             if model_key(key) != key:
                 raise ValueError(f"{key} is not a canonical model key")
+        return self
+
+    @model_validator(mode="after")
+    def _assumed_was_not_run(self) -> "MeasuredModel":
+        not_run = (self.passes.passed, self.passes.counted, self.passes.run) == (
+            0,
+            0,
+            0,
+        )
+        if self.assumed and (self.level != "agent" or not not_run):
+            raise ValueError(f"{self.key}: an assumed row is not run and passes")
         return self
 
 

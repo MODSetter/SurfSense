@@ -7,7 +7,7 @@ from modules.llm.capability.level import Level
 
 class ReasonRead(BaseModel):
     # Rendered by the ICU catalogs: `measured_pass`, `measured_near`,
-    # `measured_fail`, `measured_elsewhere`, `alias` or `no_row`.
+    # `measured_fail`, `assumed`, `measured_elsewhere`, `alias` or `no_row`.
     code: str
     values: dict[str, str | int] = {}
 
@@ -16,6 +16,10 @@ class MeasuredRead(BaseModel):
     """The row the level came from, for the evidence line."""
 
     key: str
+    # `create-and-edit`, the ladder's 8 cases; `openrouter-screen`, its 2-case
+    # screening; or `assumed`, a flagship not run.
+    suite: str
+    assumed: bool
     suite_version: int
     measured_on: str
     provider: str

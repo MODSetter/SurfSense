@@ -2,7 +2,8 @@
 
 import pytest
 
-from modules.llm.capability import Level, capability_of, measured_list
+from modules.llm.capability import Level, capability_of, measured_list, resolve
+from modules.llm.capability.measured.schema import MeasuredModel
 from modules.llm.models import ProviderConnection
 
 pytestmark = pytest.mark.unit
@@ -193,6 +194,35 @@ def test_another_size_or_version_of_a_tested_model_is_not_measured(model: str) -
 
     assert capability.level is Level.NOT_MEASURED
     assert capability.row is None
+
+
+def test_a_flagship_assumed_to_pass_says_so_rather_than_counts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It was never run, so no case count stands behind its level."""
+    assumed = MeasuredModel.model_validate(
+        {
+            "key": "claude-opus-4-6",
+            "match": {"keys": ["claude-opus-4-6"], "served": ["remote"]},
+            "level": "agent",
+            "suite": "assumed",
+            "suite_version": 1,
+            "measured_on": "2026-10-07",
+            "provider": "openrouter",
+            "host": "openrouter.ai",
+            "model_id": "anthropic/claude-opus-4.6",
+            "reads_images": True,
+            "passes": {"passed": 0, "counted": 0, "run": 0},
+            "note": "Not run: an expensive flagship assumed to pass",
+        }
+    )
+    monkeypatch.setattr(resolve, "find_row", lambda _model: assumed)
+
+    capability = capability_of("anthropic/claude-opus-4.6", OPENROUTER)
+
+    assert capability.level is Level.AGENT
+    assert capability.reason.code == "assumed"
+    assert capability.reason.values == {}
 
 
 def test_a_failure_measured_on_a_remote_host_holds_on_a_server_of_ones_own() -> None:
