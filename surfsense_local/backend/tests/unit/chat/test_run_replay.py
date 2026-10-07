@@ -144,6 +144,8 @@ async def test_a_text_frame_that_carries_more_than_text_is_never_merged() -> Non
     run.add(chat_frame({"type": "delta", "text": "a"}))
     run.add(b'data: {"type": "delta", "text": "b", "part": 2}\n\n')
     run.add(chat_frame({"type": "delta", "text": "c"}))
+    run.add(chat_frame({"type": "delta", "text": "d", "part": "e"}))
+    run.add(chat_frame({"type": "delta", "text": 'say "f"'}))
     run.finish()
 
     events = await _followed(run)
@@ -152,5 +154,28 @@ async def test_a_text_frame_that_carries_more_than_text_is_never_merged() -> Non
         {"type": "delta", "text": "a"},
         {"type": "delta", "text": "b", "part": 2},
         {"type": "delta", "text": "c"},
+        {"type": "delta", "text": "d", "part": "e"},
+        {"type": "delta", "text": 'say "f"'},
         {"type": "done"},
     ]
+
+
+async def test_a_merged_frame_is_spelled_as_an_engine_spells_one() -> None:
+    """Quotes, escapes, line breaks, separators, emoji and CJK, byte for byte."""
+    pieces = [
+        'say "hi" ',
+        "back\\slash ",
+        "line\nbreak",
+        "\u2028",
+        "\U0001f4c8",
+        "日本",
+    ]
+    run = Run()
+    for piece in pieces:
+        run.add(agent_frame({"type": "reasoning", "text": piece}))
+    run.finish()
+
+    frames = [frame async for frame in run.follow()]
+
+    joined = agent_frame({"type": "reasoning", "text": "".join(pieces)})
+    assert frames[0] == b"id: %d\n" % len(pieces) + joined

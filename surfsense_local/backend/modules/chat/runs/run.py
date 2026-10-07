@@ -7,10 +7,11 @@ DONE = b"data: [DONE]\n\n"
 
 # Frames that only append text, as both engines spell them; consecutive ones
 # of a kind read the same as one frame carrying their joined text.
-_TEXT_FRAMES = (
-    b'data: {"type": "delta", "text": ',
-    b'data: {"type": "reasoning", "text": ',
-)
+_TEXT_HEADS = {
+    "delta": b'data: {"type": "delta", "text": "',
+    "reasoning": b'data: {"type": "reasoning", "text": "',
+}
+_TEXT_TAIL = b'"}\n\n'
 
 
 @dataclass(frozen=True)
@@ -107,12 +108,17 @@ class Run:
         return last
 
     def _merged(self, first: int, last: int) -> bytes:
-        """Frames `first` to `last` as one, carrying the last one's id."""
-        texts = [
-            _payload(self._frames[index])["text"] for index in range(first, last + 1)
-        ]
-        payload = json.dumps({"type": self._kinds[first], "text": "".join(texts)})
-        return b"id: %d\ndata: %s\n\n" % (last + 1, payload.encode())
+        """Frames `first` to `last` as one, carrying the last one's id.
+
+        JSON escapes a string a character at a time, so the strings' insides
+        joined are the joined text's, escaped, with nothing to parse again.
+        """
+        head = _TEXT_HEADS[self._kinds[first]]
+        inner = b"".join(
+            stored[stored.index(b"\n") + 1 + len(head) : -len(_TEXT_TAIL)]
+            for stored in self._frames[first : last + 1]
+        )
+        return b"id: %d\n%s%s%s" % (last + 1, head, inner, _TEXT_TAIL)
 
     def _wake(self) -> None:
         self._changed.set()
@@ -120,15 +126,26 @@ class Run:
 
 
 def _text_kind(frame: bytes) -> str | None:
-    """`delta` or `reasoning` for a frame that carries nothing but text."""
-    if not frame.startswith(_TEXT_FRAMES):
+    """`delta` or `reasoning` for a frame that carries nothing but text, spelled
+    exactly as json.dumps spells it."""
+    if not frame.endswith(_TEXT_TAIL):
         return None
+    for kind, head in _TEXT_HEADS.items():
+        if frame.startswith(head):
+            # Every quote inside a string is escaped, so with none between head
+            # and tail the frame holds that one string. Only a frame with one is
+            # parsed: parsing every token's would double what a token costs here.
+            if b'"' not in frame[len(head) : -len(_TEXT_TAIL)]:
+                return kind
+            return kind if _only_text(frame) else None
+    return None
+
+
+def _only_text(frame: bytes) -> bool:
+    """Whether the frame is json.dumps of a type and a text, and nothing else."""
     payload = json.loads(frame[len(b"data: ") :])
-    if payload.keys() != {"type", "text"} or not isinstance(payload["text"], str):
-        return None
-    return payload["type"]
-
-
-def _payload(numbered: bytes) -> dict:
-    """A stored frame's JSON, past its `id:` line."""
-    return json.loads(numbered[numbered.index(b"\n") + len(b"\ndata: ") :])
+    return (
+        payload.keys() == {"type", "text"}
+        and isinstance(payload["text"], str)
+        and frame == f"data: {json.dumps(payload)}\n\n".encode()
+    )
