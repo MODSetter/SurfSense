@@ -129,7 +129,8 @@ const NO_ACTIONS: SidebarNavAction[] = []
 // The always-visible left column: brand, "New chat", the "Chats" row that
 // opens every thread in a dialog, then the workspace's sources. Its own
 // shell (header, footer) never moves — only what a click surfaces changes.
-// Memoized: the dashboard re-renders for each streamed token and column drag.
+// Memoized: the dashboard also re-renders for Settings, the model check and
+// the other columns, none of which the sidebar shows.
 export const LeftSidebar = memo(function LeftSidebar({
   threads,
   activeThreadId,

@@ -175,7 +175,8 @@ function WorkspaceDashboard({
     writeSourcePreview(workspace.id, null)
   }
   // Stable, like everything else the memoized sources panel takes: this page
-  // re-renders on every streamed token.
+  // re-renders when a run starts, ends or changes state, and for a title, a
+  // thread switch, Settings and the other columns.
   const toggleSourcePreview = useStableCallback((documentId: number) => {
     const next = sourcePreviewId === documentId ? null : documentId
     setSourcePreviewId(next)
