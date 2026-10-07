@@ -45,11 +45,10 @@ def capability_of(model: str, connection: ProviderConnection | None) -> Capabili
 
     Synchronous and offline: reads only the list shipped with the app.
     """
-    key = model_key(model)
-    if key is None:
+    if model_key(model) is None:
         code = "alias" if model.strip() else "no_row"
         return Capability(Level.NOT_MEASURED, Reason(code))
-    row = find_row(key)
+    row = find_row(model)
     if row is None:
         return Capability(Level.NOT_MEASURED, Reason("no_row"))
     if _served(connection) not in row.match.served:

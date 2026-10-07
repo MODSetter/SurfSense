@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from modules.llm.capability.match_key import match_key
 from modules.llm.capability.model_key import model_key
 
 SCHEMA_VERSION = 1
@@ -72,9 +73,15 @@ class CapabilityList(BaseModel):
     @model_validator(mode="after")
     def _one_row_per_key(self) -> "CapabilityList":
         seen: set[str] = set()
+        # The looser key too: a local copy's spelling must find one row, not either.
+        owners: dict[str, str] = {}
         for row in self.models:
             for key in row.match.keys:
                 if key in seen:
                     raise ValueError(f"{key} is matched by two rows")
                 seen.add(key)
+                loose = match_key(key)
+                owner = owners.setdefault(loose, row.key) if loose else row.key
+                if owner != row.key:
+                    raise ValueError(f"{row.key} and {owner} match the same model")
         return self

@@ -25,6 +25,18 @@ LM_STUDIO = ProviderConnection(
     base_url="http://127.0.0.1:1234/v1",
     catalog_provider="custom",
 )
+OLLAMA = ProviderConnection(
+    label="Ollama",
+    provider="openai_compatible",
+    base_url="http://localhost:11434/v1",
+    catalog_provider="custom",
+)
+TOGETHER = ProviderConnection(
+    label="Together",
+    provider="openai_compatible",
+    base_url="https://api.together.xyz/v1",
+    catalog_provider="togetherai",
+)
 
 
 @pytest.mark.parametrize(
@@ -135,6 +147,52 @@ def test_a_pass_measured_on_a_remote_host_does_not_hold_on_a_server_of_ones_own(
 
     assert capability.level is Level.NOT_MEASURED
     assert capability.reason.code == "measured_elsewhere"
+
+
+@pytest.mark.parametrize(
+    "model", ["Qwen/Qwen3.8-27B-Instruct", "qwen/qwen3.8-27b-fp8", "Qwen3.8-27B-Chat"]
+)
+def test_another_remote_host_s_spelling_of_a_tested_model_holds_its_row(
+    model: str,
+) -> None:
+    """A row measured on one remote host holds on every other remote host."""
+    capability = capability_of(model, TOGETHER)
+
+    assert capability.level is Level.AGENT
+    assert capability.row is not None and capability.row.key == "qwen3-8-27b"
+
+
+@pytest.mark.parametrize(
+    ("model", "connection"),
+    [
+        ("qwen3.8:27b", OLLAMA),
+        ("Qwen3.8-27B-Q4_K_M", None),
+        ("unsloth/Qwen3.8-27B-GGUF", LM_STUDIO),
+    ],
+)
+def test_a_local_copy_of_a_tested_model_finds_its_row_but_not_its_pass(
+    model: str, connection: ProviderConnection | None
+) -> None:
+    """The row says it passed on its full-size version; the copy here is not measured."""
+    capability = capability_of(model, connection)
+
+    assert capability.level is Level.NOT_MEASURED
+    assert capability.reason.code == "measured_elsewhere"
+    assert capability.row is not None and capability.row.key == "qwen3-8-27b"
+
+
+def test_a_local_copy_of_a_model_measured_to_fail_holds_the_failure() -> None:
+    """Ollama's gemma4:31b is the Gemma 4 31B that passed 2 of 8."""
+    assert capability_of("gemma4:31b", OLLAMA).level is Level.STUDIO_ONLY
+
+
+@pytest.mark.parametrize("model", ["qwen3.8-14b", "qwen3.5-27b", "qwen3-8b"])
+def test_another_size_or_version_of_a_tested_model_is_not_measured(model: str) -> None:
+    """Matching is looser across servers, never across sizes or versions."""
+    capability = capability_of(model, TOGETHER)
+
+    assert capability.level is Level.NOT_MEASURED
+    assert capability.row is None
 
 
 def test_a_failure_measured_on_a_remote_host_holds_on_a_server_of_ones_own() -> None:
