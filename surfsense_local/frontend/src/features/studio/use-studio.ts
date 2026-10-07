@@ -8,6 +8,7 @@ import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
 import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -171,7 +172,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
       )
     )
 
-  const create = async (job: StudioJobCreate) => {
+  const create = useStableCallback(async (job: StudioJobCreate) => {
     setIsCreating(true)
     setActionError(null)
     try {
@@ -184,48 +185,52 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     } finally {
       setIsCreating(false)
     }
-  }
+  })
 
   // Puts the artifact back to "pending"; the workspace's events follow it
   // the same way they do a freshly created one.
-  const regenerate = async (artifactId: number) => {
+  const regenerate = useStableCallback(async (artifactId: number) => {
     setActionError(null)
     try {
       await replace(await regenerateArtifact(artifactId))
     } catch (cause) {
       setActionError(messageFrom(cause))
     }
-  }
+  })
 
   // Rejects with the API's reason, for the Refine box to show where it was typed.
-  const refine = async (artifactId: number, instruction: string) => {
-    const next = await refineArtifact(artifactId, instruction)
-    // A re-read of the list may have brought it in first.
-    await setList((current) => [
-      next,
-      ...current.filter((artifact) => artifact.id !== next.id),
-    ])
-  }
+  const refine = useStableCallback(
+    async (artifactId: number, instruction: string) => {
+      const next = await refineArtifact(artifactId, instruction)
+      // A re-read of the list may have brought it in first.
+      await setList((current) => [
+        next,
+        ...current.filter((artifact) => artifact.id !== next.id),
+      ])
+    }
+  )
 
   // Rejects with the API's reason, for the revised copy's bar to show.
-  const decideAll = async (artifactId: number, decision: RevisionDecision) => {
-    const next = await decideAllRevisions(artifactId, decision)
-    await setList((current) => [
-      next,
-      ...current.filter((artifact) => artifact.id !== next.id),
-    ])
-  }
+  const decideAll = useStableCallback(
+    async (artifactId: number, decision: RevisionDecision) => {
+      const next = await decideAllRevisions(artifactId, decision)
+      await setList((current) => [
+        next,
+        ...current.filter((artifact) => artifact.id !== next.id),
+      ])
+    }
+  )
 
-  const cancel = async (artifactId: number) => {
+  const cancel = useStableCallback(async (artifactId: number) => {
     setActionError(null)
     try {
       await replace(await cancelArtifact(artifactId))
     } catch (cause) {
       setActionError(messageFrom(cause))
     }
-  }
+  })
 
-  const remove = async (artifactId: number) => {
+  const remove = useStableCallback(async (artifactId: number) => {
     setActionError(null)
     try {
       await deleteArtifact(artifactId)
@@ -233,8 +238,15 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     } catch (cause) {
       setActionError(messageFrom(cause))
     }
-  }
+  })
 
+  const clearError = useStableCallback(() => {
+    setActionError(null)
+    setDismissedLoadError(loadError)
+  })
+
+  // The actions keep their identity, so the memoized Studio panel and
+  // artifact list skip the dashboard's renders.
   return {
     formats: formatsQuery.data ?? NO_FORMATS,
     artifacts,
@@ -247,9 +259,6 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     decideAll,
     cancel,
     remove,
-    clearError: () => {
-      setActionError(null)
-      setDismissedLoadError(loadError)
-    },
+    clearError,
   }
 }
