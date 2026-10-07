@@ -9,7 +9,7 @@ A chat thread can be the agent's. opencode, started by Electron, then answers it
 
 | Part | Where | Does |
 |---|---|---|
-| Staging | `electron/scripts/opencode/` | `pnpm build:opencode` fetches opencode `1.18.34` and ripgrep `15.1.0`, each checked against its SHA-256, into `electron/opencode/` ([packaging](packaging.md)), only when [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs) says opencode is on |
+| Staging | `electron/scripts/opencode/` | `pnpm build:opencode` fetches opencode `1.18.34` and ripgrep `15.1.0`, each checked against its SHA-256, into `electron/opencode/` ([packaging](packaging.md)), unless [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs) says opencode is off: it is on by default, so installers ship the agent, and `SURFSENSE_LOCAL_OPENCODE_ENABLED=0` leaves it out |
 | Process | `electron/src/main/sidecars/opencode.ts`, `opencode-home.ts`, `opencode-leftovers.ts`, `watchAgentConfig` in `index.ts` | starts, stops and cleans up `opencode serve` ([overview](overview.md)) |
 | Engine choice | `backend/modules/agent/engine_choice.py` | whether a thread opened now is the agent's |
 | Configuration | `opencode_config.py`, `prompts/agent.md`, `skills/` | the file opencode runs with, and the skills it may load |
