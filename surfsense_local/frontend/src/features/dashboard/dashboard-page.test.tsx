@@ -15,7 +15,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { render } from "@/test-utils"
 
-import { readSourcePreview, RIGHT_PANEL_KEY } from "./chrome-prefs"
+import {
+  COLUMN_WIDTH_KEYS,
+  readSourcePreview,
+  RIGHT_PANEL_KEY,
+} from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -2153,5 +2157,227 @@ describe("dashboard chat", () => {
 
     rerender(page(onOpenRouter))
     expect(await screen.findByText(refused)).toBeTruthy()
+  })
+})
+
+describe("resizable columns", () => {
+  const LIST =
+    "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+  const pdf = {
+    id: 42,
+    title: "report.pdf",
+    document_type: "FILE",
+    mime_type: "application/pdf",
+    status: "pending",
+    error_message: null,
+    created_at: "2026-09-05T00:00:00Z",
+    updated_at: "2026-09-05T00:00:00Z",
+  }
+  // Calls the section's ResizeObserver as a window this wide would.
+  let reportSection: (width: number) => void = () => undefined
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === LIST) return Response.json([pdf])
+        if (path === "/workspaces/1/chat/threads") return Response.json([])
+        if (path === "/workspaces/1/studio/formats") return Response.json([])
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        if (path === "/workspaces/1/documents/42/original") {
+          return new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]))
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const observed: { target: Element; callback: ResizeObserverCallback }[] = []
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        callback: ResizeObserverCallback
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback
+        }
+        observe(target: Element) {
+          observed.push({ target, callback: this.callback })
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+    )
+    reportSection = (width) =>
+      act(() => {
+        for (const { target, callback } of observed) {
+          if (target.tagName !== "SECTION") continue
+          callback(
+            [{ target, contentRect: { width } } as ResizeObserverEntry],
+            {} as ResizeObserver
+          )
+        }
+      })
+  })
+
+  const page = (
+    <TooltipProvider>
+      <DashboardPage
+        initialProviderAvailable={true}
+        selection={{
+          model_type: "text_gen",
+          provider: "llamacpp",
+          connection_id: null,
+          name: "llama3.2:1b",
+          updated_at: "2026-09-05T00:00:00Z",
+        }}
+        initialWorkspaces={[workspace]}
+        onModelSelected={vi.fn()}
+      />
+    </TooltipProvider>
+  )
+
+  const sidebarEdge = () =>
+    screen.getByRole("separator", { name: "Resize sidebar" })
+  const rightPanelEdge = () =>
+    screen.getByRole("separator", { name: "Resize right panel" })
+  const sidebarWidth = () =>
+    document.getElementById("workspace-left-column")?.style.width
+  const rightPanelWidth = () =>
+    (
+      document.getElementById("workspace-right-panel")?.parentElement
+        ?.parentElement as HTMLElement
+    ).style.width
+  const saved = (column: keyof typeof COLUMN_WIDTH_KEYS) =>
+    JSON.parse(localStorage.getItem(COLUMN_WIDTH_KEYS[column]) ?? "null")
+
+  function drag(edge: HTMLElement, by: number) {
+    fireEvent.pointerDown(edge, { button: 0, pointerId: 1, clientX: 600 })
+    fireEvent.pointerMove(edge, { pointerId: 1, clientX: 600 + by })
+    fireEvent.pointerUp(edge, { pointerId: 1, clientX: 600 + by })
+  }
+
+  it("widens the sidebar by dragging its edge and keeps the width", async () => {
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(sidebarWidth()).toBe("272px")
+
+    drag(sidebarEdge(), 48)
+
+    expect(sidebarWidth()).toBe("320px")
+    expect(sidebarEdge().getAttribute("aria-valuenow")).toBe("320")
+    expect(saved("sidebar")).toEqual({ rest: 320, wide: DETAIL_RAIL_WIDTH })
+    cleanup()
+    render(page)
+    expect(sidebarWidth()).toBe("320px")
+  })
+
+  it("widens the right panel from its left edge, which it hides while collapsed", async () => {
+    const user = userEvent.setup()
+    render(page)
+    await screen.findByRole("complementary", { name: "Workspace artifacts" })
+
+    act(() => rightPanelEdge().focus())
+    await user.keyboard("{ArrowLeft}")
+
+    expect(rightPanelWidth()).toBe(`${MAIN_RAIL_WIDTH + 16}px`)
+    expect(saved("rightPanel")).toEqual({
+      rest: MAIN_RAIL_WIDTH + 16,
+      wide: DETAIL_RAIL_WIDTH,
+    })
+    await user.click(screen.getByRole("button", { name: "Hide right panel" }))
+    expect(
+      screen.queryByRole("separator", { name: "Resize right panel" })
+    ).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Show right panel" }))
+    expect(rightPanelWidth()).toBe(`${MAIN_RAIL_WIDTH + 16}px`)
+  })
+
+  it("never drags a column into the chat's 520 px", async () => {
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    // 1214 - 520 leaves 694: the right panel's 400 and 294 for the sidebar.
+    reportSection(1214)
+    expect(sidebarEdge().getAttribute("aria-valuemax")).toBe("294")
+
+    drag(sidebarEdge(), 400)
+    expect(sidebarWidth()).toBe("294px")
+    expect(rightPanelEdge().getAttribute("aria-valuemax")).toBe("400")
+    drag(sidebarEdge(), -400)
+    expect(sidebarWidth()).toBe("272px")
+    expect(rightPanelEdge().getAttribute("aria-valuemax")).toBe("422")
+  })
+
+  it("narrows a saved width to fit a smaller window and restores it on a larger one", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.rightPanel,
+      JSON.stringify({ rest: 640, wide: DETAIL_RAIL_WIDTH })
+    )
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(rightPanelWidth()).toBe("640px")
+
+    reportSection(1214)
+    expect(rightPanelWidth()).toBe("422px")
+    expect(rightPanelEdge().getAttribute("aria-valuenow")).toBe("422")
+    reportSection(1600)
+    expect(rightPanelWidth()).toBe("640px")
+    expect(saved("rightPanel").rest).toBe(640)
+  })
+
+  it("falls back to the default for a saved width it cannot read, and clamps one out of range", async () => {
+    localStorage.setItem(COLUMN_WIDTH_KEYS.sidebar, "{not json")
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.rightPanel,
+      JSON.stringify({ rest: 99999, wide: "wide" })
+    )
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+
+    expect(sidebarWidth()).toBe("272px")
+    expect(rightPanelWidth()).toBe("640px")
+  })
+
+  it("puts a column back at its default on a double-click of its edge", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.sidebar,
+      JSON.stringify({ rest: 400, wide: DETAIL_RAIL_WIDTH })
+    )
+    const user = userEvent.setup()
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(sidebarWidth()).toBe("400px")
+
+    await user.dblClick(sidebarEdge())
+
+    expect(sidebarWidth()).toBe("272px")
+    expect(saved("sidebar")).toEqual({ rest: 272, wide: DETAIL_RAIL_WIDTH })
+  })
+
+  it("opens a preview at least as wide as the sidebar and resizes it apart from the sidebar", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.sidebar,
+      JSON.stringify({ rest: 300, wide: DETAIL_RAIL_WIDTH })
+    )
+    const user = userEvent.setup()
+    render(page)
+
+    await user.click(await screen.findByRole("button", { name: "report.pdf" }))
+    await screen.findByRole("complementary", { name: "Source preview" })
+    expect(sidebarWidth()).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    drag(sidebarEdge(), 80)
+
+    expect(sidebarWidth()).toBe(`${DETAIL_RAIL_WIDTH + 80}px`)
+    expect(saved("sidebar")).toEqual({
+      rest: 300,
+      wide: DETAIL_RAIL_WIDTH + 80,
+    })
+    await user.click(
+      screen.getByRole("button", { name: "Close source preview" })
+    )
+    expect(sidebarWidth()).toBe("300px")
   })
 })

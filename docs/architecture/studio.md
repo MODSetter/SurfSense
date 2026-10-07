@@ -297,6 +297,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 ## The Studio panel
 
 - Studio lives in the right rail: pick a format, pick sources, add an optional prompt, generate. The source picker is the same included set as the sources panel, so chat and Studio share one selection. An unavailable format shows the interface's sentence for the API's `unavailable_code`, or the API's `unavailable_reason` for a code it does not know. A create or regenerate refused for the same reason shows it the same way in the panel's alert.
+- The rail and the left sidebar resize by dragging their inner edge, or with the arrow keys on a focused edge; a double-click on an edge restores its default. The sidebar goes from 272 to 560 px and the rail from 400 to 640; a source preview or an inspected citation or artifact goes up to 800. Neither takes the chat below 520 px, and on a narrow window the sidebar gives way first. The widths are kept in local storage ([`column-widths.ts`](../../surfsense_local/frontend/src/features/dashboard/column-widths.ts)).
 - A podcast waits for its brief: the panel loads `GET .../studio/podcast/brief` and renders a form for style, duration and speakers before the job can be submitted.
 - The artifact list shows each artifact with its status, and each row can be opened, regenerated, cancelled or deleted. A script document's versions share one row ([above](#script-documents)).
 
