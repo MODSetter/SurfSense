@@ -109,6 +109,11 @@ class OfficeInstaller:
         self.activity.error = None
         self._changed()
 
+    def dismiss_offer(self) -> None:
+        """The user said no to the thread's offer; Settings still turns it on."""
+        records.write_offer_dismissed()
+        self._changed()
+
     def subscribe(self) -> asyncio.Event:
         changed = asyncio.Event()
         self.activity.subscribers.add(changed)

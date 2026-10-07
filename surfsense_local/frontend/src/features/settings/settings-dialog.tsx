@@ -312,6 +312,7 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
 export function SettingsDialog({
   open,
   section,
+  askOfficeConsent = false,
   onOpenChange,
   onSectionChange,
   onModelUnavailable = () => undefined,
@@ -320,6 +321,8 @@ export function SettingsDialog({
 }: {
   open: boolean
   section: SettingsSectionId
+  /** Opens Office support's download consent with the section. */
+  askOfficeConsent?: boolean
   onOpenChange: (open: boolean) => void
   onSectionChange: (section: SettingsSectionId) => void
   onModelUnavailable?: () => void
@@ -424,7 +427,7 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "resources" ? <ResourceSettings /> : null}
             {activeSection.id === "office-support" ? (
-              <OfficeSupportSettings />
+              <OfficeSupportSettings askConsent={askOfficeConsent} />
             ) : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}

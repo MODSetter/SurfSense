@@ -15,6 +15,8 @@ import { RelativeTime } from "@/components/relative-time"
 import { AgentSteps } from "@/features/agent/agent-steps"
 import type { AgentStep, TurnSources } from "@/features/agent/api"
 import { WorkingFrom } from "@/features/agent/working-from"
+import { OfficeOfferBanner } from "@/features/office-support/office-offer-banner"
+import { useOfficeOffer } from "@/features/office-support/office-offer"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -171,6 +173,24 @@ function MessageSteps() {
   return <AgentSteps steps={steps} scope={scope} />
 }
 
+/** The offer shows once per thread: under the latest reply that made an Office file. */
+function MessageOfficeOffer() {
+  const offer = useOfficeOffer()
+  const shown = useAuiState(({ thread, message }) => {
+    if (!offer) return false
+    const madeOffice = (custom: unknown) =>
+      stepsFrom(custom).some(
+        (step) => step.artifact != null && offer.isOfficeFile(step.artifact.id)
+      )
+    const latest = thread.messages.findLast(
+      (candidate) =>
+        candidate.role === "assistant" && madeOffice(candidate.metadata.custom)
+    )
+    return latest?.id === message.id
+  })
+  return shown ? <OfficeOfferBanner /> : null
+}
+
 function scopeFrom(custom: unknown): TurnSources | null {
   if (typeof custom === "object" && custom !== null && "scope" in custom) {
     return (custom.scope as TurnSources | null) ?? null
@@ -313,6 +333,7 @@ export function AssistantMessage({
           <MessageThinking />
           <MessageSteps />
           <MessagePrimitive.Parts components={assistantMessageParts} />
+          <MessageOfficeOffer />
         </div>
       </CitationProvider>
       <ChatErrorNotice

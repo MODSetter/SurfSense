@@ -35,6 +35,8 @@ def read_pack() -> PackRecord | None:
 
 def write_pack(record: PackRecord | None) -> None:
     _write(layout.installed_record(), record)
+    if record is not None:
+        write_offer_dismissed()
 
 
 def read_confirmed() -> ConfirmedRecord | None:
@@ -43,6 +45,23 @@ def read_confirmed() -> ConfirmedRecord | None:
 
 def write_confirmed(record: ConfirmedRecord | None) -> None:
     _write(layout.confirmed_record(), record)
+    if record is not None:
+        write_offer_dismissed()
+
+
+@dataclass(frozen=True)
+class OfferDismissed:
+    """Turned on once, or the offer dismissed: it is not offered again on this install."""
+
+    dismissed: bool = True
+
+
+def read_offer_dismissed() -> bool:
+    return _read(layout.offer_dismissed_record(), OfferDismissed) is not None
+
+
+def write_offer_dismissed() -> None:
+    _write(layout.offer_dismissed_record(), OfferDismissed())
 
 
 def _read[T](path: Path, kind: type[T]) -> T | None:

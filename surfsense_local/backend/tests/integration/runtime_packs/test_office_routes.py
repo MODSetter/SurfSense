@@ -368,3 +368,49 @@ async def test_the_feed_opens_with_the_current_state(base_url: str) -> None:
         assert reply.headers["content-type"].startswith("application/x-ndjson")
         first = json.loads(await anext(reply.aiter_lines()))
     assert first["state"] in ("not_installed", "using_installed", "installed")
+
+
+async def test_the_offer_is_not_dismissed_at_first(
+    client: AsyncClient, office: Office
+) -> None:
+    """The agent thread's banner may offer Office support until the user answers it."""
+    status = (await client.get("/runtime-packs/office")).json()
+
+    assert status["offer_dismissed"] is False
+
+
+async def test_a_dismissed_offer_stays_dismissed_for_this_install(
+    client: AsyncClient, office: Office
+) -> None:
+    """Kept beside the pack's records, not in the window, so a new window keeps it."""
+    dismissed = await client.post("/runtime-packs/office/offer/dismiss")
+
+    assert dismissed.status_code == 200
+    assert dismissed.json()["offer_dismissed"] is True
+    assert (await client.get("/runtime-packs/office")).json()["offer_dismissed"]
+    assert records.read_offer_dismissed() is True
+
+
+async def test_once_office_support_was_on_the_offer_never_shows_again(
+    client: AsyncClient, office: Office
+) -> None:
+    """Removing it later is the user's choice, not a reason to offer it again."""
+    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.post("/runtime-packs/office/install")
+    await _settled(client)
+
+    removed = (await client.delete("/runtime-packs/office")).json()
+
+    assert removed["state"] == "not_installed"
+    assert removed["offer_dismissed"] is True
+
+
+async def test_using_an_installed_libreoffice_settles_the_offer_too(
+    client: AsyncClient, office: Office, tmp_path: Path
+) -> None:
+    """Either way Office support was turned on."""
+    _found_install(tmp_path / "found", "26.8")
+
+    used = (await client.post("/runtime-packs/office/use-installed")).json()
+
+    assert used["offer_dismissed"] is True

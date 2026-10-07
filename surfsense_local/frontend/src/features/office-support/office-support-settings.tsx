@@ -49,10 +49,15 @@ function failureOf(error: unknown, describe: (code: string) => string): string {
   return describe("")
 }
 
-export function OfficeSupportSettings() {
+/** `askConsent` opens the download's consent at once, as a thread's offer asks. */
+export function OfficeSupportSettings({
+  askConsent = false,
+}: {
+  askConsent?: boolean
+}) {
   const client = useQueryClient()
   const status = useOfficeStatus()
-  const [consenting, setConsenting] = useState(false)
+  const [consenting, setConsenting] = useState(askConsent)
   const receive = (next: OfficeStatus) =>
     client.setQueryData(officeQueryKey, next)
 
@@ -125,7 +130,9 @@ export function OfficeSupportSettings() {
           {office.offer ? (
             <OfficeConsentDialog
               offer={office.offer}
-              open={consenting}
+              open={
+                consenting && !BUSY.has(office.state) && !ON.has(office.state)
+              }
               onOpenChange={setConsenting}
               onDownload={() => {
                 if (office.offer) install.mutate(office.offer.destination)

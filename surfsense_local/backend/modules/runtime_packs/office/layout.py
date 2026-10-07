@@ -29,6 +29,11 @@ def confirmed_record() -> Path:
     return office_dir() / "use-installed.json"
 
 
+def offer_dismissed_record() -> Path:
+    """Present once the user dismissed the offer to turn it on, or turned it on; outlives a removal."""
+    return office_dir() / "offer-dismissed.json"
+
+
 def profile_slot() -> Path:
     """The one profile: one run at a time, so one profile, warm after its first run."""
     return office_dir() / "profiles" / "slot-0"

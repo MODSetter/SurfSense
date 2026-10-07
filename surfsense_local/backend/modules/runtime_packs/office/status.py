@@ -35,6 +35,7 @@ def office_status(installer: OfficeInstaller) -> OfficeStatusRead:
             usable=found.refusal is None,
             refusal=found.refusal,
         ),
+        offer_dismissed=records.read_offer_dismissed(),
     )
     if activity.phase is not None:
         status.state = activity.phase

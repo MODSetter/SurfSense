@@ -133,6 +133,16 @@ async def use_installed_office(installer: InstallerDep) -> OfficeStatusRead:
     return office_status(installer)
 
 
+@router.post(
+    "/offer/dismiss",
+    response_model=OfficeStatusRead,
+    summary="Stop offering Office support in agent threads on this install",
+)
+def dismiss_office_offer(installer: InstallerDep) -> OfficeStatusRead:
+    installer.dismiss_offer()
+    return office_status(installer)
+
+
 @router.delete(
     "",
     response_model=OfficeStatusRead,

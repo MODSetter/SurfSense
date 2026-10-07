@@ -75,17 +75,22 @@ On the development machine, 25.2.7.2 converted a python-docx DOCX and a python-p
 
 | Route | Does |
 |---|---|
-| `GET /runtime-packs/office` | the state: `not_installed`, `downloading`, `unpacking`, `checking`, `installed`, `using_installed` or `error`, with `version`, `path`, `progress`, `error {code, message}`, `offer {version, size, host, destination}` and `detected {path, branch, usable, refusal}` |
+| `GET /runtime-packs/office` | the state: `not_installed`, `downloading`, `unpacking`, `checking`, `installed`, `using_installed` or `error`, with `version`, `path`, `progress`, `error {code, message}`, `offer {version, size, host, destination}`, `detected {path, branch, usable, refusal}` and `offer_dismissed` |
 | `GET /runtime-packs/office/events` | the same, as NDJSON: now, on each change, and every 15 s |
 | `POST /runtime-packs/office/install` | `202`; `403 egress_disabled`, `409 already_running` or `already_installed`, `422 unsupported_platform` |
 | `POST /runtime-packs/office/use-installed` | `200`; `404 not_found`, `409` with a detection code or `smoke_failed` |
 | `DELETE /runtime-packs/office` | cancel, forget or remove; `409 in_use` |
+| `POST /runtime-packs/office/offer/dismiss` | `200`; agent threads stop offering Office support on this install |
 
 Install failures carry `download_failed`, `checksum_mismatch`, `insecure_redirect`, `too_many_redirects`, `too_large`, `unpack_failed`, `smoke_failed` or `install_failed`.
 
 ## Settings
 
 Settings › System › Office support ([`features/office-support/`](../../surfsense_local/frontend/src/features/office-support/)) follows `GET /runtime-packs/office/events` while it is open. Off, it offers Turn on, which opens a consent dialog naming LibreOffice's version, its size in MB from `offer`, The Document Foundation, the host and that the archive may hand the download to a mirror, and what is sent: the IP address and the file's name. Download allows `offer.destination` in egress and then starts the install, so the `403 egress_disabled` does not come up; Not now changes nothing. While it installs, a progress bar names the phase and Cancel sends `DELETE`. On, it reads "On: LibreOffice <version>", with the path for the user's own install, and Remove or Stop using it. A LibreOffice found at a fixed path shows with "Use the LibreOffice I have" when `usable`, or with the reason it cannot be used. Every code above has its own sentence, in all ten languages. Settings › Network lists the host as "Office support download".
+
+## The offer in an agent thread
+
+Under the latest reply in a thread that made a Word, Excel or PowerPoint file (a render or a revised copy whose artifact's format is `docx`, `xlsx` or `pptx`), while Office support is `not_installed` and offered for this computer, the thread shows a small offer: exact Office pages, real spreadsheet totals and conversion to PDF, and the download's size in MB from `offer` ([`office-offer-banner.tsx`](../../surfsense_local/frontend/src/features/office-support/office-offer-banner.tsx)). Its button opens Settings › Office support with the consent dialog already open, and never downloads anything itself; its close button calls `POST /runtime-packs/office/offer/dismiss`. `offer_dismissed` is true from then on, and also once Office support was on, pack or confirmed install, even after it is removed: the backend keeps `<data>/runtime/office/offer-dismissed.json`, which a removal leaves, written by the dismissal and with `installed.json` or `use-installed.json` ([`records.py`](../../surfsense_local/backend/modules/runtime_packs/office/records.py)). Onboarding does not offer it.
 
 ## What uses it
 

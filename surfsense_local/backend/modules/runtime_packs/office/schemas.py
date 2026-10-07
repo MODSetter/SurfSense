@@ -55,3 +55,5 @@ class OfficeStatusRead(BaseModel):
     # None where nothing is pinned for this platform.
     offer: OfficeOffer | None
     detected: OfficeDetected | None
+    # The thread's banner offers Office support only until this is true.
+    offer_dismissed: bool

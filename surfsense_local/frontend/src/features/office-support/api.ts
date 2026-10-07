@@ -37,6 +37,8 @@ export type OfficeStatus = {
   error: { code: string; message: string } | null
   offer: OfficeOffer | null
   detected: OfficeDetected | null
+  /** Turned on once, or the thread's offer dismissed: never offered there again. */
+  offer_dismissed: boolean
 }
 
 export const officeQueryKey = ["runtime-packs", "office"] as const
@@ -53,6 +55,13 @@ export function installOffice(): Promise<OfficeStatus> {
 
 export function confirmInstalledOffice(): Promise<OfficeStatus> {
   return requestJson<OfficeStatus>(`${OFFICE}/use-installed`, {
+    method: "POST",
+  })
+}
+
+/** Stops the agent thread offering Office support on this install. */
+export function dismissOfficeOffer(): Promise<OfficeStatus> {
+  return requestJson<OfficeStatus>(`${OFFICE}/offer/dismiss`, {
     method: "POST",
   })
 }

@@ -23,6 +23,7 @@ function status(extra: Partial<OfficeStatus> = {}): OfficeStatus {
     error: null,
     offer: OFFER,
     detected: null,
+    offer_dismissed: false,
     ...extra,
   }
 }
