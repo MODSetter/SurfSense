@@ -211,6 +211,35 @@ async def test_a_conversion_libreoffice_fails_says_why_and_leaves_a_failed_pdf(
     )
 
 
+async def test_rendering_onto_a_converted_pdf_points_at_its_word_version(
+    tools: ToolEndpoint, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A converted PDF keeps no script and Studio offers it no Refine: its Word version changes."""
+    workspace_id = await tools.workspace()
+    word_id = await _rendered(tools, workspace_id)
+    office_on(monkeypatch, pages=1)
+    converted, _ = await tools.call(
+        workspace_id, "convert_document", {"artifact_id": word_id, "format": "pdf"}
+    )
+    pdf_id = _artifact_id(converted)
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        {
+            "title": "Client proposal",
+            "format": "pdf",
+            "script": "print('x')\n",
+            "artifact_id": pdf_id,
+        },
+    )
+
+    assert is_error is True
+    assert "Refine" not in text and "refine" not in text
+    assert f"converted from artifact {word_id}" in text
+    assert "surfsense_convert_document" in text
+
+
 def _primary(artifact: Artifact | None) -> Path:
     assert artifact is not None
     primary = next(f for f in artifact.files if f.role is ArtifactFileRole.PRIMARY)

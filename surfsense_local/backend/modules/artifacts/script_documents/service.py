@@ -18,6 +18,7 @@ from modules.artifacts.script_documents.template_source import (
     TemplateRefusedError,
     template_file,
 )
+from modules.artifacts.script_documents.unscripted_base import unscripted_refusal
 from modules.artifacts.script_documents.version import (
     ArtifactVersion,
     next_version_number,
@@ -177,6 +178,9 @@ def _base_version(
         )
     if studio_made(base.artifact_metadata):
         raise ScriptDocumentRefusedError(MADE_IN_STUDIO)
+    refusal = unscripted_refusal(base_id, base.artifact_metadata)
+    if refusal is not None:
+        raise ScriptDocumentRefusedError(refusal)
     version = version_of(base.artifact_metadata)
     if version is None:
         raise ScriptDocumentRefusedError(

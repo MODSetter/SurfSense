@@ -280,6 +280,33 @@ async def test_an_artifact_that_is_not_a_revised_copy_is_refused(
     assert "There is no artifact 999 in this workspace." in text
 
 
+async def test_rendering_onto_a_revised_copy_points_at_the_revise_tool(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """A revised copy keeps no script and Studio offers it no Refine: it is revised again."""
+    workspace_id = await tools.workspace()
+    source_id = _source(tools, workspace_id)
+    first, _ = await tools.call(
+        workspace_id, TOOL, {"document_id": source_id, "operations": [REPLACE]}
+    )
+    copy_id = _artifact_id(first)
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        {
+            "title": "MSA_Acme",
+            "format": "docx",
+            "script": "print('x')\n",
+            "artifact_id": copy_id,
+        },
+    )
+
+    assert is_error is True
+    assert "Refine" not in text and "refine" not in text
+    assert f"surfsense_revise_document with artifact_id {copy_id}" in text
+
+
 async def test_a_workbook_revision_answers_with_its_summary(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
