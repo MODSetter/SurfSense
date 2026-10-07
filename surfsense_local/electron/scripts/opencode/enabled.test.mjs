@@ -3,8 +3,8 @@ import test from "node:test"
 
 import { opencodeEnabled } from "./enabled.mjs"
 
-test("opencode is off unless something turns it on", () => {
-  assert.equal(opencodeEnabled({}), false)
+test("opencode is on unless something turns it off, so every installer carries the agent", () => {
+  assert.equal(opencodeEnabled({}), true)
 })
 
 test("SURFSENSE_LOCAL_OPENCODE_ENABLED turns it on with 1 and off with 0", () => {
