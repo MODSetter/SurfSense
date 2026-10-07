@@ -15,6 +15,7 @@ from typing import Any
 from tests.live.sweep.attempt import Attempt
 from tests.live.sweep.model_list import ListedModel
 from tests.live.sweep.plan import CASES, plan
+from tests.live.whole_file import write_whole
 
 RESULTS = "sweep-results.json"
 SUMMARY = "summary.json"
@@ -125,11 +126,8 @@ def write(
 
 
 def write_atomic(path: Path, data: Any) -> None:
-    """Replaced whole, so a kill mid-write never leaves half a file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_name(f".{path.name}.partial")
-    partial.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", "utf-8")
-    partial.replace(path)
+    """Replaced whole, so a kill mid-write or a reader never sees half a file."""
+    write_whole(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
 def _day(epoch: float) -> str | None:
