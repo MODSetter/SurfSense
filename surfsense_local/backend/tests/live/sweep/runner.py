@@ -89,6 +89,7 @@ class Runner:
         self._said_waiting = ""
         self._say_again = 0.0
         self.log_path = sweep.out / "runner.log"
+        self.started = time.time()
 
     def run(self) -> list[dict[str, Any]]:
         """Until every model has its verdict, the budget is spent, or Ctrl-C."""
@@ -390,6 +391,7 @@ class Runner:
                 # None once the runner has finished, so a report never takes a reused pid for it.
                 "pid": None if ended else os.getpid(),
                 "updated": _now(),
+                "started": self.started,
                 "lanes": self.sweep.guard.lanes,
                 "lane_gb": self.sweep.guard.lane_gb,
                 "budget": self.sweep.budget.cap,

@@ -130,7 +130,7 @@ def plan(by_case: dict[str, list[Attempt]], in_flight: set[str]) -> ModelPlan:
         if second.outcome == "passed":
             notes.append(f"{case} passed when run again")
         else:
-            notes.append(f"{case} run again: {_why(case, second)}")
+            notes.append(_why(f"{case}, run again", second))
             unresolved = unresolved or second.outcome == "unresolved"
     if unresolved:
         return ModelPlan([], _unresolved(cells, notes))

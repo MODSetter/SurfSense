@@ -110,6 +110,7 @@ def test_a_second_failure_of_the_split_case_is_final() -> None:
     assert made.next == []
     assert made.verdict is not None
     assert (made.verdict.level, made.verdict.passed) == ("below", 1)
+    assert made.verdict.notes[-1] == "pdf-brief, run again: pdf-brief failed"
 
 
 def test_transient_and_harness_faults_get_two_retries_and_never_count() -> None:
