@@ -282,6 +282,19 @@ jobs:
 
           "${CMD[@]}"
 
+      # From the folder each installer packaged, as users run it: signed where the
+      # build is, and on macOS under the hardened runtime, whose JIT entitlement
+      # opencode's Bun needs.
+      - name: Smoke the bundled opencode
+        working-directory: surfsense_local/electron
+        run: |
+          case "$RUNNER_OS" in
+            Linux) DIR=release/linux-unpacked/resources/opencode ;;
+            Windows) DIR=release/win-unpacked/resources/opencode ;;
+            macOS) DIR=release/mac-arm64/SurfSense.app/Contents/Resources/opencode ;;
+          esac
+          node scripts/opencode/check-stage.mjs "$DIR"
+
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: |
