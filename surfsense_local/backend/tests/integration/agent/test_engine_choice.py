@@ -164,7 +164,7 @@ async def test_with_no_mode_asked_a_model_measured_at_or_near_the_bar_opens_agen
     """Opus passed every case; Haiku passed 5 of 8 and may need a nudge."""
     select_remote(session, name, catalog_provider, base_url=base_url)
 
-    assert await new_thread_mode(session, None) is ChatMode.AGENTIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.AGENTIC
 
 
 @pytest.mark.parametrize(
@@ -180,7 +180,7 @@ async def test_with_no_mode_asked_an_untested_model_or_a_low_scorer_opens_basic(
     """Agentic is theirs to choose; Basic is where they start."""
     select_remote(session, name, catalog_provider, base_url=base_url)
 
-    assert await new_thread_mode(session, None) is ChatMode.BASIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
 @pytest.mark.parametrize(
@@ -197,7 +197,7 @@ async def test_agentic_asked_for_opens_agentic_whatever_the_score(
     """No measured score blocks Agentic, and neither does a catalog that says nothing."""
     select_remote(session, name, catalog_provider, base_url=base_url)
 
-    assert await new_thread_mode(session, ChatMode.AGENTIC) is ChatMode.AGENTIC
+    assert (await new_thread_mode(session, ChatMode.AGENTIC)).mode is ChatMode.AGENTIC
 
 
 async def test_basic_asked_for_opens_basic_even_for_a_model_that_passed(
@@ -206,7 +206,7 @@ async def test_basic_asked_for_opens_basic_even_for_a_model_that_passed(
     """The user's choice over the measured default."""
     select_remote(session, "claude-opus-5-5", "anthropic", base_url=ANTHROPIC)
 
-    assert await new_thread_mode(session, ChatMode.BASIC) is ChatMode.BASIC
+    assert (await new_thread_mode(session, ChatMode.BASIC)).mode is ChatMode.BASIC
 
 
 async def test_agentic_on_a_model_that_cannot_call_tools_is_refused(
@@ -217,7 +217,7 @@ async def test_agentic_on_a_model_that_cannot_call_tools_is_refused(
 
     assert await refused(session, ChatMode.AGENTIC) == "tool_calls_unsupported"
     # Nothing asked, the default falls back rather than refusing.
-    assert await new_thread_mode(session, None) is ChatMode.BASIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
 async def test_a_window_under_the_floor_is_refused_but_not_under_the_switch(
@@ -231,7 +231,7 @@ async def test_a_window_under_the_floor_is_refused_but_not_under_the_switch(
         base_url="https://api.berget.ai/v1",
     )
 
-    assert await new_thread_mode(session, None) is ChatMode.AGENTIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.AGENTIC
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
     assert await refused(session, ChatMode.AGENTIC) == "window_below_floor"
 
@@ -244,13 +244,13 @@ async def test_agentic_without_opencode_is_refused_as_not_installed(
     select_remote(session, "claude-opus-5-5", "anthropic", base_url=ANTHROPIC)
 
     assert await refused(session, ChatMode.AGENTIC) == "agent_not_installed"
-    assert await new_thread_mode(session, None) is ChatMode.BASIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
 async def test_agentic_with_no_chat_model_is_refused(session: Session) -> None:
     """There is no model to run it."""
     assert await refused(session, ChatMode.AGENTIC) == "no_model"
-    assert await new_thread_mode(session, None) is ChatMode.BASIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
 async def test_a_local_model_whose_template_calls_tools_opens_agentic(
@@ -260,7 +260,7 @@ async def test_a_local_model_whose_template_calls_tools_opens_agentic(
     local_runtime.template_caps = {"supports_tools": True, "supports_tool_calls": True}
     select_local(session)
 
-    assert await new_thread_mode(session, ChatMode.AGENTIC) is ChatMode.AGENTIC
+    assert (await new_thread_mode(session, ChatMode.AGENTIC)).mode is ChatMode.AGENTIC
 
 
 async def test_a_local_model_whose_template_parses_no_tool_calls_is_refused(
@@ -271,7 +271,7 @@ async def test_a_local_model_whose_template_parses_no_tool_calls_is_refused(
     select_local(session)
 
     assert await refused(session, ChatMode.AGENTIC) == "tool_calls_unsupported"
-    assert await new_thread_mode(session, None) is ChatMode.BASIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
 async def test_a_local_model_loaded_with_a_short_window_is_refused(
@@ -292,7 +292,7 @@ async def test_a_local_model_whose_runtime_cannot_be_read_may_still_open_agentic
     monkeypatch.setattr(get_llm_settings(), "llamacpp_base_url", "http://127.0.0.1:9")
     select_local(session)
 
-    assert await new_thread_mode(session, ChatMode.AGENTIC) is ChatMode.AGENTIC
+    assert (await new_thread_mode(session, ChatMode.AGENTIC)).mode is ChatMode.AGENTIC
 
 
 async def test_a_local_copy_of_a_model_that_passed_opens_basic(
@@ -301,7 +301,7 @@ async def test_a_local_copy_of_a_model_that_passed_opens_basic(
     """It passed on its full-size version; a copy here starts Basic, with Agentic offered."""
     select_local(session, "Qwen3.8-27B-Q4_K_M")
 
-    assert await new_thread_mode(session, None) is ChatMode.BASIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.BASIC
 
 
 async def test_the_mode_a_chat_opened_in_is_the_model_s_next_default(
@@ -309,10 +309,12 @@ async def test_the_mode_a_chat_opened_in_is_the_model_s_next_default(
 ) -> None:
     """Remembered on the selection, over the measured default."""
     select_remote(session, "gpt-4o-mini", "openai", base_url=OPENAI)
+    opening = await new_thread_mode(session, ChatMode.AGENTIC)
+    assert opening.entry is not None
 
-    await remember_thread_mode(session, ChatMode.AGENTIC)
+    await remember_thread_mode(session, opening.entry, ChatMode.AGENTIC)
 
-    assert await new_thread_mode(session, None) is ChatMode.AGENTIC
+    assert (await new_thread_mode(session, None)).mode is ChatMode.AGENTIC
     session.expire_all()
     selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     assert selected is not None and remembered_mode(selected) is ChatMode.AGENTIC

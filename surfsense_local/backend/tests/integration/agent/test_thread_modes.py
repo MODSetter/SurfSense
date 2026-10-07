@@ -1,11 +1,14 @@
 """Opening a chat in Basic (Q&A) or Agentic through the API: refusals leave no thread, and the choice is remembered."""
 
+import asyncio
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.chat import router as chat_router
 from modules.chat.models import ChatThread
+from modules.llm.capability.modes import carried_to_next_model
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings
@@ -22,8 +25,8 @@ def no_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
 
 
-def _select(engine: Engine, name: str, catalog_provider: str = "openai") -> None:
-    """A remote selection; nothing is sent to the host."""
+def _select(engine: Engine, name: str, catalog_provider: str = "openai") -> int:
+    """A remote selection; nothing is sent to the host. The connection's id."""
     with create_session_factory(engine)() as session:
         connection = ProviderConnection(
             label="Remote",
@@ -42,6 +45,7 @@ def _select(engine: Engine, name: str, catalog_provider: str = "openai") -> None
             )
         )
         session.commit()
+        return connection.id
 
 
 def _thread_count(engine: Engine) -> int:
@@ -78,6 +82,36 @@ async def test_basic_chosen_opens_a_chat_and_is_remembered(
     assert thread["uses_agent"] is False
     capability = (await client.get("/llm/selection/text_gen")).json()["capability"]
     assert capability["modes"]["remembered_mode"] == "basic"
+
+
+async def test_a_pick_is_remembered_for_the_model_it_was_made_on(
+    client: AsyncClient, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The agent may take a minute to start, and the model picker stays open meanwhile."""
+    connection_id = _select(engine, "gpt-4o-mini")
+
+    def select_another() -> None:
+        # As the selection route leaves the slot: another model, every mode carried.
+        with create_session_factory(engine)() as session:
+            selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+            assert selected is not None
+            selected.settings = carried_to_next_model(selected)
+            selected.name = "gpt-4.1"
+            session.commit()
+
+    async def another_model_while_starting(*_args: object) -> str:
+        await asyncio.to_thread(select_another)
+        return "ses_1"
+
+    monkeypatch.setattr(chat_router, "open_agent_session", another_model_while_starting)
+
+    status, thread = await _open(client, mode="agentic", remember=True)
+
+    assert status == 201
+    assert thread["uses_agent"] is True
+    assert _remembered(engine) == {
+        "chat_modes": {f"openai_compatible/{connection_id}/gpt-4o-mini": "agentic"}
+    }
 
 
 async def test_a_default_sent_back_unchosen_is_not_remembered(

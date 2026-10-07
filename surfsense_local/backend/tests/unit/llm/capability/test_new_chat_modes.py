@@ -8,6 +8,7 @@ from modules.llm.capability.measured.schema import MeasuredModel
 from modules.llm.capability.modes import (
     ChatMode,
     carried_to_next_model,
+    mode_entry,
     new_chat_modes,
     remember_mode,
     remembered_mode,
@@ -276,6 +277,19 @@ def test_each_model_keeps_its_own_mode_when_the_slot_takes_another() -> None:
     assert remembered_mode(_selected("gpt-4.1", settings=back.settings)) is None
     assert remembered_mode(after_trial) is ChatMode.AGENTIC
     assert after_trial.settings is not None and "voices" not in after_trial.settings
+
+
+def test_a_mode_chosen_on_a_model_the_slot_has_left_is_that_model_s() -> None:
+    """The slot took another model while the chat opened: the new one's old opt-in stays."""
+    chosen_on = _selected("gpt-4o-mini")
+    now = _selected("gpt-4.1", settings={"agent_trial": True})
+
+    remember_mode(now, ChatMode.BASIC, mode_entry(chosen_on))
+
+    assert remembered_mode(now) is ChatMode.AGENTIC
+    assert remembered_mode(_selected("gpt-4o-mini", settings=now.settings)) is (
+        ChatMode.BASIC
+    )
 
 
 def test_the_same_name_on_another_server_is_another_model() -> None:

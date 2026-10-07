@@ -105,7 +105,7 @@ async def create_thread(
     start, and no thread is left behind.
     """
     try:
-        mode = await new_thread_mode(session, payload.mode)
+        opening = await new_thread_mode(session, payload.mode)
     except AgenticRefusedError as refused:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -114,7 +114,7 @@ async def create_thread(
     thread = await transact(
         session, _new_thread, workspace.id, payload.title, payload.source_scope
     )
-    if mode is ChatMode.AGENTIC:
+    if opening.mode is ChatMode.AGENTIC:
         session_id = await open_agent_session(session, thread, launch_key)
         if session_id is not None:
             await transact(session, _give_to_agent, thread, session_id)
@@ -128,8 +128,8 @@ async def create_thread(
                     "Basic (Q&A) chat.",
                 },
             )
-    if payload.mode is not None and payload.remember:
-        await remember_thread_mode(session, payload.mode)
+    if payload.mode is not None and payload.remember and opening.entry is not None:
+        await remember_thread_mode(session, opening.entry, payload.mode)
     return thread
 
 
