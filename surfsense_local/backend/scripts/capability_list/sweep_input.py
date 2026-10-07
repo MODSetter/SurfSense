@@ -26,6 +26,8 @@ from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
+from modules.llm.capability.match_key import match_key
+
 # The sweep's one status with a verdict; a row with no status is read by its counts.
 DONE = "done"
 
@@ -81,7 +83,28 @@ class SweepResults(BaseModel):
     assumed: list[AssumedModel] = []
 
     def measured(self) -> list[SweptModel]:
-        return [model for model in self.models if model.finished]
+        """Models with a verdict, less a variant waiting for its own model's."""
+        return [
+            model
+            for model in self.models
+            if model.finished and self.waiting_for(model) is None
+        ]
+
+    def waiting_for(self, model: SweptModel) -> SweptModel | None:
+        """The model a variant folds into while that one has no verdict.
+
+        Listed first, the variant would hold the model's name, and its score
+        would stand for the model's: gpt-5.2-chat waits for gpt-5.2.
+        """
+        loose = match_key(model.key)
+        return next(
+            (
+                other
+                for other in self.left_out()
+                if len(other.key) < len(model.key) and match_key(other.key) == loose
+            ),
+            None,
+        )
 
     def left_out(self) -> list[SweptModel]:
         """Models the sweep has no verdict for, wherever the file lists them."""

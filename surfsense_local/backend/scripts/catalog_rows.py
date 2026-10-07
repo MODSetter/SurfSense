@@ -6,8 +6,9 @@ Run by hand once a sweep is written up, from `surfsense_local/backend`:
 
 Each screened model becomes an `openrouter-screen` row, at `agent` when it
 passed both cases and `studio_only` otherwise; each assumed flagship an
-`assumed` row. A model the list already names keeps its row, and a model the
-sweep has no verdict for gets none. The input's shape is in
+`assumed` row. A model the list already names keeps its row unless the new
+one outranks it (a screening over an assumption), and a model the sweep has
+no verdict for gets none, nor does a variant of it such as its -chat model. The input's shape is in
 `capability_list/sweep_input.py`. A person reviews the diff and commits
 it; nothing fetches the list at runtime.
 """
@@ -41,10 +42,19 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{row.key}: {row.level} ({row.passes.passed}/{row.passes.counted})")
     for out in left_out:
         whose = "the list's" if out.listed else "this sweep's"
+        if out.replaced:
+            print(
+                f"{out.row.key} ({out.row.suite}): replaced by {whose} "
+                f"{out.kept.key} ({out.kept.suite})"
+            )
+            continue
         print(
             f"{out.row.key} ({out.row.suite}): left out, {whose} "
             f"{out.kept.key} ({out.kept.suite}) names the same model"
         )
+    for model in sweep.models:
+        if model.finished and (base := sweep.waiting_for(model)) is not None:
+            print(f"{model.key}: left out, waiting for {base.key}")
     for model in sweep.left_out():
         print(f"{model.key}: left out, {model.status or 'no verdict'}")
 

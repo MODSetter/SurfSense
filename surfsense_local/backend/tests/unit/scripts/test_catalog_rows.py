@@ -161,6 +161,122 @@ def test_a_model_s_own_name_wins_over_a_variant_listed_before_it() -> None:
     assert (by_key["gpt-5-2"].level, by_key["gpt-5-2"].passes.passed) == ("agent", 2)
 
 
+def _done(model_id: str, key: str, passed: int, notes: list[str] | None = None) -> dict:
+    """A model the sweep has a verdict for, both cases run."""
+    return {
+        "id": model_id,
+        "key": key,
+        "reads_images": True,
+        "status": "done",
+        "level": "agent" if passed == 2 else "below",
+        "passed": passed,
+        "counted": 2,
+        "run": 2,
+        "measured_on": "2026-10-07",
+        "notes": notes or [],
+    }
+
+
+def _unresolved(model_id: str, key: str) -> dict:
+    """A model whose runs met only a provider's errors: no verdict."""
+    return {"id": model_id, "key": key, "reads_images": True, "status": "unresolved"}
+
+
+def _run_sweep(
+    models: list[dict], unfinished: list[dict] | None = None
+) -> SweepResults:
+    return SweepResults.model_validate(
+        {"date": "2026-10-07", "models": models, "unfinished": unfinished or []}
+    )
+
+
+def _listed_with_gpt_5_5_assumed() -> CapabilityList:
+    """The ladder's rows and GPT-5.5, assumed while it cost $3/M and up."""
+    assumed = SweepResults.model_validate(
+        {"assumed": [{"id": "openai/gpt-5.5", "key": "gpt-5-5", "reads_images": True}]}
+    )
+    return merged(_ladder(), sweep_rows(assumed, date(2026, 10, 7)))[0]
+
+
+def test_a_variant_waits_while_its_own_model_has_no_verdict() -> None:
+    """Listed alone, gpt-5.2-chat would hold gpt-5.2's name and score for it."""
+    sweep = _run_sweep(
+        [_done("openai/gpt-5.2-chat", "gpt-5-2-chat", 1)],
+        [_unresolved("openai/gpt-5.2", "gpt-5-2")],
+    )
+    variant = sweep.models[0]
+
+    assert sweep_rows(sweep, date(2026, 10, 7)) == []
+    waiting = sweep.waiting_for(variant)
+    assert waiting is not None and waiting.key == "gpt-5-2"
+
+
+def test_a_later_sweep_s_model_takes_its_name_back_from_a_listed_variant() -> None:
+    """A list written before the variant had to wait: the shorter key wins, listed or not."""
+    first = merged(
+        _ladder(),
+        sweep_rows(
+            _run_sweep([_done("openai/gpt-5.2-chat", "gpt-5-2-chat", 1)]),
+            date(2026, 10, 7),
+        ),
+    )[0]
+
+    written, left_out = merged(
+        first,
+        sweep_rows(
+            _run_sweep([_done("openai/gpt-5.2", "gpt-5-2", 2)]), date(2026, 10, 8)
+        ),
+    )
+    by_key = {row.key: row for row in written.models}
+
+    assert "gpt-5-2-chat" not in by_key
+    assert by_key["gpt-5-2"].level == "agent"
+    assert [(out.row.key, out.kept.key, out.replaced) for out in left_out] == [
+        ("gpt-5-2-chat", "gpt-5-2", True)
+    ]
+
+
+def test_a_later_screening_replaces_an_assumption() -> None:
+    """Assumed while it cost $3/M and up, a flagship screened since keeps its counts."""
+    written, left_out = merged(
+        _listed_with_gpt_5_5_assumed(),
+        sweep_rows(
+            _run_sweep([_done("openai/gpt-5.5", "gpt-5-5", 1)]), date(2026, 10, 9)
+        ),
+    )
+    by_key = {row.key: row for row in written.models}
+
+    assert (by_key["gpt-5-5"].suite, by_key["gpt-5-5"].level) == (
+        "openrouter-screen",
+        "studio_only",
+    )
+    assert [(out.row.suite, out.kept.suite, out.replaced) for out in left_out] == [
+        ("assumed", "openrouter-screen", True)
+    ]
+    # Written again from the ladder, the screening stays.
+    assert with_ladder_rows(written, _ladder()) == written
+
+
+def test_a_case_stopped_at_the_dollar_cap_is_said_in_the_note() -> None:
+    """Counted as failed, though the model was stopped before it finished."""
+    capped = _done(
+        "openai/gpt-6.1-sol-pro",
+        "gpt-6-1-sol-pro",
+        0,
+        [
+            "pdf-brief: spent past the per-case dollar cap",
+            "board-pack: AssertionError: turn 1: no version was rendered",
+        ],
+    )
+
+    (row,) = sweep_rows(_run_sweep([capped]), date(2026, 10, 7))
+
+    assert row.note == (
+        "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack. "
+        "1 of them stopped at the per-case dollar cap, unfinished."
+    )
+
+
 def test_the_script_writes_a_list_the_app_loads_and_the_ladder_keeps(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -186,3 +302,31 @@ def test_the_script_writes_a_list_the_app_loads_and_the_ladder_keeps(
     assert len(written.models) == len(_ladder().models) + 4
     assert with_ladder_rows(written, _ladder()) == written
     assert copy.read_text(encoding="utf-8").endswith("}\n")
+
+
+def test_the_script_says_which_variant_waits_and_which_row_it_replaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The maintainer reads what changed in the list, and why a finished model has no row."""
+    copy = tmp_path / "capabilities.json"
+    monkeypatch.setattr(shipped_list, "SHIPPED", copy)
+    shipped_list.write_shipped(_listed_with_gpt_5_5_assumed())
+    results = tmp_path / "sweep-results.json"
+    results.write_text(
+        _run_sweep(
+            [
+                _done("openai/gpt-5.2-chat", "gpt-5-2-chat", 1),
+                _done("openai/gpt-5.5", "gpt-5-5", 2),
+            ],
+            [_unresolved("openai/gpt-5.2", "gpt-5-2")],
+        ).model_dump_json(by_alias=True),
+        encoding="utf-8",
+    )
+
+    catalog_rows.main([str(results)])
+
+    said = capsys.readouterr().out.splitlines()
+    assert "gpt-5-2-chat: left out, waiting for gpt-5-2" in said
+    replaced = "gpt-5-5 (assumed): replaced by this sweep's gpt-5-5 (openrouter-screen)"
+    assert replaced in said
+    assert "gpt-5-5: agent (2/2)" in said

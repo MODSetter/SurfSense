@@ -1,5 +1,8 @@
 """Which listed models the sweep runs, which it assumes, and which it leaves to the ladder's rows."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from tests.live.sweep.model_list import measured_keys, pick, select
@@ -109,3 +112,22 @@ def test_only_picks_exactly_the_ids_named_measured_or_not() -> None:
 def test_the_shipped_rows_keys_are_read_from_capabilities_json() -> None:
     """The 8-case ladder's rows are the ones left out."""
     assert {"qwen3-8-27b", "gemma-4-31b-it"} <= measured_keys()
+
+
+def test_an_assumed_flagship_is_not_taken_for_measured(tmp_path: Path) -> None:
+    """Assumed when it cost $3/M and up, it is screened once its price falls under."""
+    shipped = tmp_path / "capabilities.json"
+    shipped.write_text(
+        json.dumps(
+            {
+                "models": [
+                    {"suite": "create-and-edit", "match": {"keys": ["qwen3-8-27b"]}},
+                    {"suite": "openrouter-screen", "match": {"keys": ["glm-5-3"]}},
+                    {"suite": "assumed", "match": {"keys": ["gpt-5-5"]}},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert measured_keys(shipped) == {"qwen3-8-27b", "glm-5-3"}

@@ -2,7 +2,8 @@
 
 A model is kept when it calls tools, holds 32k tokens, is a fixed model (no free
 or batch tier, no alias, no OpenRouter router) and has prices. One model per
-model_key, its cheapest variant. Keys the 8-case ladder measured keep their rows.
+model_key, its cheapest variant. Keys a run measured keep their rows; an assumed
+flagship is chosen again.
 """
 
 import json
@@ -14,6 +15,7 @@ from typing import Any
 
 import httpx
 
+from modules.llm.capability.measured.schema import ASSUMED_SUITE
 from modules.llm.capability.model_key import model_key
 
 LISTING_URL = "https://openrouter.ai/api/v1/models"
@@ -102,9 +104,15 @@ def pick(listing: dict[str, Any], ids: list[str]) -> list[ListedModel]:
 
 
 def measured_keys(path: Path = _MEASURED) -> set[str]:
-    """Every key a shipped capability row matches."""
+    """Every key a shipped row that was run matches: an assumed flagship is
+    still chosen, to be screened once its price falls under $3."""
     rows = json.loads(path.read_text(encoding="utf-8"))["models"]
-    return {key for row in rows for key in row["match"]["keys"]}
+    return {
+        key
+        for row in rows
+        if row["suite"] != ASSUMED_SUITE
+        for key in row["match"]["keys"]
+    }
 
 
 def read_listing(path: Path) -> dict[str, Any]:

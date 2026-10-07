@@ -18,6 +18,8 @@ SUITE_VERSION = 1
 SCREEN_BAR = 2
 PROVIDER = "openrouter"
 HOST = "openrouter.ai"
+# How the sweep notes a case stopped at its per-case dollar cap (tests/live/sweep/attempt.py).
+CASE_CAP = "spent past the per-case dollar cap"
 
 
 def sweep_rows(sweep: SweepResults, measured_on: date) -> list[MeasuredModel]:
@@ -93,7 +95,18 @@ def _note(model: SweptModel) -> str:
         return (
             "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
         )
-    return (
+    said = (
         f"Passed {model.passed} of {model.counted} screening cases on OpenRouter: "
         "a PDF brief and a board pack."
     )
+    # Counted as failed, though the model was stopped rather than wrong.
+    capped = sum(CASE_CAP in note for note in _notes(model))
+    if capped:
+        said += f" {capped} of them stopped at the per-case dollar cap, unfinished."
+    return said
+
+
+def _notes(model: SweptModel) -> list[str]:
+    if model.notes is None:
+        return []
+    return [model.notes] if isinstance(model.notes, str) else model.notes
