@@ -442,8 +442,9 @@ export function useChatRuntime({
         if (event.type === "thread-title-update") {
           setAutoNaming(null)
           setAnimatingTitleThreadId(threadId)
+          // In the run's own list, as its end marks it unread there.
           queryClient.setQueryData<ChatThread[]>(
-            chatKeys.threads(workspaceId),
+            chatKeys.threads(liveRun(threadId)?.workspaceId ?? workspaceId),
             (current = []) =>
               current.map((thread) =>
                 thread.id === threadId

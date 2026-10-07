@@ -15,6 +15,7 @@ import {
 import { createQueryClient } from "@/lib/query-client"
 
 import type { ChatMessage, ChatThread } from "./api"
+import { chatKeys } from "./query-keys"
 import { LiveThreadRuntime } from "./live-thread-runtime"
 import { liveRun, liveRuns, resetChatRuns } from "./runs/run-store"
 import { readUnread } from "./runs/unread-replies"
@@ -177,8 +178,12 @@ type Rendered = ReturnType<typeof useChatRuntime> & {
  * thread panel builds it. Counts the renders of the hook's page and of the
  * runtime's subtree apart.
  */
-function renderRuntime({ readsImages = false, workspaceId = WORKSPACE } = {}) {
-  const client = createQueryClient()
+function renderRuntime({
+  readsImages = false,
+  workspaceId = WORKSPACE,
+  // The app's one client, kept across a switch of workspace.
+  client = createQueryClient(),
+} = {}) {
   const result = { current: undefined as unknown as Rendered }
   const renders = { page: 0, thread: 0 }
 
@@ -356,6 +361,46 @@ describe("useChatRuntime", () => {
     expect(readUnread(WORKSPACE)).toEqual([1])
     expect(readUnread(OTHER_WORKSPACE)).toEqual([])
     expect(result.current.unreadThreadIds).toEqual([])
+  })
+
+  it("names a thread in its own workspace's list when another is open", async () => {
+    const client = createQueryClient()
+    const first = renderRuntime({ client })
+    await openThread(first.result, 1)
+    sendIn(first.result, "How did revenue move?")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const reply = api.sendStreams[0]
+    act(() =>
+      reply.frame({
+        type: "accepted",
+        user_message_id: 11,
+        assistant_message_id: 12,
+        user_created_at: "2026-10-05T00:00:00Z",
+      })
+    )
+    cleanup()
+    const { result } = renderRuntime({ client, workspaceId: OTHER_WORKSPACE })
+    await waitFor(() => expect(result.current.threads).toHaveLength(1))
+
+    act(() =>
+      reply.frame({ type: "thread-title-update", title: "Revenue by quarter" })
+    )
+    const titles = () =>
+      client
+        .getQueryData<ChatThread[]>(chatKeys.threads(WORKSPACE))
+        ?.map((listed) => listed.title)
+
+    await waitFor(() =>
+      expect(titles()).toEqual(["Revenue by quarter", "Thread 2"])
+    )
+    api.messages[1] = [
+      stored(11, "user", "How did revenue move?"),
+      stored(12, "assistant", "Revenue climbed."),
+    ]
+    act(() =>
+      reply.frames([{ type: "delta", text: "Revenue climbed." }, "[DONE]"])
+    )
+    await waitFor(() => expect(liveRuns()).toEqual([]))
   })
 
   it("asks the API to stop instead of hanging up", async () => {
