@@ -21,17 +21,28 @@ HOST = "openrouter.ai"
 
 
 def sweep_rows(sweep: SweepResults, measured_on: date) -> list[MeasuredModel]:
-    """Screened rows first, so a model both screened and assumed keeps its counts."""
+    """Screened rows first, so a model both screened and assumed keeps its counts.
+
+    Only models the sweep has a verdict for; each dated by its own runs, else
+    by the sweep's date, else by `measured_on`.
+    """
     when = sweep.measured_on or measured_on
     return [
-        *(_screened(model, when) for model in sweep.models),
+        *(_screened(model, model.measured_on or when) for model in sweep.measured()),
         *(_assumed(model, when) for model in sweep.assumed),
     ]
 
 
 def _screened(model: SweptModel, measured_on: date) -> MeasuredModel:
     key = _key(model.key)
+    # `measured()` leaves only models with every count.
+    assert model.passed is not None and model.counted is not None
     passed = model.passed >= SCREEN_BAR
+    if model.level is not None and (model.level == "agent") != passed:
+        raise ValueError(
+            f"{model.id}: the sweep says {model.level} for {model.passed} of "
+            f"{model.counted} cases"
+        )
     return MeasuredModel(
         key=key,
         # A pass holds where it was run; a failure everywhere, as the ladder's rows.

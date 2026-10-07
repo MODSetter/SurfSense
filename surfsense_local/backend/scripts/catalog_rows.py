@@ -6,8 +6,9 @@ Run by hand once a sweep is written up, from `surfsense_local/backend`:
 
 Each screened model becomes an `openrouter-screen` row, at `agent` when it
 passed both cases and `studio_only` otherwise; each assumed flagship an
-`assumed` row. A model the list already names keeps its row. The input's shape
-is in `capability_list/sweep_input.py`. A person reviews the diff and commits
+`assumed` row. A model the list already names keeps its row, and a model the
+sweep has no verdict for gets none. The input's shape is in
+`capability_list/sweep_input.py`. A person reviews the diff and commits
 it; nothing fetches the list at runtime.
 """
 
@@ -36,10 +37,16 @@ def main(argv: list[str] | None = None) -> None:
     written, left_out = merged(read_shipped(), rows)
     write_shipped(written)
     for row in rows:
-        if row in left_out:
-            print(f"{row.key}: the list's own row stays")
-        else:
+        if all(row is not out.row for out in left_out):
             print(f"{row.key}: {row.level} ({row.passes.passed}/{row.passes.counted})")
+    for out in left_out:
+        whose = "the list's" if out.listed else "this sweep's"
+        print(
+            f"{out.row.key} ({out.row.suite}): left out, {whose} "
+            f"{out.kept.key} ({out.kept.suite}) names the same model"
+        )
+    for model in sweep.left_out():
+        print(f"{model.key}: left out, {model.status or 'no verdict'}")
 
 
 if __name__ == "__main__":

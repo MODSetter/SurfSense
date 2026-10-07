@@ -1,10 +1,32 @@
 {
+  "generated": "2026-10-07T21:30:00+00:00",
   "date": "2026-10-07",
+  "suite": "screening",
+  "cases": ["smoke", "pdf-brief", "board-pack"],
+  "spent": 1.12,
   "models": [
+    {
+      "id": "openai/gpt-5.2-chat",
+      "key": "gpt-5-2-chat",
+      "reads_images": true,
+      "status": "done",
+      "level": "below",
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "fail",
+      "passed": 1,
+      "counted": 2,
+      "run": 2,
+      "cost": 0.21,
+      "notes": ["board-pack: left the assumptions out"],
+      "measured_on": "2026-10-07"
+    },
     {
       "id": "openai/gpt-5.2",
       "key": "gpt-5-2",
       "reads_images": true,
+      "status": "done",
+      "level": "agent",
       "smoke": "pass",
       "pdf_brief": "pass",
       "board_pack": "pass",
@@ -12,7 +34,8 @@
       "counted": 2,
       "run": 2,
       "cost": 0.38,
-      "notes": "Clean on both."
+      "notes": [],
+      "measured_on": "2026-10-06"
     },
     {
       "id": "mistralai/mistral-small-3.2-24b-instruct",
@@ -31,19 +54,23 @@
       "id": "meta-llama/llama-4-scout",
       "key": "llama-4-scout",
       "reads_images": true,
+      "status": "done",
+      "level": "below",
       "smoke": "fail",
-      "pdf_brief": null,
-      "board_pack": null,
+      "pdf_brief": "not_run",
+      "board_pack": "not_run",
       "passed": 0,
       "counted": 2,
       "run": 0,
       "cost": 0.01,
-      "notes": ["Answered in text.", "Never called a tool."]
+      "notes": ["smoke failed, so the two cases were not run: never called a tool"]
     },
     {
       "id": "qwen/qwen3.8-27b",
       "key": "qwen3-8-27b",
       "reads_images": true,
+      "status": "done",
+      "level": "below",
       "smoke": "pass",
       "pdf_brief": "pass",
       "board_pack": "fail",
@@ -51,12 +78,14 @@
       "counted": 2,
       "run": 2,
       "cost": 0.07,
-      "notes": "Already on the ladder."
+      "notes": ["Already on the ladder."]
     },
     {
       "id": "google/gemma-4-31b",
       "key": "gemma-4-31b",
       "reads_images": true,
+      "status": "done",
+      "level": "agent",
       "smoke": "pass",
       "pdf_brief": "pass",
       "board_pack": "pass",
@@ -64,14 +93,65 @@
       "counted": 2,
       "run": 2,
       "cost": 0.06,
-      "notes": "The ladder's gemma-4-31b-it under another name."
+      "notes": ["The ladder's gemma-4-31b-it under another name."]
+    },
+    {
+      "id": "z-ai/glm-5-air",
+      "key": "glm-5-air",
+      "reads_images": false,
+      "status": "unresolved",
+      "level": null,
+      "smoke": "pass",
+      "pdf_brief": "pass",
+      "board_pack": "unresolved",
+      "passed": 1,
+      "counted": 1,
+      "run": 1,
+      "cost": 0.04,
+      "notes": ["board-pack unresolved after 3 tries: 502 from the provider"]
+    }
+  ],
+  "unfinished": [
+    {
+      "id": "deepseek/deepseek-v4-flash",
+      "key": "deepseek-v4-flash",
+      "reads_images": false,
+      "status": "unresolved",
+      "level": null,
+      "smoke": "unresolved",
+      "pdf_brief": "not_run",
+      "board_pack": "not_run",
+      "passed": 0,
+      "counted": 0,
+      "run": 0,
+      "cost": 0.0,
+      "notes": ["smoke unresolved after 3 tries: 502 from the provider"]
+    },
+    {
+      "id": "minimax/minimax-m3",
+      "key": "minimax-m3",
+      "reads_images": false,
+      "status": "pending",
+      "level": null,
+      "smoke": null,
+      "pdf_brief": null,
+      "board_pack": null,
+      "passed": null,
+      "counted": null,
+      "run": null,
+      "cost": 0.0,
+      "notes": [],
+      "measured_on": null
     }
   ],
   "assumed": [
     {
       "id": "anthropic/claude-opus-4.6",
       "key": "claude-opus-4-6",
-      "reads_images": true
+      "reads_images": true,
+      "level": "agent",
+      "assumed": true,
+      "notes": ["input $5/M: assumed to pass, not run"]
     },
     {
       "id": "openai/gpt-5.2",
