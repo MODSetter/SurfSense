@@ -216,6 +216,8 @@ def _build(build: BuildRow, in_use: Mapping[str, list[ModelType]]) -> dict:
                 "level": badge.level.value,
                 "verdict": badge.verdict,
                 "reason": badge.reason,
+                "code": badge.code or None,
+                "uma": badge.uma,
             }
             if badge
             else None

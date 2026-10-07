@@ -13,6 +13,10 @@ branches on `uma`, which the budget carries, and never on the runtime's name.
 Which band a verdict falls in is `speed.speed_tier`'s job, not this module's, so
 the badge and the recommendation read one classification.
 
+The sentences here are English. A badge also carries its tier as `code` and the
+budget's `uma`, which is all the interface needs to say the same thing in its
+own language (`fit-text.ts` in the frontend; keep the two in sync).
+
 **No em dashes and no hyphens in anything here.** Commas, full stops or
 parentheses. That is a standing rule for every user facing string.
 """
@@ -40,6 +44,10 @@ class Badge:
     verdict: str
     # Empty when there is nothing to explain.
     reason: str
+    # The tier the words describe; empty when the badge says nothing.
+    code: str = ""
+    # Unified memory, which picks "the GPU" over "the graphics card".
+    uma: bool = False
 
 
 def badge(fit: FitVerdict, budget: HardwareBudget) -> Badge:
@@ -47,22 +55,18 @@ def badge(fit: FitVerdict, budget: HardwareBudget) -> Badge:
     elsewhere = "the CPU" if budget.uma else "the processor"
     tier = speed_tier(fit)
     if tier is SpeedTier.TOO_BIG:
-        return Badge(BadgeLevel.REFUSE, "Won't fit", _refusal(fit, budget))
-    if tier is SpeedTier.HEAVY_SPILL:
-        return Badge(
-            BadgeLevel.NOTICE,
-            "Reduced speed",
-            f"Well over {where}'s memory. Expect it to be slow.",
-        )
-    if tier is SpeedTier.MODERATE_SPILL:
-        return Badge(
-            BadgeLevel.NOTICE,
-            "Reduced speed",
-            f"Too big for {where}, so part runs on {elsewhere}.",
-        )
-    if tier is SpeedTier.LIGHT_SPILL:
-        return Badge(BadgeLevel.NONE, "", f"Most of it runs on {where}.")
-    return Badge(BadgeLevel.NONE, "", "")
+        level, verdict, reason = BadgeLevel.REFUSE, "Won't fit", _refusal(fit, budget)
+    elif tier is SpeedTier.HEAVY_SPILL:
+        level, verdict = BadgeLevel.NOTICE, "Reduced speed"
+        reason = f"Well over {where}'s memory. Expect it to be slow."
+    elif tier is SpeedTier.MODERATE_SPILL:
+        level, verdict = BadgeLevel.NOTICE, "Reduced speed"
+        reason = f"Too big for {where}, so part runs on {elsewhere}."
+    elif tier is SpeedTier.LIGHT_SPILL:
+        level, verdict, reason = BadgeLevel.NONE, "", f"Most of it runs on {where}."
+    else:
+        return Badge(BadgeLevel.NONE, "", "")
+    return Badge(level, verdict, reason, tier.value, budget.uma)
 
 
 def _refusal(fit: FitVerdict, budget: HardwareBudget) -> str:
