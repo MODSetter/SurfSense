@@ -956,6 +956,119 @@ describe("dashboard chat", () => {
     })
   })
 
+  it("opens a new chat in the mode picked in the composer, and offers an open chat's other mode as a new chat", async () => {
+    const created: unknown[] = []
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          created.push(JSON.parse(String(init.body)))
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "New chat",
+              uses_agent: false,
+              created_at: "2026-10-07T00:00:00Z",
+              updated_at: "2026-10-07T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-10-07T00:00:00Z"}\n\ndata: {"type":"delta","text":"Revenue rose."}\n\ndata: {"type":"completed","assistant_completed_at":"2026-10-07T00:00:01Z","text":"Revenue rose."}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        if (path.startsWith("/workspaces/1/documents")) {
+          return Response.json([])
+        }
+        return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "openai_compatible",
+            connection_id: 1,
+            name: "moonshotai/kimi-k3",
+            updated_at: "2026-10-07T00:00:00Z",
+            capability: {
+              level: "agent",
+              label_key: "agent",
+              reason: { code: "measured_pass", values: {} },
+              note: null,
+              measured: null,
+              modes: {
+                agentic_allowed: true,
+                blocked: null,
+                default_mode: "agentic",
+                reason: {
+                  code: "measured_pass",
+                  values: { passed: 8, counted: 8 },
+                },
+                remembered_mode: null,
+              },
+            },
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.click(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Basic \(Q&A\)/ })
+    )
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "How did revenue move?"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
+    await user.click(
+      within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: /^Start a new chat in Agentic mode/,
+      })
+    )
+
+    expect(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    ).toBeTruthy()
+    expect(within(conversation).queryByText("Revenue rose.")).toBeNull()
+  })
+
   it("loads threads and sources for the selected workspace", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)

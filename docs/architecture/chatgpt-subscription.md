@@ -76,7 +76,7 @@ opencode never signs in and never holds a token ([ADR 0050](../adr/0050-a-model-
 - passes the stream on unchanged;
 - answers a used-up plan with `403` and code `subscription_limit`, so opencode does not retry it as a `429`, and a sign-in that is needed with `401` and code `subscription_sign_in`. The agent's screen reads those codes into the chat's kinds ([`error_kind.py`](../../surfsense_local/backend/modules/agent/agent_threads/error_kind.py)).
 
-The OpenAI catalog records the plan's models as calling tools, so "Try the agent" is offered on them as on any remote model ([model capabilities](model-capabilities.md)).
+The OpenAI catalog records the plan's models as calling tools, so Agentic mode is offered on them as on any remote model ([model capabilities](model-capabilities.md#the-modes)).
 
 ## Frontend
 

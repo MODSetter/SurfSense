@@ -1,16 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
+import { cleanup, screen } from "@testing-library/react"
 
 import { render } from "@/test-utils"
 
-import type { ModelCapability } from "./api"
+import type { ChatModes, ModelCapability } from "./api"
 import { ModelCapabilitySummary } from "./model-capability"
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
+
+const UNTESTED: ChatModes = {
+  agentic_allowed: true,
+  blocked: null,
+  default_mode: "basic",
+  reason: { code: "untested", values: {} },
+  remembered_mode: null,
+}
 
 function capability(overrides: Partial<ModelCapability> = {}): ModelCapability {
   return {
@@ -19,7 +26,7 @@ function capability(overrides: Partial<ModelCapability> = {}): ModelCapability {
     reason: { code: "no_row", values: {} },
     note: null,
     measured: null,
-    agent_trial: { offered: true, enabled: false, blocked: null },
+    modes: UNTESTED,
     ...overrides,
   }
 }
@@ -37,18 +44,12 @@ function serving(capabilityRead: ModelCapability) {
         capability: capabilityRead,
       })
     }
-    if (path === "/llm/selection/text_gen/agent-trial") {
-      const { enabled } = JSON.parse(String(init?.body))
-      return Response.json(
-        capability({ agent_trial: { offered: true, enabled, blocked: null } })
-      )
-    }
     return Response.json({ detail: "not found" }, { status: 404 })
   })
 }
 
 describe("the selected chat model's capability", () => {
-  it("names a measured level and the evidence behind it", async () => {
+  it("names a measured level, the evidence behind it, and the mode new chats start in", async () => {
     vi.stubGlobal(
       "fetch",
       serving(
@@ -67,6 +68,8 @@ describe("the selected chat model's capability", () => {
           note: "Passed 5 of 8; ask it to check each page.",
           measured: {
             key: "claude-haiku-4-5",
+            suite: "create-and-edit",
+            assumed: false,
             suite_version: 1,
             measured_on: "2026-10-04",
             provider: "anthropic",
@@ -76,41 +79,118 @@ describe("the selected chat model's capability", () => {
             counted: 8,
             provisional: true,
           },
-          agent_trial: { offered: false, enabled: false, blocked: null },
+          modes: {
+            ...UNTESTED,
+            default_mode: "agentic",
+            reason: {
+              code: "measured_near",
+              values: { passed: 5, counted: 8 },
+            },
+          },
         })
       )
     )
 
     render(<ModelCapabilitySummary />)
 
-    expect(await screen.findByText("Agent, may need nudges")).toBeTruthy()
+    expect(await screen.findByText("Agentic, may need nudges")).toBeTruthy()
     expect(screen.getByText(/Passed 5 of 8 cases/)).toBeTruthy()
     expect(
       screen.getByText("Passed 5 of 8; ask it to check each page.")
     ).toBeTruthy()
-    expect(screen.queryByRole("switch")).toBeNull()
+    expect(screen.getByText("New chats start in Agentic mode.")).toBeTruthy()
   })
 
-  it("lets the user try the agent on a model nobody measured, with a warning", async () => {
-    const fetchMock = serving(capability())
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
+  it("describes the modes in place of the old agent trial", async () => {
+    vi.stubGlobal("fetch", serving(capability()))
 
     render(<ModelCapabilitySummary />)
 
-    expect(await screen.findByText("Not measured")).toBeTruthy()
-    expect(screen.getByText(/may stop early or make mistakes/)).toBeTruthy()
-    await user.click(screen.getByRole("switch", { name: "Try the agent" }))
+    expect(await screen.findByText("Not tested")).toBeTruthy()
+    expect(
+      screen.getByText("New chats start in Basic (Q&A) mode.")
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/Choose Basic \(Q&A\) or Agentic for each new chat/)
+    ).toBeTruthy()
+    expect(screen.queryByRole("switch")).toBeNull()
+    expect(screen.queryByText("Try the agent")).toBeNull()
+  })
 
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/llm/selection/text_gen/agent-trial",
-        expect.objectContaining({
-          method: "PUT",
-          body: JSON.stringify({ enabled: true }),
+  it("says a low score sets the default, not what the model may do", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        capability({
+          level: "studio_only",
+          label_key: "studio_only",
+          reason: { code: "measured_fail", values: {} },
+          measured: {
+            key: "gemma-4-31b-it",
+            suite: "create-and-edit",
+            assumed: false,
+            suite_version: 1,
+            measured_on: "2026-10-04",
+            provider: "openrouter",
+            host: "openrouter.ai",
+            reads_images: true,
+            passed: 2,
+            counted: 8,
+            provisional: true,
+          },
+          modes: {
+            ...UNTESTED,
+            reason: {
+              code: "measured_below",
+              values: { passed: 2, counted: 8 },
+            },
+          },
         })
       )
     )
+
+    render(<ModelCapabilitySummary />)
+
+    expect(await screen.findByText("Low Agentic score")).toBeTruthy()
+    expect(
+      screen.getByText(/Choose Basic \(Q&A\) or Agentic for each new chat/)
+    ).toBeTruthy()
+  })
+
+  it("says a flagship assumed to pass was not run, rather than 0 of 0", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        capability({
+          level: "agent",
+          label_key: "agent",
+          reason: { code: "assumed", values: {} },
+          measured: {
+            key: "claude-opus-4-6",
+            suite: "assumed",
+            assumed: true,
+            suite_version: 1,
+            measured_on: "2026-10-07",
+            provider: "openrouter",
+            host: "openrouter.ai",
+            reads_images: true,
+            passed: 0,
+            counted: 0,
+            provisional: true,
+          },
+          modes: {
+            ...UNTESTED,
+            default_mode: "agentic",
+            reason: { code: "assumed", values: {} },
+          },
+        })
+      )
+    )
+
+    render(<ModelCapabilitySummary />)
+
+    expect(await screen.findByText(/Not run: SurfSense expects/)).toBeTruthy()
+    expect(screen.queryByText(/Passed 0 of 0/)).toBeNull()
   })
 
   it("says a pass measured on a provider's host does not hold on a server of one's own", async () => {
@@ -135,15 +215,15 @@ describe("the selected chat model's capability", () => {
     ).toBeTruthy()
   })
 
-  it("says why a model that cannot carry the agent is not offered it", async () => {
+  it("says why a model that cannot use tools has no Agentic mode", async () => {
     vi.stubGlobal(
       "fetch",
       serving(
         capability({
-          agent_trial: {
-            offered: false,
-            enabled: false,
-            blocked: "tool_calls_unconfirmed",
+          modes: {
+            ...UNTESTED,
+            agentic_allowed: false,
+            blocked: "tool_calls_unsupported",
           },
         })
       )
@@ -152,8 +232,9 @@ describe("the selected chat model's capability", () => {
     render(<ModelCapabilitySummary />)
 
     expect(
-      await screen.findByText(/does not say this model can call tools/)
+      await screen.findByText(
+        "Agentic mode isn’t available: this model can’t use tools."
+      )
     ).toBeTruthy()
-    expect(screen.queryByRole("switch")).toBeNull()
   })
 })

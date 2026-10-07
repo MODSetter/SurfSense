@@ -1,4 +1,5 @@
 import type { AgentStep, TurnSources } from "@/features/agent/api"
+import type { ChatMode } from "@/features/models/capability/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
@@ -13,7 +14,7 @@ export type ChatThread = {
   id: number
   workspace_id: number
   title: string | null
-  // The agent answers this thread, chosen when it was opened.
+  // The agent answers this thread: it opened in Agentic mode, and keeps it.
   uses_agent: boolean
   created_at: string
   updated_at: string
@@ -94,12 +95,14 @@ export function listThreads(
 export function createThread(
   workspaceId: number,
   title: string,
+  // Null leaves the API to the selected model's default.
+  mode: ChatMode | null,
   signal?: AbortSignal
 ): Promise<ChatThread> {
   return requestJson<ChatThread>(`/workspaces/${workspaceId}/chat/threads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, ...(mode ? { mode } : {}) }),
     signal,
   })
 }

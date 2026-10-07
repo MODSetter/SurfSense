@@ -12,7 +12,9 @@ import {
   vi,
 } from "vitest"
 
+import type { ChatMode } from "@/features/models/capability/api"
 import { createQueryClient } from "@/lib/query-client"
+import { toast } from "sonner"
 
 import type { ChatMessage, ChatThread } from "./api"
 import { chatKeys } from "./query-keys"
@@ -85,6 +87,9 @@ class FakeApi {
   // Reads of a thread's turns that wait, as a slow API answers them.
   private held: Record<number, Promise<void>> = {}
   sends: Array<{ threadId: number; body: Record<string, unknown> }> = []
+  // Each new chat's request, and a refusal to answer it with instead.
+  creates: Array<Record<string, unknown>> = []
+  refuseCreate: { status: number; code: string } | null = null
   sendStreams: Stream[] = []
   stops: number[] = []
   follows: number[] = []
@@ -104,6 +109,14 @@ class FakeApi {
       return Response.json(this.threads)
     }
     if (path === `/workspaces/${WORKSPACE}/chat/threads`) {
+      this.creates.push(JSON.parse(String(init?.body)))
+      if (this.refuseCreate) {
+        const { status, code } = this.refuseCreate
+        return Response.json(
+          { detail: { code, message: "refused" } },
+          { status }
+        )
+      }
       const created = thread(this.threads.length + 1, false, {
         title: "New chat",
       })
@@ -180,6 +193,7 @@ type Rendered = ReturnType<typeof useChatRuntime> & {
  */
 function renderRuntime({
   readsImages = false,
+  newChatMode = null as ChatMode | null,
   workspaceId = WORKSPACE,
   // The app's one client, kept across a switch of workspace.
   client = createQueryClient(),
@@ -203,6 +217,7 @@ function renderRuntime({
       selectedSourceTitles: [],
       readsImages,
       canSkipThinking: false,
+      newChatMode,
       onModelRequired: vi.fn(),
     })
     renders.page += 1
@@ -932,5 +947,44 @@ describe("while a reply streams", () => {
 
     expect(renders.page).toBe(page)
     expect(assistantText(result)).toEqual(["Revenue climbed again."])
+  })
+})
+
+describe("a new chat's mode", () => {
+  it("opens the chat in the mode picked for the model", async () => {
+    const { result } = renderRuntime({ newChatMode: "agentic" })
+    await waitFor(() => expect(result.current.threads.length).toBe(2))
+
+    sendIn(result, "Draft the board pack")
+
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    expect(api.creates).toEqual([{ title: "New chat", mode: "agentic" }])
+  })
+
+  it("leaves the mode to the API when the model reports none", async () => {
+    const { result } = renderRuntime()
+    await waitFor(() => expect(result.current.threads.length).toBe(2))
+
+    sendIn(result, "How did revenue move?")
+
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    expect(api.creates).toEqual([{ title: "New chat" }])
+  })
+
+  it("words a refused Agentic chat by its code and sends nothing", async () => {
+    const shown = vi.spyOn(toast, "error")
+    onTestFinished(() => shown.mockRestore())
+    api.refuseCreate = { status: 409, code: "tool_calls_unsupported" }
+    const { result } = renderRuntime({ newChatMode: "agentic" })
+    await waitFor(() => expect(result.current.threads.length).toBe(2))
+
+    sendIn(result, "Draft the board pack")
+
+    await waitFor(() => expect(shown).toHaveBeenCalled())
+    expect(shown.mock.calls[0][0]).toBe(
+      "This model can’t use tools, so it can’t run Agentic mode."
+    )
+    expect(api.sends).toEqual([])
+    expect(result.current.conversationView).toEqual({ status: "new" })
   })
 })

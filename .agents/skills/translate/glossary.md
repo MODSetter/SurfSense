@@ -26,6 +26,9 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every 
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
 | reply (the model's answer to a message) | 返信 | 답변 | 回复 | जवाब | Antwort | respuesta | réponse | resposta | ответ |
 | agent (the assistant that works through steps and tools) | エージェント | 에이전트 | 智能体 | एजेंट | Agent | agente | agent | agente | агент |
+| Basic (the chat mode that answers from sources, written "Basic (Q&A)") | ベーシック | 기본 | 基础 | बेसिक | Basis | Básico | Basique | Básico | Базовый |
+| Agentic (the chat mode the agent runs; "Agentic mode" in a sentence) | エージェント | 에이전트 | 智能体 | एजेंटिक | Agentisch (im agentischen Modus) | Agéntico (modo agéntico) | Agentique (mode agentique) | Agêntico (modo agêntico) | Агентный (агентный режим) |
+| Q&A (in "Basic (Q&A)") | Q&A | Q&A | 问答 | सवाल-जवाब | Q&A | P&R | Q&R | P&R | вопрос-ответ |
 | shell command | シェルコマンド | 셸 명령 | shell 命令 | शेल कमांड | Shell-Befehl | comando de shell | commande shell | comando de shell | команда оболочки |
 | model | モデル | 모델 | 模型 | मॉडल | Modell | modelo | modèle | modelo | модель |
 | download | ダウンロード † | 다운로드 | 下载 | डाउनलोड | herunterladen | descargar | télécharger | baixar | скачать |

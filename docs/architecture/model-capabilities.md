@@ -1,8 +1,8 @@
 # Model capabilities
 
-What SurfSense measured of a chat model, never its size or its prompt tier, decides two things: the mode a new chat starts in, and Studio's Word and PDF path. A list shipped with the app gives each measured model one of four levels; one function reads it for the selected model and its connection. No level takes a mode away: every model may choose Agentic, and only a technical gate keeps one out ([modes](#the-modes)). An unmeasured model is labelled "Not measured".
+What SurfSense measured of a chat model, never its size or its prompt tier, decides two things: the mode a new chat starts in, and Studio's Word and PDF path. A list shipped with the app gives each measured model one of four levels; one function reads it for the selected model and its connection. No level takes a mode away: every model may choose Agentic, and only a technical gate keeps one out ([modes](#the-modes)). An unmeasured model is labelled "Not tested".
 
-**Code:** [`surfsense_local/backend/modules/llm/capability/`](../../surfsense_local/backend/modules/llm/capability/), [`surfsense_local/backend/scripts/capability_list/`](../../surfsense_local/backend/scripts/capability_list/), [`surfsense_local/frontend/src/features/models/capability/`](../../surfsense_local/frontend/src/features/models/capability/)
+**Code:** [`surfsense_local/backend/modules/llm/capability/`](../../surfsense_local/backend/modules/llm/capability/), [`surfsense_local/backend/scripts/capability_list/`](../../surfsense_local/backend/scripts/capability_list/), [`surfsense_local/frontend/src/features/models/capability/`](../../surfsense_local/frontend/src/features/models/capability/), [`surfsense_local/frontend/src/features/chat/modes/`](../../surfsense_local/frontend/src/features/chat/modes/)
 
 ## The levels
 
@@ -59,7 +59,9 @@ A chat is Basic (Q&A), the chat engine's retrieval answers with Studio beside it
 - `capability_level` on each row of `GET /llm/connections/{id}/models` and `GET /llm/providers/llamacpp/models` that can fill the chat slot.
 - `POST /workspaces/{id}/chat/threads` takes `mode` ([chat](chat.md#agent-threads)).
 
-The model picker labels each chat model "Agent", "Agent, may need nudges", "Studio only" or "Not measured". Settings › Models shows the chat model's level, its evidence line and note, and for a model not measured the "Try the agent" switch with one sentence of warning.
+The model picker labels each chat model by how it did in the Agentic tests: "Agentic", "Agentic, may need nudges", "Low Agentic score" or "Not tested". Settings › Models shows the chat model's level, its evidence line ("Not run: SurfSense expects this expensive flagship model to pass." for an assumed row), its note, the mode new chats start in, and either that the mode is chosen per chat in the composer or why Agentic is not available.
+
+The composer's switch ([`mode-picker.tsx`](../../surfsense_local/frontend/src/features/chat/modes/mode-picker.tsx)) is a menu of "Basic (Q&A)" and "Agentic", each with one line on what it does. On a new chat it starts at the model's `default_mode` and follows the model when it changes; a pick holds for that model for the session, in a context above the open workspace, and is sent as the new thread's `mode`, which the API then remembers. Beside Agentic it says the `reason`: "Passed 2 of 8 Agentic tests, so it may stop early or make mistakes.", "Not tested with this model yet, so it may stop early or make mistakes.", "Passed on its full-size version. A local copy may do worse.", or that a flagship is assumed; once Agentic is picked, the same line shows under the composer, except for a model that passed. A gated Agentic is disabled with its reason, such as "This model can’t use tools." In an open chat the switch shows the chat's mode, "This chat runs in Agentic mode", and offers only "Start a new chat in Basic (Q&A) mode" (or Agentic), which picks that mode and opens a new chat. A refused Agentic chat is worded by its code in a toast.
 
 ## Known gaps
 

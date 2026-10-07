@@ -18,6 +18,7 @@ import {
 import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
 import { isUnsupportedModelRefusal } from "@/features/agent/unsupported-model"
 import { errorToast } from "@/features/feedback/error-toast"
+import type { ChatMode } from "@/features/models/capability/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { subscribeToWorkspaceChanges } from "@/features/workspaces/workspace-changes"
 import { ApiError } from "@/lib/api"
@@ -37,6 +38,7 @@ import {
   type ImageUpload,
 } from "./api"
 import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
+import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
 import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -218,6 +220,7 @@ export function useChatRuntime({
   sourceScope = null,
   readsImages,
   canSkipThinking,
+  newChatMode = null,
   onModelRequired,
 }: {
   workspaceId: number
@@ -232,6 +235,8 @@ export function useChatRuntime({
   readsImages: boolean
   // Whether the selected model can be told not to think; no other is asked to.
   canSkipThinking: boolean
+  // The mode a new chat opens in; null leaves it to the API's default.
+  newChatMode?: ChatMode | null
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -296,8 +301,15 @@ export function useChatRuntime({
   const isRunning = activeRun !== null && !activeRun.ended
 
   const createThreadMutation = useMutation({
-    mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
-      createThread(workspaceId, title, signal),
+    mutationFn: ({
+      title,
+      mode,
+      signal,
+    }: {
+      title: string
+      mode: ChatMode | null
+      signal: AbortSignal
+    }) => createThread(workspaceId, title, mode, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
@@ -599,6 +611,7 @@ export function useChatRuntime({
           setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
+            mode: newChatMode,
             signal: new AbortController().signal,
           })
           if (requestVersion.current !== version) {
@@ -622,7 +635,13 @@ export function useChatRuntime({
         if (requestVersion.current === version) {
           setConversationView({ status: "new" })
         }
-        errorToast(messageFrom(cause))
+        errorToast(
+          cause instanceof ApiError &&
+            cause.code !== null &&
+            AGENTIC_REFUSALS.has(cause.code)
+            ? agenticRefusedText(cause.code)
+            : messageFrom(cause)
+        )
         return
       }
 
@@ -726,6 +745,7 @@ export function useChatRuntime({
       conversationView,
       createThreadMutation,
       isRunning,
+      newChatMode,
       onModelRequired,
       queryClient,
       selectedDocumentIds,

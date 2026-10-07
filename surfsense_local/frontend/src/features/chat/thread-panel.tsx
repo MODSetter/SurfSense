@@ -206,6 +206,10 @@ export function ThreadPanel({
       describedBy={thread == null ? undefined : headingId}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
+      threadMode={
+        thread == null ? null : thread.uses_agent ? "agentic" : "basic"
+      }
+      onNewChat={onNewChat}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined
