@@ -17,10 +17,12 @@ import { createQueryClient } from "@/lib/query-client"
 import type { ChatMessage, ChatThread } from "./api"
 import { LiveThreadRuntime } from "./live-thread-runtime"
 import { liveRun, liveRuns, resetChatRuns } from "./runs/run-store"
+import { readUnread } from "./runs/unread-replies"
 import type { ChatTurnError } from "./use-chat-runtime"
 import { useChatRuntime } from "./use-chat-runtime"
 
 const WORKSPACE = 1
+const OTHER_WORKSPACE = 2
 
 function thread(
   id: number,
@@ -74,7 +76,9 @@ class Stream {
 /** The chat API this window talks to: stored turns, and the streams it opens. */
 class FakeApi {
   threads: Array<ChatThread & { running: boolean }> = [thread(1), thread(2)]
-  messages: Record<number, ChatMessage[]> = { 1: [], 2: [] }
+  // The other workspace's own thread, for a switch of workspace.
+  otherThreads = [thread(3, false, { workspace_id: OTHER_WORKSPACE })]
+  messages: Record<number, ChatMessage[]> = { 1: [], 2: [], 3: [] }
   // Answers to the next reads of a thread's turns, before `messages` again.
   nextReads: Record<number, ChatMessage[][]> = {}
   // Reads of a thread's turns that wait, as a slow API answers them.
@@ -89,6 +93,12 @@ class FakeApi {
     const method = (init?.method ?? "GET").toUpperCase()
     const path = url.pathname
     let match: RegExpMatchArray | null
+    if (
+      path === `/workspaces/${OTHER_WORKSPACE}/chat/threads` &&
+      method === "GET"
+    ) {
+      return Response.json(this.otherThreads)
+    }
     if (path === `/workspaces/${WORKSPACE}/chat/threads` && method === "GET") {
       return Response.json(this.threads)
     }
@@ -124,7 +134,7 @@ class FakeApi {
       this.follows.push(Number(match[1]))
       return new Response(null, { status: 404 })
     }
-    if (path.startsWith(`/workspaces/${WORKSPACE}/events`)) {
+    if (/^\/workspaces\/\d+\/events/.test(path)) {
       return new Response(new ReadableStream())
     }
     return new Response(null, { status: 404 })
@@ -167,7 +177,7 @@ type Rendered = ReturnType<typeof useChatRuntime> & {
  * thread panel builds it. Counts the renders of the hook's page and of the
  * runtime's subtree apart.
  */
-function renderRuntime({ readsImages = false } = {}) {
+function renderRuntime({ readsImages = false, workspaceId = WORKSPACE } = {}) {
   const client = createQueryClient()
   const result = { current: undefined as unknown as Rendered }
   const renders = { page: 0, thread: 0 }
@@ -182,7 +192,7 @@ function renderRuntime({ readsImages = false } = {}) {
 
   function Page() {
     const chat = useChatRuntime({
-      workspaceId: WORKSPACE,
+      workspaceId,
       canSend: true,
       selectedDocumentIds: [],
       selectedSourceTitles: [],
@@ -312,6 +322,39 @@ describe("useChatRuntime", () => {
     await waitFor(() => expect(result.current.unreadThreadIds).toEqual([1]))
 
     await openThread(result, 1)
+    expect(result.current.unreadThreadIds).toEqual([])
+  })
+
+  it("marks a reply unread in its own workspace when it ends in another", async () => {
+    const first = renderRuntime()
+    await openThread(first.result, 1)
+    sendIn(first.result, "How did revenue move?")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const reply = api.sendStreams[0]
+    act(() =>
+      reply.frame({
+        type: "accepted",
+        user_message_id: 11,
+        assistant_message_id: 12,
+        user_created_at: "2026-10-05T00:00:00Z",
+      })
+    )
+    // The rail opens the other workspace, whose page mounts in its place.
+    cleanup()
+    const { result } = renderRuntime({ workspaceId: OTHER_WORKSPACE })
+    await waitFor(() => expect(result.current.threads).toHaveLength(1))
+
+    api.messages[1] = [
+      stored(11, "user", "How did revenue move?"),
+      stored(12, "assistant", "Revenue climbed."),
+    ]
+    act(() =>
+      reply.frames([{ type: "delta", text: "Revenue climbed." }, "[DONE]"])
+    )
+    await waitFor(() => expect(liveRuns()).toEqual([]))
+
+    expect(readUnread(WORKSPACE)).toEqual([1])
+    expect(readUnread(OTHER_WORKSPACE)).toEqual([])
     expect(result.current.unreadThreadIds).toEqual([])
   })
 

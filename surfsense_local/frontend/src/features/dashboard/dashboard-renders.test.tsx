@@ -219,6 +219,7 @@ describe("what a dashboard render touches", () => {
 
     act(() => {
       beginRun(10, {
+        workspaceId: workspace.id,
         pair: [
           {
             id: "optimistic-user-1",

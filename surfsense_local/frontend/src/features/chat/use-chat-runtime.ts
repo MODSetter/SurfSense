@@ -352,9 +352,13 @@ export function useChatRuntime({
   useEffect(
     () =>
       onRunEnded((threadId) => {
+        const run = liveRun(threadId)
+        // Not always this page's: a run keeps going when another workspace
+        // opens, and its thread is marked in its own.
+        const runWorkspaceId = run?.workspaceId ?? workspaceId
         // This window saw it end; the list need not be read again to know.
         queryClient.setQueryData<ChatThread[]>(
-          chatKeys.threads(workspaceId),
+          chatKeys.threads(runWorkspaceId),
           (current) =>
             current?.map((thread) =>
               thread.id === threadId
@@ -369,11 +373,12 @@ export function useChatRuntime({
           delete rest[threadId]
           return rest
         })
-        if (threadId !== activeThreadIdRef.current) {
+        if (runWorkspaceId !== workspaceId) {
+          markUnread(runWorkspaceId, threadId)
+        } else if (threadId !== activeThreadIdRef.current) {
           setUnreadThreadIds(markUnread(workspaceId, threadId))
         }
         void (async () => {
-          const run = liveRun(threadId)
           const canonical = await queryClient
             .fetchQuery({
               queryKey: chatKeys.messages(threadId),
@@ -498,9 +503,9 @@ export function useChatRuntime({
     if (activeThread === null || !activeThread.running) return
     if (liveRun(activeThread.id)) return
     const threadId = activeThread.id
-    const signal = beginRun(threadId)
+    const signal = beginRun(threadId, { workspaceId })
     void pump(threadId, followRun(threadId, 0, signal)).catch(() => undefined)
-  }, [activeThread])
+  }, [activeThread, workspaceId])
 
   const removeThread = async (threadId: number) => {
     try {
@@ -622,6 +627,7 @@ export function useChatRuntime({
 
       const runThreadId = threadId
       const signal = beginRun(runThreadId, {
+        workspaceId,
         pair: optimisticPair(
           version,
           text,

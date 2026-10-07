@@ -12,6 +12,8 @@ export type RunState =
 /** One thread's reply in progress, as this window follows it. */
 export type LiveRun = {
   readonly threadId: number
+  // Runs outlive a switch of workspace, so each says whose thread it is.
+  readonly workspaceId: number
   readonly pair: LivePair | null
   // A retried turn's ids, hidden while the reply that replaces it streams.
   readonly replaces: ReadonlyArray<number | string>
@@ -134,19 +136,22 @@ export function onRunFrame(listener: FrameListener): () => void {
 export function beginRun(
   threadId: number,
   {
+    workspaceId,
     pair = null,
     replaces = [],
     retry = null,
   }: {
+    workspaceId: number
     pair?: LivePair | null
     replaces?: ReadonlyArray<number | string>
     retry?: LiveRun["retry"]
-  } = {}
+  }
 ): AbortSignal {
   runs.get(threadId)?.controller.abort()
   const controller = new AbortController()
   runs.set(threadId, {
     threadId,
+    workspaceId,
     pair,
     replaces,
     state: { state: "running" },

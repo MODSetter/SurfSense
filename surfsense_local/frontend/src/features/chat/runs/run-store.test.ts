@@ -44,7 +44,7 @@ function followed() {
       controller = opened
     },
   })
-  beginRun(THREAD, { pair: pair() })
+  beginRun(THREAD, { workspaceId: 1, pair: pair() })
   const pumping = pump(THREAD, parseNumberedSseStream(stream))
   return {
     pumping,
