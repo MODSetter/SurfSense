@@ -1,5 +1,7 @@
 """Live case 1: one agent turn answers from the sources through SurfSense's search, and cites them."""
 
+import re
+
 import pytest
 
 from tests.live.live_agent import LiveAgent, steps
@@ -7,6 +9,8 @@ from tests.live.live_agent import LiveAgent, steps
 pytestmark = pytest.mark.live
 
 CASE = "smoke"
+# The note's date in either order: "November 16, 2026" is as right as "16 November".
+_MOVE_DAY = re.compile(r"\b16(th)?\.? November|November 16\b")
 
 
 async def test_the_agent_searches_the_sources_and_cites_a_passage(
@@ -27,7 +31,7 @@ async def test_the_agent_searches_the_sources_and_cites_a_passage(
     searches = steps(frames, "surfsense_search_sources")
     assert [s["status"] for s in searches if s["status"] == "completed"], searches
     (completed,) = [f for f in frames if f["type"] == "completed"]
-    assert "16 November" in completed["text"], completed["text"]
+    assert _MOVE_DAY.search(completed["text"]), completed["text"]
     cited = [f for f in frames if f["type"] == "citations"]
     assert cited and cited[0]["items"], "the answer cites no passage"
     assert {item["document_id"] for item in cited[0]["items"]} == {note}
