@@ -50,8 +50,13 @@ class Generator(Protocol):
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
-        """The answer text alone; a thinking model's trace is left out."""
+        """The answer text alone; a thinking model's trace is left out.
+
+        `conversation` names the requests that share a prompt's start, so an
+        endpoint that routes by it sends them to the cache that holds it.
+        """
         ...
 
     def chat_deltas(
@@ -63,6 +68,7 @@ class Generator(Protocol):
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
         """The reply as it streams, with the trace marked apart from the answer."""
         ...

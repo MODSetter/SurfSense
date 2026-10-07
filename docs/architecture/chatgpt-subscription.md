@@ -1,11 +1,11 @@
 # ChatGPT subscription
 
-A user with ChatGPT Plus or Pro signs in with their ChatGPT account instead of pasting an API key, and picks a model their plan lists. The result is a connection like any other ([`connections.md`](connections.md)): it holds the chat slot and is reached by chat, titles and Studio. What differs is how it signs in (OAuth, refreshed tokens) and how it is called (the Responses API, not `/chat/completions`).
+A user with ChatGPT Plus or Pro signs in with their ChatGPT account instead of pasting an API key, and picks a model their plan lists. The result is a connection like any other ([`connections.md`](connections.md)): it holds the chat slot and is reached by chat, titles, Studio and the agent. What differs is how it signs in (OAuth, refreshed tokens) and how it is called (the Responses API, not `/chat/completions`, within what a plan takes).
 
 It follows OpenAI's "Sign in with ChatGPT" flow for open-source apps ([developers.openai.com/siwc/token-sharing-open-source](https://developers.openai.com/siwc/token-sharing-open-source)). It never reads the Codex CLI's `~/.codex/auth.json`, runs the `codex` binary, or reuses the Codex CLI's client id.
 
-**Code:** [`modules/llm/subscriptions/chatgpt/`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/), [`modules/llm/providers/openai_responses/`](../../surfsense_local/backend/modules/llm/providers/openai_responses/), [`modules/llm/connections/listing.py`](../../surfsense_local/backend/modules/llm/connections/listing.py), [`electron/src/main/external-url.ts`](../../surfsense_local/electron/src/main/external-url.ts), [`frontend/src/features/models/remote/connections/chatgpt/`](../../surfsense_local/frontend/src/features/models/remote/connections/chatgpt/)
-**Decisions:** [ADR 0038](../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md), [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
+**Code:** [`modules/llm/subscriptions/chatgpt/`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/), [`modules/llm/providers/openai_responses/`](../../surfsense_local/backend/modules/llm/providers/openai_responses/), [`modules/agent/model_endpoint/responses_relay/`](../../surfsense_local/backend/modules/agent/model_endpoint/responses_relay/), [`modules/llm/connections/listing.py`](../../surfsense_local/backend/modules/llm/connections/listing.py), [`electron/src/main/external-url.ts`](../../surfsense_local/electron/src/main/external-url.ts), [`frontend/src/features/models/remote/connections/chatgpt/`](../../surfsense_local/frontend/src/features/models/remote/connections/chatgpt/)
+**Decisions:** [ADR 0038](../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md), [ADR 0050](../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md), [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
 
 ## What it reaches
 
@@ -24,9 +24,9 @@ Every URL is in one file, [`endpoints.py`](../../surfsense_local/backend/modules
 
 1. The renderer reads `GET /llm/connections/chatgpt`: `serves`, the slots a ChatGPT connection fills, and `hosts`, the hosts the sign-in reaches that egress has not allowed. It asks about each host in turn. A refused request asks about one host only and cannot tell a declined host from the next one, so the question is put up front ([`egress.md`](egress.md)).
 2. `POST /llm/connections/chatgpt/sign-in` with `{label}` for a new connection or `{connection_id}` to sign one in again. It checks the hosts again, a free label (`409`) or a ChatGPT connection (`404`), then opens a loopback listener on `127.0.0.1` at a random port and answers `201 {flow_id, authorize_url}`. OpenAI allows any port as long as scheme, host and path (`/callback`) match.
-3. The authorize URL asks for `client_id=dynamic_agent_client`, so OpenAI issues a client for this user on first sign-in, with `agent_name_hint=SurfSense`, an `ext_agent_host_id`, scopes `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, `resource=https://api.openai.com/v1`, `state`, `nonce` and an S256 PKCE challenge. The host id is `urn:uuid:` over an HMAC of the install secret, so it is stable for the install and stored nowhere ([`host_id.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/host_id.py)).
+3. The authorize URL asks for `client_id=dynamic_agent_client`, so OpenAI issues a client for this user on first sign-in, or, for a connection that still holds a sign-in, its issued client with `id_token_hint`, OpenAI's returning-user path. It goes with `agent_name_hint=SurfSense`, an `ext_agent_host_id`, scopes `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, `resource=https://api.openai.com/v1`, `state`, `nonce` and an S256 PKCE challenge. The host id is `urn:uuid:` over an HMAC of the install secret, so it is stable for the install and stored nowhere ([`host_id.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/host_id.py)).
 4. The renderer opens it through Electron, which allows `auth.openai.com/api/accounts/authorize` only with a `redirect_uri` of `http://127.0.0.1:<port>/callback`, so a crafted link cannot send the code anywhere else.
-5. The callback must carry the flow's `state`. The code is exchanged with the issued `client_id` and the PKCE verifier, and the result is refused unless it grants `chatgpt.tokens.use.direct` and carries a refresh token. The ID token's RS256 signature is checked against the JWKS, then its issuer, audience, expiry (two minutes of leeway) and nonce. Its `sub` and `email` are kept.
+5. The callback must carry the flow's `state`, and a renewal must name the connection's own client: one naming another fails the flow and leaves the connection as it was. The code is exchanged with the issued `client_id` and the PKCE verifier, and the result is refused unless it grants `chatgpt.tokens.use.direct` and carries a refresh token. The ID token's RS256 signature is checked against the JWKS, then its issuer, audience, expiry (two minutes of leeway) and nonce. Its `sub` and `email` are kept.
 6. The tokens are saved on a new connection, or on the one being signed in again, and the flow reads `signed_in`. The renderer polls `GET /llm/connections/chatgpt/sign-in/{flow_id}` every second. A flow not finished in five minutes fails and frees its port. `DELETE` on the flow cancels it.
 
 Flows live in the API's memory ([`flows.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/flows.py)): only the API signs in, and a restart only abandons a sign-in in progress.
@@ -56,14 +56,27 @@ A ChatGPT connection is a `provider_connections` row with `auth_kind = 'chatgpt'
 
 [`ResponsesChatProvider`](../../surfsense_local/backend/modules/llm/providers/openai_responses/chat.py) implements the `Generator` protocol, so chat, titles and Studio call it unchanged.
 
-- The body is `{model, input, store: false, stream: true}` and nothing else. The plan's endpoint refuses `instructions`, `reasoning`, `text.format`, `max_output_tokens` and `tools`, so `max_tokens`, `reasoning`, `temperature` and `json_schema` are accepted and dropped. Studio parses an unconstrained reply as it does for any endpoint that ignores a schema.
+- The body is `{model, input, store: false, stream: true}`, with `text.format` for a JSON schema, plus `prompt_cache_key` with the conversation's name, which routes its requests to the machine that cached its prompt. A chat names its thread, and Studio the system prompt and sources a job's calls share. The plan refuses the fields in [`plan_limits.py`](../../surfsense_local/backend/modules/llm/providers/openai_responses/plan_limits.py), from OpenAI's [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), `max_output_tokens`, `temperature` and `prompt_cache_retention` among them, and not the key, so `max_tokens` and `temperature` are accepted and dropped. The same client serves an API key's `/responses` model, which takes them, and gets the key only from a host known to take it ([connections](connections.md#the-route-a-model-answers-on)).
 - A `system` turn goes as a `developer` input item. A turn with images sends `input_text` then `input_image` data URLs.
-- `response.output_text.delta` is answer text, and reasoning-summary deltas are reasoning. Only `response.completed` ends a reply: a stream that closes without it, or ends `incomplete`, raises.
+- `response.output_text.delta` is answer text, and reasoning-summary deltas are reasoning. Only `response.completed` ends a reply: a stream that closes without it, or ends `incomplete`, raises. Its `usage` is logged as the input tokens the plan reused from its cache (`input_tokens_details.cached_tokens`).
 - `subscription_sharing_usage_limit_exceeded`, as a `429` or inside `response.failed`, is `PlanLimitError`. `subscription_sharing_invalid_user` is `SignInRequiredError`. Anything else is an `httpx.HTTPStatusError` carrying OpenAI's message.
 - The model list is the plan's `models` array, entries whose `visibility` is `list`, each a `text_gen` model with `capability_source: declared`. The manifest's "only on `/responses`" does not apply here.
-- No context window or token count, so chat keeps its fixed history budget. The same deadlines as the OpenAI-compatible client: 300 seconds to the first token, 30 between.
+- A model's window is the `context_window` its plan list states, read once per generator, so chat budgets its history by it and the agent sets its limits from it; a model the list gives none keeps chat's fixed budget and the catalog's window. No token count. The same deadlines as the OpenAI-compatible client: 300 seconds to the first token, 30 between.
+
+A `429`, `500`, `502`, `503` or `504` before the reply starts is retried twice, after the wait the response asks for (`retry-after-ms` or `retry-after`, at most a minute) or one then two seconds, and a stop ends the wait at once ([`retry.py`](../../surfsense_local/backend/modules/llm/providers/openai_responses/retry.py)). A used-up plan is never retried. When the retries run out the status stands, so chat sorts it as it would any other.
 
 Chat sorts `SignInRequiredError` into `subscription_sign_in`, which offers Model setup, and `PlanLimitError` into `subscription_limit`, which offers no retry ([`chat.md`](chat.md#the-stream)). The model list answers a signed-out connection with `409` and code `sign_in_required`, and the composer's notice says to sign in again.
+
+## The agent
+
+opencode never signs in and never holds a token ([ADR 0050](../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md)). For a plan model, SurfSense writes opencode's provider as `@ai-sdk/openai` at the model endpoint, so opencode calls `POST /agent/model/v1/responses` with the launch key ([agent](agent.md#the-model-endpoint)). The relay there:
+
+- adds the plan's token from the same getter as chat, and on a `401` refreshes it once and repeats the step;
+- keeps each step within the plan ([`plan_request.py`](../../surfsense_local/backend/modules/agent/model_endpoint/responses_relay/plan_request.py)): refused fields dropped, `store: false` and `stream: true`, `system` items as `developer`, every function tool in one `surfsense` namespace, an earlier call replayed in it, and a call forced by name left to the model;
+- passes the stream on unchanged;
+- answers a used-up plan with `403` and code `subscription_limit`, so opencode does not retry it as a `429`, and a sign-in that is needed with `401` and code `subscription_sign_in`. The agent's screen reads those codes into the chat's kinds ([`error_kind.py`](../../surfsense_local/backend/modules/agent/agent_threads/error_kind.py)).
+
+The OpenAI catalog records the plan's models as calling tools, so "Try the agent" is offered on them as on any remote model ([model capabilities](model-capabilities.md)).
 
 ## Frontend
 
@@ -72,7 +85,7 @@ Every model list reads `serves` rather than deciding: the Settings sections, the
 ## Known gaps
 
 - **Sign in again** on a connection still signed in overwrites its tokens through `save_sign_in()` without revoking the grant they replace.
+- A plan's refusal inside the stream (`response.failed`) reaches the agent's screen as `unknown`, not as `subscription_limit` or `subscription_sign_in`.
 - Built against OpenAI's documentation and a fake server; not yet run against a real ChatGPT account.
-- Signing in again never uses the returning-user path (`id_token_hint` with the issued client), because signing out drops the client id with the tokens.
+- Signing in again after signing out registers a new client, not the returning-user path, because signing out drops the client id with the tokens.
 - When the plan's model list cannot be fetched there is no fallback list; the model group shows the failure.
-- The context window of a plan model is unknown, so long chats are trimmed to the fixed history budget.

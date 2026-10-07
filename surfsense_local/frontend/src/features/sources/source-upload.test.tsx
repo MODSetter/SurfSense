@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -11,7 +12,8 @@ import { toast } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
-import { SourcesAddButton, SourcesPanel } from "./sources-panel"
+import { dropOn, fakeDataTransfer } from "./fake-data-transfer"
+import { SourcesPanel } from "./sources-panel"
 import { useSources } from "./use-sources"
 
 vi.mock("sonner", () => ({
@@ -51,12 +53,10 @@ function SourceHarness() {
         isLoading={sources.isLoading}
         isDeleting={sources.isDeleting}
         error={sources.error}
-        addAction={
-          <SourcesAddButton
-            isUploading={sources.isUploading}
-            onUpload={(files) => void sources.upload(files)}
-          />
-        }
+        upload={{
+          isUploading: sources.isUploading,
+          onUpload: (files) => void sources.upload(files),
+        }}
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
@@ -65,15 +65,12 @@ function SourceHarness() {
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentIncluded}
         onToggleAll={sources.toggleAllIncluded}
-        onDropFiles={(files) => void sources.upload(files)}
+        onDropFiles={(entries, folderId) =>
+          void sources.uploadEntries(entries, folderId)
+        }
       />
     </TooltipProvider>
   )
-}
-
-/** A drag carrying these files, as Chromium reports one from the desktop. */
-function carrying(files: File[]) {
-  return { dataTransfer: { types: ["Files"], files } }
 }
 
 beforeEach(() => {
@@ -323,6 +320,171 @@ describe("source upload", () => {
     )
   })
 
+  it("reveals the real error when Ctrl/Cmd was held before the row was hovered", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.keyboard("{Control>}")
+    await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+    const real = await screen.findByText("connection refused")
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    await user.keyboard("{/Control}")
+    await waitFor(() =>
+      expect(screen.queryByText("connection refused")).toBeNull()
+    )
+  })
+
+  describe("keeps the real error closed once Ctrl/Cmd is up", () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const processing = {
+      ...failed,
+      status: "processing" as const,
+      error_message: null,
+    }
+    const panel = (document: typeof failed | typeof processing) => (
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[document]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    it("after a press on the row before it failed", async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(panel(processing))
+
+      await user.keyboard("{Control>}")
+      await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+      await user.keyboard("{/Control}")
+      rerender(panel(failed))
+      expect(screen.queryByText("connection refused")).toBeNull()
+
+      // The row still answers a fresh press.
+      await user.keyboard("{Control>}")
+      expect(await screen.findByText("connection refused")).toBeTruthy()
+      await user.keyboard("{/Control}")
+    })
+
+    it("after a retry that failed again", async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(panel(failed))
+
+      await user.keyboard("{Control>}")
+      await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+      await screen.findByText("connection refused")
+      rerender(panel(processing))
+      await waitFor(() =>
+        expect(screen.queryByText("connection refused")).toBeNull()
+      )
+      await user.keyboard("{/Control}")
+      rerender(panel(failed))
+      expect(screen.queryByText("connection refused")).toBeNull()
+
+      await user.keyboard("{Control>}")
+      expect(await screen.findByText("connection refused")).toBeTruthy()
+      await user.keyboard("{/Control}")
+    })
+  })
+
+  it("listens for Ctrl/Cmd only while a failed row is hovered", async () => {
+    const ready = {
+      ...pendingDocument,
+      id: 1,
+      title: "ready.pdf",
+      status: "ready" as const,
+    }
+    const failed = {
+      ...pendingDocument,
+      id: 2,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const added = vi.spyOn(window, "addEventListener")
+    const removed = vi.spyOn(window, "removeEventListener")
+    const keydownListeners = () =>
+      added.mock.calls.filter(([type]) => type === "keydown").length -
+      removed.mock.calls.filter(([type]) => type === "keydown").length
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[ready, failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    const before = keydownListeners()
+
+    await user.hover(screen.getByRole("button", { name: "ready.pdf" }))
+    expect(keydownListeners()).toBe(before)
+    await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+    expect(keydownListeners()).toBe(before + 1)
+    await user.unhover(screen.getByRole("button", { name: "failed.pdf" }))
+    expect(keydownListeners()).toBe(before)
+
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
   it("offers per-source delete but disables it while processing", async () => {
     const onDelete = vi.fn()
     const user = userEvent.setup()
@@ -469,7 +631,7 @@ describe("source upload", () => {
         }
         if (
           path ===
-            "/workspaces/1/documents?document_type=FILE&document_type=NOTE" &&
+            "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0" &&
           !uploaded
         ) {
           return Response.json([])
@@ -495,7 +657,7 @@ describe("source upload", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([{ ...pendingDocument, status: "ready" }])
         }
@@ -584,7 +746,7 @@ describe("source upload", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           listed += 1
           // Only the first load answers; a refetch never lands, so what shows
@@ -608,7 +770,7 @@ describe("source upload", () => {
 
     await screen.findByText("second.txt")
     const titles = screen
-      .getAllByRole("listitem")
+      .getAllByRole("treeitem")
       .map((row) => row.textContent ?? "")
     // Newest first, as the server lists them: the batch's later id leads.
     expect(titles.findIndex((t) => t.includes("second.txt"))).toBe(0)
@@ -687,7 +849,7 @@ describe("source upload", () => {
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
     expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
@@ -720,9 +882,13 @@ describe("source upload", () => {
       type: "text/plain",
     })
 
-    fireEvent.dragEnter(panel, carrying([file]))
-    expect(screen.getByText("Drop files to add them as sources")).toBeTruthy()
-    fireEvent.drop(panel, carrying([file]))
+    const dataTransfer = fakeDataTransfer({ files: [file] })
+    fireEvent.dragEnter(panel, { dataTransfer })
+    fireEvent.dragOver(panel, { dataTransfer })
+    expect(
+      await screen.findByText("Drop files to add them as sources")
+    ).toBeTruthy()
+    fireEvent.drop(panel, { dataTransfer })
 
     await waitFor(() => {
       const upload = fetchMock.mock.calls.find(
@@ -742,11 +908,16 @@ describe("source upload", () => {
     render(<SourceHarness />)
     await screen.findByText("No sources yet")
 
-    fireEvent.dragEnter(screen.getByRole("region", { name: "Sources" }), {
-      dataTransfer: { types: ["text/plain"], files: [] },
-    })
+    const panel = screen.getByRole("region", { name: "Sources" })
+    const dataTransfer = fakeDataTransfer({ types: ["text/plain"] })
+    fireEvent.dragEnter(panel, { dataTransfer })
+    fireEvent.dragOver(panel, { dataTransfer })
+    // A frame, when the panel would light up for files.
+    await act(() => new Promise(requestAnimationFrame))
 
     expect(screen.queryByText("Drop files to add them as sources")).toBeNull()
+    // Out of the window, which ends the drag.
+    fireEvent.dragLeave(panel, { dataTransfer })
   })
 
   it("refuses an unsupported dropped file before uploading", async () => {
@@ -755,9 +926,9 @@ describe("source upload", () => {
     render(<SourceHarness />)
     await screen.findByText("No sources yet")
 
-    fireEvent.drop(
+    dropOn(
       screen.getByRole("region", { name: "Sources" }),
-      carrying([new File(["content"], "unsupported.exe")])
+      fakeDataTransfer({ files: [new File(["content"], "unsupported.exe")] })
     )
 
     await waitFor(() =>

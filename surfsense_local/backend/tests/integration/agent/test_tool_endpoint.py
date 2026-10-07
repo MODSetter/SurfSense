@@ -1,62 +1,19 @@
 """SurfSense's tools as opencode's MCP client reaches them: one route per workspace."""
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import Engine, select
 
-from api.main import create_app
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from shared.db import create_session_factory
+from tests.integration.agent.tool_endpoint_client import ToolEndpoint, endpoint_over
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
-
-
-@dataclass
-class ToolEndpoint:
-    """The app as opencode's MCP client reaches it, with the key it was launched with."""
-
-    client: AsyncClient
-    launch_key: str
-
-    async def workspace(self) -> int:
-        """A new workspace, made the way the app makes one."""
-        reply = await self.client.post("/workspaces", json={"name": "Research"})
-        reply.raise_for_status()
-        return reply.json()["id"]
-
-    async def post(
-        self, workspace_id: int, message: dict[str, Any], **headers: str
-    ) -> Response:
-        """One JSON-RPC message, sent with the headers opencode's client sends."""
-        return await self.client.post(
-            f"/agent/tools/workspaces/{workspace_id}",
-            json=message,
-            headers={
-                "Authorization": f"Bearer {self.launch_key}",
-                "Accept": "application/json, text/event-stream",
-                **headers,
-            },
-        )
-
-    async def request(
-        self, workspace_id: int, method: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """A request's JSON-RPC reply."""
-        message = {"jsonrpc": "2.0", "id": 1, "method": method}
-        if params is not None:
-            message["params"] = params
-        reply = await self.post(workspace_id, message)
-        assert reply.status_code == 200, reply.text
-        return reply.json()
 
 
 def ingest(
@@ -117,23 +74,6 @@ def create_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
     return {"name": "create_artifact", "arguments": arguments}
 
 
-@pytest.fixture
-async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
-    """A fresh app on this test's database, driven in-process."""
-    async with _endpoint_over(engine) as endpoint:
-        yield endpoint
-
-
-@asynccontextmanager
-async def _endpoint_over(engine: Engine) -> AsyncIterator[ToolEndpoint]:
-    """The tool endpoint of a fresh app on `engine`'s database."""
-    app = create_app()
-    app.state.session_factory = create_session_factory(engine)
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield ToolEndpoint(client, app.state.agent_launch_key)
-
-
 async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> None:
     """Small local models garble a schema that refers to definitions, so none does."""
     workspace_id = await tools.workspace()
@@ -141,13 +81,106 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     reply = await tools.request(workspace_id, "tools/list")
 
     listed = {tool["name"]: tool["inputSchema"] for tool in reply["result"]["tools"]}
-    assert list(listed) == ["search_sources", "create_artifact"]
+    assert list(listed) == [
+        "search_sources",
+        "create_artifact",
+        "render_document",
+        "read_document",
+        "list_images",
+        "convert_document",
+        "revise_document",
+        "analyze_data",
+        "pdf_pages",
+        "pdf_stamp",
+        "pdf_form",
+    ]
     assert listed["search_sources"]["required"] == ["query"]
     assert listed["create_artifact"]["required"] == ["format", "source_ids"]
-    assert "quiz" in listed["create_artifact"]["properties"]["format"]["enum"]
+    studio_formats = listed["create_artifact"]["properties"]["format"]
+    assert "quiz" in studio_formats["enum"]
+    # Office files and PDFs are scripts the agent renders, kept as versions it can edit.
+    assert not {"docx", "pdf", "pptx", "xlsx"} & set(studio_formats["enum"])
+    assert not {"docx", "pptx", "xlsx"} & set(studio_formats["description"].split())
+    render = listed["render_document"]
+    assert render["required"] == ["title", "format", "script"]
+    assert render["properties"]["format"]["enum"] == ["docx", "pdf", "pptx", "xlsx"]
+    assert "pptx for a PowerPoint deck" in render["properties"]["format"]["description"]
+    assert "xlsx for an Excel workbook" in render["properties"]["format"]["description"]
+    assert render["properties"]["template_source_id"]["type"] == "integer"
+    read = listed["read_document"]
+    # A rendered document by artifact_id, or a workbook source by document_id.
+    assert "required" not in read
+    assert read["properties"]["document_id"]["type"] == "integer"
+    assert read["properties"]["sheet"]["type"] == "string"
+    # A long script is read a page of lines at a time, under opencode's cut.
+    assert read["properties"]["offset"]["type"] == "integer"
+    assert listed["list_images"]["required"] == ["source_ids"]
+    # Listed with Office support off too, so the tool list never changes mid-thread.
+    convert = listed["convert_document"]
+    assert convert["required"] == ["format"]
+    assert convert["properties"]["format"]["enum"] == ["pdf"]
+    revise = listed["revise_document"]
+    # Which id, and which fields an operation needs, are checked in code: a
+    # flat schema is one more models fill in right.
+    assert revise["required"] == ["operations"]
+    assert revise["properties"]["operations"]["items"]["required"] == ["op"]
+    images = next(t for t in reply["result"]["tools"] if t["name"] == "list_images")
+    # A model that reads no images is told what to do instead of charting guesses.
+    assert "If read cannot show it to you" in images["description"]
+    # The PDF tools make new artifacts from a PDF named by id; a range is text.
+    assert listed["pdf_pages"]["required"] == ["operation"]
+    assert listed["pdf_pages"]["properties"]["operation"]["enum"] == [
+        "merge",
+        "extract",
+        "split",
+        "rotate",
+        "reorder",
+    ]
+    assert listed["pdf_pages"]["properties"]["pages"]["type"] == "string"
+    assert listed["pdf_pages"]["properties"]["angle"]["enum"] == [90, 180, 270]
+    assert listed["pdf_stamp"]["required"] == ["kind"]
+    assert listed["pdf_form"]["required"] == ["action"]
+    assert listed["pdf_form"]["properties"]["fields"]["type"] == "object"
+    analysis = listed["analyze_data"]
+    assert analysis["required"] == ["title", "document_ids", "script"]
+    assert analysis["properties"]["document_ids"]["items"] == {"type": "integer"}
     for schema in listed.values():
         assert schema["type"] == "object"
         assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
+
+
+@pytest.mark.usefixtures("model_reads_images")
+async def test_a_model_that_reads_images_is_also_offered_source_pages(
+    tools: ToolEndpoint,
+) -> None:
+    """Added tools come after the others, so those keep their place in a cached prompt."""
+    workspace_id = await tools.workspace()
+
+    reply = await tools.request(workspace_id, "tools/list")
+
+    listed = {tool["name"]: tool["inputSchema"] for tool in reply["result"]["tools"]}
+    assert list(listed) == [
+        "search_sources",
+        "create_artifact",
+        "render_document",
+        "read_document",
+        "list_images",
+        "source_pages",
+        "convert_document",
+        "revise_document",
+        "analyze_data",
+        "pdf_pages",
+        "pdf_stamp",
+        "pdf_form",
+    ]
+    pages = listed["source_pages"]
+    assert pages["required"] == ["document_id"]
+    assert pages["properties"]["pages"] == {
+        "type": "array",
+        "items": {"type": "integer"},
+        "description": pages["properties"]["pages"]["description"],
+    }
+    assert not {"$ref", "$defs", "anyOf"} & set(_keys(pages))
 
 
 def _keys(schema: Any) -> list[str]:
@@ -222,7 +255,7 @@ async def test_no_event_stream_is_offered(tools: ToolEndpoint) -> None:
     workspace_id = await tools.workspace()
 
     reply = await tools.client.get(
-        f"/agent/tools/workspaces/{workspace_id}",
+        f"/agent/tools/workspaces/{workspace_id}/threads/{tools.default_thread(workspace_id)}",
         headers={
             "Authorization": f"Bearer {tools.launch_key}",
             "Accept": "text/event-stream",
@@ -317,7 +350,9 @@ async def test_a_workspace_that_does_not_exist_has_no_tools(
     tools: ToolEndpoint,
 ) -> None:
     """A deleted workspace's folder may still be registered in a running opencode."""
-    reply = await tools.post(404, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    reply = await tools.post(
+        404, {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, thread=1
+    )
 
     assert reply.status_code == 404
 
@@ -344,8 +379,9 @@ async def test_a_search_before_onboarding_says_why_it_cannot_run(
     unlocked_engine: Engine,
 ) -> None:
     """Until an embedder is chosen nothing is indexed; the model can still grep."""
-    async with _endpoint_over(unlocked_engine) as tools:
+    async with endpoint_over(unlocked_engine) as tools:
         workspace_id = await tools.workspace()
+        ready_note(unlocked_engine, workspace_id)
 
         reply = await tools.request(
             workspace_id,
@@ -440,6 +476,27 @@ async def test_a_source_from_another_workspace_is_refused(
     )
 
     assert reply["result"]["isError"] is True
+    listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
+    assert listed == []
+
+
+@pytest.mark.parametrize("format", ["docx", "pdf", "pptx", "xlsx"])
+async def test_an_office_or_pdf_job_is_sent_to_the_render_tool(
+    tools: ToolEndpoint, engine: Engine, format: str
+) -> None:
+    """A Studio draft keeps no script, so the agent could never edit or check it."""
+    workspace_id = await tools.workspace()
+    note_id = ready_note(engine, workspace_id)
+    choose_chat_model(engine)
+
+    reply = await tools.request(
+        workspace_id,
+        "tools/call",
+        create_artifact({"format": format, "source_ids": [note_id]}),
+    )
+
+    assert reply["result"]["isError"] is True
+    assert "surfsense_render_document" in reply["result"]["content"][0]["text"]
     listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
     assert listed == []
 

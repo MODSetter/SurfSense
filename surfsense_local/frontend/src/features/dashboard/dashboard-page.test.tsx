@@ -15,7 +15,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { render } from "@/test-utils"
 
-import { readSourcePreview, RIGHT_PANEL_KEY } from "./chrome-prefs"
+import {
+  COLUMN_WIDTH_KEYS,
+  readSourcePreview,
+  RIGHT_PANEL_KEY,
+} from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -91,7 +95,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -183,7 +187,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -454,7 +458,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -613,7 +617,8 @@ describe("dashboard chat", () => {
         ])
       }
       if (
-        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
       ) {
         return Response.json([])
       }
@@ -697,7 +702,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -767,7 +772,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([
             {
@@ -941,6 +946,13 @@ describe("dashboard chat", () => {
     expect(JSON.parse(String(send?.[1]?.body))).toEqual({
       text: "What is indexed?",
       document_ids: [20],
+      source_scope: {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
     })
   })
 
@@ -991,7 +1003,7 @@ describe("dashboard chat", () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
       expect(fetchMock).toHaveBeenCalledWith(
-        "/workspaces/2/documents?document_type=FILE&document_type=NOTE",
+        "/workspaces/2/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0",
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
     })
@@ -1016,7 +1028,8 @@ describe("dashboard chat", () => {
         ])
       }
       if (
-        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
       ) {
         return Response.json([pdf])
       }
@@ -1174,7 +1187,11 @@ describe("dashboard chat", () => {
             recommended_id: null,
           })
         }
-        if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
+        if (
+          path.endsWith(
+            "/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+          )
+        ) {
           return Response.json([])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
@@ -1320,6 +1337,114 @@ describe("dashboard chat", () => {
     )
   })
 
+  it("sends a ticked folder as the turn's source scope", async () => {
+    const filed = (id: number, title: string, folderId: number) => ({
+      id,
+      title,
+      document_type: "FILE",
+      mime_type: null,
+      status: "ready",
+      error_message: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+      folder_id: folderId,
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === "/llm/catalog/local") {
+          return Response.json({ rows: [], recommended_id: null })
+        }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+        ) {
+          return Response.json([
+            filed(20, "Guide.txt", 1),
+            filed(21, "Paper.txt", 2),
+          ])
+        }
+        if (path === "/workspaces/1/folders") {
+          return Response.json([
+            { id: 1, parent_id: null, name: "Library" },
+            { id: 2, parent_id: 1, name: "Research" },
+          ])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "Scoped",
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"From the folder"}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z","text":"From the folder"}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "Qwen3-1.7B-Q4_K_M",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Clear" }))
+    await user.click(
+      screen.getByRole("checkbox", { name: "Select folder Research" })
+    )
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(await screen.findByText("From the folder")).toBeTruthy()
+    const send = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/chat/threads/10/messages" && init?.method === "POST"
+    )
+    expect(JSON.parse(String(send?.[1]?.body))).toEqual({
+      text: "Scoped",
+      document_ids: [21],
+      source_scope: {
+        all: false,
+        folder_ids: [2],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+    })
+  })
+
   it("sends a turn with thinking off once the composer switch is off", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -1398,6 +1523,13 @@ describe("dashboard chat", () => {
     expect(JSON.parse(String(send?.[1]?.body))).toEqual({
       text: "Quick one",
       document_ids: [],
+      source_scope: {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
       thinking: false,
     })
   })
@@ -1413,7 +1545,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -1482,8 +1614,13 @@ describe("dashboard chat", () => {
     expect(retryButton, "context_too_long must not offer Retry").toBeNull()
   })
 
-  it("aborts the active stream when stop is pressed", async () => {
-    const captured: { signal: AbortSignal | null } = { signal: null }
+  it("asks the API to stop the reply when stop is pressed", async () => {
+    const captured: {
+      signal: AbortSignal | null
+      stream: ReadableStreamDefaultController<Uint8Array> | null
+      stopped: boolean
+      hungUpBeforeStop: boolean | null
+    } = { signal: null, stream: null, stopped: false, hungUpBeforeStop: null }
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
@@ -1492,7 +1629,11 @@ describe("dashboard chat", () => {
             { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
-        if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
+        if (
+          path.endsWith(
+            "/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+          )
+        ) {
           return Response.json([])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
@@ -1516,23 +1657,29 @@ describe("dashboard chat", () => {
           return new Response(
             new ReadableStream({
               start(controller) {
+                captured.stream = controller
                 controller.enqueue(
                   new TextEncoder().encode(
                     'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"Partial answer"}\n\n'
                   )
-                )
-                captured.signal?.addEventListener("abort", () =>
-                  controller.error(new DOMException("Aborted", "AbortError"))
                 )
               },
             }),
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
+        if (path === "/chat/threads/10/run/stop") {
+          // The API stores what the reply has, then ends the run's stream.
+          captured.stopped = true
+          captured.hungUpBeforeStop = captured.signal?.aborted ?? null
+          captured.stream?.enqueue(new TextEncoder().encode("data: [DONE]\n\n"))
+          captured.stream?.close()
+          return new Response(null, { status: 204 })
+        }
         if (path === "/chat/threads/10/messages") {
           // The stopped turn as the backend keeps it: the text so far.
           return Response.json(
-            captured.signal === null
+            !captured.stopped
               ? []
               : [
                   {
@@ -1545,7 +1692,11 @@ describe("dashboard chat", () => {
                   {
                     id: 101,
                     role: "assistant",
-                    content: { text: "Partial answer", citations: [] },
+                    content: {
+                      text: "Partial answer",
+                      citations: [],
+                      ending: { type: "stopped" },
+                    },
                     created_at: "2026-09-05T00:00:00Z",
                     completed_at: "2026-09-05T00:00:01Z",
                   },
@@ -1586,7 +1737,9 @@ describe("dashboard chat", () => {
       await screen.findByRole("button", { name: "Stop generating" })
     )
 
-    expect(captured.signal?.aborted).toBe(true)
+    // A stop is asked of the API, which owns the reply; hanging up would not end it.
+    await waitFor(() => expect(captured.stopped).toBe(true))
+    expect(captured.hungUpBeforeStop).toBe(false)
     expect(
       await screen.findByRole("button", { name: "Send message" })
     ).toBeTruthy()
@@ -1611,7 +1764,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -1681,7 +1834,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([
             {
@@ -1758,7 +1911,7 @@ describe("dashboard chat", () => {
         }
         if (
           path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
         ) {
           return Response.json([])
         }
@@ -1769,7 +1922,7 @@ describe("dashboard chat", () => {
           return Response.json([
             {
               key: "summary",
-              label: "Summary",
+              label: "Markdown",
               requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
@@ -1839,7 +1992,9 @@ describe("dashboard chat", () => {
       sourcesScroll?.contains(screen.getByRole("heading", { name: "Sources" }))
     ).toBe(false)
     expect(
-      sourcesScroll?.contains(screen.getByRole("button", { name: "Add" }))
+      sourcesScroll?.contains(
+        screen.getByRole("button", { name: "Add sources" })
+      )
     ).toBe(false)
     expect(sourcesScroll).toBeTruthy()
 
@@ -1859,7 +2014,7 @@ describe("dashboard chat", () => {
       )
     ).toBe(false)
     expect(artifactsScroll?.contains(weeklySummary)).toBe(true)
-    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Markdown" })).toBeTruthy()
     await user.click(weeklySummary)
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
     expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
@@ -1883,7 +2038,8 @@ describe("dashboard chat", () => {
         ])
       }
       if (
-        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        path ===
+        "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
       ) {
         return Response.json([])
       }
@@ -2001,5 +2157,227 @@ describe("dashboard chat", () => {
 
     rerender(page(onOpenRouter))
     expect(await screen.findByText(refused)).toBeTruthy()
+  })
+})
+
+describe("resizable columns", () => {
+  const LIST =
+    "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+  const pdf = {
+    id: 42,
+    title: "report.pdf",
+    document_type: "FILE",
+    mime_type: "application/pdf",
+    status: "pending",
+    error_message: null,
+    created_at: "2026-09-05T00:00:00Z",
+    updated_at: "2026-09-05T00:00:00Z",
+  }
+  // Calls the section's ResizeObserver as a window this wide would.
+  let reportSection: (width: number) => void = () => undefined
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === LIST) return Response.json([pdf])
+        if (path === "/workspaces/1/chat/threads") return Response.json([])
+        if (path === "/workspaces/1/studio/formats") return Response.json([])
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        if (path === "/workspaces/1/documents/42/original") {
+          return new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]))
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const observed: { target: Element; callback: ResizeObserverCallback }[] = []
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        callback: ResizeObserverCallback
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback
+        }
+        observe(target: Element) {
+          observed.push({ target, callback: this.callback })
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+    )
+    reportSection = (width) =>
+      act(() => {
+        for (const { target, callback } of observed) {
+          if (target.tagName !== "SECTION") continue
+          callback(
+            [{ target, contentRect: { width } } as ResizeObserverEntry],
+            {} as ResizeObserver
+          )
+        }
+      })
+  })
+
+  const page = (
+    <TooltipProvider>
+      <DashboardPage
+        initialProviderAvailable={true}
+        selection={{
+          model_type: "text_gen",
+          provider: "llamacpp",
+          connection_id: null,
+          name: "llama3.2:1b",
+          updated_at: "2026-09-05T00:00:00Z",
+        }}
+        initialWorkspaces={[workspace]}
+        onModelSelected={vi.fn()}
+      />
+    </TooltipProvider>
+  )
+
+  const sidebarEdge = () =>
+    screen.getByRole("separator", { name: "Resize sidebar" })
+  const rightPanelEdge = () =>
+    screen.getByRole("separator", { name: "Resize right panel" })
+  const sidebarWidth = () =>
+    document.getElementById("workspace-left-column")?.style.width
+  const rightPanelWidth = () =>
+    (
+      document.getElementById("workspace-right-panel")?.parentElement
+        ?.parentElement as HTMLElement
+    ).style.width
+  const saved = (column: keyof typeof COLUMN_WIDTH_KEYS) =>
+    JSON.parse(localStorage.getItem(COLUMN_WIDTH_KEYS[column]) ?? "null")
+
+  function drag(edge: HTMLElement, by: number) {
+    fireEvent.pointerDown(edge, { button: 0, pointerId: 1, clientX: 600 })
+    fireEvent.pointerMove(edge, { pointerId: 1, clientX: 600 + by })
+    fireEvent.pointerUp(edge, { pointerId: 1, clientX: 600 + by })
+  }
+
+  it("widens the sidebar by dragging its edge and keeps the width", async () => {
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(sidebarWidth()).toBe("272px")
+
+    drag(sidebarEdge(), 48)
+
+    expect(sidebarWidth()).toBe("320px")
+    expect(sidebarEdge().getAttribute("aria-valuenow")).toBe("320")
+    expect(saved("sidebar")).toEqual({ rest: 320, wide: DETAIL_RAIL_WIDTH })
+    cleanup()
+    render(page)
+    expect(sidebarWidth()).toBe("320px")
+  })
+
+  it("widens the right panel from its left edge, which it hides while collapsed", async () => {
+    const user = userEvent.setup()
+    render(page)
+    await screen.findByRole("complementary", { name: "Workspace artifacts" })
+
+    act(() => rightPanelEdge().focus())
+    await user.keyboard("{ArrowLeft}")
+
+    expect(rightPanelWidth()).toBe(`${MAIN_RAIL_WIDTH + 16}px`)
+    expect(saved("rightPanel")).toEqual({
+      rest: MAIN_RAIL_WIDTH + 16,
+      wide: DETAIL_RAIL_WIDTH,
+    })
+    await user.click(screen.getByRole("button", { name: "Hide right panel" }))
+    expect(
+      screen.queryByRole("separator", { name: "Resize right panel" })
+    ).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Show right panel" }))
+    expect(rightPanelWidth()).toBe(`${MAIN_RAIL_WIDTH + 16}px`)
+  })
+
+  it("never drags a column into the chat's 520 px", async () => {
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    // 1214 - 520 leaves 694: the right panel's 400 and 294 for the sidebar.
+    reportSection(1214)
+    expect(sidebarEdge().getAttribute("aria-valuemax")).toBe("294")
+
+    drag(sidebarEdge(), 400)
+    expect(sidebarWidth()).toBe("294px")
+    expect(rightPanelEdge().getAttribute("aria-valuemax")).toBe("400")
+    drag(sidebarEdge(), -400)
+    expect(sidebarWidth()).toBe("272px")
+    expect(rightPanelEdge().getAttribute("aria-valuemax")).toBe("422")
+  })
+
+  it("narrows a saved width to fit a smaller window and restores it on a larger one", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.rightPanel,
+      JSON.stringify({ rest: 640, wide: DETAIL_RAIL_WIDTH })
+    )
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(rightPanelWidth()).toBe("640px")
+
+    reportSection(1214)
+    expect(rightPanelWidth()).toBe("422px")
+    expect(rightPanelEdge().getAttribute("aria-valuenow")).toBe("422")
+    reportSection(1600)
+    expect(rightPanelWidth()).toBe("640px")
+    expect(saved("rightPanel").rest).toBe(640)
+  })
+
+  it("falls back to the default for a saved width it cannot read, and clamps one out of range", async () => {
+    localStorage.setItem(COLUMN_WIDTH_KEYS.sidebar, "{not json")
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.rightPanel,
+      JSON.stringify({ rest: 99999, wide: "wide" })
+    )
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+
+    expect(sidebarWidth()).toBe("272px")
+    expect(rightPanelWidth()).toBe("640px")
+  })
+
+  it("puts a column back at its default on a double-click of its edge", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.sidebar,
+      JSON.stringify({ rest: 400, wide: DETAIL_RAIL_WIDTH })
+    )
+    const user = userEvent.setup()
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(sidebarWidth()).toBe("400px")
+
+    await user.dblClick(sidebarEdge())
+
+    expect(sidebarWidth()).toBe("272px")
+    expect(saved("sidebar")).toEqual({ rest: 272, wide: DETAIL_RAIL_WIDTH })
+  })
+
+  it("opens a preview at least as wide as the sidebar and resizes it apart from the sidebar", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.sidebar,
+      JSON.stringify({ rest: 300, wide: DETAIL_RAIL_WIDTH })
+    )
+    const user = userEvent.setup()
+    render(page)
+
+    await user.click(await screen.findByRole("button", { name: "report.pdf" }))
+    await screen.findByRole("complementary", { name: "Source preview" })
+    expect(sidebarWidth()).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    drag(sidebarEdge(), 80)
+
+    expect(sidebarWidth()).toBe(`${DETAIL_RAIL_WIDTH + 80}px`)
+    expect(saved("sidebar")).toEqual({
+      rest: 300,
+      wide: DETAIL_RAIL_WIDTH + 80,
+    })
+    await user.click(
+      screen.getByRole("button", { name: "Close source preview" })
+    )
+    expect(sidebarWidth()).toBe("300px")
   })
 })

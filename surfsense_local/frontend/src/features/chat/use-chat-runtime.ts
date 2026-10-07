@@ -1,50 +1,78 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  useExternalStoreRuntime,
-  type AppendMessage,
-  type ThreadMessageLike,
-} from "@assistant-ui/react"
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react"
+import type { AppendMessage } from "@assistant-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   answerPermission,
-  type AgentStep,
   type PermissionReply,
   type PermissionRequest,
+  type TurnSources,
 } from "@/features/agent/api"
+import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
+import { isUnsupportedModelRefusal } from "@/features/agent/unsupported-model"
 import { errorToast } from "@/features/feedback/error-toast"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
+import { subscribeToWorkspaceChanges } from "@/features/workspaces/workspace-changes"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
 
 import {
   createThread,
   deleteThread,
+  followRun,
   listMessages,
   listThreads,
   renameThread,
+  stopRun,
   streamMessage,
   type ChatMessage,
   type ChatThread,
   type ImageUpload,
 } from "./api"
-import {
-  ChatImageAdapter,
-  attachmentsOf,
-  previewOf,
-  uploadsOf,
-} from "./image-attachments"
+import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
+import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
+import type { LivePair } from "./runs/apply-frame"
+import {
+  beginRun,
+  dropRun,
+  liveRun,
+  onRunEnded,
+  onRunFrame,
+  pump,
+  runSummaries,
+  subscribeToRuns,
+  updatePair,
+  type LiveRun,
+  type RunState,
+} from "./runs/run-store"
+import { storedUploads } from "./runs/stored-uploads"
+import { markRead, markUnread, readUnread } from "./runs/unread-replies"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
+import { composedThread, isOptimistic, OPTIMISTIC_ID } from "./thread-messages"
 import { readThinkingOn } from "./thinking-preference"
 
+/** A backend error kind, or a refusal the app recognises before any stream:
+ *  a turn on an agent thread that predates per-chat folders. */
+export type ChatTurnErrorKind =
+  ChatErrorKind | "agent_thread_outdated" | "agent_model_unsupported"
+
 export type ChatTurnError = {
-  kind: ChatErrorKind
+  // `interrupted`: the app closed under the reply; no frame carries it.
+  kind: ChatTurnErrorKind | "interrupted"
   message: string
   provider: string
-  retryText: string
-  retryImages: ImageUpload[]
   /** The request failed before an SSE frame classified the backend error. */
   detailIsLocal?: boolean
+  /** Only the thread's latest reply can be retried; older ones are a record. */
+  retryable: boolean
 }
 
 function messageFrom(error: unknown) {
@@ -70,6 +98,32 @@ function submittedText(message: AppendMessage) {
 
 const EMPTY_THREADS: ChatThread[] = []
 const EMPTY_MESSAGES: ChatMessage[] = []
+const NO_APPROVALS: PermissionRequest[] = []
+
+/** The thread's waiting requests without one that was answered. */
+function withoutApproval(
+  all: Record<number, PermissionRequest[]>,
+  threadId: number,
+  requestId: string
+): Record<number, PermissionRequest[]> {
+  const current = all[threadId]
+  if (!current?.some((waiting) => waiting.id === requestId)) return all
+  return {
+    ...all,
+    [threadId]: current.filter((waiting) => waiting.id !== requestId),
+  }
+}
+
+/** Where the list says a thread's reply stands, as the run store spells it. */
+function listedRunState(thread: ChatThread): RunState | null {
+  if (!thread.running) return null
+  const listed = thread.run_state
+  if (listed?.state === "queued" && listed.position !== null) {
+    return { state: "queued", position: listed.position }
+  }
+  if (listed?.state === "needs-approval") return { state: "needs-approval" }
+  return { state: "running" }
+}
 
 function lastThreadKey(workspaceId: number) {
   return `surfsense:last-thread:${workspaceId}:v1`
@@ -107,102 +161,61 @@ function readStoredView(workspaceId: number): ConversationView {
   return { status: "new" }
 }
 
-function hasCanonicalTurn(
-  threadMessages: ChatMessage[],
-  userMessageId: number | string,
-  assistantMessageId: number | string
-) {
-  const ids = new Set(threadMessages.map((message) => message.id))
-  return ids.has(userMessageId) && ids.has(assistantMessageId)
+function stoppedBeforeAWord(pair: LivePair) {
+  const reply = pair[1]
+  return reply.content.ending?.type === "stopped" && !reply.content.text
 }
 
-const OPTIMISTIC_ID = "optimistic-"
-
-function areLiveMessagesPersisted(
-  liveMessages: ChatMessage[],
-  persistedMessages: ChatMessage[]
-) {
-  const persistedIds = new Set(persistedMessages.map((message) => message.id))
-  // A stored id is the database's number or, in an agent thread, opencode's
-  // string; only the placeholders sent before `accepted` are neither.
-  return liveMessages.every(
-    (message) =>
-      !String(message.id).startsWith(OPTIMISTIC_ID) &&
-      persistedIds.has(message.id)
-  )
+/** Whether the stored turns already hold the run's whole reply. */
+function storedTurnCaughtUp(canonical: ChatMessage[], pair: LivePair) {
+  const ids = new Set(canonical.map((message) => message.id))
+  return ids.has(pair[0].id) && ids.has(pair[1].id)
 }
 
-/** The step an `agent-step` frame describes, without the frame's own type. */
-function stepFrom(
-  event: Extract<ChatStreamEvent, { type: "agent-step" }>
-): AgentStep {
-  const { id, tool, status, title, input, output, error } = event
-  return { id, tool, status, title, input, output, error }
+/**
+ * Whether the thread still holds the run that ended, and not one started
+ * since: a Retry pressed while the end's read was out is a new reply.
+ */
+function stillTheEndedRun(threadId: number, ended: LiveRun | null) {
+  const held = liveRun(threadId)
+  if (!held?.ended) return false
+  return ended?.pair ? held.pair?.[1].id === ended.pair[1].id : !held.pair
 }
 
-/** The request a `permission-request` frame describes. */
-function requestFrom(
-  event: Extract<ChatStreamEvent, { type: "permission-request" }>
-): PermissionRequest {
-  const { id, permission, patterns, command } = event
-  return { id, permission, patterns, command }
-}
-
-/** The reply's steps with this one added, or updated where it already is. */
-function withStep(steps: AgentStep[] | undefined, step: AgentStep) {
-  const current = steps ?? []
-  return current.some((candidate) => candidate.id === step.id)
-    ? current.map((candidate) => (candidate.id === step.id ? step : candidate))
-    : [...current, step]
-}
-
-function toRuntimeMessage(
-  message: ChatMessage,
-  chatErrors: Record<string, ChatTurnError>,
-  stoppedReplies: ReadonlySet<string>,
-  threadId: number | null
-): ThreadMessageLike {
-  const value =
-    message.role === "assistant" ? message.completed_at : message.created_at
-  // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
-  const timestamp =
-    value && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? `${value}Z` : value
-  const error =
-    message.role === "assistant" ? chatErrors[String(message.id)] : undefined
-  return {
-    id: String(message.id),
-    role: message.role,
-    content: [{ type: "text", text: message.content.text ?? "" }],
-    ...(message.role === "user"
-      ? { attachments: attachmentsOf(message, threadId) }
-      : {}),
-    ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
-    ...(error
-      ? { status: { type: "incomplete", reason: "error", error } as const }
-      : stoppedReplies.has(String(message.id))
-        ? // Without it assistant-ui calls a stopped reply complete.
-          { status: { type: "incomplete", reason: "cancelled" } as const }
-        : {}),
-    metadata: {
-      custom: {
-        citations: message.content.citations ?? [],
-        steps: message.content.steps ?? [],
-        reasoning: message.content.reasoning
-          ? {
-              text: message.content.reasoning.text,
-              durationMs: message.content.reasoning.duration_ms,
-            }
-          : null,
-        progress: message.content.progress ?? null,
+function optimisticPair(
+  version: number,
+  text: string,
+  images: ImageUpload[],
+  scope: TurnSources | null
+): LivePair {
+  return [
+    {
+      id: `${OPTIMISTIC_ID}user-${version}`,
+      role: "user",
+      content: {
+        text,
+        ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
+        ...(scope ? { scope } : {}),
       },
+      created_at: null,
+      completed_at: null,
     },
-  }
+    {
+      id: `${OPTIMISTIC_ID}assistant-${version}`,
+      role: "assistant",
+      content: { text: "", citations: [] },
+      created_at: null,
+      completed_at: null,
+    },
+  ]
 }
 
 export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  selectedSourceTitles,
+  sourceScope = null,
   readsImages,
   canSkipThinking,
   onModelRequired,
@@ -210,6 +223,10 @@ export function useChatRuntime({
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // Each selected source's title, in the order of `selectedDocumentIds`.
+  selectedSourceTitles: string[]
+  // What the server resolves into the turn's sources, so none is left out.
+  sourceScope?: SourceScope | null
   // Whether the selected model reads images; without it the composer has no
   // attachment adapter, so it takes none.
   readsImages: boolean
@@ -221,26 +238,32 @@ export function useChatRuntime({
   const [conversationView, setConversationView] = useState<ConversationView>(
     () => readStoredView(workspaceId)
   )
-  const [liveMessages, setLiveMessages] = useState<ChatMessage[] | null>(null)
-  const [isRunning, setIsRunning] = useState(false)
   const [autoNamingThreadId, setAutoNamingThreadId] = useState<number | null>(
     null
   )
+  // What was last set, so a streamed token can ask without queueing an
+  // update of this page per token.
+  const autoNamingRef = useRef<number | null>(null)
+  const setAutoNaming = useCallback((threadId: number | null) => {
+    autoNamingRef.current = threadId
+    setAutoNamingThreadId(threadId)
+  }, [])
   const [animatingTitleThreadId, setAnimatingTitleThreadId] = useState<
     number | null
   >(null)
-  const [chatErrors, setChatErrors] = useState<Record<string, ChatTurnError>>(
-    {}
+  const [unreadThreadIds, setUnreadThreadIds] = useState<number[]>(() =>
+    readUnread(workspaceId)
   )
-  // Replies the person stopped, so none of them reads as finished.
-  const [stoppedReplies, setStoppedReplies] = useState<ReadonlySet<string>>(
-    () => new Set()
-  )
-  const inFlightReply = useRef<string | null>(null)
-  // The agent's requests waiting for the user, oldest first.
-  const [approvals, setApprovals] = useState<PermissionRequest[]>([])
-  const streamController = useRef<AbortController | null>(null)
+  // The agent's requests waiting for the user, oldest first, per thread: a
+  // turn keeps asking while its thread is not the one open.
+  const [approvalsByThread, setApprovalsByThread] = useState<
+    Record<number, PermissionRequest[]>
+  >({})
   const requestVersion = useRef(0)
+
+  // Where each run stands, never its text: a streamed token renders the open
+  // thread's messages alone (LiveThreadRuntime), not this page.
+  const runs = useSyncExternalStore(subscribeToRuns, runSummaries)
 
   const threadsQuery = useQuery({
     queryKey: chatKeys.threads(workspaceId),
@@ -249,9 +272,18 @@ export function useChatRuntime({
   const threads = threadsQuery.data ?? EMPTY_THREADS
   const activeThreadId =
     conversationView.status === "active" ? conversationView.threadId : null
+  const activeThreadIdRef = useRef(activeThreadId)
+  activeThreadIdRef.current = activeThreadId
+  const approvals =
+    (activeThreadId !== null && approvalsByThread[activeThreadId]) ||
+    NO_APPROVALS
+  const activeThread = useMemo(
+    () => threads.find((thread) => thread.id === activeThreadId) ?? null,
+    [activeThreadId, threads]
+  )
 
   const messagesQuery = useQuery({
-    queryKey: [...chatKeys.all, "messages", activeThreadId] as const,
+    queryKey: chatKeys.messages(activeThreadId ?? -1),
     queryFn: ({ signal }) =>
       activeThreadId === null
         ? Promise.resolve(EMPTY_MESSAGES)
@@ -259,10 +291,9 @@ export function useChatRuntime({
     enabled: activeThreadId !== null,
   })
   const persistedMessages = messagesQuery.data ?? EMPTY_MESSAGES
-  const usesLiveMessages =
-    liveMessages !== null &&
-    (isRunning || !areLiveMessagesPersisted(liveMessages, persistedMessages))
-  const threadMessages = usesLiveMessages ? liveMessages : persistedMessages
+  const activeRun =
+    activeThreadId === null ? null : (runs[activeThreadId] ?? null)
+  const isRunning = activeRun !== null && !activeRun.ended
 
   const createThreadMutation = useMutation({
     mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
@@ -281,41 +312,23 @@ export function useChatRuntime({
       if (threadId === activeThreadId) {
         return
       }
-      streamController.current?.abort()
       requestVersion.current += 1
       setConversationView({ status: "active", threadId })
       rememberThread(workspaceId, threadId)
-      setLiveMessages(null)
-      setChatErrors({})
-      setStoppedReplies(new Set())
-      setApprovals([])
-      setIsRunning(false)
-      setAutoNamingThreadId(null)
+      setUnreadThreadIds(markRead(workspaceId, threadId))
+      setAutoNaming(null)
       setAnimatingTitleThreadId(null)
     },
-    [activeThreadId, workspaceId]
+    [activeThreadId, setAutoNaming, workspaceId]
   )
 
-  useEffect(() => {
-    return () => {
-      streamController.current?.abort()
-      requestVersion.current += 1
-    }
-  }, [])
-
   const startNewChat = useCallback(() => {
-    streamController.current?.abort()
     requestVersion.current += 1
     setConversationView({ status: "new" })
     rememberThread(workspaceId, null)
-    setLiveMessages(null)
-    setChatErrors({})
-    setStoppedReplies(new Set())
-    setApprovals([])
-    setIsRunning(false)
-    setAutoNamingThreadId(null)
+    setAutoNaming(null)
     setAnimatingTitleThreadId(null)
-  }, [workspaceId])
+  }, [setAutoNaming, workspaceId])
 
   useEffect(() => {
     if (!threadsQuery.isSuccess) return
@@ -334,12 +347,175 @@ export function useChatRuntime({
     threadsQuery.isSuccess,
   ])
 
+  // A run ended: the stored turns take over once they hold the reply, and a
+  // thread that finished while another was open is marked unread.
+  useEffect(
+    () =>
+      onRunEnded((threadId) => {
+        const run = liveRun(threadId)
+        // Not always this page's: a run keeps going when another workspace
+        // opens, and its thread is marked in its own.
+        const runWorkspaceId = run?.workspaceId ?? workspaceId
+        // This window saw it end; the list need not be read again to know.
+        queryClient.setQueryData<ChatThread[]>(
+          chatKeys.threads(runWorkspaceId),
+          (current) =>
+            current?.map((thread) =>
+              thread.id === threadId
+                ? { ...thread, running: false, run_state: null }
+                : thread
+            )
+        )
+        // A turn that ended asks nothing more.
+        setApprovalsByThread((all) => {
+          if (!all[threadId]) return all
+          const rest = { ...all }
+          delete rest[threadId]
+          return rest
+        })
+        if (runWorkspaceId !== workspaceId) {
+          markUnread(runWorkspaceId, threadId)
+        } else if (threadId !== activeThreadIdRef.current) {
+          setUnreadThreadIds(markUnread(workspaceId, threadId))
+        }
+        void (async () => {
+          const canonical = await queryClient
+            .fetchQuery({
+              queryKey: chatKeys.messages(threadId),
+              queryFn: ({ signal }) => listMessages(threadId, signal),
+              staleTime: 0,
+            })
+            .catch(() => null)
+          // A run started while that read was out is not this one to drop;
+          // its own end reads the turns again.
+          if (!stillTheEndedRun(threadId, run)) return
+          if (!run?.pair) {
+            dropRun(threadId)
+          } else if (canonical && storedTurnCaughtUp(canonical, run.pair)) {
+            dropRun(threadId)
+          } else if (stoppedBeforeAWord(run.pair)) {
+            // The API keeps nothing of a reply stopped before its first word.
+            dropRun(threadId)
+          } else if (!isOptimistic(run.pair[1].id)) {
+            // Read before the store caught up: read again, and the live copy
+            // goes once the stored turns hold it. A thread that is not open
+            // has nothing reading it again, so it is read here, or its run
+            // would stay until the thread is opened.
+            const open = threadId === activeThreadIdRef.current
+            await queryClient
+              .invalidateQueries({
+                queryKey: chatKeys.messages(threadId),
+                refetchType: open ? "active" : "all",
+              })
+              .catch(() => undefined)
+            const stored = queryClient.getQueryData<ChatMessage[]>(
+              chatKeys.messages(threadId)
+            )
+            if (
+              !open &&
+              stored &&
+              stillTheEndedRun(threadId, run) &&
+              storedTurnCaughtUp(stored, run.pair)
+            ) {
+              dropRun(threadId)
+            }
+          }
+          // An optimistic pair is a request that never reached the API; its
+          // error stays on screen until the person moves on.
+        })()
+      }),
+    [queryClient, workspaceId]
+  )
+
+  useEffect(() => {
+    if (activeThreadId === null || !activeRun?.ended) return
+    const run = liveRun(activeThreadId)
+    if (run?.pair && storedTurnCaughtUp(persistedMessages, run.pair)) {
+      dropRun(activeThreadId)
+    }
+  }, [activeRun, activeThreadId, persistedMessages])
+
+  // Frames the reply itself does not hold: a new title, and the agent's asks.
+  useEffect(
+    () =>
+      onRunFrame((threadId, event: ChatStreamEvent) => {
+        if (event.type === "thread-title-update") {
+          setAutoNaming(null)
+          setAnimatingTitleThreadId(threadId)
+          // In the run's own list, as its end marks it unread there.
+          queryClient.setQueryData<ChatThread[]>(
+            chatKeys.threads(liveRun(threadId)?.workspaceId ?? workspaceId),
+            (current = []) =>
+              current.map((thread) =>
+                thread.id === threadId
+                  ? { ...thread, title: event.title }
+                  : thread
+              )
+          )
+        } else if (event.type === "delta") {
+          if (autoNamingRef.current === threadId) setAutoNaming(null)
+        } else if (event.type === "permission-request") {
+          const { id, permission, patterns, command } = event
+          setApprovalsByThread((all) => {
+            const current = all[threadId] ?? []
+            return current.some((waiting) => waiting.id === id)
+              ? all
+              : {
+                  ...all,
+                  [threadId]: [
+                    ...current,
+                    { id, permission, patterns, command },
+                  ],
+                }
+          })
+        } else if (event.type === "permission-replied") {
+          setApprovalsByThread((all) =>
+            withoutApproval(all, threadId, event.id)
+          )
+        }
+      }),
+    [queryClient, setAutoNaming, workspaceId]
+  )
+
+  // Another window, or this one after a reload, may have started a run: the
+  // list says so, and the thread's reply is followed from its first frame.
+  useEffect(
+    () =>
+      subscribeToWorkspaceChanges(workspaceId, "chat-runs", (change) => {
+        void queryClient.invalidateQueries({
+          queryKey: chatKeys.threads(workspaceId),
+        })
+        if (change?.status !== "done") return
+        for (const threadId of change.ids) {
+          if (liveRun(threadId)) continue
+          if (threadId === activeThreadIdRef.current) {
+            void queryClient.invalidateQueries({
+              queryKey: chatKeys.messages(threadId),
+            })
+          } else {
+            setUnreadThreadIds(markUnread(workspaceId, threadId))
+          }
+        }
+      }),
+    [queryClient, workspaceId]
+  )
+
+  useEffect(() => {
+    if (activeThread === null || !activeThread.running) return
+    if (liveRun(activeThread.id)) return
+    const threadId = activeThread.id
+    const signal = beginRun(threadId, { workspaceId })
+    void pump(threadId, followRun(threadId, 0, signal)).catch(() => undefined)
+  }, [activeThread, workspaceId])
+
   const removeThread = async (threadId: number) => {
     try {
       await deleteThreadMutation.mutateAsync(threadId)
+      dropRun(threadId)
       const next = threads.filter((thread) => thread.id !== threadId)
       queryClient.setQueryData(chatKeys.threads(workspaceId), next)
       queryClient.removeQueries({ queryKey: chatKeys.messages(threadId) })
+      setUnreadThreadIds(markRead(workspaceId, threadId))
       if (activeThreadId === threadId) {
         if (next[0]) {
           selectThread(next[0].id)
@@ -388,7 +564,12 @@ export function useChatRuntime({
   }
 
   const send = useCallback(
-    async (typed: string, images: ImageUpload[] = []) => {
+    async (
+      typed: string,
+      images: ImageUpload[] = [],
+      retryOf: number | null = null,
+      replaces: ReadonlyArray<number | string> = []
+    ) => {
       // The backend needs a question for retrieval and the title; an image sent
       // alone asks the obvious one.
       const text =
@@ -408,33 +589,23 @@ export function useChatRuntime({
         return
       }
 
-      const controller = new AbortController()
-      streamController.current?.abort()
-      streamController.current = controller
       const version = ++requestVersion.current
-      setIsRunning(true)
-
       let threadId =
         conversationView.status === "active" ? conversationView.threadId : null
-      let userMessageId: number | string | null = null
-      let assistantMessageId: number | string | null = null
-      // Declared here (not inside the try) so the catch block below can still
-      // attach a failure to the right message, whether or not "accepted" ever
-      // remapped these to real ids.
-      let userId: number | string = `optimistic-user-${version}`
-      let assistantId: number | string = `optimistic-assistant-${version}`
-      inFlightReply.current = String(assistantId)
+      let usesAgent =
+        threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
-            signal: controller.signal,
+            signal: new AbortController().signal,
           })
           if (requestVersion.current !== version) {
             return
           }
           threadId = thread.id
+          usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(
             chatKeys.threads(workspaceId),
             (current = []) => [
@@ -444,301 +615,109 @@ export function useChatRuntime({
           )
           queryClient.setQueryData(chatKeys.messages(thread.id), EMPTY_MESSAGES)
           setConversationView({ status: "active", threadId: thread.id })
-          setAutoNamingThreadId(thread.id)
+          setAutoNaming(thread.id)
           rememberThread(workspaceId, thread.id)
         }
-
-        const currentMessages =
-          queryClient.getQueryData<ChatMessage[]>(
-            chatKeys.messages(threadId)
-          ) ?? EMPTY_MESSAGES
-        setLiveMessages([
-          ...currentMessages,
-          {
-            id: userId,
-            role: "user",
-            content: {
-              text,
-              ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
-            },
-            created_at: null,
-            completed_at: null,
-          },
-          {
-            id: assistantId,
-            role: "assistant",
-            content: { text: "", citations: [] },
-            created_at: null,
-            completed_at: null,
-          },
-        ])
-
-        await streamMessage(
-          threadId,
-          text,
-          images,
-          selectedDocumentIds,
-          !canSkipThinking || readThinkingOn(),
-          controller.signal,
-          (event) => {
-            if (requestVersion.current !== version) {
-              return
-            }
-            if (event.type === "accepted") {
-              const previousUserId = userId
-              const previousAssistantId = assistantId
-              const nextUserId = event.user_message_id
-              const nextAssistantId = event.assistant_message_id
-              userMessageId = nextUserId
-              assistantMessageId = nextAssistantId
-              userId = nextUserId
-              assistantId = nextAssistantId
-              inFlightReply.current = String(nextAssistantId)
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) => {
-                    if (message.id === previousUserId) {
-                      return {
-                        ...message,
-                        id: nextUserId,
-                        created_at: event.user_created_at,
-                      }
-                    }
-                    if (message.id === previousAssistantId) {
-                      return { ...message, id: nextAssistantId }
-                    }
-                    return message
-                  }) ?? null
-              )
-            } else if (event.type === "completed") {
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          completed_at: event.assistant_completed_at,
-                          content: {
-                            ...message.content,
-                            ...(event.text !== undefined
-                              ? { text: event.text }
-                              : {}),
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "thread-title-update") {
-              setAutoNamingThreadId(null)
-              setAnimatingTitleThreadId(threadId)
-              queryClient.setQueryData<ChatThread[]>(
-                chatKeys.threads(workspaceId),
-                (current = []) =>
-                  current.map((thread) =>
-                    thread.id === threadId
-                      ? { ...thread, title: event.title }
-                      : thread
-                  )
-              )
-            } else if (
-              event.type === "citation-catalog" ||
-              event.type === "citations"
-            ) {
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            citations: event.items,
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "prompt-progress") {
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            progress: {
-                              processed: event.processed,
-                              total: event.total,
-                            },
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "reasoning") {
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            reasoning: {
-                              text:
-                                (message.content.reasoning?.text ?? "") +
-                                event.text,
-                              duration_ms: null,
-                            },
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "reasoning-end") {
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId && message.content.reasoning
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            reasoning: {
-                              ...message.content.reasoning,
-                              duration_ms: event.duration_ms,
-                            },
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "delta") {
-              setAutoNamingThreadId(null)
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            text: (message.content.text ?? "") + event.text,
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "agent-step") {
-              const step = stepFrom(event)
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            steps: withStep(message.content.steps, step),
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "permission-request") {
-              const request = requestFrom(event)
-              setApprovals((current) =>
-                current.some((waiting) => waiting.id === request.id)
-                  ? current
-                  : [...current, request]
-              )
-            } else if (event.type === "permission-replied") {
-              setApprovals((current) =>
-                current.filter((waiting) => waiting.id !== event.id)
-              )
-            } else if (event.type === "error") {
-              const failedId = assistantId
-              setChatErrors((current) => ({
-                ...current,
-                [String(failedId)]: {
-                  kind: event.kind,
-                  message: event.message,
-                  provider: event.provider,
-                  retryText: text,
-                  retryImages: images,
-                },
-              }))
-            }
-          }
-        )
-
-        if (
-          requestVersion.current === version &&
-          userMessageId !== null &&
-          assistantMessageId !== null
-        ) {
-          const completedThreadId = threadId
-          const canonical = await queryClient.fetchQuery({
-            queryKey: chatKeys.messages(completedThreadId),
-            queryFn: ({ signal }) => listMessages(completedThreadId, signal),
-            staleTime: 0,
-          })
-          if (
-            requestVersion.current === version &&
-            hasCanonicalTurn(canonical, userMessageId, assistantMessageId)
-          ) {
-            setLiveMessages(null)
-          } else {
-            void queryClient.invalidateQueries({
-              queryKey: chatKeys.messages(completedThreadId),
-            })
-          }
-        }
       } catch (cause) {
-        if (threadId === null && requestVersion.current === version) {
+        if (requestVersion.current === version) {
           setConversationView({ status: "new" })
         }
+        errorToast(messageFrom(cause))
+        return
+      }
+
+      const runThreadId = threadId
+      const signal = beginRun(runThreadId, {
+        workspaceId,
+        pair: optimisticPair(
+          version,
+          text,
+          images,
+          // The agent works from these alone; a chat's turn shows no line.
+          usesAgent
+            ? {
+                document_ids: selectedDocumentIds,
+                titles: selectedSourceTitles,
+              }
+            : null
+        ),
+        replaces,
+        retry: { text, images },
+      })
+      try {
+        await pump(
+          runThreadId,
+          streamMessage(
+            runThreadId,
+            text,
+            images,
+            selectedDocumentIds,
+            sourceScope,
+            !canSkipThinking || readThinkingOn(),
+            retryOf,
+            signal
+          )
+        )
+      } catch (cause) {
         if (
           cause instanceof ApiError &&
           cause.status === 409 &&
           cause.message.includes("no chat model selected")
         ) {
+          dropRun(runThreadId)
           onModelRequired()
-        } else if (isAbort(cause) && threadId !== null) {
-          void queryClient.invalidateQueries({
-            queryKey: chatKeys.messages(threadId),
-          })
-        } else if (!isAbort(cause) && requestVersion.current === version) {
+        } else if (isOutdatedThreadRefusal(cause)) {
+          updatePair(runThreadId, ([user, assistant]) => [
+            user,
+            {
+              ...assistant,
+              content: {
+                ...assistant.content,
+                ending: {
+                  type: "error",
+                  kind: "agent_thread_outdated",
+                  message: "",
+                },
+              },
+            },
+          ])
+        } else if (isUnsupportedModelRefusal(cause)) {
+          updatePair(runThreadId, ([user, assistant]) => [
+            user,
+            {
+              ...assistant,
+              content: {
+                ...assistant.content,
+                ending: {
+                  type: "error",
+                  kind: "agent_model_unsupported",
+                  message: "",
+                },
+              },
+            },
+          ])
+        } else if (!isAbort(cause)) {
           // The request to our own backend failed before any SSE frame could
           // classify it (network drop, bad response, etc.) — "unknown" maps
           // to a plain Retry, with no Model setup CTA that wouldn't apply.
-          setChatErrors((current) => ({
-            ...current,
-            [String(assistantId)]: {
-              kind: "unknown",
-              message: cause instanceof Error ? cause.message : "",
-              provider: "",
-              retryText: text,
-              retryImages: images,
-              detailIsLocal: true,
+          updatePair(runThreadId, ([user, assistant]) => [
+            user,
+            {
+              ...assistant,
+              content: {
+                ...assistant.content,
+                ending: {
+                  type: "error",
+                  kind: "unknown",
+                  message: cause instanceof Error ? cause.message : "",
+                  local: true,
+                },
+              },
             },
-          }))
+          ])
         }
       } finally {
-        if (requestVersion.current === version) {
-          setIsRunning(false)
-          setAutoNamingThreadId(null)
-          // A request outlives its turn only on screen: opencode dropped it.
-          setApprovals([])
-        }
+        if (autoNamingRef.current === runThreadId) setAutoNaming(null)
       }
     },
     [
@@ -750,6 +729,10 @@ export function useChatRuntime({
       onModelRequired,
       queryClient,
       selectedDocumentIds,
+      selectedSourceTitles,
+      setAutoNaming,
+      sourceScope,
+      threads,
       workspaceId,
     ]
   )
@@ -762,21 +745,61 @@ export function useChatRuntime({
 
   const retry = useCallback(
     (assistantId: string) => {
-      const failed = chatErrors[assistantId]
-      if (!failed) return
-      void send(failed.retryText, failed.retryImages)
+      if (activeThreadId === null) return
+      const threadId = activeThreadId
+      const held = liveRun(threadId)
+      // Read when asked, not held from a render: a streamed token would
+      // otherwise make a new Retry for every message in the thread.
+      const shown = composedThread(
+        queryClient.getQueryData<ChatMessage[]>(chatKeys.messages(threadId)) ??
+          EMPTY_MESSAGES,
+        held?.pair ?? null,
+        held?.replaces ?? []
+      )
+      const index = shown.findIndex(
+        (message) => String(message.id) === assistantId
+      )
+      const failed = shown[index]
+      const question = shown[index - 1]
+      const latest = shown.findLast((message) => message.role === "assistant")
+      if (!failed || question?.role !== "user" || latest !== failed) {
+        return
+      }
+      void (async () => {
+        const images =
+          held?.retry && held.pair && String(held.pair[1].id) === assistantId
+            ? held.retry.images
+            : await storedUploads(threadId, question).catch(() => [])
+        // A stored failure is replaced in place; an agent's turns, and a
+        // request that never reached the API, are simply sent again.
+        const retryOf =
+          activeThread?.uses_agent || typeof failed.id !== "number"
+            ? null
+            : failed.id
+        await send(question.content.text ?? "", images, retryOf, [
+          question.id,
+          failed.id,
+        ])
+      })()
     },
-    [chatErrors, send]
+    [activeThread, activeThreadId, queryClient, send]
   )
 
   const cancel = useCallback(async () => {
-    const stopped = inFlightReply.current
-    if (stopped !== null) {
-      setStoppedReplies((current) => new Set(current).add(stopped))
+    const threadId = activeThreadIdRef.current
+    if (threadId === null) return
+    updatePair(threadId, ([user, assistant]) => [
+      user,
+      {
+        ...assistant,
+        content: { ...assistant.content, ending: { type: "stopped" } },
+      },
+    ])
+    try {
+      await stopRun(threadId)
+    } catch (cause) {
+      errorToast(messageFrom(cause))
     }
-    streamController.current?.abort()
-    setIsRunning(false)
-    setAutoNamingThreadId(null)
   }, [])
 
   const answerApproval = useCallback(
@@ -784,8 +807,8 @@ export function useChatRuntime({
       if (activeThreadId === null) return
       try {
         await answerPermission(activeThreadId, request.id, reply)
-        setApprovals((current) =>
-          current.filter((waiting) => waiting.id !== request.id)
+        setApprovalsByThread((all) =>
+          withoutApproval(all, activeThreadId, request.id)
         )
       } catch (cause) {
         errorToast(
@@ -806,7 +829,7 @@ export function useChatRuntime({
 
   const isLoadingThreads = threadsQuery.isPending
   const isLoadingMessages =
-    activeThreadId !== null && !usesLiveMessages && messagesQuery.isPending
+    activeThreadId !== null && !activeRun?.hasPair && messagesQuery.isPending
 
   useEffect(() => {
     if (threadsQuery.error) {
@@ -841,32 +864,45 @@ export function useChatRuntime({
     [readsImages]
   )
 
-  const runtime = useExternalStoreRuntime<ChatMessage>({
-    messages: threadMessages,
-    convertMessage: (message) =>
-      toRuntimeMessage(message, chatErrors, stoppedReplies, activeThreadId),
-    adapters,
-    onNew,
-    isRunning,
-    isSendDisabled: !canSend || isLoadingMessages || isLoadingThreads,
-    onCancel: cancel,
-  })
-
-  const activeThread = useMemo(
-    () => threads.find((thread) => thread.id === activeThreadId) ?? null,
-    [activeThreadId, threads]
+  const isSendDisabled = !canSend || isLoadingMessages || isLoadingThreads
+  // For LiveThreadRuntime, which turns it and the run into the open thread.
+  const liveThread = useMemo<LiveThreadSource>(
+    () => ({
+      threadId: activeThreadId,
+      persistedMessages,
+      adapters,
+      isSendDisabled,
+      onNew,
+      onCancel: cancel,
+    }),
+    [activeThreadId, adapters, cancel, isSendDisabled, onNew, persistedMessages]
   )
 
+  // Where each thread's reply stands: what the list says, sharpened by what
+  // this window follows itself, which hears each change first.
+  const runStates = useMemo(() => {
+    const states: Record<number, RunState> = {}
+    for (const thread of threads) {
+      const listed = listedRunState(thread)
+      if (listed) states[thread.id] = listed
+    }
+    for (const [threadId, run] of Object.entries(runs)) {
+      if (!run.ended) states[Number(threadId)] = run.state
+    }
+    return states
+  }, [threads, runs])
+
   return {
-    runtime,
+    liveThread,
     threads,
     conversationView,
     activeThread,
     activeThreadId,
-    messages: threadMessages,
     isLoadingThreads,
     isLoadingMessages,
     isRunning,
+    runStates,
+    unreadThreadIds,
     autoNamingThreadId,
     animatingTitleThreadId,
     finishTitleAnimation,

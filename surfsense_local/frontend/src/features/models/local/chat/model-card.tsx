@@ -111,7 +111,7 @@ export function ModelCard({
             </span>
           </div>
           {row.runnable ? (
-            <FitReason copy={lead.badge} />
+            <FitReason fit={lead.fit} copy={lead.badge} />
           ) : (
             <p className="text-xs text-muted-foreground">
               {row.not_runnable_reason}

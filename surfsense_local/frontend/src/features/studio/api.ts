@@ -1,5 +1,6 @@
 import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 import type { DocumentStatus } from "@/features/sources/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import type { ModelType } from "@/features/models/model-type"
 
 export type StudioFormat = {
@@ -12,6 +13,14 @@ export type StudioFormat = {
   unavailable_code?: string | null
 }
 
+/** Where an artifact sits in its document's line of versions. Each version is
+ *  its own artifact; the first one is the root (07-create-and-edit-mvp). */
+export type ArtifactVersion = {
+  root_id: number
+  number: number
+  parent_id: number | null
+}
+
 export type Artifact = {
   id: number
   document_id: number
@@ -22,6 +31,12 @@ export type Artifact = {
   error_message: string | null
   created_at: string
   updated_at: string
+  /** Null for an artifact made in one go, with no versions. */
+  version: ArtifactVersion | null
+  /** What the artifact is rendered from, kept so an edit can change it. */
+  spec_kind: "python" | "markdown" | null
+  /** A ready Word or PDF version Studio made, which Refine may rewrite. */
+  refinable: boolean
 }
 
 export type ArtifactFile = {
@@ -55,16 +70,38 @@ export type FlashcardState = {
   order: number[]
 }
 
+/** What a revised copy of the user's file came from and holds. `counts` are
+ *  a Word version's tracked changes and comments, null for a workbook or a
+ *  deck; `applied` is null for a version that accepted or rejected all. */
+export type Revision = {
+  derived_from_document_id: number | null
+  source_name: string
+  counts: { changes: number; comments: number } | null
+  applied: number | null
+}
+
 export type ArtifactDetail = Artifact & {
   content: string | null
   files: ArtifactFile[]
   quiz_state: QuizState | null
   flashcard_state: FlashcardState | null
+  /** Absent from an older backend, null for anything but a revised copy. */
+  revision?: Revision | null
 }
+
+/** Only a Word copy holds tracked changes, comments and a clean file. */
+export function isWordCopy(revision: Revision): boolean {
+  return revision.source_name.toLowerCase().endsWith(".docx")
+}
+
+export type RevisionDecision = "accept_all" | "reject_all"
+export type RevisedCopyVariant = "changes" | "clean"
 
 export type StudioJobCreate = {
   format: string
   document_ids: number[]
+  // What the server resolves into the job's sources, folders included.
+  source_scope?: SourceScope
   prompt?: string
   options?: PodcastBrief
 }
@@ -186,6 +223,35 @@ export function regenerateArtifact(
   })
 }
 
+/** Makes the next version of a document from its spec rewritten to the
+ *  instruction; the answer is that version, still running. */
+export function refineArtifact(
+  artifactId: number,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/refine`, {
+    method: "POST",
+    body: JSON.stringify({ instruction }),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
+/** Makes a revised copy's next version with every tracked change accepted or
+ *  rejected; the answer is that version, still running. */
+export function decideAllRevisions(
+  artifactId: number,
+  decision: RevisionDecision,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  const path = decision === "accept_all" ? "accept-all" : "reject-all"
+  return requestJson<Artifact>(`/artifacts/${artifactId}/revisions/${path}`, {
+    method: "POST",
+    signal,
+  })
+}
+
 export function cancelArtifact(
   artifactId: number,
   signal?: AbortSignal
@@ -294,11 +360,16 @@ export function reorderFlashcards(
 
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the
 // fetch helper injects itself.
+/** The generation is in the URL so a regenerated file is a new resource: an
+ *  `<img>` or `<audio>` would otherwise keep showing the cached one. */
 export function fileUrl(
   artifactId: number,
-  role: ArtifactFile["role"]
+  role: ArtifactFile["role"],
+  generation: number
 ): string {
-  return apiUrl(`/artifacts/${artifactId}/files/${role}`)
+  return apiUrl(
+    `/artifacts/${artifactId}/files/${role}?generation=${generation}`
+  )
 }
 
 /** The same file, sent as an attachment. The API is another origin than the
@@ -308,5 +379,16 @@ export function downloadUrl(
   artifactId: number,
   role: ArtifactFile["role"]
 ): string {
-  return `${fileUrl(artifactId, role)}?download=1`
+  return apiUrl(`/artifacts/${artifactId}/files/${role}?download=1`)
+}
+
+/** A revised copy's file as an attachment, named after the user's file with
+ *  `suffix`, which the API cannot translate: "MSA (revised v2).docx". */
+export function revisedCopyDownloadUrl(
+  artifactId: number,
+  variant: RevisedCopyVariant,
+  suffix: string
+): string {
+  const query = new URLSearchParams({ variant, suffix })
+  return apiUrl(`/artifacts/${artifactId}/revised-copy/download?${query}`)
 }

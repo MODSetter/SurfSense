@@ -2,6 +2,7 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { intl } from "@/i18n/intl"
 import { render } from "@/test-utils"
 
 import { ChatsDialog } from "./chats-dialog"
@@ -157,5 +158,91 @@ describe("ChatsDialog", () => {
     expect(search.value).toBe("")
     expect(document.activeElement).toBe(search)
     expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
+})
+
+describe("ChatsDialog, with replies running", () => {
+  const threads = [1, 2, 3, 4, 5].map((id) => ({
+    id,
+    workspace_id: 1,
+    title: `Thread ${id}`,
+    uses_agent: false,
+    created_at: "2026-10-05T00:00:00Z",
+    updated_at: "2026-10-05T00:00:00Z",
+  }))
+
+  it("says which threads are writing, waiting, need approval, or have a reply not yet read", () => {
+    render(
+      <ChatsDialog
+        {...baseProps()}
+        threads={threads}
+        runStates={{
+          1: { state: "running" },
+          2: { state: "queued", position: 1 },
+          4: { state: "needs-approval" },
+        }}
+        unreadThreadIds={[3]}
+      />
+    )
+
+    // What a screen reader hears after the title.
+    const description = (name: string) =>
+      (
+        screen.getByRole("button", { name }).getAttribute("aria-describedby") ??
+        ""
+      )
+        .split(" ")
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(" ")
+    expect(description("Thread 1")).toMatch(/^Writing a reply /)
+    expect(description("Thread 2")).toMatch(
+      /^Waiting for another reply \(1st in line\) /
+    )
+    expect(description("Thread 3")).toMatch(/^New reply /)
+    expect(description("Thread 4")).toMatch(/^Waiting for your approval /)
+    expect(description("Thread 5")).not.toMatch(/Writing|Waiting|New reply/)
+  })
+})
+
+describe("ChatsDialog, closed", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it("builds no row while closed, and every row once opened", () => {
+    const threads = Array.from({ length: 50 }, (_, index) => ({
+      id: index + 1,
+      workspace_id: 1,
+      title: `Thread ${index + 1}`,
+      uses_agent: false,
+      created_at: "2026-10-05T00:00:00Z",
+      updated_at: "2026-10-05T00:00:00Z",
+    }))
+    const formatted = vi.spyOn(intl, "formatMessage")
+    // Each row names its actions button.
+    const rowsBuilt = () =>
+      formatted.mock.calls.filter(
+        ([descriptor]) =>
+          (descriptor as { id?: string }).id ===
+          "chat_chats_dialog_row_actions_aria"
+      ).length
+    const view = render(
+      <ChatsDialog {...baseProps()} open={false} threads={threads} />
+    )
+    // A reply streaming elsewhere hands the sidebar new run states.
+    view.rerender(
+      <ChatsDialog
+        {...baseProps()}
+        open={false}
+        threads={threads}
+        runStates={{ 7: { state: "running" } }}
+      />
+    )
+    expect(rowsBuilt()).toBe(0)
+
+    view.rerender(<ChatsDialog {...baseProps()} threads={threads} />)
+
+    expect(
+      screen.getAllByRole("button", { name: /^Actions for Thread/ })
+    ).toHaveLength(50)
+    expect(rowsBuilt()).toBeGreaterThanOrEqual(50)
   })
 })

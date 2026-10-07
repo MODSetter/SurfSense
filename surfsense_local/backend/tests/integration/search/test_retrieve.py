@@ -7,6 +7,8 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentType
+from modules.source_scope.resolve import ResolvedScope
+from modules.source_scope.schemas import ScopeCounts
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
 from shared.search import CANDIDATES, retrieve
@@ -161,10 +163,10 @@ def test_a_crowded_neighbour_workspace_does_not_reorder_mine(
 ) -> None:
     """Another workspace's documents must not decide what mine ranks first.
 
-    KNN takes the global nearest `CANDIDATES` before the workspace filter runs,
-    so a neighbour holding that many closer chunks leaves my own notes out of
-    the semantic leg. Scored as cosine zero rather than unmeasured, the note
-    that merely carries more of the query's words wins.
+    A neighbour holding `CANDIDATES` closer chunks once left my own notes out
+    of the semantic leg, which took the global nearest before filtering. Scored
+    as cosine zero rather than unmeasured, the note that merely carries more of
+    the query's words won.
     """
     query = "a cat napping in sunlight"
     with create_session_factory(engine)() as session:
@@ -208,3 +210,53 @@ def test_an_empty_document_selection_returns_nothing(engine: Engine) -> None:
     """An explicit empty selection short-circuits before loading the model."""
     with create_session_factory(engine)() as session:
         assert retrieve(session, 1, "anything", document_ids=[]) == []
+
+
+def test_the_semantic_leg_reaches_my_notes_past_a_crowded_neighbour(
+    engine: Engine, real_model: object
+) -> None:
+    """The nearest chunks are taken within the workspace, not across every one.
+
+    The neighbour holds more near chunks than the leg proposes, and my note
+    shares no word with the question, so only meaning can find it.
+    """
+    query = "a cat napping in sunlight"
+    with create_session_factory(engine)() as session:
+        mine = Workspace(name="Mine")
+        neighbour = Workspace(name="Neighbour")
+        session.add_all([mine, neighbour])
+        session.flush()
+        for _ in range(CANDIDATES):
+            _ingest(session, neighbour.id, query)
+        cat = _ingest(session, mine.id, DOCS["cat"])
+
+        hits = retrieve(session, mine.id, query)
+
+        assert [hit.document_id for hit in hits] == [cat]
+
+
+def test_a_narrow_scope_in_a_big_library_finds_a_paraphrase(
+    engine: Engine, real_model: object
+) -> None:
+    """A one-document scope still gets semantic candidates from that document."""
+    query = "a cat napping in sunlight"
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="Library")
+        session.add(workspace)
+        session.flush()
+        for _ in range(CANDIDATES + 5):
+            _ingest(session, workspace.id, query)
+        cat = _ingest(session, workspace.id, DOCS["cat"])
+        scope = ResolvedScope(ids=[cat], counts=ScopeCounts(ready=1))
+
+        hits = retrieve(session, workspace.id, query, scope=scope)
+
+        assert [hit.document_id for hit in hits] == [cat]
+
+
+def test_an_empty_scope_returns_nothing(engine: Engine) -> None:
+    """A scope with nothing ready short-circuits before loading the model."""
+    with create_session_factory(engine)() as session:
+        empty = ResolvedScope(ids=[], counts=ScopeCounts())
+
+        assert retrieve(session, 1, "anything", scope=empty) == []

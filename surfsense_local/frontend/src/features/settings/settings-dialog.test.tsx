@@ -96,8 +96,8 @@ describe("SettingsDialog", () => {
         "Video",
         "Embedding",
       ],
-      System: ["Resources", "Network"],
-      App: ["About", "Report issue"],
+      System: ["Resources", "Office support", "Network"],
+      App: ["Report issue", "About"],
     }
     for (const [group, sections] of Object.entries(groups)) {
       const nav = screen.getByRole("navigation", { name: group })

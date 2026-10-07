@@ -16,6 +16,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from modules.llm.providers.sse_lines import sse_lines
+
 logger = logging.getLogger(__name__)
 
 # No read timeout: this stream is idle whenever nothing is loading, which is
@@ -53,7 +55,7 @@ async def watch_models(
         client.stream("GET", "/models/sse") as reply,
     ):
         reply.raise_for_status()
-        async for line in reply.aiter_lines():
+        async for line in sse_lines(reply):
             progress = _progress(line)
             if progress is not None:
                 yield progress

@@ -1,12 +1,14 @@
 import shutil
 from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from api.dependencies import SessionDep
-from modules.artifacts.dependencies import ArtifactDep
+from api.dependencies import SessionDep, transact
+from modules.artifacts.dependencies import ArtifactDep, get_artifact
 from modules.artifacts.flashcard_progress import (
     apply_flashcard_mark,
     apply_flashcard_order,
@@ -20,6 +22,15 @@ from modules.artifacts.quiz_progress import (
     apply_quiz_skip,
     read_quiz_questions,
 )
+from modules.artifacts.revised_copies.decide_all import Decision, decide_all
+from modules.artifacts.revised_copies.downloads import (
+    DownloadUnavailableError,
+    Variant,
+    revised_download,
+)
+from modules.artifacts.revised_copies.refusals import RevisedCopyRefusedError
+from modules.artifacts.revised_copies.rerun import rerun_revised_copy
+from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.schemas import (
     ArtifactDetail,
     ArtifactRead,
@@ -39,6 +50,8 @@ from modules.artifacts.service import (
     list_formats,
     regenerate_artifact,
 )
+from modules.artifacts.studio_documents.fits import require_rewrite_fits
+from modules.artifacts.studio_documents.recipe import Refinement, refinement
 from modules.documents.models import Document, DocumentType
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.workspaces.dependencies import WorkspaceDep
@@ -110,7 +123,25 @@ def read_artifact(artifact: ArtifactDep) -> ArtifactDetail:
     status_code=status.HTTP_202_ACCEPTED,
     summary="Generate a finished or failed artifact again",
 )
-def regenerate(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+async def regenerate(artifact_id: int, session: SessionDep) -> ArtifactRead:
+    # A refine's Retry asks for the same rewrite, of the model selected now.
+    rewrite = await transact(session, _rewrite_to_repeat, artifact_id)
+    if rewrite is not None:
+        await require_rewrite_fits(session, artifact_id, rewrite)
+    return await transact(session, _regenerate, artifact_id)
+
+
+def _rewrite_to_repeat(session: Session, artifact_id: int) -> Refinement | None:
+    return refinement(get_artifact(artifact_id, session).artifact_metadata)
+
+
+def _regenerate(session: Session, artifact_id: int) -> ArtifactRead:
+    artifact = get_artifact(artifact_id, session)
+    if revision_of(artifact.artifact_metadata) is not None:
+        try:
+            return ArtifactRead.of(rerun_revised_copy(session, artifact))
+        except RevisedCopyRefusedError as refused:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from refused
     return ArtifactRead.of(regenerate_artifact(session, artifact))
 
 
@@ -156,6 +187,63 @@ def read_artifact_file(
             "attachment" if download or mime_type in _INLINE_UNSAFE else "inline"
         ),
     )
+
+
+@router.get(
+    "/artifacts/{artifact_id}/revised-copy/download",
+    response_class=FileResponse,
+    summary="Download a revised copy with its changes, or clean",
+)
+def download_revised_copy(
+    artifact: ArtifactDep,
+    session: SessionDep,
+    variant: Variant = "changes",
+    suffix: Annotated[str | None, Query(max_length=80)] = None,
+) -> FileResponse:
+    """`suffix` is the name's translated word ("revised", "clean"): the interface
+    translates, the API does not (ADR 0030)."""
+    try:
+        download = revised_download(artifact, variant, suffix)
+    except DownloadUnavailableError as missing:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(missing)) from missing
+    session.commit()  # no write lock held while the file streams
+    return FileResponse(
+        download.path,
+        filename=download.filename,
+        media_type=download.mime,
+        content_disposition_type="attachment",
+    )
+
+
+@router.post(
+    "/artifacts/{artifact_id}/revisions/accept-all",
+    dependencies=[EMBEDDER_CHOSEN],
+    response_model=ArtifactRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Make the next version with every tracked change accepted",
+)
+def accept_all_revisions(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+    return _decide_all(session, artifact, "accept_all")
+
+
+@router.post(
+    "/artifacts/{artifact_id}/revisions/reject-all",
+    dependencies=[EMBEDDER_CHOSEN],
+    response_model=ArtifactRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Make the next version with every tracked change rejected",
+)
+def reject_all_revisions(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+    return _decide_all(session, artifact, "reject_all")
+
+
+def _decide_all(session: Session, artifact: Artifact, action: Decision) -> ArtifactRead:
+    try:
+        made = decide_all(session, artifact, action)
+    except RevisedCopyRefusedError as refused:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, str(refused)) from refused
+    return ArtifactRead.of(made)
 
 
 def _require_quiz(artifact: Artifact) -> None:

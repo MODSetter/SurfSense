@@ -1,7 +1,18 @@
-import { useRef, useState, type SubmitEvent } from "react"
+import {
+  memo,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+  type SubmitEvent,
+} from "react"
 
 import {
+  CircleAlertIcon,
+  ClockIcon,
   EllipsisIcon,
+  Loader2Icon,
   PencilEdit02Icon,
   PencilIcon,
   SearchIcon,
@@ -40,6 +51,7 @@ import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
 import type { ChatThread } from "./api"
+import type { RunState } from "./runs/run-store"
 
 export function RenameChatDialog({
   open,
@@ -143,10 +155,14 @@ export function RenameChatDialog({
   )
 }
 
+const NO_RUNS: Record<number, RunState> = {}
+const NO_UNREAD: number[] = []
+
 // Every chat in the workspace, opened from the "Chats" row in the left
 // sidebar. Selecting or starting a chat here closes the dialog; renaming and
-// deleting stay inline, same as the old sidebar list.
-export function ChatsDialog({
+// deleting stay inline, same as the old sidebar list. Memoized, and its rows
+// are built only while it is open: closed, it sits in the sidebar unseen.
+export const ChatsDialog = memo(function ChatsDialog({
   open,
   onOpenChange,
   threads,
@@ -159,6 +175,8 @@ export function ChatsDialog({
   onRename,
   onDelete,
   onTitleAnimationComplete,
+  runStates = NO_RUNS,
+  unreadThreadIds = NO_UNREAD,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -172,6 +190,10 @@ export function ChatsDialog({
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
   onTitleAnimationComplete: () => void
+  // Threads with a reply being written or waiting for the local runtime.
+  runStates?: Record<number, RunState>
+  // Threads whose reply finished while another was open, not yet opened.
+  unreadThreadIds?: number[]
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
@@ -179,23 +201,6 @@ export function ChatsDialog({
   const [renameOpen, setRenameOpen] = useState(false)
   const [query, setQuery] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
-
-  // A separator between two rows hides whenever either of its neighbors is
-  // hovered or has its actions menu open, so the highlighted row reads as
-  // one unbroken block instead of being cut by the line above or below it.
-  const rowActive = (thread: ChatThread | undefined) =>
-    thread != null && (thread.id === hoveredId || thread.id === openDropdownId)
-
-  const needle = query.trim().toLowerCase()
-  const untitled = intl.formatMessage({
-    id: "chat_chats_dialog_untitled_label",
-    defaultMessage: "New chat",
-  })
-  const visibleThreads = needle
-    ? threads.filter((thread) =>
-        (thread.title || untitled).toLowerCase().includes(needle)
-      )
-    : threads
 
   return (
     <>
@@ -266,171 +271,34 @@ export function ChatsDialog({
             className="h-[32rem] min-w-0"
             viewportClassName="overflow-x-hidden"
           >
-            <div className="flex w-full max-w-full min-w-0 flex-col pr-1">
-              {isLoading ? <SkeletonSlabs /> : null}
-              {!isLoading && visibleThreads.length === 0 ? (
-                <p className="px-2 py-1 text-sm text-muted-foreground select-none">
-                  {needle
-                    ? intl.formatMessage({
-                        id: "chat_chats_dialog_no_match_empty",
-                        defaultMessage: "No chats match your search",
-                      })
-                    : intl.formatMessage({
-                        id: "chat_chats_dialog_empty",
-                        defaultMessage: "Start a conversation to see it here",
-                      })}
-                </p>
-              ) : null}
-              {visibleThreads.map((thread, index) => {
-                const selected = thread.id === activeThreadId
-                const title = thread.title || untitled
-                const showSeparator =
-                  index > 0 &&
-                  !rowActive(thread) &&
-                  !rowActive(visibleThreads[index - 1])
-                // mouseenter/mouseleave don't bubble from descendants, so
-                // both interactive elements in the row (not the wrapping
-                // div, which is non-interactive) report hover explicitly —
-                // that also keeps the row's hover state accurate over the
-                // absolutely-positioned actions button.
-                const onRowMouseEnter = () => setHoveredId(thread.id)
-                const onRowMouseLeave = () =>
-                  setHoveredId((current) =>
-                    current === thread.id ? null : current
-                  )
-                return (
-                  <div
-                    key={thread.id}
-                    className="group relative w-full min-w-0 overflow-hidden"
-                  >
-                    {index > 0 ? (
-                      <div
-                        className={cn(
-                          "mx-1.5 border-t",
-                          showSeparator
-                            ? "border-border/60"
-                            : "border-transparent"
-                        )}
-                      />
-                    ) : null}
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "h-10 w-full min-w-0 justify-start gap-3 overflow-hidden rounded-lg px-2 py-2 text-sm font-normal group-hover:bg-muted active:translate-y-0! dark:group-hover:bg-muted/50",
-                        selected &&
-                          "bg-sidebar-accent text-foreground group-hover:text-foreground hover:text-foreground",
-                        openDropdownId === thread.id &&
-                          "bg-muted dark:bg-muted/50"
-                      )}
-                      aria-current={selected ? "page" : undefined}
-                      // Named by the title alone: read as content, the time
-                      // runs into it ("Q3 rollup2 weeks ago"). It stays a
-                      // description, so a screen reader still hears it.
-                      aria-label={title}
-                      aria-describedby={`chat-row-time-${thread.id}`}
-                      onClick={() => {
-                        onSelect(thread.id)
-                        onOpenChange(false)
-                      }}
-                      onMouseEnter={onRowMouseEnter}
-                      onMouseLeave={onRowMouseLeave}
-                    >
-                      <span
-                        className={cn(
-                          "chats-dialog-title-fade chats-dialog-title-fade-focus-within min-w-0 flex-1 overflow-hidden text-left whitespace-nowrap",
-                          openDropdownId === thread.id &&
-                            "chats-dialog-title-fade-actions"
-                        )}
-                      >
-                        <TypewriterText
-                          text={title}
-                          animate={thread.id === animatingTitleThreadId}
-                          onComplete={onTitleAnimationComplete}
-                        />
-                      </span>
-                      <RelativeTime
-                        id={`chat-row-time-${thread.id}`}
-                        date={new Date(thread.updated_at)}
-                        showTooltip={false}
-                        className={cn(
-                          "shrink-0 overflow-hidden text-xs text-muted-foreground transition-[opacity,width]",
-                          "group-focus-within:w-0 group-focus-within:opacity-0",
-                          "group-hover:w-0 group-hover:opacity-0",
-                          openDropdownId === thread.id && "w-0 opacity-0"
-                        )}
-                      />
-                    </Button>
-                    <div className="absolute inset-y-0 right-0 flex items-center rounded-r-lg py-1 pr-1">
-                      <DropdownMenu
-                        open={openDropdownId === thread.id}
-                        onOpenChange={(open) =>
-                          setOpenDropdownId(open ? thread.id : null)
-                        }
-                      >
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
-                              aria-label={intl.formatMessage(
-                                {
-                                  id: "chat_chats_dialog_row_actions_aria",
-                                  defaultMessage: "Actions for {title}",
-                                },
-                                {
-                                  title,
-                                }
-                              )}
-                              onMouseEnter={onRowMouseEnter}
-                              onMouseLeave={onRowMouseLeave}
-                            >
-                              <EllipsisIcon />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent
-                          align="end"
-                          sideOffset={8}
-                          className="w-36"
-                          finalFocus={false}
-                        >
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              disabled={thread.id === autoNamingThreadId}
-                              onClick={() => {
-                                setOpenDropdownId(null)
-                                setRenaming(thread)
-                                setRenameOpen(true)
-                              }}
-                            >
-                              <PencilIcon />
-                              {intl.formatMessage({
-                                id: "chat_chats_dialog_rename_label",
-                                defaultMessage: "Rename",
-                              })}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => {
-                                setOpenDropdownId(null)
-                                void onDelete(thread.id)
-                              }}
-                            >
-                              <Trash2Icon />
-                              {intl.formatMessage({
-                                id: "chat_chats_dialog_delete_label",
-                                defaultMessage: "Delete chat",
-                              })}
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <ChatList
+              threads={threads}
+              query={query}
+              isLoading={isLoading}
+              activeThreadId={activeThreadId}
+              autoNamingThreadId={autoNamingThreadId}
+              animatingTitleThreadId={animatingTitleThreadId}
+              hoveredId={hoveredId}
+              onHoveredChange={setHoveredId}
+              openDropdownId={openDropdownId}
+              onDropdownChange={setOpenDropdownId}
+              runStates={runStates}
+              unreadThreadIds={unreadThreadIds}
+              onSelect={(threadId) => {
+                onSelect(threadId)
+                onOpenChange(false)
+              }}
+              onRenameRequest={(thread) => {
+                setOpenDropdownId(null)
+                setRenaming(thread)
+                setRenameOpen(true)
+              }}
+              onDelete={(threadId) => {
+                setOpenDropdownId(null)
+                void onDelete(threadId)
+              }}
+              onTitleAnimationComplete={onTitleAnimationComplete}
+            />
           </ScrollFade>
           <DialogFooter className="-mt-4">
             <Button
@@ -465,5 +333,283 @@ export function ChatsDialog({
         </DialogContent>
       </Dialog>
     </>
+  )
+})
+
+/** The dialog's rows, built only while the dialog is open. */
+function ChatList({
+  threads,
+  query,
+  isLoading,
+  activeThreadId,
+  autoNamingThreadId,
+  animatingTitleThreadId,
+  hoveredId,
+  onHoveredChange,
+  openDropdownId,
+  onDropdownChange,
+  runStates,
+  unreadThreadIds,
+  onSelect,
+  onRenameRequest,
+  onDelete,
+  onTitleAnimationComplete,
+}: {
+  threads: ChatThread[]
+  query: string
+  isLoading: boolean
+  activeThreadId: number | null
+  autoNamingThreadId: number | null
+  animatingTitleThreadId: number | null
+  hoveredId: number | null
+  onHoveredChange: Dispatch<SetStateAction<number | null>>
+  openDropdownId: number | null
+  onDropdownChange: (id: number | null) => void
+  runStates: Record<number, RunState>
+  unreadThreadIds: number[]
+  onSelect: (id: number) => void
+  onRenameRequest: (thread: ChatThread) => void
+  onDelete: (id: number) => void
+  onTitleAnimationComplete: () => void
+}) {
+  const unreadIds = useMemo(() => new Set(unreadThreadIds), [unreadThreadIds])
+
+  // A separator between two rows hides whenever either of its neighbors is
+  // open, hovered or has its actions menu open, so the highlighted row reads
+  // as one unbroken block instead of being cut by the line above or below it.
+  const rowActive = (thread: ChatThread | undefined) =>
+    thread != null &&
+    (thread.id === activeThreadId ||
+      thread.id === hoveredId ||
+      thread.id === openDropdownId)
+
+  const needle = query.trim().toLowerCase()
+  const untitled = intl.formatMessage({
+    id: "chat_chats_dialog_untitled_label",
+    defaultMessage: "New chat",
+  })
+  const visibleThreads = needle
+    ? threads.filter((thread) =>
+        (thread.title || untitled).toLowerCase().includes(needle)
+      )
+    : threads
+
+  return (
+    <div className="flex w-full max-w-full min-w-0 flex-col pr-1">
+      {isLoading ? <SkeletonSlabs /> : null}
+      {!isLoading && visibleThreads.length === 0 ? (
+        <p className="px-2 py-1 text-sm text-muted-foreground select-none">
+          {needle
+            ? intl.formatMessage({
+                id: "chat_chats_dialog_no_match_empty",
+                defaultMessage: "No chats match your search",
+              })
+            : intl.formatMessage({
+                id: "chat_chats_dialog_empty",
+                defaultMessage: "Start a conversation to see it here",
+              })}
+        </p>
+      ) : null}
+      {visibleThreads.map((thread, index) => {
+        const selected = thread.id === activeThreadId
+        const title = thread.title || untitled
+        const runState = runStates[thread.id]
+        const unread = !runState && unreadIds.has(thread.id)
+        const showSeparator =
+          index > 0 &&
+          !rowActive(thread) &&
+          !rowActive(visibleThreads[index - 1])
+        // mouseenter/mouseleave don't bubble from descendants, so
+        // both interactive elements in the row (not the wrapping
+        // div, which is non-interactive) report hover explicitly —
+        // that also keeps the row's hover state accurate over the
+        // absolutely-positioned actions button.
+        const onRowMouseEnter = () => onHoveredChange(thread.id)
+        const onRowMouseLeave = () =>
+          onHoveredChange((current) => (current === thread.id ? null : current))
+        return (
+          <div
+            key={thread.id}
+            className="group relative w-full min-w-0 overflow-hidden"
+          >
+            {index > 0 ? (
+              <div
+                className={cn(
+                  "mx-1.5 border-t",
+                  showSeparator ? "border-border/60" : "border-transparent"
+                )}
+              />
+            ) : null}
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-10 w-full min-w-0 justify-start gap-3 overflow-hidden rounded-lg px-2 py-2 text-sm font-normal group-hover:bg-muted active:translate-y-0! dark:group-hover:bg-muted/50",
+                selected &&
+                  "bg-sidebar-accent text-foreground group-hover:text-foreground hover:text-foreground",
+                openDropdownId === thread.id && "bg-muted dark:bg-muted/50"
+              )}
+              aria-current={selected ? "page" : undefined}
+              // Named by the title alone: read as content, the time
+              // runs into it ("Q3 rollup2 weeks ago"). The status and
+              // time are descriptions, so a screen reader still hears
+              // them; text inside a named button is not read.
+              aria-label={title}
+              aria-describedby={
+                unread || runState
+                  ? `chat-row-status-${thread.id} chat-row-time-${thread.id}`
+                  : `chat-row-time-${thread.id}`
+              }
+              onClick={() => onSelect(thread.id)}
+              onMouseEnter={onRowMouseEnter}
+              onMouseLeave={onRowMouseLeave}
+            >
+              {unread ? (
+                <span className="flex w-3 shrink-0 items-center justify-center">
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full bg-primary"
+                  />
+                  <span id={`chat-row-status-${thread.id}`} className="sr-only">
+                    {intl.formatMessage({
+                      id: "chat_chats_dialog_unread_label",
+                      defaultMessage: "New reply",
+                    })}
+                  </span>
+                </span>
+              ) : runState?.state === "running" ? (
+                // Where the unread dot goes, which this reply becomes.
+                <span className="flex w-3 shrink-0 items-center justify-center">
+                  <Loader2Icon
+                    aria-hidden
+                    className="size-3 animate-spin text-muted-foreground motion-reduce:animate-none"
+                  />
+                  <span id={`chat-row-status-${thread.id}`} className="sr-only">
+                    {intl.formatMessage({
+                      id: "chat_chats_dialog_writing_label",
+                      defaultMessage: "Writing a reply",
+                    })}
+                  </span>
+                </span>
+              ) : runState?.state === "queued" ? (
+                <span className="flex w-3 shrink-0 items-center justify-center">
+                  <ClockIcon
+                    aria-hidden
+                    className="size-3 text-muted-foreground"
+                  />
+                  <span id={`chat-row-status-${thread.id}`} className="sr-only">
+                    {intl.formatMessage(
+                      {
+                        id: "chat_chats_dialog_waiting_label",
+                        defaultMessage:
+                          "Waiting for another reply ({position, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} in line)",
+                      },
+                      { position: runState.position }
+                    )}
+                  </span>
+                </span>
+              ) : runState?.state === "needs-approval" ? (
+                // The one mark in the accent colour beside unread: it waits on the user.
+                <span className="flex w-3 shrink-0 items-center justify-center">
+                  <CircleAlertIcon
+                    aria-hidden
+                    className="size-3 text-primary"
+                  />
+                  <span id={`chat-row-status-${thread.id}`} className="sr-only">
+                    {intl.formatMessage({
+                      id: "chat_chats_dialog_needs_approval_label",
+                      defaultMessage: "Waiting for your approval",
+                    })}
+                  </span>
+                </span>
+              ) : null}
+              <span
+                className={cn(
+                  "chats-dialog-title-fade chats-dialog-title-fade-focus-within min-w-0 flex-1 overflow-hidden text-left whitespace-nowrap",
+                  openDropdownId === thread.id &&
+                    "chats-dialog-title-fade-actions"
+                )}
+              >
+                <TypewriterText
+                  text={title}
+                  animate={thread.id === animatingTitleThreadId}
+                  onComplete={onTitleAnimationComplete}
+                />
+              </span>
+              <RelativeTime
+                id={`chat-row-time-${thread.id}`}
+                date={new Date(thread.updated_at)}
+                showTooltip={false}
+                className={cn(
+                  "shrink-0 overflow-hidden text-xs text-muted-foreground transition-[opacity,width]",
+                  "group-focus-within:w-0 group-focus-within:opacity-0",
+                  "group-hover:w-0 group-hover:opacity-0",
+                  openDropdownId === thread.id && "w-0 opacity-0"
+                )}
+              />
+            </Button>
+            <div className="absolute inset-y-0 right-0 flex items-center rounded-r-lg py-1 pr-1">
+              <DropdownMenu
+                open={openDropdownId === thread.id}
+                onOpenChange={(open) =>
+                  onDropdownChange(open ? thread.id : null)
+                }
+              >
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                      aria-label={intl.formatMessage(
+                        {
+                          id: "chat_chats_dialog_row_actions_aria",
+                          defaultMessage: "Actions for {title}",
+                        },
+                        {
+                          title,
+                        }
+                      )}
+                      onMouseEnter={onRowMouseEnter}
+                      onMouseLeave={onRowMouseLeave}
+                    >
+                      <EllipsisIcon />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-36"
+                  finalFocus={false}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      disabled={thread.id === autoNamingThreadId}
+                      onClick={() => onRenameRequest(thread)}
+                    >
+                      <PencilIcon />
+                      {intl.formatMessage({
+                        id: "chat_chats_dialog_rename_label",
+                        defaultMessage: "Rename",
+                      })}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => onDelete(thread.id)}
+                    >
+                      <Trash2Icon />
+                      {intl.formatMessage({
+                        id: "chat_chats_dialog_delete_label",
+                        defaultMessage: "Delete chat",
+                      })}
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }

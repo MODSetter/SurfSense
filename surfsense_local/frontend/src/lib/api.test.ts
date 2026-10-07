@@ -54,29 +54,25 @@ describe("api base url", () => {
 })
 
 describe("api errors", () => {
-  it("preserves structured disk-space details", async () => {
+  it("carries a structured detail's message and code", async () => {
     vi.stubGlobal("window", {})
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
         Response.json(
-          {
-            detail: {
-              message: "insufficient disk space",
-              required: 5_000_000_000,
-              available: 2_000_000_000,
-            },
-          },
-          { status: 507 }
+          { detail: { message: "Needs an audio model.", code: "needs_audio" } },
+          { status: 409 }
         )
       )
     )
     vi.resetModules()
     const { request } = await import("./api")
 
-    await expect(request("/llm/installs")).rejects.toThrow(
-      "insufficient disk space (5 GB required, 2 GB available)"
-    )
+    await expect(request("/artifacts")).rejects.toMatchObject({
+      message: "Needs an audio model.",
+      code: "needs_audio",
+      status: 409,
+    })
   })
 })
 

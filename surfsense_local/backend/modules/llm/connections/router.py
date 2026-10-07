@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
+from modules.llm.capability import capability_of
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.catalog.remote.rows import CUSTOM
@@ -18,11 +19,11 @@ from modules.llm.connections.service import (
     normalize_base_url,
     probe_connection,
 )
+from modules.llm.connections.text_generator import connection_generator
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
-    OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.openai_compatible.speech import (
@@ -45,7 +46,6 @@ from modules.llm.schemas import (
 from modules.llm.selectable import selectable_for
 from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
-from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
 from modules.llm.subscriptions.chatgpt.tokens import read_tokens
 
 router = APIRouter(prefix="/connections")
@@ -274,14 +274,20 @@ async def list_connection_models(
             name=model.name,
             types=list(model.types),
             capability_source=model.capability_source,
-            selectable_for=[]
-            if model.unusable_reason
-            else selectable_for(model.types, model.capability_known),
+            selectable_for=slots,
             unusable_reason=model.unusable_reason,
             reads_images=not model.unusable_reason
             and remote_reads_images(model.name, connection.catalog_provider),
+            capability_level=capability_of(model.name, connection).level
+            if ModelType.TEXT_GEN in slots
+            else None,
         )
         for model in models
+        for slots in [
+            []
+            if model.unusable_reason
+            else selectable_for(model.types, model.capability_known)
+        ]
     ]
 
 
@@ -292,11 +298,7 @@ async def test_connection_chat(
     """Answer once with this model, so a chat pick can be seen before it is made."""
     connection = await transact(session, allowed_connection, connection_id)
     model = _requested_model(payload)
-    provider = (
-        plan_generator(session.get_bind(), connection)
-        if connection.auth_kind == CHATGPT
-        else OpenAICompatibleChatProvider(connection.base_url, connection.api_key)
-    )
+    provider = connection_generator(session.get_bind(), connection, model)
     reply = ""
     try:
         # Closed explicitly: breaking on the cap leaves the stream open otherwise.

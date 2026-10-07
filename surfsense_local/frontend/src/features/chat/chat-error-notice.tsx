@@ -6,10 +6,12 @@ import { intl } from "@/i18n/intl"
 import { translatedChatError } from "./chat-error-text"
 import type { ChatTurnError } from "./use-chat-runtime"
 
-type Action = "model-setup" | "retry" | "none"
+type Action = "model-setup" | "retry" | "new-chat" | "none"
 
 function actionFor(error: ChatTurnError): Action {
   switch (error.kind) {
+    case "interrupted":
+      return error.retryable ? "retry" : "none"
     case "provider_auth":
     case "subscription_sign_in":
     case "provider_not_found":
@@ -19,6 +21,11 @@ function actionFor(error: ChatTurnError): Action {
       // A bad base URL is a Model setup fix; a local runtime that isn't
       // running isn't — there's no settings action that starts it.
       return error.provider === "llamacpp" ? "none" : "model-setup"
+    // The thread can only be read now, or keeps an engine the selected model
+    // cannot run: a retry is refused the same way, and only a new chat helps.
+    case "agent_thread_outdated":
+    case "agent_model_unsupported":
+      return "new-chat"
     // A reached plan limit: retrying cannot help until the plan's window resets.
     case "subscription_limit":
     case "context_too_long":
@@ -26,16 +33,19 @@ function actionFor(error: ChatTurnError): Action {
       // with a larger window — Retry would resend the same overlong turn.
       return "none"
     default:
-      return "retry"
+      // An older failure is a record: only the latest reply is asked again.
+      return error.retryable ? "retry" : "none"
   }
 }
 
 export function ChatErrorNotice({
   onModelSetup,
   onRetry,
+  onNewChat,
 }: {
   onModelSetup: () => void
   onRetry: (assistantId: string) => void
+  onNewChat: () => void
 }) {
   const messageId = useAuiState(({ message }) => message.id)
   const error = useAuiState(({ message }) =>
@@ -65,6 +75,18 @@ export function ChatErrorNotice({
             {intl.formatMessage({
               id: "chat_failed_reply_model_setup_button",
               defaultMessage: "Model setup",
+            })}
+          </Button>
+        ) : action === "new-chat" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 text-foreground"
+            onClick={onNewChat}
+          >
+            {intl.formatMessage({
+              id: "chat_failed_reply_new_chat_button",
+              defaultMessage: "Start a new chat",
             })}
           </Button>
         ) : action === "retry" ? (

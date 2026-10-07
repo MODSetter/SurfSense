@@ -43,7 +43,7 @@ def test_sampling_is_the_publishers_thinking_set_or_gemmas_only_one() -> None:
 
 
 async def test_a_case_becomes_the_turn_chat_would_send() -> None:
-    """Chat's grounding with passages as [1] and [2], the history, then the question."""
+    """Chat's instruction, the history, then the passages as [1] and [2] with the question."""
     case = Case(
         id="follow-up",
         question="And the X300?",
@@ -57,19 +57,22 @@ async def test_a_case_becomes_the_turn_chat_would_send() -> None:
         ],
     )
 
-    system, *rest = await conversation(case, Tier.COMPACT)
+    system, *history, question = await conversation(case, Tier.COMPACT)
 
-    assert system.role == "system"
-    assert system.content.startswith(load("modules.chat", Tier.COMPACT))
-    # Two chunks of one document are shown under it once, as chat groups them.
-    assert system.content.count('<document title="Kestrel manual"') == 1
-    assert "[1] The X300 is covered for 39 months." in system.content
-    assert "[2] The X200 is covered for 27 months." in system.content
-    assert [(m.role, m.content) for m in rest] == [
+    assert (system.role, system.content) == (
+        "system",
+        load("modules.chat", Tier.COMPACT),
+    )
+    assert [(m.role, m.content) for m in history] == [
         ("user", "How long is the X200 warranty?"),
         ("assistant", "27 months."),
-        ("user", "And the X300?"),
     ]
+    assert question.role == "user"
+    # Two chunks of one document are shown under it once, as chat groups them.
+    assert question.content.count('<document title="Kestrel manual"') == 1
+    assert "[1] The X300 is covered for 39 months." in question.content
+    assert "[2] The X200 is covered for 27 months." in question.content
+    assert question.content.endswith("And the X300?")
 
 
 def test_the_answer_is_capped_at_the_reserve_chat_keeps_for_it() -> None:
