@@ -44,7 +44,8 @@ async function main() {
   // Off also removes an earlier stage, so neither a dev run nor an installer carries one.
   if (!opencodeEnabled()) {
     rmSync(OUT, { recursive: true, force: true })
-    console.log("opencode is off: SURFSENSE_LOCAL_OPENCODE_ENABLED=0 stages nothing")
+    const value = process.env.SURFSENSE_LOCAL_OPENCODE_ENABLED || "unset"
+    console.log(`opencode is off (SURFSENSE_LOCAL_OPENCODE_ENABLED is ${value}): nothing staged`)
     return
   }
 
