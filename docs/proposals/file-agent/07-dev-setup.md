@@ -1,16 +1,16 @@
 # Create and edit: running the slice from a dev build
 
-How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` with Claude Sonnet, how the live tests spend real money on it, and the script for the demo video. Dev runs and installers stage the agent by default; a developer switch starts every model's new chats in Agentic ([agent](../../architecture/agent.md)).
+How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` with Claude Sonnet, how the live tests spend real money on it, and the script for the demo video. Dev runs and installers stage the agent by default; a developer switch makes Agentic the default for every model you have not picked a mode for ([agent](../../architecture/agent.md)).
 
 ## Run it
 
 **Before the first run:** the usual desktop setup from [`surfsense_local/`](../../../surfsense_local/)'s README (`uv sync` in `backend/`, `pnpm install` in `frontend/` and `electron/`), and an Anthropic API key of your own.
 
-1. **Start the app**, in one shell. `pnpm dev` runs `predev`, which stages opencode with `build:opencode` unless `SURFSENSE_LOCAL_OPENCODE_ENABLED=0` is set. The API inherits Electron's environment, which is where the developer switch must be. Leave the switch out to see what users get: a model on the tested list (`capabilities.json`) starts new chats in Agentic, any other in Basic (Q&A), and the composer's switch picks either for a new chat.
+1. **Start the app**, in one shell. `pnpm dev` runs `predev`, which stages opencode with `build:opencode` unless `SURFSENSE_LOCAL_OPENCODE_ENABLED=0` is set. The API inherits Electron's environment, which is where the developer switch must be. Leave the switch out to see what users get: a model `capabilities.json` lists at `agent` or `agent_limited` for a remote host starts new chats in Agentic, any other in Basic (Q&A), a local copy included, and the composer's switch picks either for a new chat. A mode you picked for a model is its default from then on, switch or not.
 
    ```bash
    cd surfsense_local/electron
-   export SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1   # optional: start every model's new chats in Agentic
+   export SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1   # optional: Agentic by default for a model you have not picked a mode for
    pnpm build:opencode
    pnpm dev
    ```
@@ -38,11 +38,11 @@ How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` w
 
    Drop the three files on the sources panel and wait until each is ready: ingest keeps the report's chart and the logo as figures ([documents](../../architecture/documents.md#figures)). Your own sources work the same way; a report with a drawn chart and a caption shows the figures best.
 
-5. **Open a new chat thread** once Sonnet is selected. The engine is chosen when a thread opens, so a thread opened before the switch or the model is a plain chat. An agent thread shows its steps as it works.
+5. **Open a new chat thread** once Sonnet is selected; the composer's switch says Agentic. The engine is chosen when a thread opens, so a thread opened before the model was selected, or in Basic (Q&A), is a plain chat. An agent thread shows its steps as it works.
 
 **When something is off:**
 
-- *The thread answers as a chat:* `electron/opencode/` is empty (`SURFSENSE_LOCAL_OPENCODE_ENABLED=0` was set when `pnpm dev` ran), the API did not get the switch, or the thread was opened before Sonnet was selected.
+- *The thread answers as a chat:* the composer was on Basic (Q&A), `electron/opencode/` is empty (`SURFSENSE_LOCAL_OPENCODE_ENABLED=0` was set when `pnpm dev` ran), or the thread was opened before Sonnet was selected.
 - *"Word pages are drawn by the SurfSense desktop app, which is not running":* Electron serves Word previews only when it found a staged opencode at boot; restart `pnpm dev` without `SURFSENSE_LOCAL_OPENCODE_ENABLED=0`.
 - *The agent says it cannot see the previews:* the connection was saved as Local or custom server, so the catalog does not say the model reads images. Recreate it with Anthropic as the provider.
 - *A `403` naming `api.anthropic.com`:* allow the host in Settings › Network.

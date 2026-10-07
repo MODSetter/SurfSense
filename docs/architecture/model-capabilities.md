@@ -51,7 +51,7 @@ A chat is Basic (Q&A), the chat engine's retrieval answers with Studio beside it
 - **`reason`**, what the switch says beside Agentic: `measured_pass` or `measured_near` with `passed` and `counted`; `measured_below`, a low scorer, with the same; `assumed`; `local_copy`, a copy on the user's own machine or network of a model whose row passed on a remote host, with that `host`; `untested`. An assumed row says `assumed` on a local copy too, since it was run nowhere, and the capability's own `reason` is `assumed` there rather than `measured_elsewhere`.
 - **`remembered_mode`**, under `chat_modes` in the text selection's `settings`, one entry per provider, connection and model name ([`modes/remembered.py`](../../surfsense_local/backend/modules/llm/capability/modes/remembered.py)), written when a chat is opened with a mode the user chose (`remember: true`). A default sent back unchosen is not written, so a later score or the developer switch turned off still decides. The entries stay when the slot takes another model, so a model's choice comes back with it. The `agent_trial` the modes replaced reads as its model's Agentic, kept as such when the slot changes, and the first write drops it.
 
-`SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` starts every model's new chats in Agentic and lifts the window floor, held only to a stated no on tool calls.
+`SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` makes Agentic the default for every model the user has not picked a mode for and lifts the window floor; a stated no on tool calls, or no opencode, still keeps Agentic out.
 
 ## API
 

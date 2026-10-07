@@ -522,7 +522,7 @@ Nothing else branches.
 **Per-thread working folders.** `StorageSettings` gains `thread_working_dir(workspace_id, thread_id)` = `data/workspaces/<ws>/agent/threads/<thread>/`, holding `sources/` and `outputs/`.
 - `open_agent_session` creates the session there. `agent_turn` syncs, registers and streams there.
 - Thread delete nulls `output_path` on the thread's artifacts in its transaction, and removes the folder after the commit, beside `store.remove_thread`. `forget_sessions` gets the thread's folder.
-- Agent threads stay behind the developer switch until M5, which ships phases 3a and 3b and turns the agent on in installers.
+- Installers carry the agent since 7 Oct 2026, and any model may open an Agentic chat; M5 ships phases 3a and 3b.
 - opencode's edit rule today, `*/agent/outputs/*`, matches no per-thread path. It becomes, last match winning:
 
   ```python
@@ -650,7 +650,7 @@ Milestones are the README's; durations there are rough.
 - Phase 0 ships first, in M0, as a 2.1.x point release that starts now. It does not wait for 02's clean-room work. It is a correctness fix with one plain column, and everything after it builds on it.
 - Phases 1 and 2 are M2. They need only M0 and run in parallel with M1 and M3.
 - Phase 5 is in M3, which also runs in parallel with M2; it lands once phase 1 is in.
-- Phases 3a and 3b are M5, after M2, M3 and M4. Until then agent threads stay behind the developer switch.
+- Phases 3a and 3b are M5, after M2, M3 and M4.
 - Phases 4a and 4b are M8, beside 04's RT3a, RT3b (Office support) and RT6, in parallel with M5 to M7.
 - The workspace and folder bundle (Export, import and sharing) is M6.
 
