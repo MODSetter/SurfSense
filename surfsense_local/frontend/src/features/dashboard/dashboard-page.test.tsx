@@ -76,6 +76,63 @@ beforeEach(() => {
   })
 })
 
+const NEW_THREAD = {
+  id: 10,
+  workspace_id: 1,
+  title: "New chat",
+  uses_agent: false,
+  created_at: "2026-10-07T00:00:00Z",
+  updated_at: "2026-10-07T00:00:00Z",
+}
+
+/** A text model whose new chats start in `mode`, a default the user never chose. */
+function selectionStarting(mode: "basic" | "agentic") {
+  return {
+    model_type: "text_gen" as const,
+    provider: "openai_compatible",
+    connection_id: 1,
+    name: "moonshotai/kimi-k3",
+    updated_at: "2026-10-07T00:00:00Z",
+    capability: {
+      level: "agent" as const,
+      label_key: "agent" as const,
+      reason: { code: "measured_pass", values: {} },
+      note: null,
+      measured: null,
+      modes: {
+        agentic_allowed: true,
+        blocked: null,
+        default_mode: mode,
+        reason: { code: "measured_pass", values: { passed: 8, counted: 8 } },
+        remembered_mode: null,
+      },
+    },
+  }
+}
+
+/** An empty workspace whose new chat is answered by `create`, then by one reply. */
+function newChatServer(create: (body: unknown) => Response) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input)
+    if (path === "/llm/providers") return Response.json([])
+    if (path === "/workspaces/1/chat/threads" && !init?.method) {
+      return Response.json([])
+    }
+    if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+      return create(JSON.parse(String(init.body)))
+    }
+    if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+      return new Response(
+        'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-10-07T00:00:00Z"}\n\ndata: {"type":"delta","text":"Revenue rose."}\n\ndata: {"type":"completed","assistant_completed_at":"2026-10-07T00:00:01Z","text":"Revenue rose."}\n\ndata: [DONE]\n\n',
+        { headers: { "Content-Type": "text/event-stream" } }
+      )
+    }
+    if (path === "/chat/threads/10/messages") return Response.json([])
+    if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+    return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
+  })
+}
+
 describe("dashboard chat", () => {
   it("renames a saved chat from the conversation title", async () => {
     const thread = {
@@ -1051,7 +1108,10 @@ describe("dashboard chat", () => {
     )
 
     expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
-    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
+    // Picked in the switch, so it becomes the model's default.
+    expect(created).toEqual([
+      { title: "New chat", mode: "basic", remember: true },
+    ])
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
@@ -1067,6 +1127,42 @@ describe("dashboard chat", () => {
       })
     ).toBeTruthy()
     expect(within(conversation).queryByText("Revenue rose.")).toBeNull()
+  })
+
+  it("opens a new chat in the model's default without remembering a switch left alone", async () => {
+    const created: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      newChatServer((body) => {
+        created.push(body)
+        return Response.json(NEW_THREAD, { status: 201 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("basic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "How did revenue move?"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    // A later score still decides the next chat on this model.
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
   })
 
   it("loads threads and sources for the selected workspace", async () => {

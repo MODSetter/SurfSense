@@ -17,7 +17,7 @@ from modules.agent.engine_choice import (
     remember_thread_mode,
     selected_model_can_run_agent,
 )
-from modules.llm.capability.modes import ChatMode
+from modules.llm.capability.modes import ChatMode, remembered_mode
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings
@@ -315,7 +315,7 @@ async def test_the_mode_a_chat_opened_in_is_the_model_s_next_default(
     assert await new_thread_mode(session, None) is ChatMode.AGENTIC
     session.expire_all()
     selected = session.get(SelectedModel, ModelType.TEXT_GEN)
-    assert selected is not None and selected.settings == {"chat_mode": "agentic"}
+    assert selected is not None and remembered_mode(selected) is ChatMode.AGENTIC
 
 
 async def test_an_agent_thread_s_next_turn_is_held_only_to_technical_gates(

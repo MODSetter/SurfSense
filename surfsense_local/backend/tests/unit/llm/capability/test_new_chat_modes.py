@@ -7,6 +7,7 @@ from modules.llm.capability.agent_gate import ToolFacts
 from modules.llm.capability.measured.schema import MeasuredModel
 from modules.llm.capability.modes import (
     ChatMode,
+    carried_to_next_model,
     new_chat_modes,
     remember_mode,
     remembered_mode,
@@ -33,9 +34,12 @@ def opencode_staged(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _selected(
-    name: str, base_url: str = OPENROUTER, settings: dict | None = None
+    name: str,
+    base_url: str = OPENROUTER,
+    settings: dict | None = None,
+    remembered: ChatMode | None = None,
 ) -> SelectedModel:
-    return SelectedModel(
+    selected = SelectedModel(
         model_type=ModelType.TEXT_GEN,
         provider="openai_compatible",
         name=name,
@@ -47,6 +51,9 @@ def _selected(
             catalog_provider="openrouter",
         ),
     )
+    if remembered is not None:
+        remember_mode(selected, remembered)
+    return selected
 
 
 ASSUMED = MeasuredModel.model_validate(
@@ -195,9 +202,7 @@ def test_the_mode_last_chosen_for_the_model_is_its_default(
     name: str, remembered: ChatMode
 ) -> None:
     """Over the measured default, either way."""
-    modes = new_chat_modes(
-        _selected(name, settings={"chat_mode": remembered.value}), CALLS_TOOLS
-    )
+    modes = new_chat_modes(_selected(name, remembered=remembered), CALLS_TOOLS)
 
     assert modes.default_mode is remembered
     assert modes.remembered_mode is remembered
@@ -206,7 +211,7 @@ def test_the_mode_last_chosen_for_the_model_is_its_default(
 def test_a_remembered_agentic_a_gate_now_blocks_starts_basic() -> None:
     """The choice stays remembered for when the gate lifts."""
     modes = new_chat_modes(
-        _selected("anthropic/claude-sonnet-99", settings={"chat_mode": "agentic"}),
+        _selected("anthropic/claude-sonnet-99", remembered=ChatMode.AGENTIC),
         ToolFacts(tool_calls=False, window=None),
     )
 
@@ -246,5 +251,48 @@ def test_remembering_a_mode_replaces_the_old_trial_and_keeps_other_settings() ->
 
     remember_mode(selected, ChatMode.BASIC)
 
-    assert selected.settings == {"voices": ["alloy"], "chat_mode": "basic"}
+    assert selected.settings is not None
+    assert (selected.settings["voices"], "agent_trial" in selected.settings) == (
+        ["alloy"],
+        False,
+    )
     assert remembered_mode(selected) is ChatMode.BASIC
+
+
+def test_each_model_keeps_its_own_mode_when_the_slot_takes_another() -> None:
+    """Only the chat modes carry over; the old opt-in is kept as its model's Agentic."""
+    first = _selected("gpt-4o-mini", remembered=ChatMode.BASIC)
+    second = _selected("moonshotai/kimi-k3", settings=carried_to_next_model(first))
+    remember_mode(second, ChatMode.AGENTIC)
+    trial = _selected("gpt-4.1", settings={"agent_trial": True, "voices": ["alloy"]})
+
+    back = _selected("gpt-4o-mini", settings=carried_to_next_model(second))
+    after_trial = _selected("gpt-4.1", settings=carried_to_next_model(trial))
+
+    assert remembered_mode(back) is ChatMode.BASIC
+    assert remembered_mode(_selected("moonshotai/kimi-k3", settings=back.settings)) is (
+        ChatMode.AGENTIC
+    )
+    assert remembered_mode(_selected("gpt-4.1", settings=back.settings)) is None
+    assert remembered_mode(after_trial) is ChatMode.AGENTIC
+    assert after_trial.settings is not None and "voices" not in after_trial.settings
+
+
+def test_the_same_name_on_another_server_is_another_model() -> None:
+    """A local copy and a provider's host each keep their own choice."""
+    remote = _selected("qwen/qwen3.8-27b", remembered=ChatMode.AGENTIC)
+    local = SelectedModel(
+        model_type=ModelType.TEXT_GEN,
+        provider="llamacpp",
+        name="qwen/qwen3.8-27b",
+        settings=carried_to_next_model(remote),
+    )
+
+    assert remembered_mode(local) is None
+
+
+def test_nothing_is_carried_from_a_model_with_no_mode() -> None:
+    """The slot starts as clean as before for a model never given one."""
+    assert (
+        carried_to_next_model(_selected("gpt-4o-mini", settings={"voices": []})) is None
+    )

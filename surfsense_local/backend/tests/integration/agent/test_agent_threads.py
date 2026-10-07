@@ -32,12 +32,19 @@ OnFrame = Callable[[Frame], Awaitable[None]]
 
 
 async def open_thread(
-    api: AgentAPI, title: str = "New chat", mode: str | None = None
+    api: AgentAPI,
+    title: str = "New chat",
+    mode: str | None = None,
+    remember: bool = False,
 ) -> dict:
-    """Open a thread the way the chat panel does, in a mode or the model's default."""
+    """Open a thread the way the chat panel does, in a mode or the model's default.
+
+    `remember` is a mode the user picked in the switch, which the panel says so of.
+    """
+    fields = {"mode": mode, "remember": remember} if mode else {}
     reply = await api.http.post(
         f"/workspaces/{api.workspace_id}/chat/threads",
-        json={"title": title, **({"mode": mode} if mode else {})},
+        json={"title": title, **fields},
     )
     reply.raise_for_status()
     return reply.json()
@@ -109,10 +116,10 @@ async def test_with_no_mode_asked_an_untested_model_opens_a_chat(
 async def test_agentic_asked_for_opens_an_agent_thread_on_an_untested_model(
     agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No score blocks Agentic; the choice is the model's default from then on."""
+    """No score blocks Agentic; the user's pick is the model's default from then on."""
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
 
-    chosen = await open_thread(agent_api, mode="agentic")
+    chosen = await open_thread(agent_api, mode="agentic", remember=True)
     defaulted = await open_thread(agent_api)
 
     assert chosen["uses_agent"] is True

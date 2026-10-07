@@ -66,19 +66,34 @@ async def _open(client: AsyncClient, **fields: object) -> tuple[int, dict]:
     return reply.status_code, reply.json()
 
 
-async def test_basic_asked_for_opens_a_chat_and_is_remembered(
+async def test_basic_chosen_opens_a_chat_and_is_remembered(
     client: AsyncClient, engine: Engine
 ) -> None:
     """The user's pick becomes the model's default for new chats."""
+    _select(engine, "gpt-4o-mini")
+
+    status, thread = await _open(client, mode="basic", remember=True)
+
+    assert status == 201
+    assert thread["uses_agent"] is False
+    capability = (await client.get("/llm/selection/text_gen")).json()["capability"]
+    assert capability["modes"]["remembered_mode"] == "basic"
+
+
+async def test_a_default_sent_back_unchosen_is_not_remembered(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A switch the user never touched: a later score, or the developer switch
+    turned off, still decides the next chat."""
     _select(engine, "gpt-4o-mini")
 
     status, thread = await _open(client, mode="basic")
 
     assert status == 201
     assert thread["uses_agent"] is False
-    assert _remembered(engine) == {"chat_mode": "basic"}
+    assert _remembered(engine) is None
     capability = (await client.get("/llm/selection/text_gen")).json()["capability"]
-    assert capability["modes"]["remembered_mode"] == "basic"
+    assert capability["modes"]["remembered_mode"] is None
 
 
 async def test_agentic_refused_by_a_gate_is_a_409_with_its_code_and_no_thread(
@@ -87,7 +102,7 @@ async def test_agentic_refused_by_a_gate_is_a_409_with_its_code_and_no_thread(
     """The catalog says gpt-3.5-turbo makes no tool calls."""
     _select(engine, "gpt-3.5-turbo")
 
-    status, body = await _open(client, mode="agentic")
+    status, body = await _open(client, mode="agentic", remember=True)
 
     assert status == 409
     assert body["detail"]["code"] == "tool_calls_unsupported"
@@ -106,11 +121,12 @@ async def test_agentic_when_the_agent_does_not_start_is_a_503_and_no_thread(
     monkeypatch.setattr(chat_router, "open_agent_session", not_ready)
     _select(engine, "gpt-4o-mini")
 
-    status, body = await _open(client, mode="agentic")
+    status, body = await _open(client, mode="agentic", remember=True)
 
     assert status == 503
     assert body["detail"]["code"] == "agent_unavailable"
     assert _thread_count(engine) == 0
+    assert _remembered(engine) is None
 
 
 async def test_with_no_mode_a_model_whose_agent_does_not_start_opens_a_chat(

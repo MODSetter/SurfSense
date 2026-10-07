@@ -128,7 +128,7 @@ async def create_thread(
                     "Basic (Q&A) chat.",
                 },
             )
-    if payload.mode is not None:
+    if payload.mode is not None and payload.remember:
         await remember_thread_mode(session, payload.mode)
     return thread
 

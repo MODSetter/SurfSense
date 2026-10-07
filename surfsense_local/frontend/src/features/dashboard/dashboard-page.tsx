@@ -22,7 +22,7 @@ import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
-import { useNewChatMode } from "@/features/chat/modes/new-chat-mode"
+import { useNewChatChoice } from "@/features/chat/modes/new-chat-mode"
 import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
@@ -144,7 +144,7 @@ function WorkspaceDashboard({
     sourceScope: sources.sourceScope,
     readsImages: selection?.reads_images === true,
     canSkipThinking: canSkipThinking(selection),
-    newChatMode: useNewChatMode(selection),
+    newChatMode: useNewChatChoice(selection),
     onModelRequired,
   })
   const sourcePreview = sources.documents.find(

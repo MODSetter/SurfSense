@@ -12,11 +12,11 @@ import {
   vi,
 } from "vitest"
 
-import type { ChatMode } from "@/features/models/capability/api"
 import { createQueryClient } from "@/lib/query-client"
 import { toast } from "sonner"
 
 import type { ChatMessage, ChatThread } from "./api"
+import type { NewChatChoice } from "./modes/new-chat-mode"
 import { chatKeys } from "./query-keys"
 import { LiveThreadRuntime } from "./live-thread-runtime"
 import { liveRun, liveRuns, resetChatRuns } from "./runs/run-store"
@@ -193,7 +193,7 @@ type Rendered = ReturnType<typeof useChatRuntime> & {
  */
 function renderRuntime({
   readsImages = false,
-  newChatMode = null as ChatMode | null,
+  newChatMode = null as NewChatChoice | null,
   workspaceId = WORKSPACE,
   // The app's one client, kept across a switch of workspace.
   client = createQueryClient(),
@@ -951,14 +951,30 @@ describe("while a reply streams", () => {
 })
 
 describe("a new chat's mode", () => {
-  it("opens the chat in the mode picked for the model", async () => {
-    const { result } = renderRuntime({ newChatMode: "agentic" })
+  it("opens the chat in the mode picked for the model, and has it remembered", async () => {
+    const { result } = renderRuntime({
+      newChatMode: { mode: "agentic", chosen: true },
+    })
     await waitFor(() => expect(result.current.threads.length).toBe(2))
 
     sendIn(result, "Draft the board pack")
 
     await waitFor(() => expect(api.sendStreams).toHaveLength(1))
-    expect(api.creates).toEqual([{ title: "New chat", mode: "agentic" }])
+    expect(api.creates).toEqual([
+      { title: "New chat", mode: "agentic", remember: true },
+    ])
+  })
+
+  it("opens the chat in the model's default without remembering it", async () => {
+    const { result } = renderRuntime({
+      newChatMode: { mode: "basic", chosen: false },
+    })
+    await waitFor(() => expect(result.current.threads.length).toBe(2))
+
+    sendIn(result, "How did revenue move?")
+
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    expect(api.creates).toEqual([{ title: "New chat", mode: "basic" }])
   })
 
   it("leaves the mode to the API when the model reports none", async () => {
@@ -975,7 +991,9 @@ describe("a new chat's mode", () => {
     const shown = vi.spyOn(toast, "error")
     onTestFinished(() => shown.mockRestore())
     api.refuseCreate = { status: 409, code: "tool_calls_unsupported" }
-    const { result } = renderRuntime({ newChatMode: "agentic" })
+    const { result } = renderRuntime({
+      newChatMode: { mode: "agentic", chosen: true },
+    })
     await waitFor(() => expect(result.current.threads.length).toBe(2))
 
     sendIn(result, "Draft the board pack")

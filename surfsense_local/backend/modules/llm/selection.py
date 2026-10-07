@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import transact
 from modules.embedding.choose import lock_chosen
+from modules.llm.capability.modes import carried_to_next_model
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.listing import connection_models
 from modules.llm.connections.router import allowed_connection
@@ -118,8 +119,9 @@ def _store(
         connection_id,
         model_name,
     ):
-        # Settings are the model's own; another model starts without them.
-        selected.settings = None
+        # Settings are the model's own; another model starts without them, but
+        # each model's chat mode stays for when the slot comes back to it.
+        selected.settings = carried_to_next_model(selected)
     selected.provider = provider_name
     selected.connection_id = connection_id
     selected.name = model_name

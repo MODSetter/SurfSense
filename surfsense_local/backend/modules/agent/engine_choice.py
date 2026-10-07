@@ -106,7 +106,7 @@ async def selected_model_can_run_agent(session: Session) -> bool:
 
 
 async def remember_thread_mode(session: Session, mode: ChatMode) -> None:
-    """The mode the user opened a chat in becomes the model's default for new ones."""
+    """The mode the user chose for a new chat becomes the model's default for new ones."""
     await transact(session, _remember, mode)
 
 

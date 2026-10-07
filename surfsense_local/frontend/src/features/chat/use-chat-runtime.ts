@@ -18,7 +18,6 @@ import {
 import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
 import { isUnsupportedModelRefusal } from "@/features/agent/unsupported-model"
 import { errorToast } from "@/features/feedback/error-toast"
-import type { ChatMode } from "@/features/models/capability/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { subscribeToWorkspaceChanges } from "@/features/workspaces/workspace-changes"
 import { ApiError } from "@/lib/api"
@@ -39,6 +38,7 @@ import {
 } from "./api"
 import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
 import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
+import type { NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -236,7 +236,7 @@ export function useChatRuntime({
   // Whether the selected model can be told not to think; no other is asked to.
   canSkipThinking: boolean
   // The mode a new chat opens in; null leaves it to the API's default.
-  newChatMode?: ChatMode | null
+  newChatMode?: NewChatChoice | null
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -307,7 +307,7 @@ export function useChatRuntime({
       signal,
     }: {
       title: string
-      mode: ChatMode | null
+      mode: NewChatChoice | null
       signal: AbortSignal
     }) => createThread(workspaceId, title, mode, signal),
   })

@@ -1,8 +1,8 @@
 import type { AgentStep, TurnSources } from "@/features/agent/api"
-import type { ChatMode } from "@/features/models/capability/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
+import type { NewChatChoice } from "./modes/new-chat-mode"
 import {
   parseNumberedSseStream,
   type ChatErrorKind,
@@ -96,13 +96,18 @@ export function createThread(
   workspaceId: number,
   title: string,
   // Null leaves the API to the selected model's default.
-  mode: ChatMode | null,
+  choice: NewChatChoice | null,
   signal?: AbortSignal
 ): Promise<ChatThread> {
   return requestJson<ChatThread>(`/workspaces/${workspaceId}/chat/threads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, ...(mode ? { mode } : {}) }),
+    body: JSON.stringify({
+      title,
+      ...(choice ? { mode: choice.mode } : {}),
+      // Only the user's own choice becomes the model's default.
+      ...(choice?.chosen ? { remember: true } : {}),
+    }),
     signal,
   })
 }

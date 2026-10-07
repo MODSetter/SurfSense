@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react"
+import { createContext, useContext, useMemo } from "react"
 
 import type { ChatMode } from "@/features/models/capability/api"
 import {
@@ -13,6 +13,12 @@ export type NewChatModePicks = {
   pick: (model: SelectionTarget, mode: ChatMode) => void
 }
 
+/**
+ * The mode the next new chat opens in, and whether the user chose it. Only a
+ * choice is remembered: a default sent back as one would outlast its score.
+ */
+export type NewChatChoice = { mode: ChatMode; chosen: boolean }
+
 // Without a provider, nothing is picked and the model's own default holds.
 export const NewChatModeContext = createContext<NewChatModePicks>({
   picks: {},
@@ -23,18 +29,34 @@ export const NewChatModeContext = createContext<NewChatModePicks>({
  * The mode the next new chat starts in: the one picked for this model, else
  * its default. Null for a model that reports no modes.
  */
-export function resolveNewChatMode(
+export function resolveNewChatChoice(
   model: ModelSelection | null,
   picks: NewChatModePicks["picks"]
-): ChatMode | null {
+): NewChatChoice | null {
   const modes = model?.capability?.modes
   if (!model || !modes) return null
-  const wanted = picks[modelKey(model)] ?? modes.default_mode
-  return wanted === "agentic" && !modes.agentic_allowed ? "basic" : wanted
+  const picked = picks[modelKey(model)]
+  const wanted = picked ?? modes.default_mode
+  const mode = wanted === "agentic" && !modes.agentic_allowed ? "basic" : wanted
+  return { mode, chosen: picked === mode }
+}
+
+export function useNewChatChoice(model: ModelSelection | null) {
+  const choice = resolveNewChatChoice(
+    model,
+    useContext(NewChatModeContext).picks
+  )
+  const mode = choice?.mode ?? null
+  const chosen = choice?.chosen ?? false
+  // Held while it says the same, so the runtime's send is not made anew.
+  return useMemo<NewChatChoice | null>(
+    () => (mode ? { mode, chosen } : null),
+    [mode, chosen]
+  )
 }
 
 export function useNewChatMode(model: ModelSelection | null) {
-  return resolveNewChatMode(model, useContext(NewChatModeContext).picks)
+  return useNewChatChoice(model)?.mode ?? null
 }
 
 export function usePickNewChatMode() {

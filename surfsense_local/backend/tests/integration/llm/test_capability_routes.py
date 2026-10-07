@@ -188,26 +188,38 @@ async def test_the_old_agent_trial_reads_as_agentic_remembered(
     assert (modes["remembered_mode"], modes["default_mode"]) == ("agentic", "agentic")
 
 
-async def test_the_remembered_mode_goes_when_the_slot_takes_another_model(
-    client: AsyncClient, engine: Engine, llamacpp_server: str
+async def test_a_model_s_remembered_mode_waits_while_the_slot_holds_another(
+    client: AsyncClient, llamacpp_server: str
 ) -> None:
-    """It belongs to the model it was chosen for."""
-    _select(engine, "gpt-4o-mini", "openai", OPENAI, settings={"chat_mode": "agentic"})
+    """It belongs to the model it was chosen for, and comes back with it."""
 
-    chosen = await client.put(
-        "/llm/selection/text_gen",
-        json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"},
+    async def select(name: str) -> dict:
+        chosen = await client.put(
+            "/llm/selection/text_gen", json={"provider": "llamacpp", "name": name}
+        )
+        assert chosen.status_code == 200, chosen.text
+        return chosen.json()["capability"]["modes"]
+
+    await select("Qwen3-4B-Q4_K_M")
+    workspace = (await client.post("/workspaces", json={"name": "Research"})).json()
+    opened = await client.post(
+        f"/workspaces/{workspace['id']}/chat/threads",
+        json={"title": "New chat", "mode": "basic", "remember": True},
     )
+    assert opened.status_code == 201, opened.text
 
-    assert chosen.status_code == 200, chosen.text
+    other = await select("Qwen3-1.7B-Q4_K_M")
+    back = await select("Qwen3-4B-Q4_K_M")
+
     # A local model's tool calls are read when a chat starts, not on every read.
-    assert chosen.json()["capability"]["modes"] == {
+    assert other == {
         "agentic_allowed": True,
         "blocked": None,
         "default_mode": "basic",
         "reason": {"code": "untested", "values": {}},
         "remembered_mode": None,
     }
+    assert back["remembered_mode"] == "basic"
 
 
 async def test_the_agent_trial_route_is_gone(
