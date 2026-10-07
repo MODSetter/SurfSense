@@ -117,7 +117,7 @@ A turn can carry images, and a model that reads them receives them; every other 
 
 Only the local runtime has a way to be told. A remote endpoint has no portable field for it, so `thinking: false` changes nothing there, and an agent thread does not read the field.
 
-The Thinking switch is a row of the composer's "+" menu ([`thinking-menu-item.tsx`](../../surfsense_local/frontend/src/features/chat/thinking-menu-item.tsx)), shown once a model is chosen. It holds the preference in `localStorage` under `surfsense:chat-thinking:v1`, for every thread and workspace, the way the last open thread is remembered. It is read when a message is sent, and only an off preference with a `llamacpp` selection puts `thinking: false` in the request. With any other selection the row stays in the menu, on and disabled, and its tooltip says "Only a local model can answer without thinking". An agent thread's menu has no row at all, since the agent never reads the field. The menu stays open when the row is clicked, so the switch is seen to move.
+The Thinking switch is a row of the composer's "+" menu ([`thinking-menu-item.tsx`](../../surfsense_local/frontend/src/features/chat/thinking-menu-item.tsx)), shown once a model is chosen. It holds the preference in `localStorage` under `surfsense:chat-thinking:v1`, for every thread and workspace, the way the last open thread is remembered. It is read when a message is sent, and only an off preference with a `llamacpp` selection puts `thinking: false` in the request. With any other selection the row stays in the menu, on and disabled, and its tooltip says "Only a local model can answer without thinking". An agent thread's menu has no row at all, since the agent never reads the field. A new chat's menu still has it, because its engine is chosen only when the first message creates the thread, so an agent thread's first turn can carry a switch it ignores. The menu stays open when the row is clicked, so the switch is seen to move.
 
 What it does not do:
 
@@ -170,6 +170,7 @@ The same routes then reach the agent ([`modules/agent/agent_threads/`](../../sur
 
 ## Known gaps
 
+- A new chat's composer offers the Thinking switch before the thread has an engine, and an agent thread ignores it on that first turn: the frontend cannot know beforehand whether the backend will give the thread to the agent.
 - The images `409` prices each image at Gemma 3's 256, so a dearer projector can still overflow unrefused: four Qwen2.5-VL images at the 1,024 px cap with five excerpts outgrow the 8,192 floor and fail as `context_too_long`.
 - An agent thread's session is deleted only while opencode is running; one deleted before any turn has started opencode in this run of the app stays in opencode's database.
 - An agent thread's first turn is named after its first words, not by the model as a chat's is.

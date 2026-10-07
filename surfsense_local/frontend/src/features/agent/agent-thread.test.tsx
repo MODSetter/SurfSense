@@ -192,11 +192,11 @@ describe("an agent thread", () => {
     backend()
     renderAgentThread()
     const user = userEvent.setup()
+    // Until the thread list answers, the thread is unknown and the row offered.
+    await screen.findByRole("heading", { name: "Contracts" })
 
     await user.click(
-      await screen.findByRole("button", {
-        name: "Add images, sources, and more",
-      })
+      screen.getByRole("button", { name: "Add images, sources, and more" })
     )
 
     expect(await screen.findByRole("menu")).toBeTruthy()
