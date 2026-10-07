@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 from modules.agent.model_endpoint.error_replies import as_error_body, error_reply
 from modules.agent.model_endpoint.model_address import ModelAddress
 from modules.llm.providers.openai_responses.stream_endings import ENDINGS
+from modules.llm.providers.sse_lines import Lines, whole_lines
 
 # Connecting is the one step with a budget: a runtime that is not running
 # refuses at once, and a remote host that cannot be reached should say so.
@@ -137,12 +138,20 @@ async def _frames(
     done: Callable[[], Awaitable[None]],
     wire: Wire,
 ) -> AsyncIterator[bytes]:
-    """The model's SSE lines as they arrive, always ended as the route's provider expects."""
+    """The model's stream as it sent it, a whole line at a time, always ended as
+    the route's provider expects."""
     ended = False
+    lines = Lines()
     try:
-        async for line in reply.aiter_lines():
-            ended = ended or wire.ends(line)
-            yield f"{line}\n".encode()
+        async for piece in whole_lines(reply.aiter_bytes()):
+            # Only the last piece can lack a line feed; its line is ended too.
+            if not piece.endswith(b"\n"):
+                piece += b"\n"
+            # Read only to see the end coming: opencode gets the bytes as sent.
+            ended = ended or any(
+                map(wire.ends, lines.feed(piece.decode(errors="replace")))
+            )
+            yield piece
     except httpx.HTTPError as failure:
         broke = _sse(wire.failure(f"the model stopped answering: {_reason(failure)}"))
         ended = ended or wire.ends(broke.strip())

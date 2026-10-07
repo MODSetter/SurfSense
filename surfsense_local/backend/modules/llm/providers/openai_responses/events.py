@@ -10,6 +10,7 @@ from modules.llm.providers.openai_responses.stream_endings import (
     INCOMPLETE,
 )
 from modules.llm.providers.prompt_reuse import log_reuse, response_reuse
+from modules.llm.providers.sse_lines import sse_lines
 from modules.llm.providers.types import Delta
 
 _ANSWER = "response.output_text.delta"
@@ -23,7 +24,7 @@ async def deltas(reply: httpx.Response) -> AsyncIterator[Delta]:
     A stream that closes without it, or ends `incomplete`, is not an answer:
     the plan's endpoint says to treat nothing as done before that event.
     """
-    async for line in reply.aiter_lines():
+    async for line in sse_lines(reply):
         if not line.startswith("data:"):
             continue
         payload = line[len("data:") :].strip()
