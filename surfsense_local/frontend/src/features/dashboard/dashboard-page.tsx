@@ -512,11 +512,9 @@ function WorkspaceDashboard({
                     formats={studio.formats}
                     isLoading={studio.isLoading}
                     onOpen={openArtifact}
-                    onRegenerate={(artifactId) =>
-                      void studio.regenerate(artifactId)
-                    }
-                    onCancel={(artifactId) => void studio.cancel(artifactId)}
-                    onDelete={(artifactId) => void studio.remove(artifactId)}
+                    onRegenerate={studio.regenerate}
+                    onCancel={studio.cancel}
+                    onDelete={studio.remove}
                   />
                 }
               />

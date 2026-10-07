@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
@@ -103,26 +103,46 @@ function shownVersion(line: ArtifactLine): Artifact {
   return line.newest.status === "failed" && ready ? ready : line.newest
 }
 
-function ArtifactRow({
-  artifact,
-  failedEdit,
-  canDelete,
-  onOpen,
-  onRegenerate,
-  onCancel,
-  onDelete,
-}: {
-  /** The version the row stands for; its status is the row's. */
-  artifact: Artifact
-  /** A newer version than `artifact` that failed, or null. */
-  failedEdit: Artifact | null
-  canDelete: boolean
-  /** Null while no version of the document has finished. */
-  onOpen: (() => void) | null
+type ArtifactRowProps = {
+  line: ArtifactLine
+  onOpenVersion: (id: number) => void
   onRegenerate: (id: number) => void
-  onCancel: () => void
-  onDelete: () => void
-}) {
+  onCancelVersion: (id: number) => void
+  onAskDelete: (line: ArtifactLine) => void
+}
+
+// The same row while its line holds the same versions: a re-read of the list
+// keeps each unchanged artifact's object, so only the rows that changed render.
+function sameRow(previous: ArtifactRowProps, next: ArtifactRowProps) {
+  const before = previous.line.versions
+  const after = next.line.versions
+  return (
+    before.length === after.length &&
+    before.every((version, index) => version === after[index]) &&
+    previous.onOpenVersion === next.onOpenVersion &&
+    previous.onRegenerate === next.onRegenerate &&
+    previous.onCancelVersion === next.onCancelVersion &&
+    previous.onAskDelete === next.onAskDelete
+  )
+}
+
+const ArtifactRow = memo(function ArtifactRow({
+  line,
+  onOpenVersion,
+  onRegenerate,
+  onCancelVersion,
+  onAskDelete,
+}: ArtifactRowProps) {
+  // The version the row stands for; its status is the row's.
+  const artifact = shownVersion(line)
+  // A newer version than `artifact` that failed, or null.
+  const failedEdit = artifact === line.newest ? null : line.newest
+  const canDelete = canDeleteLine(line)
+  // Null while no version of the document has finished.
+  const openable = newestReady(line.versions)
+  const onOpen = openable ? () => onOpenVersion(openable.id) : null
+  const onCancel = () => onCancelVersion(line.newest.id)
+  const onDelete = () => onAskDelete(line)
   const ready = artifact.status === "ready"
   const failed = artifact.status === "failed"
   const cancelled = artifact.status === "cancelled"
@@ -406,7 +426,7 @@ function ArtifactRow({
       </TooltipContent>
     </Tooltip>
   )
-}
+}, sameRow)
 
 /** A quiet mark for an edit that failed after the version the row shows. */
 function FailedEditHint({ failed, shown }: { failed: number; shown: number }) {
@@ -541,7 +561,8 @@ function TypeFilter({
   )
 }
 
-export function ArtifactList({
+// Memoized: the dashboard re-renders for a streamed reply or a column drag.
+export const ArtifactList = memo(function ArtifactList({
   workspaceId,
   artifacts,
   formats = [],
@@ -589,6 +610,10 @@ export function ArtifactList({
     ? (lines.find((line) => line.key === deleteAsked.key) ?? null)
     : null
   const deleteTarget = deleteNow ?? deleteAsked
+  const askDelete = useCallback((line: ArtifactLine) => {
+    setDeleteAsked(line)
+    setDeleteOpen(true)
+  }, [])
 
   const availableFormats = useMemo(() => {
     const counts = new Map<string, number>()
@@ -694,26 +719,16 @@ export function ArtifactList({
           </Empty>
         ) : (
           <ul className="flex list-none flex-col gap-1">
-            {visibleLines.map((line) => {
-              const { newest, versions } = line
-              const shown = shownVersion(line)
-              const openable = newestReady(versions)
-              return (
-                <ArtifactRow
-                  key={line.key}
-                  artifact={shown}
-                  failedEdit={shown === newest ? null : newest}
-                  canDelete={canDeleteLine(line)}
-                  onOpen={openable ? () => onOpen(openable.id) : null}
-                  onRegenerate={onRegenerate}
-                  onCancel={() => onCancel(newest.id)}
-                  onDelete={() => {
-                    setDeleteAsked(line)
-                    setDeleteOpen(true)
-                  }}
-                />
-              )
-            })}
+            {visibleLines.map((line) => (
+              <ArtifactRow
+                key={line.key}
+                line={line}
+                onOpenVersion={onOpen}
+                onRegenerate={onRegenerate}
+                onCancelVersion={onCancel}
+                onAskDelete={askDelete}
+              />
+            ))}
           </ul>
         )}
       </ScrollFade>
@@ -799,4 +814,4 @@ export function ArtifactList({
       </AlertDialog>
     </section>
   )
-}
+})

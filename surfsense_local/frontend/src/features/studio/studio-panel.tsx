@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import {
   ArrowLeftIcon,
   ChevronRightIcon,
@@ -379,14 +379,14 @@ function Composer({
   )
 }
 
-function FormatCard({
+const FormatCard = memo(function FormatCard({
   entry,
   selected,
   onSelect,
 }: {
   entry: StudioFormat
   selected: boolean
-  onSelect: () => void
+  onSelect: (format: string) => void
 }) {
   const Icon = FORMAT_ICONS[entry.key] ?? FileIcon
   return (
@@ -404,7 +404,7 @@ function FormatCard({
                 : "cursor-not-allowed opacity-50",
               selected && "border-primary bg-primary/5"
             )}
-            onClick={entry.available ? onSelect : undefined}
+            onClick={entry.available ? () => onSelect(entry.key) : undefined}
           >
             <Icon />
             <span className="w-full truncate text-[11px] leading-4">
@@ -416,9 +416,11 @@ function FormatCard({
       <TooltipContent side="top">{formatHint(entry)}</TooltipContent>
     </Tooltip>
   )
-}
+})
 
-export function StudioPanel({
+// Memoized, like its cards: the dashboard re-renders for a streamed reply or
+// a column drag, and none of that reaches Studio.
+export const StudioPanel = memo(function StudioPanel({
   workspaceId,
   documents,
   selectedDocumentIds,
@@ -447,8 +449,12 @@ export function StudioPanel({
 }) {
   const [format, setFormat] = useState<string | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
-  const catalog = catalogFormats(formats)
+  const catalog = useMemo(() => catalogFormats(formats), [formats])
   const selectedFormat = catalog.find((entry) => entry.key === format)
+  const selectFormat = useCallback((key: string) => {
+    setFormat(key)
+    setFormatOpen(true)
+  }, [])
 
   return (
     <>
@@ -477,10 +483,7 @@ export function StudioPanel({
               key={entry.key}
               entry={entry}
               selected={format === entry.key}
-              onSelect={() => {
-                setFormat(entry.key)
-                setFormatOpen(true)
-              }}
+              onSelect={selectFormat}
             />
           ))}
         </div>
@@ -528,4 +531,4 @@ export function StudioPanel({
       </Dialog>
     </>
   )
-}
+})
