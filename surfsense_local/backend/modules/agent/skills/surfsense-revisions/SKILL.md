@@ -17,6 +17,7 @@ description: Edit the user's own Word (.docx), Excel (.xlsx, .xlsm) or PowerPoin
 
 1. Read the file's text first (`read` on its file in `sources/`, or `surfsense_read_document`), so every quote you send is copied from what is really there.
    For a workbook, read its cells with `surfsense_read_document` with its `document_id` (or the revised copy's `artifact_id`): it lists each sheet's name and used range, then every cell's address and value or formula. The text in `sources/` has no sheet names, cell addresses or formulas, so never guess them from it.
+   To read a revised copy again, call `surfsense_read_document` with its `artifact_id`: a Word copy comes back with every author's tracked changes marked inline and its comments listed with the text each is on, a deck as each slide's text.
 2. Give `document_id` (the number at the end of the source's file name) for the first edit. The result names the revised copy's `artifact_id`; every later edit of the same file uses `artifact_id` instead, so the changes build on one copy.
 3. Send all the edits for one request in one call, in reading order. All of them apply or none do.
 

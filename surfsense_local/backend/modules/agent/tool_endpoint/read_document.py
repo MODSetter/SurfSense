@@ -1,14 +1,12 @@
-"""The read tool: the script behind a document the agent rendered, as its newest version has it, or a workbook's cells."""
+"""The read tool: the script behind a document the agent rendered, a revised copy as it reads now, or a workbook's cells."""
 
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from modules.agent.tool_endpoint.read_workbook import (
-    read_revised_workbook,
-    read_source_workbook,
-)
+from modules.agent.tool_endpoint.read_revised_copy import read_revised_copy
+from modules.agent.tool_endpoint.read_workbook import read_source_workbook
 from modules.agent.tool_endpoint.script_page import (
     OffsetOutOfRangeError,
     ScriptPage,
@@ -32,10 +30,12 @@ LISTING: dict[str, Any] = {
         "version's number and artifact id. Read it before changing the document. "
         "A long script comes a page of lines at a time: each result says which "
         "lines it holds, and the offset to call again with for the rest. Given "
-        "the document_id of a selected .xlsx or .xlsm source, or the artifact_id "
-        "of a revised copy of one, it returns the workbook's cells instead: each "
-        "sheet's name and used range, then every non-empty cell as its address "
-        "and value or formula. Read them before revising a workbook."
+        "the document_id of a selected .xlsx or .xlsm source, it returns the "
+        "workbook's cells instead: each sheet's name and used range, then every "
+        "non-empty cell as its address and value or formula. Read them before "
+        "revising a workbook. Given the artifact_id of a revised copy, it returns "
+        "the copy as it reads now: a Word copy's text with every author's tracked "
+        "changes marked and its comments, a workbook's cells, or each slide's text."
     ),
     "inputSchema": {
         "type": "object",
@@ -44,7 +44,7 @@ LISTING: dict[str, Any] = {
                 "type": "integer",
                 "description": (
                     "The artifact id of any version of the document, or of a "
-                    "revised copy of a workbook."
+                    "revised copy."
                 ),
             },
             "document_id": {
@@ -97,7 +97,7 @@ def read(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     if named is None or named.workspace_id != workspace_id:
         raise ToolCallError(f"There is no artifact {artifact_id} in this workspace.")
     if revision_of(named.artifact_metadata) is not None:
-        return read_revised_workbook(session, scope, named, arguments)
+        return read_revised_copy(session, scope, named, arguments)
     if studio_made(named.artifact_metadata):
         raise ToolCallError(MADE_IN_STUDIO)
     version = version_of(named.artifact_metadata)

@@ -8,17 +8,12 @@ from sqlalchemy.orm import Session
 from modules.agent.tool_endpoint.script_page import PAGE_BYTES
 from modules.agent.tool_endpoint.tool import ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
-from modules.artifacts.models import Artifact
 from modules.artifacts.revised_copies.cell_map import (
     CellMap,
     SheetNotFoundError,
     cell_map,
 )
-from modules.artifacts.revised_copies.formats import revisable_format
-from modules.artifacts.revised_copies.revision import revision_of
-from modules.artifacts.revised_copies.versions import primary_path, versions_of
-from modules.artifacts.script_documents.version import version_of
-from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 
 WORKBOOK_SUFFIXES = (".xlsx", ".xlsm")
@@ -52,47 +47,11 @@ def read_source_workbook(
         f"Revise it with surfsense_revise_document and document_id {document_id}."
     )
     session.rollback()  # reads only; a big workbook takes seconds, past other writers' wait
-    return _mapped(path, opening, arguments)
+    return workbook_cells(path, opening, arguments)
 
 
-def read_revised_workbook(
-    session: Session, scope: TurnScope, named: Artifact, arguments: dict[str, Any]
-) -> str:
-    """The cells of the revised copy's newest ready version, which the next edit starts from."""
-    revision = revision_of(named.artifact_metadata) or {}
-    source_name = str(revision.get("source_name", ""))
-    found = revisable_format(source_name)
-    if found is None or found.format != "xlsx":
-        raise ToolCallError(
-            f"Artifact {named.id} is a revised copy of {source_name} and keeps no "
-            "script: only a revised workbook's cells are read here."
-        )
-    version = version_of(named.artifact_metadata)
-    assert version is not None  # every revised copy's version has one
-    ready = next(
-        (
-            v
-            for v in versions_of(session, scope.workspace_id, version.root)
-            if v.document.status is DocumentStatus.READY
-        ),
-        None,
-    )
-    path = primary_path(ready) if ready is not None else None
-    if ready is None or path is None:
-        raise ToolCallError(
-            f"Artifact {named.id}'s revised copy has no ready version to read."
-        )
-    number = version_of(ready.artifact_metadata).number
-    opening = (
-        f'Artifact {ready.id}, version {number} of the revised copy of "{source_name}", '
-        f"is a workbook. {CELLS_SENTENCE} Revise it with surfsense_revise_document "
-        f"and artifact_id {ready.id}."
-    )
-    session.rollback()  # reads only; a big workbook takes seconds, past other writers' wait
-    return _mapped(path, opening, arguments)
-
-
-def _mapped(path: Path, opening: str, arguments: dict[str, Any]) -> str:
+def workbook_cells(path: Path, opening: str, arguments: dict[str, Any]) -> str:
+    """The opening, then the cell map from `sheet` and `offset` as the call names them."""
     sheet = arguments.get("sheet")
     if sheet is not None and not isinstance(sheet, str):
         raise ToolCallError("sheet must be a sheet's name, or left out.")
