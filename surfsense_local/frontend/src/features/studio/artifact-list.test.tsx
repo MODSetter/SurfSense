@@ -311,6 +311,28 @@ describe("artifact list", () => {
     await waitFor(() => expect(screen.queryByText("boom")).toBeNull())
   })
 
+  it("keeps the real error closed for a press that ended before the row failed", async () => {
+    const generating = { ...artifact, status: "processing" as const }
+    const failed = {
+      ...artifact,
+      status: "failed" as const,
+      error_message: "boom",
+    }
+    const user = userEvent.setup()
+    const { rerender } = render(list({ artifacts: [generating] }))
+
+    await user.keyboard("{Control>}")
+    await user.hover(screen.getByRole("button", { name: "Weekly summary" }))
+    await user.keyboard("{/Control}")
+    rerender(list({ artifacts: [failed] }))
+    expect(screen.queryByText("boom")).toBeNull()
+
+    // The row still answers a fresh press.
+    await user.keyboard("{Control>}")
+    expect(await screen.findByText("boom")).toBeTruthy()
+    await user.keyboard("{/Control}")
+  })
+
   it("listens for Ctrl/Cmd only while a failed row is hovered", async () => {
     const added = vi.spyOn(window, "addEventListener")
     const removed = vi.spyOn(window, "removeEventListener")

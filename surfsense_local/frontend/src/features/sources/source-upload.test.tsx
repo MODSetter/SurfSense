@@ -361,6 +361,76 @@ describe("source upload", () => {
     )
   })
 
+  describe("keeps the real error closed once Ctrl/Cmd is up", () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const processing = {
+      ...failed,
+      status: "processing" as const,
+      error_message: null,
+    }
+    const panel = (document: typeof failed | typeof processing) => (
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[document]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    it("after a press on the row before it failed", async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(panel(processing))
+
+      await user.keyboard("{Control>}")
+      await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+      await user.keyboard("{/Control}")
+      rerender(panel(failed))
+      expect(screen.queryByText("connection refused")).toBeNull()
+
+      // The row still answers a fresh press.
+      await user.keyboard("{Control>}")
+      expect(await screen.findByText("connection refused")).toBeTruthy()
+      await user.keyboard("{/Control}")
+    })
+
+    it("after a retry that failed again", async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(panel(failed))
+
+      await user.keyboard("{Control>}")
+      await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+      await screen.findByText("connection refused")
+      rerender(panel(processing))
+      await waitFor(() =>
+        expect(screen.queryByText("connection refused")).toBeNull()
+      )
+      await user.keyboard("{/Control}")
+      rerender(panel(failed))
+      expect(screen.queryByText("connection refused")).toBeNull()
+
+      await user.keyboard("{Control>}")
+      expect(await screen.findByText("connection refused")).toBeTruthy()
+      await user.keyboard("{/Control}")
+    })
+  })
+
   it("listens for Ctrl/Cmd only while a failed row is hovered", async () => {
     const ready = {
       ...pendingDocument,

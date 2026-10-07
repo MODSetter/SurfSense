@@ -9,6 +9,12 @@ type Modifiers = { metaKey: boolean; ctrlKey: boolean }
 // pressed before the pointer arrived, whose keydown reached no listener.
 export function useModifierHeld(enabled: boolean) {
   const [held, setHeld] = useState(false)
+  // Nothing hears a keyup while disabled, so a value from then (a seed on a
+  // row that can show nothing, or a press from before a retry) would be stale
+  // once `enabled` returns. Drop it during render, the idiom ArtifactList
+  // uses. A seed on a failed row survives: it lands in the render that
+  // enables the hook.
+  if (!enabled && held) setHeld(false)
 
   useEffect(() => {
     if (!enabled) return
