@@ -1,11 +1,13 @@
-import type { ReactNode } from "react"
+import { Profiler, useLayoutEffect } from "react"
+import { useAui } from "@assistant-ui/react"
 import { QueryClientProvider } from "@tanstack/react-query"
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
+import { act, cleanup, render, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createQueryClient } from "@/lib/query-client"
 
 import type { ChatMessage, ChatThread } from "./api"
+import { LiveThreadRuntime } from "./live-thread-runtime"
 import { resetChatRuns } from "./runs/run-store"
 import type { ChatTurnError } from "./use-chat-runtime"
 import { useChatRuntime } from "./use-chat-runtime"
@@ -40,12 +42,19 @@ class Stream {
   })
 
   frame(payload: object | "[DONE]") {
-    this.seq += 1
-    const data = payload === "[DONE]" ? "[DONE]" : JSON.stringify(payload)
-    this.controller.enqueue(
-      new TextEncoder().encode(`id: ${this.seq}\ndata: ${data}\n\n`)
-    )
-    if (payload === "[DONE]") this.controller.close()
+    this.frames([payload])
+  }
+
+  /** Frames that arrive in one network read. */
+  frames(payloads: Array<object | "[DONE]">) {
+    let chunk = ""
+    for (const payload of payloads) {
+      this.seq += 1
+      const data = payload === "[DONE]" ? "[DONE]" : JSON.stringify(payload)
+      chunk += `id: ${this.seq}\ndata: ${data}\n\n`
+    }
+    this.controller.enqueue(new TextEncoder().encode(chunk))
+    if (payloads.includes("[DONE]")) this.controller.close()
   }
 
   /** The window hung up, as an aborted fetch does to its body. */
@@ -58,6 +67,8 @@ class Stream {
 class FakeApi {
   threads: Array<ChatThread & { running: boolean }> = [thread(1), thread(2)]
   messages: Record<number, ChatMessage[]> = { 1: [], 2: [] }
+  // Answers to the next reads of a thread's turns, before `messages` again.
+  nextReads: Record<number, ChatMessage[][]> = {}
   sends: Array<{ threadId: number; body: Record<string, unknown> }> = []
   sendStreams: Stream[] = []
   stops: number[] = []
@@ -71,9 +82,21 @@ class FakeApi {
     if (path === `/workspaces/${WORKSPACE}/chat/threads` && method === "GET") {
       return Response.json(this.threads)
     }
+    if (path === `/workspaces/${WORKSPACE}/chat/threads`) {
+      const created = thread(this.threads.length + 1, false, {
+        title: "New chat",
+      })
+      this.threads = [created, ...this.threads]
+      this.messages[created.id] = []
+      return Response.json(created)
+    }
     if ((match = path.match(/^\/chat\/threads\/(\d+)\/messages$/))) {
       const threadId = Number(match[1])
-      if (method === "GET") return Response.json(this.messages[threadId] ?? [])
+      if (method === "GET") {
+        return Response.json(
+          this.nextReads[threadId]?.shift() ?? this.messages[threadId] ?? []
+        )
+      }
       const stream = new Stream()
       this.sends.push({ threadId, body: JSON.parse(String(init?.body)) })
       this.sendStreams.push(stream)
@@ -111,24 +134,55 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function renderRuntime() {
+type Rendered = ReturnType<typeof useChatRuntime> & {
+  // The open thread as its runtime holds it, as the panel reads it.
+  thread: ReturnType<ReturnType<typeof useAui>["thread"]>
+}
+
+/**
+ * The hook as the page uses it, its runtime from LiveThreadRuntime as the
+ * thread panel builds it. Counts the renders of the hook's page and of the
+ * runtime's subtree apart.
+ */
+function renderRuntime({ readsImages = false } = {}) {
   const client = createQueryClient()
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  const result = { current: undefined as unknown as Rendered }
+  const renders = { page: 0, thread: 0 }
+
+  function Probe({ chat }: { chat: ReturnType<typeof useChatRuntime> }) {
+    const aui = useAui()
+    useLayoutEffect(() => {
+      result.current = { ...chat, thread: aui.thread() }
+    })
+    return null
+  }
+
+  function Page() {
+    const chat = useChatRuntime({
+      workspaceId: WORKSPACE,
+      canSend: true,
+      selectedDocumentIds: [],
+      selectedSourceTitles: [],
+      readsImages,
+      canSkipThinking: false,
+      onModelRequired: vi.fn(),
+    })
+    renders.page += 1
+    return (
+      <Profiler id="thread" onRender={() => (renders.thread += 1)}>
+        <LiveThreadRuntime {...chat.liveThread}>
+          <Probe chat={chat} />
+        </LiveThreadRuntime>
+      </Profiler>
+    )
+  }
+
+  render(
+    <QueryClientProvider client={client}>
+      <Page />
+    </QueryClientProvider>
   )
-  return renderHook(
-    () =>
-      useChatRuntime({
-        workspaceId: WORKSPACE,
-        canSend: true,
-        selectedDocumentIds: [],
-        selectedSourceTitles: [],
-        readsImages: false,
-        canSkipThinking: false,
-        onModelRequired: vi.fn(),
-      }),
-    { wrapper }
-  )
+  return { result, renders }
 }
 
 function stored(
@@ -146,10 +200,13 @@ function stored(
   } as ChatMessage
 }
 
-function assistantText(messages: ChatMessage[]) {
-  return messages
-    .filter((m) => m.role === "assistant")
-    .map((m) => m.content.text)
+function assistantText(result: ReturnType<typeof renderRuntime>["result"]) {
+  return result.current.thread
+    .getState()
+    .messages.filter((m) => m.role === "assistant")
+    .map((m) =>
+      m.content.map((part) => (part.type === "text" ? part.text : "")).join("")
+    )
 }
 
 async function openThread(
@@ -166,7 +223,7 @@ function sendIn(
   text: string
 ) {
   act(() => {
-    result.current.runtime.thread.append({
+    result.current.thread.append({
       role: "user",
       content: [{ type: "text", text }],
     })
@@ -195,9 +252,7 @@ describe("useChatRuntime", () => {
     await openThread(result, 1)
 
     await waitFor(() =>
-      expect(assistantText(result.current.messages)).toEqual([
-        "Revenue climbed.",
-      ])
+      expect(assistantText(result)).toEqual(["Revenue climbed."])
     )
     expect(result.current.isRunning).toBe(true)
     expect(api.stops).toEqual([])
@@ -252,7 +307,7 @@ describe("useChatRuntime", () => {
     )
 
     await act(async () => {
-      result.current.runtime.thread.cancelRun()
+      result.current.thread.cancelRun()
     })
 
     await waitFor(() => expect(api.stops).toEqual([1]))
@@ -277,7 +332,7 @@ describe("useChatRuntime", () => {
     await openThread(result, 1)
 
     const errors = await waitFor(() => {
-      const states = result.current.runtime.thread.getState().messages
+      const states = result.current.thread.getState().messages
       const found = states
         .filter((m) => m.role === "assistant")
         .map((m) =>
@@ -345,9 +400,7 @@ describe("useChatRuntime", () => {
     act(() => reply.frame({ type: "delta", text: "reports." }))
     await openThread(result, 1)
 
-    await waitFor(() =>
-      expect(assistantText(result.current.messages)).toEqual(["Two reports."])
-    )
+    await waitFor(() => expect(assistantText(result)).toEqual(["Two reports."]))
     expect(result.current.isRunning).toBe(true)
   })
 
@@ -367,7 +420,7 @@ describe("useChatRuntime", () => {
     )
 
     await act(async () => {
-      result.current.runtime.thread.cancelRun()
+      result.current.thread.cancelRun()
     })
 
     await waitFor(() => expect(api.stops).toEqual([1]))
@@ -431,5 +484,158 @@ describe("useChatRuntime", () => {
     await waitFor(() =>
       expect(result.current.approvals.map((a) => a.id)).toEqual(["per_1"])
     )
+  })
+})
+
+describe("while a reply streams", () => {
+  async function streaming(
+    result: ReturnType<typeof renderRuntime>["result"],
+    history: ChatMessage[] = []
+  ) {
+    api.messages[1] = history
+    await openThread(result, 1)
+    sendIn(result, "How did revenue move?")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const reply = api.sendStreams[0]
+    act(() =>
+      reply.frames([
+        {
+          type: "accepted",
+          user_message_id: 11,
+          assistant_message_id: 12,
+          user_created_at: "2026-10-05T00:00:00Z",
+        },
+        { type: "reasoning", text: "Looking at the quarters." },
+        { type: "delta", text: "Revenue" },
+      ])
+    )
+    await waitFor(() => expect(assistantText(result).at(-1)).toBe("Revenue"))
+    return reply
+  }
+
+  const settle = () =>
+    act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+
+  it("renders its tokens in the thread alone, not the page", async () => {
+    const { result, renders } = renderRuntime()
+    const reply = await streaming(result)
+    await settle()
+    const page = renders.page
+
+    for (const word of [" climbed", " in", " every", " quarter."]) {
+      act(() => reply.frame({ type: "delta", text: word }))
+      await settle()
+    }
+
+    expect(assistantText(result).at(-1)).toBe(
+      "Revenue climbed in every quarter."
+    )
+    expect(renders.page).toBe(page)
+  })
+
+  it("renders the tokens of one network read once", async () => {
+    const { result, renders } = renderRuntime()
+    const reply = await streaming(result)
+    await settle()
+    const thread = renders.thread
+
+    act(() =>
+      reply.frames(
+        Array.from({ length: 20 }, () => ({ type: "delta", text: " more" }))
+      )
+    )
+    await settle()
+
+    expect(assistantText(result).at(-1)).toBe(`Revenue${" more".repeat(20)}`)
+    // One render of the runtime, then one of the message it changed.
+    expect(renders.thread - thread).toBeLessThanOrEqual(2)
+  })
+
+  it("renders nothing for another thread's tokens", async () => {
+    const { result, renders } = renderRuntime()
+    const reply = await streaming(result)
+    await openThread(result, 2)
+    await settle()
+    const before = { ...renders }
+
+    for (const word of [" climbed", " again."]) {
+      act(() => reply.frame({ type: "delta", text: word }))
+      await settle()
+    }
+
+    expect(renders).toEqual(before)
+  })
+
+  it("keeps every other message as it was", async () => {
+    const { result } = renderRuntime()
+    const reply = await streaming(result, [
+      stored(1, "user", "first?"),
+      stored(2, "assistant", "First answer."),
+    ])
+    const [question, answer] = result.current.thread.getState().messages
+    const live = result.current.thread.getState().messages.at(-1)!
+    const reasoning = live.metadata.custom.reasoning
+
+    act(() => reply.frame({ type: "delta", text: " climbed." }))
+    await waitFor(() =>
+      expect(assistantText(result).at(-1)).toBe("Revenue climbed.")
+    )
+
+    const messages = result.current.thread.getState().messages
+    expect(messages[0]).toBe(question)
+    expect(messages[1]).toBe(answer)
+    // An answer token leaves the trace, so its header has nothing to redraw.
+    expect(messages.at(-1)!.metadata.custom.reasoning).toBe(reasoning)
+  })
+
+  it("keeps its Retry while tokens arrive", async () => {
+    const { result } = renderRuntime()
+    const reply = await streaming(result)
+    const retry = result.current.retry
+
+    act(() => reply.frame({ type: "delta", text: " climbed." }))
+    await settle()
+
+    expect(result.current.retry).toBe(retry)
+  })
+
+  it("names a new chat, rendering the page for its name and not its words", async () => {
+    const { result, renders } = renderRuntime()
+    await waitFor(() => expect(result.current.threads.length).toBe(2))
+    sendIn(result, "How did revenue move?")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    const created = api.sends[0].threadId
+    expect(result.current.autoNamingThreadId).toBe(created)
+
+    const reply = api.sendStreams[0]
+    act(() =>
+      reply.frames([
+        {
+          type: "accepted",
+          user_message_id: 11,
+          assistant_message_id: 12,
+          user_created_at: "2026-10-05T00:00:00Z",
+        },
+        { type: "thread-title-update", title: "Revenue by quarter" },
+        { type: "delta", text: "Revenue" },
+      ])
+    )
+    await waitFor(() =>
+      expect(result.current.animatingTitleThreadId).toBe(created)
+    )
+    expect(result.current.autoNamingThreadId).toBeNull()
+    expect(result.current.activeThread?.title).toBe("Revenue by quarter")
+    await settle()
+    const page = renders.page
+
+    for (const word of [" climbed", " again."]) {
+      act(() => reply.frame({ type: "delta", text: word }))
+      await settle()
+    }
+
+    expect(renders.page).toBe(page)
+    expect(assistantText(result)).toEqual(["Revenue climbed again."])
   })
 })

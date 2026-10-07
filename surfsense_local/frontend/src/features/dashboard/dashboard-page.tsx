@@ -125,10 +125,12 @@ function WorkspaceDashboard({
     workspace.id,
     `${selection ? modelKey(selection) : "none"}:${modelsVisited}`
   )
-  const selectedSourceTitles = sources.includedDocumentIds.map(
-    (id) =>
-      sources.documents.find((document) => document.id === id)?.title ?? ""
-  )
+  const selectedSourceTitles = useMemo(() => {
+    const titles = new Map(
+      sources.documents.map((document) => [document.id, document.title])
+    )
+    return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
+  }, [sources.documents, sources.includedDocumentIds])
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
@@ -191,8 +193,8 @@ function WorkspaceDashboard({
     setRightPanelOpen(true)
     writeRightPanelOpen(true)
   }, [])
-  // Stable: it is a context value, and this page re-renders on every streamed
-  // token, which would re-render every agent step in the thread.
+  // Stable: it is a context value, and a new one would re-render every agent
+  // step in the thread.
   const openArtifact = useCallback(
     (artifactId: number) => {
       openRightPanel()
@@ -200,7 +202,7 @@ function WorkspaceDashboard({
     },
     [openRightPanel]
   )
-  // Stable for the same reason: every streamed token re-renders this page.
+  // Stable for the same reason.
   const officeOffer = useMemo(() => {
     const office = new Set(
       studio.artifacts
@@ -212,6 +214,14 @@ function WorkspaceDashboard({
       openOfficeSupport: onOpenOfficeSupport,
     }
   }, [studio.artifacts, onOpenOfficeSupport])
+  // Stable too: every reply's citations are drawn with it.
+  const onCitation = useCallback(
+    (chunkId: number) => {
+      openRightPanel()
+      setInspect({ kind: "citation", chunkId })
+    },
+    [openRightPanel]
+  )
   return (
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
@@ -406,7 +416,7 @@ function WorkspaceDashboard({
               onAnswer={chat.answerApproval}
             />
             <ThreadPanel
-              runtime={chat.runtime}
+              live={chat.liveThread}
               thread={chat.activeThread}
               view={chat.conversationView}
               model={selection}
@@ -424,10 +434,7 @@ function WorkspaceDashboard({
                 ) : null
               }
               blockedPlaceholder={composerHold}
-              onCitation={(chunkId) => {
-                openRightPanel()
-                setInspect({ kind: "citation", chunkId })
-              }}
+              onCitation={onCitation}
               onModelSetup={onModelRequired}
               onModelSelected={onModelSelected}
               onRetry={chat.retry}
