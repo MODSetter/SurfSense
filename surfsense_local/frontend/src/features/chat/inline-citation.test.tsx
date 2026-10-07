@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from "vitest"
-import { fireEvent, screen } from "@testing-library/react"
+import { memo } from "react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, screen } from "@testing-library/react"
 
 import { render } from "@/test-utils"
 
+import { useCitationContext } from "./citation-context"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import { CitationProvider, InlineCitation } from "./inline-citation"
 
@@ -16,6 +18,8 @@ const catalog = [
     title: "Guide.txt",
   },
 ]
+
+afterEach(cleanup)
 
 describe("preprocessCitationMarkdown", () => {
   it("turns explicit source citations into chunk chips", () => {
@@ -55,5 +59,33 @@ describe("InlineCitation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(onCitation).toHaveBeenCalledWith(30)
+  })
+
+  it("re-renders no reply for a new handler, and opens with the newest", () => {
+    const renders = vi.fn()
+    // Stands for a reply's markdown, which reads the citations from context.
+    const Reply = memo(function Reply() {
+      useCitationContext()
+      renders()
+      return <InlineCitation data-chunk-id="30">30</InlineCitation>
+    })
+    const first = vi.fn()
+    const latest = vi.fn()
+
+    const { rerender } = render(
+      <CitationProvider citations={catalog} onCitation={first}>
+        <Reply />
+      </CitationProvider>
+    )
+    rerender(
+      <CitationProvider citations={catalog} onCitation={latest}>
+        <Reply />
+      </CitationProvider>
+    )
+    fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
+
+    expect(renders).toHaveBeenCalledTimes(1)
+    expect(latest).toHaveBeenCalledWith(30)
+    expect(first).not.toHaveBeenCalled()
   })
 })
