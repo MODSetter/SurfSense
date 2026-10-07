@@ -239,6 +239,27 @@ def test_harness_faults_in_a_row_stop_the_sweep(tmp_path: Path) -> None:
     assert f"{HARNESS_STREAK} harness faults in a row" in log
 
 
+def test_an_account_refusal_stops_the_sweep_and_the_case_runs_again_on_resume(
+    tmp_path: Path,
+) -> None:
+    """Out of credits, nothing more starts and no model is marked down for it; the same command resumes."""
+    plan = {"a/good|smoke": ["account", "passed"]}
+    sweep = _sweep(tmp_path, plan, [GOOD, WEAK], guard=RamGuard(lanes=1))
+
+    Runner(sweep).run()
+
+    assert [(r["model"], r["case"]) for r in _trace(tmp_path)] == [("a/good", "smoke")]
+    shown = report.read(tmp_path / "sweep")
+    assert (shown.done, shown.below) == (0, 0)
+    assert "refused the account" in shown.text()
+
+    Runner(_sweep(tmp_path, plan, [GOOD, WEAK], guard=RamGuard(lanes=1))).run()
+
+    rows = {row["id"]: row for row in _results(tmp_path)["models"]}
+    assert (rows["a/good"]["level"], rows["a/good"]["attempts"]) == ("agent", 4)
+    assert rows["a/weak"]["level"] == "agent"
+
+
 def test_the_report_reads_progress_from_the_sweeps_files(tmp_path: Path) -> None:
     """Progress is read from disk, so it works while the runner runs or after."""
     Runner(_sweep(tmp_path, {"a/weak|smoke": ["failed"]}, [GOOD, WEAK, SPLIT])).run()

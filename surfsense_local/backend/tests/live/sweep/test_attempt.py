@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.live.sweep.attempt import classify
+from tests.live.sweep.attempt import Attempt, classify
 from tests.live.sweep.process import Process
 from tests.live.sweep.retry_rule import context_overflow, transient
 
@@ -170,3 +170,83 @@ def test_what_counts_as_transient() -> None:
         '{"raw":"exceeds the model\'s maximum context length"}}}',
     }
     assert context_overflow(overflow) and not transient(overflow)
+
+
+@pytest.mark.parametrize(
+    "exchange",
+    [
+        {"status": 408, "error": '{"error":{"message":"Request timed out"}}'},
+        {"status": 200, "error": '{"code": 408, "message": "Request timed out"}'},
+        {"status": 0, "error": "ConnectTimeout: timed out"},
+        {"status": 0, "error": "WriteTimeout: timed out"},
+        {"status": 0, "error": "PoolTimeout: timed out"},
+        {
+            "status": 404,
+            "error": '{"error":{"message":"No endpoints found for qwen/qwen3.8-27b.","code":404}}',
+        },
+    ],
+    ids=["408", "streamed-408", "connect", "write", "pool", "no-endpoint"],
+)
+def test_a_request_that_timed_out_or_found_no_provider_is_transient(
+    exchange: dict,
+) -> None:
+    """A dropped Wi-Fi or a model with no provider up just now is not the model's failure."""
+    assert transient(exchange)
+
+
+def _ending_with(tmp_path: Path, exchange: dict):
+    """The Gemma run, its last request refused this way."""
+    folder = _fixture("assertion_failure", tmp_path)
+    (run,) = folder.iterdir()
+    requests = run / "model-requests.json"
+    made = json.loads(requests.read_text(encoding="utf-8"))
+    requests.write_text(json.dumps([*made, exchange]), encoding="utf-8")
+    return _classify(folder, tmp_path)
+
+
+@pytest.mark.parametrize(
+    "exchange",
+    [
+        {"status": 401, "error": '{"error":{"message":"User not found.","code":401}}'},
+        {
+            "status": 402,
+            "error": '{"error":{"message":"Insufficient credits. Add more using '
+            'https://openrouter.ai/settings/credits","code":402}}',
+        },
+        {
+            "status": 402,
+            "error": '{"error":{"message":"This request requires more credits, or '
+            "fewer max_tokens. You requested up to 32000 tokens, but can only "
+            'afford 1834.","code":402}}',
+        },
+        {"status": 200, "error": '{"code": 402, "message": "Insufficient credits"}'},
+    ],
+    ids=["revoked-key", "no-credits", "can-only-afford", "streamed-402"],
+)
+def test_an_account_refusal_is_never_the_models_and_uses_no_try(
+    tmp_path: Path, exchange: dict
+) -> None:
+    """A revoked key or an empty balance would otherwise mark every model after it 0 of 2."""
+    ending = _ending_with(tmp_path, exchange)
+
+    assert ending.outcome == "account"
+    attempt = Attempt("m/x", "smoke", 1, ending.outcome)
+    assert not attempt.counted and not attempt.uses_a_try
+
+
+def test_a_run_that_passed_despite_a_refusal_still_passed(tmp_path: Path) -> None:
+    """The account check reads only runs that failed."""
+    folder = _fixture("assertion_failure", tmp_path)
+    (run,) = folder.iterdir()
+    result = json.loads((run / "result.json").read_text(encoding="utf-8"))
+    (run / "result.json").write_text(
+        json.dumps({**result, "outcome": "passed"}), encoding="utf-8"
+    )
+    requests = run / "model-requests.json"
+    made = json.loads(requests.read_text(encoding="utf-8"))
+    requests.write_text(
+        json.dumps([{"status": 402, "error": "Insufficient credits"}, *made]),
+        encoding="utf-8",
+    )
+
+    assert _classify(folder, tmp_path).outcome == "passed"

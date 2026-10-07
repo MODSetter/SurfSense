@@ -85,6 +85,8 @@ class Runner:
         self.running: dict[tuple[str, str], Running] = {}
         self.finished: queue.Queue[tuple[Running, Process]] = queue.Queue()
         self.stopping = False
+        # Why the runner stopped early, for the report.
+        self.stopped: str | None = None
         self.ended_here: list[Attempt] = []
         self._said_waiting = ""
         self._say_again = 0.0
@@ -114,7 +116,7 @@ class Runner:
                 if not units and not self.running:
                     break
                 if units and not self._launch(units) and not self.running:
-                    self.log("budget reached: no case fits what is left")
+                    self._stop("budget reached: no case fits what is left")
                     break
                 if time.monotonic() >= next_progress:
                     self.sweep.say(report.read(sweep.out).text())
@@ -122,9 +124,8 @@ class Runner:
                 time.sleep(sweep.poll_seconds)
             except KeyboardInterrupt:
                 interrupts += 1
-                self.stopping = True
                 if interrupts == 1:
-                    self.log("Ctrl-C: no new cases; waiting for the ones in flight")
+                    self._stop("Ctrl-C: no new cases; waiting for the ones in flight")
                 else:
                     self.log("Ctrl-C again: killing the cases in flight")
                     for running in self.running.values():
@@ -305,18 +306,27 @@ class Runner:
             f"{f' - {attempt.reason}' if attempt.reason else ''}"
         )
         if attempt.outcome == "budget":
-            self.log("budget reached mid-run: no new cases")
-            self.stopping = True
+            self._stop("budget reached mid-run: no new cases")
+        if attempt.outcome == "account":
+            self._stop(
+                f"{attempt.reason}. No new cases: fix the key or add credits, "
+                "then run the same command to resume"
+            )
         streak = self.ended_here[-HARNESS_STREAK:]
         if len(streak) == HARNESS_STREAK and all(
             a.outcome == "harness" for a in streak
         ):
-            self.log(
+            self._stop(
                 f"{HARNESS_STREAK} harness faults in a row: stopping; "
                 f"see {attempt.run_folder}/pytest.log"
             )
-            self.stopping = True
         self._save()
+
+    def _stop(self, reason: str) -> None:
+        """No new cases; the cases in flight finish."""
+        self.log(reason)
+        self.stopping = True
+        self.stopped = self.stopped or reason
 
     def _next_number(self, model_id: str, case: str) -> int:
         numbers = [
@@ -396,6 +406,7 @@ class Runner:
                 "lane_gb": self.sweep.guard.lane_gb,
                 "budget": self.sweep.budget.cap,
                 "case_cap": self.sweep.budget.case_cap,
+                "stopped": self.stopped,
                 "running": [
                     {
                         "model": r.model.id,

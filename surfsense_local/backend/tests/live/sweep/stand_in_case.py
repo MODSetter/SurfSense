@@ -1,8 +1,8 @@
 """A stand-in for one live case, for the runner's tests: it leaves the run folder a real case would, as a plan says.
 
 usage: python stand_in_case.py <case>, with STAND_IN_PLAN naming a JSON file of
-{"<model>|<case>": ["passed", "failed", "transient", "harness", "chat",
-"hang", "hang-silent"]}, one entry per attempt. Each run charges
+{"<model>|<case>": ["passed", "failed", "transient", "account", "harness",
+"chat", "hang", "hang-silent"]}, one entry per attempt. Each run charges
 STAND_IN_DOLLARS (default $0.10) to its own ledger.
 """
 
@@ -65,6 +65,9 @@ def main() -> int:
     if outcome == "transient":
         exchanges.append({"status": 503, "error": '{"code": 503}'})
         frames[0]["frames"] = [{"type": "error", "message": "upstream"}]
+    if outcome == "account":
+        exchanges.append({"status": 402, "error": "Insufficient credits"})
+        frames[0]["frames"] = [{"type": "error", "message": "Insufficient credits"}]
     failed = outcome != "passed"
     result = {
         "case": case,

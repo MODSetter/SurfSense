@@ -3,9 +3,10 @@
 `passed` and `failed` are the model's. `transient` (the provider failed) and
 `harness` (our fault: no result.json, a crash, an app error, the thread opened
 as a chat) are tried again and never counted. `budget` is the sweep's money
-running out, and `interrupted` an attempt the runner was stopped during; neither
-is counted or uses up a retry. `reopened` is not a run: it gives an unresolved
-case its retries back.
+running out, `account` OpenRouter refusing the key or its credits, and
+`interrupted` an attempt the runner was stopped during; none is counted or uses
+up a retry, and the first two stop the sweep. `reopened` is not a run: it gives
+an unresolved case its retries back.
 """
 
 import json
@@ -14,10 +15,21 @@ from pathlib import Path
 from typing import Any, Literal
 
 from tests.live.sweep.process import Process
-from tests.live.sweep.retry_rule import context_overflow, ended_by_provider
+from tests.live.sweep.retry_rule import (
+    account_refused,
+    context_overflow,
+    ended_by_provider,
+)
 
 Outcome = Literal[
-    "passed", "failed", "transient", "harness", "budget", "interrupted", "reopened"
+    "passed",
+    "failed",
+    "transient",
+    "harness",
+    "budget",
+    "account",
+    "interrupted",
+    "reopened",
 ]
 # The proxy's refusal once a run reaches its stop (recording_proxy.py, conftest.py).
 _BUDGET_STOP = "live budget stop"
@@ -84,6 +96,12 @@ def classify(
         "run_folder": (run or attempt_dir).relative_to(root).as_posix(),
         "served_by": _served_by(exchanges),
     }
+    refused = next((e for e in exchanges if account_refused(e)), None)
+    if refused is not None and not _passed(run):
+        said = refused.get("error") or f"HTTP {refused.get('status')}"
+        return Ending(
+            "account", reason=f"OpenRouter refused the account: {said}"[:300], **base
+        )
     if process.timed_out:
         if _output_tokens(attempt_dir) > 0:
             return Ending("failed", "timeout", "ran past the case's time limit", **base)
@@ -141,6 +159,13 @@ def ledger_dollars(attempt_dir: Path) -> float:
     """What the attempt's own ledger has charged so far."""
     ledger = _ledger(attempt_dir)
     return float(ledger.get("dollars") or 0.0)
+
+
+def _passed(run: Path | None) -> bool:
+    result = run / "result.json" if run else None
+    return bool(
+        result and result.is_file() and _json(result).get("outcome") == "passed"
+    )
 
 
 def _run_folder(attempt_dir: Path) -> Path | None:

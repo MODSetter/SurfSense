@@ -32,6 +32,8 @@ class Progress:
     runner: str
     # Cases running at once on average since the runner started: the RAM guard may hold it under `lanes`.
     busy_lanes: float | None = None
+    # Why the last runner stopped before every model had its verdict.
+    stopped: str | None = None
 
     @property
     def done(self) -> int:
@@ -55,6 +57,7 @@ class Progress:
         budget = f" of ${self.budget:.2f}" if self.budget is not None else ""
         lines = [
             f"runner: {self.runner}",
+            *([f"stopped: {self.stopped}"] if self.stopped else []),
             f"models: {self.done} done of {self.total} ({self.passing} agent, "
             f"{self.below} below), {self.unresolved} unresolved, "
             f"{self.started} under way, {self.left} left",
@@ -101,6 +104,7 @@ def progress(
         cost_per_model=_mean([r["cost"] for r in finished]),
         runner=f"running (pid {status['pid']})" if alive else "not running",
         busy_lanes=_busy_lanes(attempts, status.get("started"), now),
+        stopped=status.get("stopped"),
     )
 
 
