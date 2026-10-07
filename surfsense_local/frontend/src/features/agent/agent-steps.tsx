@@ -1,3 +1,5 @@
+import { memo, useCallback } from "react"
+
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -40,8 +42,9 @@ function StepStatus({ status }: { status: AgentStep["status"] }) {
 
 /** One step: what it did, and what it returned, folded until asked for. A
  *  step that made a document opens it instead of folding what it returned,
- *  which was written for the model. */
-function StepLine({
+ *  which was written for the model. Memoized: a streamed token re-renders the
+ *  reply, and a step keeps its object until it changes. */
+const StepLine = memo(function StepLine({
   step,
   sourceTitle,
 }: {
@@ -92,7 +95,7 @@ function StepLine({
       </details>
     </li>
   )
-}
+})
 
 /** The steps the agent took for one reply, above the answer they led to.
  *  `scope` is the turn's sources, which name a source a step used. */
@@ -103,12 +106,15 @@ export function AgentSteps({
   steps: AgentStep[]
   scope?: TurnSources | null
 }) {
+  const sourceTitle = useCallback(
+    (documentId: number) => {
+      const index = scope?.document_ids.indexOf(documentId) ?? -1
+      return index >= 0 ? (scope?.titles[index] ?? null) : null
+    },
+    [scope]
+  )
   if (steps.length === 0) {
     return null
-  }
-  const sourceTitle = (documentId: number) => {
-    const index = scope?.document_ids.indexOf(documentId) ?? -1
-    return index >= 0 ? (scope?.titles[index] ?? null) : null
   }
   return (
     <ol

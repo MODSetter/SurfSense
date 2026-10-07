@@ -12,6 +12,8 @@ export type RunState =
 /** One thread's reply in progress, as this window follows it. */
 export type LiveRun = {
   readonly threadId: number
+  // Runs outlive a switch of workspace, so each says whose thread it is.
+  readonly workspaceId: number
   readonly pair: LivePair | null
   // A retried turn's ids, hidden while the reply that replaces it streams.
   readonly replaces: ReadonlyArray<number | string>
@@ -22,23 +24,89 @@ export type LiveRun = {
   readonly retry: { text: string; images: ImageUpload[] } | null
 }
 
-type Entry = LiveRun & { controller: AbortController }
+/** A run as the page outside its thread reads it: everything but the reply. */
+export type RunSummary = {
+  readonly state: RunState
+  readonly ended: boolean
+  // A replayed run has no pair until its `accepted` frame.
+  readonly hasPair: boolean
+}
+
+type Entry = Omit<LiveRun, "lastSeq"> & {
+  lastSeq: number
+  controller: AbortController
+}
 
 type Listener = () => void
 type EndedListener = (threadId: number) => void
 type FrameListener = (threadId: number, event: ChatStreamEvent) => void
 
+const NO_RUNS: Readonly<Record<number, RunSummary>> = {}
+
 // Module level, not component state: a reply keeps arriving whichever thread
 // is open, and only leaves when its stored turns have caught up.
 let runs = new Map<number, Entry>()
-let version = 0
+let summaries = NO_RUNS
 const listeners = new Set<Listener>()
 const endedListeners = new Set<EndedListener>()
 const frameListeners = new Set<FrameListener>()
+let pendingNotice: ReturnType<typeof setTimeout> | null = null
+let lastNotice = Number.NEGATIVE_INFINITY
 
-function changed() {
-  version += 1
+// Text is told at most this often: each render reads the whole live reply, so
+// a fast model on a long reply would otherwise keep the window busy redrawing.
+export const TEXT_NOTICE_GAP_MS = 32
+
+/** Tell every subscriber now, of this change and of frames not yet told. */
+function notify() {
+  if (pendingNotice !== null) {
+    clearTimeout(pendingNotice)
+    pendingNotice = null
+  }
+  lastNotice = performance.now()
   for (const listener of [...listeners]) listener()
+}
+
+// The frames of one network read are applied in microtasks, before any
+// timer runs, so one notice a macrotask later renders them all at once, and
+// none comes sooner than TEXT_NOTICE_GAP_MS after the last. Not an animation
+// frame: a hidden window gets none, and its replies still stream.
+function notifySoon() {
+  pendingNotice ??= setTimeout(
+    notify,
+    Math.max(0, lastNotice + TEXT_NOTICE_GAP_MS - performance.now())
+  )
+}
+
+function sameState(a: RunState, b: RunState) {
+  return a.state === "queued"
+    ? b.state === "queued" && a.position === b.position
+    : a.state === b.state
+}
+
+/** Brings one thread's summary in line, keeping the object while it holds. */
+function summarize(threadId: number) {
+  const entry = runs.get(threadId)
+  const previous = summaries[threadId]
+  if (!entry) {
+    if (!previous) return
+    const rest = { ...summaries }
+    delete rest[threadId]
+    summaries = rest
+    return
+  }
+  const hasPair = entry.pair !== null
+  if (
+    previous?.ended === entry.ended &&
+    previous.hasPair === hasPair &&
+    sameState(previous.state, entry.state)
+  ) {
+    return
+  }
+  summaries = {
+    ...summaries,
+    [threadId]: { state: entry.state, ended: entry.ended, hasPair },
+  }
 }
 
 export function subscribeToRuns(listener: Listener): () => void {
@@ -46,9 +114,12 @@ export function subscribeToRuns(listener: Listener): () => void {
   return () => listeners.delete(listener)
 }
 
-/** Changes whenever any run does; what `useSyncExternalStore` compares. */
-export function runsVersion(): number {
-  return version
+/**
+ * Every run's summary, by thread. The same object until a run starts, ends,
+ * changes state or gets its pair, so a reader sits out the frames of text.
+ */
+export function runSummaries(): Readonly<Record<number, RunSummary>> {
+  return summaries
 }
 
 export function liveRun(threadId: number | null): LiveRun | null {
@@ -75,19 +146,22 @@ export function onRunFrame(listener: FrameListener): () => void {
 export function beginRun(
   threadId: number,
   {
+    workspaceId,
     pair = null,
     replaces = [],
     retry = null,
   }: {
+    workspaceId: number
     pair?: LivePair | null
     replaces?: ReadonlyArray<number | string>
     retry?: LiveRun["retry"]
-  } = {}
+  }
 ): AbortSignal {
   runs.get(threadId)?.controller.abort()
   const controller = new AbortController()
   runs.set(threadId, {
     threadId,
+    workspaceId,
     pair,
     replaces,
     state: { state: "running" },
@@ -96,7 +170,8 @@ export function beginRun(
     retry,
     controller,
   })
-  changed()
+  summarize(threadId)
+  notify()
   return controller.signal
 }
 
@@ -116,13 +191,21 @@ export async function pump(
             ? { state: "queued", position: event.position }
             : { state: event.state }
           : entry.state
-      runs.set(threadId, {
-        ...entry,
-        pair: applyFrame(entry.pair, event),
-        state,
-        lastSeq: seq ?? entry.lastSeq,
-      })
-      changed()
+      const pair = applyFrame(entry.pair, event)
+      if (pair === entry.pair && sameState(state, entry.state)) {
+        // A title or an approval changes nothing the run shows; only the
+        // number moves, and no one is told.
+        entry.lastSeq = seq ?? entry.lastSeq
+      } else {
+        runs.set(threadId, {
+          ...entry,
+          pair,
+          state,
+          lastSeq: seq ?? entry.lastSeq,
+        })
+        summarize(threadId)
+        notifySoon()
+      }
       for (const listener of [...frameListeners]) listener(threadId, event)
     }
   } finally {
@@ -134,7 +217,9 @@ function end(threadId: number) {
   const entry = runs.get(threadId)
   if (!entry || entry.ended) return
   runs.set(threadId, { ...entry, ended: true })
-  changed()
+  summarize(threadId)
+  // At once, with any frames still waiting, before anyone hears it ended.
+  notify()
   for (const listener of [...endedListeners]) listener(threadId)
 }
 
@@ -146,7 +231,7 @@ export function updatePair(
   const entry = runs.get(threadId)
   if (!entry?.pair) return
   runs.set(threadId, { ...entry, pair: change(entry.pair) })
-  changed()
+  notify()
 }
 
 /** Forget a run once its stored turns show the whole reply. */
@@ -156,12 +241,14 @@ export function dropRun(threadId: number): void {
   // A run that ended has nothing left to hang up on.
   if (!entry.ended) entry.controller.abort()
   runs.delete(threadId)
-  changed()
+  summarize(threadId)
+  notify()
 }
 
 /** For tests: every run forgotten, every listener kept. */
 export function resetChatRuns(): void {
   for (const entry of runs.values()) entry.controller.abort()
   runs = new Map()
-  changed()
+  summaries = NO_RUNS
+  notify()
 }

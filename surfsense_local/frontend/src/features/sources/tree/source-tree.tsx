@@ -1,12 +1,15 @@
 import {
+  memo,
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  type HTMLAttributes,
   type KeyboardEvent,
 } from "react"
 
 import { getFileViewer } from "@/features/file-viewers/registry"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import type { WorkspaceDocument } from "../api"
@@ -16,17 +19,8 @@ import type { SourceFolder } from "./folders-api"
 import type { Tick } from "./scope-state"
 import { TOP, type FolderKey, type SourceIndex } from "./source-index"
 import type { MoveTarget } from "./move-to-dialog"
-import type { RowDrag } from "./use-row-drag"
-import { visibleRows, type TreeRow } from "./visible-rows"
-
-// Each level indents by this much, past the first.
-const INDENT_PX = 16
-
-const ARIA_TICK = {
-  checked: "true",
-  unchecked: "false",
-  mixed: "mixed",
-} as const satisfies Record<Tick, "true" | "false" | "mixed">
+import type { TreeRowEvents } from "./tree-item"
+import { documentKey, visibleRows, type TreeRow } from "./visible-rows"
 
 export type DocumentRowActions = {
   onOpen: (documentId: number) => void
@@ -49,7 +43,9 @@ export type FolderRowActions = {
   onMoveRequest: (target: MoveTarget) => void
 }
 
-export function SourceTree({
+// Memoized, and every row too: a row renders again only when its own values
+// change, so ticking one source or opening a preview touches that row alone.
+export const SourceTree = memo(function SourceTree({
   index,
   expanded,
   onExpandedChange,
@@ -80,23 +76,23 @@ export function SourceTree({
   takesFiles: boolean
   labelledBy: string
 }) {
-  const rows = visibleRows(index, expanded, filter)
+  const rows = useMemo(
+    () => visibleRows(index, expanded, filter),
+    [index, expanded, filter]
+  )
   const rowElements = useRef(new Map<string, HTMLLIElement>())
-  const documentElements = useRef(new Map<number, HTMLLIElement>())
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const focusable =
     rows.find((row) => row.key === activeKey)?.key ?? rows[0]?.key
-
-  const dragOf = (row: TreeRow): RowDrag => ({
-    into: row.kind === "folder" ? row.folder.id : row.parent,
-    movable: folderActions !== undefined,
-    takesFiles,
-  })
+  const movable = folderActions !== undefined
+  // Absent folders, there is nowhere to move a source to.
+  const onMoveRequest =
+    index.folders.size > 0 ? folderActions?.onMoveRequest : undefined
 
   useEffect(() => {
     if (highlightedDocumentId === null) return
-    documentElements.current
-      .get(highlightedDocumentId)
+    rowElements.current
+      .get(documentKey(highlightedDocumentId))
       ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
   }, [highlightedDocumentId])
 
@@ -202,36 +198,27 @@ export function SourceTree({
     }
   }
 
-  const itemPropsOf = (
-    row: TreeRow,
-    at: number
-  ): HTMLAttributes<HTMLLIElement> => {
-    return {
-      role: "treeitem",
-      "aria-level": row.level,
-      "aria-setsize": row.setSize,
-      "aria-posinset": row.posInSet,
-      "aria-expanded": row.kind === "folder" ? row.expanded : undefined,
-      // The row has focus, not its checkbox, so the row says what Space ticks.
-      "aria-checked":
-        row.kind === "folder"
-          ? ARIA_TICK[folderTicks.get(row.folder.id) ?? "unchecked"]
-          : row.document.status === "ready"
-            ? selectedDocumentIds.has(row.document.id)
-            : undefined,
-      "aria-label":
-        row.kind === "folder" ? row.folder.name : row.document.title,
-      tabIndex: row.key === focusable ? 0 : -1,
-      style:
-        row.level > 1
-          ? { paddingInlineStart: 4 + (row.level - 1) * INDENT_PX }
-          : undefined,
-      onFocus: (event) => {
-        if (event.target === event.currentTarget) setActiveKey(row.key)
-      },
-      onKeyDown: (event) => onRowKeyDown(event, at),
+  // One for every row, reading the rows as they are when the key is pressed.
+  const keyDownOnRow = useStableCallback(
+    (event: KeyboardEvent<HTMLLIElement>, key: string) => {
+      const at = rows.findIndex((row) => row.key === key)
+      if (at !== -1) onRowKeyDown(event, at)
     }
-  }
+  )
+  const registerRow = useCallback((key: string, node: HTMLLIElement) => {
+    rowElements.current.set(key, node)
+    return () => {
+      if (rowElements.current.get(key) === node) rowElements.current.delete(key)
+    }
+  }, [])
+  const rowEvents = useMemo<TreeRowEvents>(
+    () => ({
+      register: registerRow,
+      focused: setActiveKey,
+      keyDown: keyDownOnRow,
+    }),
+    [registerRow, keyDownOnRow]
+  )
 
   if (rows.length === 0) {
     return filter.trim() ? (
@@ -253,90 +240,48 @@ export function SourceTree({
       aria-labelledby={labelledBy}
       className="flex list-none flex-col gap-1"
     >
-      {rows.map((row, at) =>
+      {rows.map((row) =>
         row.kind === "folder" ? (
           <FolderRow
             key={row.key}
+            rowKey={row.key}
+            level={row.level}
+            setSize={row.setSize}
+            posInSet={row.posInSet}
+            tabbable={row.key === focusable}
             folder={row.folder}
+            parent={row.parent}
             expanded={row.expanded}
             hasChildren={row.hasChildren}
             tick={folderTicks.get(row.folder.id) ?? "unchecked"}
             dropping={dropFolder === row.folder.id}
-            rowRef={(node) => {
-              if (node) rowElements.current.set(row.key, node)
-              else rowElements.current.delete(row.key)
-            }}
-            itemProps={itemPropsOf(row, at)}
-            drag={dragOf(row)}
-            onToggleExpanded={() =>
-              onExpandedChange(row.folder.id, !row.expanded)
-            }
-            onTickChange={(included) =>
-              folderActions?.onTickChange(row.folder.id, included)
-            }
-            onNewFolder={() => folderActions?.onNewFolder(row.folder.id)}
-            onRename={() => folderActions?.onRename(row.folder)}
-            onMove={() =>
-              folderActions?.onMoveRequest({
-                kind: "folder",
-                id: row.folder.id,
-                name: row.folder.name,
-                from: row.parent,
-              })
-            }
-            onDelete={() => folderActions?.onDelete(row.folder)}
+            movable={movable}
+            takesFiles={takesFiles}
+            events={rowEvents}
+            onExpandedChange={onExpandedChange}
+            actions={folderActions}
           />
         ) : (
           <DocumentRow
             key={row.key}
+            rowKey={row.key}
+            level={row.level}
+            setSize={row.setSize}
+            posInSet={row.posInSet}
+            tabbable={row.key === focusable}
             document={row.document}
+            parent={row.parent}
             selected={selectedDocumentIds.has(row.document.id)}
             highlighted={highlightedDocumentId === row.document.id}
-            rowRef={(node) => {
-              if (node) {
-                rowElements.current.set(row.key, node)
-                documentElements.current.set(row.document.id, node)
-              } else {
-                rowElements.current.delete(row.key)
-                documentElements.current.delete(row.document.id)
-              }
-            }}
-            itemProps={itemPropsOf(row, at)}
-            drag={dragOf(row)}
-            onOpen={() => documentActions.onOpen(row.document.id)}
-            onPreview={() => documentActions.onPreview?.(row.document.id)}
-            onReveal={() => documentActions.onReveal(row.document.id)}
-            onRetry={() => documentActions.onRetry(row.document.id)}
-            onCancel={() => documentActions.onCancel(row.document.id)}
-            onDelete={() => documentActions.onDelete(row.document)}
-            onRename={
-              documentActions.onRename
-                ? () => documentActions.onRename?.(row.document)
-                : undefined
-            }
-            onEditNote={
-              documentActions.onEditNote
-                ? () => documentActions.onEditNote?.(row.document.id)
-                : undefined
-            }
-            onMove={
-              folderActions && index.folders.size > 0
-                ? () =>
-                    folderActions.onMoveRequest({
-                      kind: "document",
-                      id: row.document.id,
-                      name: row.document.title,
-                      from: row.parent,
-                    })
-                : undefined
-            }
             isDeleting={isDeleting}
-            onSelectedChange={(selected) =>
-              documentActions.onSelectionChange(row.document.id, selected)
-            }
+            movable={movable}
+            takesFiles={takesFiles}
+            events={rowEvents}
+            actions={documentActions}
+            onMoveRequest={onMoveRequest}
           />
         )
       )}
     </ul>
   )
-}
+})

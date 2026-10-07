@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from modules.agent.agent_threads.steps import MAX_INPUT_CHARS
 from tests.live.live_model import LiveModel
 from tests.live.live_runs_dir import live_runs_dir
 from tests.live.spend_ledger import SpendLedger, Usage
@@ -156,6 +157,13 @@ def _step_lines(step: dict[str, Any]) -> list[str]:
         "```",
     ]
     if script is not None:
+        # Only a version's own .py holds the rest, and a refused render has none.
+        if len(script) > MAX_INPUT_CHARS:
+            lines += [
+                "",
+                f"The script's first {MAX_INPUT_CHARS} characters; "
+                "the whole call is in model-requests.json:",
+            ]
         lines += ["", "```python", script, "```"]
     result = step.get("output") or step.get("error") or ""
     if len(result) > _SHOWN_OUTPUT_CHARS:

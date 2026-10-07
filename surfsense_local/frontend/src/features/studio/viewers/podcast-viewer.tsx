@@ -3,7 +3,7 @@ import { Streamdown } from "streamdown"
 import { intl } from "@/i18n/intl"
 
 import { fileUrl, type ArtifactDetail } from "../api"
-import { streamdownPlugins } from "./streamdown-config"
+import { STREAMDOWN_LINK_SAFETY, streamdownPlugins } from "./streamdown-config"
 import { VIEWER_PADDING } from "./viewer-layout"
 
 export function PodcastViewer({ artifact }: { artifact: ArtifactDetail }) {
@@ -30,7 +30,7 @@ export function PodcastViewer({ artifact }: { artifact: ArtifactDetail }) {
             className="text-sm leading-7"
             mode="static"
             plugins={streamdownPlugins}
-            linkSafety={{ enabled: true }}
+            linkSafety={STREAMDOWN_LINK_SAFETY}
           >
             {artifact.content}
           </Streamdown>

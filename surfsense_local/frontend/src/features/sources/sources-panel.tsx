@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react"
+import { memo, useCallback, useMemo, useRef, useState } from "react"
 import { FilePlus2Icon, SearchIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -50,7 +50,12 @@ import {
   type FolderKey,
   type SourceIndex,
 } from "./tree/source-index"
-import { SourceTree, type FolderRowActions } from "./tree/source-tree"
+import type { SourceFolder } from "./tree/folders-api"
+import {
+  SourceTree,
+  type DocumentRowActions,
+  type FolderRowActions,
+} from "./tree/source-tree"
 import type { DraggedSource } from "./tree/tree-drag"
 import { TOP_TICK } from "./tree/use-source-scope"
 import { useDragAutoScroll } from "./use-drag-auto-scroll"
@@ -60,10 +65,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-export function SourcesPanel({
+const NO_TICKS: ReadonlyMap<number, Tick> = new Map()
+
+// Memoized: the dashboard re-renders for a streamed reply or a column drag,
+// and every row below it would otherwise render again.
+export const SourcesPanel = memo(function SourcesPanel({
   documents,
   index: givenIndex,
   selectedDocumentIds,
@@ -152,10 +162,10 @@ export function SourcesPanel({
     setFilterOpen(false)
     refocusFilterButton.current = returnFocus
   }
-  const openNote = (documentId: number | null) => {
+  const openNote = useCallback((documentId: number | null) => {
     setNoteTarget({ documentId })
     setNoteOpen(true)
-  }
+  }, [])
   const deleteCount =
     deleteTarget === "selected"
       ? selectedDocumentIds.length
@@ -167,13 +177,16 @@ export function SourcesPanel({
   const organizing = folderActions !== undefined && index.rootFolderId !== null
   const filterable = hasFolders || documents.length > 0
 
-  const setFolderExpanded = (folderId: number, open: boolean) =>
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (open) next.add(folderId)
-      else next.delete(folderId)
-      return next
-    })
+  const setFolderExpanded = useCallback(
+    (folderId: number, open: boolean) =>
+      setExpanded((current) => {
+        const next = new Set(current)
+        if (open) next.add(folderId)
+        else next.delete(folderId)
+        return next
+      }),
+    []
+  )
 
   const moveInto = async (
     source: DraggedSource,
@@ -195,45 +208,88 @@ export function SourcesPanel({
     onDropFiles,
   })
 
-  const folderRowActions: FolderRowActions | undefined = organizing
-    ? {
-        onTickChange: (folderId, included) =>
-          onFolderSelectionChange?.(folderId, included),
-        onNewFolder: (parent) => {
-          setFolderNameTarget({ kind: "create", parentId: parent })
-          setFolderNameOpen(true)
-        },
-        onRename: (folder) => {
-          setFolderNameTarget({
-            kind: "rename",
-            folderId: folder.id,
-            name: folder.name,
-          })
-          setFolderNameOpen(true)
-        },
-        onDelete: (folder) => {
-          // The server's count: it knows the filed outputs the tree never lists.
-          void (
-            folderActions?.summarize(folder.id) ?? Promise.resolve(null)
-          ).then((summary) => {
-            setFolderDeleteTarget({
-              id: folder.id,
-              name: folder.name,
-              sources:
-                summary?.sources ?? documentsUnder(index, folder.id).length,
-              artifacts: summary?.artifacts ?? 0,
-            })
-            setFolderDeleteOpen(true)
-          })
-        },
-        onMoveRequest: (target) => {
-          setMoveTarget(target)
-          setMoveOpen(true)
-        },
+  const askFolderDelete = useStableCallback((folder: SourceFolder) => {
+    // The server's count: it knows the filed outputs the tree never lists.
+    void (folderActions?.summarize(folder.id) ?? Promise.resolve(null)).then(
+      (summary) => {
+        setFolderDeleteTarget({
+          id: folder.id,
+          name: folder.name,
+          sources: summary?.sources ?? documentsUnder(index, folder.id).length,
+          artifacts: summary?.artifacts ?? 0,
+        })
+        setFolderDeleteOpen(true)
       }
-    : undefined
+    )
+  })
+  const folderRowActions = useMemo<FolderRowActions | undefined>(
+    () =>
+      organizing
+        ? {
+            onTickChange: (folderId, included) =>
+              onFolderSelectionChange?.(folderId, included),
+            onNewFolder: (parent) => {
+              setFolderNameTarget({ kind: "create", parentId: parent })
+              setFolderNameOpen(true)
+            },
+            onRename: (folder) => {
+              setFolderNameTarget({
+                kind: "rename",
+                folderId: folder.id,
+                name: folder.name,
+              })
+              setFolderNameOpen(true)
+            },
+            onDelete: askFolderDelete,
+            onMoveRequest: (target) => {
+              setMoveTarget(target)
+              setMoveOpen(true)
+            },
+          }
+        : undefined,
+    [organizing, onFolderSelectionChange, askFolderDelete]
+  )
 
-  const selectedDocumentIdSet = new Set(selectedDocumentIds)
+  const selectedDocumentIdSet = useMemo(
+    () => new Set(selectedDocumentIds),
+    [selectedDocumentIds]
+  )
+  // Whether the panel renames and edits notes, not with which function: the
+  // dialogs call the latest.
+  const renames = onRename !== undefined
+  const editsNotes = notes !== undefined
+  const documentActions = useMemo<DocumentRowActions>(
+    () => ({
+      onOpen,
+      onPreview,
+      onReveal,
+      onRetry,
+      onCancel,
+      onDelete: (document) => {
+        setDeleteTarget(document)
+        setDeleteOpen(true)
+      },
+      onRename: renames
+        ? (document) => {
+            setRenameTarget(document)
+            setRenameOpen(true)
+          }
+        : undefined,
+      onEditNote: editsNotes ? openNote : undefined,
+      onSelectionChange,
+    }),
+    [
+      onOpen,
+      onPreview,
+      onReveal,
+      onRetry,
+      onCancel,
+      renames,
+      editsNotes,
+      openNote,
+      onSelectionChange,
+    ]
+  )
   const readyDocuments = documents.filter(
     (document) => document.status === "ready"
   )
@@ -364,29 +420,11 @@ export function SourcesPanel({
               onExpandedChange={setFolderExpanded}
               filter={filter}
               selectedDocumentIds={selectedDocumentIdSet}
-              folderTicks={folderTicks ?? new Map()}
+              folderTicks={folderTicks ?? NO_TICKS}
               highlightedDocumentId={highlightedDocumentId}
               isDeleting={isDeleting}
               labelledBy="all-sources"
-              documentActions={{
-                onOpen,
-                onPreview,
-                onReveal,
-                onRetry,
-                onCancel,
-                onDelete: (document) => {
-                  setDeleteTarget(document)
-                  setDeleteOpen(true)
-                },
-                onRename: onRename
-                  ? (document) => {
-                      setRenameTarget(document)
-                      setRenameOpen(true)
-                    }
-                  : undefined,
-                onEditNote: notes ? (id) => openNote(id) : undefined,
-                onSelectionChange,
-              }}
+              documentActions={documentActions}
               folderActions={folderRowActions}
               dropFolder={drop.dropFolder}
               takesFiles={onDropFiles !== undefined}
@@ -555,4 +593,4 @@ export function SourcesPanel({
       ) : null}
     </>
   )
-}
+})

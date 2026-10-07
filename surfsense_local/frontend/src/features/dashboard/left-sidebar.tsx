@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type ReactNode } from "react"
+import { memo, useState, type ComponentType, type ReactNode } from "react"
 
 import {
   Chat01Icon,
@@ -122,10 +122,16 @@ function chatsActivity(
   return null
 }
 
+const NO_RUNS: Record<number, RunState> = {}
+const NO_UNREAD: number[] = []
+const NO_ACTIONS: SidebarNavAction[] = []
+
 // The always-visible left column: brand, "New chat", the "Chats" row that
 // opens every thread in a dialog, then the workspace's sources. Its own
 // shell (header, footer) never moves — only what a click surfaces changes.
-export function LeftSidebar({
+// Memoized: the dashboard also re-renders for Settings, the model check and
+// the other columns, none of which the sidebar shows.
+export const LeftSidebar = memo(function LeftSidebar({
   threads,
   activeThreadId,
   autoNamingThreadId,
@@ -136,9 +142,9 @@ export function LeftSidebar({
   onRenameThread,
   onDeleteThread,
   onTitleAnimationComplete,
-  runStates = {},
-  unreadThreadIds = [],
-  actions = [],
+  runStates = NO_RUNS,
+  unreadThreadIds = NO_UNREAD,
+  actions = NO_ACTIONS,
   sources,
   footer,
 }: {
@@ -216,4 +222,4 @@ export function LeftSidebar({
       />
     </aside>
   )
-}
+})

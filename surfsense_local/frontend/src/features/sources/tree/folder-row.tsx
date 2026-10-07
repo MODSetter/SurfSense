@@ -1,4 +1,4 @@
-import { useRef, useState, type HTMLAttributes } from "react"
+import { memo, useCallback, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -25,56 +25,96 @@ import { cn } from "@/lib/utils"
 
 import type { SourceFolder } from "./folders-api"
 import type { Tick } from "./scope-state"
-import { useRowDrag, type RowDrag } from "./use-row-drag"
+import type { FolderKey } from "./source-index"
+import type { FolderRowActions } from "./source-tree"
+import { treeItemProps, type TreePlace, type TreeRowEvents } from "./tree-item"
+import { useRowDrag } from "./use-row-drag"
 
-export function FolderRow({
+const ARIA_TICK = {
+  checked: "true",
+  unchecked: "false",
+  mixed: "mixed",
+} as const satisfies Record<Tick, "true" | "false" | "mixed">
+
+// Memoized like a document row: it renders again only when its values change.
+export const FolderRow = memo(function FolderRow({
+  rowKey,
+  level,
+  setSize,
+  posInSet,
+  tabbable,
   folder,
+  parent,
   expanded,
   hasChildren,
   tick,
   dropping,
-  rowRef,
-  itemProps,
-  drag,
-  onToggleExpanded,
-  onTickChange,
-  onNewFolder,
-  onRename,
-  onMove,
-  onDelete,
-}: {
+  movable,
+  takesFiles,
+  events,
+  onExpandedChange,
+  actions,
+}: TreePlace & {
   folder: SourceFolder
+  // The folder this one sits in.
+  parent: FolderKey
   expanded: boolean
   hasChildren: boolean
   tick: Tick
   // A drag is over this folder, and dropping would put it here.
   dropping: boolean
-  rowRef: (node: HTMLLIElement | null) => void
-  itemProps: HTMLAttributes<HTMLLIElement>
-  drag: RowDrag
-  onToggleExpanded: () => void
-  onTickChange: (included: boolean) => void
-  onNewFolder: () => void
-  onRename: () => void
-  onMove: () => void
-  onDelete: () => void
+  // Absent folders to move into, the row neither drags nor takes rows.
+  movable: boolean
+  // False while an upload runs, as the panel refuses files then.
+  takesFiles: boolean
+  events: TreeRowEvents
+  onExpandedChange: (folderId: number, expanded: boolean) => void
+  actions?: FolderRowActions
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const element = useRef<HTMLLIElement>(null)
+  const element = useRef<HTMLLIElement | null>(null)
+  const { register } = events
+  // Stable, so React never detaches and attaches the row again on a render.
+  const ref = useCallback(
+    (node: HTMLLIElement) => {
+      element.current = node
+      const release = register(rowKey, node)
+      return () => {
+        element.current = null
+        release()
+      }
+    },
+    [register, rowKey]
+  )
   useRowDrag({
     rowRef: element,
     source: { kind: "folder", id: folder.id },
     name: folder.name,
-    drag,
+    drag: { into: folder.id, movable, takesFiles },
   })
+
+  const onToggleExpanded = () => onExpandedChange(folder.id, !expanded)
+  const onTickChange = (included: boolean) =>
+    actions?.onTickChange(folder.id, included)
+  const onNewFolder = () => actions?.onNewFolder(folder.id)
+  const onRename = () => actions?.onRename(folder)
+  const onMove = () =>
+    actions?.onMoveRequest({
+      kind: "folder",
+      id: folder.id,
+      name: folder.name,
+      from: parent,
+    })
+  const onDelete = () => actions?.onDelete(folder)
 
   return (
     <li
-      {...itemProps}
-      ref={(node) => {
-        element.current = node
-        rowRef(node)
-      }}
+      {...treeItemProps(
+        { rowKey, level, setSize, posInSet, tabbable },
+        { label: folder.name, checked: ARIA_TICK[tick], expanded },
+        events
+      )}
+      ref={ref}
       className={cn(
         "group/source relative flex h-8 w-full min-w-0 items-center gap-1 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 outline-none select-none hover:bg-muted focus-visible:border-ring dark:hover:bg-muted/50",
         (menuOpen || dropping) && "bg-muted dark:bg-muted/50",
@@ -206,4 +246,4 @@ export function FolderRow({
       </div>
     </li>
   )
-}
+})

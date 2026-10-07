@@ -12,8 +12,6 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { ResizeHandle } from "@/components/ui/resize-handle"
-import { SlideRail } from "@/components/ui/slide-rail"
 import {
   Tooltip,
   TooltipContent,
@@ -56,8 +54,8 @@ import { useStudio } from "@/features/studio/use-studio"
 import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
-import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import {
   readRightPanelOpen,
@@ -65,10 +63,15 @@ import {
   writeRightPanelOpen,
   writeSourcePreview,
 } from "./chrome-prefs"
-import { LeftSidebar } from "./left-sidebar"
+import {
+  ColumnEdge,
+  DashboardColumns,
+  RightPanelRail,
+  SidebarColumn,
+} from "./dashboard-columns"
+import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
-import { useColumnWidths } from "./use-column-widths"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
 // Sources tab. Sources now live in the always-visible left sidebar, so the
@@ -125,10 +128,12 @@ function WorkspaceDashboard({
     workspace.id,
     `${selection ? modelKey(selection) : "none"}:${modelsVisited}`
   )
-  const selectedSourceTitles = sources.includedDocumentIds.map(
-    (id) =>
-      sources.documents.find((document) => document.id === id)?.title ?? ""
-  )
+  const selectedSourceTitles = useMemo(() => {
+    const titles = new Map(
+      sources.documents.map((document) => [document.id, document.title])
+    )
+    return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
+  }, [sources.documents, sources.includedDocumentIds])
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
@@ -145,12 +150,6 @@ function WorkspaceDashboard({
   const sourcePreviewOpen =
     sourcePreview?.document_type === "FILE" &&
     getFileViewer(sourcePreview.mime_type) !== null
-  const sectionRef = useRef<HTMLElement>(null)
-  const columns = useColumnWidths(sectionRef, {
-    sidebarWide: sourcePreviewOpen,
-    rightPanelOpen,
-    rightPanelWide: inspect !== null,
-  })
 
   useEffect(() => {
     if (sourcePreviewId === null || sources.isLoading) return
@@ -175,11 +174,147 @@ function WorkspaceDashboard({
     setSourcePreviewId(null)
     writeSourcePreview(workspace.id, null)
   }
-  const toggleSourcePreview = (documentId: number) => {
+  // Stable, like everything else the memoized sources panel takes: this page
+  // re-renders when a run starts, ends or changes state, and for a title, a
+  // thread switch, Settings and the other columns.
+  const toggleSourcePreview = useStableCallback((documentId: number) => {
     const next = sourcePreviewId === documentId ? null : documentId
     setSourcePreviewId(next)
     writeSourcePreview(workspace.id, next)
-  }
+  })
+  const sourceUploads = useMemo(
+    () => ({
+      isUploading: sources.isUploading,
+      onUpload: sources.upload,
+      onUploadFolder: sources.uploadEntries,
+    }),
+    [sources.isUploading, sources.upload, sources.uploadEntries]
+  )
+  const sourceNotes = useMemo(
+    () => ({
+      write: sources.writeNote,
+      load: sources.loadNote,
+      edit: sources.editNote,
+    }),
+    [sources.writeNote, sources.loadNote, sources.editNote]
+  )
+  // Built once per change of what it shows, so the memoized sidebar skips
+  // every other render of this page.
+  const sourcesList = useMemo(
+    () => (
+      <aside
+        id={LEFT_SOURCES_ID}
+        aria-label={intl.formatMessage({
+          id: "dashboard_sources_aria",
+          defaultMessage: "Workspace sources",
+        })}
+        className="flex h-full min-h-0 min-w-0 flex-col"
+      >
+        <SourcesPanel
+          documents={sources.documents}
+          index={sources.index}
+          selectedDocumentIds={sources.includedDocumentIds}
+          folderTicks={sources.folderTicks}
+          highlightedDocumentId={null}
+          isLoading={sources.isLoading}
+          isDeleting={sources.isDeleting}
+          error={sources.error}
+          upload={sourceUploads}
+          onDropFiles={sources.isUploading ? undefined : sources.uploadEntries}
+          onOpen={sources.openOriginal}
+          onPreview={toggleSourcePreview}
+          onReveal={sources.revealOriginal}
+          onRetry={sources.retry}
+          onCancel={sources.cancel}
+          onDelete={sources.deleteOne}
+          onDeleteSelected={sources.deleteSelected}
+          onSelectionChange={sources.setDocumentIncluded}
+          onFolderSelectionChange={sources.setFolderIncluded}
+          onToggleAll={sources.toggleAllIncluded}
+          onRename={sources.rename}
+          folderActions={sources.folderActions}
+          notes={sourceNotes}
+        />
+      </aside>
+    ),
+    [
+      sources.documents,
+      sources.index,
+      sources.includedDocumentIds,
+      sources.folderTicks,
+      sources.isLoading,
+      sources.isDeleting,
+      sources.error,
+      sourceUploads,
+      sources.isUploading,
+      sources.uploadEntries,
+      sources.openOriginal,
+      toggleSourcePreview,
+      sources.revealOriginal,
+      sources.retry,
+      sources.cancel,
+      sources.deleteOne,
+      sources.deleteSelected,
+      sources.setDocumentIncluded,
+      sources.setFolderIncluded,
+      sources.toggleAllIncluded,
+      sources.rename,
+      sources.folderActions,
+      sourceNotes,
+    ]
+  )
+  const sidebarFooter = useMemo(
+    () => <SidebarFooter onOpenLicense={onOpenLicense} />,
+    [onOpenLicense]
+  )
+  const sidebarActions = useMemo<SidebarNavAction[]>(
+    () => [
+      {
+        key: "plugins",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_plugins_button",
+          defaultMessage: "Plugins",
+        }),
+        icon: UnplugIcon,
+        badge: intl.formatMessage({
+          id: "dashboard_sidebar_plugins_soon_label",
+          defaultMessage: "Coming soon",
+        }),
+        // TODO: open the plugins panel once it exists.
+        onClick: () =>
+          toast.info(
+            intl.formatMessage({
+              id: "dashboard_plugins_soon_toast",
+              defaultMessage: "Plugins are coming soon",
+            }),
+            {
+              description: intl.formatMessage({
+                id: "dashboard_plugins_soon_body",
+                defaultMessage:
+                  "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+              }),
+            }
+          ),
+      },
+    ],
+    []
+  )
+  // The sidebar's callbacks keep one identity and call the latest chat.
+  const sidebarNewChat = useStableCallback(() => startNewChat())
+  const sidebarSelectThread = useStableCallback((threadId: number) => {
+    if (threadId !== chat.activeThreadId) closeInspect()
+    chat.selectThread(threadId)
+  })
+  const sidebarRenameThread = useStableCallback(
+    (threadId: number, title: string) => chat.rename(threadId, title)
+  )
+  const sidebarDeleteThread = useStableCallback(async (threadId: number) => {
+    if (threadId === chat.activeThreadId) closeInspect()
+    await chat.removeThread(threadId)
+  })
+  const sidebarTitleAnimationComplete = useStableCallback(() =>
+    chat.finishTitleAnimation()
+  )
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -191,8 +326,8 @@ function WorkspaceDashboard({
     setRightPanelOpen(true)
     writeRightPanelOpen(true)
   }, [])
-  // Stable: it is a context value, and this page re-renders on every streamed
-  // token, which would re-render every agent step in the thread.
+  // Stable: it is a context value, and a new one would re-render every agent
+  // step in the thread.
   const openArtifact = useCallback(
     (artifactId: number) => {
       openRightPanel()
@@ -200,7 +335,7 @@ function WorkspaceDashboard({
     },
     [openRightPanel]
   )
-  // Stable for the same reason: every streamed token re-renders this page.
+  // Stable for the same reason.
   const officeOffer = useMemo(() => {
     const office = new Set(
       studio.artifacts
@@ -212,6 +347,14 @@ function WorkspaceDashboard({
       openOfficeSupport: onOpenOfficeSupport,
     }
   }, [studio.artifacts, onOpenOfficeSupport])
+  // Stable too: every reply's citations are drawn with it.
+  const onCitation = useCallback(
+    (chunkId: number) => {
+      openRightPanel()
+      setInspect({ kind: "citation", chunkId })
+    },
+    [openRightPanel]
+  )
   return (
     <OfficeOfferContext.Provider value={officeOffer}>
       <OpenArtifactContext.Provider value={openArtifact}>
@@ -259,22 +402,18 @@ function WorkspaceDashboard({
             </Tooltip>
           </div>
         </div>
-        <section
-          ref={sectionRef}
-          className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+        {/* The widths live in here, so a drag of an edge renders the column
+          boxes and edges, not the sidebar, the thread or Studio. */}
+        <DashboardColumns
+          sidebarWide={sourcePreviewOpen}
+          rightPanelOpen={rightPanelOpen}
+          rightPanelWide={inspect !== null}
         >
           {/* A preview takes over the left column and widens it, as an
             inspected artifact does the right one; the right panel stays put.
             On a narrow window it gives way first, down to the sidebar's
             minimum, before the right panel does: the chat keeps its own. */}
-          <div
-            id={LEFT_COLUMN_ID}
-            className={cn(
-              "flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
-              !columns.animate && "transition-none"
-            )}
-            style={{ width: columns.sidebar.width }}
-          >
+          <SidebarColumn id={LEFT_COLUMN_ID}>
             {sourcePreviewOpen && sourcePreview ? (
               <SourcePreviewPanel
                 workspaceId={workspace.id}
@@ -294,110 +433,26 @@ function WorkspaceDashboard({
                 autoNamingThreadId={chat.autoNamingThreadId}
                 animatingTitleThreadId={chat.animatingTitleThreadId}
                 isLoadingThreads={chat.isLoadingThreads}
-                onNewChat={startNewChat}
-                onSelectThread={(threadId) => {
-                  if (threadId !== chat.activeThreadId) closeInspect()
-                  chat.selectThread(threadId)
-                }}
-                onRenameThread={chat.rename}
-                onDeleteThread={async (threadId) => {
-                  if (threadId === chat.activeThreadId) closeInspect()
-                  await chat.removeThread(threadId)
-                }}
-                onTitleAnimationComplete={chat.finishTitleAnimation}
+                onNewChat={sidebarNewChat}
+                onSelectThread={sidebarSelectThread}
+                onRenameThread={sidebarRenameThread}
+                onDeleteThread={sidebarDeleteThread}
+                onTitleAnimationComplete={sidebarTitleAnimationComplete}
                 runStates={chat.runStates}
                 unreadThreadIds={chat.unreadThreadIds}
-                actions={[
-                  {
-                    key: "plugins",
-                    label: intl.formatMessage({
-                      id: "dashboard_sidebar_plugins_button",
-                      defaultMessage: "Plugins",
-                    }),
-                    icon: UnplugIcon,
-                    badge: intl.formatMessage({
-                      id: "dashboard_sidebar_plugins_soon_label",
-                      defaultMessage: "Coming soon",
-                    }),
-                    // TODO: open the plugins panel once it exists.
-                    onClick: () =>
-                      toast.info(
-                        intl.formatMessage({
-                          id: "dashboard_plugins_soon_toast",
-                          defaultMessage: "Plugins are coming soon",
-                        }),
-                        {
-                          description: intl.formatMessage({
-                            id: "dashboard_plugins_soon_body",
-                            defaultMessage:
-                              "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
-                          }),
-                        }
-                      ),
-                  },
-                ]}
-                sources={
-                  <aside
-                    id={LEFT_SOURCES_ID}
-                    aria-label={intl.formatMessage({
-                      id: "dashboard_sources_aria",
-                      defaultMessage: "Workspace sources",
-                    })}
-                    className="flex h-full min-h-0 min-w-0 flex-col"
-                  >
-                    <SourcesPanel
-                      documents={sources.documents}
-                      index={sources.index}
-                      selectedDocumentIds={sources.includedDocumentIds}
-                      folderTicks={sources.folderTicks}
-                      highlightedDocumentId={null}
-                      isLoading={sources.isLoading}
-                      isDeleting={sources.isDeleting}
-                      error={sources.error}
-                      upload={{
-                        isUploading: sources.isUploading,
-                        onUpload: (files) => void sources.upload(files),
-                        onUploadFolder: (entries) =>
-                          void sources.uploadEntries(entries),
-                      }}
-                      onDropFiles={
-                        sources.isUploading
-                          ? undefined
-                          : (entries, folderId) =>
-                              void sources.uploadEntries(entries, folderId)
-                      }
-                      onOpen={(id) => void sources.openOriginal(id)}
-                      onPreview={toggleSourcePreview}
-                      onReveal={(id) => void sources.revealOriginal(id)}
-                      onRetry={(id) => void sources.retry(id)}
-                      onCancel={(id) => void sources.cancel(id)}
-                      onDelete={(id) => void sources.deleteOne(id)}
-                      onDeleteSelected={() => void sources.deleteSelected()}
-                      onSelectionChange={sources.setDocumentIncluded}
-                      onFolderSelectionChange={sources.setFolderIncluded}
-                      onToggleAll={sources.toggleAllIncluded}
-                      onRename={sources.rename}
-                      folderActions={sources.folderActions}
-                      notes={{
-                        write: sources.writeNote,
-                        load: sources.loadNote,
-                        edit: sources.editNote,
-                      }}
-                    />
-                  </aside>
-                }
-                footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
+                actions={sidebarActions}
+                sources={sourcesList}
+                footer={sidebarFooter}
               />
             </div>
-          </div>
-          <ResizeHandle
-            side="start"
+          </SidebarColumn>
+          <ColumnEdge
+            column="sidebar"
             label={intl.formatMessage({
               id: "dashboard_sidebar_resize_aria",
               defaultMessage: "Resize sidebar",
             })}
             controls={LEFT_COLUMN_ID}
-            {...columns.sidebar.edge}
           />
           <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
             <ApprovalDialog
@@ -406,7 +461,7 @@ function WorkspaceDashboard({
               onAnswer={chat.answerApproval}
             />
             <ThreadPanel
-              runtime={chat.runtime}
+              live={chat.liveThread}
               thread={chat.activeThread}
               view={chat.conversationView}
               model={selection}
@@ -424,10 +479,7 @@ function WorkspaceDashboard({
                 ) : null
               }
               blockedPlaceholder={composerHold}
-              onCitation={(chunkId) => {
-                openRightPanel()
-                setInspect({ kind: "citation", chunkId })
-              }}
+              onCitation={onCitation}
               onModelSetup={onModelRequired}
               onModelSelected={onModelSelected}
               onRetry={chat.retry}
@@ -446,22 +498,16 @@ function WorkspaceDashboard({
           </div>
           {/* Collapsed, the rail has no edge to drag. */}
           {rightPanelOpen ? (
-            <ResizeHandle
-              side="end"
+            <ColumnEdge
+              column="rightPanel"
               label={intl.formatMessage({
                 id: "dashboard_right_panel_resize_aria",
                 defaultMessage: "Resize right panel",
               })}
               controls={RIGHT_PANEL_ID}
-              {...columns.rightPanel.edge}
             />
           ) : null}
-          <SlideRail
-            open={rightPanelOpen}
-            side="end"
-            width={columns.rightPanel.width}
-            animate={columns.animate}
-          >
+          <RightPanelRail open={rightPanelOpen}>
             <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
                 inspect={
@@ -505,17 +551,15 @@ function WorkspaceDashboard({
                     formats={studio.formats}
                     isLoading={studio.isLoading}
                     onOpen={openArtifact}
-                    onRegenerate={(artifactId) =>
-                      void studio.regenerate(artifactId)
-                    }
-                    onCancel={(artifactId) => void studio.cancel(artifactId)}
-                    onDelete={(artifactId) => void studio.remove(artifactId)}
+                    onRegenerate={studio.regenerate}
+                    onCancel={studio.cancel}
+                    onDelete={studio.remove}
                   />
                 }
               />
             </div>
-          </SlideRail>
-        </section>
+          </RightPanelRail>
+        </DashboardColumns>
       </OpenArtifactContext.Provider>
     </OfficeOfferContext.Provider>
   )
