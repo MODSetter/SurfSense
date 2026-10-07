@@ -122,7 +122,8 @@ async def test_a_low_scorer_starts_basic_and_is_offered_agentic_with_its_score(
 @pytest.mark.parametrize(
     ("name", "catalog_provider", "base_url"),
     [
-        ("gpt-4o-mini", "openai", OPENAI),
+        # Made up, so no sweep the list takes in can give it a row.
+        ("gpt-99-mini", "openai", OPENAI),
         # The catalog says nothing of its tool calls, which is not a no.
         ("anthropic/claude-sonnet-99", "openrouter", OPENROUTER),
     ],

@@ -1,9 +1,17 @@
 """What the selected model is measured to do, read off the list shipped with the app."""
 
+from collections.abc import Iterator
+
 import pytest
 
 from modules.llm.capability import Level, capability_of, measured_list, resolve
-from modules.llm.capability.measured.schema import MeasuredModel
+from modules.llm.capability.measured import loader
+from modules.llm.capability.measured.schema import (
+    ASSUMED_SUITE,
+    LADDER_SUITE,
+    SCREEN_SUITE,
+    MeasuredModel,
+)
 from modules.llm.models import ProviderConnection
 
 pytestmark = pytest.mark.unit
@@ -100,8 +108,8 @@ def test_a_latest_alias_is_never_taken_for_the_model_measured(alias: str) -> Non
 
 
 def test_a_model_off_the_list_is_not_measured() -> None:
-    """It keeps today's behaviour."""
-    capability = capability_of("gpt-4o-mini", OPENROUTER)
+    """It keeps today's behaviour. Made up, so no sweep the list takes in can list it."""
+    capability = capability_of("anthropic/claude-sonnet-99", OPENROUTER)
 
     assert capability.level is Level.NOT_MEASURED
     assert capability.reason.code == "no_row"
@@ -187,6 +195,25 @@ def test_a_local_copy_of_a_model_measured_to_fail_holds_the_failure() -> None:
     assert capability_of("gemma4:31b", OLLAMA).level is Level.STUDIO_ONLY
 
 
+@pytest.fixture
+def ladder_rows_only(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """The ladder's own rows: a sweep may list these other sizes as models of their own."""
+    shipped = measured_list()
+    ladder = shipped.model_copy(
+        update={"models": [row for row in shipped.models if row.suite == LADDER_SUITE]}
+    )
+    monkeypatch.setattr(loader, "measured_list", lambda: ladder)
+    _forget_rows()
+    yield
+    _forget_rows()
+
+
+def _forget_rows() -> None:
+    loader._by_key.cache_clear()
+    loader._by_match_key.cache_clear()
+
+
+@pytest.mark.usefixtures("ladder_rows_only")
 @pytest.mark.parametrize("model", ["qwen3.8-14b", "qwen3.5-27b", "qwen3-8b"])
 def test_another_size_or_version_of_a_tested_model_is_not_measured(model: str) -> None:
     """Matching is looser across servers, never across sizes or versions."""
@@ -243,9 +270,18 @@ def test_a_failure_measured_on_a_remote_host_holds_on_this_computer() -> None:
 
 
 def test_the_list_shipped_with_the_app_is_provisional_suite_one() -> None:
-    """Screening runs, one per cell: provisional until the committed matrix."""
+    """Screening runs, one per cell: provisional until the committed matrix.
+
+    The ladder's 11 rows; a sweep's screened and assumed rows join them.
+    """
     shipped = measured_list()
+    ladder = [row for row in shipped.models if row.suite == LADDER_SUITE]
 
     assert shipped.provisional is True
     assert {row.suite_version for row in shipped.models} == {1}
-    assert len(shipped.models) == 11
+    assert len(ladder) == 11
+    assert {row.suite for row in shipped.models} <= {
+        LADDER_SUITE,
+        SCREEN_SUITE,
+        ASSUMED_SUITE,
+    }

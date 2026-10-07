@@ -106,6 +106,8 @@ async def test_with_no_mode_asked_an_untested_model_opens_a_chat(
 ) -> None:
     """Basic is an untested model's default without the developer switch."""
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
+    # Made up, so no sweep the list takes in can give it a row.
+    _set_text_model("gpt-99-mini")
 
     thread = await open_thread(agent_api)
 

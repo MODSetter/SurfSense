@@ -1,6 +1,5 @@
 """The OpenRouter screening sweep becomes rows of the shipped list, beside the ones it has."""
 
-import shutil
 from datetime import date
 from pathlib import Path
 
@@ -13,7 +12,6 @@ from capability_list.rows import COMMITTED_INPUT, measured_rows, with_ladder_row
 from capability_list.sweep_input import SweepResults
 from capability_list.sweep_rows import sweep_rows
 
-from modules.llm.capability.measured.loader import SHIPPED
 from modules.llm.capability.measured.schema import CapabilityList, MeasuredModel
 
 pytestmark = pytest.mark.unit
@@ -33,8 +31,11 @@ def _rows() -> dict[str, MeasuredModel]:
     return rows
 
 
-def _shipped() -> CapabilityList:
-    return CapabilityList.model_validate_json(SHIPPED.read_text(encoding="utf-8"))
+def _ladder() -> CapabilityList:
+    """The ladder's rows alone: the shipped list also holds whatever sweep it took in."""
+    return measured_rows(
+        LadderResults.model_validate_json(COMMITTED_INPUT.read_text(encoding="utf-8"))
+    )
 
 
 def test_passing_both_cases_is_tested_at_the_agent_level() -> None:
@@ -132,7 +133,7 @@ def test_the_sweep_s_level_must_agree_with_its_counts() -> None:
 
 def test_the_list_s_own_rows_win_over_the_sweep() -> None:
     """The ladder's 8-case rows stand, by exact key or by a server's spelling."""
-    written, left_out = merged(_shipped(), sweep_rows(_sweep(), date(2026, 1, 1)))
+    written, left_out = merged(_ladder(), sweep_rows(_sweep(), date(2026, 1, 1)))
     by_key = {row.key: row for row in written.models}
 
     assert by_key["qwen3-8-27b"].suite == "create-and-edit"
@@ -148,12 +149,12 @@ def test_the_list_s_own_rows_win_over_the_sweep() -> None:
         ("gpt-5-2", "assumed", "gpt-5-2", False),
         ("gpt-5-2-chat", "openrouter-screen", "gpt-5-2", False),
     }
-    assert len(written.models) == len(_shipped().models) + 4
+    assert len(written.models) == len(_ladder().models) + 4
 
 
 def test_a_model_s_own_name_wins_over_a_variant_listed_before_it() -> None:
     """OpenRouter lists gpt-5.2-chat first; stripping -chat folds it into gpt-5.2."""
-    written, _ = merged(_shipped(), sweep_rows(_sweep(), date(2026, 1, 1)))
+    written, _ = merged(_ladder(), sweep_rows(_sweep(), date(2026, 1, 1)))
     by_key = {row.key: row for row in written.models}
 
     assert "gpt-5-2-chat" not in by_key
@@ -165,8 +166,8 @@ def test_the_script_writes_a_list_the_app_loads_and_the_ladder_keeps(
 ) -> None:
     """Rewriting the ladder's rows afterwards leaves the sweep's in place."""
     copy = tmp_path / "capabilities.json"
-    shutil.copy(SHIPPED, copy)
     monkeypatch.setattr(shipped_list, "SHIPPED", copy)
+    shipped_list.write_shipped(_ladder())
 
     catalog_rows.main([str(SAMPLE), "--date", "2026-10-07"])
 
@@ -182,9 +183,6 @@ def test_the_script_writes_a_list_the_app_loads_and_the_ladder_keeps(
     ) in said
     assert "minimax-m3: left out, pending" in said
     written = CapabilityList.model_validate_json(copy.read_text(encoding="utf-8"))
-    ladder = measured_rows(
-        LadderResults.model_validate_json(COMMITTED_INPUT.read_text(encoding="utf-8"))
-    )
-    assert len(written.models) == len(_shipped().models) + 4
-    assert with_ladder_rows(written, ladder) == written
+    assert len(written.models) == len(_ladder().models) + 4
+    assert with_ladder_rows(written, _ladder()) == written
     assert copy.read_text(encoding="utf-8").endswith("}\n")

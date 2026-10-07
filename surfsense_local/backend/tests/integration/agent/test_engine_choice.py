@@ -170,7 +170,8 @@ async def test_with_no_mode_asked_a_model_measured_at_or_near_the_bar_opens_agen
 @pytest.mark.parametrize(
     ("name", "catalog_provider", "base_url"),
     [
-        ("gpt-4o-mini", "openai", OPENAI),  # untested
+        # Made up, so no sweep the list takes in can give it a row.
+        ("gpt-99-mini", "openai", OPENAI),  # untested
         ("google/gemma-4-31b-it", "openrouter", OPENROUTER),  # 2 of 8
     ],
 )
@@ -187,7 +188,7 @@ async def test_with_no_mode_asked_an_untested_model_or_a_low_scorer_opens_basic(
     ("name", "catalog_provider", "base_url"),
     [
         ("google/gemma-4-31b-it", "openrouter", OPENROUTER),  # measured to fail
-        ("gpt-4o-mini", "openai", OPENAI),  # untested
+        ("gpt-99-mini", "openai", OPENAI),  # untested
         ("anthropic/claude-sonnet-99", "openrouter", OPENROUTER),  # catalog silent
     ],
 )
