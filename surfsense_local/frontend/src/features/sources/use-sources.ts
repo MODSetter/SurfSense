@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
 import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -141,7 +142,7 @@ export function useSources(workspaceId: number) {
   }, [hasActiveIngestion, workspaceId])
 
   // Without the loading state: the list is on screen, and only its rows move.
-  const reloadQuietly = () => {
+  const reloadQuietly = useStableCallback(() => {
     changeController.current?.abort()
     const controller = new AbortController()
     changeController.current = controller
@@ -155,7 +156,7 @@ export function useSources(workspaceId: number) {
       .catch(() => {
         // The next change, or the re-read while something ingests, reloads.
       })
-  }
+  })
   useWorkspaceChanges(workspaceId, "documents", reloadQuietly)
 
   const folders = useFolders(workspaceId, reloadQuietly)
@@ -165,7 +166,7 @@ export function useSources(workspaceId: number) {
   )
   const scope = useSourceScope(index, documents)
 
-  const refresh = async () => {
+  const refresh = useStableCallback(async () => {
     listController.current?.abort()
     const controller = new AbortController()
     listController.current = controller
@@ -185,7 +186,7 @@ export function useSources(workspaceId: number) {
         setIsLoading(false)
       }
     }
-  }
+  })
 
   const runNativeDocumentAction = async (
     title: string,
@@ -204,7 +205,7 @@ export function useSources(workspaceId: number) {
     }
   }
 
-  const openOriginal = (documentId: number) => {
+  const openOriginal = useStableCallback((documentId: number) => {
     const bridge = window.surfsense
     return runNativeDocumentAction(
       intl.formatMessage({
@@ -213,9 +214,9 @@ export function useSources(workspaceId: number) {
       }),
       bridge ? () => bridge.openDocument(workspaceId, documentId) : undefined
     )
-  }
+  })
 
-  const revealOriginal = (documentId: number) => {
+  const revealOriginal = useStableCallback((documentId: number) => {
     const bridge = window.surfsense
     return runNativeDocumentAction(
       intl.formatMessage({
@@ -224,9 +225,9 @@ export function useSources(workspaceId: number) {
       }),
       bridge ? () => bridge.revealDocument(workspaceId, documentId) : undefined
     )
-  }
+  })
 
-  const retry = async (documentId: number) => {
+  const retry = useStableCallback(async (documentId: number) => {
     setError(null)
     try {
       const updated = await retryDocument(workspaceId, documentId)
@@ -238,9 +239,9 @@ export function useSources(workspaceId: number) {
     } catch (cause) {
       setError(messageFrom(cause))
     }
-  }
+  })
 
-  const cancel = async (documentId: number) => {
+  const cancel = useStableCallback(async (documentId: number) => {
     setError(null)
     try {
       const updated = await cancelDocument(workspaceId, documentId)
@@ -252,7 +253,7 @@ export function useSources(workspaceId: number) {
     } catch (cause) {
       setError(messageFrom(cause))
     }
-  }
+  })
 
   const replace = (updated: WorkspaceDocument) =>
     setDocuments((current) =>
@@ -273,63 +274,65 @@ export function useSources(workspaceId: number) {
       { description: messageFrom(cause) }
     )
 
-  const writeNote = async (title: string, content: string) => {
-    try {
-      const created = await createNote(workspaceId, { title, content })
-      // The server announces the note before it answers, so a refetch may
-      // already hold it.
-      setDocuments((current) => [
-        created,
-        ...current.filter((document) => document.id !== created.id),
-      ])
-      return true
-    } catch (cause) {
-      noteFailed(cause)
-      return false
+  const writeNote = useStableCallback(
+    async (title: string, content: string) => {
+      try {
+        const created = await createNote(workspaceId, { title, content })
+        // The server announces the note before it answers, so a refetch may
+        // already hold it.
+        setDocuments((current) => [
+          created,
+          ...current.filter((document) => document.id !== created.id),
+        ])
+        return true
+      } catch (cause) {
+        noteFailed(cause)
+        return false
+      }
     }
-  }
+  )
 
-  const rename = async (documentId: number, title: string) => {
-    try {
-      replace(await updateDocument(workspaceId, documentId, { title }))
-      return true
-    } catch (cause) {
-      errorToast(
-        intl.formatMessage({
-          id: "sources_rename_toast",
-          defaultMessage: "Couldn’t rename the source",
-        }),
-        { description: messageFrom(cause) }
-      )
-      return false
+  const rename = useStableCallback(
+    async (documentId: number, title: string) => {
+      try {
+        replace(await updateDocument(workspaceId, documentId, { title }))
+        return true
+      } catch (cause) {
+        errorToast(
+          intl.formatMessage({
+            id: "sources_rename_toast",
+            defaultMessage: "Couldn’t rename the source",
+          }),
+          { description: messageFrom(cause) }
+        )
+        return false
+      }
     }
-  }
+  )
 
   // Content only when it changed: sending it re-ingests the note.
-  const editNote = async (
-    documentId: number,
-    title: string,
-    content?: string
-  ) => {
-    try {
-      replace(
-        await updateDocument(
-          workspaceId,
-          documentId,
-          content === undefined ? { title } : { title, content }
+  const editNote = useStableCallback(
+    async (documentId: number, title: string, content?: string) => {
+      try {
+        replace(
+          await updateDocument(
+            workspaceId,
+            documentId,
+            content === undefined ? { title } : { title, content }
+          )
         )
-      )
-      return true
-    } catch (cause) {
-      noteFailed(cause)
-      return false
+        return true
+      } catch (cause) {
+        noteFailed(cause)
+        return false
+      }
     }
-  }
+  )
 
-  const loadNote = async (documentId: number) => {
+  const loadNote = useStableCallback(async (documentId: number) => {
     const document = await getDocument(workspaceId, documentId)
     return { title: document.title, content: document.content ?? "" }
-  }
+  })
 
   const uploadFailed = (count: number, description: string) =>
     errorToast(
@@ -348,221 +351,233 @@ export function useSources(workspaceId: number) {
    * Adds files, or a folder's files with their paths, under `folderId` (the
    * top level when null). A folder goes up in several requests.
    */
-  const uploadEntries = async (
-    entries: UploadEntry[],
-    folderId: number | null = null
-  ) => {
-    if (entries.length === 0) {
-      return
-    }
-    const fromFolder = entries.some((entry) => entry.relativePath !== null)
-    const plan = planUpload(entries)
-    const unsupportedNames = plan.unsupported.map((file) => file.name)
-    if (plan.batches.length === 0) {
-      uploadFailed(
-        entries.length,
-        plan.tooLarge.length > 0
-          ? intl.formatMessage(
-              {
-                id: "sources_upload_too_large_error",
-                defaultMessage: "Over {size, number, ::unit/megabyte}: {files}",
-              },
-              {
-                size: MAX_SOURCE_MEGABYTES,
-                files: plan.tooLarge.map((file) => file.name).join(", "),
-              }
-            )
-          : intl.formatMessage(
-              {
-                id: "sources_upload_unsupported_error",
-                defaultMessage: "Unsupported file type: {files}",
-              },
-              { files: unsupportedNames.join(", ") }
-            )
-      )
-      return
-    }
-    uploadController.current?.abort()
-    const controller = new AbortController()
-    uploadController.current = controller
-    setIsUploading(true)
-    setError(null)
-    const outcome: UploadOutcome = { created: [], duplicates: [], rejected: [] }
-    try {
-      for (const batch of plan.batches) {
-        const answered = await uploadDocuments(
-          workspaceId,
-          batch.files,
-          controller.signal,
-          { folderId, relativePaths: batch.relativePaths }
-        )
-        if (uploadController.current !== controller) {
-          return
-        }
-        outcome.created.push(...answered.created)
-        outcome.duplicates.push(...answered.duplicates)
-        outcome.rejected.push(...answered.rejected)
-        setDocuments((current) => {
-          const createdIds = new Set(
-            answered.created.map((document) => document.id)
-          )
-          // In the server's order, newest first, so the next refetch moves nothing.
-          return [
-            ...[...answered.created].reverse(),
-            ...current.filter((document) => !createdIds.has(document.id)),
-          ]
-        })
-        // A folder's paths made folders on the server.
-        if (batch.relativePaths) folders.reload()
+  const uploadEntries = useStableCallback(
+    async (entries: UploadEntry[], folderId: number | null = null) => {
+      if (entries.length === 0) {
+        return
       }
-      const count = outcome.created.length
-      const title =
-        count > 0
-          ? intl.formatMessage(
-              {
-                id: "sources_upload_added_toast",
-                defaultMessage:
-                  "{count, plural, one {# source added} other {# sources added}}",
-              },
-              { count }
-            )
-          : intl.formatMessage({
-              id: "sources_upload_none_added_toast",
-              defaultMessage: "No new sources added",
-            })
-      const rejected = [
-        ...plan.tooLarge.map((file) => ({
-          filename: file.name,
-          reason: intl.formatMessage(
-            {
-              id: "sources_upload_too_large_reason_label",
-              defaultMessage: "Over {size, number, ::unit/megabyte}",
-            },
-            { size: MAX_SOURCE_MEGABYTES }
-          ),
-        })),
-        ...outcome.rejected,
-      ]
-      const description = [
-        count > 0
-          ? intl.formatMessage({
-              id: "sources_upload_ingesting_body",
-              defaultMessage: "Ingestion is running in the background.",
-            })
-          : null,
-        outcome.duplicates.length === 0
-          ? null
-          : fromFolder
+      const fromFolder = entries.some((entry) => entry.relativePath !== null)
+      const plan = planUpload(entries)
+      const unsupportedNames = plan.unsupported.map((file) => file.name)
+      if (plan.batches.length === 0) {
+        uploadFailed(
+          entries.length,
+          plan.tooLarge.length > 0
             ? intl.formatMessage(
                 {
-                  id: "sources_upload_folder_duplicates_body",
+                  id: "sources_upload_too_large_error",
                   defaultMessage:
-                    "{count, plural, one {# file was already in its folder.} other {# files were already in their folders.}}",
-                },
-                { count: outcome.duplicates.length }
-              )
-            : intl.formatMessage(
-                {
-                  id: "sources_upload_duplicates_body",
-                  defaultMessage: "Already present: {files}",
+                    "Over {size, number, ::unit/megabyte}: {files}",
                 },
                 {
-                  files: outcome.duplicates
-                    .map((duplicate) => duplicate.filename)
-                    .join(", "),
+                  size: MAX_SOURCE_MEGABYTES,
+                  files: plan.tooLarge.map((file) => file.name).join(", "),
                 }
-              ),
-        unsupportedNames.length === 0
-          ? null
-          : fromFolder
-            ? intl.formatMessage(
-                {
-                  id: "sources_upload_folder_unsupported_body",
-                  defaultMessage:
-                    "{count, plural, one {Skipped # file of a type SurfSense can’t read.} other {Skipped # files of types SurfSense can’t read.}}",
-                },
-                { count: unsupportedNames.length }
               )
             : intl.formatMessage(
                 {
-                  id: "sources_upload_unsupported_body",
-                  defaultMessage: "Not supported: {files}",
+                  id: "sources_upload_unsupported_error",
+                  defaultMessage: "Unsupported file type: {files}",
                 },
                 { files: unsupportedNames.join(", ") }
-              ),
-        rejected.length > 0
-          ? intl.formatMessage(
-              {
-                id: "sources_upload_rejected_body",
-                defaultMessage: "Rejected: {files}",
-              },
-              {
-                files: rejected
-                  .map((rejection) =>
-                    intl.formatMessage(
-                      {
-                        id: "sources_upload_rejected_file_label",
-                        defaultMessage: "{filename} ({reason})",
-                      },
-                      {
-                        filename: rejection.filename,
-                        reason: rejection.reason,
-                      }
-                    )
-                  )
-                  .join(", "),
-              }
+              )
+        )
+        return
+      }
+      uploadController.current?.abort()
+      const controller = new AbortController()
+      uploadController.current = controller
+      setIsUploading(true)
+      setError(null)
+      const outcome: UploadOutcome = {
+        created: [],
+        duplicates: [],
+        rejected: [],
+      }
+      try {
+        for (const batch of plan.batches) {
+          const answered = await uploadDocuments(
+            workspaceId,
+            batch.files,
+            controller.signal,
+            { folderId, relativePaths: batch.relativePaths }
+          )
+          if (uploadController.current !== controller) {
+            return
+          }
+          outcome.created.push(...answered.created)
+          outcome.duplicates.push(...answered.duplicates)
+          outcome.rejected.push(...answered.rejected)
+          setDocuments((current) => {
+            const createdIds = new Set(
+              answered.created.map((document) => document.id)
             )
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
-      const options = {
-        id: "source-upload-outcome",
-        description: description || undefined,
-      }
-      if (count > 0) {
-        toast.success(title, options)
-      } else {
-        toast.info(title, options)
-      }
-    } catch (cause) {
-      if (!isAbort(cause) && uploadController.current === controller) {
-        if (outcome.created.length > 0) folders.reload()
-        uploadFailed(entries.length, messageFrom(cause))
-      }
-    } finally {
-      if (uploadController.current === controller) {
-        setIsUploading(false)
+            // In the server's order, newest first, so the next refetch moves nothing.
+            return [
+              ...[...answered.created].reverse(),
+              ...current.filter((document) => !createdIds.has(document.id)),
+            ]
+          })
+          // A folder's paths made folders on the server.
+          if (batch.relativePaths) folders.reload()
+        }
+        const count = outcome.created.length
+        const title =
+          count > 0
+            ? intl.formatMessage(
+                {
+                  id: "sources_upload_added_toast",
+                  defaultMessage:
+                    "{count, plural, one {# source added} other {# sources added}}",
+                },
+                { count }
+              )
+            : intl.formatMessage({
+                id: "sources_upload_none_added_toast",
+                defaultMessage: "No new sources added",
+              })
+        const rejected = [
+          ...plan.tooLarge.map((file) => ({
+            filename: file.name,
+            reason: intl.formatMessage(
+              {
+                id: "sources_upload_too_large_reason_label",
+                defaultMessage: "Over {size, number, ::unit/megabyte}",
+              },
+              { size: MAX_SOURCE_MEGABYTES }
+            ),
+          })),
+          ...outcome.rejected,
+        ]
+        const description = [
+          count > 0
+            ? intl.formatMessage({
+                id: "sources_upload_ingesting_body",
+                defaultMessage: "Ingestion is running in the background.",
+              })
+            : null,
+          outcome.duplicates.length === 0
+            ? null
+            : fromFolder
+              ? intl.formatMessage(
+                  {
+                    id: "sources_upload_folder_duplicates_body",
+                    defaultMessage:
+                      "{count, plural, one {# file was already in its folder.} other {# files were already in their folders.}}",
+                  },
+                  { count: outcome.duplicates.length }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "sources_upload_duplicates_body",
+                    defaultMessage: "Already present: {files}",
+                  },
+                  {
+                    files: outcome.duplicates
+                      .map((duplicate) => duplicate.filename)
+                      .join(", "),
+                  }
+                ),
+          unsupportedNames.length === 0
+            ? null
+            : fromFolder
+              ? intl.formatMessage(
+                  {
+                    id: "sources_upload_folder_unsupported_body",
+                    defaultMessage:
+                      "{count, plural, one {Skipped # file of a type SurfSense can’t read.} other {Skipped # files of types SurfSense can’t read.}}",
+                  },
+                  { count: unsupportedNames.length }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "sources_upload_unsupported_body",
+                    defaultMessage: "Not supported: {files}",
+                  },
+                  { files: unsupportedNames.join(", ") }
+                ),
+          rejected.length > 0
+            ? intl.formatMessage(
+                {
+                  id: "sources_upload_rejected_body",
+                  defaultMessage: "Rejected: {files}",
+                },
+                {
+                  files: rejected
+                    .map((rejection) =>
+                      intl.formatMessage(
+                        {
+                          id: "sources_upload_rejected_file_label",
+                          defaultMessage: "{filename} ({reason})",
+                        },
+                        {
+                          filename: rejection.filename,
+                          reason: rejection.reason,
+                        }
+                      )
+                    )
+                    .join(", "),
+                }
+              )
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+        const options = {
+          id: "source-upload-outcome",
+          description: description || undefined,
+        }
+        if (count > 0) {
+          toast.success(title, options)
+        } else {
+          toast.info(title, options)
+        }
+      } catch (cause) {
+        if (!isAbort(cause) && uploadController.current === controller) {
+          if (outcome.created.length > 0) folders.reload()
+          uploadFailed(entries.length, messageFrom(cause))
+        }
+      } finally {
+        if (uploadController.current === controller) {
+          setIsUploading(false)
+        }
       }
     }
-  }
-
-  const upload = (files: File[], folderId: number | null = null) =>
-    uploadEntries(
-      files.map((file) => ({ file, relativePath: null })),
-      folderId
-    )
-
-  const selectedDocumentIds = documents.flatMap((document) =>
-    document.status === "ready" && selectedDocumentIdSet.has(document.id)
-      ? [document.id]
-      : []
   )
 
-  const setDocumentSelected = (documentId: number, selected: boolean) => {
-    setSelectedDocumentIdSet((current) => {
-      const next = new Set(current)
-      if (selected) {
-        next.add(documentId)
-      } else {
-        next.delete(documentId)
-      }
-      return next
-    })
-  }
+  const upload = useStableCallback(
+    (files: File[], folderId: number | null = null) =>
+      uploadEntries(
+        files.map((file) => ({ file, relativePath: null })),
+        folderId
+      )
+  )
 
-  const deleteOne = async (documentId: number) => {
+  const selectedDocumentIds = useMemo(
+    () =>
+      documents.flatMap((document) =>
+        document.status === "ready" && selectedDocumentIdSet.has(document.id)
+          ? [document.id]
+          : []
+      ),
+    [documents, selectedDocumentIdSet]
+  )
+
+  const setDocumentSelected = useStableCallback(
+    (documentId: number, selected: boolean) => {
+      setSelectedDocumentIdSet((current) => {
+        const next = new Set(current)
+        if (selected) {
+          next.add(documentId)
+        } else {
+          next.delete(documentId)
+        }
+        return next
+      })
+    }
+  )
+
+  const deleteOne = useStableCallback(async (documentId: number) => {
     if (isDeleting) {
       return
     }
@@ -583,9 +598,9 @@ export function useSources(workspaceId: number) {
     } finally {
       setIsDeleting(false)
     }
-  }
+  })
 
-  const deleteSelected = async () => {
+  const deleteSelected = useStableCallback(async () => {
     const ids = selectedDocumentIds
     if (ids.length === 0 || isDeleting) {
       return
@@ -622,7 +637,7 @@ export function useSources(workspaceId: number) {
       )
     }
     setIsDeleting(false)
-  }
+  })
 
   return {
     documents,

@@ -56,6 +56,7 @@ import { useStudio } from "@/features/studio/use-studio"
 import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
@@ -175,11 +176,29 @@ function WorkspaceDashboard({
     setSourcePreviewId(null)
     writeSourcePreview(workspace.id, null)
   }
-  const toggleSourcePreview = (documentId: number) => {
+  // Stable, like everything else the memoized sources panel takes: this page
+  // re-renders on every streamed token.
+  const toggleSourcePreview = useStableCallback((documentId: number) => {
     const next = sourcePreviewId === documentId ? null : documentId
     setSourcePreviewId(next)
     writeSourcePreview(workspace.id, next)
-  }
+  })
+  const sourceUploads = useMemo(
+    () => ({
+      isUploading: sources.isUploading,
+      onUpload: sources.upload,
+      onUploadFolder: sources.uploadEntries,
+    }),
+    [sources.isUploading, sources.upload, sources.uploadEntries]
+  )
+  const sourceNotes = useMemo(
+    () => ({
+      write: sources.writeNote,
+      load: sources.loadNote,
+      edit: sources.editNote,
+    }),
+    [sources.writeNote, sources.loadNote, sources.editNote]
+  )
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -354,35 +373,23 @@ function WorkspaceDashboard({
                       isLoading={sources.isLoading}
                       isDeleting={sources.isDeleting}
                       error={sources.error}
-                      upload={{
-                        isUploading: sources.isUploading,
-                        onUpload: (files) => void sources.upload(files),
-                        onUploadFolder: (entries) =>
-                          void sources.uploadEntries(entries),
-                      }}
+                      upload={sourceUploads}
                       onDropFiles={
-                        sources.isUploading
-                          ? undefined
-                          : (entries, folderId) =>
-                              void sources.uploadEntries(entries, folderId)
+                        sources.isUploading ? undefined : sources.uploadEntries
                       }
-                      onOpen={(id) => void sources.openOriginal(id)}
+                      onOpen={sources.openOriginal}
                       onPreview={toggleSourcePreview}
-                      onReveal={(id) => void sources.revealOriginal(id)}
-                      onRetry={(id) => void sources.retry(id)}
-                      onCancel={(id) => void sources.cancel(id)}
-                      onDelete={(id) => void sources.deleteOne(id)}
-                      onDeleteSelected={() => void sources.deleteSelected()}
+                      onReveal={sources.revealOriginal}
+                      onRetry={sources.retry}
+                      onCancel={sources.cancel}
+                      onDelete={sources.deleteOne}
+                      onDeleteSelected={sources.deleteSelected}
                       onSelectionChange={sources.setDocumentIncluded}
                       onFolderSelectionChange={sources.setFolderIncluded}
                       onToggleAll={sources.toggleAllIncluded}
                       onRename={sources.rename}
                       folderActions={sources.folderActions}
-                      notes={{
-                        write: sources.writeNote,
-                        load: sources.loadNote,
-                        edit: sources.editNote,
-                      }}
+                      notes={sourceNotes}
                     />
                   </aside>
                 }
