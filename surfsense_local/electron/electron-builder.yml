@@ -48,6 +48,10 @@ extraResources:
   - from: opencode
     to: opencode
 
+# Runs the packaged opencode once it is signed, before any installer is made and
+# so before a tag's build uploads one (scripts/opencode/after-sign.mjs).
+afterSign: ./scripts/opencode/after-sign.mjs
+
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
 # same release (see legacy-update-bridge in release-local.yml), so the channel

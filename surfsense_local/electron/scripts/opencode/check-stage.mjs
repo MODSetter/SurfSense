@@ -1,6 +1,7 @@
 // What an opencode folder must hold, and proof that it runs. stage.mjs checks
-// its stage before the swap; release CI checks the folder each installer
-// carries, signed where the build is, because signing can break an executable:
+// its stage before the swap, and after-sign.mjs the signed copy before any
+// installer is made, because signing can break an executable. Release CI checks
+// the folder each installer carries:
 //   node scripts/opencode/check-stage.mjs <folder>
 import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"

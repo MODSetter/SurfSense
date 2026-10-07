@@ -282,9 +282,10 @@ jobs:
 
           "${CMD[@]}"
 
-      # From the folder each installer packaged, as users run it: signed where the
-      # build is, and on macOS under the hardened runtime, whose JIT entitlement
-      # opencode's Bun needs.
+      # electron-builder's afterSign hook (scripts/opencode/after-sign.mjs) already
+      # ran this on macOS and Windows once the app was signed, before any installer
+      # was made or uploaded. Linux signs nothing and skips that hook, so this is
+      # its check of the packaged copy, and a second look on the other two.
       - name: Smoke the bundled opencode
         working-directory: surfsense_local/electron
         run: |

@@ -9,7 +9,7 @@ A chat thread can be the agent's. opencode, started by Electron, then answers it
 
 | Part | Where | Does |
 |---|---|---|
-| Staging | `electron/scripts/opencode/` | `pnpm build:opencode` fetches opencode `1.18.34` and ripgrep `15.1.0`, each checked against its SHA-256, into `electron/opencode/` ([packaging](packaging.md)), for every build unless [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs) is told otherwise; [`check-stage.mjs`](../../surfsense_local/electron/scripts/opencode/check-stage.mjs) runs both from the stage, and release CI runs it on each installer's copy |
+| Staging | `electron/scripts/opencode/` | `pnpm build:opencode` fetches opencode `1.18.34` and ripgrep `15.1.0`, each checked against its SHA-256, into `electron/opencode/` ([packaging](packaging.md)), for every build unless [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs) is told otherwise; [`check-stage.mjs`](../../surfsense_local/electron/scripts/opencode/check-stage.mjs) runs both from the stage, electron-builder's [`after-sign.mjs`](../../surfsense_local/electron/scripts/opencode/after-sign.mjs) hook runs it on the signed copy before any installer is made, and release CI runs it on each installer's copy |
 | Process | `electron/src/main/sidecars/opencode.ts`, `opencode-home.ts`, `opencode-leftovers.ts`, `watchAgentConfig` in `index.ts` | starts, stops and cleans up `opencode serve` ([overview](overview.md)) |
 | Engine choice | `backend/modules/agent/engine_choice.py` | whether a thread opened now is the agent's |
 | Configuration | `opencode_config.py`, `prompts/agent.md`, `skills/` | the file opencode runs with, and the skills it may load |
