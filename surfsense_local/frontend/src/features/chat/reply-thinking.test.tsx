@@ -1,9 +1,29 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 
 import { render } from "@/test-utils"
 
 import { ReplyThinking } from "./reply-thinking"
+
+const seen = vi.hoisted(() => ({ trace: [] as Record<string, unknown>[] }))
+
+// Records what each Streamdown render is given; renders the real one.
+vi.mock("streamdown", async (original) => {
+  const actual = (await original()) as Record<string, unknown>
+  const React = await import("react")
+  const Real = actual.Streamdown as React.ComponentType<Record<string, unknown>>
+  return {
+    ...actual,
+    Streamdown: (props: Record<string, unknown>) => {
+      seen.trace.push(props)
+      return React.createElement(Real, props)
+    },
+  }
+})
+
+beforeEach(() => {
+  seen.trace = []
+})
 
 afterEach(cleanup)
 
@@ -249,6 +269,19 @@ describe("ReplyThinking", () => {
     rerender(streaming("First step. Second step."))
 
     expect(trace.scrollTop).toBe(100)
+  })
+})
+
+describe("the trace's markdown", () => {
+  it("keeps its options across tokens, so a token never redraws the whole trace", () => {
+    const { rerender } = render(streaming("First step."))
+    const first = seen.trace[seen.trace.length - 1]
+
+    rerender(streaming("First step. Second step."))
+    const last = seen.trace[seen.trace.length - 1]
+
+    expect(last.linkSafety).toBe(first.linkSafety)
+    expect(last.plugins).toBe(first.plugins)
   })
 })
 

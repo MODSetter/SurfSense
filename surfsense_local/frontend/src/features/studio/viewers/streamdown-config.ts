@@ -7,3 +7,7 @@ export const streamdownPlugins = {
   code,
   math: createMathPlugin({ singleDollarTextMath: true }),
 }
+
+// Streamdown's default, as one object: a new one each render re-renders the
+// whole document.
+export const STREAMDOWN_LINK_SAFETY = { enabled: true }

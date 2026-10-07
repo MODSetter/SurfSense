@@ -8,7 +8,7 @@ import {
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
 import { code } from "@streamdown/code"
 import { createMathPlugin } from "@streamdown/math"
-import type { ComponentType } from "react"
+import { useCallback, type ComponentType } from "react"
 import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
@@ -17,6 +17,7 @@ import type { AgentStep, TurnSources } from "@/features/agent/api"
 import { WorkingFrom } from "@/features/agent/working-from"
 import { OfficeOfferBanner } from "@/features/office-support/office-offer-banner"
 import { useOfficeOffer } from "@/features/office-support/office-offer"
+import { STREAMDOWN_LINK_SAFETY } from "@/features/studio/viewers/streamdown-config"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -52,9 +53,22 @@ const citationComponents: Components = {
 const citationAllowedTags = {
   citation: ["data-chunk-id"],
 }
+// Every prop below keeps its identity between renders: a new security object
+// rebuilds the rehype plugins, and then every block of the reply is parsed
+// again on every token instead of the one block that changed.
+const markdownSecurity = {
+  allowedProtocols: ["http", "https", "mailto"],
+  allowedImagePrefixes: [],
+  allowDataImages: false,
+}
+const NO_CITATIONS: Citation[] = []
 
 function MarkdownText() {
-  const citations = useCitationContext()?.citations ?? []
+  const citations = useCitationContext()?.citations ?? NO_CITATIONS
+  const preprocess = useCallback(
+    (content: string) => preprocessCitationMarkdown(content, citations),
+    [citations]
+  )
   return (
     <StreamdownTextPrimitive
       defer
@@ -62,13 +76,9 @@ function MarkdownText() {
       components={citationComponents}
       icons={streamdownIcons}
       plugins={streamdownPlugins}
-      preprocess={(content) => preprocessCitationMarkdown(content, citations)}
-      linkSafety={{ enabled: true }}
-      security={{
-        allowedProtocols: ["http", "https", "mailto"],
-        allowedImagePrefixes: [],
-        allowDataImages: false,
-      }}
+      preprocess={preprocess}
+      linkSafety={STREAMDOWN_LINK_SAFETY}
+      security={markdownSecurity}
     />
   )
 }

@@ -4,7 +4,10 @@ import { Streamdown, defaultRehypePlugins } from "streamdown"
 
 import { ChevronRightIcon } from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
-import { streamdownPlugins } from "@/features/studio/viewers/streamdown-config"
+import {
+  STREAMDOWN_LINK_SAFETY,
+  streamdownPlugins,
+} from "@/features/studio/viewers/streamdown-config"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -271,7 +274,7 @@ function ReplyHeader({
               <Streamdown
                 plugins={streamdownPlugins}
                 rehypePlugins={traceRehypePlugins}
-                linkSafety={{ enabled: true }}
+                linkSafety={STREAMDOWN_LINK_SAFETY}
               >
                 {reasoning.text}
               </Streamdown>
