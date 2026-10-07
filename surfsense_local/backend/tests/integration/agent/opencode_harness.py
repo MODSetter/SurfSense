@@ -63,7 +63,8 @@ class ScriptedModel:
     JSON as for "call"), whose usage says the context is full so opencode
     compacts before the next step, ("stall", words), which sends its words
     and then waits until released, or ("too-long", ""), which refuses the
-    request as llama-server does one larger than its context.
+    request as llama-server does one larger than its context. On /responses,
+    ("cut-off", words) sends its words and stops before the stream's ending.
     """
 
     url: str = ""
@@ -89,7 +90,7 @@ def _chunk(delta: dict, finish: str | None = None, usage: dict | None = None) ->
 
 
 def _responses_events(kind: str, value: str, request: dict) -> list[dict]:
-    """One Responses stream for a "text" or "call" reply, as OpenAI sends it.
+    """One Responses stream for a "text", "call" or "cut-off" reply, as OpenAI sends it.
 
     A call to a tool offered inside a namespace names that namespace, as
     OpenAI's does.
@@ -136,6 +137,9 @@ def _responses_events(kind: str, value: str, request: dict) -> list[dict]:
             {"type": "response.output_text.delta", "item_id": "msg_1", "delta": value},
             {"type": "response.output_item.done", "output_index": 0, "item": message},
         ]
+    if kind == "cut-off":
+        # The model's words, and then the stream stops before its terminal event.
+        return [{"type": "response.created", "response": created}, *output[:2]]
     usage = {"input_tokens": 10, "output_tokens": 5}
     return [
         {"type": "response.created", "response": created},

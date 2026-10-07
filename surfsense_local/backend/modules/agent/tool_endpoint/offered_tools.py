@@ -107,7 +107,8 @@ def _content(
     text: str, images: tuple[InlineImage, ...], *, is_error: bool
 ) -> dict[str, Any]:
     """A tool result: one text item, which opencode passes to the model as it is,
-    then the images, which opencode attaches after the step.
+    then the images: on /chat/completions opencode attaches them after the step,
+    on /responses it keeps them in the call's output.
 
     The model must still read images now: opencode turns each image sent to one
     that cannot into an error it is told to report.
