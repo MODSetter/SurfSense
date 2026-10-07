@@ -987,7 +987,7 @@ describe("a new chat's mode", () => {
     expect(api.creates).toEqual([{ title: "New chat" }])
   })
 
-  it("words a refused Agentic chat by its code and sends nothing", async () => {
+  it("words a refused Agentic chat by its code, sends nothing, and hands the question back", async () => {
     const shown = vi.spyOn(toast, "error")
     onTestFinished(() => shown.mockRestore())
     api.refuseCreate = { status: 409, code: "tool_calls_unsupported" }
@@ -1003,6 +1003,9 @@ describe("a new chat's mode", () => {
       "This model can’t use tools, so it can’t run Agentic mode."
     )
     expect(api.sends).toEqual([])
-    expect(result.current.conversationView).toEqual({ status: "new" })
+    expect(result.current.conversationView).toEqual({
+      status: "new",
+      returned: { text: "Draft the board pack", images: [] },
+    })
   })
 })

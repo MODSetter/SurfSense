@@ -189,6 +189,56 @@ describe("images in chat", () => {
     })
   })
 
+  it("hands a pasted image back with the question when a new chat is refused", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            { detail: { code: "agent_unavailable", message: "refused" } },
+            { status: 503 }
+          )
+        }
+        if (path === "/workspaces/1/chat/threads") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selection(true)}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    const input = await screen.findByRole("textbox", { name: "Message" })
+    fireEvent.paste(input, {
+      clipboardData: {
+        files: [new File([PNG], "chart.png", { type: "image/png" })],
+      },
+    })
+    await screen.findByRole("button", { name: "Remove image" })
+
+    await user.type(input, "what does it show?{Enter}")
+
+    await waitFor(() =>
+      expect((input as HTMLTextAreaElement).value).toBe("what does it show?")
+    )
+    expect(
+      await screen.findByRole("button", { name: "Remove image" })
+    ).toBeTruthy()
+  })
+
   it("sends a text turn exactly as before", async () => {
     const sent = backend()
     const user = userEvent.setup()

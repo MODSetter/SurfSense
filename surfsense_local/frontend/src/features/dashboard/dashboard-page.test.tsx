@@ -1165,6 +1165,55 @@ describe("dashboard chat", () => {
     expect(created).toEqual([{ title: "New chat", mode: "basic" }])
   })
 
+  it("hands the question back to the composer when the agent doesn't start", async () => {
+    vi.stubGlobal(
+      "fetch",
+      newChatServer(() =>
+        Response.json(
+          {
+            detail: {
+              code: "agent_unavailable",
+              message: "The agent did not start.",
+            },
+          },
+          { status: 503 }
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("agentic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    const message = within(conversation).getByRole("textbox", {
+      name: "Message",
+    })
+    await user.type(message, "Draft the board pack from the Q3 PDFs")
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    await waitFor(() =>
+      expect((message as HTMLTextAreaElement).value).toBe(
+        "Draft the board pack from the Q3 PDFs"
+      )
+    )
+    expect(
+      within(conversation).getByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    ).toBeTruthy()
+  })
+
   it("loads threads and sources for the selected workspace", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)

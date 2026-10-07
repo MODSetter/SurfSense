@@ -134,9 +134,12 @@ function lastThreadKey(workspaceId: number) {
 const NEW_CHAT = "new"
 
 export type ConversationView =
-  | { status: "new" }
+  // `returned` is what a refused new chat hands back to the composer.
+  | { status: "new"; returned?: ReturnedDraft }
   | { status: "creating" }
   | { status: "active"; threadId: number }
+
+export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
 function rememberThread(workspaceId: number, threadId: number | null) {
   try {
@@ -633,7 +636,12 @@ export function useChatRuntime({
         }
       } catch (cause) {
         if (requestVersion.current === version) {
-          setConversationView({ status: "new" })
+          // An Agentic chat may be refused after a minute's wait for the
+          // agent; what was typed comes back rather than being lost.
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
         }
         errorToast(
           cause instanceof ApiError &&
