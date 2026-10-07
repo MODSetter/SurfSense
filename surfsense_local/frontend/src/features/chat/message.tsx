@@ -6,7 +6,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react"
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
-import { useCallback, type ComponentType } from "react"
+import { useCallback, useDeferredValue, type ComponentType } from "react"
 import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
@@ -69,6 +69,9 @@ function MarkdownText() {
   const running = useAuiState(
     ({ message }) => message.status?.type === "running"
   )
+  // `defer` renders the text a pass late. The plugins switch in that same
+  // pass, or the end of a run would colour the code of the text before it.
+  const streaming = useDeferredValue(running)
   const preprocess = useCallback(
     (content: string) => preprocessCitationMarkdown(content, citations),
     [citations]
@@ -79,7 +82,7 @@ function MarkdownText() {
       allowedTags={citationAllowedTags}
       components={citationComponents}
       icons={streamdownIcons}
-      plugins={running ? streamingStreamdownPlugins : streamdownPlugins}
+      plugins={streaming ? streamingStreamdownPlugins : streamdownPlugins}
       preprocess={preprocess}
       linkSafety={STREAMDOWN_LINK_SAFETY}
       security={markdownSecurity}

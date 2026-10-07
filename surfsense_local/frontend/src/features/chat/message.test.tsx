@@ -302,6 +302,43 @@ describe("code in a reply", () => {
     expect(shown()).toEqual(linesOf(code))
   })
 
+  it("colours only the final code when the last chunk and the end arrive together", async () => {
+    const { container } = renderThread(
+      [
+        { id: "u", role: "user", text: "Show me" },
+        { id: "a", role: "assistant", text: "Here:\n\n```ts\n" },
+      ],
+      { running: true }
+    )
+    const cut = code.length - 20
+    for (let at = 0; at < cut; at += 12) {
+      await act(async () => push(code.slice(at, Math.min(at + 12, cut))))
+    }
+
+    // One read of the stream holds both the last code and the end of the run.
+    await act(async () => {
+      const [question, reply] = page.turns
+      update({
+        turns: [
+          question,
+          { ...reply, text: `${reply.text}${code.slice(cut)}\n\`\`\`` },
+        ],
+        running: false,
+      })
+    })
+
+    await waitFor(() =>
+      expect(
+        container.querySelector(
+          '[data-streamdown="code-block-body"] span[style*="--shiki-dark"]'
+        )
+      ).toBeTruthy()
+    )
+    expect(highlight.mock.calls.map(([options]) => options.code)).toEqual([
+      code,
+    ])
+  })
+
   it("does not parse the reply again when it ends", async () => {
     renderThread(
       [
