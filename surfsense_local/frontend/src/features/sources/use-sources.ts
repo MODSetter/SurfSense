@@ -23,6 +23,7 @@ import {
   planUpload,
   type UploadEntry,
 } from "./folder-upload/upload-plan"
+import { reuseUnchanged } from "./reuse-unchanged"
 import { indexSources } from "./tree/source-index"
 import { useFolders } from "./tree/use-folders"
 import { useSourceScope } from "./tree/use-source-scope"
@@ -84,7 +85,7 @@ export function useSources(workspaceId: number) {
     void listDocuments(workspaceId, controller.signal)
       .then((next) => {
         if (listController.current === controller) {
-          setDocuments(next)
+          setDocuments((current) => reuseUnchanged(current, next))
           setError(null)
           setIsLoading(false)
         }
@@ -119,7 +120,7 @@ export function useSources(workspaceId: number) {
           if (pollController.current !== controller) {
             return
           }
-          setDocuments(next)
+          setDocuments((current) => reuseUnchanged(current, next))
           setError(null)
           if (
             !next.some(
@@ -149,7 +150,7 @@ export function useSources(workspaceId: number) {
     void listDocuments(workspaceId, controller.signal)
       .then((next) => {
         if (changeController.current === controller) {
-          setDocuments(next)
+          setDocuments((current) => reuseUnchanged(current, next))
           setError(null)
         }
       })
@@ -174,7 +175,7 @@ export function useSources(workspaceId: number) {
     try {
       const next = await listDocuments(workspaceId, controller.signal)
       if (listController.current === controller) {
-        setDocuments(next)
+        setDocuments((current) => reuseUnchanged(current, next))
         setError(null)
       }
     } catch (cause) {

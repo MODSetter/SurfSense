@@ -98,13 +98,29 @@ function Harness() {
   )
 }
 
+// What the API lists now, and the workspace's event stream, fed by the test.
+let listing = DOCUMENTS
+let feed: ReadableStreamDefaultController<Uint8Array> | null = null
+const encoder = new TextEncoder()
+const send = (text: string) => feed?.enqueue(encoder.encode(text))
+
 beforeEach(() => {
+  listing = DOCUMENTS
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)
-      if (path.endsWith("/events")) return new Promise<Response>(() => {})
-      if (path === LIST) return Response.json(DOCUMENTS)
+      if (path.endsWith("/events")) {
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              feed = controller
+            },
+          }),
+          { headers: { "Content-Type": "text/event-stream" } }
+        )
+      }
+      if (path === LIST) return Response.json(listing)
       if (path === "/workspaces/1/folders") return Response.json(FOLDERS)
       return Response.json({ detail: "not found" }, { status: 404 })
     })
@@ -164,5 +180,19 @@ describe("source tree renders", () => {
     )
     expect(rendered.folders.sort()).toEqual([2, 3])
     expect(rendered.documents).toEqual([])
+  })
+
+  it("renders only the source a re-read of the list changed", async () => {
+    await openTree()
+    send(": connected\n\n")
+    listing = DOCUMENTS.map((document) =>
+      document.id === 20 ? { ...document, title: "paper v2.pdf" } : document
+    )
+
+    send(`event: documents\ndata: ${JSON.stringify({ ids: [20] })}\n\n`)
+
+    await screen.findByRole("treeitem", { name: "paper v2.pdf" })
+    expect(rendered.documents).toEqual([20])
+    expect(rendered.folders).toEqual([])
   })
 })
