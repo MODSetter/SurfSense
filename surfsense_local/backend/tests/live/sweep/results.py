@@ -1,6 +1,9 @@
 """The sweep's output for the catalog: a summary per model and sweep-results.json, rewritten whole after every attempt.
 
 It does not write capabilities.json: the catalog's own generator owns that shape.
+Only models with a verdict are its `models`; the catalog reads each one's
+counts as a measurement, so unresolved, running and pending models are kept
+apart under `unfinished`.
 """
 
 import json
@@ -107,11 +110,14 @@ def write(
         out / RESULTS,
         {
             "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+            # The catalog's measured_on: the day the last counted run ended.
+            "date": _day(max((a.ended for a in attempts if a.counted), default=0.0)),
             "suite": "screening",
             "cases": list(CASES),
             "listing": listing,
             "spent": round(sum(a.cost for a in attempts), 4),
-            "models": rows,
+            "models": [row for row in rows if row["status"] == "done"],
+            "unfinished": [row for row in rows if row["status"] != "done"],
             "assumed": [assumed_row(model) for model in assumed],
         },
     )

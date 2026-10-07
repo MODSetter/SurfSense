@@ -86,7 +86,7 @@ def progress(
     now: float,
 ) -> Progress:
     """From sweep-results.json, the runner's status.json and attempts.jsonl."""
-    rows = results["models"]
+    rows = [*results["models"], *results.get("unfinished", [])]
     finished = [r for r in rows if r["status"] in ("done", "unresolved")]
     alive = status.get("pid") and psutil.pid_exists(status["pid"])
     running = status.get("running", []) if alive else []

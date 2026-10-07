@@ -2,6 +2,7 @@
 
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -142,12 +143,13 @@ def test_a_transient_fault_is_retried_and_three_in_a_row_leave_the_model_unresol
 
     Runner(_sweep(tmp_path, plan, [GOOD, WEAK])).run()
 
-    rows = {row["id"]: row for row in _results(tmp_path)["models"]}
+    saved = _results(tmp_path)
+    rows = {row["id"]: row for row in saved["models"]}
     assert (rows["a/good"]["level"], rows["a/good"]["attempts"]) == ("agent", 4)
-    assert (rows["a/weak"]["status"], rows["a/weak"]["smoke"]) == (
-        "unresolved",
-        "unresolved",
-    )
+    # Never measured, so not a row for the catalog: it would read as a smoke failure.
+    assert "a/weak" not in rows
+    (weak,) = saved["unfinished"]
+    assert (weak["status"], weak["smoke"]) == ("unresolved", "unresolved")
 
     Runner(_sweep(tmp_path, plan, [GOOD, WEAK], retry_unresolved=True)).run()
 
@@ -183,6 +185,17 @@ def test_the_budget_counts_every_attempt_and_stops_before_a_case_that_would_pass
     assert [float(r["stop"]) for r in runs] == [3.0, 2.0, 1.0]
     log = (tmp_path / "sweep" / "runner.log").read_text("utf-8")
     assert "budget reached" in log
+    # Models it stopped short of are not rows for the catalog, which reads counts as a measurement.
+    saved = _results(tmp_path)
+    assert saved["models"] == []
+    assert [(r["id"], r["status"], r["passed"]) for r in saved["unfinished"]] == [
+        ("m/0", "running", None),
+        ("m/1", "running", None),
+        ("m/2", "running", None),
+        ("m/3", "pending", None),
+    ]
+    last = max(a.ended for a in AttemptLog(sweep.out / "attempts.jsonl").read())
+    assert saved["date"] == datetime.fromtimestamp(last, UTC).date().isoformat()
 
 
 def test_a_case_past_its_time_limit_is_killed_and_counted_only_if_the_model_wrote(
