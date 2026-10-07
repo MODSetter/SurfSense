@@ -14,7 +14,10 @@ import { AgentSteps } from "@/features/agent/agent-steps"
 import type { AgentStep, TurnSources } from "@/features/agent/api"
 import { WorkingFrom } from "@/features/agent/working-from"
 import { OfficeOfferBanner } from "@/features/office-support/office-offer-banner"
-import { useOfficeOffer } from "@/features/office-support/office-offer"
+import {
+  useOfficeOffer,
+  type OfficeOffer,
+} from "@/features/office-support/office-offer"
 import {
   STREAMDOWN_LINK_SAFETY,
   streamdownPlugins,
@@ -160,6 +163,10 @@ function MessageThinking() {
   )
 }
 
+// One empty list, so a selector over a message without steps returns the same
+// value each time it runs.
+const NO_STEPS: AgentStep[] = []
+
 function stepsFrom(custom: unknown): AgentStep[] {
   if (
     typeof custom === "object" &&
@@ -169,36 +176,64 @@ function stepsFrom(custom: unknown): AgentStep[] {
   ) {
     return custom.steps as AgentStep[]
   }
-  return []
+  return NO_STEPS
 }
 
 function MessageSteps() {
   const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
   // The turn's sources are kept on the user's message this reply answers.
   const scope = useAuiState(({ thread, message }) => {
-    const asked = thread.messages
-      .slice(0, message.index)
-      .findLast((candidate) => candidate.role === "user")
-    return asked ? scopeFrom(asked.metadata.custom) : null
+    for (let index = message.index - 1; index >= 0; index -= 1) {
+      const asked = thread.messages[index]
+      if (asked.role === "user") return scopeFrom(asked.metadata.custom)
+    }
+    return null
   })
   return <AgentSteps steps={steps} scope={scope} />
+}
+
+type ThreadReply = { id: string; role: string; metadata: { custom: unknown } }
+
+// Every message's selector runs on every store update, so the thread is
+// scanned once per messages array, not once per message.
+const latestOfficeReplies = new WeakMap<
+  OfficeOffer,
+  WeakMap<readonly ThreadReply[], string | null>
+>()
+
+function latestOfficeReplyId(
+  messages: readonly ThreadReply[],
+  offer: OfficeOffer
+) {
+  let byThread = latestOfficeReplies.get(offer)
+  if (!byThread) {
+    byThread = new WeakMap()
+    latestOfficeReplies.set(offer, byThread)
+  }
+  let id = byThread.get(messages)
+  if (id === undefined) {
+    id =
+      messages.findLast(
+        (candidate) =>
+          candidate.role === "assistant" &&
+          stepsFrom(candidate.metadata.custom).some(
+            (step) =>
+              step.artifact != null && offer.isOfficeFile(step.artifact.id)
+          )
+      )?.id ?? null
+    byThread.set(messages, id)
+  }
+  return id
 }
 
 /** The offer shows once per thread: under the latest reply that made an Office file. */
 function MessageOfficeOffer() {
   const offer = useOfficeOffer()
-  const shown = useAuiState(({ thread, message }) => {
-    if (!offer) return false
-    const madeOffice = (custom: unknown) =>
-      stepsFrom(custom).some(
-        (step) => step.artifact != null && offer.isOfficeFile(step.artifact.id)
-      )
-    const latest = thread.messages.findLast(
-      (candidate) =>
-        candidate.role === "assistant" && madeOffice(candidate.metadata.custom)
-    )
-    return latest?.id === message.id
-  })
+  const shown = useAuiState(
+    ({ thread, message }) =>
+      offer !== null &&
+      latestOfficeReplyId(thread.messages, offer) === message.id
+  )
   return shown ? <OfficeOfferBanner /> : null
 }
 

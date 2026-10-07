@@ -8,6 +8,7 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react"
 
+import type { AgentStep, TurnSources } from "@/features/agent/api"
 import {
   OfficeOfferContext,
   type OfficeOffer,
@@ -97,6 +98,7 @@ function push(chunk: string) {
     turns: [...page.turns.slice(0, -1), { ...last, text: last.text + chunk }],
   })
 }
+const append = (...more: Turn[]) => update({ turns: [...page.turns, ...more] })
 const finish = () => update({ running: false })
 const cite = (citations: Citation[]) => update({ citations })
 const rerenderPage = () => update({ renders: page.renders + 1 })
@@ -318,5 +320,141 @@ describe("code in a reply", () => {
     await act(async () => finish())
 
     expect(seen.blockParses).toBe(0)
+  })
+})
+
+describe("an agent reply's steps", () => {
+  const pages = (id: string, documentId: number): AgentStep => ({
+    id,
+    tool: "surfsense_source_pages",
+    status: "completed",
+    title: null,
+    input: { document_id: documentId },
+    artifact: null,
+  })
+  const scope = (ids: number[], titles: string[]): TurnSources => ({
+    document_ids: ids,
+    titles,
+  })
+
+  it("names a source by the scope of the question each reply answers", () => {
+    renderThread([
+      {
+        id: "u1",
+        role: "user",
+        text: "First",
+        custom: { scope: scope([1], ["Lease"]) },
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        text: "One.",
+        custom: { steps: [pages("s1", 1)] },
+      },
+      {
+        id: "u2",
+        role: "user",
+        text: "Second",
+        custom: { scope: scope([1], ["Invoice"]) },
+      },
+      {
+        id: "a2",
+        role: "assistant",
+        text: "Two.",
+        custom: { steps: [pages("s2", 1)] },
+      },
+    ])
+
+    const lines = screen.getAllByRole("listitem").map((li) => li.textContent)
+    expect(lines).toEqual([
+      "Looked at pages of Lease",
+      "Looked at pages of Invoice",
+    ])
+  })
+
+  it("reads a reply with no steps without an unstable store answer", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(noop)
+
+    renderThread([
+      { id: "u", role: "user", text: "Hi" },
+      { id: "a", role: "assistant", text: "Hello.", custom: {} },
+    ])
+
+    expect(screen.getByText("Hello.")).toBeTruthy()
+    expect(
+      error.mock.calls.filter((call) => String(call[0]).includes("getSnapshot"))
+    ).toEqual([])
+    error.mockRestore()
+  })
+})
+
+describe("the Office support offer", () => {
+  const made = (id: string, artifactId: number): AgentStep => ({
+    id,
+    tool: "surfsense_render_document",
+    status: "completed",
+    title: null,
+    input: { title: "Proposal", format: "docx" },
+    artifact: { id: artifactId, title: "Proposal", version: 1 },
+  })
+  const offer: OfficeOffer = {
+    isOfficeFile: (artifactId) => artifactId >= 40,
+    openOfficeSupport: noop,
+  }
+  const reply = (id: string, steps: AgentStep[]): Turn => ({
+    id,
+    role: "assistant",
+    text: `Reply ${id}.`,
+    custom: { steps },
+  })
+  const question = (id: string): Turn => ({ id, role: "user", text: "Make" })
+
+  it("shows only under the latest reply that made an Office file, and moves with a newer one", async () => {
+    const { container } = renderThread(
+      [
+        question("u1"),
+        reply("a1", [made("s1", 40)]),
+        question("u2"),
+        reply("a2", [made("s2", 41)]),
+        question("u3"),
+        reply("a3", [made("s3", 7)]),
+      ],
+      { offer }
+    )
+    const offeredUnder = () =>
+      [...container.querySelectorAll("p")]
+        .filter((p) => p.textContent === "Office offer")
+        .map(
+          (p) =>
+            p.parentElement?.textContent?.match(/Reply (a\d)\./)?.[1] ?? null
+        )
+
+    expect(offeredUnder()).toEqual(["a2"])
+
+    await act(async () => append(question("u4"), reply("a4", [made("s4", 42)])))
+
+    expect(offeredUnder()).toEqual(["a4"])
+  })
+
+  it("scans the thread once per update, not once per message", async () => {
+    const isOfficeFile = vi.fn(() => false)
+    const turns = Array.from({ length: 6 }, (_, index) => [
+      question(`u${index}`),
+      reply(`a${index}`, [
+        made(`s${index}a`, 1),
+        made(`s${index}b`, 2),
+        made(`s${index}c`, 3),
+      ]),
+    ]).flat()
+    renderThread([...turns, question("u"), reply("a", [])], {
+      running: true,
+      offer: { isOfficeFile, openOfficeSupport: noop },
+    })
+    isOfficeFile.mockClear()
+
+    await act(async () => push(" More."))
+
+    // 18 steps in the thread: one scan for the new messages, not one a reply.
+    expect(isOfficeFile.mock.calls.length).toBeLessThanOrEqual(2 * 18)
   })
 })
