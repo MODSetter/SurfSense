@@ -12,7 +12,7 @@ from pathlib import Path
 import pypdfium2
 
 from modules.agent.previews import docx_snapshots
-from modules.agent.previews.office_counts import slide_count, word_saved_pages
+from modules.agent.previews.office_counts import slide_count
 from modules.agent.previews.page_images import (
     PAGE_LIMIT,
     draw_chosen_pages,
@@ -125,7 +125,7 @@ def _printed(
     pages: list[int],
     total: int | None,
 ) -> SourcePages:
-    """Electron prints exactly those pages, in order; a Word file's count shows only when a print comes up short."""
+    """Electron prints exactly those pages, in order; a Word file's count is known only when a print comes up short."""
     unit = "slide" if format == "pptx" else "page"
     try:
         pdf = docx_snapshots.snapshots.snapshot(
@@ -136,18 +136,18 @@ def _printed(
         )
         printed = page_count(pdf)
     except (docx_snapshots.SnapshotUnavailableError, pypdfium2.PdfiumError) as error:
-        return SourcePages(_count_line(original, total, unit, None), [], str(error))
+        return SourcePages(_count_line(total, unit, None), [], str(error))
     if 0 < printed < len(pages) and _contiguous(pages) and total is None:
         # Printing stops at the document's end: the last page printed is its last.
         total = pages[0] - 1 + printed
         pages = pages[:printed]
     if printed == 0 or printed != len(pages):
         return SourcePages(
-            _count_line(original, total, unit, None),
+            _count_line(total, unit, None),
             [],
             f"the desktop app printed {printed} {unit}s for the {len(pages)} asked for.",
         )
-    count = _count_line(original, total, unit, pages[-1])
+    count = _count_line(total, unit, pages[-1])
     return _drawn(folder, document_id, pdf, pages, count, in_order=True)
 
 
@@ -181,18 +181,20 @@ def _drawn(
     )
 
 
-def _count_line(
-    original: Path, total: int | None, unit: str, last_drawn: int | None
-) -> str:
-    """The count when known; for Word, what Word saved, else at least the pages printed."""
+def _count_line(total: int | None, unit: str, last_drawn: int | None) -> str:
+    """The count when known, else at least the last page printed; never a guess.
+
+    Word's saved count is not used: other writers leave a template's there, and
+    python-docx's says 1 page whatever the length.
+    """
     if total is not None:
         return _count(total, unit)
-    saved = word_saved_pages(original)
-    if saved is not None:
-        return f"{_count(saved, unit)}, as Word last counted them"
     if last_drawn is not None:
-        return f"at least {_count(last_drawn, unit)}"
-    return "an unknown number of pages"
+        return (
+            f"at least {_count(last_drawn, unit)}; how many in all is not known, "
+            "as the desktop app printed only the pages asked for"
+        )
+    return f"an unknown number of {unit}s"
 
 
 def _page_ranges(pages: list[int]) -> str:

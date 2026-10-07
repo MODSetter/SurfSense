@@ -6,6 +6,7 @@ from Electron, which a thread plays here on the snapshot queue itself.
 
 import base64
 import threading
+import zipfile
 from collections.abc import Callable, Iterator
 from io import BytesIO
 from pathlib import Path
@@ -263,6 +264,50 @@ async def test_a_word_sources_pages_are_printed_by_electron_from_its_original(
     assert "Pages 1 and 2 come with this result as images, in order." in text
     assert len(images) == 2
     assert "headers and footers" in text
+
+
+async def test_a_word_page_past_what_word_last_saved_says_its_count_is_unknown(
+    tools: ToolEndpoint, engine: Engine, electron
+) -> None:
+    """A rehearsal answered "has 1 page" beside page 4: the saved count was python-docx's template's."""
+    workspace_id = await tools.workspace()
+    original = _docx()
+    assert b"<Pages>1</Pages>" in zipfile.ZipFile(BytesIO(original)).read(
+        "docProps/app.xml"
+    )
+    source_id = _uploaded(engine, workspace_id, "Conditions.docx", original)
+    electron(lambda request: _pdf(A4))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id, pages=[4])
+    )
+
+    assert is_error is False, text
+    assert len(images) == 1
+    assert "Page 4 comes with this result as an image." in text
+    assert "has 1 page" not in text
+    assert "Word last counted" not in text
+    assert (
+        f'Source {source_id} ("Conditions.docx") has at least 4 pages; how many in '
+        "all is not known"
+    ) in text
+
+
+async def test_a_word_source_the_desktop_app_cannot_print_has_an_unknown_count(
+    tools: ToolEndpoint, engine: Engine, electron
+) -> None:
+    """With nothing printed, no count is guessed from the file's saved properties."""
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Conditions.docx", _docx())
+    electron(lambda request: _pdf(A4, A4, A4))
+
+    text, _images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id, pages=[2, 4])
+    )
+
+    assert is_error is False, text
+    assert "has an unknown number of pages" in text
+    assert "has 1 page" not in text
 
 
 async def test_a_decks_slides_are_counted_and_printed_as_asked(
