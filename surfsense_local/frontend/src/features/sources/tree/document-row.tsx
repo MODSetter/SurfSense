@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -204,19 +205,29 @@ export function DocumentRow({
                 </Tooltip>
               ) : null}
             </span>
-            <button
-              type="button"
-              disabled={!titleActionable}
-              className={cn(
-                "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
-                dropdownOpen && "sidebar-row-title-fade-actions"
-              )}
-              onClick={
-                titleActionable ? (previewable ? onPreview : onOpen) : undefined
+            <OverflowTooltip
+              label={document.title}
+              focusOwner='[role="treeitem"]'
+              render={
+                <button
+                  type="button"
+                  disabled={!titleActionable}
+                  className={cn(
+                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+                    dropdownOpen && "sidebar-row-title-fade-actions"
+                  )}
+                  onClick={
+                    titleActionable
+                      ? previewable
+                        ? onPreview
+                        : onOpen
+                      : undefined
+                  }
+                >
+                  {document.title}
+                </button>
               }
-            >
-              {document.title}
-            </button>
+            />
             <div className="absolute inset-y-0 right-0 flex items-center pr-1">
               <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                 <DropdownMenuTrigger

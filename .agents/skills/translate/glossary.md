@@ -38,6 +38,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every 
 | study guide | 学習ガイド | 학습 가이드 | 学习指南 | स्टडी गाइड | Lernzettel † | guía de estudio | Guide de révision | Guia de estudos | конспект |
 | podcast | ポッドキャスト | 팟캐스트 | 播客 | पॉडकास्ट | Podcast | podcast | Podcast | Podcast | подкаст |
 | speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
+| sidebar (the workspace’s left column) | サイドバー | 사이드바 | 侧边栏 | साइडबार | Seitenleiste | barra lateral | barre latérale | barra lateral | боковая панель |
 | workspace | ワークスペース | 워크스페이스 | 工作区 | वर्कस्पेस | Workspace | espacio de trabajo | espace de travail | Workspace | рабочая область |
 | artifact (a Studio output) | 生成物 | 생성물 | 产物 | आर्टिफ़ैक्ट | Artefakt | artefacto | artefact | artefato | артефакт |
 | version (one of a document’s versions, shown as v1, v2) | バージョン | 버전 | 版本 | वर्ज़न | Version | versión | version | versão | версия |

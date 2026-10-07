@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -161,6 +162,18 @@ function TreeHarness() {
 }
 
 const row = (name: string) => screen.getByRole("treeitem", { name })
+
+// jsdom lays nothing out: give a name the widths of one its row cuts off.
+function cutOff(element: HTMLElement) {
+  Object.defineProperty(element, "scrollWidth", {
+    configurable: true,
+    value: 320,
+  })
+  Object.defineProperty(element, "clientWidth", {
+    configurable: true,
+    value: 120,
+  })
+}
 const scopeSent = () =>
   JSON.parse(screen.getByLabelText("Source scope").textContent ?? "null")
 
@@ -207,6 +220,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe("source tree", () => {
@@ -578,5 +592,40 @@ describe("source tree", () => {
       (write) => write.path === "/workspaces/1/documents/upload"
     )?.body as FormData
     expect(sent.getAll("files")).toEqual([small])
+  })
+
+  it("shows a cut-off name in full on hover and on keyboard focus, and the row still ticks", async () => {
+    folderApi()
+    const user = userEvent.setup()
+    render(<TreeHarness />)
+    const research = await screen.findByRole("treeitem", { name: "Research" })
+
+    const source = within(row("notes.md")).getByRole("button", {
+      name: "notes.md",
+    })
+    cutOff(source)
+    await user.hover(source)
+    expect((await screen.findByRole("tooltip")).textContent).toBe("notes.md")
+    await user.unhover(source)
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+
+    // jsdom never matches :focus-visible; a keyboard user's focus would.
+    const matches = Element.prototype.matches
+    vi.spyOn(Element.prototype, "matches").mockImplementation(function (
+      this: Element,
+      selector: string
+    ) {
+      return selector === ":focus-visible"
+        ? this === document.activeElement
+        : matches.call(this, selector)
+    })
+    cutOff(within(research).getByRole("button", { name: "Research" }))
+    act(() => research.focus())
+    expect((await screen.findByRole("tooltip")).textContent).toBe("Research")
+    // Everything starts ticked: Space and a click untick.
+    await user.keyboard(" ")
+    expect(research.getAttribute("aria-checked")).toBe("false")
+    await user.click(screen.getByRole("checkbox", { name: "Select notes.md" }))
+    expect(row("notes.md").getAttribute("aria-checked")).toBe("false")
   })
 })

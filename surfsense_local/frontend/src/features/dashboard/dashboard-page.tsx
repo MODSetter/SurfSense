@@ -12,11 +12,8 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  DETAIL_RAIL_WIDTH,
-  MAIN_RAIL_WIDTH,
-  SlideRail,
-} from "@/components/ui/slide-rail"
+import { ResizeHandle } from "@/components/ui/resize-handle"
+import { SlideRail } from "@/components/ui/slide-rail"
 import {
   Tooltip,
   TooltipContent,
@@ -60,6 +57,7 @@ import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import {
   readRightPanelOpen,
@@ -70,19 +68,19 @@ import {
 import { LeftSidebar } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
+import { useColumnWidths } from "./use-column-widths"
 
 // Clicking "N sources" in the composer used to switch the right rail to its
 // Sources tab. Sources now live in the always-visible left sidebar, so the
 // same click just brings that list into view instead.
 const LEFT_SOURCES_ID = "workspace-left-sources"
+const LEFT_COLUMN_ID = "workspace-left-column"
+const RIGHT_PANEL_ID = "workspace-right-panel"
 
 type Inspect =
   | { kind: "citation"; chunkId: number }
   | { kind: "artifact"; artifactId: number }
   | null
-
-// The left sidebar's resting width, w-68.
-const SIDEBAR_WIDTH = 272
 
 function WorkspaceDashboard({
   workspace,
@@ -147,6 +145,12 @@ function WorkspaceDashboard({
   const sourcePreviewOpen =
     sourcePreview?.document_type === "FILE" &&
     getFileViewer(sourcePreview.mime_type) !== null
+  const sectionRef = useRef<HTMLElement>(null)
+  const columns = useColumnWidths(sectionRef, {
+    sidebarWide: sourcePreviewOpen,
+    rightPanelOpen,
+    rightPanelWide: inspect !== null,
+  })
 
   useEffect(() => {
     if (sourcePreviewId === null || sources.isLoading) return
@@ -223,7 +227,7 @@ function WorkspaceDashboard({
                     size="icon-sm"
                     className="pointer-events-auto size-6 aria-expanded:bg-transparent"
                     aria-expanded={rightPanelOpen}
-                    aria-controls="workspace-right-panel"
+                    aria-controls={RIGHT_PANEL_ID}
                     aria-label={
                       rightPanelOpen
                         ? intl.formatMessage({
@@ -255,16 +259,21 @@ function WorkspaceDashboard({
             </Tooltip>
           </div>
         </div>
-        <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
+        <section
+          ref={sectionRef}
+          className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm"
+        >
           {/* A preview takes over the left column and widens it, as an
             inspected artifact does the right one; the right panel stays put.
-            It shrinks, down to the sidebar's width, before the chat or the
-            right panel lose room on a narrow window. */}
+            On a narrow window it gives way first, down to the sidebar's
+            minimum, before the right panel does: the chat keeps its own. */}
           <div
-            className="flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
-            style={{
-              width: sourcePreviewOpen ? DETAIL_RAIL_WIDTH : SIDEBAR_WIDTH,
-            }}
+            id={LEFT_COLUMN_ID}
+            className={cn(
+              "flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
+              !columns.animate && "transition-none"
+            )}
+            style={{ width: columns.sidebar.width }}
           >
             {sourcePreviewOpen && sourcePreview ? (
               <SourcePreviewPanel
@@ -381,6 +390,15 @@ function WorkspaceDashboard({
               />
             </div>
           </div>
+          <ResizeHandle
+            side="start"
+            label={intl.formatMessage({
+              id: "dashboard_sidebar_resize_aria",
+              defaultMessage: "Resize sidebar",
+            })}
+            controls={LEFT_COLUMN_ID}
+            {...columns.sidebar.edge}
+          />
           <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
             <ApprovalDialog
               request={chat.approvals[0] ?? null}
@@ -426,12 +444,25 @@ function WorkspaceDashboard({
               }}
             />
           </div>
+          {/* Collapsed, the rail has no edge to drag. */}
+          {rightPanelOpen ? (
+            <ResizeHandle
+              side="end"
+              label={intl.formatMessage({
+                id: "dashboard_right_panel_resize_aria",
+                defaultMessage: "Resize right panel",
+              })}
+              controls={RIGHT_PANEL_ID}
+              {...columns.rightPanel.edge}
+            />
+          ) : null}
           <SlideRail
             open={rightPanelOpen}
             side="end"
-            width={inspect ? DETAIL_RAIL_WIDTH : MAIN_RAIL_WIDTH}
+            width={columns.rightPanel.width}
+            animate={columns.animate}
           >
-            <div id="workspace-right-panel" className="h-full min-h-0">
+            <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
               <RightPanel
                 inspect={
                   inspect?.kind === "citation" ? (
