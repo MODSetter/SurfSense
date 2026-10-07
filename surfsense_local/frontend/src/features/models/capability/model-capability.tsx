@@ -13,6 +13,8 @@ export function ModelCapabilitySummary() {
   const selection = useSelection("text_gen")
   const capability = selection.data?.capability
   if (!capability) return null
+  // Listed at the agent level without a run: said once, never as a pass.
+  const assumed = capability.measured?.assumed === true
 
   return (
     <section
@@ -34,18 +36,24 @@ export function ModelCapabilitySummary() {
           {capabilityLabel(capability.level)}
         </Badge>
         <span className="text-muted-foreground">
-          {intl.formatMessage(
-            {
-              id: "models_capability_level_body",
-              defaultMessage:
-                "{level, select, agent {Passed SurfSense’s Agentic tests.} agent_limited {Near the bar in SurfSense’s Agentic tests: it may need a nudge, such as asking it to check each page.} studio_only {Below the bar in SurfSense’s Agentic tests, so Studio writes Word and PDF from Markdown.} other {Not tested for Agentic mode yet.}}",
-            },
-            { level: capability.level }
-          )}
+          {assumed
+            ? intl.formatMessage({
+                id: "models_capability_assumed_body",
+                defaultMessage:
+                  "Not run: SurfSense expects this expensive flagship model to pass.",
+              })
+            : intl.formatMessage(
+                {
+                  id: "models_capability_level_body",
+                  defaultMessage:
+                    "{level, select, agent {Passed SurfSense’s Agentic tests.} agent_limited {Near the bar in SurfSense’s Agentic tests: it may need a nudge, such as asking it to check each page.} studio_only {Below the bar in SurfSense’s Agentic tests, so Studio writes Word and PDF from Markdown.} other {Not tested for Agentic mode yet.}}",
+                },
+                { level: capability.level }
+              )}
         </span>
       </div>
-      <Evidence capability={capability} />
-      {capability.note ? (
+      {assumed ? null : <Evidence capability={capability} />}
+      {capability.note && !assumed ? (
         <p className="text-muted-foreground">{capability.note}</p>
       ) : null}
       <Modes capability={capability} />
@@ -55,17 +63,6 @@ export function ModelCapabilitySummary() {
 
 function Evidence({ capability }: { capability: ModelCapability }) {
   const measured = capability.measured
-  if (measured?.assumed) {
-    return (
-      <p className="text-muted-foreground">
-        {intl.formatMessage({
-          id: "models_capability_assumed_body",
-          defaultMessage:
-            "Not run: SurfSense expects this expensive flagship model to pass.",
-        })}
-      </p>
-    )
-  }
   if (measured) {
     return (
       <p className="text-muted-foreground">

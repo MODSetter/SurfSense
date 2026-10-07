@@ -52,9 +52,13 @@ def capability_of(model: str, connection: ProviderConnection | None) -> Capabili
     if row is None:
         return Capability(Level.NOT_MEASURED, Reason("no_row"))
     if _served(connection) not in row.match.served:
-        return Capability(
-            Level.NOT_MEASURED, Reason("measured_elsewhere", {"host": row.host}), row
+        # An assumed row was measured nowhere, so not elsewhere either.
+        elsewhere = (
+            Reason("assumed")
+            if row.assumed
+            else Reason("measured_elsewhere", {"host": row.host})
         )
+        return Capability(Level.NOT_MEASURED, elsewhere, row)
     level = Level(row.level)
     if row.assumed:
         return Capability(level, Reason("assumed"), row)

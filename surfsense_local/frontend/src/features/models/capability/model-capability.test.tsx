@@ -157,7 +157,7 @@ describe("the selected chat model's capability", () => {
     ).toBeTruthy()
   })
 
-  it("says a flagship assumed to pass was not run, rather than 0 of 0", async () => {
+  it("says once that a flagship assumed to pass was not run, never that it passed", async () => {
     vi.stubGlobal(
       "fetch",
       serving(
@@ -165,6 +165,7 @@ describe("the selected chat model's capability", () => {
           level: "agent",
           label_key: "agent",
           reason: { code: "assumed", values: {} },
+          note: "Not run: an expensive flagship assumed to pass",
           measured: {
             key: "claude-opus-4-6",
             suite: "assumed",
@@ -189,8 +190,14 @@ describe("the selected chat model's capability", () => {
 
     render(<ModelCapabilitySummary />)
 
-    expect(await screen.findByText(/Not run: SurfSense expects/)).toBeTruthy()
-    expect(screen.queryByText(/Passed 0 of 0/)).toBeNull()
+    const summary = await screen.findByRole("region", {
+      name: "What this chat model can do",
+    })
+    expect(summary.textContent).toContain(
+      "Not run: SurfSense expects this expensive flagship model to pass."
+    )
+    expect(summary.textContent?.match(/Not run/g)).toHaveLength(1)
+    expect(summary.textContent).not.toMatch(/Passed/)
   })
 
   it("says a pass measured on a provider's host does not hold on a server of one's own", async () => {

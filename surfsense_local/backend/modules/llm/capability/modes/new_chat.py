@@ -59,13 +59,14 @@ def new_chat_modes(selected: SelectedModel, facts: ToolFacts) -> NewChatModes:
 
 def _agentic_reason(capability: Capability) -> Reason:
     row = capability.row
+    if row is not None and row.assumed:
+        # Never run, here or on its full-size version.
+        return Reason("assumed")
     if row is None or capability.level is Level.NOT_MEASURED:
         # A row that passed on a provider's host, read for a copy on the user's own.
         if row is not None and Level(row.level) in AGENT_LEVELS:
             return Reason("local_copy", {"host": row.host})
         return Reason("untested")
-    if row.assumed:
-        return Reason("assumed")
     counts: dict[str, str | int] = {
         "passed": row.passes.passed,
         "counted": row.passes.counted,

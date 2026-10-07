@@ -49,6 +49,24 @@ def _selected(
     )
 
 
+ASSUMED = MeasuredModel.model_validate(
+    {
+        "key": "claude-opus-4-6",
+        "match": {"keys": ["claude-opus-4-6"], "served": ["remote"]},
+        "level": "agent",
+        "suite": "assumed",
+        "suite_version": 1,
+        "measured_on": "2026-10-07",
+        "provider": "openrouter",
+        "host": "openrouter.ai",
+        "model_id": "anthropic/claude-opus-4.6",
+        "reads_images": True,
+        "passes": {"passed": 0, "counted": 0, "run": 0},
+        "note": "Not run: an expensive flagship assumed to pass",
+    }
+)
+
+
 def test_a_model_that_passed_on_a_remote_host_starts_agentic() -> None:
     """Kimi K3 passed all eight cases."""
     modes = new_chat_modes(_selected("moonshotai/kimi-k3"), CALLS_TOOLS)
@@ -115,28 +133,25 @@ def test_an_assumed_flagship_starts_agentic_and_says_it_was_not_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Listed at the agent level without runs."""
-    assumed = MeasuredModel.model_validate(
-        {
-            "key": "claude-opus-4-6",
-            "match": {"keys": ["claude-opus-4-6"], "served": ["remote"]},
-            "level": "agent",
-            "suite": "assumed",
-            "suite_version": 1,
-            "measured_on": "2026-10-07",
-            "provider": "openrouter",
-            "host": "openrouter.ai",
-            "model_id": "anthropic/claude-opus-4.6",
-            "reads_images": True,
-            "passes": {"passed": 0, "counted": 0, "run": 0},
-            "note": "Not run: an expensive flagship assumed to pass",
-        }
-    )
-    monkeypatch.setattr(resolve, "find_row", lambda _model: assumed)
+    monkeypatch.setattr(resolve, "find_row", lambda _model: ASSUMED)
 
     modes = new_chat_modes(_selected("anthropic/claude-opus-4.6"), CALLS_TOOLS)
 
     assert modes.default_mode is ChatMode.AGENTIC
     assert (modes.reason.code, modes.reason.values) == ("assumed", {})
+
+
+def test_a_local_copy_of_an_assumed_flagship_starts_basic_and_says_it_was_not_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Never run anywhere, so never "passed on its full-size version"."""
+    monkeypatch.setattr(resolve, "find_row", lambda _model: ASSUMED)
+
+    modes = new_chat_modes(_selected("claude-opus-4.6", base_url=OLLAMA), UNKNOWN)
+
+    assert modes.default_mode is ChatMode.BASIC
+    assert (modes.reason.code, modes.reason.values) == ("assumed", {})
+    assert resolve.capability_of("claude-opus-4.6", None).reason.code == "assumed"
 
 
 @pytest.mark.parametrize(
