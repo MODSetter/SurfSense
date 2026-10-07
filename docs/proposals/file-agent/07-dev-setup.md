@@ -54,7 +54,7 @@ How to run the [create-and-edit slice](07-create-and-edit-mvp.md) on `dev_mod` w
 
 | Case | File | Passes when | Cost of a run, 4 Oct 2026 |
 |---|---|---|---|
-| Smoke | `test_smoke.py` | one turn calls `surfsense_search_sources` and the answer cites a passage | about $0.03 |
+| Smoke | `test_smoke.py` | one turn calls `surfsense_search_sources` and the answer gives the note's date, in any common spelling, and cites a passage | about $0.03 |
 | Images reach the model | `test_images_reach_the_model.py` | the agent renders a one-page PDF with a coloured shape and a word, the page reaches the model as the image the render attached, and the agent describes it correctly | about $0.09 |
 | Demo flow | `test_demo_flow.py` | the three demo turns below on the generated sources make two Word versions and a PDF (a failed render keeps its number, so a document can start at v2), the edit holds a timeline table, a chart and the logo, and in each turn every page of the last version rendered reached the model | about $1.50 |
 | PDF brief | `test_pdf_brief.py` | a client brief asked for as a PDF is a PDF, and the answer does not claim no format was named; "make it fit on one page and bold the totals" then gives one page with the 39,800 total in bold | about $0.34 |

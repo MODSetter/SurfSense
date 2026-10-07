@@ -9,8 +9,13 @@ from tests.live.live_agent import LiveAgent, steps
 pytestmark = pytest.mark.live
 
 CASE = "smoke"
-# The note's date in either order: "November 16, 2026" is as right as "16 November".
-_MOVE_DAY = re.compile(r"\b16(th)?\.? November|November 16\b")
+# Any common spelling: a sweep stops a model that fails smoke, and a spelling is no skill.
+_MOVE_DAY = re.compile(
+    r"\b16(?:th)?\.?(?:\s+of)?\s+Nov(?:ember)?\b"
+    r"|\bNov(?:ember)?\.?\s+16(?:th)?\b"
+    r"|\b2026-11-16\b|\b16[./]11[./]2026\b|\b11/16/2026\b",
+    re.IGNORECASE,
+)
 
 
 async def test_the_agent_searches_the_sources_and_cites_a_passage(
@@ -31,7 +36,12 @@ async def test_the_agent_searches_the_sources_and_cites_a_passage(
     searches = steps(frames, "surfsense_search_sources")
     assert [s["status"] for s in searches if s["status"] == "completed"], searches
     (completed,) = [f for f in frames if f["type"] == "completed"]
-    assert _MOVE_DAY.search(completed["text"]), completed["text"]
+    assert says_the_move_day(completed["text"]), completed["text"]
     cited = [f for f in frames if f["type"] == "citations"]
     assert cited and cited[0]["items"], "the answer cites no passage"
     assert {item["document_id"] for item in cited[0]["items"]} == {note}
+
+
+def says_the_move_day(answer: str) -> bool:
+    """16 November 2026, as "November 16th", "16. November", "2026-11-16" or the like."""
+    return bool(_MOVE_DAY.search(answer))
