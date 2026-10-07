@@ -91,7 +91,7 @@ async def search(
     """Absent rather than degraded when egress is off."""
     await transact(session, egress.require, egress.HUGGINGFACE)
     try:
-        hits = await service.llamacpp.search(q, limit=limit)
+        hits = await service.search(q, limit=limit)
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
     return {

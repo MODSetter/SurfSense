@@ -628,6 +628,32 @@ describe("model catalog", () => {
     expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 
+  it("sends one search for a burst of typing, not one per keystroke", async () => {
+    // Typing "qwen" is four keystrokes past the two-character threshold;
+    // the debounce settles them to the one lookup the user meant.
+    const searches: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          searches.push(path)
+          return Response.json({ results: [] })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
+
+    await waitFor(() => expect(searches).toHaveLength(1), { timeout: 2000 })
+    expect(searches[0]).toContain("q=qwen")
+  })
+
   it("explains that search is unavailable rather than erroring", async () => {
     // With egress off, curated and installed still work. That is the airgapped
     // product, not a degraded one.
