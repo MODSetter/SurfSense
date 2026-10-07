@@ -211,9 +211,8 @@ function ReplyHeader({
     []
   )
 
-  // The tail is the only place an unclosed marker can be, so repairing it
-  // alone renders as Streamdown's whole-trace repair did, without rescanning
-  // the trace at every token.
+  // Repairs the tail only, as the answer's primitive does, not the whole trace
+  // at every token; a marker left open in an earlier paragraph stays as written.
   const text = reasoning?.text ?? ""
   const repaired = useMemo(() => tailBoundedRemend(text), [text])
 

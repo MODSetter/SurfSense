@@ -426,6 +426,15 @@ describe("the trace's markdown", () => {
     expect(props.children).toBe(tailBoundedRemend(text))
   })
 
+  // Where the trace's old whole-trace repair differed: it closed the earlier
+  // paragraph's ** at the end of the trace, as literal asterisks.
+  it("leaves a marker open in an earlier paragraph alone, as the answer does", () => {
+    render(streaming("Some **bold\n\nmore text"))
+    const trace = screen.getByRole("region", { name: "Thinking" })
+
+    expect(trace.textContent).toBe("Some **boldmore text")
+  })
+
   it("keeps its options across tokens, so a token never redraws the whole trace", () => {
     const { rerender } = render(streaming("First step."))
     const first = seen.trace[seen.trace.length - 1]
