@@ -74,8 +74,10 @@ function spawnOne(
       sessionLog.append(spec.name, line),
     )
   }
+  // Written at once, not through the echo: the app exits right after its last
+  // sidecar stops, which would discard a write still queued there.
   const note = (text: string) => {
-    echo(2, `[${spec.name}] ${text}\n`)
+    process.stderr.write(`[${spec.name}] ${text}\n`)
     sessionLog.append(spec.name, text)
   }
   child.on("exit", (code, signal) => {

@@ -113,7 +113,7 @@ test("a sidecar's output is mirrored under its name and logged line by line", as
   await once(child, "close")
   await new Promise((resolve) => setImmediate(resolve))
 
-  // Each read is mirrored whole under the name; the exit note may come first.
+  // Each read is mirrored whole under the name.
   const mirrored = (to: 1 | 2) =>
     echoed
       .filter(([fd]) => fd === to)
@@ -122,7 +122,7 @@ test("a sidecar's output is mirrored under its name and logged line by line", as
         return text.slice("[mirrored] ".length)
       })
   assert.equal(mirrored(1).join(""), "one\ntwo\n")
-  assert.deepEqual(mirrored(2).sort(), ["crashed (code=0 signal=null)\n", "three\n"])
+  assert.deepEqual(mirrored(2), ["three\n"])
   const logged = sessionLog
     .lines()
     .filter((line) => line.includes(" [mirrored] "))
@@ -181,6 +181,32 @@ test("on Windows the mirror writes from libuv's pool, not through process.stdout
 
   assert.ok(stream instanceof WriteStream)
   assert.equal(Reflect.get(stream, "fd"), 2)
+})
+
+test("a sidecar's exit note is written before the app can exit", async () => {
+  // shutdown() exits the app right after the last sidecar's `exit`, which
+  // would discard a note still queued behind the mirror.
+  const written: string[] = []
+  const write = process.stderr.write
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    written.push(String(chunk))
+    return true
+  }) as typeof process.stderr.write
+  let atExit: string[] = []
+  try {
+    const sidecars: Sidecars = new Map()
+    startOne(sidecars, nodeSidecar("noted", "", {}), undefined, createEcho(stalledTerminal))
+    const child = sidecars.get("noted")
+    assert.ok(child)
+    child.on("exit", () => {
+      atExit = written.filter((text) => text.startsWith("[noted] "))
+    })
+    await once(child, "close")
+  } finally {
+    process.stderr.write = write
+  }
+
+  assert.deepEqual(atExit, ["[noted] crashed (code=0 signal=null)\n"])
 })
 
 test("an echo with no terminal to open stays silent", () => {
