@@ -6,8 +6,6 @@ import {
   useAuiState,
 } from "@assistant-ui/react"
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
-import { code } from "@streamdown/code"
-import { createMathPlugin } from "@streamdown/math"
 import { useCallback, type ComponentType } from "react"
 import type { Components, ExtraProps } from "streamdown"
 
@@ -17,7 +15,11 @@ import type { AgentStep, TurnSources } from "@/features/agent/api"
 import { WorkingFrom } from "@/features/agent/working-from"
 import { OfficeOfferBanner } from "@/features/office-support/office-offer-banner"
 import { useOfficeOffer } from "@/features/office-support/office-offer"
-import { STREAMDOWN_LINK_SAFETY } from "@/features/studio/viewers/streamdown-config"
+import {
+  STREAMDOWN_LINK_SAFETY,
+  streamdownPlugins,
+  streamingStreamdownPlugins,
+} from "@/features/studio/viewers/streamdown-config"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -40,10 +42,6 @@ import {
 } from "./reply-thinking"
 import type { Citation } from "./sse"
 
-const streamdownPlugins = {
-  code,
-  math: createMathPlugin({ singleDollarTextMath: true }),
-}
 const streamdownIcons = { CheckIcon, CopyIcon, DownloadIcon }
 const citationComponents: Components = {
   citation: InlineCitation as ComponentType<
@@ -65,6 +63,9 @@ const NO_CITATIONS: Citation[] = []
 
 function MarkdownText() {
   const citations = useCitationContext()?.citations ?? NO_CITATIONS
+  const running = useAuiState(
+    ({ message }) => message.status?.type === "running"
+  )
   const preprocess = useCallback(
     (content: string) => preprocessCitationMarkdown(content, citations),
     [citations]
@@ -75,7 +76,7 @@ function MarkdownText() {
       allowedTags={citationAllowedTags}
       components={citationComponents}
       icons={streamdownIcons}
-      plugins={streamdownPlugins}
+      plugins={running ? streamingStreamdownPlugins : streamdownPlugins}
       preprocess={preprocess}
       linkSafety={STREAMDOWN_LINK_SAFETY}
       security={markdownSecurity}

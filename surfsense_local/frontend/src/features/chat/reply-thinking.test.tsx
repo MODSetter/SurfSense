@@ -283,7 +283,32 @@ describe("the trace's markdown", () => {
     expect(last.linkSafety).toBe(first.linkSafety)
     expect(last.plugins).toBe(first.plugins)
   })
+
+  it("colours code only once thinking is done, with the same math plugin", () => {
+    const text = "Try:\n\n```ts\nconst a = 1\n```"
+    const { rerender } = render(streaming(text))
+    const thinking = seen.trace[seen.trace.length - 1].plugins as Plugins
+
+    rerender(finished(text))
+    const done = seen.trace[seen.trace.length - 1].plugins as Plugins
+
+    expect(thinking.code).toBeUndefined()
+    expect(done.code).toBeDefined()
+    expect(done.math).toBe(thinking.math)
+  })
 })
+
+type Plugins = { code?: unknown; math?: unknown }
+
+function finished(text: string) {
+  return (
+    <ReplyThinking
+      running
+      answerStarted
+      reasoning={{ text, durationMs: 2_000 }}
+    />
+  )
+}
 
 function streaming(text: string) {
   return (

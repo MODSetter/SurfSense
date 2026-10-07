@@ -7,6 +7,7 @@ import { ScrollFade } from "@/components/ui/scroll-fade"
 import {
   STREAMDOWN_LINK_SAFETY,
   streamdownPlugins,
+  streamingStreamdownPlugins,
 } from "@/features/studio/viewers/streamdown-config"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -272,7 +273,11 @@ function ReplyHeader({
               {/* Default mode: the trace streams in, unlike a viewer's
                   finished artifact. */}
               <Streamdown
-                plugins={streamdownPlugins}
+                plugins={
+                  status === "thinking"
+                    ? streamingStreamdownPlugins
+                    : streamdownPlugins
+                }
                 rehypePlugins={traceRehypePlugins}
                 linkSafety={STREAMDOWN_LINK_SAFETY}
               >

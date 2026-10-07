@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { act, cleanup, screen } from "@testing-library/react"
+import { act, cleanup, screen, waitFor } from "@testing-library/react"
 import { useCallback, useSyncExternalStore, type ReactNode } from "react"
 import {
   AssistantRuntimeProvider,
@@ -12,6 +12,7 @@ import {
   OfficeOfferContext,
   type OfficeOffer,
 } from "@/features/office-support/office-offer"
+import { codeHighlighter } from "@/features/studio/viewers/code-highlighter"
 import { render } from "@/test-utils"
 
 import { AssistantMessage, UserMessage } from "./message"
@@ -41,6 +42,15 @@ vi.mock("@assistant-ui/react-streamdown", async (original) => {
       seen.markdown.push(props)
       return React.createElement(Real, { ...props, rehypePlugins: counting })
     },
+  }
+})
+
+vi.mock("@/features/studio/viewers/code-highlighter", async (original) => {
+  const { codeHighlighter: real } = (await original()) as {
+    codeHighlighter: typeof codeHighlighter
+  }
+  return {
+    codeHighlighter: { ...real, highlight: vi.fn(real.highlight) },
   }
 })
 
@@ -87,6 +97,7 @@ function push(chunk: string) {
     turns: [...page.turns.slice(0, -1), { ...last, text: last.text + chunk }],
   })
 }
+const finish = () => update({ running: false })
 const cite = (citations: Citation[]) => update({ citations })
 const rerenderPage = () => update({ renders: page.renders + 1 })
 
@@ -159,9 +170,12 @@ function lastMarkdownProps() {
   return seen.markdown[seen.markdown.length - 1]
 }
 
+const highlight = vi.mocked(codeHighlighter.highlight)
+
 beforeEach(() => {
   seen.markdown = []
   seen.blockParses = 0
+  highlight.mockClear()
   Element.prototype.scrollTo ??= noop
 })
 
@@ -238,5 +252,71 @@ describe("a reply's markdown", () => {
 
     // 32 blocks on the page; each token touches the live reply's last one.
     expect(seen.blockParses / 10).toBeLessThanOrEqual(2)
+  })
+})
+
+describe("code in a reply", () => {
+  const code = [
+    "export function total(items: number[]) {",
+    "  let sum = 0",
+    "  for (const item of items) sum += item",
+    "  return sum",
+    "}",
+  ].join("\n")
+
+  it("stays plain and current while the reply streams, and is coloured once when it ends", async () => {
+    const { container } = renderThread(
+      [
+        { id: "u", role: "user", text: "Show me" },
+        { id: "a", role: "assistant", text: "Here:\n\n```ts\n" },
+      ],
+      { running: true }
+    )
+    const body = () =>
+      container.querySelector('[data-streamdown="code-block-body"]')
+    // One span per line; the parser drops a block's trailing blank lines.
+    const shown = () =>
+      [...(body()?.querySelectorAll("code > span") ?? [])].map(
+        (line) => line.textContent
+      )
+    const linesOf = (text: string) => text.trimEnd().split("\n")
+
+    for (let at = 0; at < code.length; at += 12) {
+      await act(async () => push(code.slice(at, at + 12)))
+      expect(shown()).toEqual(linesOf(code.slice(0, at + 12)))
+    }
+    await act(async () => push("\n```\n\nDone."))
+    expect(highlight).not.toHaveBeenCalled()
+
+    await act(async () => finish())
+
+    expect(highlight).toHaveBeenCalled()
+    for (const [options] of highlight.mock.calls) {
+      expect(options.code).toBe(code)
+    }
+    await waitFor(() =>
+      expect(body()?.querySelector('span[style*="--shiki-dark"]')).toBeTruthy()
+    )
+    expect(shown()).toEqual(linesOf(code))
+  })
+
+  it("does not parse the reply again when it ends", async () => {
+    renderThread(
+      [
+        { id: "u", role: "user", text: "Go on" },
+        {
+          id: "a",
+          role: "assistant",
+          text: `${answer(6)}\n\n$$x^2$$\n\n\`\`\`ts\n${code}\n\`\`\``,
+        },
+      ],
+      { running: true }
+    )
+    await act(async () => {})
+    seen.blockParses = 0
+
+    await act(async () => finish())
+
+    expect(seen.blockParses).toBe(0)
   })
 })
