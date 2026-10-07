@@ -103,6 +103,50 @@ def test_reasoning_between_the_parts_does_not_count_as_text() -> None:
     ]
 
 
+def test_blank_parts_and_breaks_around_tool_calls_leave_one_blank_line() -> None:
+    """A rehearsal's reply streamed runs of empty lines: parts of only breaks, and parts led by them."""
+    frames = _stream()
+    frames("message.updated", info={"id": "a1", "role": "assistant"})
+    shown = frames("message.part.updated", part=_text_part("p1", "a1"))
+    shown += frames("message.part.delta", partID="p1", field="text", delta="\n\n")
+    shown += frames("message.part.updated", part=_tool_part("a1"))
+    frames("message.updated", info={"id": "a2", "role": "assistant"})
+    shown += frames("message.part.updated", part=_text_part("p2", "a2"))
+    for delta in ("\n\n", BEFORE, "\n\n"):
+        shown += frames("message.part.delta", partID="p2", field="text", delta=delta)
+    frames("message.updated", info={"id": "a3", "role": "assistant"})
+    shown += frames("message.part.updated", part=_text_part("p3", "a3"))
+    for delta in ("\n\n", "\n\nI've", AFTER[4:], "\n"):
+        shown += frames("message.part.delta", partID="p3", field="text", delta=delta)
+
+    assert _shown(shown) == f"{BEFORE}\n\n{AFTER}"
+
+
+def test_breaks_inside_a_part_still_stream_once_text_follows() -> None:
+    """A code block's blank lines are the model's own, so only a part's ends are trimmed."""
+    frames = _stream()
+    frames("message.updated", info={"id": "a1", "role": "assistant"})
+    shown = frames("message.part.updated", part=_text_part("p1", "a1"))
+    for delta in ("```\nx = 1\n", "\n\n", "y = 2\n```"):
+        shown += frames("message.part.delta", partID="p1", field="text", delta=delta)
+
+    assert _shown(shown) == "```\nx = 1\n\n\ny = 2\n```"
+
+
+def test_a_stored_reply_drops_parts_of_only_breaks() -> None:
+    """The reopened thread reads as the stream did."""
+    messages = _messages(
+        [_text_part("p1", "a1", "\n\n"), _tool_part("a1")],
+        [_text_part("p2", "a2", f"\n\n{BEFORE}\n\n")],
+        [_text_part("p3", "a3", f"\n\n\n\n{AFTER}\n")],
+    )
+
+    reply = turn_reply(messages, "u1", [])
+
+    assert reply is not None
+    assert reply["content"]["text"] == f"{BEFORE}\n\n{AFTER}"
+
+
 def _messages(*assistant_parts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """A user message and one assistant message per list of parts."""
     return [

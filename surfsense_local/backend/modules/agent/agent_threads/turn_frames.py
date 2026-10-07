@@ -26,6 +26,7 @@ class TurnFrames:
         self._kinds: dict[str, str] = {}
         self._streamed: dict[str, int] = {}
         self._answered: set[str] = set()
+        self._held: dict[str, str] = {}
         self._step_status: dict[str, str] = {}
         self._thought: set[str] = set()
         self._failed = False
@@ -106,15 +107,28 @@ class TurnFrames:
     def _shown(self, part_id: str, text: str) -> list[Frame]:
         """A part's next text; a later answer part opens a new paragraph.
 
-        opencode starts a new part after each tool call, and its text begins with
-        no break of its own.
+        opencode starts a new part after each tool call, and models lead or end
+        parts with breaks, or send parts of breaks only. A part's breaks are
+        held until text follows them, and its leading ones dropped, so parts
+        join with one blank line, as the stored reply's do.
         """
         kind = self._kinds[part_id]
-        if kind == "text" and text.strip() and part_id not in self._answered:
+        if kind != "text":
+            return [{"type": _STREAMED[kind], "text": text}]
+        text = self._held.pop(part_id, "") + text
+        body = text.rstrip()
+        if not body:
+            self._held[part_id] = text
+            return []
+        if "\n" in text[len(body) :]:
+            self._held[part_id] = text[len(body) :]
+            text = body
+        if part_id not in self._answered:
+            text = text.lstrip()
             if self._answered:
                 text = PARAGRAPH + text
             self._answered.add(part_id)
-        return [{"type": _STREAMED[kind], "text": text}]
+        return [{"type": "delta", "text": text}]
 
     def _thinking_ended(self, part: dict[str, Any]) -> list[Frame]:
         """How long a reasoning part took, once, when it ends."""
