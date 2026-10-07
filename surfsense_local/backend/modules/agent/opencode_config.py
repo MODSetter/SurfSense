@@ -12,6 +12,8 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+from modules.llm.catalog.remote.manifest.lookup import CallRoute
+
 PROVIDER = "surfsense"
 AGENT = "surfsense"
 # The file electron/src/main/sidecars/opencode.ts watches, in the agent folder.
@@ -24,6 +26,12 @@ RESERVE_FLOOR = 8_192
 # Once a reply has started; long enough for a CPU to read a long prompt, short
 # enough that a model which hangs mid-reply still ends the turn.
 CHUNK_TIMEOUT_MS = 30 * 60 * 1000
+
+# opencode's own OpenAI provider calls /responses; the compatible one, /chat/completions.
+PROVIDER_PACKAGES: dict[CallRoute, str] = {
+    "chat_completions": "@ai-sdk/openai-compatible",
+    "responses": "@ai-sdk/openai",
+}
 
 # The skills SurfSense ships: how to write a document script (ADR 0039), and
 # how to revise the user's own file.
@@ -114,6 +122,8 @@ class AgentSetup:
     reads_images: bool
     endpoint_url: str
     launch_key: str
+    # Where the model answers; opencode then speaks that route to the endpoint.
+    route: CallRoute
 
 
 def opencode_config(setup: AgentSetup) -> dict[str, Any]:
@@ -137,7 +147,7 @@ def opencode_config(setup: AgentSetup) -> dict[str, Any]:
         },
         "provider": {
             PROVIDER: {
-                "npm": "@ai-sdk/openai-compatible",
+                "npm": PROVIDER_PACKAGES[setup.route],
                 "name": "SurfSense",
                 "options": {
                     "baseURL": setup.endpoint_url,

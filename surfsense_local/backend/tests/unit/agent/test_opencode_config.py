@@ -4,6 +4,7 @@ import json
 import os
 import re
 import stat
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ def setup(
         reads_images=reads_images,
         endpoint_url=ENDPOINT,
         launch_key="launch-key",
+        route="chat_completions",
     )
 
 
@@ -50,6 +52,19 @@ def test_opencode_reaches_only_the_model_endpoint_with_the_launch_key(
     assert provider["options"]["baseURL"] == ENDPOINT
     assert provider["options"]["apiKey"] == "launch-key"
     assert config["enabled_providers"] == ["surfsense"]
+
+
+def test_a_responses_model_is_reached_through_openais_own_provider(
+    tmp_path: Path,
+) -> None:
+    """opencode then calls the endpoint's /responses, still SurfSense's, still under the launch key."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, replace(setup(), route="responses"))
+
+    provider = written(path)["provider"]["surfsense"]
+    assert provider["npm"] == "@ai-sdk/openai"
+    assert provider["options"]["baseURL"] == ENDPOINT
+    assert provider["options"]["apiKey"] == "launch-key"
 
 
 def test_every_request_names_the_selected_model_titles_included(tmp_path: Path) -> None:

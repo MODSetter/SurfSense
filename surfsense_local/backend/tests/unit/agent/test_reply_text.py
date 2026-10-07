@@ -198,3 +198,48 @@ def test_a_stored_reply_in_one_part_is_unchanged() -> None:
 
     assert reply is not None
     assert reply["content"]["text"] == "Revenue rose.\n\nCosts fell."
+
+
+# How opencode reports a reply the relay ended early, and one a plan refused mid-turn.
+_CUT_OFF = {"name": "UnknownError", "data": {"message": "The reply stopped early."}}
+_PLAN_LIMIT = {
+    "name": "APIError",
+    "data": {
+        "message": "Your ChatGPT plan's limit is reached.",
+        "statusCode": 403,
+        "responseBody": '{"error": {"message": "limit", "code": "subscription_limit"}}',
+    },
+}
+
+
+@pytest.mark.parametrize(
+    ("error", "kind"), [(_CUT_OFF, "unknown"), (_PLAN_LIMIT, "subscription_limit")]
+)
+def test_a_reply_that_fails_after_held_breaks_ends_on_its_error(
+    error: dict[str, Any], kind: str
+) -> None:
+    """The breaks held at a part's end never follow the error, and the stored reply agrees."""
+    frames = _stream()
+    frames("message.updated", info={"id": "a1", "role": "assistant"})
+    shown = frames("message.part.updated", part=_text_part("p1", "a1"))
+    for delta in (BEFORE, "\n\n"):
+        shown += frames("message.part.delta", partID="p1", field="text", delta=delta)
+    shown += frames("session.error", error=error)
+    # opencode's last word on the part, then the failure reported again, then idle.
+    shown += frames(
+        "message.part.updated", part=_text_part("p1", "a1", f"{BEFORE}\n\n")
+    )
+    shown += frames("session.error", error=error)
+    shown += frames("session.idle")
+
+    assert _shown(shown) == BEFORE
+    assert [(f["type"], f.get("kind")) for f in shown] == [
+        ("delta", None),
+        ("error", kind),
+    ]
+    stored = _messages([_text_part("p1", "a1", f"{BEFORE}\n\n")])
+    stored[1]["info"] |= {"time": {"created": 2, "completed": 3}, "error": error}
+    reply = turn_reply(stored, "u1", [])
+    assert reply is not None
+    assert reply["content"]["text"] == BEFORE
+    assert reply["content"]["ending"]["kind"] == kind
