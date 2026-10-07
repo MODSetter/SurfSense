@@ -36,12 +36,25 @@ const COMMENTS_CSS = `
 .surfsense-comment p { margin: 0; }
 `
 
+type Made = Parameters<Options["h"]>[0]
+
+/** An element with no child missing: a comment saved without an author has a null one, which the maker throws on. */
+function filled(element: Made): Made {
+  if (typeof element !== "object" || element instanceof Node) return element
+  return {
+    ...element,
+    children: element.children?.map((child) =>
+      child == null ? "" : filled(child)
+    ),
+  }
+}
+
 /**
- * docx-preview's element maker, keeping what a fragment holds: 0.4.0 makes
- * a comment's reference and its text as a fragment, then drops the
- * fragment's children, so neither reaches the page.
+ * docx-preview's element maker, mended for comments: 0.4.0 makes a comment's
+ * reference and its text as a fragment, then drops the fragment's children,
+ * so neither reaches the page; and it throws on a comment with no author.
  */
-export function keepFragments(make: Options["h"]): Options["h"] {
+export function mendedMaker(make: Options["h"]): Options["h"] {
   const h: Options["h"] = (element) => {
     if (
       typeof element === "object" &&
@@ -49,10 +62,12 @@ export function keepFragments(make: Options["h"]): Options["h"] {
       element.tagName === "#fragment"
     ) {
       const fragment = document.createDocumentFragment()
-      for (const child of element.children ?? []) fragment.append(h(child))
+      for (const child of element.children ?? []) {
+        fragment.append(h(child == null ? "" : child))
+      }
       return fragment
     }
-    return make(element)
+    return make(filled(element))
   }
   return h
 }
@@ -77,12 +92,22 @@ function referenced(
     before.nodeValue ?? ""
   )
   if (!found) return null
-  const date = new Date(found[2])
-  return {
-    id: found[1],
-    date:
-      /^\d{4}-/.test(found[2]) && !Number.isNaN(date.getTime()) ? date : null,
-  }
+  return { id: found[1], date: wordTime(found[2]) }
+}
+
+/**
+ * A comment's time as Word shows it. Word writes its own clock's time with a
+ * Z after it, and shows it back unconverted; read as UTC, it would move by
+ * the reader's offset.
+ */
+function wordTime(written: string): Date | null {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(written)
+  if (!parts) return null
+  const [year, month, day, hour, minute] = parts
+    .slice(1)
+    .map((part) => Number(part ?? 0))
+  const time = new Date(year, month - 1, day, hour, minute)
+  return Number.isNaN(time.getTime()) ? null : time
 }
 
 /** Shade the text between each comment's start and end, which docx-preview marks with HTML comments. */
@@ -114,14 +139,29 @@ function shadePassages(
       NodeFilter.SHOW_TEXT
     )
     for (let text = inside.nextNode(); text; text = inside.nextNode()) {
-      if (text.nodeValue && range.intersectsNode(text)) texts.push(text as Text)
+      // A reply's passage holds its parent's marker, which stays unshaded.
+      if (
+        text.nodeValue &&
+        range.intersectsNode(text) &&
+        !text.parentElement?.closest(".surfsense-comment-ref")
+      ) {
+        texts.push(text as Text)
+      }
     }
     for (const text of texts) {
-      const shade = pages.createElement("span")
-      shade.className = "surfsense-comment-anchor"
-      shade.dataset.note = number
-      text.replaceWith(shade)
-      shade.append(text)
+      // Text two comments cover gets one shade naming both, not one in another.
+      const parent = text.parentElement
+      let shade: HTMLElement
+      if (parent?.classList.contains("surfsense-comment-anchor")) {
+        shade = parent
+        shade.dataset.notes = `${shade.dataset.notes} ${number}`
+      } else {
+        shade = pages.createElement("span")
+        shade.className = "surfsense-comment-anchor"
+        shade.dataset.notes = number
+        text.replaceWith(shade)
+        shade.append(text)
+      }
       if (!firsts.has(id)) firsts.set(id, shade)
     }
   }
@@ -218,7 +258,7 @@ export function gatherComments(container: HTMLElement): (() => void) | null {
       .map(
         ({ number }) =>
           `.${PREFIX}-wrapper:has(.surfsense-comment[data-note="${number}"]:hover) ` +
-          `.surfsense-comment-anchor[data-note="${number}"] { background: #fcd34d; }`
+          `.surfsense-comment-anchor[data-notes~="${number}"] { background: #fcd34d; }`
       )
       .join("\n")
   container.append(style)

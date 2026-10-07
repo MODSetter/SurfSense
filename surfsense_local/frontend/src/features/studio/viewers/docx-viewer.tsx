@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { markTrackedChanges } from "@/features/docx-snapshot/tracked-changes"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
-import { COMMENT_GUTTER, gatherComments, keepFragments } from "./docx-comments"
+import { COMMENT_GUTTER, gatherComments, mendedMaker } from "./docx-comments"
 
 /** Reject before docx-preview allocates — keep below the server file limit. */
 const MAX_VIEWER_BYTES = 15 * 1024 * 1024
@@ -134,16 +134,25 @@ export function DocxViewer({
         // URLs, the only images and fonts the frame's policy lets in. Tracked
         // changes and comments show, as a revised copy is reviewed by them.
         const rendered = pages.createElement("div")
-        await renderAsync(buffer, rendered, rendered, {
+        const options = {
           inWrapper: true,
           ignoreWidth: false,
           ignoreHeight: false,
           renderAltChunks: false,
           renderChanges: true,
-          renderComments: true,
           useBase64URL: true,
-          h: keepFragments(defaultOptions.h),
-        })
+        }
+        try {
+          await renderAsync(buffer, rendered, rendered, {
+            ...options,
+            renderComments: true,
+            h: mendedMaker(defaultOptions.h),
+          })
+        } catch {
+          // docx-preview's comments are experimental: a comment it cannot
+          // lay out must not cost the reader the document.
+          await renderAsync(buffer, rendered, rendered, options)
+        }
         // docx-preview shades commented text through the app window's
         // highlight registry, which never paints in the frame; drop its
         // ranges rather than keep the old pages alive.

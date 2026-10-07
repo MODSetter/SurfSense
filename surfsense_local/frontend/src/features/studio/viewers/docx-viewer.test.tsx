@@ -13,6 +13,7 @@ import {
 import { CLAUSE_WITH_TRACKED_CHANGES } from "@/features/docx-snapshot/fixtures/clause-with-tracked-changes"
 import { CLAUSES_WITH_COMMENTS } from "@/features/docx-snapshot/fixtures/clauses-with-comments"
 import { LINKS_OF_EVERY_KIND } from "@/features/docx-snapshot/fixtures/links-of-every-kind"
+import { REPLY_AND_UNSIGNED_COMMENT } from "@/features/docx-snapshot/fixtures/reply-and-unsigned-comment"
 import { REPORT_WITH_ALT_CHUNK } from "@/features/docx-snapshot/fixtures/report-with-alt-chunk"
 import { STYLES_THAT_LOAD_REMOTE_IMAGES } from "@/features/docx-snapshot/fixtures/styles-that-load-remote-images"
 import type { ArtifactDetail } from "../api"
@@ -281,7 +282,7 @@ describe("Word viewer", () => {
     const shaded = (note: string) =>
       [
         ...pages.querySelectorAll(
-          `.surfsense-comment-anchor[data-note="${note}"]`
+          `.surfsense-comment-anchor[data-notes~="${note}"]`
         ),
       ]
         .map((shade) => shade.textContent)
@@ -292,6 +293,39 @@ describe("Word viewer", () => {
     // Not hidden behind a hover, as docx-preview leaves them.
     expect(pages.querySelector(".docx-comment-popover")).toBeNull()
     expect(pages.body.textContent).not.toContain("💬")
+  })
+
+  it("shows a comment's time as Word does, without moving it by the reader's offset", async () => {
+    const pages = await open(CLAUSES_WITH_COMMENTS)
+
+    // Written 2026-10-06T12:00:00Z: Word shows 12:00 wherever it is opened.
+    expect(pages.querySelector(".surfsense-comment")?.textContent).toMatch(
+      /Oct 6, 2026.*12:00/
+    )
+  })
+
+  it("opens a file whose comment has no author, and shows that comment", async () => {
+    const pages = await open(REPLY_AND_UNSIGNED_COMMENT)
+
+    expect(pages.body.textContent).toContain("Notices go")
+    const balloons = [...pages.querySelectorAll(".surfsense-comment")]
+    expect(balloons.at(-1)?.textContent).toBe("3Email too.")
+  })
+
+  it("keeps a reply's marker legible and shades shared text once", async () => {
+    const pages = await open(REPLY_AND_UNSIGNED_COMMENT)
+
+    const shades = [
+      ...pages.querySelectorAll<HTMLElement>(".surfsense-comment-anchor"),
+    ]
+    // "fixed" carries Dana's comment and SurfSense's reply in one shade.
+    expect(shades[0]?.textContent).toBe("fixed")
+    expect(shades[0]?.dataset.notes).toBe("1 2")
+    expect(shades[0]?.querySelector(".surfsense-comment-anchor")).toBeNull()
+    // Dana's marker sits inside the reply's passage, unshaded.
+    const marker = pages.querySelector(".surfsense-comment-ref")
+    expect(marker?.textContent).toBe("1")
+    expect(marker?.querySelector(".surfsense-comment-anchor")).toBeNull()
   })
 
   it("keeps the balloons in the margin beside the pages", async () => {
