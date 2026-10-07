@@ -13,6 +13,8 @@ MAX_OUTPUT_CHARS = 4000
 # A step's label reads a few short inputs; a script or a file's new content
 # would otherwise ride in every frame and every stored turn whole.
 MAX_INPUT_CHARS = 300
+# A revision's operations, or a range's rows, are new content too, nested.
+MAX_INPUT_ITEMS = 20
 # The label names a file by the end of its path, so a path is never cut.
 _WHOLE_INPUTS = frozenset({"filePath", "path"})
 # The names opencode gives SurfSense's tools that make a version, in a step.
@@ -51,14 +53,23 @@ def _rendered(state: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _shown_input(given: Any) -> Any:
-    """Every input the call took, a long text one cut to its start."""
+    """Every input the call took, at any depth a long text cut to its start and a long list to its first items."""
     if not isinstance(given, dict):
         return given
-    return {
-        key: value[:MAX_INPUT_CHARS] + "…"
-        if isinstance(value, str)
-        and len(value) > MAX_INPUT_CHARS
-        and key not in _WHOLE_INPUTS
-        else value
-        for key, value in given.items()
-    }
+    return {key: _shown(value, key) for key, value in given.items()}
+
+
+def _shown(value: Any, key: str) -> Any:
+    if isinstance(value, str):
+        if len(value) > MAX_INPUT_CHARS and key not in _WHOLE_INPUTS:
+            return value[:MAX_INPUT_CHARS] + "…"
+        return value
+    if isinstance(value, dict):
+        return {name: _shown(item, name) for name, item in value.items()}
+    if isinstance(value, list):
+        # Ids stay whole: a label counts the sources a call names.
+        if all(isinstance(item, int | float) for item in value):
+            return value
+        kept = [_shown(item, key) for item in value[:MAX_INPUT_ITEMS]]
+        return [*kept, "…"] if len(value) > MAX_INPUT_ITEMS else kept
+    return value

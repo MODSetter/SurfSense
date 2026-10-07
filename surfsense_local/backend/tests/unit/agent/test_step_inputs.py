@@ -5,7 +5,11 @@ from typing import Any
 import pytest
 
 from modules.agent.agent_threads.replies import turn_reply
-from modules.agent.agent_threads.steps import MAX_INPUT_CHARS, step_of
+from modules.agent.agent_threads.steps import (
+    MAX_INPUT_CHARS,
+    MAX_INPUT_ITEMS,
+    step_of,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -59,6 +63,40 @@ def test_a_path_is_never_cut_since_the_label_names_its_file() -> None:
     shown = _step("read", {"filePath": path, "path": path})["input"]
 
     assert shown == {"filePath": path, "path": path}
+
+
+def test_a_revision_keeps_its_first_edits_each_cut_like_a_text() -> None:
+    """A revision's operations are the new content itself, nested where a top-level cut never reached."""
+    rows = [[f"Row {r} cell {c}" for c in range(10)] for r in range(200)]
+    text = "A new paragraph of the proposal.\n" * 800
+    operations = [
+        {"op": "set_range", "sheet": "Q3", "range": "A1:J200", "values": rows},
+        {"op": "insert_paragraphs", "quote": "Summary", "text": text},
+    ]
+
+    shown = _step(
+        "surfsense_revise_document", {"artifact_id": 7, "operations": operations}
+    )["input"]
+
+    assert shown["artifact_id"] == 7
+    cells, paragraphs = shown["operations"]
+    assert cells["op"] == "set_range"
+    assert cells["values"] == [*rows[:MAX_INPUT_ITEMS], "…"]
+    assert paragraphs["op"] == "insert_paragraphs"
+    assert paragraphs["text"] == text[:MAX_INPUT_CHARS] + "…"
+
+
+def test_a_long_list_keeps_its_first_items_and_ids_stay_whole() -> None:
+    """A label counts the sources a call names; the rest of a long list is bulk."""
+    ids = list(range(1, 60))
+    edits = [{"op": "delete_slide", "slide": n} for n in range(1, 60)]
+
+    shown = _step(
+        "surfsense_revise_document", {"source_ids": ids, "operations": edits}
+    )["input"]
+
+    assert shown["source_ids"] == ids
+    assert shown["operations"] == [*edits[:MAX_INPUT_ITEMS], "…"]
 
 
 def test_a_stored_reply_cuts_inputs_as_the_stream_does() -> None:
