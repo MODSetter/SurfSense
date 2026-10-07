@@ -50,6 +50,7 @@ import {
   runSummaries,
   subscribeToRuns,
   updatePair,
+  type LiveRun,
   type RunState,
 } from "./runs/run-store"
 import { storedUploads } from "./runs/stored-uploads"
@@ -169,6 +170,16 @@ function stoppedBeforeAWord(pair: LivePair) {
 function storedTurnCaughtUp(canonical: ChatMessage[], pair: LivePair) {
   const ids = new Set(canonical.map((message) => message.id))
   return ids.has(pair[0].id) && ids.has(pair[1].id)
+}
+
+/**
+ * Whether the thread still holds the run that ended, and not one started
+ * since: a Retry pressed while the end's read was out is a new reply.
+ */
+function stillTheEndedRun(threadId: number, ended: LiveRun | null) {
+  const held = liveRun(threadId)
+  if (!held?.ended) return false
+  return ended?.pair ? held.pair?.[1].id === ended.pair[1].id : !held.pair
 }
 
 function optimisticPair(
@@ -370,6 +381,9 @@ export function useChatRuntime({
               staleTime: 0,
             })
             .catch(() => null)
+          // A run started while that read was out is not this one to drop;
+          // its own end reads the turns again.
+          if (!stillTheEndedRun(threadId, run)) return
           if (!run?.pair) {
             dropRun(threadId)
           } else if (canonical && storedTurnCaughtUp(canonical, run.pair)) {
@@ -392,13 +406,11 @@ export function useChatRuntime({
             const stored = queryClient.getQueryData<ChatMessage[]>(
               chatKeys.messages(threadId)
             )
-            const held = liveRun(threadId)
             if (
               !open &&
               stored &&
-              held?.ended &&
-              held.pair?.[1].id === run.pair[1].id &&
-              storedTurnCaughtUp(stored, held.pair)
+              stillTheEndedRun(threadId, run) &&
+              storedTurnCaughtUp(stored, run.pair)
             ) {
               dropRun(threadId)
             }

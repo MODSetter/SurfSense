@@ -8,7 +8,7 @@ import { createQueryClient } from "@/lib/query-client"
 
 import type { ChatMessage, ChatThread } from "./api"
 import { LiveThreadRuntime } from "./live-thread-runtime"
-import { liveRuns, resetChatRuns } from "./runs/run-store"
+import { liveRun, liveRuns, resetChatRuns } from "./runs/run-store"
 import type { ChatTurnError } from "./use-chat-runtime"
 import { useChatRuntime } from "./use-chat-runtime"
 
@@ -69,6 +69,8 @@ class FakeApi {
   messages: Record<number, ChatMessage[]> = { 1: [], 2: [] }
   // Answers to the next reads of a thread's turns, before `messages` again.
   nextReads: Record<number, ChatMessage[][]> = {}
+  // Reads of a thread's turns that wait, as a slow API answers them.
+  private held: Record<number, Promise<void>> = {}
   sends: Array<{ threadId: number; body: Record<string, unknown> }> = []
   sendStreams: Stream[] = []
   stops: number[] = []
@@ -93,6 +95,7 @@ class FakeApi {
     if ((match = path.match(/^\/chat\/threads\/(\d+)\/messages$/))) {
       const threadId = Number(match[1])
       if (method === "GET") {
+        await this.held[threadId]
         return Response.json(
           this.nextReads[threadId]?.shift() ?? this.messages[threadId] ?? []
         )
@@ -118,6 +121,18 @@ class FakeApi {
     }
     return new Response(null, { status: 404 })
   })
+
+  /** Holds every read of a thread's turns until the returned call. */
+  holdReads(threadId: number): () => void {
+    let release = () => {}
+    this.held[threadId] = new Promise((resolve) => {
+      release = () => {
+        delete this.held[threadId]
+        resolve()
+      }
+    })
+    return release
+  }
 }
 
 let api: FakeApi
@@ -514,6 +529,70 @@ describe("useChatRuntime", () => {
 
     await waitFor(() => expect(liveRuns()).toEqual([]))
     expect(result.current.activeThreadId).toBe(2)
+  })
+
+  it("keeps a Retry pressed while the failed reply's turns are read", async () => {
+    const { result } = renderRuntime()
+    await openThread(result, 1)
+    sendIn(result, "How did revenue move?")
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+
+    api.messages[1] = [
+      stored(11, "user", "How did revenue move?"),
+      stored(12, "assistant", "", {
+        type: "error",
+        kind: "network",
+        message: "unreachable",
+      }),
+    ]
+    // The read after the end answers only once the Retry is on its way.
+    const release = api.holdReads(1)
+    act(() =>
+      api.sendStreams[0].frames([
+        {
+          type: "accepted",
+          user_message_id: 11,
+          assistant_message_id: 12,
+          user_created_at: "2026-10-05T00:00:00Z",
+        },
+        {
+          type: "error",
+          kind: "network",
+          message: "unreachable",
+          provider: "openai",
+        },
+        "[DONE]",
+      ])
+    )
+    await waitFor(() => expect(liveRun(1)?.ended).toBe(true))
+    act(() => result.current.retry("12"))
+    await waitFor(() => expect(api.sends).toHaveLength(2))
+    await waitFor(() => expect(result.current.isRunning).toBe(true))
+
+    await act(async () => {
+      release()
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    // The failed run's end found its turns stored, and left the Retry be.
+    expect(liveRun(1)).toMatchObject({ ended: false, replaces: [11, 12] })
+    expect(result.current.isRunning).toBe(true)
+    act(() =>
+      api.sendStreams[1].frames([
+        {
+          type: "accepted",
+          user_message_id: 13,
+          assistant_message_id: 14,
+          user_created_at: "2026-10-05T00:00:02Z",
+        },
+        { type: "delta", text: "Revenue climbed." },
+      ])
+    )
+
+    await waitFor(() =>
+      expect(assistantText(result)).toEqual(["Revenue climbed."])
+    )
+    expect(result.current.isRunning).toBe(true)
+    expect(liveRun(1)?.ended).toBe(false)
   })
 
   it("lets go of a sent image's picture once its stored turn shows it", async () => {
