@@ -222,8 +222,11 @@ async def test_a_plan_reply_cut_off_is_retried_and_the_thread_settles_on_the_ret
 
     assert len(agent_api.model.requests) == 2
     assert not of_type(frames, "error")
-    # The cut-off part's own breaks were held, never streamed.
-    assert of_type(frames, "delta")[0]["text"] == "Half done."
+    # The cut-off part's own breaks were held, never streamed: one paragraph
+    # break joins it to the retry, whether or not their frames came merged.
+    assert "".join(f["text"] for f in of_type(frames, "delta")) == (
+        "Half done.\n\nWhole."
+    )
     [completed] = of_type(frames, "completed")
     reply = stored.json()[-1]["content"]
     assert completed["text"] == reply["text"] == "Whole."

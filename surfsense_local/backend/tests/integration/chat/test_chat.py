@@ -555,7 +555,8 @@ async def _hang_up_mid_reply(client: AsyncClient, thread_id: int) -> None:
                 event = json.loads(line[len("data: ") :])
                 if event["type"] == "delta":
                     deltas.append(event["text"])
-            if len(deltas) == len(REPLY_DELTAS):
+            # By text, not by frame: deltas already waiting arrive as one.
+            if "".join(deltas) == "".join(REPLY_DELTAS):
                 return
 
 
