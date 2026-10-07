@@ -1,0 +1,38 @@
+[
+ {
+  "user": "Draft a two-page client proposal from these sources as a Word document, with a p",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "completed",
+    "text": "The document renders cleanly, but page 2 is nearly empty. Let me add a short \"Ex"
+   }
+  ]
+ },
+ {
+  "user": "Make the executive summary shorter, add a timeline table and a bar chart of the ",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "completed",
+    "text": "All four changes are in, and the document still comes out to two clean pages:\n\n-"
+   }
+  ]
+ },
+ {
+  "user": "Now a PDF version for the client.",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "completed",
+    "text": "The PDF built, but I spotted a double colon in the phase bullets (\"Discovery (2 "
+   }
+  ]
+ }
+]
