@@ -146,24 +146,24 @@ class OfficeInstaller:
             layout.versions_dir()
             / f"{file.version}{_STAGING}{os.getpid()}-{uuid.uuid4().hex[:8]}"
         )
+        final = layout.versions_dir() / file.version
         try:
             root = await self._checked(file, upstream, staging)
-        # A failed or cancelled build is over a gigabyte, and nothing writes to it now.
+            relative = (final / root.relative_to(staging)).relative_to(
+                layout.versions_dir()
+            )
+            # Unrecorded, but never deleted in place: a run may still hold it.
+            try:
+                aside = _moved_aside(final)
+            except OfficeInUseError as error:
+                raise _StepFailedError("in_use", str(error)) from error
+            staging.rename(final)
+        # A build not moved into place is over a gigabyte, and nothing writes to it now.
         except BaseException:
             await asyncio.to_thread(shutil.rmtree, staging, ignore_errors=True)
             raise
-        final = layout.versions_dir() / file.version
-        # Unrecorded, but never deleted in place: a run may still hold it.
-        try:
-            aside = _moved_aside(final)
-        except OfficeInUseError as error:
-            raise _StepFailedError("in_use", str(error)) from error
         if aside is not None:
             await asyncio.to_thread(shutil.rmtree, aside, ignore_errors=True)
-        staging.rename(final)
-        relative = (final / root.relative_to(staging)).relative_to(
-            layout.versions_dir()
-        )
         records.write_pack(records.PackRecord(file.version, relative.as_posix()))
         upstream.unlink(missing_ok=True)
         _sweep_other_versions(keep=file.version)
@@ -208,8 +208,10 @@ async def _to_its_end[T](call: Callable[..., T], *args: object) -> T:
     try:
         return await asyncio.shield(work)
     except asyncio.CancelledError:
-        with contextlib.suppress(Exception):
-            await work
+        # A second cancel must not cut the wait short either.
+        while not work.done():
+            with contextlib.suppress(asyncio.CancelledError):
+                await asyncio.wait({work})
         raise
 
 

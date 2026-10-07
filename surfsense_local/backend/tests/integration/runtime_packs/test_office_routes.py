@@ -40,6 +40,7 @@ class Office:
         self.unpacked: list[Path] = []
         # Set to hold an unpack where msiexec or tar would still be writing.
         self.unpack_gate: threading.Event | None = None
+        self.unpack_ended = threading.Event()
 
     def transport(self) -> httpx.MockTransport:
         def reply(request: httpx.Request) -> httpx.Response:
@@ -55,11 +56,14 @@ class Office:
     def unpack(self, packaging: Packaging, upstream: Path, into: Path) -> Path:
         assert upstream.read_bytes() == UPSTREAM
         self.unpacked.append(into)
-        if self.unpack_gate is not None:
-            assert self.unpack_gate.wait(10)
-        program_in(into).parent.mkdir(parents=True)
-        program_in(into).write_bytes(b"")
-        return into
+        try:
+            if self.unpack_gate is not None:
+                assert self.unpack_gate.wait(10)
+            program_in(into).parent.mkdir(parents=True)
+            program_in(into).write_bytes(b"")
+            return into
+        finally:
+            self.unpack_ended.set()
 
     def smoke(self, runtime: OfficeRuntime) -> None:
         self.smoked.append(runtime)
@@ -262,6 +266,53 @@ async def test_a_cancel_while_unpacking_waits_for_the_unpack_to_stop(
     assert cancelled.json()["state"] == "not_installed"
     assert len(office.unpacked) == 1
     assert list(layout.versions_dir().iterdir()) == []
+
+
+async def test_a_second_cancel_still_waits_for_the_unpack_to_stop(
+    client: AsyncClient, office: Office
+) -> None:
+    """Cancel clicked twice: the second deleted the staging folder under tar, which wrote it again."""
+    office.unpack_gate = threading.Event()
+    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.post("/runtime-packs/office/install")
+    await _reached(client, "unpacking")
+    try:
+        first = asyncio.create_task(client.delete("/runtime-packs/office"))
+        await asyncio.sleep(0.1)
+        second = asyncio.create_task(client.delete("/runtime-packs/office"))
+        await asyncio.sleep(0.2)
+
+        assert not first.done()
+        assert not second.done()
+    finally:
+        office.unpack_gate.set()
+    await first
+    await second
+    assert await asyncio.to_thread(office.unpack_ended.wait, 10)
+    assert list(layout.versions_dir().iterdir()) == []
+
+
+async def test_an_install_that_cannot_replace_a_held_folder_leaves_no_staging(
+    client: AsyncClient, office: Office, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The checked build, over a gigabyte, stayed beside the held folder until the app restarted."""
+    leftover = layout.versions_dir() / FILE.version
+    leftover.mkdir(parents=True)
+    renamed = Path.rename
+
+    def held(self: Path, target: Path) -> Path:
+        if self == leftover:
+            raise PermissionError("in use by soffice.bin")
+        return renamed(self, target)
+
+    monkeypatch.setattr(Path, "rename", held)
+    await client.put(f"/egress/{DESTINATION}", json={"enabled": True})
+    await client.post("/runtime-packs/office/install")
+
+    status = await _settled(client)
+
+    assert status["error"]["code"] == "in_use"
+    assert list(layout.versions_dir().iterdir()) == [leftover]
 
 
 async def test_an_installed_libreoffice_on_a_supported_branch_is_used_once_confirmed(
