@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { markTrackedChanges } from "@/features/docx-snapshot/tracked-changes"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
+import { COMMENT_GUTTER, gatherComments, keepFragments } from "./docx-comments"
 
 /** Reject before docx-preview allocates — keep below the server file limit. */
 const MAX_VIEWER_BYTES = 15 * 1024 * 1024
@@ -117,7 +118,7 @@ export function DocxViewer({
         const buffer = await response.arrayBuffer()
         // docx-preview has no top-level import cost worth paying eagerly —
         // load it the same way the other heavy viewers (xlsx, pdf) do.
-        const { renderAsync } = await import("docx-preview")
+        const { renderAsync, defaultOptions } = await import("docx-preview")
         if (cancelled) return
         // docx-preview always renders the page at its physical size (e.g.
         // ~816px for 8.5x11in) — it has no fit-to-width or zoom option of
@@ -131,7 +132,7 @@ export function DocxViewer({
         // version's pages. No altChunks: docx-preview puts their HTML in an
         // unsandboxed iframe, where a script the file carries would run. Data
         // URLs, the only images and fonts the frame's policy lets in. Tracked
-        // changes show, as a revised copy is reviewed by them.
+        // changes and comments show, as a revised copy is reviewed by them.
         const rendered = pages.createElement("div")
         await renderAsync(buffer, rendered, rendered, {
           inWrapper: true,
@@ -139,12 +140,24 @@ export function DocxViewer({
           ignoreHeight: false,
           renderAltChunks: false,
           renderChanges: true,
+          renderComments: true,
           useBase64URL: true,
+          h: keepFragments(defaultOptions.h),
         })
+        // docx-preview shades commented text through the app window's
+        // highlight registry, which never paints in the frame; drop its
+        // ranges rather than keep the old pages alive.
+        globalThis.CSS?.highlights?.delete("docx-comments")
         if (cancelled) return
         markTrackedChanges(rendered)
+        const placeComments = gatherComments(rendered)
         disarmLinks(rendered)
         pages.body.replaceChildren(rendered)
+        placeComments?.()
+        // A file's own fonts can move its lines once they load.
+        void pages.fonts?.ready.then(() => {
+          if (!cancelled) placeComments?.()
+        })
 
         // docx-preview's own injected styles set `.docx-wrapper`'s
         // background to gray (the padding around each white page) — an
@@ -157,7 +170,10 @@ export function DocxViewer({
         if (pageWidth) {
           // The frame's viewport, not its element: that leaves out the
           // frame's own scrollbar, and the zoom on body does not scale it.
-          const fit = pages.documentElement.clientWidth / pageWidth
+          // Comments' balloons fit beside the page.
+          const fit =
+            pages.documentElement.clientWidth /
+            (pageWidth + (placeComments ? COMMENT_GUTTER : 0))
           setZoom(Math.min(1, Math.max(MIN_ZOOM, fit)))
         }
         setHasContent(true)
