@@ -279,7 +279,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 | Format | Viewer |
 |---|---|
 | `summary` | the markdown, rendered with Streamdown |
-| `docx` | rendered in the app with docx-preview, inside a frame whose policy loads nothing but the file's own data-URL images and fonts and runs no script; no altChunk is rendered, and a link to anywhere but a place in the file is dropped; tracked changes show, insertions underlined and deletions struck through |
+| `docx` | rendered in the app with docx-preview, inside a frame whose policy loads nothing but the file's own data-URL images and fonts and runs no script; no altChunk is rendered, and a link to anywhere but a place in the file is dropped; tracked changes show, insertions underlined and deletions struck through; comments show as Word shows them, each passage shaded with a numbered marker and its comment in a balloon in the margin level with it ([`docx-comments.ts`](../../surfsense_local/frontend/src/features/studio/viewers/docx-comments.ts)) |
 | `pptx` | rendered in the app with `@aiden0z/pptx-renderer` |
 | `xlsx` | parsed with ExcelJS |
 | `pdf` | pdf.js |
@@ -321,4 +321,4 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - Only the agent's workbooks are recalculated; Studio's own Spreadsheet format is not.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.
 - A revised copy is cut from its design ([03](../proposals/file-agent/03-editable-artifacts.md)): versions are artifacts, not `artifact_versions` rows, and engines run in the Studio worker's thread, not an engines queue's child process; the agent anchors edits by quote, with no `inspect_document` ids; there are no partial workflows, no per-change accept or reject and no side list of changes, no "With changes (internal)" download and no leak scan, no review record, no reconcile when the original changes, and no "Make a revised copy" in the source viewer. Word headers, footers and footnotes are not edited. An edited workbook is not recalculated until Excel opens it, and a deck has no thumbnails or diff. The report's codes reach the user in English through the agent: the interface does not render them.
-- The Word viewer draws tracked changes with docx-preview's experimental change rendering, and leaves comments out.
+- The Word viewer draws tracked changes and comments with docx-preview's experimental rendering. Its 0.4.0 drops what a fragment holds, which is how it makes a comment's reference, so the viewer passes it an element maker that keeps them. The balloons take about 230 px beside the page, so a file with comments fits the frame at a smaller zoom.

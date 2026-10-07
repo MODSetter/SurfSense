@@ -22,7 +22,7 @@ If a script fails three times in a row, the agent stops and tells the user what 
 
 ## Today
 
-- The agent runs only behind developer switches: opencode is staged only when `SURFSENSE_LOCAL_OPENCODE_ENABLED=1` is set, and a model off the empty tested list gets it only with `SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` ([agent](../../architecture/agent.md)).
+- The agent runs only behind developer switches: opencode is staged only when `SURFSENSE_LOCAL_OPENCODE_ENABLED=1` is set, and a model off the tested list gets it only with `SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` ([agent](../../architecture/agent.md)).
 - The agent's tools are `surfsense_search_sources` and `surfsense_create_artifact`, which starts a Studio job and returns at once with no artifact id ([`tool_endpoint/`](../../../surfsense_local/backend/modules/agent/tool_endpoint/)). A tool's `run` executes inside a database transaction, and a test pins the tool list and its flat schemas.
 - `bash` is `ask` and `skill` is `deny` ([`opencode_config.py`](../../../surfsense_local/backend/modules/agent/opencode_config.py)).
 - Studio's Word, PowerPoint, Excel and PDF formats ask the model for a Python script and run it with `exec()` on a thread in the worker, under a 120-second `thread.join` that cannot stop it ([`office/runner.py`](../../../surfsense_local/backend/worker/studio/office/runner.py)). The script is thrown away.
