@@ -204,7 +204,7 @@ def test_the_note_names_the_file_and_says_earlier_passages_no_longer_apply(
         assert sources.note == (
             f"[surfsense-scope: {ticked}]\n"
             "The user chose 1 source for this chat, the file "
-            f"`sources/Library/Contracts/General Conditions.docx [{ticked}].md`. "
+            f'"sources/Library/Contracts/General Conditions.docx [{ticked}].md". '
             "Use only that one. Open it with `read`, or search it with "
             "`surfsense_search_sources`. Passages read earlier from other sources no "
             "longer apply. SurfSense adds this note to the user's message; never "
@@ -239,8 +239,8 @@ def test_a_few_sources_are_each_named_and_more_are_counted(engine: Engine) -> No
         assert few.note is not None and many.note is not None
         assert (
             "The user chose 2 sources for this chat, these files:\n"
-            f"- `sources/Library/Plan [{plan}].md`\n"
-            f"- `sources/Library/Memo [{memo}].md`\n"
+            f'- "sources/Library/Plan [{plan}].md"\n'
+            f'- "sources/Library/Memo [{memo}].md"\n'
             "Use only those. Open them with `read`"
         ) in few.note
         assert "21 sources for this chat; they are the files in sources/." in many.note

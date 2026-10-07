@@ -68,7 +68,8 @@ def scope_note(
     )
     named = paths or {}
     if len(ids) <= NAMED_PATHS and all(i in named for i in ids):
-        files = [f"`{SOURCES}/{named[i]}`" for i in ids]
+        # Quoted, as a mirrored name never holds a double quote; it can hold a backtick.
+        files = [f'"{SOURCES}/{named[i]}"' for i in ids]
         chose = (
             f"1 source for this chat, the file {files[0]}. Use only that one. "
             + _HOW.format(them="it")
