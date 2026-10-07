@@ -110,7 +110,7 @@ def beside_an_opencode(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def no_failed_renders(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each test's database gives out thread ids from 1 again; a turn's count must not carry over."""
-    monkeypatch.setattr(failed_renders, "_failed", {})
+    monkeypatch.setattr(failed_renders, "_turns", {})
 
 
 @pytest.fixture(autouse=True)

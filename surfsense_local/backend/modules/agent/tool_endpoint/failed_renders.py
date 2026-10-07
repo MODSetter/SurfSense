@@ -9,7 +9,7 @@ keep their own, so a fixed analysis does not use up the renders.
 import threading
 from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
@@ -37,12 +37,23 @@ RENDERS = Runs("render", "renders", "renders or revisions")
 REVISIONS = Runs("revision", "revisions", "renders or revisions")
 ANALYSES = Runs("analysis run", "analysis runs", "analysis runs")
 
-_guard = threading.Lock()
-# Failed runs in each thread's current turn, by limit, in the order they failed.
-# A success does not reset it: a model that fixes one error and makes the next
-# is still looping. A new turn drops the thread's counts, so a run still going
-# from the last one counts toward that.
-_failed: dict[tuple[str, int], list[Runs]] = {}
+_guard = threading.Condition()
+
+
+@dataclass
+class _Turn:
+    """One limit's runs in a thread's current turn."""
+
+    # In the order they failed. A success does not reset it: a model that fixes
+    # one error and makes the next is still looping.
+    failed: list[Runs] = field(default_factory=list)
+    # Runs under way, each of which may yet fail.
+    running: int = 0
+
+
+# A new turn drops the thread's entries, so a run still going from the last one
+# counts toward that.
+_turns: dict[tuple[str, int], _Turn] = {}
 
 
 class FailedRunError(ToolCallError):
@@ -52,8 +63,9 @@ class FailedRunError(ToolCallError):
 def begin_turn(thread_id: int) -> None:
     """A new turn of the thread: its renders, revisions and analyses may run again."""
     with _guard:
-        for key in [key for key in _failed if key[1] == thread_id]:
-            del _failed[key]
+        for key in [key for key in _turns if key[1] == thread_id]:
+            del _turns[key]
+        _guard.notify_all()
 
 
 def stopped(failed: list[Runs]) -> str:
@@ -74,15 +86,28 @@ def stop_after_three_failures(run: Run, runs: Runs) -> Run:
     def guarded(
         session: Session, scope: "TurnScope", arguments: dict[str, Any]
     ) -> str | ToolResult:
+        key = (runs.limit, scope.thread_id)
         with _guard:
-            failed = _failed.setdefault((runs.limit, scope.thread_id), [])
-            if len(failed) >= FAILED_RUNS:
-                raise ToolCallError(stopped(failed))
+            # opencode runs a step's calls at once: no more run than may still fail.
+            while True:
+                turn = _turns.setdefault(key, _Turn())
+                if len(turn.failed) >= FAILED_RUNS:
+                    raise ToolCallError(stopped(turn.failed))
+                if len(turn.failed) + turn.running < FAILED_RUNS:
+                    break
+                _guard.wait()
+            turn.running += 1
+        failed = False
         try:
             return run(session, scope, arguments)
         except FailedRunError:
-            with _guard:
-                failed.append(runs)
+            failed = True
             raise
+        finally:
+            with _guard:
+                turn.running -= 1
+                if failed:
+                    turn.failed.append(runs)
+                _guard.notify_all()
 
     return guarded

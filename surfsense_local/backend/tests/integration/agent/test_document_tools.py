@@ -1,5 +1,6 @@
 """The document tools as opencode's MCP client calls them: render, read, and list images."""
 
+import asyncio
 import base64
 import logging
 import re
@@ -610,6 +611,24 @@ async def test_after_three_failed_runs_the_next_render_is_refused_and_runs_nothi
         "the user's next message" in text
     )
     assert len(await _listed(tools, workspace_id)) == 4
+
+
+async def test_renders_called_at_once_still_fail_at_most_three_times(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """opencode runs a step's tool calls at once: four calls all passed the count before any failed."""
+    workspace_id = await tools.workspace()
+    failing = [render(title=f"Proposal {n}", script=FAILING) for n in range(4)]
+
+    results = await asyncio.gather(
+        *(tools.call(workspace_id, "render_document", call) for call in failing)
+    )
+
+    stops = [text for text, _ in results if "failed in this request" in text]
+    assert [is_error for _, is_error in results] == [True] * 4
+    assert len(stops) == 1
+    assert stops[0].startswith("3 renders failed in this request")
+    assert len(await _listed(tools, workspace_id)) == 3
 
 
 async def test_a_render_still_running_when_the_user_writes_again_counts_toward_its_own_turn(
