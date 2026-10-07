@@ -8,7 +8,7 @@ import { createQueryClient } from "@/lib/query-client"
 
 import type { ChatMessage, ChatThread } from "./api"
 import { LiveThreadRuntime } from "./live-thread-runtime"
-import { resetChatRuns } from "./runs/run-store"
+import { liveRuns, resetChatRuns } from "./runs/run-store"
 import type { ChatTurnError } from "./use-chat-runtime"
 import { useChatRuntime } from "./use-chat-runtime"
 
@@ -483,6 +483,69 @@ describe("useChatRuntime", () => {
 
     await waitFor(() =>
       expect(result.current.approvals.map((a) => a.id)).toEqual(["per_1"])
+    )
+  })
+
+  it("lets go of a sent image's picture once its stored turn shows it", async () => {
+    const picture = "data:image/png;base64,aGVsbG8="
+    const { result } = renderRuntime({ readsImages: true })
+    await openThread(result, 1)
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "What is this?" }],
+        attachments: [
+          {
+            id: "picked",
+            type: "image",
+            name: "picked.png",
+            contentType: "image/png",
+            status: { type: "complete" },
+            content: [{ type: "image", image: picture }],
+          },
+        ],
+      })
+    })
+    await waitFor(() => expect(api.sendStreams).toHaveLength(1))
+    expect(api.sends[0].body).toMatchObject({
+      images: [{ mime: "image/png", data: "aGVsbG8=" }],
+    })
+    await waitFor(() =>
+      expect(JSON.stringify(result.current.thread.getState())).toContain(
+        picture
+      )
+    )
+
+    api.messages[1] = [
+      {
+        ...stored(11, "user", "What is this?"),
+        content: {
+          text: "What is this?",
+          images: [{ key: "k", mime: "image/png", size_bytes: 5, sha256: "s" }],
+        },
+      },
+      stored(12, "assistant", "A greeting."),
+    ]
+    act(() =>
+      api.sendStreams[0].frames([
+        {
+          type: "accepted",
+          user_message_id: 11,
+          assistant_message_id: 12,
+          user_created_at: "2026-10-05T00:00:00Z",
+        },
+        { type: "delta", text: "A greeting." },
+        { type: "completed", assistant_completed_at: "2026-10-05T00:00:01Z" },
+        "[DONE]",
+      ])
+    )
+
+    await waitFor(() => expect(liveRuns()).toEqual([]))
+    await waitFor(() => expect(assistantText(result)).toEqual(["A greeting."]))
+    // assistant-ui keeps every message it was given; the placeholder question
+    // held the picture after the stored turn took its place.
+    expect(JSON.stringify(result.current.thread.export())).not.toContain(
+      picture
     )
   })
 })

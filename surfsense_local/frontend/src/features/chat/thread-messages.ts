@@ -111,6 +111,13 @@ export function toRuntimeMessage(
           { status: { type: "incomplete", reason: "cancelled" } as const }
         : {}),
     metadata: {
+      // assistant-ui keeps every id it is given. Marked, the placeholder
+      // question goes once `accepted` renames it, and with it the picked
+      // images it held. Not the reply: a Stop before its first word would
+      // drop an empty one from under the stopped mark.
+      ...(message.role === "user" && isOptimistic(message.id)
+        ? { isOptimistic: true }
+        : {}),
       custom: {
         citations: message.content.citations ?? NO_CITATIONS,
         steps: message.content.steps ?? NO_STEPS,
