@@ -60,6 +60,9 @@ const FOLLOW_SLACK_PX = 16
 // The easing and lengths surfsense_web's trace header uses.
 const EASE_OUT = "ease-[cubic-bezier(0.22,1,0.36,1)]"
 
+// The indicator's fold (duration-200) and a margin, after which it unmounts.
+const INDICATOR_FOLD_MS = 250
+
 // One header from send to answer, so the indicator and shimmer never remount
 // between states; a new state is a new value here, not a new tree. Once a reply
 // can hold several trace segments (tool calls), the header moves between them:
@@ -330,6 +333,19 @@ function HeaderLead({
   active: boolean
   children: string
 }) {
+  // Dropped once folded away, so a finished reply keeps no animated dots.
+  // Mounted again the moment the header works again, as when a thread switch
+  // gives this header a reply in progress.
+  const [shown, setShown] = useState(active)
+  if (active && !shown) {
+    setShown(true)
+  }
+  useEffect(() => {
+    if (active) return
+    const timer = setTimeout(() => setShown(false), INDICATOR_FOLD_MS)
+    return () => clearTimeout(timer)
+  }, [active])
+
   return (
     <span className="flex min-w-0 items-center">
       <span
@@ -342,7 +358,7 @@ function HeaderLead({
         )}
       >
         <span className="min-w-0 overflow-hidden">
-          <ThinkingIndicator className="mr-2.5" />
+          {shown ? <ThinkingIndicator className="mr-2.5" /> : null}
         </span>
       </span>
       <span

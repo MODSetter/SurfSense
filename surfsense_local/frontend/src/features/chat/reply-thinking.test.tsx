@@ -402,6 +402,39 @@ describe("the trace's markdown", () => {
   })
 })
 
+describe("the thinking indicator", () => {
+  it("is dropped once it has folded away, under the same header", async () => {
+    const { container, rerender } = render(streaming("First step."))
+    const header = screen.getByRole("button", { name: "Thinking" })
+
+    rerender(finished("First step."))
+    // Still there while it folds.
+    expect(container.querySelector(".ss-thinking-indicator")).not.toBeNull()
+
+    await waitFor(() =>
+      expect(container.querySelector(".ss-thinking-indicator")).toBeNull()
+    )
+    expect(screen.getByRole("button", { name: "Thought for 2 seconds" })).toBe(
+      header
+    )
+  })
+
+  it("is never mounted for a reply that was done before it showed", () => {
+    const { container } = render(finished("Earlier reasoning."))
+
+    expect(container.querySelector(".ss-thinking-indicator")).toBeNull()
+  })
+
+  it("comes back the moment the header works again", () => {
+    const { container, rerender } = render(finished("Earlier reasoning."))
+
+    // A thread switch gives this header another thread's reply in progress.
+    rerender(<ReplyThinking running answerStarted={false} reasoning={null} />)
+
+    expect(container.querySelector(".ss-thinking-indicator")).not.toBeNull()
+  })
+})
+
 type Plugins = { code?: unknown; math?: unknown }
 
 function finished(text: string) {
