@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest"
 import {
   act,
   cleanup,
@@ -332,6 +340,82 @@ describe("ReplyThinking", () => {
   })
 })
 
+describe("following the trace in a browser's frame order", () => {
+  const steps = (count: number) =>
+    Array.from({ length: count }, (_, index) => `Step ${index + 1}.`).join(
+      "\n\n"
+    )
+
+  /** A trace of `lines` lines, laid out as a browser would and followed to
+   *  its bottom, with that scroll already reported. */
+  function followedTrace(lines: number) {
+    const frames = browserFrames()
+    const shown = { lines }
+    const { rerender } = render(streaming(steps(lines)))
+    const trace = frames.lineBox(
+      screen.getByRole("region", { name: "Thinking" }),
+      () => shown.lines
+    )
+    const stream = {
+      trace,
+      next: frames.next,
+      bottom: () => trace.scrollHeight - trace.clientHeight,
+      grow() {
+        shown.lines += 1
+        rerender(streaming(steps(shown.lines)))
+      },
+    }
+    // A line more, since jsdom had no layout until now.
+    stream.grow()
+    stream.next()
+    stream.next()
+    return stream
+  }
+
+  it("keeps following when a line lands before its own scroll is reported", () => {
+    const stream = followedTrace(10)
+
+    // A line a frame, each landing between the follow and its scroll event.
+    for (let line = 0; line < 10; line += 1) {
+      stream.grow()
+      stream.next()
+    }
+
+    expect(stream.trace.scrollTop).toBe(stream.bottom())
+  })
+
+  it("stops while the reader is scrolled up, and follows again from the bottom", () => {
+    const stream = followedTrace(10)
+
+    stream.trace.scrollTop = 0
+    stream.next()
+    stream.grow()
+    stream.next()
+    expect(stream.trace.scrollTop).toBe(0)
+
+    stream.trace.scrollTop = stream.bottom()
+    stream.next()
+    stream.grow()
+    stream.next()
+    expect(stream.trace.scrollTop).toBe(stream.bottom())
+  })
+
+  it("follows again when the reader comes back to where it left off", () => {
+    const stream = followedTrace(10)
+    const leftAt = stream.trace.scrollTop
+
+    // Up and back while the model pauses, so the bottom has not moved.
+    stream.trace.scrollTop = 0
+    stream.next()
+    stream.trace.scrollTop = leftAt
+    stream.next()
+    stream.grow()
+    stream.next()
+
+    expect(stream.trace.scrollTop).toBe(stream.bottom())
+  })
+})
+
 describe("the trace's markdown", () => {
   it("repairs only the unfinished tail, and Streamdown repairs nothing again", () => {
     const text = "## Plan\n\nRead the note.\n\nThen **compare"
@@ -495,5 +579,64 @@ function layOut(
       writable: true,
       configurable: true,
     })
+  }
+}
+
+/** Runs frames in a browser's order, which jsdom has no notion of: a scroll
+ *  made in one frame's callbacks is reported at the next frame, before that
+ *  frame's callbacks run. */
+function browserFrames() {
+  const due = new Map<number, FrameRequestCallback>()
+  let handle = 0
+  const request = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((callback) => {
+      handle += 1
+      due.set(handle, callback)
+      return handle
+    })
+  const cancel = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation((id) => {
+      due.delete(id)
+    })
+  onTestFinished(() => {
+    request.mockRestore()
+    cancel.mockRestore()
+  })
+  const moved = new Set<HTMLElement>()
+
+  return {
+    /** Lays the element out as `lines()` lines of 24px in a 208px box, its
+     *  scrollTop clamped as a browser clamps it. */
+    lineBox(element: HTMLElement, lines: () => number) {
+      let top = 0
+      const height = () => lines() * 24
+      Object.defineProperties(element, {
+        clientHeight: { configurable: true, value: 208 },
+        scrollHeight: { configurable: true, get: height },
+        scrollTop: {
+          configurable: true,
+          get: () => top,
+          set: (value: number) => {
+            const clamped = Math.max(0, Math.min(value, height() - 208))
+            if (clamped !== top) {
+              top = clamped
+              moved.add(element)
+            }
+          },
+        },
+      })
+      return element
+    },
+    next() {
+      act(() => {
+        for (const element of moved) fireEvent.scroll(element)
+        moved.clear()
+        const callbacks = [...due.values()]
+        due.clear()
+        for (const callback of callbacks) callback(performance.now())
+      })
+    },
   }
 }

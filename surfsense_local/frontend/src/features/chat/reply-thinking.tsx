@@ -187,6 +187,8 @@ function ReplyHeader({
   // Reading scrollHeight lays the trace out, so it follows once a frame, not
   // at every reasoning token, and not while folded.
   const followFrame = useRef<number | null>(null)
+  // Where the last follow left the trace, until its scroll event comes in.
+  const followedTop = useRef<number | null>(null)
 
   useLayoutEffect(() => {
     if (!open || followFrame.current !== null) return
@@ -195,6 +197,7 @@ function ReplyHeader({
       const trace = traceRef.current
       if (trace && following.current) {
         trace.scrollTop = trace.scrollHeight
+        followedTop.current = trace.scrollTop
       }
     })
   }, [reasoning?.text, open])
@@ -298,6 +301,16 @@ function ReplyHeader({
               tabIndex={0}
               onScroll={(event) => {
                 const trace = event.currentTarget
+                // Skips the report of the follow's own scroll, a frame later
+                // and perhaps above newer lines; once only, since a reader may
+                // scroll back to that spot.
+                const followed = followedTop.current
+                followedTop.current = null
+                if (
+                  followed !== null &&
+                  Math.abs(trace.scrollTop - followed) < 1
+                )
+                  return
                 following.current =
                   trace.scrollHeight - trace.scrollTop - trace.clientHeight <=
                   FOLLOW_SLACK_PX
