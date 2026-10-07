@@ -41,6 +41,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -248,17 +249,22 @@ function ArtifactRow({
                 </Tooltip>
               ) : null}
             </span>
-            <button
-              type="button"
-              disabled={!onOpen}
-              className={cn(
-                "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
-                dropdownOpen && "sidebar-row-title-fade-actions"
-              )}
-              onClick={onOpen ?? undefined}
-            >
-              {artifact.title}
-            </button>
+            <OverflowTooltip
+              label={artifact.title}
+              render={
+                <button
+                  type="button"
+                  disabled={!onOpen}
+                  className={cn(
+                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+                    dropdownOpen && "sidebar-row-title-fade-actions"
+                  )}
+                  onClick={onOpen ?? undefined}
+                >
+                  {artifact.title}
+                </button>
+              }
+            />
             {artifact.version ? (
               <Badge
                 variant="secondary"

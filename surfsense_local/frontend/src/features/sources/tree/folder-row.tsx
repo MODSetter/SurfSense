@@ -19,6 +19,7 @@ import {
   PencilIcon,
   Trash2Icon,
 } from "@/components/ui/icons"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -129,18 +130,24 @@ export function FolderRow({
           onCheckedChange={() => onTickChange(tick !== "checked")}
         />
       </span>
-      <button
-        type="button"
-        tabIndex={-1}
-        className={cn(
-          "sidebar-row-title-fade flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none",
-          menuOpen && "sidebar-row-title-fade-actions"
-        )}
-        onClick={onToggleExpanded}
-      >
-        <Folder01Icon className="size-4 shrink-0 text-muted-foreground" />
-        {folder.name}
-      </button>
+      <OverflowTooltip
+        label={folder.name}
+        focusOwner='[role="treeitem"]'
+        render={
+          <button
+            type="button"
+            tabIndex={-1}
+            className={cn(
+              "sidebar-row-title-fade flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none",
+              menuOpen && "sidebar-row-title-fade-actions"
+            )}
+            onClick={onToggleExpanded}
+          >
+            <Folder01Icon className="size-4 shrink-0 text-muted-foreground" />
+            {folder.name}
+          </button>
+        }
+      />
       <div className="absolute inset-y-0 right-0 flex items-center pr-1">
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger

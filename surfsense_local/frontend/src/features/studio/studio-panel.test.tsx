@@ -417,6 +417,51 @@ describe("studio panel", () => {
     expect(screen.getByText("Sources (1 selected)")).toBeTruthy()
   })
 
+  it("names a cut-off source in full in the picker, and its name still ticks it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "summary",
+              label: "Markdown",
+              requires_model_types: ["text_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const title = "Saturn and its moons, a field guide for the outer planets"
+    const user = userEvent.setup()
+    renderStudio([{ ...readyDocument, title }])
+
+    await user.click(await screen.findByRole("button", { name: "Markdown" }))
+    await user.click(screen.getByRole("button", { name: "1 source" }))
+    const name = screen.getByText(title)
+    // jsdom lays nothing out: the widths of a name its row cuts off.
+    Object.defineProperty(name, "scrollWidth", {
+      configurable: true,
+      value: 320,
+    })
+    Object.defineProperty(name, "clientWidth", {
+      configurable: true,
+      value: 120,
+    })
+    await user.hover(name)
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(title)
+    await user.click(name)
+    expect(
+      screen.getByRole("checkbox", { name: title }).getAttribute("aria-checked")
+    ).toBe("false")
+  })
+
   it("explains why an unavailable image format is disabled", async () => {
     vi.stubGlobal(
       "fetch",

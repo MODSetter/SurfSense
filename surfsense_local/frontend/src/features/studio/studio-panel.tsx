@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -359,9 +360,15 @@ function Composer({
                     checked={on}
                     onCheckedChange={() => toggle(document.id)}
                   />
-                  <span className="min-w-0 flex-1 truncate">
-                    {document.title}
-                  </span>
+                  <OverflowTooltip
+                    label={document.title}
+                    focusOwner="label"
+                    render={
+                      <span className="min-w-0 flex-1 truncate">
+                        {document.title}
+                      </span>
+                    }
+                  />
                 </label>
               )
             })}

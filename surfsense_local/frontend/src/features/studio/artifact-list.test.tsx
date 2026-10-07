@@ -112,6 +112,29 @@ describe("artifact list", () => {
     expect(onOpen).toHaveBeenCalledWith(12)
   })
 
+  it("shows a cut-off title in full on hover and still opens it", async () => {
+    const title = "Board meeting summary with every action item and owner"
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    renderList({ artifacts: [{ ...artifact, title }], onOpen })
+
+    const row = screen.getByRole("button", { name: title })
+    // jsdom lays nothing out: the widths of a title its row cuts off.
+    Object.defineProperty(row, "scrollWidth", {
+      configurable: true,
+      value: 320,
+    })
+    Object.defineProperty(row, "clientWidth", {
+      configurable: true,
+      value: 120,
+    })
+    await user.hover(row)
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(title)
+    await user.click(row)
+    expect(onOpen).toHaveBeenCalledWith(12)
+  })
+
   it("shows a spinner while an artifact is generating", () => {
     renderList({
       artifacts: [{ ...artifact, status: "pending" }],
