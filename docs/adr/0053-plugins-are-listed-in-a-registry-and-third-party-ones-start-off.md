@@ -8,22 +8,23 @@
 
 Remote plugins are servers their publishers run ([ADR 0051](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md)). The app needs a list of them it can show with no network, a way for companies and community developers to join it, and a way to keep third-party plugins away from users who never chose them. SurfSense's users are mostly not developers.
 
-Obsidian keeps its community list as one JSON file in a public repository, added to by pull request, with the code living in each author's own repository, and ships with community plugins off until the user turns them on.
+Obsidian keeps its community plugins as one list, served from its own server with a mirror in a public repository, each entry pointing at the author's repository, whose GitHub releases hold the files. It ships with community plugins off until the user turns them on.
 
 ## Decision
 
-- `plugins/registry/connectors.json` in this repository lists every plugin the app shows. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
+- One file, `plugins/registry/plugins.json` in this repository, lists every plugin the app shows, SurfSense's own included; nothing is maintained beside it. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
+- The list points at plugins and never holds them: a plugin's code, and later its bundle files, stay with its publisher, in its own host or repository.
 - Each entry has a `kind`, `remote` now, with `bundle` reserved. Its publisher, `surfsense`, `partner` or `community`, is set by the registry, and only maintainers merge `surfsense` and `partner` entries.
 - Every plugin not published by SurfSense, a custom one added by URL included, is off until the user turns third-party plugins on once.
 - A tool a server adds after the user connected, or whose description or annotations change, starts off until the user turns it on.
 - A maintainer delists a plugin by moving its entry to `removed` with a reason; apps stop offering its tools.
-- The app ships the registry it was built with and refreshes it from `main` after consent.
+- On each merge to `main`, CI signs the list and publishes it to SurfSense's own plugin host. The app fetches it from there after consent and checks the signature against a key compiled in, so the list grows without app updates. The installer's copy is only the fallback with no network.
 
 ## Consequences
 
 - A company or developer joins with one pull request and no build pipeline.
 - Review sees the listing and the tools at the time; it does not see later deploys, which is why later tools start off.
-- The registry moves out of this repository only when bundles need builds of their own.
+- SurfSense needs a host for the signed list, and a signing key kept as a CI secret.
 
 ## Where the code stands
 

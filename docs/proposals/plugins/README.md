@@ -46,7 +46,8 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 | Sources of tools | Remote MCP servers over HTTPS first. Bundles (`kind: bundle`) later, through the same gateway |
 | Who hosts a remote plugin | Its publisher: SurfSense, a company, or a community developer |
 | Name | "Plugins", in the app and in the docs |
-| The list | `plugins/registry/connectors.json` in this repository, added to by pull request, reviewed once per entry |
+| The list | One file, `plugins/registry/plugins.json` in this repository, listing every plugin, SurfSense's included, added to by pull request and reviewed once per entry. Signed and served from SurfSense's own host, so it grows without app updates ([`02-registry.md`](02-registry.md)) |
+| Where a plugin's code lives | With its publisher: a remote server on its host, a bundle in its author's repository and releases. The list only points at it |
 | Publishers | `surfsense`, `partner` (a verified company) or `community`, set by the registry, never by the plugin |
 | Restricted mode | Every plugin not published by SurfSense is off until the user turns third-party plugins on once ([ADR 0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)) |
 | Custom plugins | A user can add any remote MCP server by URL, labelled "Not reviewed by SurfSense", behind Restricted mode |
@@ -66,7 +67,7 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 
 | Stream | Owns | Needs |
 |---|---|---|
-| **Registry** | `plugins/registry/`, its schema and CI check, the catalog the app ships and refreshes | nothing |
+| **Registry** | `plugins/registry/plugins.json`, its schema and CI check, signing and publishing it to SurfSense's plugin host, the copy the app ships and refreshes | a host for the signed file |
 | **MCP client** | `modules/plugins/mcp_client/`: Streamable HTTP, sign-in, credentials | nothing |
 | **Gateway** | `modules/plugins/gateway/`, the tables, approval, permissions, results | the MCP client |
 | **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, Restricted mode, permissions, activity | the gateway's routes; can start against their shapes |
@@ -92,6 +93,6 @@ Plugins that change SurfSense itself (providers, interface, prompts); local MCP 
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long tool results are kept and how large a stored one may be.
 - The router's default per model, from the chat eval's router test.
-- Where SurfSense's plugin servers are deployed, and under which hostname.
+- Where SurfSense's plugin servers and the signed list are deployed, and under which hostname.
 - How SurfSense's scrapers server learns the scraper API workspace for a license, since contract 2 creates one per license on first call.
 - Whether the root [`LICENSE`](../../../LICENSE) names `plugins/proprietary/`; a maintainer has to approve that line ([`06-paid.md`](06-paid.md)).

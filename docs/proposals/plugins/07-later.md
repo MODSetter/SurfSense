@@ -24,6 +24,6 @@
 | **Sync and schedules** | A tool run on a schedule, its result kept in Sources and updated in place | A scheduler, and the `plugins` queue for the runs |
 | **Organisation policy** | Plugins off, Restricted mode locked, or an allow-list | Enterprise settings the gateway reads ([`05-trust.md`](05-trust.md#organisation-policy)) |
 | **Company registries** | A company's own list of plugins beside SurfSense's | An administrator setting, never a user's click, so a link cannot add one |
-| **Bundles** | Plugins that run on the user's machine: offline and air-gapped use, local software, private processing, no hosting | [`bundles/`](bundles/README.md): the bundle host, a bundled Python, a build per platform, checksums, review of code |
+| **Bundles** | Plugins that run on the user's machine: offline and air-gapped use, local software, private processing, no hosting | [`bundles/`](bundles/README.md): the bundle host, a bundled Python, a release Action for authors' repositories, the scanner that records each version's sha256 in the list ([`02-registry.md`](02-registry.md#bundle-entries-later)) |
 | **Paid bundles** | A SurfSense paid plugin that runs locally | Delivery from the license server ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md)) |
 | **A public directory page** | Every plugin, its publisher, hosts and access, on the web | Generated from the registry |

@@ -43,7 +43,7 @@ Every host in the entry's `hosts`, and for a custom plugin the URL's host and th
 - `EgressDeniedError` and its `403` gain `hosts`, every host still to allow, so one prompt asks for them together. `destination` and `host` stay as the first of them, so today's callers do not change. [`egress.md`](../../architecture/egress.md) is updated in the same change.
 - Settings → Network lists a plugin's hosts with its name beside them (`list_destinations()`), and a host already allowed stays listed after the plugin is disconnected.
 - A host revoked in Settings → Network makes the plugin's next call a refusal, "Notion's host is not allowed", not a broken connection.
-- The registry refresh adds `raw.githubusercontent.com` to `BUILT_IN` ([`02-registry.md`](02-registry.md#in-the-app)).
+- Fetching the list adds SurfSense's plugin host to `BUILT_IN` ([`02-registry.md`](02-registry.md#how-the-app-gets-the-list)).
 
 ## SurfSense's own servers
 
