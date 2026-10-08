@@ -157,8 +157,11 @@ async def test_once_allowed_it_downloads_unpacks_checks_and_is_installed(
     assert status["state"] == "installed"
     assert status["version"] == "26.8.1.1"
     assert office.requests == [FILE.url, "https://mirror.example/f"]
-    # Checked where it was unpacked, then put in place.
-    assert ".staging-" in office.smoked[0].program.parent.parent.name
+    # Checked where it was unpacked, then put in place. The folder under
+    # versions/, since the program sits two levels down in it on Windows and
+    # Linux and three on macOS (Contents/MacOS/soffice).
+    smoked = office.smoked[0].program.relative_to(layout.versions_dir())
+    assert ".staging-" in smoked.parts[0]
     assert office_runtime() == OfficeRuntime(
         program_in(layout.versions_dir() / "26.8.1.1"), "26.8.1.1", "pack"
     )
