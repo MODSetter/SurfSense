@@ -72,6 +72,30 @@ export function describeDestination(destination: string, host: string) {
       ),
     }
   }
+  // Office support's download is the only errand to The Document Foundation.
+  if (
+    host === "documentfoundation.org" ||
+    host.endsWith(".documentfoundation.org")
+  ) {
+    return {
+      label: intl.formatMessage({
+        id: "egress_office_download_label",
+        defaultMessage: "Office support download",
+      }),
+      title: intl.formatMessage({
+        id: "egress_office_download_prompt_title",
+        defaultMessage: "Allow downloading LibreOffice?",
+      }),
+      body: intl.formatMessage(
+        {
+          id: "egress_office_download_prompt_body",
+          defaultMessage:
+            "Turning on Office support downloads LibreOffice from {host}. SurfSense sends your IP address and the file’s name, nothing else.",
+        },
+        { host }
+      ),
+    }
+  }
   return {
     label: host,
     title: intl.formatMessage(

@@ -1,0 +1,48 @@
+[
+ {
+  "user": "Draft a two-page client proposal from these sources as a Word document, with a p",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "completed",
+    "text": "I'll start by searching your sources to understand the context for this proposal"
+   }
+  ]
+ },
+ {
+  "user": "Make the executive summary shorter, add a timeline table and a bar chart of the ",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "error",
+    "kind": "unknown",
+    "message": "Provider returned error"
+   },
+   {
+    "type": "completed",
+    "text": "The current script already has a timeline table and the logo reference, but I'll"
+   }
+  ]
+ },
+ {
+  "user": "Now a PDF version for the client.",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "error",
+    "kind": "unknown",
+    "message": "Provider returned error"
+   },
+   {
+    "type": "completed",
+    "text": ""
+   }
+  ]
+ }
+]

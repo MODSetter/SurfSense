@@ -2,6 +2,7 @@ import type { AgentStep, TurnSources } from "@/features/agent/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
+import type { NewChatChoice } from "./modes/new-chat-mode"
 import {
   parseNumberedSseStream,
   type ChatErrorKind,
@@ -13,7 +14,7 @@ export type ChatThread = {
   id: number
   workspace_id: number
   title: string | null
-  // The agent answers this thread, chosen when it was opened.
+  // The agent answers this thread: it opened in Agentic mode, and keeps it.
   uses_agent: boolean
   created_at: string
   updated_at: string
@@ -31,9 +32,9 @@ export type ChatThread = {
 export type TurnEnding =
   | {
       type: "error"
-      // `agent_thread_outdated` is client only: the API refuses that turn
-      // before any frame.
-      kind: ChatErrorKind | "agent_thread_outdated"
+      // `agent_thread_outdated` and `agent_model_unsupported` are client
+      // only: the API refuses those turns before any frame.
+      kind: ChatErrorKind | "agent_thread_outdated" | "agent_model_unsupported"
       message: string
       provider?: string
       // Client only: our own request failed before the API could classify it.
@@ -94,12 +95,19 @@ export function listThreads(
 export function createThread(
   workspaceId: number,
   title: string,
+  // Null leaves the API to the selected model's default.
+  choice: NewChatChoice | null,
   signal?: AbortSignal
 ): Promise<ChatThread> {
   return requestJson<ChatThread>(`/workspaces/${workspaceId}/chat/threads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({
+      title,
+      ...(choice ? { mode: choice.mode } : {}),
+      // Only the user's own choice becomes the model's default.
+      ...(choice?.chosen ? { remember: true } : {}),
+    }),
     signal,
   })
 }

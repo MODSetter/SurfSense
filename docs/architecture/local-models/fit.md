@@ -518,8 +518,14 @@ against every budget shape.
 A badge is a **warning**, shown only when there is something to warn about. It
 carries a `level` (`none`, `notice` or `refuse`), a verdict and one plain line
 of why, all from `fit/copy.py`, which reads the speed tier and never the
-runtime's name; the renderer shows the text verbatim and picks the style from the
-level. On a discrete GPU:
+runtime's name. Beside the two English sentences it carries the tier as `code`
+(`too_big`, `heavy_spill`, `moderate_spill` or `light_spill`; null when it says
+nothing) and the budget's `uma`. The renderer picks the style from the level and
+words the badge in the interface language from `code` and `uma`, formatting a
+refusal's two sizes from the fit's `need_bytes` and `budget_bytes`
+([`fit-text.ts`](../../../surfsense_local/frontend/src/features/models/local/chat/fit-text.ts), [localization](../localization.md#backend-text));
+for a code it does not know it shows the backend's sentences verbatim. On a
+discrete GPU, in English:
 
 ```text
 tier            level    verdict         reason

@@ -92,22 +92,62 @@ export async function* parseSseStream(
   }
 }
 
+const FRAME_END = /\r?\n\r?\n/
+const FRAME_ENDS = /\r?\n\r?\n/g
+
+/**
+ * Cuts text into frames as it arrives. The unfinished frame is kept in the
+ * pieces it came in and searched only where it grew: searching all of it at
+ * every read made one large frame cost its length squared.
+ */
+function frameCutter() {
+  let pieces: string[] = []
+  // The unfinished frame's last characters: a blank line split between two
+  // reads starts at most three characters before the newer one.
+  let tail = ""
+  return {
+    cut(text: string): string[] {
+      const searched = tail + text
+      if (!FRAME_END.test(searched)) {
+        if (text) pieces.push(text)
+        tail = searched.slice(-3)
+        return []
+      }
+      const before = pieces.join("")
+      const buffer = before + text
+      const frames: string[] = []
+      let start = 0
+      FRAME_ENDS.lastIndex = Math.max(0, before.length - 3)
+      for (
+        let end = FRAME_ENDS.exec(buffer);
+        end !== null;
+        end = FRAME_ENDS.exec(buffer)
+      ) {
+        frames.push(buffer.slice(start, end.index))
+        start = FRAME_ENDS.lastIndex
+      }
+      const rest = buffer.slice(start)
+      pieces = rest ? [rest] : []
+      tail = rest.slice(-3)
+      return frames
+    },
+    rest: () => pieces.join(""),
+  }
+}
+
 /** The stream's frames with their numbers, however the bytes are chunked. */
 export async function* parseNumberedSseStream(
   stream: ReadableStream<Uint8Array>
 ): AsyncGenerator<NumberedEvent> {
   const reader = stream.getReader()
   const decoder = new TextDecoder()
-  let buffer = ""
+  const cutter = frameCutter()
 
   try {
     while (true) {
       const { value, done } = await reader.read()
-      buffer += decoder.decode(value, { stream: !done })
-
-      const frames = buffer.split(/\r?\n\r?\n/)
-      buffer = frames.pop() ?? ""
-      for (const frame of frames) {
+      const text = decoder.decode(value, { stream: !done })
+      for (const frame of cutter.cut(text)) {
         const event = parseFrame(frame)
         if (event) {
           yield event
@@ -115,7 +155,7 @@ export async function* parseNumberedSseStream(
       }
 
       if (done) {
-        const event = parseFrame(buffer)
+        const event = parseFrame(cutter.rest())
         if (event) {
           yield event
         }

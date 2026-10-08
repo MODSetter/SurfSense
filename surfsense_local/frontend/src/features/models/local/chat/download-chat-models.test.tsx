@@ -440,6 +440,43 @@ describe("model catalog", () => {
     ).toBeTruthy()
   })
 
+  it("words a badge that names its tier itself", async () => {
+    // The API's sentences are English in every language; the tier beside them
+    // is what the interface has words for.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({}, [
+              build({
+                fit: fit({ state: "partial", offload_fraction: 0.7 }),
+                badge: {
+                  level: "notice",
+                  verdict: "backend verdict",
+                  reason: "backend reason",
+                  code: "heavy_spill",
+                  uma: true,
+                },
+              }),
+            ]),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText(
+        "Well over the GPU’s memory. Expect it to be slow."
+      )
+    ).toBeTruthy()
+    expect(screen.getByText("Reduced speed")).toBeTruthy()
+    expect(screen.queryByText("backend verdict")).toBeNull()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
   it("blocks install only when physics refuses", async () => {
     vi.stubGlobal(
       "fetch",
@@ -626,6 +663,32 @@ describe("model catalog", () => {
     expect(search.value).toBe("")
     expect(document.activeElement).toBe(search)
     expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
+
+  it("sends one search for a burst of typing, not one per keystroke", async () => {
+    // Typing "qwen" is four keystrokes past the two-character threshold;
+    // the debounce settles them to the one lookup the user meant.
+    const searches: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          searches.push(path)
+          return Response.json({ results: [] })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
+
+    await waitFor(() => expect(searches).toHaveLength(1), { timeout: 2000 })
+    expect(searches[0]).toContain("q=qwen")
   })
 
   it("explains that search is unavailable rather than erroring", async () => {

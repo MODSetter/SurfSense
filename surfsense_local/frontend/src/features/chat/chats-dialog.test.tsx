@@ -2,6 +2,7 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { intl } from "@/i18n/intl"
 import { render } from "@/test-utils"
 
 import { ChatsDialog } from "./chats-dialog"
@@ -200,5 +201,48 @@ describe("ChatsDialog, with replies running", () => {
     expect(description("Thread 3")).toMatch(/^New reply /)
     expect(description("Thread 4")).toMatch(/^Waiting for your approval /)
     expect(description("Thread 5")).not.toMatch(/Writing|Waiting|New reply/)
+  })
+})
+
+describe("ChatsDialog, closed", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it("builds no row while closed, and every row once opened", () => {
+    const threads = Array.from({ length: 50 }, (_, index) => ({
+      id: index + 1,
+      workspace_id: 1,
+      title: `Thread ${index + 1}`,
+      uses_agent: false,
+      created_at: "2026-10-05T00:00:00Z",
+      updated_at: "2026-10-05T00:00:00Z",
+    }))
+    const formatted = vi.spyOn(intl, "formatMessage")
+    // Each row names its actions button.
+    const rowsBuilt = () =>
+      formatted.mock.calls.filter(
+        ([descriptor]) =>
+          (descriptor as { id?: string }).id ===
+          "chat_chats_dialog_row_actions_aria"
+      ).length
+    const view = render(
+      <ChatsDialog {...baseProps()} open={false} threads={threads} />
+    )
+    // A reply streaming elsewhere hands the sidebar new run states.
+    view.rerender(
+      <ChatsDialog
+        {...baseProps()}
+        open={false}
+        threads={threads}
+        runStates={{ 7: { state: "running" } }}
+      />
+    )
+    expect(rowsBuilt()).toBe(0)
+
+    view.rerender(<ChatsDialog {...baseProps()} threads={threads} />)
+
+    expect(
+      screen.getAllByRole("button", { name: /^Actions for Thread/ })
+    ).toHaveLength(50)
+    expect(rowsBuilt()).toBeGreaterThanOrEqual(50)
   })
 })

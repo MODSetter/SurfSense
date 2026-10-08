@@ -19,11 +19,11 @@ from modules.llm.connections.service import (
     normalize_base_url,
     probe_connection,
 )
+from modules.llm.connections.text_generator import connection_generator
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
-    OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.openai_compatible.speech import (
@@ -46,7 +46,6 @@ from modules.llm.schemas import (
 from modules.llm.selectable import selectable_for
 from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
-from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
 from modules.llm.subscriptions.chatgpt.tokens import read_tokens
 
 router = APIRouter(prefix="/connections")
@@ -299,11 +298,7 @@ async def test_connection_chat(
     """Answer once with this model, so a chat pick can be seen before it is made."""
     connection = await transact(session, allowed_connection, connection_id)
     model = _requested_model(payload)
-    provider = (
-        plan_generator(session.get_bind(), connection)
-        if connection.auth_kind == CHATGPT
-        else OpenAICompatibleChatProvider(connection.base_url, connection.api_key)
-    )
+    provider = connection_generator(session.get_bind(), connection, model)
     reply = ""
     try:
         # Closed explicitly: breaking on the cap leaves the stream open otherwise.

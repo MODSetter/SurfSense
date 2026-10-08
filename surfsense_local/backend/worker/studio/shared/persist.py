@@ -24,6 +24,8 @@ _EXTENSION = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    # A revised copy of a macro workbook stays one.
+    "application/vnd.ms-excel.sheet.macroEnabled.12": ".xlsm",
 }
 
 

@@ -2,11 +2,13 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 import type { Fit, Badge as FitCopy } from "./api"
+import { fitReason, fitVerdict } from "./fit-text"
 
 /**
- * A warning, shown only when there is something to warn about, and the API owns
- * every word of it. A build that runs fully says nothing, and neither does one
- * the server may recommend, so the star and a warning never share a row.
+ * A warning, shown only when there is something to warn about. The API decides
+ * which one, and `fit-text.ts` words it. A build that runs fully says nothing,
+ * and neither does one the server may recommend, so the star and a warning
+ * never share a row.
  */
 const variantFor: Record<
   Exclude<FitCopy["level"], "none">,
@@ -30,12 +32,13 @@ export function FitBadge({
 }) {
   // No copy is no estimate at all, which says nothing rather than "fits".
   if (!fit || !copy || copy.level === "none") return null
+  const verdict = fitVerdict(copy)
   return (
     <Badge
       variant={variantFor[copy.level]}
       className={cn("shrink-0", className)}
     >
-      {fit.approximate ? `~ ${copy.verdict}` : copy.verdict}
+      {fit.approximate ? `~ ${verdict}` : verdict}
     </Badge>
   )
 }
@@ -44,7 +47,13 @@ export function FitBadge({
  * The explanation, dimmed and trailing, when there is one. A light spill is
  * explained here without a badge: described, not flagged.
  */
-export function FitReason({ copy }: { copy: FitCopy | null }) {
+export function FitReason({
+  fit,
+  copy,
+}: {
+  fit: Fit | null
+  copy: FitCopy | null
+}) {
   if (!copy?.reason) return null
-  return <p className="text-xs text-muted-foreground">{copy.reason}</p>
+  return <p className="text-xs text-muted-foreground">{fitReason(copy, fit)}</p>
 }

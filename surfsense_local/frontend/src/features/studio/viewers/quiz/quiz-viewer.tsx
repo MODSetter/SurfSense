@@ -27,6 +27,7 @@ import {
   quizResults,
   quizRunComplete,
 } from "./state"
+import { studioKeys } from "../../query-keys"
 
 // The quiz file's shape (schema_version 1).
 export interface Quiz {
@@ -52,7 +53,11 @@ export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["artifact-file", artifact.id],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "file",
+      artifact.generation,
+    ],
     queryFn: ({ signal }) => readArtifactFile<Quiz>(artifact.id, signal),
   })
 
@@ -123,7 +128,7 @@ function QuizRunner({
   function applyState(next: QuizState) {
     setState(next)
     queryClient.setQueryData(
-      ["artifact", artifact.id],
+      studioKeys.artifact(artifact.id),
       (current: ArtifactDetail | undefined) =>
         current && { ...current, quiz_state: next }
     )

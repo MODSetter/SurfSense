@@ -25,6 +25,7 @@ plugins_queue = SqliteHuey(name="plugins", filename=_QUEUE_FILE)
 
 def import_tasks() -> None:
     """Import every task; a job carries the name of one, not its code."""
+    import modules.agent.data_analysis.task
     import modules.artifacts.tasks
     import modules.documents.tasks
     import modules.plugins.tasks

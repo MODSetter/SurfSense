@@ -13,6 +13,9 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from api.config import Settings, get_settings
 from modules.agent.agent_threads.router import router as agent_threads_router
 from modules.agent.launch_key import mint_launch_key
+from modules.agent.model_endpoint.responses_relay.router import (
+    router as agent_responses_router,
+)
 from modules.agent.model_endpoint.router import router as agent_model_router
 from modules.agent.previews.router import file_router as agent_preview_files_router
 from modules.agent.previews.router import router as agent_previews_router
@@ -48,6 +51,7 @@ from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
 from modules.resource_usage.router import router as resource_usage_router
+from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
@@ -206,9 +210,11 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
+    app.include_router(office_pack_router)
     # Routes only opencode calls, or that answer it, exist only beside one.
     if get_agent_settings().has_opencode():
         app.include_router(agent_model_router)
+        app.include_router(agent_responses_router)
         app.include_router(agent_tools_router)
         app.include_router(agent_threads_router)
         app.include_router(agent_previews_router)
