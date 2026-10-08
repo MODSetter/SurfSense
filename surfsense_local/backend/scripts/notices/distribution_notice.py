@@ -1,11 +1,13 @@
-"""One notice per installed distribution: its version, licence id and licence text."""
+"""One notice per installed distribution: its version, licence id, licence text and NOTICE."""
 
 import re
 from collections.abc import Callable, Iterable
 from importlib.metadata import Distribution, PackageNotFoundError, PackagePath
 from pathlib import PurePath
 
-_LICENCE_FILE = re.compile(r"^(licen[cs]e|copying|notice|unlicense)([-_.].*)?$", re.I)
+_LICENCE_FILE = re.compile(r"^(licen[cs]e|copying|unlicense)([-_.].*)?$", re.I)
+# A NOTICE carries attribution, not licence terms, so it never passes the gate alone.
+_NOTICE_FILE = re.compile(r"^notice([-_.].*)?$", re.I)
 # A `License` field longer than this, or over several lines, is the text itself.
 _ID_LENGTH = 80
 
@@ -35,16 +37,16 @@ def _decoded(path: PackagePath) -> str:
         return data.decode("latin-1").strip()
 
 
-def _licence_files(dist: Distribution) -> list[str]:
-    """Licence files in the dist-info, which PEP 639 names, else anywhere installed."""
+def _texts(
+    dist: Distribution, wanted: Callable[[PackagePath, set[str]], bool]
+) -> list[str]:
+    """Matching files in the dist-info, which PEP 639 names, else anywhere installed."""
     files = [p for p in dist.files or [] if not p.name.endswith(".py")]
     declared = {PurePath(n).name for n in dist.metadata.get_all("License-File") or []}
-
-    def licence(p: PackagePath) -> bool:
-        return p.name in declared or bool(_LICENCE_FILE.match(p.name))
-
-    in_info = [p for p in files if p.parts[0].endswith(".dist-info") and licence(p)]
-    chosen = in_info or [p for p in files if licence(p)]
+    in_info = [
+        p for p in files if p.parts[0].endswith(".dist-info") and wanted(p, declared)
+    ]
+    chosen = in_info or [p for p in files if wanted(p, declared)]
     texts: list[str] = []
     for path in sorted(chosen, key=lambda p: (len(p.parts), str(p))):
         try:
@@ -56,8 +58,18 @@ def _licence_files(dist: Distribution) -> list[str]:
     return texts
 
 
+def _is_notice(path: PackagePath, _declared: set[str]) -> bool:
+    return bool(_NOTICE_FILE.match(path.name))
+
+
+def _is_licence(path: PackagePath, declared: set[str]) -> bool:
+    if _is_notice(path, declared):
+        return False
+    return path.name in declared or bool(_LICENCE_FILE.match(path.name))
+
+
 def _licence_text(dist: Distribution) -> str:
-    if texts := _licence_files(dist):
+    if texts := _texts(dist, _is_licence):
         return "\n\n".join(texts)
     declared = (dist.metadata.get("License") or "").strip()
     if "\n" in declared or len(declared) > _ID_LENGTH:
@@ -83,6 +95,7 @@ def python_notices(
                     "tree": "python",
                     "license": "UNKNOWN",
                     "text": "",
+                    "notice": "",
                     "note": "Not installed where the notices were generated.",
                 }
             )
@@ -94,6 +107,7 @@ def python_notices(
                 "tree": "python",
                 "license": _licence_id(dist),
                 "text": _licence_text(dist),
+                "notice": "\n\n".join(_texts(dist, _is_notice)),
                 "note": note,
             }
         )

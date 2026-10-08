@@ -13,8 +13,11 @@ const NEEDS_TEXT = new Set(["frontend", "electron", "python", "native"])
 const TREE_ORDER = ["native", "frontend", "electron", "python", "model"]
 const RULE = "=".repeat(78)
 
+// Pinned to the reviewed version, so a bump that still lacks text is reviewed again.
 function allowance(allowlist, entry) {
-  return allowlist.find((a) => a.tree === entry.tree && a.name === entry.name && a.reason?.trim())
+  return allowlist.find(
+    (a) => a.tree === entry.tree && a.name === entry.name && a.version === entry.version && a.reason?.trim(),
+  )
 }
 
 function byTreeThenName(a, b) {

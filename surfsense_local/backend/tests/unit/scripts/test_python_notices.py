@@ -162,3 +162,33 @@ def test_a_latin_1_licence_file_is_read_not_fatal(tmp_path):
     dist.texts["RECORD"] += "aged/LICENSE,,\n"
     [entry] = python_notices(["aged"], {"aged": dist}.__getitem__)
     assert entry["text"] == "Copyright \xa9 1999"
+
+
+def test_a_notice_ships_apart_from_the_licence_text(tmp_path):
+    """A NOTICE is attribution: it rides in `notice`, never in the licence text."""
+    dist = FakeDistribution(
+        tmp_path,
+        "apache",
+        "Name: apache\nVersion: 1\nLicense-Expression: Apache-2.0\n",
+        {
+            "apache-1.0.dist-info/NOTICE": "Apache attribution",
+            "apache/LICENSE": "Apache License 2.0",
+            "apache/x.py": "",
+        },
+    )
+    [entry] = python_notices(["apache"], {"apache": dist}.__getitem__)
+    assert entry["text"] == "Apache License 2.0"
+    assert entry["notice"] == "Apache attribution"
+
+
+def test_a_notice_alone_leaves_no_text_for_the_gate(tmp_path):
+    """A dist-info with only a NOTICE still fails the missing-text gate."""
+    dist = FakeDistribution(
+        tmp_path,
+        "attrib",
+        "Name: attrib\nVersion: 1\nLicense: Apache-2.0\n",
+        {"attrib-1.0.dist-info/NOTICE.txt": "Attribution only", "attrib/x.py": ""},
+    )
+    [entry] = python_notices(["attrib"], {"attrib": dist}.__getitem__)
+    assert entry["text"] == ""
+    assert entry["notice"] == "Attribution only"

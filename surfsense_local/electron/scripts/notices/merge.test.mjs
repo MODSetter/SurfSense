@@ -60,15 +60,30 @@ test("a NOTICE file ships after the licence text", () => {
 })
 
 test("passes when the dependency without text is allowlisted with a reason", () => {
-  const allow = [{ tree: "python", name: "left-pad", reason: "upstream ships no licence file; MIT per its metadata" }]
+  const allow = [{ tree: "python", name: "left-pad", version: "1.0.0", reason: "upstream ships no licence file; MIT per its metadata" }]
   const merged = mergeNotices(fragments({ python: NO_TEXT }), allow)
   assert.deepEqual(merged.problems, [])
   assert.match(merged.entries.find((e) => e.name === "left-pad").note, /upstream ships no licence file/)
 })
 
 test("an allowlist entry without a reason does not count", () => {
-  const merged = mergeNotices(fragments({ python: NO_TEXT }), [{ tree: "python", name: "left-pad", reason: "" }])
+  const merged = mergeNotices(fragments({ python: NO_TEXT }), [{ tree: "python", name: "left-pad", version: "1.0.0", reason: "" }])
   assert.equal(merged.problems.length, 1)
+})
+
+test("an allowlist entry reviewed for another version does not count", () => {
+  const allow = [{ tree: "python", name: "left-pad", version: "0.9.0", reason: "upstream ships no licence file" }]
+  const merged = mergeNotices(fragments({ python: NO_TEXT }), allow)
+  assert.match(merged.problems.join("\n"), /python left-pad 1\.0\.0 has no licence text/)
+})
+
+test("a Python NOTICE alone does not pass the gate, and ships after the licence text", () => {
+  const alone = { entries: [{ name: "attrib", version: "1", tree: "python", license: "Apache-2.0", text: "", notice: "Attribution" }] }
+  assert.match(mergeNotices(fragments({ python: alone }), []).problems.join("\n"), /python attrib 1 has no licence text/)
+  const both = { entries: [{ ...alone.entries[0], text: MIT }] }
+  const merged = mergeNotices(fragments({ python: both }), [])
+  assert.deepEqual(merged.problems, [])
+  assert.equal(merged.entries.find((e) => e.name === "attrib").text, `${MIT}\n\nAttribution`)
 })
 
 test("fails when a generator never wrote its fragment", () => {
