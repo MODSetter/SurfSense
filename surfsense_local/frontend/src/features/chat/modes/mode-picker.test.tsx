@@ -291,3 +291,27 @@ describe("the composer's mode switch", () => {
     expect(onNewChat).not.toHaveBeenCalled()
   })
 })
+
+describe("the Thinking switch in each mode", () => {
+  async function thinkingRow() {
+    const user = userEvent.setup()
+    await user.click(
+      screen.getByRole("button", { name: "Add images, sources, and more" })
+    )
+    await screen.findByRole("menu")
+    return screen.queryByRole("menuitemcheckbox", { name: /^Thinking/ })
+  }
+
+  it("is not offered for a new chat that will open in Agentic", async () => {
+    // The agent never reads it, and the mode is known before the first message.
+    renderComposer({ model: KIMI })
+
+    expect(await thinkingRow()).toBeNull()
+  })
+
+  it("is offered for a new chat that will open in Basic", async () => {
+    renderComposer({ model: SONNET_99 })
+
+    expect(await thinkingRow()).not.toBeNull()
+  })
+})

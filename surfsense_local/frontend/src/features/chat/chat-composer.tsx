@@ -182,7 +182,10 @@ export function ChatComposer({
     <ComposerAddMenu
       readsImages={readsImages}
       agentic={agentic}
-      thinking={model ? { canSkip: canSkipThinking(model) } : undefined}
+      // The agent never reads the switch, open chat or new, so it is not offered.
+      thinking={
+        model && !agentic ? { canSkip: canSkipThinking(model) } : undefined
+      }
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
       className={className}
