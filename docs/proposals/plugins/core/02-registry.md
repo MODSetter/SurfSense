@@ -1,15 +1,13 @@
 # Registry
 
-> Owns: `plugins/registry/` (`plugins.json`, its schema, its check, the signing and publishing job, later the bundle scanner), the catalog the app ships and refreshes (`modules/plugins/registry/`), the `CODEOWNERS` lines for `plugins/registry/` and `plugins/proprietary/`.
+> Owns: `plugins/registry/` (`plugins.json`, its schema, its check, the signing and publishing job, later the bundle scanner), the app's copy of the registry and its refresh (`modules/plugins/registry/`), the `CODEOWNERS` line for `plugins/registry/`.
 > Decision: [ADR 0053](../../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md).
 
 ## One list
 
-`plugins/registry/plugins.json` is the one list of plugins, and nothing else is maintained beside it. It holds every plugin the app shows, whoever publishes it and however it runs: SurfSense's own, free and paid, partners' and the community's, remote now and bundles later. It also holds removed plugins and, later, bundle versions and blocks. Only a plugin a user adds by URL is not in it; that one lives in the user's app alone ([`../remote/README.md`](../remote/README.md)).
+`plugins/registry/plugins.json`, the registry, lists every plugin the app shows, SurfSense's included, plus removed ones. Nothing is maintained beside it. Only custom plugins added by URL live outside it, in the user's app.
 
-The list says where a plugin is, never what it is made of. A plugin's code, its own manifest, and later its bundle files stay with its publisher; this repository holds an entry pointing at them. SurfSense's own plugins are the exception only because SurfSense is their publisher: their servers live in [`plugins/`](../../../../plugins/README.md) ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#surfsenses-own-servers)).
-
-Obsidian works this way: one list of community plugins, each pointing at its author's GitHub repository, whose releases hold the files ([obsidianmd/obsidian-releases](https://github.com/obsidianmd/obsidian-releases)).
+The registry points at plugins and never holds them: a plugin's code, and later its bundle files, stay with its publisher. SurfSense's own plugin servers live in [`plugins/`](../../../../plugins/README.md) only because SurfSense publishes them ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md)).
 
 An illustrative entry, not a real listing:
 
@@ -60,17 +58,17 @@ Unknown fields are ignored, so a newer field does not break an older app. `schem
 
 ## Adding a plugin
 
-1. The publisher opens a pull request into `dev` adding one entry, and its icon. A submission site can replace the pull request later, as Obsidian's community.obsidian.md did; the list stays the same.
+1. The publisher opens a pull request into `dev` adding one entry, and its icon. A submission site can replace the pull request later.
 2. CI runs the registry check:
    - the entry matches the rules above;
    - a remote server answers `initialize` and `tools/list` at `url`, or, for one that needs sign-in, its protected resource metadata names an authorization server on a declared host;
    - every tool has a description of at most 2,000 characters, and the tool list, with names, descriptions and annotations, is posted on the pull request.
 3. A maintainer reviews the entry once: who runs the server, what its tools do, whether their descriptions carry instructions aimed at the model, whether the hosts are complete, whether the privacy policy is real. `partner` needs evidence the author speaks for the company.
-4. Once merged and on `main`, the entry reaches every app at its next refresh, without an app update ([below](#how-the-app-gets-the-list)).
+4. Once merged and on `main`, the entry reaches every app at its next refresh, without an app update ([below](#how-the-app-gets-the-registry)).
 
 A later change to an entry is the same pull request and the same review. A change to a remote server needs none: the publisher deploys when they like, which is why tools added later start off ([below](#tools-added-later)).
 
-`CODEOWNERS` requires a maintainer's approval for every change under `plugins/registry/`, and the check refuses an entry with `publisher: surfsense` or `partner` unless a maintainer opened or approved it.
+`CODEOWNERS` requires a maintainer's approval for every change under `plugins/registry/`.
 
 ## Who can publish what
 
@@ -91,31 +89,36 @@ A publisher never touches SurfSense's code, and the user sees the same Connect b
 | `surfsense` | "By SurfSense" | Not affected |
 | `partner` | The company's name, "Verified" | Off until turned on |
 | `community` | The author's name | Off until turned on |
-| custom (not in the list) | "Not reviewed by SurfSense" | Off until turned on |
+| custom (not in the registry) | "Not reviewed by SurfSense" | Off until turned on |
 
-The publisher is the list's, never the plugin's, so no server can claim to be SurfSense.
+The publisher is the registry's, never the plugin's, so no server can claim to be SurfSense.
 
 ## Restricted mode
 
-Every plugin not published by SurfSense starts off. Settings → Plugins shows them greyed until the user turns third-party plugins on once, with a sentence saying they are run by other people, that what a tool is sent goes to its publisher, and that SurfSense reviews the listing, not every change to the server. Turning it back off disconnects nothing, but every third-party tool stops being offered until it is on again. Obsidian ships its community plugins the same way.
+Every plugin not published by SurfSense starts off. Settings → Plugins shows them greyed until the user turns third-party plugins on once, with a sentence saying they are run by other people, that what a tool is sent goes to its publisher, and that SurfSense reviews the listing, not every change to the server. Turning it back off disconnects nothing, but every third-party tool stops being offered until it is on again.
 
 ## Tools added later
 
-A remote server can change any day. The tools a user saw when connecting are recorded in `plugin_tools`. A tool that appears afterwards starts off, and the plugin's row says "Notion added 1 tool: delete page", with a switch. A tool whose annotations change from read-only to anything else, or whose description changes, is switched off again the same way. A removed tool disappears.
+A remote server can change any day, so every listing is compared with what `plugin_tools` recorded. The rule, which the rest of these docs refer to:
+
+- a new tool starts off;
+- a tool whose description changes, or whose annotations become less safe (no longer read-only, newly destructive or open world), is switched off;
+- a removed tool disappears.
+
+The plugin's row says what changed, such as "Notion added 1 tool: delete page", with a switch.
 
 ## Removing a plugin
 
 A maintainer moves an entry to `removed` with a reason. An app that refreshes such a list stops offering the plugin's tools, keeps the user's connection so nothing is lost if it comes back, and shows the reason on its row.
 
-## How the app gets the list
+## How the app gets the registry
 
-The list grows without app updates. Obsidian serves its list from its own server, `community.obsidian.md`, and keeps the GitHub copy as a mirror; SurfSense serves its list from its own server too.
+The registry grows without app updates. It is served from SurfSense's plugin host, one domain, for example `plugins.surfsense.com`, that serves both the registry and SurfSense's own plugin servers, and the only host the license key is ever sent to ([`05-paid.md`](05-paid.md)).
 
-- On every merge to `main` that changes `plugins/registry/`, a CI job adds `generated_at`, signs the file with an Ed25519 key held in a CI secret, and uploads the file and its signature to SurfSense's plugin host, for example `https://plugins.surfsense.com/plugins.json`. This is the same list, published; nobody edits the copy on the server.
+- On every merge to `main` that changes `plugins/registry/`, a CI job adds `generated_at`, signs the file with an Ed25519 key held in a CI secret, and uploads the file and its signature to SurfSense's plugin host, at `/plugins.json`. Nobody edits the copy on the server.
 - The app compiles in that URL and the public key, as it compiles in the keys that verify licenses offline ([ADR 0019](../../../adr/0019-offline-licenses.md)). A copy whose signature does not verify is ignored.
 - Fetching it needs consent for SurfSense's plugin host, which [`egress/service.py`](../../../../surfsense_local/backend/modules/egress/service.py) adds to `BUILT_IN`, off by default. Settings → Plugins has a Refresh button and refreshes on its own when opened, once allowed.
-- The installer carries the list as it was at build, so Settings → Plugins is not empty with no network. Of the shipped and the fetched copy, the later `generated_at` wins, and a copy with an unknown `schema_version` is ignored.
-- Serving from SurfSense's own host keeps the app independent of where the file is stored: a CDN or another provider can take over without an app update.
+- The installer carries the registry as it was at build. Until the user allows the host, that copy is the one used; after that, the newer of the two by `generated_at`. A copy with an unknown `schema_version` is ignored.
 
 ## Bundle entries (later)
 
@@ -149,18 +152,14 @@ When bundles arrive ([`bundles/`](../bundles/README.md)), a bundle is one more e
 }
 ```
 
-- The code, the plugin's own manifest and its release files stay in the author's repository. Nothing of them is copied into this repository or rehosted by SurfSense.
-- The author builds a release's files with a GitHub Action SurfSense provides in its plugin template, one archive per platform, and attaches them to a GitHub release in their repository, as Obsidian plugins attach `main.js` to theirs.
-- A scanner job watches listed repositories for new releases, runs the bundle checks on the release's source and files, and, when they pass, commits the version with each file's URL and sha256 to the entry. People review the first version and any version that adds a host, a secret, or an open-world or destructive tool; the scanner holds those for them.
-- The app downloads from the author's release and refuses a file whose sha256 differs from the list's, so a file swapped after the scan never runs.
-- A maintainer blocks a version by adding a reason to its `blocked`.
+How versions are built, scanned, verified and blocked is in [`bundles/`](../bundles/README.md).
 
 ## Acceptance
 
 - The check fails an entry with a bad id, an `http` URL, `auth: license` on a non-SurfSense publisher, an `external` entry with no `access_note`, or a host list missing the URL's host, each with a line naming the field.
-- A pull request adding a `surfsense` entry fails without a maintainer's approval.
-- With no network, Settings → Plugins lists the shipped list.
-- A list merged to `main` with a new entry reaches a running app at its next refresh; one with an entry moved to `removed` stops its tools and shows the reason.
-- A fetched list with a bad signature is ignored and the previous copy kept.
+- A pull request changing `plugins/registry/` cannot merge without a maintainer's approval.
+- With no network, Settings → Plugins lists the shipped registry.
+- A registry merged to `main` with a new entry reaches a running app at its next refresh; one with an entry moved to `removed` stops its tools and shows the reason.
+- A fetched registry with a bad signature is ignored and the previous copy kept.
 - A third-party plugin cannot be connected while Restricted mode is on, and its tools never reach a caller.
 - A tool a fake server adds after connecting is listed off and never reaches a caller until switched on.

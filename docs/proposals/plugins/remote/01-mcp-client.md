@@ -5,7 +5,7 @@
 
 ## The MCP client
 
-The API carries a small MCP client of its own, as Pi does with [`@earendil-works/pi-mcp`](https://github.com/earendil-works/pi/tree/main/packages/mcp), which does not depend on the official SDK. The app already serves MCP without a library ([agent](../../../architecture/agent.md#surfsenses-tools)), and the frozen API stays small.
+The API carries a small MCP client of its own, as Pi does with [`@earendil-works/pi-mcp`](https://github.com/earendil-works/pi/tree/main/packages/mcp), which does not depend on the official SDK. The app already serves MCP without a library ([agent](../../../architecture/agent.md#surfsenses-tools)), and the packaged API binary stays small.
 
 - **Transport:** Streamable HTTP only, answering both JSON and SSE responses, keeping the `Mcp-Session-Id` a server issues. The legacy SSE transport and stdio are not supported.
 - **Protocol:** offers `2025-11-25` and accepts what a server answers down to `2025-03-26`.
@@ -38,12 +38,12 @@ Credentials never reach a model, a log line, a step, or `plugin_calls`.
 
 ## Egress
 
-Every host in the entry's `hosts`, and for a custom plugin the URL's host and the authorization server's, needs the user's consent before connecting, one row per host as [ADR 0027](../../../adr/0027-egress-consent-per-host.md) requires.
+Every host in the entry's `hosts` needs the user's consent before connecting, one row per host as [ADR 0027](../../../adr/0027-egress-consent-per-host.md) requires. For a custom plugin, the URL's host is asked first, and the authorization server's hosts once discovery names them.
 
 - `EgressDeniedError` and its `403` gain `hosts`, every host still to allow, so one prompt asks for them together. `destination` and `host` stay as the first of them, so today's callers do not change. [`egress.md`](../../../architecture/egress.md) is updated in the same change.
 - Settings → Network lists a plugin's hosts with its name beside them (`list_destinations()`), and a host already allowed stays listed after the plugin is disconnected.
 - A host revoked in Settings → Network makes the plugin's next call a refusal, "Notion's host is not allowed", not a broken connection.
-- Fetching the list adds SurfSense's plugin host to `BUILT_IN` ([`../core/02-registry.md`](../core/02-registry.md#how-the-app-gets-the-list)).
+- Fetching the registry adds SurfSense's plugin host to `BUILT_IN` ([`../core/02-registry.md`](../core/02-registry.md#how-the-app-gets-the-registry)).
 
 ## Acceptance
 

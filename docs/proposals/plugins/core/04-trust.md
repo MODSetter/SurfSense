@@ -21,13 +21,12 @@ Approval follows the tool's MCP annotations. A server that sets none gets MCP's 
 
 | Tool | Before a call |
 |---|---|
-| `readOnlyHint: true` | Asks on the tool's first call, offering Allow once, Always allow this tool, or Deny |
-| Not read-only, not destructive | Asks every call, offering the same three |
+| Not destructive | Asks, offering Allow once, Always allow this tool, or Deny, until the user picks Always allow |
 | `destructiveHint: true` | Asks every call, offering Allow once or Deny |
 
 - The dialog shows the plugin, its publisher badge, the tool's title, and the exact arguments.
-- It is the agent's existing approval dialog ([`approval-dialog.tsx`](../../../../surfsense_local/frontend/src/features/agent/approval-dialog.tsx)) with a plugin variant. In both kinds of thread, the run goes `needs-approval` while it waits, and the answer goes to `POST /chat/threads/{id}/permissions/{request_id}`, which today serves opencode's own requests; plugin requests are answered by the gateway rather than passed to opencode.
-- "Always allow" is stored per tool in `plugin_tools.approval` and can be changed or revoked in Settings → Plugins.
+- It is the agent's approval dialog ([`approval-dialog.tsx`](../../../../surfsense_local/frontend/src/features/agent/approval-dialog.tsx)) with a plugin variant. The run goes `needs-approval`, and the answer uses the thread's existing permission route; the gateway handles plugin requests itself.
+- "Always allow" is stored per tool (`plugin_tools.approval` is `always`; otherwise `ask`) and can be revoked in Settings → Plugins.
 - An `@` mention approves its own call, except for a destructive tool ([`03-engines.md`](03-engines.md#-mentions)).
 - A call not answered before its deadline ends `denied`, and the model is told the user did not answer.
 
@@ -39,12 +38,12 @@ Settings → Plugins shows each connected plugin's tools with an on/off switch a
 
 The user's sources, and a plugin's own results, can carry text aimed at the model, and a tool description from a server is text the model reads too. A source can steer the model into calling a tool and sending what it read to that tool's host.
 
-- Approval with the exact arguments is the main defence. It is why a tool that is not read-only asks every time.
+- Approval with the exact arguments is the main defence.
 - Hosts are declared and consented, so data can go only to a host the user allowed.
-- Tool descriptions are reviewed when an entry is listed, capped at 2,000 characters, and shown to the user on the plugin's row. A description that changes after connecting switches the tool off as a new one would.
+- Tool descriptions are reviewed when an entry is listed and shown on the plugin's row. The gateway cuts every description to 2,000 characters, a custom plugin's included, and a changed description switches the tool off ([`02-registry.md`](02-registry.md#tools-added-later)).
 - Restricted mode keeps third-party plugins away from users who never chose them.
 
-None of this is a sandbox, and the docs say so. It is the same position Obsidian takes on its community plugins.
+None of this is a sandbox.
 
 ## Organisation policy
 
@@ -52,9 +51,8 @@ Later Enterprise work, kept possible by this design: a policy can turn plugins o
 
 ## Acceptance
 
-- A read-only tool asks on its first call and not again after Always allow; switching it back to ask restores the dialog.
+- A tool asks until Always allow is picked and not after; revoking it restores the dialog.
 - A destructive tool asks on every call and never offers Always allow, including after an `@` mention.
 - A tool with no annotations asks on every call.
 - A call left unanswered past its deadline ends `denied`.
-- A tool whose description changes after connecting is switched off and listed as changed.
 - The activity view lists a call's thread, arguments and outcome, and no credential.

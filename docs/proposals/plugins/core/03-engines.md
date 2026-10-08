@@ -7,65 +7,50 @@ The two engines stay as they are: opencode for a model that passes the agent tes
 
 ## opencode
 
-- Before each turn, beside `surfsense`, [`registration.py`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py) registers a second MCP server, `plugins`, at `/agent/plugin-tools/workspaces/{workspace}/threads/{thread}`, with the same launch key, the same refusal of any request carrying an `Origin` header, and the same 200-second call limit.
-- That endpoint answers `initialize`, `tools/list`, `tools/call` and `ping` as [`tool_endpoint/`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/) does, stateless and JSON only. `tools/list` is the gateway's `list_tools` for the thread's workspace, each tool's schema flattened the way SurfSense's own tools are, so small models do not send nested arguments as strings. `tools/call` is `call_tool` with `caller: agent` and a 190-second deadline.
-- SurfSense's own tool list, and the test that pins its order, do not change. A second server keeps plugin tools from shifting it.
-- A plugin connected or a tool switched on mid-thread appears at the next turn. That changes the tools opencode sends, so that turn misses the prompt cache once.
-- Only tools with `exposure: direct` are listed, at most 24 per thread, the plugins connected first winning. Finding the rest through a search tool is later work ([`06-later.md`](06-later.md)).
+- Before each turn, [`registration.py`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py) registers a second MCP server, `plugins`, beside `surfsense`, at `/agent/plugin-tools/workspaces/{workspace}/threads/{thread}`, with the same launch key, `Origin` refusal and 200-second limit.
+- The endpoint works like [`tool_endpoint/`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/). `tools/list` is the gateway's `list_tools`, with schemas flattened as SurfSense's own tools are, so small models do not send nested arguments as strings. `tools/call` is `call_tool` with `caller: agent` and a 190-second deadline.
+- SurfSense's own tool list, and the test that pins its order, do not change.
+- A plugin connected or a tool switched on mid-thread appears at the next turn, which misses the prompt cache once.
+- Only `direct` tools are listed, at most 24 per thread, the plugins connected first winning.
 - A call shows as a step. [`step-label.tsx`](../../../../surfsense_local/frontend/src/features/agent/step-label.tsx) already labels an unknown tool "Used {tool}"; it gains the plugin's name and the tool's title.
-- When a call needs approval, the gateway raises SurfSense's own permission request on the thread ([`04-trust.md`](04-trust.md#approval)), and the call waits inside its deadline.
+- A call that needs approval waits for it inside its deadline ([`04-trust.md`](04-trust.md#approval)).
 
 ## The chat engine: the router step
 
-The chat model never calls a tool. Before the answer, SurfSense asks it two small questions under a JSON schema, then calls the tool itself. Every text provider already takes a schema, local and remote ([below](#models-and-routes)), so no tool-calling support is needed.
+The chat model never calls a tool ([ADR 0052](../../../adr/0052-the-chat-model-never-calls-tools.md)). Before the answer, SurfSense asks it two small questions, each held to a JSON schema, then makes the call itself. Every text route the chat engine uses already takes a schema, ChatGPT plans included, so plugins add nothing model-specific.
 
-It runs when all hold:
+The router runs when the thread is a chat thread, the workspace has a ready `direct` tool with a flat input schema that is not `destructiveHint: true`, and the router is on for the selected model ([below](#when-the-router-is-on)). In `modules/chat/plugin_router/`:
 
-- the thread is a chat thread;
-- the workspace has at least one ready tool with `exposure: direct`, a flat input schema, and is not `destructiveHint: true`;
-- the router is on for the selected model ([below](#when-the-router-is-on)).
+1. **Choose.** One call with the user's message, the last exchange, and each candidate tool's name, title and description, held to `{"tool": <enum of the candidates, plus "none">}`, thinking off. `none` ends the router.
+2. **Fill.** One call held to the chosen tool's input schema. A required field it cannot fill ends the router.
+3. **Call.** `call_tool` with `caller: chat_router`, a 60-second deadline, and the same approval as the agent.
+4. **Answer.** The result joins the final user message as a labelled block after the retrieved passages, so the prompt grows only at its end ([ADR 0049](../../../adr/0049-prompts-grow-at-the-end.md)). Then the normal answer call runs.
 
-Steps, in `modules/chat/plugin_router/`:
+A schema is not a guarantee: llama-server rejects one for some chat templates, and some endpoints ignore it. So each reply is validated before anything is called: a choose reply that does not match counts as `none`, a fill reply that does not match ends the router. A router call that fails skips the router. Whenever the router ends early, the turn answers as it does today.
 
-1. **Choose.** One call with the user's message, the last exchange, and each candidate tool's qualified name, title and description. The schema is `{"tool": <enum of the candidates, plus "none">}`. Thinking is off for this call. `none` ends the router, and the turn goes on as today.
-2. **Fill.** One call with the user's message and the chosen tool's input schema as the response schema. A required field it cannot fill ends the router with no call.
-
-Each reply is validated against its schema before anything is called. A choose reply that does not match counts as `none`; a fill reply that does not match ends the router with no call. Nothing is guessed or repaired. A router call that fails skips the router, and the turn answers as today.
-3. **Call.** `call_tool` with `caller: chat_router` and a 60-second deadline, through the same approval as the agent.
-4. **Answer.** The result joins the turn as a labelled block in the final user message, after the retrieved passages and before the question, so the prompt still grows only at its end ([ADR 0049](../../../adr/0049-prompts-grow-at-the-end.md)). Then the normal single answer call runs.
-
-The router's calls go through the same model route and admission as every other call ([ADR 0048](../../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)).
+Router calls are model requests like any other: they go through the same route and admission ([ADR 0048](../../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)), and on a ChatGPT plan they count against the user's plan.
 
 ### When the router is on
 
-The chat eval gains a router test: questions with the right tool or `none`, and the right inputs, run on every curated model.
+The chat eval gains a router test: questions with the right tool or `none` and the right inputs, run on every curated model. The first row that matches the selected model wins.
 
 | The selected model | Router |
 |---|---|
+| `structured_output: false` in the catalog | Never |
+| Three router replies in a row that did not match their schema | Off, with a notice; the user can turn it back on |
+| Failed the router test | Off by default |
 | Passed the router test | On by default |
 | Remote, with `structured_output: true` in the catalog, or a ChatGPT plan's model | On by default |
-| Local and not yet measured, or any model the catalog says nothing about (`None`), or a custom connection's model | Off by default; Settings → Plugins offers "Let the chat use plugins on its own" for that model |
-| `structured_output: false` in the catalog | Never |
-| Three router replies in a row that do not match their schema | Switched off for that model, with a notice; the user can turn it back on |
+| Anything else: local and not yet measured, unknown to the catalog, or a custom connection's model | Off by default |
 
-`@` mentions work on every model either way ([below](#-mentions)).
-
-## Models and routes
-
-Plugins add nothing model-specific. The router uses the chat engine's existing JSON-schema support, which every text route already has, local, OpenAI-compatible and `/responses`, ChatGPT plans included; how each route sends the schema is the provider's concern ([chat](../../../architecture/chat.md), [ChatGPT subscription](../../../architecture/chatgpt-subscription.md)). opencode reaches plugin tools as MCP tools and handles each model as it already does ([agent](../../../architecture/agent.md)).
-
-What plugins do own:
-
-- A schema is not a guarantee: llama-server rejects one for some chat templates, and some endpoints ignore it. So every router reply is validated ([above](#the-chat-engine-the-router-step)).
-- Whether the router runs depends on the model ([above](#when-the-router-is-on)).
-- Each router call is a model request like any other, so on a ChatGPT plan it counts against the user's plan.
+Where it is off by default, Settings → Plugins offers "Let the chat use plugins on its own" for that model.
 
 ## `@` mentions
 
 - Typing `@` in the composer lists ready tools as `@<plugin> <tool>`.
-- A message with a mention skips the choose step: the router runs fill, call and answer for the named tool, in a chat thread on any model, and the agent gets the same call made before its turn in an agent thread, with the result in its prompt.
-- Filling still needs a schema. On a model whose router is off, or when a fill reply does not match the schema, the composer shows the tool's inputs as a small form, filled from the message where it can be, which the user completes and sends. So a mention works on every model, local or remote.
-- The mention counts as the user's approval for that one call, unless the tool is `destructiveHint: true`.
+- A mention skips choose. Where the router is on for the model, the model fills the inputs; where it is off, or a fill reply fails its schema, the composer shows the tool's inputs as a form, filled from the message where it can be, for the user to complete. So a mention works on every model.
+- In a chat thread the call's result joins the answer as in step 4. In an agent thread the call is made before the turn, and its result is in the agent's prompt.
+- The mention is the user's approval for that one call, unless the tool is `destructiveHint: true`.
 
 ## Results
 
@@ -87,5 +72,5 @@ What plugins do own:
 - A model with `structured_output: false` never runs the router, and `@` on it opens the input form.
 - A local model whose template rejects the schema, and an endpoint that ignores `response_format`, both end with no tool call and a normal answer.
 - Three mismatched router replies in a row switch the router off for that model, with a notice.
-- `@test search cats` in a chat thread on Qwen3-0.6B calls the tool with `cats` without asking for approval.
+- `@test search cats` in a chat thread on Qwen3-0.6B, with the router off, opens the form with `cats` filled in; sending it calls the tool without asking for approval.
 - Save to Sources twice on the same call leaves one note, with the later `fetched_at`.

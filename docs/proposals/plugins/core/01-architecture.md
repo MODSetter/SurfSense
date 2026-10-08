@@ -1,6 +1,6 @@
 # Architecture
 
-> Owns: `surfsense_local/backend/modules/plugins/` (`registry/`, `gateway/`, `mcp_client/`, `results/`, `router.py`), the plugin tables.
+> Owns: `surfsense_local/backend/modules/plugins/` (`gateway/`, `installed/`, `results/`, `routes.py`), the plugin tables. The MCP client is [`../remote/01-mcp-client.md`](../remote/01-mcp-client.md)'s, the copy of the registry [`02-registry.md`](02-registry.md)'s.
 > Callers: [`03-engines.md`](03-engines.md). Sources: [`../remote/README.md`](../remote/README.md), later [`bundles/`](../bundles/README.md).
 
 ## Shape
@@ -9,12 +9,12 @@
 opencode ──MCP──► modules/agent/plugin_tools ──┐
 chat engine ──► modules/chat/plugin_router ────┼──► Tool Gateway ──► ToolSource ──► remote MCP server
 "@plugin tool" in the composer ────────────────┘         │                       (later: bundle process)
-                                                          ├── Registry: what is installed, enabled, ready
+                                                          ├── Installed: what is connected, enabled, ready
                                                           ├── Policy and approval
                                                           └── plugin_calls: every call and its result
 ```
 
-This follows Pi's structure (`packages/coding-agent/src/extensions/mcp/` at commit `ce950d7` of [earendil-works/pi](https://github.com/earendil-works/pi)): the app owns one tool pipeline that every call passes through, and MCP is a source of tools adapted into it, not the core. Unlike Pi, no plugin code runs inside the app.
+The app owns one tool pipeline that every call passes through, and MCP is a source of tools adapted into it, as in Pi ([README](../README.md#prior-art)). No plugin code runs inside the app.
 
 ## The Tool Gateway
 
@@ -27,7 +27,7 @@ This follows Pi's structure (`packages/coding-agent/src/extensions/mcp/` at comm
 
 `scope` carries the workspace, the thread, and the turn. `caller` is `agent`, `chat_router` or `mention`. A refusal (no credentials, a host revoked, a server refusing the license, the user denying) comes back as a `ToolOutcome` with a sentence the model or the screen shows, never an exception.
 
-`PluginTool` is engine-neutral: the qualified name, the plugin's display name, the tool's title and description, its input schema, its MCP annotations, its exposure. Each caller turns it into what its engine needs ([`03-engines.md`](03-engines.md)).
+`PluginTool` is engine-neutral: the qualified name, the plugin's display name, the tool's title and description, its input schema, its MCP annotations, its exposure. `exposure` is SurfSense's, not MCP's: `direct` (listed to the engines) or `deferred` (later, found by search, [`06-later.md`](06-later.md)), stored per tool, `direct` by default. Each caller turns it into what its engine needs ([`03-engines.md`](03-engines.md)).
 
 ## Tool sources
 
@@ -46,12 +46,12 @@ Nothing above the gateway knows which kind of source a tool came from.
 
 ## Names
 
-A tool's qualified name is `<plugin id>__<tool name>`, with every character outside `[A-Za-z0-9_]` replaced by `_`, cut to 64 characters with a short hash when longer, as providers allow at most 64. opencode adds its server prefix, so the agent sees `plugins_notion__search`. Permissions, steps, history and `@` mentions all use the qualified name.
+A tool's qualified name is `<plugin id>__<tool name>`, with every character outside `[A-Za-z0-9_]` replaced by `_`, cut to 55 characters with a short hash when longer. opencode adds its server prefix, so the agent sees `plugins_notion__search`, and the prefix still fits within the 64 characters providers allow. Permissions, steps, history and `@` mentions all use the qualified name.
 
 ## Results
 
 - A source returns MCP content: text, images, and `structuredContent` when the server sends it.
-- Text over 20 KB reaches a model with its middle removed and a marker saying how much was cut and the call it belongs to, as Pi does. The full result is kept with the call.
+- Text over 20 KB reaches a model with its middle removed and a marker saying how much was cut. The full result is kept with the call.
 - Results are kept in `plugin_calls` and shown as a step of the turn ([`03-engines.md`](03-engines.md#results)).
 
 ## Tables
@@ -62,7 +62,7 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 |---|---|
 | `installed_plugins` | `id`, `kind` (`remote`), `source` (`registry` or `custom`), `url`, `publisher`, `enabled`, `connected_at`, the registry entry it was connected from |
 | `plugin_credentials` | `plugin_id`, `kind` (`oauth`, `token`, `license`), encrypted values through `shared/secrets.py`: token, refresh token, expiry, the registered OAuth client |
-| `plugin_tools` | `plugin_id`, `tool`, `first_seen_at`, `enabled`, `approval` (`ask`, `always`, `never`), the annotations and schema last seen |
+| `plugin_tools` | `plugin_id`, `tool`, `first_seen_at`, `enabled`, `approval` (`ask` or `always`, [`04-trust.md`](04-trust.md#approval)), `exposure`, and the description, annotations and schema last seen, which [`02-registry.md`](02-registry.md#tools-added-later) compares on each listing |
 | `plugin_calls` | `id`, `workspace_id`, `thread_id`, `message_id`, `caller`, `plugin_id`, `tool`, `arguments`, `status` (`waiting_approval`, `running`, `succeeded`, `failed`, `denied`, `cancelled`), `result_text`, `result_data`, `error`, `started_at`, `finished_at` |
 
 `plugin_runs`, built for the earlier design, stays for bundles.
@@ -71,8 +71,8 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/plugins` | The catalog joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
-| `POST` | `/plugins/catalog/refresh` | Refreshes the registry copy ([`02-registry.md`](02-registry.md#how-the-app-gets-the-list)) |
+| `GET` | `/plugins` | The registry joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
+| `POST` | `/plugins/registry/refresh` | Fetches the registry again ([`02-registry.md`](02-registry.md#how-the-app-gets-the-registry)) |
 | `POST` | `/plugins/{id}/connect` | Starts connecting: a token, OAuth, or the license, after egress consent |
 | `POST` | `/plugins/custom` | Adds a remote server by URL |
 | `DELETE` | `/plugins/{id}` | Disconnects: credentials deleted, tools gone; past calls stay in their threads |

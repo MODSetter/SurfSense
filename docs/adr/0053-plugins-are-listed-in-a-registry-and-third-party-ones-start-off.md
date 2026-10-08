@@ -13,12 +13,12 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 ## Decision
 
 - One file, `plugins/registry/plugins.json` in this repository, lists every plugin the app shows, SurfSense's own included; nothing is maintained beside it. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
-- The list points at plugins and never holds them: a plugin's code, and later its bundle files, stay with its publisher, in its own host or repository.
-- Each entry has a `kind`, `remote` now, with `bundle` reserved. Its publisher, `surfsense`, `partner` or `community`, is set by the registry, and only maintainers merge `surfsense` and `partner` entries.
+- The registry points at plugins and never holds them: a plugin's code, and later its bundle files, stay with its publisher, in its own host or repository.
+- Each entry has a `kind`, `remote` now, with `bundle` reserved. Its publisher, `surfsense`, `partner` or `community`, is set in the registry, and `CODEOWNERS` requires a maintainer's approval for every change to it.
 - Every plugin not published by SurfSense, a custom one added by URL included, is off until the user turns third-party plugins on once.
-- A tool a server adds after the user connected, or whose description or annotations change, starts off until the user turns it on.
+- A tool a server adds after the user connected, or one that changes as the proposal's rule says, starts off until the user turns it on ([tools added later](../proposals/plugins/core/02-registry.md#tools-added-later)).
 - A maintainer delists a plugin by moving its entry to `removed` with a reason; apps stop offering its tools.
-- On each merge to `main`, CI signs the list and publishes it to SurfSense's own plugin host. The app fetches it from there after consent and checks the signature against a key compiled in, so the list grows without app updates. The installer's copy is only the fallback with no network.
+- On each merge to `main`, CI signs the registry and publishes it to SurfSense's own plugin host. The app fetches it from there after consent and checks the signature against a key compiled in, so the registry grows without app updates. The installer carries a copy, used until the user allows the host and then whenever it is the newer.
 
 ## Consequences
 
@@ -28,4 +28,4 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 
 ## Where the code stands
 
-`plugins/registry/` does not exist, and the app has no catalog, Restricted mode or plugin screen. The only plugin interface is a "Plugins / Coming soon" button in [`dashboard-page.tsx`](../../surfsense_local/frontend/src/features/dashboard/dashboard-page.tsx).
+`plugins/registry/` does not exist, and the app has no copy of the registry, Restricted mode or plugin screen. The only plugin interface is a "Plugins / Coming soon" button in [`dashboard-page.tsx`](../../surfsense_local/frontend/src/features/dashboard/dashboard-page.tsx).

@@ -16,7 +16,7 @@ A server is a Python project with its own `pyproject.toml`, tests and `Dockerfil
 
 ### SurfSense Scrapers
 
-The first paid plugin, and a container of its own. It shares no code, process, database or deployment with `surfsense_backend`.
+The first paid plugin.
 
 ```
 plugins/proprietary/surfsense-scrapers/      Business Source License 1.1
@@ -34,7 +34,7 @@ plugins/proprietary/surfsense-scrapers/      Business Source License 1.1
 ```
 
 - **Tools.** One per scraper verb: web crawl, Google Search, Reddit, YouTube and its comments, Instagram and its details, TikTok and its comments, user search and trending, Google Maps and its reviews, Indeed, Amazon, Walmart and its reviews. Each declares `readOnlyHint: true` and `openWorldHint: true`, returns a readable summary as text with the items as `structuredContent`, and reports progress with MCP progress notifications. A result too large to return whole is kept for a day and paged with a `get_scraper_result` tool. A cancelled call stops its scrape.
-- **The license, on the server.** Every request needs `Authorization: License <key>`. The container validates it with Keygen itself, by contract 2's producer rules: a result cached for five minutes, a key validated in the last 24 hours still accepted while Keygen is unreachable, and the `401` and `403` reasons the contract defines ([`../core/05-paid.md`](../core/05-paid.md)). It counts requests per license and limits their rate.
+- **The license, on the server.** Every request needs `Authorization: License <key>`, checked as [`../core/05-paid.md`](../core/05-paid.md) says. The container counts requests per license and limits their rate.
 - **Its own secrets:** the proxy providers' credentials, the captcha solver's key, and Keygen access, all as environment variables of the deployment. None of them reaches the app.
 - **Its own dependencies:** Redis for Google Search's IP pool, SearXNG as Google Search's fallback, and Scrapling's browsers, all inside its deployment.
 - **No database.** The scraper API's `runs` table and async-run events are replaced by MCP progress and a short-lived result store in Redis.
@@ -45,7 +45,7 @@ The scraping code lives in `surfsense_backend` today: [`app/proprietary/platform
 
 1. **Copy now.** The container starts as a copy of that code, with every `app.*` import replaced by the container's own `config.py`, helpers and progress reporting. The hosted backend keeps its copy, as AGENTS.md requires until the purge on 18 Oct 2026.
 2. **Delete the backend's copy when nothing uses it.** The backend's scraper API still serves outside clients, so its copy is deleted once those clients have moved to the container or the scraper API is retired, and never before the purge. Then the container is the one home of the scraping code. Until then a fix to a scraper goes to both copies.
-3. **One license for all of it.** Everything the scrapers container holds is under the Business Source License, including the copies of `app/utils/proxy/`, `app/utils/captcha/` and `app/utils/crawl/`, which are Apache-2.0 in the backend today. Every commit to that code and to the scrapers is by a SurfSense maintainer, so SurfSense holds the rights to all of it and no file keeps a separate Apache-2.0 notice.
+3. **One license for all of it.** Everything the container holds is under the Business Source License, including the copies of `app/utils/proxy/`, `app/utils/captcha/` and `app/utils/crawl/`, which are Apache-2.0 in the backend today ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)).
 
 Outside clients, `surfsense_mcp` and direct users of the scraper API, keep using the backend's scraper API until it is retired; whether they move to this container then is open ([README](../README.md#open-questions)).
 
