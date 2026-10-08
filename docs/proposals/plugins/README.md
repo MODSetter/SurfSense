@@ -66,8 +66,8 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 | Results | Belong to the turn and are stored with the call. Nothing reaches Sources unless the user saves it |
 | Approval | From the tool's MCP annotations, in SurfSense's own dialog, for every caller |
 | Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |
-| Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers. A third party bills on its own side and never sees the key ([`06-paid.md`](06-paid.md)) |
-| SurfSense's own plugin servers | In [`plugins/`](../../../plugins/README.md): free ones under Apache-2.0, paid ones in `plugins/proprietary/` under the Business Source License 1.1 ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md)). SurfSense hosts them all |
+| Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`06-paid.md`](06-paid.md)) |
+| SurfSense's own plugin servers | In [`plugins/`](../../../plugins/README.md): free ones under Apache-2.0, paid ones in `plugins/proprietary/`, where everything, helpers included, is under the Business Source License 1.1 ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md)). Each runs as its own container that SurfSense deploys, sharing no code or service with `surfsense_backend`. SurfSense Scrapers carries the scraping code itself, moved out of the backend |
 | `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
 | Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`05-trust.md`](05-trust.md#organisation-policy)) |
 
@@ -81,7 +81,7 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 | **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, Restricted mode, permissions, activity | the gateway's routes; can start against their shapes |
 | **opencode** | `modules/agent/plugin_tools/` | the gateway |
 | **Chat router** | `modules/chat/plugin_router/`, `@` mentions, the chat eval's router test | the gateway |
-| **SurfSense scrapers** | `plugins/proprietary/surfsense-scrapers/`, its hosting | license mode on the scraper API ([contract 2](../../contracts/02-scraper-api-auth.md)) |
+| **SurfSense scrapers** | `plugins/proprietary/surfsense-scrapers/`: the scraping code copied out of `surfsense_backend`, the MCP server, the license check, the container with Redis and SearXNG, its deployment | the root `LICENSE` line for `plugins/proprietary/` |
 | **Contributor guide** | [`plugins/README.md`](../../../plugins/README.md), rewritten: building a remote MCP server, trying it with a custom plugin by URL, the registry pull request | the registry's rules |
 | **Bundles** | [`bundles/`](bundles/README.md) | deferred |
 
@@ -91,12 +91,12 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 
 ## Order of work
 
-1. **License mode on the scraper API** ([contract 2](../../contracts/02-scraper-api-auth.md)), in `surfsense_backend`. It is needed by SurfSense Scrapers and by outside MCP clients alike, and personal keys are purged on 18 Oct 2026, so it starts at once and in parallel.
+1. **License mode on the scraper API** ([contract 2](../../contracts/02-scraper-api-auth.md)), in `surfsense_backend`, for outside clients such as `surfsense_mcp`, whose personal keys are purged on 18 Oct 2026. It starts at once and in parallel; the plugins do not depend on it.
 2. **MCP client, gateway, tables and the opencode endpoint**, shown with a test server listed in the registry. The agent calling a plugin is the first thing to demonstrate.
 3. **Settings → Plugins**: Connect, sign-in, egress consent, Restricted mode, tool switches, approval, activity.
 4. **The registry**: `plugins.json`, its check, signing and publishing to SurfSense's host, the app's refresh.
 5. **The chat router and `@` mentions**, with the chat eval's router test.
-6. **SurfSense Scrapers**, once step 1 is done, then partners' entries.
+6. **SurfSense Scrapers**: copy the scraping code into its own container, add the MCP server and the license check, deploy it. The backend's copy is deleted once outside clients no longer use the backend's scraper API, never before the purge. Then partners' entries.
 7. **Bundles**, when something needs them.
 
 ## What this design gives up
@@ -125,5 +125,5 @@ Plugins that change SurfSense itself (providers, interface, prompts); local MCP 
 - How long tool results are kept and how large a stored one may be.
 - The router's default per model, from the chat eval's router test.
 - Where SurfSense's plugin servers and the signed list are deployed, and under which hostname.
-- How SurfSense's scrapers server learns the scraper API workspace for a license, since contract 2 creates one per license on first call.
+- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the scrapers container once the backend's scraper API is retired.
 - Whether the root [`LICENSE`](../../../LICENSE) names `plugins/proprietary/`; a maintainer has to approve that line ([`06-paid.md`](06-paid.md)).

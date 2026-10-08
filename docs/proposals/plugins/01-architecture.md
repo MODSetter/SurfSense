@@ -22,10 +22,10 @@ This follows Pi's structure (`packages/coding-agent/src/extensions/mcp/` at comm
 
 | Call | Returns |
 |---|---|
-| `list_tools(scope) -> list[PluginTool]` | The tools ready in this workspace: plugin connected and enabled, Restricted mode allowing it, credentials present, its hosts allowed, license valid for a paid one, the tool itself on |
+| `list_tools(scope) -> list[PluginTool]` | The tools ready in this workspace: plugin connected and enabled, Restricted mode allowing it, credentials present, its hosts allowed, the tool itself on. A paid plugin's license is not checked here: its server decides ([`06-paid.md`](06-paid.md)) |
 | `call_tool(scope, name, arguments, caller) -> ToolOutcome` | Checks the arguments against the tool's schema, asks for approval when its policy says so ([`05-trust.md`](05-trust.md)), records a `plugin_calls` row, calls the source, trims the result, stores it, returns it |
 
-`scope` carries the workspace, the thread, and the turn. `caller` is `agent`, `chat_router` or `mention`. A refusal (no credentials, a host revoked, a license expired, the user denying) comes back as a `ToolOutcome` with a sentence the model or the screen shows, never an exception.
+`scope` carries the workspace, the thread, and the turn. `caller` is `agent`, `chat_router` or `mention`. A refusal (no credentials, a host revoked, a server refusing the license, the user denying) comes back as a `ToolOutcome` with a sentence the model or the screen shows, never an exception.
 
 `PluginTool` is engine-neutral: the qualified name, the plugin's display name, the tool's title and description, its input schema, its MCP annotations, its exposure. Each caller turns it into what its engine needs ([`04-engines.md`](04-engines.md)).
 
@@ -71,7 +71,7 @@ Hand-written migrations, as [ADR 0005](../../adr/0005-hand-written-migrations.md
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/plugins` | The catalog joined with what is installed: each plugin's entry, publisher, access, license state, connection state, tools and their switches |
+| `GET` | `/plugins` | The catalog joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
 | `POST` | `/plugins/catalog/refresh` | Refreshes the registry copy ([`02-registry.md`](02-registry.md#how-the-app-gets-the-list)) |
 | `POST` | `/plugins/{id}/connect` | Starts connecting: a token, OAuth, or the license, after egress consent |
 | `POST` | `/plugins/custom` | Adds a remote server by URL |
