@@ -67,7 +67,7 @@ plugins/
 
 | Decision | Choice |
 |---|---|
-| Protocol | MCP, unmodified, protocol `2025-11-25`. No protocol of SurfSense's own |
+| Protocol | MCP, unmodified, protocol `2025-11-25`. No protocol of SurfSense's own: its controls sit around MCP, in the registry and the app. A plugin server sees only standard MCP and ordinary HTTP sign-in headers, so any MCP server works as a plugin unchanged, and SurfSense's own servers work in any MCP client |
 | The core | One Tool Gateway in the API: the only way any caller reaches any plugin tool. Policy, approval, logging and trimming live there once |
 | Sources of tools | Remote MCP servers over HTTPS first. Bundles (`kind: bundle`) later, through the same gateway |
 | Who hosts a remote plugin | Its publisher: SurfSense, a company, or a community developer |

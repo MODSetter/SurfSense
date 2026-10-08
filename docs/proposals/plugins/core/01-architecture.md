@@ -14,7 +14,7 @@ chat engine ──► modules/chat/plugin_router ────┼──► Tool G
                                                           └── plugin_calls: every call and its result
 ```
 
-The app owns one tool pipeline that every call passes through, and MCP is a source of tools adapted into it, as in Pi ([README](../README.md#prior-art)). No plugin code runs inside the app.
+The app owns one tool pipeline that every call passes through, and MCP is a source of tools adapted into it, as in Pi ([README](../README.md#prior-art)). No plugin code runs inside the app. The app is an MCP client towards plugin servers and, for opencode, an MCP server in front of the gateway ([`03-engines.md`](03-engines.md#opencode)); both sides are plain MCP.
 
 ## The Tool Gateway
 

@@ -9,6 +9,7 @@ The two engines stay as they are: opencode for a model that passes the agent tes
 
 - Before each turn, [`registration.py`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py) registers a second MCP server, `plugins`, beside `surfsense`, at `/agent/plugin-tools/workspaces/{workspace}/threads/{thread}`, with the same launch key, `Origin` refusal and 200-second limit.
 - The endpoint works like [`tool_endpoint/`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/). `tools/list` is the gateway's `list_tools`, with schemas flattened as SurfSense's own tools are, so small models do not send nested arguments as strings. `tools/call` is `call_tool` with `caller: agent` and a 190-second deadline.
+- opencode never connects to a plugin server itself. The endpoint is an MCP server in front of the gateway, which forwards each call to the plugin's server through the MCP client, so approval, egress consent and the record of calls apply to every call. Both sides are plain MCP.
 - SurfSense's own tool list, and the test that pins its order, do not change.
 - A plugin connected or a tool switched on mid-thread appears at the next turn, which misses the prompt cache once.
 - Only `direct` tools are listed, at most 24 per thread, the plugins connected first winning.
