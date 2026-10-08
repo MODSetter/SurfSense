@@ -82,7 +82,7 @@ Studio's Word and PDF buttons take one of two paths, chosen by [`office/document
 - The job sends the whole spec, fenced, and the instruction in one call, gets the whole revised spec back, and renders it as a draft of that kind would. Nothing is patched or diffed. The rewritten spec is kept only when it renders: a failed refine keeps none, is not retried by Huey, and leaves every earlier version as it was.
 - The agent's `surfsense_read_document` and `surfsense_render_document` refuse any version of a document Studio made, with "This document was made in Studio: refine it there, or make a new document." ([07](../proposals/file-agent/07-create-and-edit-mvp.md), decision 8).
 
-Studio uses no Electron `printToPDF`, which only draws the agent's Word and PowerPoint previews and its sources' pages ([agent](agent.md#previews)), and there is no ffmpeg in `surfsense_local`. A PDF is ReportLab through the builder, a Studio script or a script document. A local podcast is one `audio/mpeg` encoded by LAME, through the `lameenc` package, from each turn's WAV joined; a server's is one `audio/wav` joined from its WAV turns, or one `audio/mpeg` from a server that sends only MP3.
+Studio uses no Electron `printToPDF`, which only draws the agent's Word and PowerPoint previews and its sources' pages ([agent](agent.md#previews)), and there is no ffmpeg in `surfsense_local`. A PDF is ReportLab through the builder, a Studio script or a script document.
 
 ## Script documents
 

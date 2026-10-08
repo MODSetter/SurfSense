@@ -109,7 +109,8 @@ class AudioCppSpeech:
                     voiced = await self._voice_each(client, turns, language, speaks)
                 finally:
                     await _unload(client)
-        return encoded_episode(joined_wav(voiced))
+        # Off the event loop: encoding a long episode takes seconds of CPU.
+        return await asyncio.to_thread(lambda: encoded_episode(joined_wav(voiced)))
 
     async def _wait_for_memory(self, seconds: float) -> None:
         deadline = time.monotonic() + seconds
