@@ -15,6 +15,23 @@ The files in this folder are the earlier design, written when a plugin was a sid
 
 **Where a bundle lives.** A third party's bundle lives in its author's repository: its code, its manifest, and the files of each release, which the author attaches to a GitHub release there. This repository holds only its entry in [`plugins.json`](../02-registry.md#bundle-entries-later), with each approved version's file URLs and sha256s, and never a copy of the code or the files. The exceptions are SurfSense's own: a bundle SurfSense publishes lives in [`plugins/`](../../../../plugins/README.md), or `plugins/proprietary/` when paid, the teaching example in `plugins/example/`, and the tooling in `plugins/core/`.
 
+## Remote and bundle
+
+| | `remote` (first) | `bundle` (later) |
+|---|---|---|
+| Where the code runs | The publisher's server | The user's machine, as a separate process |
+| What the user gets | A connection to a URL | Files downloaded from the author's release and checked against `plugins.json` |
+| Who hosts it | The publisher | Nobody |
+| Offline or air-gapped | No | Yes, when the plugin needs no network |
+| What leaves the machine | Each call's arguments, to the publisher | Only what the plugin sends to its declared hosts |
+| Reaches local software | No | Yes: local files, a local database, a company's internal network |
+| Updates | When the publisher deploys | A new release, scanned, then updated by the user |
+| Review | The listing, once | The code: the first version and permission changes by a person, every version by the scanner |
+| Cost to the user's machine | None | Code running with the user's permissions; about 30–60 MB per active process |
+| Behind the gateway | `RemoteMcpSource` | `BundleSource` |
+
+Both are MCP servers, and both reach opencode, the chat router and `@` mentions through the same gateway, with the same approval and Restricted mode.
+
 ## What changes when bundles are picked up
 
 | Here | Becomes |

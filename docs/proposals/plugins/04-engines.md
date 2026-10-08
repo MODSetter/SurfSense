@@ -17,7 +17,7 @@ The two engines stay as they are: opencode for a model that passes the agent tes
 
 ## The chat engine: the router step
 
-The chat model never calls a tool. Before the answer, SurfSense asks it two small questions under a JSON schema, then calls the tool itself. llama.cpp holds any local model to a schema ([agent/01](../agent/01-which-engine.md#structured-output-on-the-local-runtime)), so no tool-calling support is needed.
+The chat model never calls a tool. Before the answer, SurfSense asks it two small questions under a JSON schema, then calls the tool itself. Every text provider already takes a schema, local and remote ([below](#models-and-routes)), so no tool-calling support is needed.
 
 It runs when all hold:
 
@@ -29,19 +29,42 @@ Steps, in `modules/chat/plugin_router/`:
 
 1. **Choose.** One call with the user's message, the last exchange, and each candidate tool's qualified name, title and description. The schema is `{"tool": <enum of the candidates, plus "none">}`. Thinking is off for this call. `none` ends the router, and the turn goes on as today.
 2. **Fill.** One call with the user's message and the chosen tool's input schema as the response schema. A required field it cannot fill ends the router with no call.
+
+Each reply is validated against its schema before anything is called. A choose reply that does not match counts as `none`; a fill reply that does not match ends the router with no call. Nothing is guessed or repaired. A router call that fails skips the router, and the turn answers as today.
 3. **Call.** `call_tool` with `caller: chat_router` and a 60-second deadline, through the same approval as the agent.
 4. **Answer.** The result joins the turn as a labelled block in the final user message, after the retrieved passages and before the question, so the prompt still grows only at its end ([ADR 0049](../../adr/0049-prompts-grow-at-the-end.md)). Then the normal single answer call runs.
 
-The router's calls go through the same model route and admission as every other call ([ADR 0048](../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)). A remote model without `structured_output` in the catalog gets no router, only `@` mentions.
+The router's calls go through the same model route and admission as every other call ([ADR 0048](../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)).
 
 ### When the router is on
 
-The chat eval gains a router test: questions with the right tool or `none`, and the right inputs, run on every curated model. A model that passes runs the router by default. Until a model has passed, the router is off for it, and Settings → Plugins offers "Let the chat use plugins on its own" to turn it on. `@` mentions work on every model either way.
+The chat eval gains a router test: questions with the right tool or `none`, and the right inputs, run on every curated model.
+
+| The selected model | Router |
+|---|---|
+| Passed the router test | On by default |
+| Remote, with `structured_output: true` in the catalog, or a ChatGPT plan's model | On by default |
+| Local and not yet measured, or any model the catalog says nothing about (`None`), or a custom connection's model | Off by default; Settings → Plugins offers "Let the chat use plugins on its own" for that model |
+| `structured_output: false` in the catalog | Never |
+| Three router replies in a row that do not match their schema | Switched off for that model, with a notice; the user can turn it back on |
+
+`@` mentions work on every model either way ([below](#-mentions)).
+
+## Models and routes
+
+Plugins add nothing model-specific. The router uses the chat engine's existing JSON-schema support, which every text route already has, local, OpenAI-compatible and `/responses`, ChatGPT plans included; how each route sends the schema is the provider's concern ([chat](../../architecture/chat.md), [ChatGPT subscription](../../architecture/chatgpt-subscription.md)). opencode reaches plugin tools as MCP tools and handles each model as it already does ([agent](../../architecture/agent.md)).
+
+What plugins do own:
+
+- A schema is not a guarantee: llama-server rejects one for some chat templates, and some endpoints ignore it. So every router reply is validated ([above](#the-chat-engine-the-router-step)).
+- Whether the router runs depends on the model ([above](#when-the-router-is-on)).
+- Each router call is a model request like any other, so on a ChatGPT plan it counts against the user's plan.
 
 ## `@` mentions
 
 - Typing `@` in the composer lists ready tools as `@<plugin> <tool>`.
 - A message with a mention skips the choose step: the router runs fill, call and answer for the named tool, in a chat thread on any model, and the agent gets the same call made before its turn in an agent thread, with the result in its prompt.
+- Filling still needs a schema. On a model whose router is off, or when a fill reply does not match the schema, the composer shows the tool's inputs as a small form, filled from the message where it can be, which the user completes and sends. So a mention works on every model, local or remote.
 - The mention counts as the user's approval for that one call, unless the tool is `destructiveHint: true`.
 
 ## Results
@@ -61,6 +84,8 @@ The chat eval gains a router test: questions with the right tool or `none`, and 
 - An agent thread with a test plugin connected: the agent calls its tool, the step shows the plugin and title, and SurfSense's own tool list is unchanged.
 - A plugin tool switched off disappears from the next turn's `tools/list`.
 - A chat thread with the router on: a question that fits the test tool calls it and answers from its result; a question that does not gets `none` and a normal answer, with one extra model call.
-- A remote model without structured output never runs the router, and `@` still works.
+- A model with `structured_output: false` never runs the router, and `@` on it opens the input form.
+- A local model whose template rejects the schema, and an endpoint that ignores `response_format`, both end with no tool call and a normal answer.
+- Three mismatched router replies in a row switch the router off for that model, with a notice.
 - `@test search cats` in a chat thread on Qwen3-0.6B calls the tool with `cats` without asking for approval.
 - Save to Sources twice on the same call leaves one note, with the later `fetched_at`.

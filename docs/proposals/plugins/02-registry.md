@@ -72,6 +72,18 @@ A later change to an entry is the same pull request and the same review. A chang
 
 `CODEOWNERS` requires a maintainer's approval for every change under `plugins/registry/`, and the check refuses an entry with `publisher: surfsense` or `partner` unless a maintainer opened or approved it.
 
+## Who can publish what
+
+| Publisher's situation | What they do |
+|---|---|
+| Already runs an MCP server, as many products do | One registry entry pointing at it. Nothing else to build |
+| Has an API but no MCP server | Builds a remote MCP server over its API, with any MCP SDK, and hosts it: then it works in SurfSense and every other MCP client. Later, a bundle is the alternative for a publisher that will not host anything ([`bundles/`](bundles/README.md)) |
+| Wants the agent to use its tools well | Adds skills to its entry once plugins carry them ([`07-later.md`](07-later.md)) |
+| A community developer wrapping someone else's public API | Hosts the server themselves and lists it as `community`, never `partner`. The entry and the screen say who runs the server, and its privacy policy is the developer's, since the user's requests and credentials pass through it |
+| SurfSense | Its own servers in [`plugins/`](../../../plugins/README.md) and `plugins/proprietary/` ([`03-remote-plugins.md`](03-remote-plugins.md#surfsenses-own-servers)), listed as `surfsense` |
+
+A publisher never touches SurfSense's code, and the user sees the same Connect button whatever the publisher.
+
 ## Publishers
 
 | Publisher | Shown as | Restricted mode |

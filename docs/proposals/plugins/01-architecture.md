@@ -72,7 +72,7 @@ Hand-written migrations, as [ADR 0005](../../adr/0005-hand-written-migrations.md
 | Method | Path | Does |
 |---|---|---|
 | `GET` | `/plugins` | The catalog joined with what is installed: each plugin's entry, publisher, access, license state, connection state, tools and their switches |
-| `POST` | `/plugins/catalog/refresh` | Refreshes the registry copy ([`02-registry.md`](02-registry.md#in-the-app)) |
+| `POST` | `/plugins/catalog/refresh` | Refreshes the registry copy ([`02-registry.md`](02-registry.md#how-the-app-gets-the-list)) |
 | `POST` | `/plugins/{id}/connect` | Starts connecting: a token, OAuth, or the license, after egress consent |
 | `POST` | `/plugins/custom` | Adds a remote server by URL |
 | `DELETE` | `/plugins/{id}` | Disconnects: credentials deleted, tools gone; past calls stay in their threads |
