@@ -1,6 +1,7 @@
 import { intl } from "@/i18n/intl"
 
 import type { InstallEvent } from "../chat/api"
+import { notRunnableLine } from "../chat/not-runnable-text"
 
 // The codes are `InstallCode` in the backend's
 // modules/llm/catalog/local/install/codes.py; keep the two in sync. English
@@ -127,12 +128,14 @@ const installText: Record<string, (event: InstallEvent) => string | null> = {
 /**
  * What an install event says: the interface's own line for its code, or the
  * backend's sentence for a code it does not know. Empty when it has neither.
+ * A refusal for what the file is carries the catalog's code for it, worded as
+ * the catalog's rows word it.
  */
 export function installMessage(event: InstallEvent): string {
   const code = event.code
   const own =
     code != null && Object.hasOwn(installText, code)
       ? installText[code](event)
-      : null
+      : notRunnableLine(code)
   return own ?? event.message ?? ""
 }

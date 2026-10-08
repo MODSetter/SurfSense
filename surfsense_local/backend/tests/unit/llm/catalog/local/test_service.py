@@ -562,8 +562,8 @@ async def test_a_searched_build_that_cannot_chat_is_refused_before_download(
 
     with pytest.raises(InstallRefusedError, match="search") as refused:
         await service.check(searched(TEXT))
-    # The classifier's own sentence, which has no code yet.
-    assert refused.value.code is None
+    # The classifier's own sentence, under the classifier's code.
+    assert refused.value.code == "embedder"
 
 
 async def test_a_searched_file_that_is_not_a_model_is_refused(

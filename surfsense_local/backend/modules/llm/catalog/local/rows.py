@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from modules.llm.catalog.local.build import Build
-from modules.llm.catalog.local.classifier import Classification
+from modules.llm.catalog.local.classifier import (
+    UNSUPPORTED_REASON,
+    Classification,
+    NotRunnableCode,
+)
 from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.fit import Badge, FitVerdict
 
@@ -120,4 +124,14 @@ class LocalRow:
     def not_runnable_reason(self) -> str | None:
         if self.runnable:
             return None
-        return self.classification.reason or "SurfSense cannot run this model."
+        return self.classification.reason or UNSUPPORTED_REASON
+
+    @property
+    def not_runnable_code(self) -> NotRunnableCode | None:
+        """The reason as a code. None for a reason that has none, which the
+        interface shows as it came."""
+        if self.runnable:
+            return None
+        if not self.classification.reason:
+            return NotRunnableCode.UNSUPPORTED
+        return self.classification.code

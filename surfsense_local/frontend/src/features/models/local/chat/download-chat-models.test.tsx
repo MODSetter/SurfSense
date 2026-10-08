@@ -477,6 +477,49 @@ describe("model catalog", () => {
     expect(screen.queryByText("backend reason")).toBeNull()
   })
 
+  it("words why a model cannot run itself when the reason has a code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "speech_in",
+            }),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText(
+        "This model writes down what it hears in audio. It cannot answer questions."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
+  it("shows the backend's reason when it has no code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({ runnable: false, not_runnable_reason: "backend reason" }),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(await screen.findByText("backend reason")).toBeTruthy()
+  })
+
   it("blocks install only when physics refuses", async () => {
     vi.stubGlobal(
       "fetch",
@@ -816,6 +859,88 @@ describe("model catalog", () => {
     expect(
       within(builds).queryByText("Recommended for your computer")
     ).toBeNull()
+  })
+
+  it("says why a searched repo cannot run in the interface's own words", async () => {
+    // One repo lists a build it cannot run, the other lists none at all.
+    const opened = (repo: string) =>
+      repo === "openai/whisper-GGUF"
+        ? row(
+            {
+              id: repo,
+              origin: "search",
+              name: repo,
+              types: [],
+              selectable_for: [],
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "speech_in",
+            },
+            [build({ catalog_id: "", can_install: false })]
+          )
+        : row(
+            {
+              id: repo,
+              origin: "search",
+              name: repo,
+              types: [],
+              selectable_for: [],
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "not_weights",
+            },
+            []
+          )
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({
+            results: ["openai/whisper-GGUF", "someone/steering-GGUF"].map(
+              (repo) => ({
+                repo,
+                downloads: 1000,
+                likes: 20,
+                license: "mit",
+                gated: false,
+                quantized_from: null,
+                last_modified: null,
+                reads_images: false,
+              })
+            ),
+          })
+        }
+        if (path.startsWith("/llm/catalog/local/search/")) {
+          const repo = decodeURIComponent(
+            path.slice("/llm/catalog/local/search/".length)
+          )
+          return Response.json({ repo, gated: false, row: opened(repo) })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "gguf"
+    )
+
+    await user.click(await screen.findByText("openai/whisper-GGUF"))
+    expect(
+      await screen.findByText(
+        "This model writes down what it hears in audio. It cannot answer questions."
+      )
+    ).toBeTruthy()
+
+    await user.click(screen.getByText("someone/steering-GGUF"))
+    expect(
+      await screen.findByText(
+        "This file steers another model. It is not a model on its own."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
   })
 
   it("explains why builds from a gated repo cannot be downloaded", async () => {

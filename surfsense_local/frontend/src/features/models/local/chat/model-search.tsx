@@ -24,6 +24,7 @@ import type { LocalBuild, SearchRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
+import { notRunnableReason } from "./not-runnable-text"
 import { GGUF_SEARCH, type SearchSource } from "./search-source"
 import type { InstallJob } from "../installs/api"
 import { installMessage } from "../installs/install-text"
@@ -124,7 +125,7 @@ function RepoBuilds({
   if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
-        {row.not_runnable_reason ??
+        {notRunnableReason(row) ??
           intl.formatMessage({
             id: "models_search_builds_empty",
             defaultMessage: "This repo has no build SurfSense can run.",
@@ -146,7 +147,7 @@ function RepoBuilds({
       ) : null}
       {!row.runnable ? (
         <p className="px-3 pt-2 text-xs text-muted-foreground">
-          {row.not_runnable_reason}
+          {notRunnableReason(row)}
         </p>
       ) : null}
       {note ? (
