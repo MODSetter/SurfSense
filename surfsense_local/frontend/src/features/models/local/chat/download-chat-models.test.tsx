@@ -691,6 +691,33 @@ describe("model catalog", () => {
     expect(searches[0]).toContain("q=qwen")
   })
 
+  it("clears the results the moment the box is cleared", async () => {
+    // The old list must not linger under an empty box for the debounce window.
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({ results: [] })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    const search = await screen.findByRole("searchbox", {
+      name: "Search all models",
+    })
+    await user.type(search, "qwen")
+    // Let the debounce settle and the empty results render.
+    await screen.findByText(/no models match/i)
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    // The prompt returns at once; the stale list does not outlive the click.
+    expect(screen.getByText(/type to find a model/i)).toBeTruthy()
+    expect(screen.queryByText(/no models match/i)).toBeNull()
+  })
+
   it("explains that search is unavailable rather than erroring", async () => {
     // With egress off, curated and installed still work. That is the airgapped
     // product, not a degraded one.
