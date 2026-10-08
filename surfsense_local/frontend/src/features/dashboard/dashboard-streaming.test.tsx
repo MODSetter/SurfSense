@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
 import { DashboardPage } from "./dashboard-page"
+import { TEXT_NOTICE_GAP_MS } from "@/features/chat/runs/run-store"
 
 const renders: Record<string, number> = {}
 
@@ -175,9 +176,10 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// Past the text notice a frame schedules, which comes no sooner than the gap after the last.
 const settle = () =>
   act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20))
+    await new Promise((resolve) => setTimeout(resolve, TEXT_NOTICE_GAP_MS + 20))
   })
 
 describe("dashboard while a reply streams", () => {

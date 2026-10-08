@@ -19,7 +19,12 @@ import type { ChatMessage, ChatThread } from "./api"
 import type { NewChatChoice } from "./modes/new-chat-mode"
 import { chatKeys } from "./query-keys"
 import { LiveThreadRuntime } from "./live-thread-runtime"
-import { liveRun, liveRuns, resetChatRuns } from "./runs/run-store"
+import {
+  liveRun,
+  liveRuns,
+  resetChatRuns,
+  TEXT_NOTICE_GAP_MS,
+} from "./runs/run-store"
 import { readUnread } from "./runs/unread-replies"
 import type { ChatTurnError } from "./use-chat-runtime"
 import { useChatRuntime } from "./use-chat-runtime"
@@ -823,9 +828,12 @@ describe("while a reply streams", () => {
     return reply
   }
 
+  // Past the text notice a frame schedules, which comes no sooner than the gap after the last.
   const settle = () =>
     act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) =>
+        setTimeout(resolve, TEXT_NOTICE_GAP_MS + 20)
+      )
     })
 
   it("renders its tokens in the thread alone, not the page", async () => {
