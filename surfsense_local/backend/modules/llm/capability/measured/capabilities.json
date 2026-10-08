@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "provisional": true,
-  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific; tests/live/sweep: OpenRouter screening (smoke, PDF brief, board pack), 7 Oct 2026 Pacific",
+  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific; tests/live/sweep: OpenRouter screening (smoke, PDF brief, board pack), 7-8 Oct 2026 Pacific",
   "models": [
     {
       "key": "claude-sonnet-5-5",
@@ -500,7 +500,7 @@
       "level": "studio_only",
       "suite": "openrouter-screen",
       "suite_version": 1,
-      "measured_on": "2026-10-07",
+      "measured_on": "2026-10-08",
       "provider": "openrouter",
       "host": "openrouter.ai",
       "model_id": "openai/gpt-6-luna-pro",
@@ -519,24 +519,23 @@
           "gpt-6-luna"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
-      "measured_on": "2026-10-07",
+      "measured_on": "2026-10-08",
       "provider": "openrouter",
       "host": "openrouter.ai",
       "model_id": "openai/gpt-6-luna",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "mimo-v2-6-flash",
@@ -1610,11 +1609,10 @@
           "gpt-5-6-luna-pro"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
       "measured_on": "2026-10-08",
@@ -1623,11 +1621,11 @@
       "model_id": "openai/gpt-5.6-luna-pro",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "gpt-5-6-luna",
@@ -1649,11 +1647,11 @@
       "model_id": "openai/gpt-5.6-luna",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 1,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "grok-4-5",
@@ -2532,11 +2530,11 @@
       "model_id": "openai/gpt-5.4-nano",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 1,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "gpt-5-4-mini",
@@ -2545,11 +2543,10 @@
           "gpt-5-4-mini"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
       "measured_on": "2026-10-08",
@@ -2558,11 +2555,11 @@
       "model_id": "openai/gpt-5.4-mini",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "mistral-small-2603",
@@ -3462,11 +3459,10 @@
           "gpt-5-1-codex-mini"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
       "measured_on": "2026-10-08",
@@ -3475,11 +3471,11 @@
       "model_id": "openai/gpt-5.1-codex-mini",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "kimi-k2-thinking",
@@ -4127,11 +4123,10 @@
           "gpt-5-mini"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
       "measured_on": "2026-10-08",
@@ -4140,11 +4135,11 @@
       "model_id": "openai/gpt-5-mini",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "gpt-5-nano",
@@ -4732,11 +4727,11 @@
       "model_id": "openai/o4-mini-high",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 1,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "o3",
@@ -4745,11 +4740,10 @@
           "o3"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
       "measured_on": "2026-10-08",
@@ -4758,11 +4752,11 @@
       "model_id": "openai/o3",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "o4-mini",
@@ -4784,11 +4778,11 @@
       "model_id": "openai/o4-mini",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 1,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "gpt-4-1",
@@ -4797,11 +4791,10 @@
           "gpt-4-1"
         ],
         "served": [
-          "remote",
-          "local"
+          "remote"
         ]
       },
-      "level": "studio_only",
+      "level": "agent",
       "suite": "openrouter-screen",
       "suite_version": 1,
       "measured_on": "2026-10-08",
@@ -4810,11 +4803,11 @@
       "model_id": "openai/gpt-4.1",
       "reads_images": true,
       "passes": {
-        "passed": 0,
+        "passed": 2,
         "counted": 2,
         "run": 2
       },
-      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
     },
     {
       "key": "gpt-4-1-mini",
