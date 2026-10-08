@@ -25,7 +25,7 @@ def main(folder: str) -> None:
     try:
         runpy.run_path(script, run_name="__main__")
     except Exception as error:
-        _print_traceback_from_the_script(error, script)
+        _print_traceback_from_the_script(error, script, folder)
         sys.exit(1)
 
 
@@ -45,10 +45,25 @@ def _die_with_the_worker() -> None:
     threading.Thread(target=kill_the_group_at_eof, daemon=True).start()
 
 
-def _print_traceback_from_the_script(error: Exception, script: str) -> None:
+def _print_traceback_from_the_script(
+    error: Exception, script: str, folder: str
+) -> None:
     """The traceback without the runner's own frames, which mean nothing to the
     model fixing the script. A SyntaxError has none of the script's frames."""
     frame = error.__traceback__
     while frame is not None and frame.tb_frame.f_code.co_filename != script:
         frame = frame.tb_next
-    traceback.print_exception(type(error), error, frame)
+    printed = "".join(traceback.format_exception(type(error), error, frame))
+    sys.stderr.write(_without_the_run_folder(printed, folder, script))
+
+
+def _without_the_run_folder(text: str, folder: str, script: str) -> str:
+    """Paths in the run folder, relative to it: the folder is gone once the run
+    ends, and its absolute path in every frame crowds the traceback out of the
+    500-character reason the agent reads."""
+    prefixes = {os.path.join(folder, ""), os.path.join(os.path.dirname(script), "")}
+    # Longest first: the resolved form can end with the given one, as
+    # /private/var/... does /var/... on macOS.
+    for prefix in sorted(prefixes, key=len, reverse=True):
+        text = text.replace(prefix, "")
+    return text
