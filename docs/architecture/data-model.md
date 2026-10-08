@@ -161,7 +161,7 @@ A destination is `host:<hostname>`: `host:huggingface.co` for model search and d
 
 ### `plugin_runs`
 
-One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/runtime/01-process.md)).
+One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/bundles/runtime/01-process.md)).
 
 | Column | Notes |
 |---|---|

@@ -31,7 +31,7 @@ A plugin is published when it changed since the last published release, as [`../
 
 ### The release, step by step
 
-It follows [`RELEASE.md`](../../../../surfsense_local/RELEASE.md), which this work edits in two places. It makes releasing from `main` the rule: bump on `dev`, merge `dev` into `main` by pull request, tag `main`. Today it also allows tagging `dev`, which would skip the plan comment. And after publishing the draft, the maintainer checks that `plugins-go-live.yml` went green, and reruns it if not, the way `legacy-update-bridge` must be green before undrafting.
+It follows [`RELEASE.md`](../../../../../surfsense_local/RELEASE.md), which this work edits in two places. It makes releasing from `main` the rule: bump on `dev`, merge `dev` into `main` by pull request, tag `main`. Today it also allows tagging `dev`, which would skip the plan comment. And after publishing the draft, the maintainer checks that `plugins-go-live.yml` went green, and reruns it if not, the way `legacy-update-bridge` must be green before undrafting.
 
 `upload`, `go-live` and `withdraw` share one `concurrency` group, `plugins-publishing`, and never cancel one another, so the live catalog is only ever written by one of them at a time. Without it, a `withdraw` finishing after a `go-live` would put an older release's catalog back on top.
 

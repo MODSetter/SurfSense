@@ -4,7 +4,7 @@
 
 ## One number
 
-People manage one version number: the app's, in `surfsense_local/VERSION`, as [`RELEASE.md`](../../../surfsense_local/RELEASE.md) already does. Everything else is the app's version or is computed from it.
+People manage one version number: the app's, in `surfsense_local/VERSION`, as [`RELEASE.md`](../../../../surfsense_local/RELEASE.md) already does. Everything else is the app's version or is computed from it.
 
 | Thing | Its version |
 |---|---|
@@ -95,5 +95,5 @@ What no check sees is a function that still exists but behaves differently. That
 
 - **A contributor** changes a plugin, runs `check`, opens a pull request. Never a version.
 - **An SDK contributor** fixes, in the same pull request, any plugin the checks say their change breaks.
-- **A maintainer** releases from `main` as [`RELEASE.md`](../../../surfsense_local/RELEASE.md) says: bump `surfsense_local/VERSION`, merge `dev` into `main`, tag `main`, publish the draft, and check that `plugins-go-live.yml` went green. The release pull request carries a comment listing what the release will publish and block. When a version is bad, they add a line to `withdrawn-versions.txt` and run `withdraw`.
+- **A maintainer** releases from `main` as [`RELEASE.md`](../../../../surfsense_local/RELEASE.md) says: bump `surfsense_local/VERSION`, merge `dev` into `main`, tag `main`, publish the draft, and check that `plugins-go-live.yml` went green. The release pull request carries a comment listing what the release will publish and block. When a version is bad, they add a line to `withdrawn-versions.txt` and run `withdraw`.
 - **Automation** does the rest: stamping, packaging, uploading, blocking by checks, going live, the catalog and the directory site ([`release/03-publishing.md`](release/03-publishing.md)).
