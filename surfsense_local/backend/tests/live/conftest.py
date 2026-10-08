@@ -24,13 +24,14 @@ from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_session_factory
 from shared.queue import ingest_queue
+from tests.integration import conftest as integration_conftest
 from tests.integration.agent.conftest import studio_worker  # noqa: F401
 from tests.integration.agent.opencode_harness import (
     StandInForElectron,
-    free_port,
     needs_staged_opencode,
 )
 from tests.integration.conftest import base_url  # noqa: F401
+from tests.live.lane_ports import free_port
 from tests.live.live_agent import LiveAgent
 from tests.live.live_model import LiveModel, chosen_model, chosen_provider
 from tests.live.recording_proxy import RecordingProxy
@@ -41,6 +42,9 @@ from tests.live.word_printer import WordPrinter
 # A turn waits on the model and on renders of up to 150 s each.
 _TURN_TIMEOUT = httpx.Timeout(900.0, connect=10.0)
 _OUTCOME = pytest.StashKey[pytest.TestReport]()
+
+# The app's uvicorn port comes from the lane's block too (lane_ports.py).
+integration_conftest._free_port = free_port
 
 
 @pytest.hookimpl(wrapper=True)

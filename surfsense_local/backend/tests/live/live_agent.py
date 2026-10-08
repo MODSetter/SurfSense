@@ -68,7 +68,8 @@ class LiveAgent:
             await asyncio.sleep(1)
 
     async def thread(self) -> int:
-        return (await open_thread(self, "Live run"))["id"]  # type: ignore[arg-type]
+        """An Agentic chat, as the cases measure the agent: an untested model's default is Basic."""
+        return (await open_thread(self, "Live run", mode="agentic"))["id"]  # type: ignore[arg-type]
 
     async def turn(self, thread_id: int, text: str) -> list[dict[str, Any]]:
         """One message and the agent's whole reply, kept for the transcript."""

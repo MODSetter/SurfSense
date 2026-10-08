@@ -1,6 +1,8 @@
 """The spend ledger every live run checks before it calls a paid model."""
 
 import json
+import os
+import threading
 from pathlib import Path
 
 import pytest
@@ -125,3 +127,20 @@ def test_the_sonnet_only_ledger_keeps_its_total_and_is_converted_on_the_next_cha
 def test_an_empty_ledger_has_spent_nothing(tmp_path: Path) -> None:
     """The first run starts from no file."""
     assert SpendLedger(tmp_path / "missing" / "spend.json").dollars() == 0
+
+
+@pytest.mark.skipif(
+    os.name != "nt", reason="only Windows refuses to replace an open file"
+)
+def test_a_charge_lands_while_another_process_reads_the_ledger(tmp_path: Path) -> None:
+    """The sweep's runner reads each run's ledger as the run charges it; the charge must not be lost."""
+    path = tmp_path / "spend.json"
+    ledger = SpendLedger(path)
+    ledger.add(Usage(input_tokens=500_000), SONNET, case="smoke", model="m")
+    reader = path.open("rb")
+    threading.Timer(0.1, reader.close).start()
+
+    ledger.add(Usage(input_tokens=500_000), SONNET, case="smoke", model="m")
+
+    assert SpendLedger(path).dollars() == pytest.approx(2.0)
+    assert not list(tmp_path.glob(".*.partial"))

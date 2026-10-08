@@ -345,7 +345,7 @@ The workspace export and import bundle (README, M6) carries each artifact's vers
 
 ### Agent outputs
 
-This matters once a model has `agent` in `capability_of(session).engines` (05). Agent threads stay behind the developer switch until M5 turns the agent on in installers, which waits for this phase. The working folder is the thread's, from 01: `thread_working_dir(ws, thread)/outputs/`.
+This matters once a model has `agent` in `capability_of(session).engines` (05). Installers carry the agent since 7 Oct 2026, ahead of this phase. The working folder is the thread's, from 01: `thread_working_dir(ws, thread)/outputs/`.
 
 **What counts as a deliverable.** A file in `outputs/` or a subfolder, not under `_work/` or a dot-folder, not an Office lock file `~$*`, with suffix `.docx .xlsx .pptx .pdf .html .md .txt .csv .png .jpg .jpeg`, passing [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py)`::validate_upload`, non-empty and at most 100 MB. The agent prompt gains one line: finished files in `outputs/`, working files in `outputs/_work/` (the skills project's convention, I5).
 

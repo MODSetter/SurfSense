@@ -29,6 +29,8 @@ class RunFolder:
         self.path = (root or live_runs_dir()) / _safe(name)
         self.path.mkdir(parents=True)
         self.turns: list[dict[str, Any]] = []
+        # What the case grades without failing on it, kept in result.json.
+        self.metrics: dict[str, Any] = {}
 
     def keep_source(self, name: str, data: bytes) -> None:
         """A source the run made, as it was uploaded."""
@@ -114,6 +116,7 @@ class RunFolder:
                         "outcome": outcome,
                         "detail": detail,
                         "word_previews": word_previews,
+                        "metrics": self.metrics,
                     },
                     indent=2,
                 )
