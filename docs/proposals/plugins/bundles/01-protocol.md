@@ -37,7 +37,7 @@ plugins/<id>/
   fixtures/           optional
 ```
 
-A plugin carries no license of its own. Like everything outside `surfsense_backend/app/proprietary/`, it is Apache-2.0 under the repository's [`LICENSE`](../../../LICENSE), and a pull request's contribution is Apache-2.0 by section 5 of that license. `access` is a different thing: whether running the plugin needs a SurfSense license file.
+A plugin carries no license of its own. Like everything outside `surfsense_backend/app/proprietary/`, it is Apache-2.0 under the repository's [`LICENSE`](../../../../LICENSE), and a pull request's contribution is Apache-2.0 by section 5 of that license. `access` is a different thing: whether running the plugin needs a SurfSense license file.
 
 `main.py` is only the entry point. A plugin may be any number of modules and packages, and any data files it reads; the packaged file carries the whole folder. The SDK imports `main.py`, so an `@action` function defined elsewhere must be imported from it. A top-level module named like a standard-library module or a dependency fails the checks, because the path order would ignore it or let it hide the library; code in a package named after the plugin never clashes.
 
@@ -102,7 +102,7 @@ More kinds of input, and settings that are not secret, come the way any capabili
 
 ### Build targets
 
-`plugins/core/build-targets.json` is the one list of what plugins are built for: the CPython version the app ships, and each platform with the `uv` target that picks wheels old enough for the app's oldest supported systems, Ubuntu 22.04, RHEL 9 and macOS 13.3 ([packaging](../../architecture/packaging.md)).
+`plugins/core/build-targets.json` is the one list of what plugins are built for: the CPython version the app ships, and each platform with the `uv` target that picks wheels old enough for the app's oldest supported systems, Ubuntu 22.04, RHEL 9 and macOS 13.3 ([packaging](../../../architecture/packaging.md)).
 
 ```json
 {
@@ -115,7 +115,7 @@ More kinds of input, and settings that are not secret, come the way any capabili
 }
 ```
 
-The interpreter fetch script, packaging and the checks all read it. There is no Intel Mac target ([ADR 0021](../../adr/0021-no-intel-mac-build.md)).
+The interpreter fetch script, packaging and the checks all read it. There is no Intel Mac target ([ADR 0021](../../../adr/0021-no-intel-mac-build.md)).
 
 ### Downloadable files
 

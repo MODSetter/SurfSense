@@ -19,7 +19,7 @@ State is one table, `egress_destinations`: a row per destination with `enabled`,
 
 `host_destination()` returns no destination for `localhost` or a loopback address, so a model server on the same machine needs no consent and has no row. A server elsewhere on the LAN is a destination like any other.
 
-The plugins proposal adds a consent for each host a plugin declares, asked before the plugin's first run ([plugins](../proposals/plugins/README.md)).
+The plugins proposal adds a consent for each host a plugin declares, asked before the user connects it, and a list of hosts on the refusal so one prompt covers them ([plugins](../proposals/plugins/03-remote-plugins.md#egress)).
 
 ## Where the check runs
 

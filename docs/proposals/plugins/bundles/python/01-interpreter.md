@@ -8,7 +8,7 @@ The packaged app can spawn `python -m surfsense_plugin_sdk.run`. The PyInstaller
 
 ## Work
 
-- Pin CPython at the version in `plugins/core/build-targets.json`, 3.12, the same minor the backend uses, from the python-build-standalone release. One asset per platform in that file: `windows-x64`, `macos-arm64`, `linux-x64`. There is no Intel Mac build ([ADR 0021](../../../adr/0021-no-intel-mac-build.md)). Record each URL and sha256 in the fetch script, the way `fetch-llamacpp.mjs` records llama-server.
+- Pin CPython at the version in `plugins/core/build-targets.json`, 3.12, the same minor the backend uses, from the python-build-standalone release. One asset per platform in that file: `windows-x64`, `macos-arm64`, `linux-x64`. There is no Intel Mac build ([ADR 0021](../../../../adr/0021-no-intel-mac-build.md)). Record each URL and sha256 in the fetch script, the way `fetch-llamacpp.mjs` records llama-server.
 - The script verifies the sha256, extracts, and stages atomically under `surfsense_local/electron/plugin-python/`. `electron-builder.yml` `extraResources` copies that directory to `plugin-python/`.
 - `plugin_python() -> Path` returns the staged interpreter in the packaged app (`python` or `python.exe` on the staged path) and, when that path is absent, the interpreter running the API. Tests and `pnpm dev` hit the second branch and do not download anything.
 - `system_key() -> str` returns this app's download key, such as `cp312-linux-x64`: the Python version of the interpreter `plugin_python()` returns, and this system's platform in the names `plugins/core/build-targets.json` uses. `choose_version.py` picks a plugin's file with it.
