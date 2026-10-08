@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "provisional": true,
-  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific; tests/live/sweep: OpenRouter screening (smoke, PDF brief, board pack), 7-8 Oct 2026 Pacific",
+  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific",
   "models": [
     {
       "key": "claude-sonnet-5-5",
