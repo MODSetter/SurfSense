@@ -1,0 +1,20 @@
+[
+ {
+  "status": 400,
+  "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"error\\\":{\\\"message\\\":\\\"Requested token count exceeds the model's maximum context length of 262144 tokens. You requested a total of 263736 tokens: 231736 tokens from the input messages and 32000 tokens for the completion. Please reduce the number of tokens in the input messages or the completion to fit within the limit.\\\",\\\"type\\\":\\\"server_error\\\",\\\"param\\\":null,\\\"code\\\":null}}\",\"provider_name\":\"AkashML\",\"is_byok\":false}}}",
+  "served_by": null,
+  "tool_calls": []
+ },
+ {
+  "status": 400,
+  "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"error\\\":{\\\"message\\\":\\\"Requested token count exceeds the model's maximum context length of 262144 tokens. You requested a total of 263736 tokens: 231736 tokens from the input messages and 32000 tokens for the completion. Please reduce the number of tokens in the input messages or the completion to fit within the limit.\\\",\\\"type\\\":\\\"server_error\\\",\\\"param\\\":null,\\\"code\\\":null}}\",\"provider_name\":\"AkashML\",\"is_byok\":false}}}",
+  "served_by": null,
+  "tool_calls": []
+ },
+ {
+  "status": 400,
+  "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\\"error\\\":{\\\"message\\\":\\\"Requested token count exceeds the model's maximum context length of 262144 tokens. You requested a total of 263736 tokens: 231736 tokens from the input messages and 32000 tokens for the completion. Please reduce the number of tokens in the input messages or the completion to fit within the limit.\\\",\\\"type\\\":\\\"server_error\\\",\\\"param\\\":null,\\\"code\\\":null}}\",\"provider_name\":\"AkashML\",\"is_byok\":false}}}",
+  "served_by": null,
+  "tool_calls": []
+ }
+]

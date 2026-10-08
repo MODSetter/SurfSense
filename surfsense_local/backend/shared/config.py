@@ -127,8 +127,9 @@ class AgentSettings(BaseSettings):
 
     opencode_url: str | None = None
     opencode_password: str | None = None
-    # The tested list starts empty; while it is, this lets any model run the agent.
-    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1.
+    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1 makes Agentic the
+    # default for every model the user has not picked a mode for, and lifts the
+    # window floor; a stated no on tool calls, or no opencode, still keeps it out.
     agent_untested_models: bool = False
 
     def has_opencode(self) -> bool:

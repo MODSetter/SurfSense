@@ -22,6 +22,11 @@ import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
+import {
+  useBlockAgentic,
+  useNewChatChoice,
+} from "@/features/chat/modes/new-chat-mode"
+import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
@@ -134,6 +139,14 @@ function WorkspaceDashboard({
     )
     return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
   }, [sources.documents, sources.includedDocumentIds])
+  const blockAgentic = useBlockAgentic()
+  // Bound to the model the chat was asked on: the picker stays open meanwhile.
+  const onAgenticGate = useCallback(
+    (gate: string) => {
+      if (selection) blockAgentic(selection, gate)
+    },
+    [blockAgentic, selection]
+  )
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
@@ -142,6 +155,8 @@ function WorkspaceDashboard({
     sourceScope: sources.sourceScope,
     readsImages: selection?.reads_images === true,
     canSkipThinking: canSkipThinking(selection),
+    newChatMode: useNewChatChoice(selection),
+    onAgenticGate,
     onModelRequired,
   })
   const sourcePreview = sources.documents.find(
@@ -742,83 +757,88 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
-      <WorkspaceRail
-        workspaces={workspaces.workspaces}
-        activeWorkspaceId={workspaces.activeWorkspace.id}
-        isMutating={workspaces.isMutating}
-        onSelect={workspaces.select}
-        onCreate={workspaces.create}
-        onRename={workspaces.rename}
-        onDelete={workspaces.remove}
-        onOpenSettings={() => openSettings("general")}
-      />
-      <WorkspaceDashboard
-        key={workspaces.activeWorkspace.id}
-        workspace={workspaces.activeWorkspace}
-        selection={usableSelection}
-        providerAvailable={providerAvailable}
-        modelIssue={issue}
-        needsConsent={availability.status === "needs-consent"}
-        onAllowModelIssue={allowModelIssue}
-        onModelIssueSettings={() =>
-          openSettings(
-            availability.status === "needs-consent" ? "network" : "chat-models"
-          )
-        }
-        onModelRequired={() => openSettings("chat-models")}
-        onModelSelected={onModelSelected}
-        onOpenLicense={() => openSettings("license")}
-        onOpenAudioSettings={() => openSettings("audio-models")}
-        onOpenOfficeSupport={openOfficeSupport}
-        modelsVisited={modelsVisited}
-      />
-      <SettingsDialog
-        open={settingsOpen}
-        section={settingsSection}
-        askOfficeConsent={askOfficeConsent}
-        onOpenChange={(open) => {
-          setSettingsOpen(open)
-          if (!open) {
-            setModelsVisited((seen) => seen + 1)
-            setAskOfficeConsent(false)
+    // Above the workspace, so a mode picked for the next chat holds across them.
+    <NewChatModeProvider>
+      <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+        <WorkspaceRail
+          workspaces={workspaces.workspaces}
+          activeWorkspaceId={workspaces.activeWorkspace.id}
+          isMutating={workspaces.isMutating}
+          onSelect={workspaces.select}
+          onCreate={workspaces.create}
+          onRename={workspaces.rename}
+          onDelete={workspaces.remove}
+          onOpenSettings={() => openSettings("general")}
+        />
+        <WorkspaceDashboard
+          key={workspaces.activeWorkspace.id}
+          workspace={workspaces.activeWorkspace}
+          selection={usableSelection}
+          providerAvailable={providerAvailable}
+          modelIssue={issue}
+          needsConsent={availability.status === "needs-consent"}
+          onAllowModelIssue={allowModelIssue}
+          onModelIssueSettings={() =>
+            openSettings(
+              availability.status === "needs-consent"
+                ? "network"
+                : "chat-models"
+            )
           }
-        }}
-        onSectionChange={(next) => {
-          setSettingsSection(next)
-          setAskOfficeConsent(false)
-        }}
-        onModelUnavailable={onModelUnavailable}
-        onModelSelected={onModelSelected}
-        onImported={onImported}
-      />
-      {workspaces.error ? (
-        <Alert
-          variant="destructive"
-          className="absolute top-4 left-1/2 z-40 w-auto max-w-lg -translate-x-1/2 shadow-lg"
-        >
-          <CircleAlertIcon />
-          <AlertTitle>
-            {intl.formatMessage({
-              id: "dashboard_workspace_error_title",
-              defaultMessage: "Workspace action failed",
-            })}
-          </AlertTitle>
-          <AlertDescription>{workspaces.error}</AlertDescription>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="absolute top-1 right-1"
-            aria-label={intl.formatMessage({
-              id: "dashboard_workspace_error_dismiss_aria",
-              defaultMessage: "Dismiss workspace error",
-            })}
-            onClick={workspaces.clearError}
+          onModelRequired={() => openSettings("chat-models")}
+          onModelSelected={onModelSelected}
+          onOpenLicense={() => openSettings("license")}
+          onOpenAudioSettings={() => openSettings("audio-models")}
+          onOpenOfficeSupport={openOfficeSupport}
+          modelsVisited={modelsVisited}
+        />
+        <SettingsDialog
+          open={settingsOpen}
+          section={settingsSection}
+          askOfficeConsent={askOfficeConsent}
+          onOpenChange={(open) => {
+            setSettingsOpen(open)
+            if (!open) {
+              setModelsVisited((seen) => seen + 1)
+              setAskOfficeConsent(false)
+            }
+          }}
+          onSectionChange={(next) => {
+            setSettingsSection(next)
+            setAskOfficeConsent(false)
+          }}
+          onModelUnavailable={onModelUnavailable}
+          onModelSelected={onModelSelected}
+          onImported={onImported}
+        />
+        {workspaces.error ? (
+          <Alert
+            variant="destructive"
+            className="absolute top-4 left-1/2 z-40 w-auto max-w-lg -translate-x-1/2 shadow-lg"
           >
-            <XIcon />
-          </Button>
-        </Alert>
-      ) : null}
-    </main>
+            <CircleAlertIcon />
+            <AlertTitle>
+              {intl.formatMessage({
+                id: "dashboard_workspace_error_title",
+                defaultMessage: "Workspace action failed",
+              })}
+            </AlertTitle>
+            <AlertDescription>{workspaces.error}</AlertDescription>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-1 right-1"
+              aria-label={intl.formatMessage({
+                id: "dashboard_workspace_error_dismiss_aria",
+                defaultMessage: "Dismiss workspace error",
+              })}
+              onClick={workspaces.clearError}
+            >
+              <XIcon />
+            </Button>
+          </Alert>
+        ) : null}
+      </main>
+    </NewChatModeProvider>
   )
 }

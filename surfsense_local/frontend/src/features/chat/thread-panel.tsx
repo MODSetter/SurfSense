@@ -30,6 +30,7 @@ import { intl } from "@/i18n/intl"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
+import { composerAttachmentOf } from "./image-attachments"
 import { LiveThreadRuntime, type LiveThreadSource } from "./live-thread-runtime"
 import { AssistantMessage, UserMessage } from "./message"
 import type { Citation } from "./sse"
@@ -116,6 +117,7 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
   const aui = useAui()
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
+  const returned = view.status === "new" ? view.returned : undefined
 
   useEffect(() => {
     if (conversationId === "creating") {
@@ -123,6 +125,18 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     }
     void aui.thread.composer().reset()
   }, [aui, conversationId])
+
+  // After the reset above, which empties the composer before it awaits.
+  useEffect(() => {
+    if (!returned) return
+    const composer = aui.thread.composer()
+    composer.setText(returned.text)
+    returned.images.forEach((image, index) => {
+      composer
+        .addAttachment(composerAttachmentOf(image, index))
+        .catch(() => undefined)
+    })
+  }, [aui, returned])
 
   return null
 }
@@ -206,6 +220,10 @@ export function ThreadPanel({
       describedBy={thread == null ? undefined : headingId}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
+      threadMode={
+        thread == null ? null : thread.uses_agent ? "agentic" : "basic"
+      }
+      onNewChat={onNewChat}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined

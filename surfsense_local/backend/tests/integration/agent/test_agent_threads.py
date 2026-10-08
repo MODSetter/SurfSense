@@ -18,7 +18,6 @@ from modules.chat import router as chat_router
 from modules.chat.models import ChatThread
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.llm.capability.agent_trial import set_agent_trial
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from shared.config import get_agent_settings, get_storage_settings
@@ -32,10 +31,20 @@ Frame = dict
 OnFrame = Callable[[Frame], Awaitable[None]]
 
 
-async def open_thread(api: AgentAPI, title: str = "New chat") -> dict:
-    """Open a thread the way the chat panel does."""
+async def open_thread(
+    api: AgentAPI,
+    title: str = "New chat",
+    mode: str | None = None,
+    remember: bool = False,
+) -> dict:
+    """Open a thread the way the chat panel does, in a mode or the model's default.
+
+    `remember` is a mode the user picked in the switch, which the panel says so of.
+    """
+    fields = {"mode": mode, "remember": remember} if mode else {}
     reply = await api.http.post(
-        f"/workspaces/{api.workspace_id}/chat/threads", json={"title": title}
+        f"/workspaces/{api.workspace_id}/chat/threads",
+        json={"title": title, **fields},
     )
     reply.raise_for_status()
     return reply.json()
@@ -92,13 +101,38 @@ async def test_a_new_thread_uses_the_agent_when_the_model_may(
         assert Path(await opencode.session_directory(session_id)) == folder
 
 
-async def test_without_the_agent_a_new_thread_is_a_chat(
+async def test_with_no_mode_asked_an_untested_model_opens_a_chat(
     agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A model not measured and not opted in gets the chat without the developer switch."""
+    """Basic is an untested model's default without the developer switch."""
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
+    # Made up, so no sweep the list takes in can give it a row.
+    _set_text_model("gpt-99-mini")
 
     thread = await open_thread(agent_api)
+
+    assert thread["uses_agent"] is False
+    assert agent_api.electron.starts == 0
+
+
+async def test_agentic_asked_for_opens_an_agent_thread_on_an_untested_model(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No score blocks Agentic; the user's pick is the model's default from then on."""
+    monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
+
+    chosen = await open_thread(agent_api, mode="agentic", remember=True)
+    defaulted = await open_thread(agent_api)
+
+    assert chosen["uses_agent"] is True
+    assert defaulted["uses_agent"] is True
+
+
+async def test_basic_asked_for_opens_a_chat_where_the_default_is_agentic(
+    agent_api: AgentAPI,
+) -> None:
+    """Under the developer switch every model defaults to Agentic; the pick wins."""
+    thread = await open_thread(agent_api, mode="basic")
 
     assert thread["uses_agent"] is False
     assert agent_api.electron.starts == 0
@@ -866,37 +900,33 @@ async def _session_of(thread_id: int) -> str:
     return session_id
 
 
-def _set_text_model(*, name: str | None = None, trial: bool | None = None) -> None:
-    """Change the chat model or its agent trial, as Settings would."""
+def _set_text_model(name: str) -> None:
+    """Change the chat model, as Settings would."""
     with create_session_factory(
         create_db_engine(get_storage_settings().database_path)
     )() as session:
         selected = session.get(SelectedModel, ModelType.TEXT_GEN)
-        if name is not None:
-            selected.name = name
-        if trial is not None:
-            set_agent_trial(selected, trial)
+        selected.name = name
         session.commit()
 
 
-async def test_an_agent_threads_next_turn_follows_the_models_level_and_opt_in(
+async def test_an_agent_threads_next_turn_is_held_only_to_technical_gates(
     agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A thread keeps its engine, but its model must still be one the agent may run."""
+    """A thread keeps its engine; a model measured to fail carries on, one that makes no tool calls does not."""
     thread = await open_thread(agent_api)
     monkeypatch.setattr(get_agent_settings(), "agent_untested_models", False)
     url = f"/chat/threads/{thread['id']}/messages"
+    agent_api.model.replies = [("text", "Hi."), ("text", "Again.")]
 
-    not_opted_in = await agent_api.http.post(url, json={"text": "Hello"})
-    _set_text_model(trial=True)
-    agent_api.model.replies = [("text", "Hi.")]
-    opted_in = await send(agent_api, thread["id"], "Hello")
-    _set_text_model(name="qwen/qwen3.5-9b")
-    measured_to_fail = await agent_api.http.post(url, json={"text": "Again"})
+    untested = await send(agent_api, thread["id"], "Hello")
+    _set_text_model("qwen/qwen3.5-9b")
+    measured_to_fail = await send(agent_api, thread["id"], "Again")
+    _set_text_model("gpt-3.5-turbo")
+    no_tool_calls = await agent_api.http.post(url, json={"text": "Once more"})
 
-    assert not_opted_in.status_code == 409
-    assert "cannot run the agent" in not_opted_in.json()["detail"]
-    assert of_type(opted_in, "completed")[0]["text"] == "Hi."
-    assert measured_to_fail.status_code == 409
-    assert "cannot run the agent" in measured_to_fail.json()["detail"]
-    assert len(agent_api.model.requests) == 1
+    assert of_type(untested, "completed")[0]["text"] == "Hi."
+    assert of_type(measured_to_fail, "completed")[0]["text"] == "Again."
+    assert no_tool_calls.status_code == 409
+    assert "cannot run the agent" in no_tool_calls.json()["detail"]
+    assert len(agent_api.model.requests) == 2

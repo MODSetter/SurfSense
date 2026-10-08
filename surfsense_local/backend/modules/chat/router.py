@@ -21,7 +21,11 @@ from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
 from modules.agent.agent_threads.turn import RunPlace, agent_turn
 from modules.agent.dependencies import LaunchKeyDep
-from modules.agent.engine_choice import selected_model_can_run_agent
+from modules.agent.engine_choice import (
+    AgenticRefusedError,
+    new_thread_mode,
+    remember_thread_mode,
+)
 from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import (
     IMAGE_TOKENS,
@@ -63,6 +67,7 @@ from modules.embedding.active import require_active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.admission.pool import Priority
 from modules.llm.admission.waiting import wait_in_line
+from modules.llm.capability.modes import ChatMode
 from modules.llm.providers import llamacpp
 from modules.llm.providers.protocols import Generator
 from modules.llm.providers.types import Message
@@ -93,17 +98,38 @@ async def create_thread(
     session: SessionDep,
     launch_key: LaunchKeyDep,
 ) -> ChatThread:
-    """Open a thread, and give it to the agent when the selected model may run it.
+    """Open a thread in the mode asked for, else the selected model's default.
 
     Chosen here and kept: the thread's turns live with whichever engine got it.
+    Agentic asked for and refused is a 409, or a 503 when the agent does not
+    start, and no thread is left behind.
     """
+    try:
+        opening = await new_thread_mode(session, payload.mode)
+    except AgenticRefusedError as refused:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": refused.code, "message": str(refused)},
+        ) from refused
     thread = await transact(
         session, _new_thread, workspace.id, payload.title, payload.source_scope
     )
-    if await selected_model_can_run_agent(session):
+    if opening.mode is ChatMode.AGENTIC:
         session_id = await open_agent_session(session, thread, launch_key)
         if session_id is not None:
             await transact(session, _give_to_agent, thread, session_id)
+        elif payload.mode is ChatMode.AGENTIC:
+            await transact(session, _delete_thread, thread)
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "agent_unavailable",
+                    "message": "The agent did not start. Try again, or start a "
+                    "Basic (Q&A) chat.",
+                },
+            )
+    if payload.mode is not None and payload.remember and opening.entry is not None:
+        await remember_thread_mode(session, opening.entry, payload.mode)
     return thread
 
 

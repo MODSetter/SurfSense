@@ -1,0 +1,28 @@
+[
+ {
+  "user": "Make me something I can send to the board from these.",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "completed",
+    "text": "Let me read your three sources to see what we're working with.\n\nI'll create a Q3"
+   }
+  ]
+ },
+ {
+  "user": "Add a short 'Decisions needed' section at the end.",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "error",
+    "kind": "unknown",
+    "message": "Server disconnected",
+    "provider": "opencode"
+   }
+  ]
+ }
+]

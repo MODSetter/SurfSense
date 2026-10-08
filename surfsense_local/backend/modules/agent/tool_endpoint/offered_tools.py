@@ -78,7 +78,7 @@ async def call(
         return replies.error(
             message, replies.INVALID_PARAMS, f"no tool {params.get('name')!r}"
         )
-    arguments = params.get("arguments") or {}
+    arguments = without_placeholder_ids(tool.listing, params.get("arguments") or {})
     try:
         # Even a tool needing no sources writes into, or reads for, its thread.
         scope.require_known()
@@ -96,6 +96,31 @@ async def call(
     if isinstance(made, ToolResult):
         return replies.result(message, _content(made.text, made.images, is_error=False))
     return replies.result(message, _content(made, (), is_error=False))
+
+
+def without_placeholder_ids(
+    listing: dict[str, Any], arguments: dict[str, Any]
+) -> dict[str, Any]:
+    """The call's arguments with an optional id of 0 taken as left out.
+
+    OpenAI's models fill every field a tool lists, so an id they do not mean
+    arrives as 0: a render then asked for source 0 as its template, was refused,
+    and the model sent the same call again. Ids count from 1, so 0 names nothing.
+    """
+    schema = listing.get("inputSchema") or {}
+    required = set(schema.get("required") or ())
+    placeholders = {
+        name
+        for name, spec in (schema.get("properties") or {}).items()
+        if name.endswith("_id")
+        and name not in required
+        and (spec or {}).get("type") == "integer"
+    }
+    return {
+        name: value
+        for name, value in arguments.items()
+        if not (name in placeholders and value == 0 and not isinstance(value, bool))
+    }
 
 
 def _model_sees_images() -> bool:

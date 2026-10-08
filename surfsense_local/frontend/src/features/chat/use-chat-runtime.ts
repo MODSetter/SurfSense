@@ -37,6 +37,8 @@ import {
   type ImageUpload,
 } from "./api"
 import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
+import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
+import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
@@ -132,9 +134,12 @@ function lastThreadKey(workspaceId: number) {
 const NEW_CHAT = "new"
 
 export type ConversationView =
-  | { status: "new" }
+  // `returned` is what a refused new chat hands back to the composer.
+  | { status: "new"; returned?: ReturnedDraft }
   | { status: "creating" }
   | { status: "active"; threadId: number }
+
+export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
 function rememberThread(workspaceId: number, threadId: number | null) {
   try {
@@ -218,6 +223,8 @@ export function useChatRuntime({
   sourceScope = null,
   readsImages,
   canSkipThinking,
+  newChatMode = null,
+  onAgenticGate,
   onModelRequired,
 }: {
   workspaceId: number
@@ -232,6 +239,10 @@ export function useChatRuntime({
   readsImages: boolean
   // Whether the selected model can be told not to think; no other is asked to.
   canSkipThinking: boolean
+  // The mode a new chat opens in; null leaves it to the API's default.
+  newChatMode?: NewChatChoice | null
+  // A gate the API refused an Agentic chat by, which the model's modes did not say.
+  onAgenticGate?: (gate: string) => void
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -296,8 +307,15 @@ export function useChatRuntime({
   const isRunning = activeRun !== null && !activeRun.ended
 
   const createThreadMutation = useMutation({
-    mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
-      createThread(workspaceId, title, signal),
+    mutationFn: ({
+      title,
+      mode,
+      signal,
+    }: {
+      title: string
+      mode: NewChatChoice | null
+      signal: AbortSignal
+    }) => createThread(workspaceId, title, mode, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
@@ -594,11 +612,32 @@ export function useChatRuntime({
         conversationView.status === "active" ? conversationView.threadId : null
       let usesAgent =
         threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
+      const agentic =
+        threadId === null ? newChatMode?.mode === "agentic" : usesAgent
+      if (agentic && images.length > 0) {
+        // The agent would refuse the turn: a new chat's question comes back,
+        // and nothing is opened or sent.
+        if (threadId === null) {
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
+        }
+        errorToast(
+          intl.formatMessage({
+            id: "chat_runtime_agentic_images_toast",
+            defaultMessage:
+              "Agentic mode doesn’t read images yet. Ask about images in a Basic (Q&A) chat.",
+          })
+        )
+        return
+      }
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
+            mode: newChatMode,
             signal: new AbortController().signal,
           })
           if (requestVersion.current !== version) {
@@ -620,9 +659,27 @@ export function useChatRuntime({
         }
       } catch (cause) {
         if (requestVersion.current === version) {
-          setConversationView({ status: "new" })
+          // An Agentic chat may be refused after a minute's wait for the
+          // agent; what was typed comes back rather than being lost.
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
         }
-        errorToast(messageFrom(cause))
+        if (
+          cause instanceof ApiError &&
+          cause.code !== null &&
+          AGENTIC_GATES.has(cause.code)
+        ) {
+          onAgenticGate?.(cause.code)
+        }
+        errorToast(
+          cause instanceof ApiError &&
+            cause.code !== null &&
+            AGENTIC_REFUSALS.has(cause.code)
+            ? agenticRefusedText(cause.code)
+            : messageFrom(cause)
+        )
         return
       }
 
@@ -726,6 +783,8 @@ export function useChatRuntime({
       conversationView,
       createThreadMutation,
       isRunning,
+      newChatMode,
+      onAgenticGate,
       onModelRequired,
       queryClient,
       selectedDocumentIds,

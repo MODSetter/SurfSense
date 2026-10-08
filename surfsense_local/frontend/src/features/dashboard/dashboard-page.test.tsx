@@ -76,6 +76,63 @@ beforeEach(() => {
   })
 })
 
+const NEW_THREAD = {
+  id: 10,
+  workspace_id: 1,
+  title: "New chat",
+  uses_agent: false,
+  created_at: "2026-10-07T00:00:00Z",
+  updated_at: "2026-10-07T00:00:00Z",
+}
+
+/** A text model whose new chats start in `mode`, a default the user never chose. */
+function selectionStarting(mode: "basic" | "agentic") {
+  return {
+    model_type: "text_gen" as const,
+    provider: "openai_compatible",
+    connection_id: 1,
+    name: "moonshotai/kimi-k3",
+    updated_at: "2026-10-07T00:00:00Z",
+    capability: {
+      level: "agent" as const,
+      label_key: "agent" as const,
+      reason: { code: "measured_pass", values: {} },
+      note: null,
+      measured: null,
+      modes: {
+        agentic_allowed: true,
+        blocked: null,
+        default_mode: mode,
+        reason: { code: "measured_pass", values: { passed: 8, counted: 8 } },
+        remembered_mode: null,
+      },
+    },
+  }
+}
+
+/** An empty workspace whose new chat is answered by `create`, then by one reply. */
+function newChatServer(create: (body: unknown) => Response) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input)
+    if (path === "/llm/providers") return Response.json([])
+    if (path === "/workspaces/1/chat/threads" && !init?.method) {
+      return Response.json([])
+    }
+    if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+      return create(JSON.parse(String(init.body)))
+    }
+    if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+      return new Response(
+        'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-10-07T00:00:00Z"}\n\ndata: {"type":"delta","text":"Revenue rose."}\n\ndata: {"type":"completed","assistant_completed_at":"2026-10-07T00:00:01Z","text":"Revenue rose."}\n\ndata: [DONE]\n\n',
+        { headers: { "Content-Type": "text/event-stream" } }
+      )
+    }
+    if (path === "/chat/threads/10/messages") return Response.json([])
+    if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+    return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
+  })
+}
+
 describe("dashboard chat", () => {
   it("renames a saved chat from the conversation title", async () => {
     const thread = {
@@ -954,6 +1011,273 @@ describe("dashboard chat", () => {
         excluded_document_ids: [],
       },
     })
+  })
+
+  it("opens a new chat in the mode picked in the composer, and offers an open chat's other mode as a new chat", async () => {
+    const created: unknown[] = []
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          created.push(JSON.parse(String(init.body)))
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "New chat",
+              uses_agent: false,
+              created_at: "2026-10-07T00:00:00Z",
+              updated_at: "2026-10-07T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-10-07T00:00:00Z"}\n\ndata: {"type":"delta","text":"Revenue rose."}\n\ndata: {"type":"completed","assistant_completed_at":"2026-10-07T00:00:01Z","text":"Revenue rose."}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        if (path.startsWith("/workspaces/1/documents")) {
+          return Response.json([])
+        }
+        return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "openai_compatible",
+            connection_id: 1,
+            name: "moonshotai/kimi-k3",
+            updated_at: "2026-10-07T00:00:00Z",
+            capability: {
+              level: "agent",
+              label_key: "agent",
+              reason: { code: "measured_pass", values: {} },
+              note: null,
+              measured: null,
+              modes: {
+                agentic_allowed: true,
+                blocked: null,
+                default_mode: "agentic",
+                reason: {
+                  code: "measured_pass",
+                  values: { passed: 8, counted: 8 },
+                },
+                remembered_mode: null,
+              },
+            },
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.click(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Basic \(Q&A\)/ })
+    )
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "How did revenue move?"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    // Picked in the switch, so it becomes the model's default.
+    expect(created).toEqual([
+      { title: "New chat", mode: "basic", remember: true },
+    ])
+    await user.click(
+      within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: /^Start a new chat in Agentic mode/,
+      })
+    )
+
+    expect(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    ).toBeTruthy()
+    expect(within(conversation).queryByText("Revenue rose.")).toBeNull()
+  })
+
+  it("opens a new chat in the model's default without remembering a switch left alone", async () => {
+    const created: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      newChatServer((body) => {
+        created.push(body)
+        return Response.json(NEW_THREAD, { status: 201 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("basic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "How did revenue move?"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    // A later score still decides the next chat on this model.
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
+  })
+
+  it("hands the question back to the composer when the agent doesn't start", async () => {
+    vi.stubGlobal(
+      "fetch",
+      newChatServer(() =>
+        Response.json(
+          {
+            detail: {
+              code: "agent_unavailable",
+              message: "The agent did not start.",
+            },
+          },
+          { status: 503 }
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("agentic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    const message = within(conversation).getByRole("textbox", {
+      name: "Message",
+    })
+    await user.type(message, "Draft the board pack from the Q3 PDFs")
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    await waitFor(() =>
+      expect((message as HTMLTextAreaElement).value).toBe(
+        "Draft the board pack from the Q3 PDFs"
+      )
+    )
+    expect(
+      within(conversation).getByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    ).toBeTruthy()
+  })
+
+  it("starts the next chat in Basic once the API refuses Agentic by a gate the model's modes could not say", async () => {
+    const created: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      newChatServer((body) => {
+        created.push(body)
+        // A local model's tool calls are read only when a chat starts.
+        return created.length === 1
+          ? Response.json(
+              {
+                detail: {
+                  code: "tool_calls_unsupported",
+                  message:
+                    "This model can't use tools, so it can't run Agentic mode.",
+                },
+              },
+              { status: 409 }
+            )
+          : Response.json(NEW_THREAD, { status: 201 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("agentic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "Draft the board pack from the Q3 PDFs"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+    await user.click(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Basic (Q&A). Change mode.",
+      })
+    )
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+
+    expect(agentic.getAttribute("aria-disabled")).toBe("true")
+    expect(
+      within(agentic).getByText("This model can’t use tools.")
+    ).toBeTruthy()
+    await user.keyboard("{Escape}")
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    expect(created).toEqual([
+      { title: "New chat", mode: "agentic" },
+      { title: "New chat", mode: "basic" },
+    ])
   })
 
   it("loads threads and sources for the selected workspace", async () => {
