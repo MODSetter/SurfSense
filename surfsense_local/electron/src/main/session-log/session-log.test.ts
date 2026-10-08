@@ -4,8 +4,29 @@ import { setFlagsFromString } from "node:v8"
 import { runInNewContext } from "node:vm"
 
 import { createSessionLog } from "./session-log.ts"
+import { warnMain } from "./main-warn.ts"
 
 const at = () => new Date(2026, 8, 25, 18, 21, 3)
+
+test("a main warning goes to the terminal and the log tagged as main", () => {
+  const log = createSessionLog({ home: "/home/ada", now: at })
+  const written: string[] = []
+  const original = process.stderr.write
+  process.stderr.write = ((chunk: string) => {
+    written.push(chunk)
+    return true
+  }) as typeof process.stderr.write
+  try {
+    warnMain(log, "failed to save theme preference: boom")
+  } finally {
+    process.stderr.write = original
+  }
+
+  assert.deepEqual(written, ["[main] failed to save theme preference: boom\n"])
+  assert.deepEqual(log.lines(), [
+    "18:21:03 [main] failed to save theme preference: boom",
+  ])
+})
 
 test("prefixes every line with the time and the process that wrote it", () => {
   const log = createSessionLog({ home: "/home/ada", now: at })
