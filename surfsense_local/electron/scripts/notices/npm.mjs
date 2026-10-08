@@ -5,7 +5,8 @@ import { execFileSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 
 import { writeFragment } from "./fragments.mjs"
-import { licenceText } from "./licence-files.mjs"
+import { licenceFiles } from "./licence-files.mjs"
+import { REVIEWED_TEXTS, reviewedText } from "./reviewed-texts.mjs"
 
 const TREES = {
   frontend: fileURLToPath(new URL("../../../frontend", import.meta.url)),
@@ -13,12 +14,13 @@ const TREES = {
 }
 
 /** Entries from `pnpm licenses list --json`, whose `versions` and `paths` pair up. */
-export function npmNotices(report, tree) {
+export function npmNotices(report, tree, reviewed = []) {
   const entries = []
   for (const packages of Object.values(report)) {
     for (const pkg of packages) {
       pkg.versions.forEach((version, i) => {
-        entries.push({ name: pkg.name, version, tree, license: pkg.license, text: licenceText(pkg.paths[i]) })
+        const entry = { name: pkg.name, version, tree, license: pkg.license, ...licenceFiles(pkg.paths[i]) }
+        entries.push(entry.text ? entry : { ...entry, ...reviewedText(reviewed, entry) })
       })
     }
   }
@@ -38,7 +40,7 @@ function pnpmLicences(dir) {
 
 function main() {
   for (const [tree, dir] of Object.entries(TREES)) {
-    const entries = npmNotices(pnpmLicences(dir), tree)
+    const entries = npmNotices(pnpmLicences(dir), tree, REVIEWED_TEXTS)
     const path = writeFragment(`npm-${tree}`, { entries })
     console.log(`${entries.length} npm packages from ${tree} in ${path}`)
   }

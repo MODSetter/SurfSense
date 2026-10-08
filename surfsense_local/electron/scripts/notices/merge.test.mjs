@@ -46,6 +46,19 @@ test("fails when an npm dependency has no licence text", () => {
   assert.equal(mergeNotices(fragments({ "npm-frontend": npm }), []).problems.length, 1)
 })
 
+test("a NOTICE file alone does not pass the gate", () => {
+  const npm = { entries: [{ name: "foo", version: "1.0.0", tree: "frontend", license: "Apache-2.0", text: "", notice: "Foo NOTICE" }] }
+  const merged = mergeNotices(fragments({ "npm-frontend": npm }), [])
+  assert.match(merged.problems.join("\n"), /frontend foo 1\.0\.0 has no licence text/)
+})
+
+test("a NOTICE file ships after the licence text", () => {
+  const npm = { entries: [{ name: "foo", version: "1.0.0", tree: "frontend", license: "Apache-2.0", text: MIT, notice: "Foo NOTICE" }] }
+  const merged = mergeNotices(fragments({ "npm-frontend": npm }), [])
+  assert.deepEqual(merged.problems, [])
+  assert.equal(merged.entries.find((e) => e.name === "foo").text, `${MIT}\n\nFoo NOTICE`)
+})
+
 test("passes when the dependency without text is allowlisted with a reason", () => {
   const allow = [{ tree: "python", name: "left-pad", reason: "upstream ships no licence file; MIT per its metadata" }]
   const merged = mergeNotices(fragments({ python: NO_TEXT }), allow)

@@ -51,11 +51,6 @@
   },
   {
     "tree": "frontend",
-    "name": "buffers",
-    "reason": "The package ships no licence file and its package.json declares no licence; by James Halliday, reached through exceljs, unzipper and binary. Needs a maintainer's decision."
-  },
-  {
-    "tree": "frontend",
     "name": "chainsaw",
     "reason": "The package ships no licence file. Its package.json declares MIT/X11, by James Halliday."
   },

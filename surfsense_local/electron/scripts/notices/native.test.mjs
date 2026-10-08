@@ -9,7 +9,7 @@ import { nativeNotices } from "./native.mjs"
 const COMPONENTS = [
   { name: "llama.cpp", version: "b1", license: "MIT", folder: "llamacpp", files: ["LICENSE"] },
   { name: "eSpeak NG", version: "1.52.0", license: "GPL-3.0-or-later", folder: "audiocpp", files: ["espeak/COPYING"] },
-  { name: "ripgrep", version: "15", license: "Unlicense OR MIT", folder: "opencode", files: ["ripgrep/COPYING", "ripgrep/UNLICENSE"] },
+  { name: "ripgrep", version: "15", license: "Unlicense OR MIT", folder: "opencode", files: ["ripgrep/COPYING", "ripgrep/LICENSE-MIT", "ripgrep/UNLICENSE"] },
 ]
 
 function withRoot(build) {
@@ -33,12 +33,14 @@ test("reads the licence files a stage left beside its binary", () => {
     put(root, "llamacpp/LICENSE", "MIT License")
     put(root, "audiocpp/espeak/COPYING", "GNU GENERAL PUBLIC LICENSE")
     put(root, "opencode/ripgrep/COPYING", "dual")
+    put(root, "opencode/ripgrep/LICENSE-MIT", "MIT terms")
     put(root, "opencode/ripgrep/UNLICENSE", "public domain")
   })
   assert.equal(entries.length, 3)
   const ripgrep = entries.find((e) => e.name === "ripgrep")
   assert.equal(ripgrep.tree, "native")
   assert.match(ripgrep.text, /dual/)
+  assert.match(ripgrep.text, /MIT terms/)
   assert.match(ripgrep.text, /public domain/)
 })
 
@@ -51,9 +53,24 @@ test("an unstaged folder is reported, not a crash", () => {
   assert.deepEqual(unstaged.sort(), ["eSpeak NG", "ripgrep"])
 })
 
-test("a staged folder missing its licence yields an entry with no text, for the gate to catch", () => {
-  const { entries } = withRoot((root) => {
-    put(root, "llamacpp/llama-server", "binary")
-  })
-  assert.equal(entries[0].text, "")
+test("a staged folder missing a listed licence file fails, naming it", () => {
+  assert.throws(
+    () =>
+      withRoot((root) => {
+        put(root, "llamacpp/LICENSE", "MIT License")
+        put(root, "opencode/ripgrep/COPYING", "dual")
+        put(root, "opencode/ripgrep/UNLICENSE", "public domain")
+      }),
+    /ripgrep.*opencode[/\\]ripgrep[/\\]LICENSE-MIT/s,
+  )
+})
+
+test("a listed licence file holding only whitespace fails too", () => {
+  assert.throws(
+    () =>
+      withRoot((root) => {
+        put(root, "llamacpp/LICENSE", "  \n")
+      }),
+    /llama\.cpp.*LICENSE/s,
+  )
 })

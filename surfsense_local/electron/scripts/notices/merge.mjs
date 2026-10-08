@@ -38,7 +38,9 @@ export function mergeNotices(fragments, allowlist) {
         if (allowed) note = [note, allowed.reason].filter(Boolean).join(" ")
         else problems.push(`${tree} ${name} ${version} has no licence text`)
       }
-      entries.push({ name, version: version ?? "", tree, license: license ?? "UNKNOWN", text: text ?? "", note })
+      // A NOTICE is attribution: it ships, but only the licence text passes the gate.
+      const shipped = [text, entry.notice].filter((part) => part?.trim()).join("\n\n")
+      entries.push({ name, version: version ?? "", tree, license: license ?? "UNKNOWN", text: shipped, note })
     }
   }
   return { entries: entries.sort(byTreeThenName), problems }

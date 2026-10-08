@@ -131,6 +131,28 @@ def test_the_frozen_interpreter_ships_its_own_licence():
     assert "PYTHON SOFTWARE FOUNDATION LICENSE" in entry["text"]
 
 
+def test_the_interpreter_licence_is_found_in_the_installation_root(tmp_path):
+    """python-build-standalone on Windows keeps LICENSE.txt beside Lib, not in it."""
+    stdlib, root = tmp_path / "Lib", tmp_path
+    stdlib.mkdir()
+    (root / "LICENSE.txt").write_text("PSF licence from the root\n")
+    assert interpreter_notice([stdlib, root])["text"] == "PSF licence from the root"
+
+
+def test_the_stdlib_licence_wins_over_the_root(tmp_path):
+    """The stdlib copy is read first, as on Linux and macOS."""
+    stdlib, root = tmp_path / "lib", tmp_path
+    stdlib.mkdir()
+    (stdlib / "LICENSE.txt").write_text("from the stdlib")
+    (root / "LICENSE.txt").write_text("from the root")
+    assert interpreter_notice([stdlib, root])["text"] == "from the stdlib"
+
+
+def test_an_interpreter_without_its_licence_has_no_text_for_the_gate(tmp_path):
+    """Found in neither place, the merge fails the build."""
+    assert interpreter_notice([tmp_path / "Lib", tmp_path])["text"] == ""
+
+
 def test_a_latin_1_licence_file_is_read_not_fatal(tmp_path):
     """A licence file that is not UTF-8 is still read."""
     dist = FakeDistribution(
