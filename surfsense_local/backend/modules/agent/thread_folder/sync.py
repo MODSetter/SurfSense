@@ -61,6 +61,9 @@ def sync_thread_folder(
     workspace_id, thread_id = thread.workspace_id, thread.id
     storage = get_storage_settings()
     text_dir = storage.agent_text_dir(workspace_id)
+    # A transaction holds the write lock from its BEGIN. Waiting for the thread's
+    # lock with one open would stop the sync that holds it at its next read.
+    session.commit()
     with thread_lock(storage.thread_working_dir(workspace_id, thread_id)):
         # Checked under the lock a deletion takes, so a deleted thread's folder stays gone.
         _require_same_thread(session, thread)

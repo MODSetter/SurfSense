@@ -259,6 +259,43 @@ def test_two_syncs_of_one_thread_at_once_leave_one_whole_view(engine: Engine) ->
     )
 
 
+def test_a_sync_waiting_for_its_thread_holds_no_write_lock(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller's open transaction is committed before the wait for the thread's lock.
+
+    Held through the wait, it would refuse every write in the app, the reads of
+    the sync ahead among them, until the busy wait gives up.
+    """
+    factory = create_session_factory(engine)
+    with factory() as session:
+        workspace_id = workspace(session)
+        plan = source(session, workspace_id, "Plan", "Ship on Friday.")
+        thread = agent_thread(session, workspace_id)
+    folder = get_storage_settings().thread_working_dir(workspace_id, thread.id)
+    asked = threading.Event()
+    thread_lock = sync_module.thread_lock
+
+    def announced(path: Path) -> threading.Lock:
+        asked.set()
+        return thread_lock(path)
+
+    monkeypatch.setattr(sync_module, "thread_lock", announced)
+
+    def sync() -> Path:
+        with factory() as own:
+            return sync_thread_folder(own, own.get(ChatThread, thread.id), [plan.id])
+
+    with ThreadPoolExecutor(1) as pool:
+        with thread_lock(folder):
+            syncing = pool.submit(sync)
+            assert asked.wait(5)
+            with factory() as other:
+                other.add(Workspace(name="Elsewhere"))
+                other.commit()
+        assert set(texts(syncing.result())) == {f"Plan [{plan.id}].md"}
+
+
 def test_a_view_that_is_not_the_cached_text_is_replaced(session: Session) -> None:
     """A file left from another run is replaced by the cached text itself."""
     workspace_id = workspace(session)

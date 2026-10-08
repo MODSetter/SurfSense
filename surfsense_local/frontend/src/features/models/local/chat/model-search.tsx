@@ -11,6 +11,7 @@ import {
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { DotIcon, SearchIcon, XIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import {
   HUGGINGFACE,
   destinationsQueryKey,
@@ -33,9 +34,14 @@ import { jobFor } from "../installs/job-state"
 // the scroll region, where any change in height drags the content above it.
 const RESERVED = "min-h-80"
 
-// Matches the API side cache. Hugging Face allows 500 requests per 5 minutes,
-// and a list is refetched on every keystroke a debounce lets through.
+// Matches the API side cache: a repeated query inside the window is served
+// without a request. Hugging Face allows 500 requests per 5 minutes.
 const STALE_MS = 300_000
+
+// Long enough that a burst of typing settles to one lookup, short enough
+// that the pause before results is not felt: keystrokes land ~100 ms apart,
+// and a delay past ~500 ms reads as the app lagging.
+const DEBOUNCE_MS = 300
 
 const formatSize = (bytes: number) =>
   intl.formatNumber(bytes / 1e9, {
@@ -181,7 +187,7 @@ function RepoBuilds({
                       {formatSize(build.footprint_bytes)}
                     </span>
                   </div>
-                  <FitReason copy={build.badge} />
+                  <FitReason fit={build.fit} copy={build.badge} />
                 </div>
                 <BuildAction
                   build={build}
@@ -243,6 +249,7 @@ export function ModelSearch({
   const searchRef = useRef<HTMLInputElement>(null)
   const [openRepo, setOpenRepo] = useState<string | null>(null)
   const trimmed = query.trim()
+  const debounced = useDebouncedValue(trimmed, DEBOUNCE_MS)
 
   const destinations = useQuery({
     queryKey: destinationsQueryKey,
@@ -271,9 +278,9 @@ export function ModelSearch({
   }, [reached, huggingface])
 
   const results = useQuery({
-    queryKey: ["llm", "search", source.key, "list", trimmed],
-    queryFn: ({ signal }) => source.search(trimmed, signal),
-    enabled: trimmed.length > 1,
+    queryKey: ["llm", "search", source.key, "list", debounced],
+    queryFn: ({ signal }) => source.search(debounced, signal),
+    enabled: debounced.length > 1,
     staleTime: STALE_MS,
   })
 
@@ -341,7 +348,7 @@ export function ModelSearch({
           prompt to a spinner to a list and back. Results scroll inside it
           rather than stretching the page, as a server's models do. */}
       <div data-slot="search-results" className={RESERVED}>
-        {trimmed.length <= 1 ? (
+        {debounced.length <= 1 ? (
           <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
             {intl.formatMessage({
               id: "models_search_prompt_empty",
@@ -371,7 +378,7 @@ export function ModelSearch({
                 id: "models_search_no_results_empty",
                 defaultMessage: "No models match “{query}”.",
               },
-              { query: trimmed }
+              { query: debounced }
             )}
           </p>
         ) : (

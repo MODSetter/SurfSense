@@ -15,7 +15,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { render } from "@/test-utils"
 
-import { readSourcePreview, RIGHT_PANEL_KEY } from "./chrome-prefs"
+import {
+  COLUMN_WIDTH_KEYS,
+  readSourcePreview,
+  RIGHT_PANEL_KEY,
+} from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -71,6 +75,63 @@ beforeEach(() => {
     revealDocument: vi.fn(async () => ""),
   })
 })
+
+const NEW_THREAD = {
+  id: 10,
+  workspace_id: 1,
+  title: "New chat",
+  uses_agent: false,
+  created_at: "2026-10-07T00:00:00Z",
+  updated_at: "2026-10-07T00:00:00Z",
+}
+
+/** A text model whose new chats start in `mode`, a default the user never chose. */
+function selectionStarting(mode: "basic" | "agentic") {
+  return {
+    model_type: "text_gen" as const,
+    provider: "openai_compatible",
+    connection_id: 1,
+    name: "moonshotai/kimi-k3",
+    updated_at: "2026-10-07T00:00:00Z",
+    capability: {
+      level: "agent" as const,
+      label_key: "agent" as const,
+      reason: { code: "measured_pass", values: {} },
+      note: null,
+      measured: null,
+      modes: {
+        agentic_allowed: true,
+        blocked: null,
+        default_mode: mode,
+        reason: { code: "measured_pass", values: { passed: 8, counted: 8 } },
+        remembered_mode: null,
+      },
+    },
+  }
+}
+
+/** An empty workspace whose new chat is answered by `create`, then by one reply. */
+function newChatServer(create: (body: unknown) => Response) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input)
+    if (path === "/llm/providers") return Response.json([])
+    if (path === "/workspaces/1/chat/threads" && !init?.method) {
+      return Response.json([])
+    }
+    if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+      return create(JSON.parse(String(init.body)))
+    }
+    if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+      return new Response(
+        'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-10-07T00:00:00Z"}\n\ndata: {"type":"delta","text":"Revenue rose."}\n\ndata: {"type":"completed","assistant_completed_at":"2026-10-07T00:00:01Z","text":"Revenue rose."}\n\ndata: [DONE]\n\n',
+        { headers: { "Content-Type": "text/event-stream" } }
+      )
+    }
+    if (path === "/chat/threads/10/messages") return Response.json([])
+    if (path.startsWith("/workspaces/1/documents")) return Response.json([])
+    return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
+  })
+}
 
 describe("dashboard chat", () => {
   it("renames a saved chat from the conversation title", async () => {
@@ -952,6 +1013,273 @@ describe("dashboard chat", () => {
     })
   })
 
+  it("opens a new chat in the mode picked in the composer, and offers an open chat's other mode as a new chat", async () => {
+    const created: unknown[] = []
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          created.push(JSON.parse(String(init.body)))
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "New chat",
+              uses_agent: false,
+              created_at: "2026-10-07T00:00:00Z",
+              updated_at: "2026-10-07T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-10-07T00:00:00Z"}\n\ndata: {"type":"delta","text":"Revenue rose."}\n\ndata: {"type":"completed","assistant_completed_at":"2026-10-07T00:00:01Z","text":"Revenue rose."}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        if (path.startsWith("/workspaces/1/documents")) {
+          return Response.json([])
+        }
+        return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "openai_compatible",
+            connection_id: 1,
+            name: "moonshotai/kimi-k3",
+            updated_at: "2026-10-07T00:00:00Z",
+            capability: {
+              level: "agent",
+              label_key: "agent",
+              reason: { code: "measured_pass", values: {} },
+              note: null,
+              measured: null,
+              modes: {
+                agentic_allowed: true,
+                blocked: null,
+                default_mode: "agentic",
+                reason: {
+                  code: "measured_pass",
+                  values: { passed: 8, counted: 8 },
+                },
+                remembered_mode: null,
+              },
+            },
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.click(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Basic \(Q&A\)/ })
+    )
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "How did revenue move?"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    // Picked in the switch, so it becomes the model's default.
+    expect(created).toEqual([
+      { title: "New chat", mode: "basic", remember: true },
+    ])
+    await user.click(
+      within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: /^Start a new chat in Agentic mode/,
+      })
+    )
+
+    expect(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    ).toBeTruthy()
+    expect(within(conversation).queryByText("Revenue rose.")).toBeNull()
+  })
+
+  it("opens a new chat in the model's default without remembering a switch left alone", async () => {
+    const created: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      newChatServer((body) => {
+        created.push(body)
+        return Response.json(NEW_THREAD, { status: 201 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("basic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "How did revenue move?"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    // A later score still decides the next chat on this model.
+    expect(created).toEqual([{ title: "New chat", mode: "basic" }])
+  })
+
+  it("hands the question back to the composer when the agent doesn't start", async () => {
+    vi.stubGlobal(
+      "fetch",
+      newChatServer(() =>
+        Response.json(
+          {
+            detail: {
+              code: "agent_unavailable",
+              message: "The agent did not start.",
+            },
+          },
+          { status: 503 }
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("agentic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    const message = within(conversation).getByRole("textbox", {
+      name: "Message",
+    })
+    await user.type(message, "Draft the board pack from the Q3 PDFs")
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+
+    await waitFor(() =>
+      expect((message as HTMLTextAreaElement).value).toBe(
+        "Draft the board pack from the Q3 PDFs"
+      )
+    )
+    expect(
+      within(conversation).getByRole("button", {
+        name: "Chat mode Agentic. Change mode.",
+      })
+    ).toBeTruthy()
+  })
+
+  it("starts the next chat in Basic once the API refuses Agentic by a gate the model's modes could not say", async () => {
+    const created: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      newChatServer((body) => {
+        created.push(body)
+        // A local model's tool calls are read only when a chat starts.
+        return created.length === 1
+          ? Response.json(
+              {
+                detail: {
+                  code: "tool_calls_unsupported",
+                  message:
+                    "This model can't use tools, so it can't run Agentic mode.",
+                },
+              },
+              { status: 409 }
+            )
+          : Response.json(NEW_THREAD, { status: 201 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={selectionStarting("agentic")}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await user.type(
+      within(conversation).getByRole("textbox", { name: "Message" }),
+      "Draft the board pack from the Q3 PDFs"
+    )
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+    await user.click(
+      await within(conversation).findByRole("button", {
+        name: "Chat mode Basic (Q&A). Change mode.",
+      })
+    )
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+
+    expect(agentic.getAttribute("aria-disabled")).toBe("true")
+    expect(
+      within(agentic).getByText("This model can’t use tools.")
+    ).toBeTruthy()
+    await user.keyboard("{Escape}")
+    await user.click(
+      within(conversation).getByRole("button", { name: "Send message" })
+    )
+    expect(await within(conversation).findByText("Revenue rose.")).toBeTruthy()
+    expect(created).toEqual([
+      { title: "New chat", mode: "agentic" },
+      { title: "New chat", mode: "basic" },
+    ])
+  })
+
   it("loads threads and sources for the selected workspace", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)
@@ -1416,7 +1744,7 @@ describe("dashboard chat", () => {
     )
 
     await screen.findByRole("treeitem", { name: "Research" })
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     await user.click(
       screen.getByRole("checkbox", { name: "Select folder Research" })
     )
@@ -1918,7 +2246,7 @@ describe("dashboard chat", () => {
           return Response.json([
             {
               key: "summary",
-              label: "Summary",
+              label: "Markdown",
               requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
@@ -2010,7 +2338,7 @@ describe("dashboard chat", () => {
       )
     ).toBe(false)
     expect(artifactsScroll?.contains(weeklySummary)).toBe(true)
-    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Markdown" })).toBeTruthy()
     await user.click(weeklySummary)
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
     expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
@@ -2153,5 +2481,227 @@ describe("dashboard chat", () => {
 
     rerender(page(onOpenRouter))
     expect(await screen.findByText(refused)).toBeTruthy()
+  })
+})
+
+describe("resizable columns", () => {
+  const LIST =
+    "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+  const pdf = {
+    id: 42,
+    title: "report.pdf",
+    document_type: "FILE",
+    mime_type: "application/pdf",
+    status: "pending",
+    error_message: null,
+    created_at: "2026-09-05T00:00:00Z",
+    updated_at: "2026-09-05T00:00:00Z",
+  }
+  // Calls the section's ResizeObserver as a window this wide would.
+  let reportSection: (width: number) => void = () => undefined
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === LIST) return Response.json([pdf])
+        if (path === "/workspaces/1/chat/threads") return Response.json([])
+        if (path === "/workspaces/1/studio/formats") return Response.json([])
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        if (path === "/workspaces/1/documents/42/original") {
+          return new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]))
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const observed: { target: Element; callback: ResizeObserverCallback }[] = []
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        callback: ResizeObserverCallback
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback
+        }
+        observe(target: Element) {
+          observed.push({ target, callback: this.callback })
+        }
+        unobserve() {}
+        disconnect() {}
+      }
+    )
+    reportSection = (width) =>
+      act(() => {
+        for (const { target, callback } of observed) {
+          if (target.tagName !== "SECTION") continue
+          callback(
+            [{ target, contentRect: { width } } as ResizeObserverEntry],
+            {} as ResizeObserver
+          )
+        }
+      })
+  })
+
+  const page = (
+    <TooltipProvider>
+      <DashboardPage
+        initialProviderAvailable={true}
+        selection={{
+          model_type: "text_gen",
+          provider: "llamacpp",
+          connection_id: null,
+          name: "llama3.2:1b",
+          updated_at: "2026-09-05T00:00:00Z",
+        }}
+        initialWorkspaces={[workspace]}
+        onModelSelected={vi.fn()}
+      />
+    </TooltipProvider>
+  )
+
+  const sidebarEdge = () =>
+    screen.getByRole("separator", { name: "Resize sidebar" })
+  const rightPanelEdge = () =>
+    screen.getByRole("separator", { name: "Resize right panel" })
+  const sidebarWidth = () =>
+    document.getElementById("workspace-left-column")?.style.width
+  const rightPanelWidth = () =>
+    (
+      document.getElementById("workspace-right-panel")?.parentElement
+        ?.parentElement as HTMLElement
+    ).style.width
+  const saved = (column: keyof typeof COLUMN_WIDTH_KEYS) =>
+    JSON.parse(localStorage.getItem(COLUMN_WIDTH_KEYS[column]) ?? "null")
+
+  function drag(edge: HTMLElement, by: number) {
+    fireEvent.pointerDown(edge, { button: 0, pointerId: 1, clientX: 600 })
+    fireEvent.pointerMove(edge, { pointerId: 1, clientX: 600 + by })
+    fireEvent.pointerUp(edge, { pointerId: 1, clientX: 600 + by })
+  }
+
+  it("widens the sidebar by dragging its edge and keeps the width", async () => {
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(sidebarWidth()).toBe("272px")
+
+    drag(sidebarEdge(), 48)
+
+    expect(sidebarWidth()).toBe("320px")
+    expect(sidebarEdge().getAttribute("aria-valuenow")).toBe("320")
+    expect(saved("sidebar")).toEqual({ rest: 320, wide: DETAIL_RAIL_WIDTH })
+    cleanup()
+    render(page)
+    expect(sidebarWidth()).toBe("320px")
+  })
+
+  it("widens the right panel from its left edge, which it hides while collapsed", async () => {
+    const user = userEvent.setup()
+    render(page)
+    await screen.findByRole("complementary", { name: "Workspace artifacts" })
+
+    act(() => rightPanelEdge().focus())
+    await user.keyboard("{ArrowLeft}")
+
+    expect(rightPanelWidth()).toBe(`${MAIN_RAIL_WIDTH + 16}px`)
+    expect(saved("rightPanel")).toEqual({
+      rest: MAIN_RAIL_WIDTH + 16,
+      wide: DETAIL_RAIL_WIDTH,
+    })
+    await user.click(screen.getByRole("button", { name: "Hide right panel" }))
+    expect(
+      screen.queryByRole("separator", { name: "Resize right panel" })
+    ).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Show right panel" }))
+    expect(rightPanelWidth()).toBe(`${MAIN_RAIL_WIDTH + 16}px`)
+  })
+
+  it("never drags a column into the chat's 520 px", async () => {
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    // 1214 - 520 leaves 694: the right panel's 400 and 294 for the sidebar.
+    reportSection(1214)
+    expect(sidebarEdge().getAttribute("aria-valuemax")).toBe("294")
+
+    drag(sidebarEdge(), 400)
+    expect(sidebarWidth()).toBe("294px")
+    expect(rightPanelEdge().getAttribute("aria-valuemax")).toBe("400")
+    drag(sidebarEdge(), -400)
+    expect(sidebarWidth()).toBe("272px")
+    expect(rightPanelEdge().getAttribute("aria-valuemax")).toBe("422")
+  })
+
+  it("narrows a saved width to fit a smaller window and restores it on a larger one", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.rightPanel,
+      JSON.stringify({ rest: 640, wide: DETAIL_RAIL_WIDTH })
+    )
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(rightPanelWidth()).toBe("640px")
+
+    reportSection(1214)
+    expect(rightPanelWidth()).toBe("422px")
+    expect(rightPanelEdge().getAttribute("aria-valuenow")).toBe("422")
+    reportSection(1600)
+    expect(rightPanelWidth()).toBe("640px")
+    expect(saved("rightPanel").rest).toBe(640)
+  })
+
+  it("falls back to the default for a saved width it cannot read, and clamps one out of range", async () => {
+    localStorage.setItem(COLUMN_WIDTH_KEYS.sidebar, "{not json")
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.rightPanel,
+      JSON.stringify({ rest: 99999, wide: "wide" })
+    )
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+
+    expect(sidebarWidth()).toBe("272px")
+    expect(rightPanelWidth()).toBe("640px")
+  })
+
+  it("puts a column back at its default on a double-click of its edge", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.sidebar,
+      JSON.stringify({ rest: 400, wide: DETAIL_RAIL_WIDTH })
+    )
+    const user = userEvent.setup()
+    render(page)
+    await screen.findByRole("button", { name: "report.pdf" })
+    expect(sidebarWidth()).toBe("400px")
+
+    await user.dblClick(sidebarEdge())
+
+    expect(sidebarWidth()).toBe("272px")
+    expect(saved("sidebar")).toEqual({ rest: 272, wide: DETAIL_RAIL_WIDTH })
+  })
+
+  it("opens a preview at least as wide as the sidebar and resizes it apart from the sidebar", async () => {
+    localStorage.setItem(
+      COLUMN_WIDTH_KEYS.sidebar,
+      JSON.stringify({ rest: 300, wide: DETAIL_RAIL_WIDTH })
+    )
+    const user = userEvent.setup()
+    render(page)
+
+    await user.click(await screen.findByRole("button", { name: "report.pdf" }))
+    await screen.findByRole("complementary", { name: "Source preview" })
+    expect(sidebarWidth()).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    drag(sidebarEdge(), 80)
+
+    expect(sidebarWidth()).toBe(`${DETAIL_RAIL_WIDTH + 80}px`)
+    expect(saved("sidebar")).toEqual({
+      rest: 300,
+      wide: DETAIL_RAIL_WIDTH + 80,
+    })
+    await user.click(
+      screen.getByRole("button", { name: "Close source preview" })
+    )
+    expect(sidebarWidth()).toBe("300px")
   })
 })

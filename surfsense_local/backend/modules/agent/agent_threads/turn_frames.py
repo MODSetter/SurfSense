@@ -8,6 +8,7 @@ the agent adds three: `agent-step` for a tool call's progress, and
 from typing import Any
 
 from modules.agent.agent_threads.compaction import is_summary
+from modules.agent.agent_threads.error_kind import error_kind
 from modules.agent.agent_threads.error_reason import OVERFLOW, error_reason
 from modules.agent.agent_threads.replies import PARAGRAPH, iso_from_ms, reply_id
 from modules.agent.agent_threads.steps import step_of
@@ -26,6 +27,7 @@ class TurnFrames:
         self._kinds: dict[str, str] = {}
         self._streamed: dict[str, int] = {}
         self._answered: set[str] = set()
+        self._held: dict[str, str] = {}
         self._step_status: dict[str, str] = {}
         self._thought: set[str] = set()
         self._failed = False
@@ -54,9 +56,7 @@ class TurnFrames:
         if is_summary(info):
             self._roles[info["id"]] = "summary"
             # One that failed ends the turn; when it was too long, only the summary says so.
-            return (
-                self._failure(error_reason(info["error"])) if info.get("error") else []
-            )
+            return self._failure(info["error"]) if info.get("error") else []
         self._roles[info["id"]] = info["role"]
         if info["role"] != "user" or self.user_message_id is not None:
             return []
@@ -106,15 +106,28 @@ class TurnFrames:
     def _shown(self, part_id: str, text: str) -> list[Frame]:
         """A part's next text; a later answer part opens a new paragraph.
 
-        opencode starts a new part after each tool call, and its text begins with
-        no break of its own.
+        opencode starts a new part after each tool call, and models lead or end
+        parts with breaks, or send parts of breaks only. A part's breaks are
+        held until text follows them, and its leading ones dropped, so parts
+        join with one blank line, as the stored reply's do.
         """
         kind = self._kinds[part_id]
-        if kind == "text" and text.strip() and part_id not in self._answered:
+        if kind != "text":
+            return [{"type": _STREAMED[kind], "text": text}]
+        text = self._held.pop(part_id, "") + text
+        body = text.rstrip()
+        if not body:
+            self._held[part_id] = text
+            return []
+        if "\n" in text[len(body) :]:
+            self._held[part_id] = text[len(body) :]
+            text = body
+        if part_id not in self._answered:
+            text = text.lstrip()
             if self._answered:
                 text = PARAGRAPH + text
             self._answered.add(part_id)
-        return [{"type": _STREAMED[kind], "text": text}]
+        return [{"type": "delta", "text": text}]
 
     def _thinking_ended(self, part: dict[str, Any]) -> list[Frame]:
         """How long a reasoning part took, once, when it ends."""
@@ -164,9 +177,9 @@ class TurnFrames:
         error = properties.get("error") or {}
         if error.get("name") == OVERFLOW:
             return []  # opencode compacts and carries on (compaction.auto is on)
-        return self._failure(error_reason(error))
+        return self._failure(error)
 
-    def _failure(self, message: str) -> list[Frame]:
+    def _failure(self, error: dict[str, Any]) -> list[Frame]:
         """The turn's one error frame: opencode can report a failure twice."""
         if self._failed:
             return []
@@ -174,8 +187,8 @@ class TurnFrames:
         return [
             {
                 "type": "error",
-                "kind": "unknown",
-                "message": message,
+                "kind": error_kind(error),
+                "message": error_reason(error),
                 "provider": "opencode",
             }
         ]

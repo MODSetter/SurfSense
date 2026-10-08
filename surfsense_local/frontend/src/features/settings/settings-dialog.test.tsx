@@ -96,7 +96,7 @@ describe("SettingsDialog", () => {
         "Video",
         "Embedding",
       ],
-      System: ["Resources", "Network"],
+      System: ["Resources", "Office support", "Network"],
       App: ["Report issue", "About"],
     }
     for (const [group, sections] of Object.entries(groups)) {

@@ -216,7 +216,7 @@ jobs:
         working-directory: surfsense_local/electron
         run: node scripts/fetch-llamacpp.mjs
 
-      # Stages nothing while opencode is off (scripts/opencode/enabled.mjs).
+      # On by default (scripts/opencode/enabled.mjs): every installer carries the agent.
       - name: Stage opencode
         working-directory: surfsense_local/electron
         run: node scripts/opencode/stage.mjs
@@ -288,6 +288,20 @@ jobs:
           fi
 
           "${CMD[@]}"
+
+      # electron-builder's afterSign hook (scripts/opencode/after-sign.mjs) already
+      # ran this on macOS and Windows once the app was signed, before any installer
+      # was made or uploaded. Linux signs nothing and skips that hook, so this is
+      # its check of the packaged copy, and a second look on the other two.
+      - name: Smoke the bundled opencode
+        working-directory: surfsense_local/electron
+        run: |
+          case "$RUNNER_OS" in
+            Linux) DIR=release/linux-unpacked/resources/opencode ;;
+            Windows) DIR=release/win-unpacked/resources/opencode ;;
+            macOS) DIR=release/mac-arm64/SurfSense.app/Contents/Resources/opencode ;;
+          esac
+          node scripts/opencode/check-stage.mjs "$DIR"
 
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-22.04'

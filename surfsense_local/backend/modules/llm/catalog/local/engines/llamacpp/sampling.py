@@ -2,14 +2,15 @@
 
 from collections.abc import Sequence
 
+from modules.llm.catalog.local.engines.llamacpp.manifest_fields import SamplingSet
 from modules.llm.catalog.local.manifest import CuratedModel
 
 
-def publisher_temperature(
+def publisher_sampling(
     models: Sequence[CuratedModel], runtime_name: str, reasoning: bool | None
-) -> float | None:
-    """The temperature for the mode the model answers in, or None to keep the
-    runtime's default: a missing set is not filled from the other mode's."""
+) -> SamplingSet | None:
+    """The set for the mode the model answers in, or None to keep the runtime's
+    defaults: a missing set is not filled from the other mode's."""
     entry = next(
         (
             model
@@ -21,5 +22,4 @@ def publisher_temperature(
     if entry is None or entry.sampling is None:
         return None
     thinks = reasoning is not False and entry.template.reasoning is True
-    chosen = entry.sampling.thinking if thinks else entry.sampling.non_thinking
-    return chosen.temperature if chosen is not None else None
+    return entry.sampling.thinking if thinks else entry.sampling.non_thinking

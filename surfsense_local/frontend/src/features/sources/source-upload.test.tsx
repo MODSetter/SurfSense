@@ -320,6 +320,171 @@ describe("source upload", () => {
     )
   })
 
+  it("reveals the real error when Ctrl/Cmd was held before the row was hovered", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.keyboard("{Control>}")
+    await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+    const real = await screen.findByText("connection refused")
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    await user.keyboard("{/Control}")
+    await waitFor(() =>
+      expect(screen.queryByText("connection refused")).toBeNull()
+    )
+  })
+
+  describe("keeps the real error closed once Ctrl/Cmd is up", () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const processing = {
+      ...failed,
+      status: "processing" as const,
+      error_message: null,
+    }
+    const panel = (document: typeof failed | typeof processing) => (
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[document]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    it("after a press on the row before it failed", async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(panel(processing))
+
+      await user.keyboard("{Control>}")
+      await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+      await user.keyboard("{/Control}")
+      rerender(panel(failed))
+      expect(screen.queryByText("connection refused")).toBeNull()
+
+      // The row still answers a fresh press.
+      await user.keyboard("{Control>}")
+      expect(await screen.findByText("connection refused")).toBeTruthy()
+      await user.keyboard("{/Control}")
+    })
+
+    it("after a retry that failed again", async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(panel(failed))
+
+      await user.keyboard("{Control>}")
+      await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+      await screen.findByText("connection refused")
+      rerender(panel(processing))
+      // The tooltip itself, not its text: while it fades out it is still in the
+      // document, and takes the error back as its text when the row fails again.
+      await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+      await user.keyboard("{/Control}")
+      rerender(panel(failed))
+      expect(screen.queryByText("connection refused")).toBeNull()
+
+      await user.keyboard("{Control>}")
+      expect(await screen.findByText("connection refused")).toBeTruthy()
+      await user.keyboard("{/Control}")
+    })
+  })
+
+  it("listens for Ctrl/Cmd only while a failed row is hovered", async () => {
+    const ready = {
+      ...pendingDocument,
+      id: 1,
+      title: "ready.pdf",
+      status: "ready" as const,
+    }
+    const failed = {
+      ...pendingDocument,
+      id: 2,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const added = vi.spyOn(window, "addEventListener")
+    const removed = vi.spyOn(window, "removeEventListener")
+    const keydownListeners = () =>
+      added.mock.calls.filter(([type]) => type === "keydown").length -
+      removed.mock.calls.filter(([type]) => type === "keydown").length
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[ready, failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    const before = keydownListeners()
+
+    await user.hover(screen.getByRole("button", { name: "ready.pdf" }))
+    expect(keydownListeners()).toBe(before)
+    await user.hover(screen.getByRole("button", { name: "failed.pdf" }))
+    expect(keydownListeners()).toBe(before + 1)
+    await user.unhover(screen.getByRole("button", { name: "failed.pdf" }))
+    expect(keydownListeners()).toBe(before)
+
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
   it("offers per-source delete but disables it while processing", async () => {
     const onDelete = vi.fn()
     const user = userEvent.setup()
@@ -684,7 +849,7 @@ describe("source upload", () => {
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
     expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    await user.click(screen.getByRole("button", { name: "Clear" }))
     expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()

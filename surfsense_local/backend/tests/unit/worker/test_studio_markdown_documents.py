@@ -296,18 +296,21 @@ def test_letters_outside_latin_1_keep_their_shapes_in_the_pdf() -> None:
     """Cyrillic, Greek and CJK text is set in a font that has its letters.
 
     Arabic and Hebrew get glyphs too, though still in logical order (no bidi).
+    The table's cells hold two ideographs each: the CID fonts are not embedded,
+    and on a computer with no CJK font pdfium reads nothing back from a run of
+    one, which is the reader's gap and not the builder's.
     """
     lines = ["Привет мир", "Καλημέρα", "中文报告", "日本語のレポート", "한국어 보고서"]
     markdown = (
         "# Отчёт\n\n"
         + "\n\n".join([*lines, "مرحبا", "שלום"])
-        + "\n\n| Ключ | 值 |\n|---|---|\n| **Да** | *是* |\n\n```\nШлюз\n```\n"
+        + "\n\n| Ключ | 数值 |\n|---|---|\n| **Да** | *是的* |\n\n```\nШлюз\n```\n"
     )
 
     text = pdf_text(markdown_to_pdf(markdown, {}))
 
     assert "■" not in text
-    for line in ["Отчёт", *lines, "Ключ", "值", "Да", "是", "Шлюз"]:
+    for line in ["Отчёт", *lines, "Ключ", "数值", "Да", "是的", "Шлюз"]:
         assert line in text
 
 

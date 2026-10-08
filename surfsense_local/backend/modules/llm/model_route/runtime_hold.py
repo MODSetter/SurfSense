@@ -6,6 +6,7 @@ import httpx
 from modules.llm.model_route.api_address import ApiNotRunningError, api_url
 from modules.llm.providers.llamacpp.router_client import RouterClient
 from modules.llm.providers.llamacpp.unload import unload_text_models
+from modules.llm.providers.sse_lines import sse_lines
 from shared.config import get_llm_settings
 
 # Long enough to wait for running replies to finish before the hold is granted,
@@ -34,7 +35,7 @@ async def text_runtime_given_up() -> AsyncIterator[None]:
         client.stream("POST", f"{url}/internal/models/text/yield") as held,
     ):
         held.raise_for_status()
-        lines = held.aiter_lines()
+        lines = sse_lines(held)
         async for line in lines:
             if '"yielded"' in line:
                 break

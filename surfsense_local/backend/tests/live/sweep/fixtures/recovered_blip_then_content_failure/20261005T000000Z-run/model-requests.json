@@ -1,0 +1,203 @@
+[
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "glob"
+   },
+   {
+    "name": "surfsense_search_sources"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   },
+   {
+    "name": "surfsense_list_images"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "skill"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_read_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": []
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 0,
+  "error": "RemoteProtocolError: Server disconnected without sending a response.",
+  "served_by": null,
+  "tool_calls": []
+ },
+ {
+  "status": 0,
+  "error": "RemoteProtocolError: Server disconnected without sending a response.",
+  "served_by": null,
+  "tool_calls": []
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": []
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Wafer",
+  "tool_calls": []
+ }
+]

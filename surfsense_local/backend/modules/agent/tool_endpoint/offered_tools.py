@@ -10,10 +10,16 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.tool_endpoint import replies
+from modules.agent.tool_endpoint.analyze_data import ANALYZE_DATA
+from modules.agent.tool_endpoint.convert_document import CONVERT_DOCUMENT
 from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.list_images import LIST_IMAGES
+from modules.agent.tool_endpoint.pdf_form import PDF_FORM
+from modules.agent.tool_endpoint.pdf_pages import PDF_PAGES
+from modules.agent.tool_endpoint.pdf_stamp import PDF_STAMP
 from modules.agent.tool_endpoint.read_document import READ_DOCUMENT
 from modules.agent.tool_endpoint.render_document import RENDER_DOCUMENT
+from modules.agent.tool_endpoint.revise_document import REVISE_DOCUMENT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.source_pages import SOURCE_PAGES
 from modules.agent.tool_endpoint.tool import (
@@ -42,6 +48,12 @@ TOOLS: dict[str, Tool] = {
         READ_DOCUMENT,
         LIST_IMAGES,
         SOURCE_PAGES,
+        CONVERT_DOCUMENT,
+        REVISE_DOCUMENT,
+        ANALYZE_DATA,
+        PDF_PAGES,
+        PDF_STAMP,
+        PDF_FORM,
     )
 }
 
@@ -66,7 +78,7 @@ async def call(
         return replies.error(
             message, replies.INVALID_PARAMS, f"no tool {params.get('name')!r}"
         )
-    arguments = params.get("arguments") or {}
+    arguments = without_placeholder_ids(tool.listing, params.get("arguments") or {})
     try:
         # Even a tool needing no sources writes into, or reads for, its thread.
         scope.require_known()
@@ -86,6 +98,31 @@ async def call(
     return replies.result(message, _content(made, (), is_error=False))
 
 
+def without_placeholder_ids(
+    listing: dict[str, Any], arguments: dict[str, Any]
+) -> dict[str, Any]:
+    """The call's arguments with an optional id of 0 taken as left out.
+
+    OpenAI's models fill every field a tool lists, so an id they do not mean
+    arrives as 0: a render then asked for source 0 as its template, was refused,
+    and the model sent the same call again. Ids count from 1, so 0 names nothing.
+    """
+    schema = listing.get("inputSchema") or {}
+    required = set(schema.get("required") or ())
+    placeholders = {
+        name
+        for name, spec in (schema.get("properties") or {}).items()
+        if name.endswith("_id")
+        and name not in required
+        and (spec or {}).get("type") == "integer"
+    }
+    return {
+        name: value
+        for name, value in arguments.items()
+        if not (name in placeholders and value == 0 and not isinstance(value, bool))
+    }
+
+
 def _model_sees_images() -> bool:
     """Read from the configuration opencode runs with, as the previews are."""
     return declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE)
@@ -95,7 +132,8 @@ def _content(
     text: str, images: tuple[InlineImage, ...], *, is_error: bool
 ) -> dict[str, Any]:
     """A tool result: one text item, which opencode passes to the model as it is,
-    then the images, which opencode attaches after the step.
+    then the images: on /chat/completions opencode attaches them after the step,
+    on /responses it keeps them in the call's output.
 
     The model must still read images now: opencode turns each image sent to one
     that cannot into an error it is told to report.

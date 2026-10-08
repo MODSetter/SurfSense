@@ -73,6 +73,12 @@ const chatErrorText: Record<ChatTurnErrorKind, () => string> = {
       defaultMessage:
         "This agent chat was started before each chat kept its own sources. Start a new chat to continue.",
     }),
+  agent_model_unsupported: () =>
+    intl.formatMessage({
+      id: "chat_error_agent_model_unsupported",
+      defaultMessage:
+        "This thread can’t continue with the selected model. Start a new chat to use it, or choose another model.",
+    }),
   unknown: () =>
     intl.formatMessage({
       id: "chat_error_unknown",

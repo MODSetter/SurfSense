@@ -9,12 +9,13 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from modules.agent.data_analysis.chart_names import is_chart_name
+from modules.artifacts.script_documents.script_images import script_image_file
 from modules.artifacts.script_documents.spec import DocumentScript
 from modules.artifacts.script_documents.template_source import (
     TemplateRefusedError,
     template_file,
 )
-from modules.documents.source_figures import figure_file
 from worker.document_script.run import run_document_script
 from worker.studio.office.docx import docx
 from worker.studio.office.pdf import pdf
@@ -27,6 +28,7 @@ from worker.studio.script_document.extracted_text import (
     pdf_text,
     word_text,
 )
+from worker.studio.script_document.recalculation import recalculate
 from worker.studio.script_document.workbook_summary import workbook_summary
 from worker.studio.shared.artifact import Built
 from worker.studio.shared.text import file_stem
@@ -67,17 +69,21 @@ class ScriptRunFailedError(RuntimeError):
 
 
 def images_for(
-    session: Session, workspace_id: int, script: DocumentScript
+    session: Session, workspace_id: int, thread_id: int | None, script: DocumentScript
 ) -> dict[str, Path]:
-    """The PNG of every source image the script names, to copy beside it."""
+    """The PNG of every image the script names, a source's figure or its chat's
+    analysis chart, to copy beside it."""
     images: dict[str, Path] = {}
     for name in script.images:
         try:
-            images[name] = figure_file(session, workspace_id, name)
+            images[name] = script_image_file(session, workspace_id, thread_id, name)
         except LookupError as error:
-            raise ScriptRunFailedError(
-                f'the source image "{name}" is no longer in this workspace'
-            ) from error
+            gone = (
+                f'the analysis chart "{name}" is no longer in its chat'
+                if is_chart_name(name)
+                else f'the source image "{name}" is no longer in this workspace'
+            )
+            raise ScriptRunFailedError(gone) from error
     return images
 
 
@@ -125,10 +131,17 @@ def render(
         raise ScriptRunFailedError(
             f"the script wrote a file that is not a valid .{office.ext}"
         ) from error
+    output, metadata = result.output, None
+    if script.format == "xlsx":
+        recalculation = recalculate(output)
+        output, metadata = recalculation.data, {"recalculation": recalculation.record}
+        if recalculation.recalculated:
+            text = workbook_summary(output, recalculated=True)
     return Built(
         title=title,
         markdown=text or f"# {title}",
-        primary=result.output,
+        primary=output,
         primary_mime=office.mime,
         primary_filename=f"{file_stem(title, office.stem)}.{office.ext}",
+        metadata=metadata,
     )

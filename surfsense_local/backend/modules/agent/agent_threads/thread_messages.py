@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
 from modules.agent.agent_threads import live_instances
@@ -47,10 +48,13 @@ async def agent_thread_messages(
         ) from error
     finally:
         await ready.client.close()
-    citations = await transact(
-        session, load_citations, thread.workspace_id, searched_chunks(messages)
+    # Building a long thread's turns is tens of milliseconds of Python, which
+    # on the event loop would hold up every reply streaming meanwhile.
+    searched = await run_in_threadpool(searched_chunks, messages)
+    citations = await transact(session, load_citations, thread.workspace_id, searched)
+    turns = await run_in_threadpool(
+        thread_turns, messages, citations, recorded_endings(metadata), answering
     )
-    turns = thread_turns(messages, citations, recorded_endings(metadata), answering)
     await transact(session, link_ready_renders, thread.workspace_id, turns)
     await transact(session, name_scopes, thread.workspace_id, turns)
     return turns
