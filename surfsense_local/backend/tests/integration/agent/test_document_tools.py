@@ -209,6 +209,22 @@ async def test_a_render_waits_for_the_ready_document_and_says_what_it_made(
     assert listed["version"] == {"root_id": artifact_id, "number": 1, "parent_id": None}
 
 
+async def test_a_render_with_every_optional_id_sent_as_zero_makes_a_new_document(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """OpenAI's models fill every field, so an id they do not mean arrives as 0."""
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render(artifact_id=0, template_source_id=0, images=[]),
+    )
+
+    assert is_error is False, text
+    assert text.splitlines()[0].endswith("version 1: Client proposal")
+
+
 async def test_a_render_naming_its_artifact_makes_the_next_version(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
