@@ -1,7 +1,7 @@
 # Paid plugins
 
 > Owns: the `access` rules, the license header, `plugins/proprietary/`, how Settings → Plugins shows a paid plugin.
-> Decision: [ADR 0047](../../adr/0047-premium-plugins-are-source-available.md). License: [ADR 0019](../../adr/0019-offline-licenses.md), [license in the app](../../architecture/license/app.md). License checks on the server: [contract 2](../../contracts/02-scraper-api-auth.md).
+> Decision: [ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md). License: [ADR 0019](../../../adr/0019-offline-licenses.md), [license in the app](../../../architecture/license/app.md). License checks on the server: [contract 2](../../../contracts/02-scraper-api-auth.md).
 
 Who publishes a plugin and whether it costs money are separate questions.
 
@@ -21,7 +21,7 @@ Whether a user may use a paid plugin is decided by the plugin's server on every 
 - Connect is never disabled for a missing license. Connecting works; the first call, or `tools/list` when the server refuses it, says what is missing.
 - Settings → Plugins labels the entry "License required", from the registry's `access`, as information for the user, not as a check.
 - The key goes only to a URL whose host is on a list compiled into the app (SurfSense's own plugin hosts). An entry pointing anywhere else is refused before any request, so a mistaken or tampered registry entry cannot send the key away. This guards the key; it does not decide access.
-- A trial unlocks paid plugins for its term, because the server accepts a trial key ([ADR 0025](../../adr/0025-scraper-client-as-paid-plugin.md), still in force on this point).
+- A trial unlocks paid plugins for its term, because the server accepts a trial key ([ADR 0025](../../../adr/0025-scraper-client-as-paid-plugin.md), still in force on this point).
 
 A check in the app would add nothing: the app is open source, so anyone can remove it, and only the server's answer can be trusted.
 
@@ -33,10 +33,10 @@ plugins/proprietary/
   surfsense-scrapers/         the scrapers plugin: its server and the scraping code it runs
 ```
 
-- The root [`LICENSE`](../../../LICENSE) names only `surfsense_backend/app/proprietary/` as BSL today. It needs a second line naming `plugins/proprietary/`, and a maintainer has to approve that change before any code lands there.
+- The root [`LICENSE`](../../../../LICENSE) names only `surfsense_backend/app/proprietary/` as BSL today. It needs a second line naming `plugins/proprietary/`, and a maintainer has to approve that change before any code lands there.
 - `CODEOWNERS` gives `plugins/proprietary/` to the maintainers, as AGENTS.md treats `surfsense_backend/app/proprietary/`.
 - Everything under `plugins/proprietary/` is under the Business Source License, helpers moved from the backend included.
-- A paid plugin's container holds everything that plugin sells and checks the license itself ([`03-remote-plugins.md`](03-remote-plugins.md#surfsense-scrapers)). It shares no code or process with `surfsense_backend`.
+- A paid plugin's container holds everything that plugin sells and checks the license itself ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#surfsense-scrapers)). It shares no code or process with `surfsense_backend`.
 
 ## Third parties' paid plugins
 

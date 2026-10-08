@@ -1,7 +1,7 @@
 # Architecture
 
 > Owns: `surfsense_local/backend/modules/plugins/` (`registry/`, `gateway/`, `mcp_client/`, `results/`, `router.py`), the plugin tables.
-> Callers: [`04-engines.md`](04-engines.md). Sources: [`03-remote-plugins.md`](03-remote-plugins.md), later [`bundles/`](bundles/README.md).
+> Callers: [`03-engines.md`](03-engines.md). Sources: [`../remote/README.md`](../remote/README.md), later [`bundles/`](../bundles/README.md).
 
 ## Shape
 
@@ -22,12 +22,12 @@ This follows Pi's structure (`packages/coding-agent/src/extensions/mcp/` at comm
 
 | Call | Returns |
 |---|---|
-| `list_tools(scope) -> list[PluginTool]` | The tools ready in this workspace: plugin connected and enabled, Restricted mode allowing it, credentials present, its hosts allowed, the tool itself on. A paid plugin's license is not checked here: its server decides ([`06-paid.md`](06-paid.md)) |
-| `call_tool(scope, name, arguments, caller) -> ToolOutcome` | Checks the arguments against the tool's schema, asks for approval when its policy says so ([`05-trust.md`](05-trust.md)), records a `plugin_calls` row, calls the source, trims the result, stores it, returns it |
+| `list_tools(scope) -> list[PluginTool]` | The tools ready in this workspace: plugin connected and enabled, Restricted mode allowing it, credentials present, its hosts allowed, the tool itself on. A paid plugin's license is not checked here: its server decides ([`05-paid.md`](05-paid.md)) |
+| `call_tool(scope, name, arguments, caller) -> ToolOutcome` | Checks the arguments against the tool's schema, asks for approval when its policy says so ([`04-trust.md`](04-trust.md)), records a `plugin_calls` row, calls the source, trims the result, stores it, returns it |
 
 `scope` carries the workspace, the thread, and the turn. `caller` is `agent`, `chat_router` or `mention`. A refusal (no credentials, a host revoked, a server refusing the license, the user denying) comes back as a `ToolOutcome` with a sentence the model or the screen shows, never an exception.
 
-`PluginTool` is engine-neutral: the qualified name, the plugin's display name, the tool's title and description, its input schema, its MCP annotations, its exposure. Each caller turns it into what its engine needs ([`04-engines.md`](04-engines.md)).
+`PluginTool` is engine-neutral: the qualified name, the plugin's display name, the tool's title and description, its input schema, its MCP annotations, its exposure. Each caller turns it into what its engine needs ([`03-engines.md`](03-engines.md)).
 
 ## Tool sources
 
@@ -39,8 +39,8 @@ class ToolSource(Protocol):
     async def call_tool(self, name: str, arguments: dict, *, cancel: CancelToken) -> SourceResult: ...
 ```
 
-- `RemoteMcpSource` (`mcp_client/`) is the first, one per connected remote plugin ([`03-remote-plugins.md`](03-remote-plugins.md)).
-- `BundleSource` comes with bundles: the same interface over a local process ([`bundles/`](bundles/README.md)).
+- `RemoteMcpSource` (`mcp_client/`) is the first, one per connected remote plugin ([`../remote/README.md`](../remote/README.md)).
+- `BundleSource` comes with bundles: the same interface over a local process ([`bundles/`](../bundles/README.md)).
 
 Nothing above the gateway knows which kind of source a tool came from.
 
@@ -52,11 +52,11 @@ A tool's qualified name is `<plugin id>__<tool name>`, with every character outs
 
 - A source returns MCP content: text, images, and `structuredContent` when the server sends it.
 - Text over 20 KB reaches a model with its middle removed and a marker saying how much was cut and the call it belongs to, as Pi does. The full result is kept with the call.
-- Results are kept in `plugin_calls` and shown as a step of the turn ([`04-engines.md`](04-engines.md#results)).
+- Results are kept in `plugin_calls` and shown as a step of the turn ([`03-engines.md`](03-engines.md#results)).
 
 ## Tables
 
-Hand-written migrations, as [ADR 0005](../../adr/0005-hand-written-migrations.md) requires.
+Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations.md) requires.
 
 | Table | Holds |
 |---|---|
@@ -79,9 +79,9 @@ Hand-written migrations, as [ADR 0005](../../adr/0005-hand-written-migrations.md
 | `PUT` | `/plugins/{id}/tools/{tool}` | Turns a tool on or off and sets its approval |
 | `PUT` | `/plugins/restricted-mode` | Turns third-party plugins on or off |
 | `GET` | `/plugins/{id}/calls` | The plugin's recent calls, for its activity view |
-| `POST` | `/workspaces/{id}/plugin-calls/{call}/save` | Saves a result to Sources ([`04-engines.md`](04-engines.md#save-to-sources)) |
+| `POST` | `/workspaces/{id}/plugin-calls/{call}/save` | Saves a result to Sources ([`03-engines.md`](03-engines.md#save-to-sources)) |
 
-Approval answers go through the thread's existing permission route ([`05-trust.md`](05-trust.md#approval)).
+Approval answers go through the thread's existing permission route ([`04-trust.md`](04-trust.md#approval)).
 
 ## Acceptance
 

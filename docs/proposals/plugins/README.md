@@ -18,16 +18,34 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 
 ## Files
 
+```
+plugins/
+  README.md     this page: what plugins are, the locked decisions, the order of work
+  core/         what every kind of plugin shares
+  remote/       plugins hosted by their publishers, built first
+  bundles/      plugins that run on the user's machine, deferred
+```
+
+**[`core/`](core/01-architecture.md)**: the same for every kind of plugin.
+
 | File | Covers |
 |---|---|
-| [`01-architecture.md`](01-architecture.md) | The Tool Gateway, tool sources, naming, the tables |
-| [`02-registry.md`](02-registry.md) | The list of plugins, who publishes, review, Restricted mode, tools added later, delisting |
-| [`03-remote-plugins.md`](03-remote-plugins.md) | The MCP client, sign-in, credentials, egress, SurfSense's own servers |
-| [`04-engines.md`](04-engines.md) | opencode, the chat engine's router step, `@` mentions, results, Save to Sources |
-| [`05-trust.md`](05-trust.md) | Approval, permissions, what a remote plugin can and cannot do, prompt injection |
-| [`06-paid.md`](06-paid.md) | SurfSense's paid plugins on the license key, and third parties billing on their own |
-| [`07-later.md`](07-later.md) | What comes after, and the extension points that keep it additive |
-| [`bundles/`](bundles/README.md) | Deferred: plugins that run on the user's machine |
+| [`01-architecture.md`](core/01-architecture.md) | The Tool Gateway, tool sources, naming, the tables, the routes |
+| [`02-registry.md`](core/02-registry.md) | The one list of plugins, who publishes, review, Restricted mode, tools added later, delisting, how the app gets the list |
+| [`03-engines.md`](core/03-engines.md) | opencode, the chat engine's router step, `@` mentions, results, Save to Sources |
+| [`04-trust.md`](core/04-trust.md) | Approval, permissions, what a plugin can and cannot do, prompt injection |
+| [`05-paid.md`](core/05-paid.md) | SurfSense's paid plugins on the license key, checked on the server, and third parties billing on their own |
+| [`06-later.md`](core/06-later.md) | What comes after, and the extension points that keep it additive |
+
+**[`remote/`](remote/README.md)**: the first kind of plugin.
+
+| File | Covers |
+|---|---|
+| [`README.md`](remote/README.md) | What a remote plugin is, how one works, who hosts what |
+| [`01-mcp-client.md`](remote/01-mcp-client.md) | The app's MCP client, signing in, credentials, egress |
+| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The servers SurfSense hosts, and SurfSense Scrapers as its own container |
+
+**[`bundles/`](bundles/README.md)**: deferred. Plugins that run on the user's machine, and the earlier design they build on.
 
 ## What it looks like
 
@@ -54,7 +72,7 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 | Sources of tools | Remote MCP servers over HTTPS first. Bundles (`kind: bundle`) later, through the same gateway |
 | Who hosts a remote plugin | Its publisher: SurfSense, a company, or a community developer |
 | Name | "Plugins", in the app and in the docs |
-| The list | One file, `plugins/registry/plugins.json` in this repository, listing every plugin, SurfSense's included, added to by pull request and reviewed once per entry. Signed and served from SurfSense's own host, so it grows without app updates ([`02-registry.md`](02-registry.md)) |
+| The list | One file, `plugins/registry/plugins.json` in this repository, listing every plugin, SurfSense's included, added to by pull request and reviewed once per entry. Signed and served from SurfSense's own host, so it grows without app updates ([`core/02-registry.md`](core/02-registry.md)) |
 | Where a plugin's code lives | With its publisher: a remote server on its host, a bundle in its author's repository and releases. The list only points at it |
 | Publishers | `surfsense`, `partner` (a verified company) or `community`, set by the registry, never by the plugin |
 | Restricted mode | Every plugin not published by SurfSense is off until the user turns third-party plugins on once ([ADR 0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)) |
@@ -66,10 +84,10 @@ This replaces the earlier design, where a plugin was a sidebar action with a for
 | Results | Belong to the turn and are stored with the call. Nothing reaches Sources unless the user saves it |
 | Approval | From the tool's MCP annotations, in SurfSense's own dialog, for every caller |
 | Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |
-| Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`06-paid.md`](06-paid.md)) |
+| Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`core/05-paid.md`](core/05-paid.md)) |
 | SurfSense's own plugin servers | In [`plugins/`](../../../plugins/README.md): free ones under Apache-2.0, paid ones in `plugins/proprietary/`, where everything, helpers included, is under the Business Source License 1.1 ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md)). Each runs as its own container that SurfSense deploys, sharing no code or service with `surfsense_backend`. SurfSense Scrapers carries the scraping code itself, moved out of the backend |
 | `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
-| Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`05-trust.md`](05-trust.md#organisation-policy)) |
+| Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`core/04-trust.md`](core/04-trust.md#organisation-policy)) |
 
 ## Workstreams
 
@@ -126,4 +144,4 @@ Plugins that change SurfSense itself (providers, interface, prompts); local MCP 
 - The router's default per model, from the chat eval's router test.
 - Where SurfSense's plugin servers and the signed list are deployed, and under which hostname.
 - Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the scrapers container once the backend's scraper API is retired.
-- Whether the root [`LICENSE`](../../../LICENSE) names `plugins/proprietary/`; a maintainer has to approve that line ([`06-paid.md`](06-paid.md)).
+- Whether the root [`LICENSE`](../../../LICENSE) names `plugins/proprietary/`; a maintainer has to approve that line ([`core/05-paid.md`](core/05-paid.md)).

@@ -1,7 +1,7 @@
 # Trust
 
 > Owns: approval and per-tool permissions in the gateway, the approval dialog's plugin variant, the activity view, organisation policy hooks.
-> Related: [`02-registry.md`](02-registry.md) (review, Restricted mode, tools added later), [`03-remote-plugins.md`](03-remote-plugins.md) (credentials, egress).
+> Related: [`02-registry.md`](02-registry.md) (review, Restricted mode, tools added later), [`../remote/README.md`](../remote/README.md) (credentials, egress).
 
 ## What a remote plugin can and cannot do
 
@@ -26,9 +26,9 @@ Approval follows the tool's MCP annotations. A server that sets none gets MCP's 
 | `destructiveHint: true` | Asks every call, offering Allow once or Deny |
 
 - The dialog shows the plugin, its publisher badge, the tool's title, and the exact arguments.
-- It is the agent's existing approval dialog ([`approval-dialog.tsx`](../../../surfsense_local/frontend/src/features/agent/approval-dialog.tsx)) with a plugin variant. In both kinds of thread, the run goes `needs-approval` while it waits, and the answer goes to `POST /chat/threads/{id}/permissions/{request_id}`, which today serves opencode's own requests; plugin requests are answered by the gateway rather than passed to opencode.
+- It is the agent's existing approval dialog ([`approval-dialog.tsx`](../../../../surfsense_local/frontend/src/features/agent/approval-dialog.tsx)) with a plugin variant. In both kinds of thread, the run goes `needs-approval` while it waits, and the answer goes to `POST /chat/threads/{id}/permissions/{request_id}`, which today serves opencode's own requests; plugin requests are answered by the gateway rather than passed to opencode.
 - "Always allow" is stored per tool in `plugin_tools.approval` and can be changed or revoked in Settings → Plugins.
-- An `@` mention approves its own call, except for a destructive tool ([`04-engines.md`](04-engines.md#-mentions)).
+- An `@` mention approves its own call, except for a destructive tool ([`03-engines.md`](03-engines.md#-mentions)).
 - A call not answered before its deadline ends `denied`, and the model is told the user did not answer.
 
 ## Permissions per tool

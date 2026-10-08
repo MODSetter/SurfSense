@@ -1,19 +1,19 @@
 # Engines
 
-> Owns: `surfsense_local/backend/modules/agent/plugin_tools/`, `surfsense_local/backend/modules/chat/plugin_router/`, the `@` mention in the composer, plugin steps in both kinds of thread, Save to Sources, the router test in the [chat eval](../chat-eval.md).
-> Decision for the chat engine: [ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md). Gateway: [`01-architecture.md`](01-architecture.md).
+> Owns: `surfsense_local/backend/modules/agent/plugin_tools/`, `surfsense_local/backend/modules/chat/plugin_router/`, the `@` mention in the composer, plugin steps in both kinds of thread, Save to Sources, the router test in the [chat eval](../../chat-eval.md).
+> Decision for the chat engine: [ADR 0052](../../../adr/0052-the-chat-model-never-calls-tools.md). Gateway: [`01-architecture.md`](01-architecture.md).
 
-The two engines stay as they are: opencode for a model that passes the agent test, the chat engine for every model ([agent](../../architecture/agent.md), [chat](../../architecture/chat.md)). Both reach plugins only through the gateway.
+The two engines stay as they are: opencode for a model that passes the agent test, the chat engine for every model ([agent](../../../architecture/agent.md), [chat](../../../architecture/chat.md)). Both reach plugins only through the gateway.
 
 ## opencode
 
-- Before each turn, beside `surfsense`, [`registration.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py) registers a second MCP server, `plugins`, at `/agent/plugin-tools/workspaces/{workspace}/threads/{thread}`, with the same launch key, the same refusal of any request carrying an `Origin` header, and the same 200-second call limit.
-- That endpoint answers `initialize`, `tools/list`, `tools/call` and `ping` as [`tool_endpoint/`](../../../surfsense_local/backend/modules/agent/tool_endpoint/) does, stateless and JSON only. `tools/list` is the gateway's `list_tools` for the thread's workspace, each tool's schema flattened the way SurfSense's own tools are, so small models do not send nested arguments as strings. `tools/call` is `call_tool` with `caller: agent` and a 190-second deadline.
+- Before each turn, beside `surfsense`, [`registration.py`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py) registers a second MCP server, `plugins`, at `/agent/plugin-tools/workspaces/{workspace}/threads/{thread}`, with the same launch key, the same refusal of any request carrying an `Origin` header, and the same 200-second call limit.
+- That endpoint answers `initialize`, `tools/list`, `tools/call` and `ping` as [`tool_endpoint/`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/) does, stateless and JSON only. `tools/list` is the gateway's `list_tools` for the thread's workspace, each tool's schema flattened the way SurfSense's own tools are, so small models do not send nested arguments as strings. `tools/call` is `call_tool` with `caller: agent` and a 190-second deadline.
 - SurfSense's own tool list, and the test that pins its order, do not change. A second server keeps plugin tools from shifting it.
 - A plugin connected or a tool switched on mid-thread appears at the next turn. That changes the tools opencode sends, so that turn misses the prompt cache once.
-- Only tools with `exposure: direct` are listed, at most 24 per thread, the plugins connected first winning. Finding the rest through a search tool is later work ([`07-later.md`](07-later.md)).
-- A call shows as a step. [`step-label.tsx`](../../../surfsense_local/frontend/src/features/agent/step-label.tsx) already labels an unknown tool "Used {tool}"; it gains the plugin's name and the tool's title.
-- When a call needs approval, the gateway raises SurfSense's own permission request on the thread ([`05-trust.md`](05-trust.md#approval)), and the call waits inside its deadline.
+- Only tools with `exposure: direct` are listed, at most 24 per thread, the plugins connected first winning. Finding the rest through a search tool is later work ([`06-later.md`](06-later.md)).
+- A call shows as a step. [`step-label.tsx`](../../../../surfsense_local/frontend/src/features/agent/step-label.tsx) already labels an unknown tool "Used {tool}"; it gains the plugin's name and the tool's title.
+- When a call needs approval, the gateway raises SurfSense's own permission request on the thread ([`04-trust.md`](04-trust.md#approval)), and the call waits inside its deadline.
 
 ## The chat engine: the router step
 
@@ -32,9 +32,9 @@ Steps, in `modules/chat/plugin_router/`:
 
 Each reply is validated against its schema before anything is called. A choose reply that does not match counts as `none`; a fill reply that does not match ends the router with no call. Nothing is guessed or repaired. A router call that fails skips the router, and the turn answers as today.
 3. **Call.** `call_tool` with `caller: chat_router` and a 60-second deadline, through the same approval as the agent.
-4. **Answer.** The result joins the turn as a labelled block in the final user message, after the retrieved passages and before the question, so the prompt still grows only at its end ([ADR 0049](../../adr/0049-prompts-grow-at-the-end.md)). Then the normal single answer call runs.
+4. **Answer.** The result joins the turn as a labelled block in the final user message, after the retrieved passages and before the question, so the prompt still grows only at its end ([ADR 0049](../../../adr/0049-prompts-grow-at-the-end.md)). Then the normal single answer call runs.
 
-The router's calls go through the same model route and admission as every other call ([ADR 0048](../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)).
+The router's calls go through the same model route and admission as every other call ([ADR 0048](../../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)).
 
 ### When the router is on
 
@@ -52,7 +52,7 @@ The chat eval gains a router test: questions with the right tool or `none`, and 
 
 ## Models and routes
 
-Plugins add nothing model-specific. The router uses the chat engine's existing JSON-schema support, which every text route already has, local, OpenAI-compatible and `/responses`, ChatGPT plans included; how each route sends the schema is the provider's concern ([chat](../../architecture/chat.md), [ChatGPT subscription](../../architecture/chatgpt-subscription.md)). opencode reaches plugin tools as MCP tools and handles each model as it already does ([agent](../../architecture/agent.md)).
+Plugins add nothing model-specific. The router uses the chat engine's existing JSON-schema support, which every text route already has, local, OpenAI-compatible and `/responses`, ChatGPT plans included; how each route sends the schema is the provider's concern ([chat](../../../architecture/chat.md), [ChatGPT subscription](../../../architecture/chatgpt-subscription.md)). opencode reaches plugin tools as MCP tools and handles each model as it already does ([agent](../../../architecture/agent.md)).
 
 What plugins do own:
 
@@ -75,7 +75,7 @@ What plugins do own:
 
 ## Save to Sources
 
-- A step has "Save to Sources". It writes a note with the result as markdown and `document_metadata` naming `plugin_id`, `tool`, `call_id` and `fetched_at` ([documents](../../architecture/documents.md)).
+- A step has "Save to Sources". It writes a note with the result as markdown and `document_metadata` naming `plugin_id`, `tool`, `call_id` and `fetched_at` ([documents](../../../architecture/documents.md)).
 - Saving the result of the same tool with the same arguments again updates that note in place and its `fetched_at`, rather than adding a copy.
 - Nothing is saved without the user asking.
 
