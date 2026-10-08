@@ -275,6 +275,30 @@ def test_a_script_that_keeps_failing_fails_with_a_reason_studio_can_retry(
     assert "spec" not in artifact.artifact_metadata
 
 
+@pytest.mark.parametrize("format_key", ["pptx", "xlsx"])
+def test_a_deck_or_workbook_script_that_keeps_failing_fails_with_a_reason(
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    monkeypatch: pytest.MonkeyPatch,
+    format_key: str,
+) -> None:
+    """Three attempts in the runner, then a reason Retry can act on, as for Word."""
+    _choose(session, monkeypatch, "openai_compatible")
+    calls = _model(monkeypatch, "raise ValueError('still broken')")
+    artifact = _job(session, workspace, logo_source, format_key)
+
+    with pytest.raises(RuntimeError):
+        run(artifact.id)
+
+    session.expire_all()
+    assert len(calls) == 3
+    assert artifact.document.status is DocumentStatus.FAILED
+    reason = artifact.document.error_message or ""
+    assert "still broken" in reason
+    assert not reason.startswith("Script error: ")
+
+
 def test_regenerate_drafts_a_studio_document_again(
     session: Session,
     workspace: Workspace,
