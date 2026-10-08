@@ -69,7 +69,7 @@ catalog/local/
     audiocpp/               engine.py, manifest_fields.py, evidence.py,
                             builds/, rows/, audio_folder/
     onnxruntime/            engine.py, manifest_fields.py, rows.py, spec.py
-  service.py  router.py  schemas.py  dependencies.py
+  service.py  router.py  schemas.py  dependencies.py  search_cache.py
 ```
 
 [`engine.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/engine.py) is the one seam the service and the routes
@@ -428,7 +428,8 @@ is gated, and **Vision** when its file names include a projector, by the same ru
 `builds/in_repo.py` uses. `full=true` returns every repo's file names, so this costs no
 request of its own. Each hit also carries `quantized_from`, from its
 `base_model:quantized:` tag, which the API returns and the row does not show. The
-screen searches once a query has two characters and keeps results for 300 s.
+screen searches 300 ms after a query has two characters, and the API keeps each
+answer for 300 s.
 
 **Opening a repo reads its listing and no file**, about a second: the summary and
 the file tree, fetched together. Every build is listed smallest first with its

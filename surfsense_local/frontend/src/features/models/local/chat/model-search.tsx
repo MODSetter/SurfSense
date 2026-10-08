@@ -349,7 +349,7 @@ export function ModelSearch({
           prompt to a spinner to a list and back. Results scroll inside it
           rather than stretching the page, as a server's models do. */}
       <div data-slot="search-results" className={RESERVED}>
-        {debounced.length <= 1 ? (
+        {trimmed.length <= 1 ? (
           <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
             {intl.formatMessage({
               id: "models_search_prompt_empty",
