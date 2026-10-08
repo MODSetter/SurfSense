@@ -3,6 +3,9 @@ import { join } from "node:path"
 
 import { app } from "electron"
 
+import { warnMain } from "./session-log/main-warn.ts"
+import { sessionLog } from "./session-log/session-log.ts"
+
 // Mirrors the Theme type in frontend/src/components/theme-provider.tsx.
 export type ThemePreference = "dark" | "light" | "system"
 
@@ -40,8 +43,6 @@ export function saveThemePreference(theme: ThemePreference): void {
   } catch (error) {
     // ponytail: best-effort, same as window-state.ts; a stale/missing pref
     // just falls back to "system" next launch.
-    process.stderr.write(
-      `[main] failed to save theme preference: ${String(error)}\n`,
-    )
+    warnMain(sessionLog, `failed to save theme preference: ${String(error)}`)
   }
 }
