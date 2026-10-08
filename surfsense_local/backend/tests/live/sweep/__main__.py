@@ -55,6 +55,13 @@ def main(argv: list[str] | None = None) -> int:
         metavar="ID",
         help="exactly these ids, measured or not (a pilot)",
     )
+    run.add_argument(
+        "--assume",
+        nargs="+",
+        default=[],
+        metavar="ID",
+        help="take these as flagships assumed to pass, without running them",
+    )
     run.add_argument("--lanes", type=int, default=6, help="cases running at once")
     run.add_argument("--budget", type=float, default=200.0, help="dollars, hard cap")
     run.add_argument("--case-dollars", type=float, default=3.0, help="a run's own stop")
@@ -90,7 +97,7 @@ def _run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if not kept.is_file():
         parser.error(f"no listing in {out}: pass --listing <snapshot> or --fetch")
     listing = read_listing(kept)
-    selection = select(listing, measured_keys())
+    selection = select(listing, measured_keys(), frozenset(args.assume))
     models = pick(listing, args.only) if args.only else selection.sweep
     print(  # noqa: T201
         f"{selection.eligible} models call tools, hold {32_768:,} tokens and are priced; "

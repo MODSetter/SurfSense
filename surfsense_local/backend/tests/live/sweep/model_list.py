@@ -63,8 +63,17 @@ class Selection:
     measured: list[str]
 
 
-def select(listing: dict[str, Any], measured: set[str]) -> Selection:
-    """The models to run and the ones assumed, in the listing's order (newest first)."""
+def select(
+    listing: dict[str, Any], measured: set[str], assume: frozenset[str] = frozenset()
+) -> Selection:
+    """The models to run and the ones assumed, in the listing's order (newest first).
+
+    `assume` names models taken as flagships whatever their price: those that cost
+    too much per case to run, by the maintainer's call.
+    """
+    unknown = sorted(assume - {entry["id"] for entry in listing["data"]})
+    if unknown:
+        raise ValueError(f"OpenRouter does not list {', '.join(unknown)}")
     cheapest: dict[str, tuple[Decimal, Decimal, ListedModel]] = {}
     for entry in listing["data"]:
         listed = _eligible(entry)
@@ -78,7 +87,7 @@ def select(listing: dict[str, Any], measured: set[str]) -> Selection:
     for prompt, _, model in cheapest.values():
         if model.key in measured:
             left_out.append(model.key)
-        elif prompt >= ASSUMED_FROM:
+        elif prompt >= ASSUMED_FROM or model.id in assume:
             assumed.append(model)
         elif not _NEVER_RUN.search(model.id):
             sweep.append(model)

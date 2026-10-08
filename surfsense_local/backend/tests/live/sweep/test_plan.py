@@ -163,3 +163,17 @@ def test_a_retry_waits_a_minute_after_the_fault() -> None:
     (unit,) = plan({"smoke": _cell("smoke", "transient", ended=1000.0)}, set()).next
 
     assert unit.not_before == 1000.0 + RETRY_AFTER_SECONDS
+
+
+def test_a_case_stopped_at_the_dollar_cap_makes_the_model_assumed() -> None:
+    """One that costs more than a case's stop is taken as a flagship, and nothing more is run."""
+    capped = Attempt(
+        "m/x", "pdf-brief", 1, "failed", kind="case-cap", reason="cap", cost=3.1
+    )
+    made = plan({"smoke": _cell("smoke", "passed"), "pdf-brief": [capped]}, set())
+
+    assert made.next == []
+    verdict = made.verdict
+    assert verdict is not None
+    assert verdict.level == "assumed"
+    assert "dollar cap" in verdict.notes[0] and "$3.10" in verdict.notes[0]

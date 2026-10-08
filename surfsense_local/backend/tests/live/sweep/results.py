@@ -91,6 +91,20 @@ def assumed_row(model: ListedModel) -> dict[str, Any]:
     }
 
 
+def _capped_row(row: dict[str, Any]) -> dict[str, Any]:
+    """A model a case of which hit the dollar cap, assumed to pass like the dearest flagships."""
+    return {
+        "id": row["id"],
+        "key": row["key"],
+        "reads_images": row["reads_images"],
+        "level": "agent",
+        "assumed": True,
+        "prices_per_million": row["prices_per_million"],
+        "context_length": row["context_length"],
+        "notes": row["notes"],
+    }
+
+
 def write(
     out: Path,
     models: list[ListedModel],
@@ -117,9 +131,14 @@ def write(
             "cases": list(CASES),
             "listing": listing,
             "spent": round(sum(a.cost for a in attempts), 4),
-            "models": [row for row in rows if row["status"] == "done"],
+            "models": [
+                row
+                for row in rows
+                if row["status"] == "done" and row["level"] != "assumed"
+            ],
             "unfinished": [row for row in rows if row["status"] != "done"],
-            "assumed": [assumed_row(model) for model in assumed],
+            "assumed": [assumed_row(model) for model in assumed]
+            + [_capped_row(row) for row in rows if row["level"] == "assumed"],
         },
     )
     return rows
