@@ -78,12 +78,12 @@ def test_an_unreachable_provider_says_why_and_offers_no_slot(lookup) -> None:
     assert claude.selectable_for == ()
 
 
-def test_a_responses_only_model_is_unusable_and_says_so(lookup) -> None:
-    """The client speaks /chat/completions; this model would fail on first use."""
+def test_a_responses_only_model_is_offered_like_any_other(lookup) -> None:
+    """SurfSense calls /responses for it, so it fills its slots."""
     pro = _by_model(provider_rows(lookup, "neon", connections=[]))["gpt-5-pro"]
 
-    assert pro.availability is Availability.UNUSABLE
-    assert "/responses" in pro.reason
+    assert pro.availability is not Availability.UNUSABLE
+    assert pro.selectable_for != ()
 
 
 def test_a_connection_marks_what_its_listing_serves_and_what_it_does_not(lookup) -> None:

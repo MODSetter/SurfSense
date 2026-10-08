@@ -37,7 +37,8 @@ export function SourceFilterField({
           defaultMessage: "Filter sources by name",
         })}
         // The close button below replaces the browser's own clear button.
-        className="[&::-webkit-search-cancel-button]:appearance-none"
+        // text-sm holds at every width; Input grows to text-base below md.
+        className="text-sm [&::-webkit-search-cancel-button]:appearance-none"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== "Escape") return

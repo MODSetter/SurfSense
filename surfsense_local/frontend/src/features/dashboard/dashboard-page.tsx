@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ApprovalDialog } from "@/features/agent/approval-dialog"
 import { toast } from "sonner"
 import {
@@ -13,11 +13,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
-  DETAIL_RAIL_WIDTH,
-  MAIN_RAIL_WIDTH,
-  SlideRail,
-} from "@/components/ui/slide-rail"
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -27,6 +22,11 @@ import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
+import {
+  useBlockAgentic,
+  useNewChatChoice,
+} from "@/features/chat/modes/new-chat-mode"
+import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provider"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
@@ -50,11 +50,16 @@ import { SourcePreviewPanel } from "@/features/source-preview/source-preview-pan
 import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { OpenArtifactContext } from "@/features/studio/open-artifact"
+import {
+  OFFICE_FORMATS,
+  OfficeOfferContext,
+} from "@/features/office-support/office-offer"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
 import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import {
@@ -63,7 +68,13 @@ import {
   writeRightPanelOpen,
   writeSourcePreview,
 } from "./chrome-prefs"
-import { LeftSidebar } from "./left-sidebar"
+import {
+  ColumnEdge,
+  DashboardColumns,
+  RightPanelRail,
+  SidebarColumn,
+} from "./dashboard-columns"
+import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
 
@@ -71,14 +82,13 @@ import { SidebarFooter } from "./sidebar-footer"
 // Sources tab. Sources now live in the always-visible left sidebar, so the
 // same click just brings that list into view instead.
 const LEFT_SOURCES_ID = "workspace-left-sources"
+const LEFT_COLUMN_ID = "workspace-left-column"
+const RIGHT_PANEL_ID = "workspace-right-panel"
 
 type Inspect =
   | { kind: "citation"; chunkId: number }
   | { kind: "artifact"; artifactId: number }
   | null
-
-// The left sidebar's resting width, w-68.
-const SIDEBAR_WIDTH = 272
 
 function WorkspaceDashboard({
   workspace,
@@ -92,6 +102,7 @@ function WorkspaceDashboard({
   onModelSelected,
   onOpenLicense,
   onOpenAudioSettings,
+  onOpenOfficeSupport,
   modelsVisited,
 }: {
   workspace: Workspace
@@ -105,6 +116,7 @@ function WorkspaceDashboard({
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
+  onOpenOfficeSupport: () => void
   modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
@@ -121,9 +133,19 @@ function WorkspaceDashboard({
     workspace.id,
     `${selection ? modelKey(selection) : "none"}:${modelsVisited}`
   )
-  const selectedSourceTitles = sources.includedDocumentIds.map(
-    (id) =>
-      sources.documents.find((document) => document.id === id)?.title ?? ""
+  const selectedSourceTitles = useMemo(() => {
+    const titles = new Map(
+      sources.documents.map((document) => [document.id, document.title])
+    )
+    return sources.includedDocumentIds.map((id) => titles.get(id) ?? "")
+  }, [sources.documents, sources.includedDocumentIds])
+  const blockAgentic = useBlockAgentic()
+  // Bound to the model the chat was asked on: the picker stays open meanwhile.
+  const onAgenticGate = useCallback(
+    (gate: string) => {
+      if (selection) blockAgentic(selection, gate)
+    },
+    [blockAgentic, selection]
   )
   const chat = useChatRuntime({
     workspaceId: workspace.id,
@@ -133,6 +155,8 @@ function WorkspaceDashboard({
     sourceScope: sources.sourceScope,
     readsImages: selection?.reads_images === true,
     canSkipThinking: canSkipThinking(selection),
+    newChatMode: useNewChatChoice(selection),
+    onAgenticGate,
     onModelRequired,
   })
   const sourcePreview = sources.documents.find(
@@ -165,11 +189,147 @@ function WorkspaceDashboard({
     setSourcePreviewId(null)
     writeSourcePreview(workspace.id, null)
   }
-  const toggleSourcePreview = (documentId: number) => {
+  // Stable, like everything else the memoized sources panel takes: this page
+  // re-renders when a run starts, ends or changes state, and for a title, a
+  // thread switch, Settings and the other columns.
+  const toggleSourcePreview = useStableCallback((documentId: number) => {
     const next = sourcePreviewId === documentId ? null : documentId
     setSourcePreviewId(next)
     writeSourcePreview(workspace.id, next)
-  }
+  })
+  const sourceUploads = useMemo(
+    () => ({
+      isUploading: sources.isUploading,
+      onUpload: sources.upload,
+      onUploadFolder: sources.uploadEntries,
+    }),
+    [sources.isUploading, sources.upload, sources.uploadEntries]
+  )
+  const sourceNotes = useMemo(
+    () => ({
+      write: sources.writeNote,
+      load: sources.loadNote,
+      edit: sources.editNote,
+    }),
+    [sources.writeNote, sources.loadNote, sources.editNote]
+  )
+  // Built once per change of what it shows, so the memoized sidebar skips
+  // every other render of this page.
+  const sourcesList = useMemo(
+    () => (
+      <aside
+        id={LEFT_SOURCES_ID}
+        aria-label={intl.formatMessage({
+          id: "dashboard_sources_aria",
+          defaultMessage: "Workspace sources",
+        })}
+        className="flex h-full min-h-0 min-w-0 flex-col"
+      >
+        <SourcesPanel
+          documents={sources.documents}
+          index={sources.index}
+          selectedDocumentIds={sources.includedDocumentIds}
+          folderTicks={sources.folderTicks}
+          highlightedDocumentId={null}
+          isLoading={sources.isLoading}
+          isDeleting={sources.isDeleting}
+          error={sources.error}
+          upload={sourceUploads}
+          onDropFiles={sources.isUploading ? undefined : sources.uploadEntries}
+          onOpen={sources.openOriginal}
+          onPreview={toggleSourcePreview}
+          onReveal={sources.revealOriginal}
+          onRetry={sources.retry}
+          onCancel={sources.cancel}
+          onDelete={sources.deleteOne}
+          onDeleteSelected={sources.deleteSelected}
+          onSelectionChange={sources.setDocumentIncluded}
+          onFolderSelectionChange={sources.setFolderIncluded}
+          onToggleAll={sources.toggleAllIncluded}
+          onRename={sources.rename}
+          folderActions={sources.folderActions}
+          notes={sourceNotes}
+        />
+      </aside>
+    ),
+    [
+      sources.documents,
+      sources.index,
+      sources.includedDocumentIds,
+      sources.folderTicks,
+      sources.isLoading,
+      sources.isDeleting,
+      sources.error,
+      sourceUploads,
+      sources.isUploading,
+      sources.uploadEntries,
+      sources.openOriginal,
+      toggleSourcePreview,
+      sources.revealOriginal,
+      sources.retry,
+      sources.cancel,
+      sources.deleteOne,
+      sources.deleteSelected,
+      sources.setDocumentIncluded,
+      sources.setFolderIncluded,
+      sources.toggleAllIncluded,
+      sources.rename,
+      sources.folderActions,
+      sourceNotes,
+    ]
+  )
+  const sidebarFooter = useMemo(
+    () => <SidebarFooter onOpenLicense={onOpenLicense} />,
+    [onOpenLicense]
+  )
+  const sidebarActions = useMemo<SidebarNavAction[]>(
+    () => [
+      {
+        key: "plugins",
+        label: intl.formatMessage({
+          id: "dashboard_sidebar_plugins_button",
+          defaultMessage: "Plugins",
+        }),
+        icon: UnplugIcon,
+        badge: intl.formatMessage({
+          id: "dashboard_sidebar_plugins_soon_label",
+          defaultMessage: "Coming soon",
+        }),
+        // TODO: open the plugins panel once it exists.
+        onClick: () =>
+          toast.info(
+            intl.formatMessage({
+              id: "dashboard_plugins_soon_toast",
+              defaultMessage: "Plugins are coming soon",
+            }),
+            {
+              description: intl.formatMessage({
+                id: "dashboard_plugins_soon_body",
+                defaultMessage:
+                  "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+              }),
+            }
+          ),
+      },
+    ],
+    []
+  )
+  // The sidebar's callbacks keep one identity and call the latest chat.
+  const sidebarNewChat = useStableCallback(() => startNewChat())
+  const sidebarSelectThread = useStableCallback((threadId: number) => {
+    if (threadId !== chat.activeThreadId) closeInspect()
+    chat.selectThread(threadId)
+  })
+  const sidebarRenameThread = useStableCallback(
+    (threadId: number, title: string) => chat.rename(threadId, title)
+  )
+  const sidebarDeleteThread = useStableCallback(async (threadId: number) => {
+    if (threadId === chat.activeThreadId) closeInspect()
+    await chat.removeThread(threadId)
+  })
+  const sidebarTitleAnimationComplete = useStableCallback(() =>
+    chat.finishTitleAnimation()
+  )
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -181,8 +341,8 @@ function WorkspaceDashboard({
     setRightPanelOpen(true)
     writeRightPanelOpen(true)
   }, [])
-  // Stable: it is a context value, and this page re-renders on every streamed
-  // token, which would re-render every agent step in the thread.
+  // Stable: it is a context value, and a new one would re-render every agent
+  // step in the thread.
   const openArtifact = useCallback(
     (artifactId: number) => {
       openRightPanel()
@@ -190,282 +350,233 @@ function WorkspaceDashboard({
     },
     [openRightPanel]
   )
+  // Stable for the same reason.
+  const officeOffer = useMemo(() => {
+    const office = new Set(
+      studio.artifacts
+        .filter((made) => OFFICE_FORMATS.has(made.format))
+        .map((made) => made.id)
+    )
+    return {
+      isOfficeFile: (artifactId: number) => office.has(artifactId),
+      openOfficeSupport: onOpenOfficeSupport,
+    }
+  }, [studio.artifacts, onOpenOfficeSupport])
+  // Stable too: every reply's citations are drawn with it.
+  const onCitation = useCallback(
+    (chunkId: number) => {
+      openRightPanel()
+      setInspect({ kind: "citation", chunkId })
+    },
+    [openRightPanel]
+  )
   return (
-    <OpenArtifactContext.Provider value={openArtifact}>
-      <div className="titlebar-controls">
-        <div className="titlebar-controls-end">
-          <UpdateButton />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="pointer-events-auto size-6 aria-expanded:bg-transparent"
-                  aria-expanded={rightPanelOpen}
-                  aria-controls="workspace-right-panel"
-                  aria-label={
-                    rightPanelOpen
-                      ? intl.formatMessage({
-                          id: "dashboard_right_panel_hide_aria",
-                          defaultMessage: "Hide right panel",
-                        })
-                      : intl.formatMessage({
-                          id: "dashboard_right_panel_show_aria",
-                          defaultMessage: "Show right panel",
-                        })
-                  }
-                  onClick={toggleRightPanel}
-                >
-                  <SidebarRightIcon />
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom" collisionPadding={8}>
-              {rightPanelOpen
-                ? intl.formatMessage({
-                    id: "dashboard_right_panel_hide_tooltip",
-                    defaultMessage: "Hide right panel",
-                  })
-                : intl.formatMessage({
-                    id: "dashboard_right_panel_show_tooltip",
-                    defaultMessage: "Show right panel",
-                  })}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-      <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
-        {/* A preview takes over the left column and widens it, as an
-            inspected artifact does the right one; the right panel stays put.
-            It shrinks, down to the sidebar's width, before the chat or the
-            right panel lose room on a narrow window. */}
-        <div
-          className="flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
-          style={{
-            width: sourcePreviewOpen ? DETAIL_RAIL_WIDTH : SIDEBAR_WIDTH,
-          }}
-        >
-          {sourcePreviewOpen && sourcePreview ? (
-            <SourcePreviewPanel
-              workspaceId={workspace.id}
-              document={sourcePreview}
-              onOpen={() => void sources.openOriginal(sourcePreview.id)}
-              onClose={closeSourcePreview}
-            />
-          ) : null}
-          {/* Hidden, not unmounted, so the sources list keeps its scroll. */}
-          <div
-            hidden={sourcePreviewOpen}
-            className="flex h-full min-h-0 flex-col"
-          >
-            <LeftSidebar
-              threads={chat.threads}
-              activeThreadId={chat.activeThreadId}
-              autoNamingThreadId={chat.autoNamingThreadId}
-              animatingTitleThreadId={chat.animatingTitleThreadId}
-              isLoadingThreads={chat.isLoadingThreads}
-              onNewChat={startNewChat}
-              onSelectThread={(threadId) => {
-                if (threadId !== chat.activeThreadId) closeInspect()
-                chat.selectThread(threadId)
-              }}
-              onRenameThread={chat.rename}
-              onDeleteThread={async (threadId) => {
-                if (threadId === chat.activeThreadId) closeInspect()
-                await chat.removeThread(threadId)
-              }}
-              onTitleAnimationComplete={chat.finishTitleAnimation}
-              runStates={chat.runStates}
-              unreadThreadIds={chat.unreadThreadIds}
-              actions={[
-                {
-                  key: "plugins",
-                  label: intl.formatMessage({
-                    id: "dashboard_sidebar_plugins_button",
-                    defaultMessage: "Plugins",
-                  }),
-                  icon: UnplugIcon,
-                  badge: intl.formatMessage({
-                    id: "dashboard_sidebar_plugins_soon_label",
-                    defaultMessage: "Coming soon",
-                  }),
-                  // TODO: open the plugins panel once it exists.
-                  onClick: () =>
-                    toast.info(
-                      intl.formatMessage({
-                        id: "dashboard_plugins_soon_toast",
-                        defaultMessage: "Plugins are coming soon",
-                      }),
-                      {
-                        description: intl.formatMessage({
-                          id: "dashboard_plugins_soon_body",
-                          defaultMessage:
-                            "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
-                        }),
-                      }
-                    ),
-                },
-              ]}
-              sources={
-                <aside
-                  id={LEFT_SOURCES_ID}
-                  aria-label={intl.formatMessage({
-                    id: "dashboard_sources_aria",
-                    defaultMessage: "Workspace sources",
-                  })}
-                  className="flex h-full min-h-0 min-w-0 flex-col"
-                >
-                  <SourcesPanel
-                    documents={sources.documents}
-                    index={sources.index}
-                    selectedDocumentIds={sources.includedDocumentIds}
-                    folderTicks={sources.folderTicks}
-                    highlightedDocumentId={null}
-                    isLoading={sources.isLoading}
-                    isDeleting={sources.isDeleting}
-                    error={sources.error}
-                    upload={{
-                      isUploading: sources.isUploading,
-                      onUpload: (files) => void sources.upload(files),
-                      onUploadFolder: (entries) =>
-                        void sources.uploadEntries(entries),
-                    }}
-                    onDropFiles={
-                      sources.isUploading
-                        ? undefined
-                        : (entries, folderId) =>
-                            void sources.uploadEntries(entries, folderId)
+    <OfficeOfferContext.Provider value={officeOffer}>
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <div className="titlebar-controls">
+          <div className="titlebar-controls-end">
+            <UpdateButton />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="pointer-events-auto size-6 aria-expanded:bg-transparent"
+                    aria-expanded={rightPanelOpen}
+                    aria-controls={RIGHT_PANEL_ID}
+                    aria-label={
+                      rightPanelOpen
+                        ? intl.formatMessage({
+                            id: "dashboard_right_panel_hide_aria",
+                            defaultMessage: "Hide right panel",
+                          })
+                        : intl.formatMessage({
+                            id: "dashboard_right_panel_show_aria",
+                            defaultMessage: "Show right panel",
+                          })
                     }
-                    onOpen={(id) => void sources.openOriginal(id)}
-                    onPreview={toggleSourcePreview}
-                    onReveal={(id) => void sources.revealOriginal(id)}
-                    onRetry={(id) => void sources.retry(id)}
-                    onCancel={(id) => void sources.cancel(id)}
-                    onDelete={(id) => void sources.deleteOne(id)}
-                    onDeleteSelected={() => void sources.deleteSelected()}
-                    onSelectionChange={sources.setDocumentIncluded}
-                    onFolderSelectionChange={sources.setFolderIncluded}
-                    onToggleAll={sources.toggleAllIncluded}
-                    onRename={sources.rename}
-                    folderActions={sources.folderActions}
-                    notes={{
-                      write: sources.writeNote,
-                      load: sources.loadNote,
-                      edit: sources.editNote,
-                    }}
-                  />
-                </aside>
-              }
-              footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
-            />
+                    onClick={toggleRightPanel}
+                  >
+                    <SidebarRightIcon />
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom" collisionPadding={8}>
+                {rightPanelOpen
+                  ? intl.formatMessage({
+                      id: "dashboard_right_panel_hide_tooltip",
+                      defaultMessage: "Hide right panel",
+                    })
+                  : intl.formatMessage({
+                      id: "dashboard_right_panel_show_tooltip",
+                      defaultMessage: "Show right panel",
+                    })}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
-        <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
-          <ApprovalDialog
-            request={chat.approvals[0] ?? null}
-            othersWaiting={Math.max(0, chat.approvals.length - 1)}
-            onAnswer={chat.answerApproval}
-          />
-          <ThreadPanel
-            runtime={chat.runtime}
-            thread={chat.activeThread}
-            view={chat.conversationView}
-            model={selection}
-            isLoading={chat.isLoadingMessages}
-            isRunning={chat.isRunning}
-            animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
-            providerAvailable={providerAvailable}
-            notice={
-              modelIssue ? (
-                <ModelIssueNotice
-                  issue={modelIssue}
-                  onAllow={needsConsent ? onAllowModelIssue : undefined}
-                  onOpenSettings={onModelIssueSettings}
-                />
-              ) : null
-            }
-            blockedPlaceholder={composerHold}
-            onCitation={(chunkId) => {
-              openRightPanel()
-              setInspect({ kind: "citation", chunkId })
-            }}
-            onModelSetup={onModelRequired}
-            onModelSelected={onModelSelected}
-            onRetry={chat.retry}
-            onNewChat={startNewChat}
-            sourceCount={sources.includedDocumentIds.length}
-            onUploadSources={(files) => void sources.upload(files)}
-            isUploadingSources={sources.isUploading}
-            onTitleAnimationComplete={chat.finishTitleAnimation}
-            autoNamingThreadId={chat.autoNamingThreadId}
-            onRename={chat.rename}
-            onDelete={async (threadId) => {
-              if (threadId === chat.activeThreadId) closeInspect()
-              await chat.removeThread(threadId)
-            }}
-          />
-        </div>
-        <SlideRail
-          open={rightPanelOpen}
-          side="end"
-          width={inspect ? DETAIL_RAIL_WIDTH : MAIN_RAIL_WIDTH}
+        {/* The widths live in here, so a drag of an edge renders the column
+          boxes and edges, not the sidebar, the thread or Studio. */}
+        <DashboardColumns
+          sidebarWide={sourcePreviewOpen}
+          rightPanelOpen={rightPanelOpen}
+          rightPanelWide={inspect !== null}
         >
-          <div id="workspace-right-panel" className="h-full min-h-0">
-            <RightPanel
-              inspect={
-                inspect?.kind === "citation" ? (
-                  <CitationPanel
-                    workspaceId={workspace.id}
-                    chunkId={inspect.chunkId}
-                    onClose={closeInspect}
-                    onOpen={(id) => void sources.openOriginal(id)}
-                  />
-                ) : inspect?.kind === "artifact" ? (
-                  <ArtifactPanel
-                    artifactId={inspect.artifactId}
-                    artifacts={studio.artifacts}
-                    onOpenVersion={openArtifact}
-                    onRefine={studio.refine}
-                    onClose={closeInspect}
+          {/* A preview takes over the left column and widens it, as an
+            inspected artifact does the right one; the right panel stays put.
+            On a narrow window it gives way first, down to the sidebar's
+            minimum, before the right panel does: the chat keeps its own. */}
+          <SidebarColumn id={LEFT_COLUMN_ID}>
+            {sourcePreviewOpen && sourcePreview ? (
+              <SourcePreviewPanel
+                workspaceId={workspace.id}
+                document={sourcePreview}
+                onOpen={() => void sources.openOriginal(sourcePreview.id)}
+                onClose={closeSourcePreview}
+              />
+            ) : null}
+            {/* Hidden, not unmounted, so the sources list keeps its scroll. */}
+            <div
+              hidden={sourcePreviewOpen}
+              className="flex h-full min-h-0 flex-col"
+            >
+              <LeftSidebar
+                threads={chat.threads}
+                activeThreadId={chat.activeThreadId}
+                autoNamingThreadId={chat.autoNamingThreadId}
+                animatingTitleThreadId={chat.animatingTitleThreadId}
+                isLoadingThreads={chat.isLoadingThreads}
+                onNewChat={sidebarNewChat}
+                onSelectThread={sidebarSelectThread}
+                onRenameThread={sidebarRenameThread}
+                onDeleteThread={sidebarDeleteThread}
+                onTitleAnimationComplete={sidebarTitleAnimationComplete}
+                runStates={chat.runStates}
+                unreadThreadIds={chat.unreadThreadIds}
+                actions={sidebarActions}
+                sources={sourcesList}
+                footer={sidebarFooter}
+              />
+            </div>
+          </SidebarColumn>
+          <ColumnEdge
+            column="sidebar"
+            label={intl.formatMessage({
+              id: "dashboard_sidebar_resize_aria",
+              defaultMessage: "Resize sidebar",
+            })}
+            controls={LEFT_COLUMN_ID}
+          />
+          <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+            <ApprovalDialog
+              request={chat.approvals[0] ?? null}
+              othersWaiting={Math.max(0, chat.approvals.length - 1)}
+              onAnswer={chat.answerApproval}
+            />
+            <ThreadPanel
+              live={chat.liveThread}
+              thread={chat.activeThread}
+              view={chat.conversationView}
+              model={selection}
+              isLoading={chat.isLoadingMessages}
+              isRunning={chat.isRunning}
+              animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
+              providerAvailable={providerAvailable}
+              notice={
+                modelIssue ? (
+                  <ModelIssueNotice
+                    issue={modelIssue}
+                    onAllow={needsConsent ? onAllowModelIssue : undefined}
+                    onOpenSettings={onModelIssueSettings}
                   />
                 ) : null
               }
-              studio={
-                <StudioPanel
-                  workspaceId={workspace.id}
-                  documents={sources.documents}
-                  selectedDocumentIds={sources.includedDocumentIds}
-                  sourceScope={sources.sourceScope}
-                  onSelectionChange={sources.setDocumentIncluded}
-                  onToggleAll={sources.toggleAllIncluded}
-                  formats={studio.formats}
-                  isCreating={studio.isCreating}
-                  error={studio.error}
-                  onGenerate={studio.create}
-                  onSetUpVoices={onOpenAudioSettings}
-                />
-              }
-              artifacts={
-                <ArtifactList
-                  workspaceId={workspace.id}
-                  artifacts={studio.artifacts}
-                  formats={studio.formats}
-                  isLoading={studio.isLoading}
-                  onOpen={openArtifact}
-                  onRegenerate={(artifactId) =>
-                    void studio.regenerate(artifactId)
-                  }
-                  onCancel={(artifactId) => void studio.cancel(artifactId)}
-                  onDelete={(artifactId) => void studio.remove(artifactId)}
-                />
-              }
+              blockedPlaceholder={composerHold}
+              onCitation={onCitation}
+              onModelSetup={onModelRequired}
+              onModelSelected={onModelSelected}
+              onRetry={chat.retry}
+              onNewChat={startNewChat}
+              sourceCount={sources.includedDocumentIds.length}
+              onUploadSources={(files) => void sources.upload(files)}
+              isUploadingSources={sources.isUploading}
+              onTitleAnimationComplete={chat.finishTitleAnimation}
+              autoNamingThreadId={chat.autoNamingThreadId}
+              onRename={chat.rename}
+              onDelete={async (threadId) => {
+                if (threadId === chat.activeThreadId) closeInspect()
+                await chat.removeThread(threadId)
+              }}
             />
           </div>
-        </SlideRail>
-      </section>
-    </OpenArtifactContext.Provider>
+          {/* Collapsed, the rail has no edge to drag. */}
+          {rightPanelOpen ? (
+            <ColumnEdge
+              column="rightPanel"
+              label={intl.formatMessage({
+                id: "dashboard_right_panel_resize_aria",
+                defaultMessage: "Resize right panel",
+              })}
+              controls={RIGHT_PANEL_ID}
+            />
+          ) : null}
+          <RightPanelRail open={rightPanelOpen}>
+            <div id={RIGHT_PANEL_ID} className="h-full min-h-0">
+              <RightPanel
+                inspect={
+                  inspect?.kind === "citation" ? (
+                    <CitationPanel
+                      workspaceId={workspace.id}
+                      chunkId={inspect.chunkId}
+                      onClose={closeInspect}
+                      onOpen={(id) => void sources.openOriginal(id)}
+                    />
+                  ) : inspect?.kind === "artifact" ? (
+                    <ArtifactPanel
+                      artifactId={inspect.artifactId}
+                      artifacts={studio.artifacts}
+                      onOpenVersion={openArtifact}
+                      onRefine={studio.refine}
+                      onDecideAll={studio.decideAll}
+                      onClose={closeInspect}
+                    />
+                  ) : null
+                }
+                studio={
+                  <StudioPanel
+                    workspaceId={workspace.id}
+                    documents={sources.documents}
+                    selectedDocumentIds={sources.includedDocumentIds}
+                    sourceScope={sources.sourceScope}
+                    onSelectionChange={sources.setDocumentIncluded}
+                    onToggleAll={sources.toggleAllIncluded}
+                    formats={studio.formats}
+                    isCreating={studio.isCreating}
+                    error={studio.error}
+                    onGenerate={studio.create}
+                    onSetUpVoices={onOpenAudioSettings}
+                  />
+                }
+                artifacts={
+                  <ArtifactList
+                    workspaceId={workspace.id}
+                    artifacts={studio.artifacts}
+                    formats={studio.formats}
+                    isLoading={studio.isLoading}
+                    onOpen={openArtifact}
+                    onRegenerate={studio.regenerate}
+                    onCancel={studio.cancel}
+                    onDelete={studio.remove}
+                  />
+                }
+              />
+            </div>
+          </RightPanelRail>
+        </DashboardColumns>
+      </OpenArtifactContext.Provider>
+    </OfficeOfferContext.Provider>
   )
 }
 
@@ -567,10 +678,18 @@ export function DashboardPage({
   // Bumped after egress is allowed from the notice, to check the model again.
   const [consents, setConsents] = useState(0)
 
+  // Set while Settings opens on Office support's consent, from a thread's offer.
+  const [askOfficeConsent, setAskOfficeConsent] = useState(false)
+
   const openSettings = (section: SettingsSectionId) => {
     setSettingsSection(section)
     setSettingsOpen(true)
   }
+  const openOfficeSupport = useCallback(() => {
+    setAskOfficeConsent(true)
+    setSettingsSection("office-support")
+    setSettingsOpen(true)
+  }, [])
   // The menu has Settings to go to here, once a workspace renders it;
   // otherwise it opens the dialog.
   useHelpMenuReport(
@@ -638,77 +757,88 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
-      <WorkspaceRail
-        workspaces={workspaces.workspaces}
-        activeWorkspaceId={workspaces.activeWorkspace.id}
-        isMutating={workspaces.isMutating}
-        onSelect={workspaces.select}
-        onCreate={workspaces.create}
-        onRename={workspaces.rename}
-        onDelete={workspaces.remove}
-        onOpenSettings={() => openSettings("general")}
-      />
-      <WorkspaceDashboard
-        key={workspaces.activeWorkspace.id}
-        workspace={workspaces.activeWorkspace}
-        selection={usableSelection}
-        providerAvailable={providerAvailable}
-        modelIssue={issue}
-        needsConsent={availability.status === "needs-consent"}
-        onAllowModelIssue={allowModelIssue}
-        onModelIssueSettings={() =>
-          openSettings(
-            availability.status === "needs-consent" ? "network" : "chat-models"
-          )
-        }
-        onModelRequired={() => openSettings("chat-models")}
-        onModelSelected={onModelSelected}
-        onOpenLicense={() => openSettings("license")}
-        onOpenAudioSettings={() => openSettings("audio-models")}
-        modelsVisited={modelsVisited}
-      />
-      <SettingsDialog
-        open={settingsOpen}
-        section={settingsSection}
-        onOpenChange={(open) => {
-          setSettingsOpen(open)
-          if (!open) {
-            setModelsVisited((seen) => seen + 1)
+    // Above the workspace, so a mode picked for the next chat holds across them.
+    <NewChatModeProvider>
+      <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+        <WorkspaceRail
+          workspaces={workspaces.workspaces}
+          activeWorkspaceId={workspaces.activeWorkspace.id}
+          isMutating={workspaces.isMutating}
+          onSelect={workspaces.select}
+          onCreate={workspaces.create}
+          onRename={workspaces.rename}
+          onDelete={workspaces.remove}
+          onOpenSettings={() => openSettings("general")}
+        />
+        <WorkspaceDashboard
+          key={workspaces.activeWorkspace.id}
+          workspace={workspaces.activeWorkspace}
+          selection={usableSelection}
+          providerAvailable={providerAvailable}
+          modelIssue={issue}
+          needsConsent={availability.status === "needs-consent"}
+          onAllowModelIssue={allowModelIssue}
+          onModelIssueSettings={() =>
+            openSettings(
+              availability.status === "needs-consent"
+                ? "network"
+                : "chat-models"
+            )
           }
-        }}
-        onSectionChange={setSettingsSection}
-        onModelUnavailable={onModelUnavailable}
-        onModelSelected={onModelSelected}
-        onImported={onImported}
-      />
-      {workspaces.error ? (
-        <Alert
-          variant="destructive"
-          className="absolute top-4 left-1/2 z-40 w-auto max-w-lg -translate-x-1/2 shadow-lg"
-        >
-          <CircleAlertIcon />
-          <AlertTitle>
-            {intl.formatMessage({
-              id: "dashboard_workspace_error_title",
-              defaultMessage: "Workspace action failed",
-            })}
-          </AlertTitle>
-          <AlertDescription>{workspaces.error}</AlertDescription>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="absolute top-1 right-1"
-            aria-label={intl.formatMessage({
-              id: "dashboard_workspace_error_dismiss_aria",
-              defaultMessage: "Dismiss workspace error",
-            })}
-            onClick={workspaces.clearError}
+          onModelRequired={() => openSettings("chat-models")}
+          onModelSelected={onModelSelected}
+          onOpenLicense={() => openSettings("license")}
+          onOpenAudioSettings={() => openSettings("audio-models")}
+          onOpenOfficeSupport={openOfficeSupport}
+          modelsVisited={modelsVisited}
+        />
+        <SettingsDialog
+          open={settingsOpen}
+          section={settingsSection}
+          askOfficeConsent={askOfficeConsent}
+          onOpenChange={(open) => {
+            setSettingsOpen(open)
+            if (!open) {
+              setModelsVisited((seen) => seen + 1)
+              setAskOfficeConsent(false)
+            }
+          }}
+          onSectionChange={(next) => {
+            setSettingsSection(next)
+            setAskOfficeConsent(false)
+          }}
+          onModelUnavailable={onModelUnavailable}
+          onModelSelected={onModelSelected}
+          onImported={onImported}
+        />
+        {workspaces.error ? (
+          <Alert
+            variant="destructive"
+            className="absolute top-4 left-1/2 z-40 w-auto max-w-lg -translate-x-1/2 shadow-lg"
           >
-            <XIcon />
-          </Button>
-        </Alert>
-      ) : null}
-    </main>
+            <CircleAlertIcon />
+            <AlertTitle>
+              {intl.formatMessage({
+                id: "dashboard_workspace_error_title",
+                defaultMessage: "Workspace action failed",
+              })}
+            </AlertTitle>
+            <AlertDescription>{workspaces.error}</AlertDescription>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-1 right-1"
+              aria-label={intl.formatMessage({
+                id: "dashboard_workspace_error_dismiss_aria",
+                defaultMessage: "Dismiss workspace error",
+              })}
+              onClick={workspaces.clearError}
+            >
+              <XIcon />
+            </Button>
+          </Alert>
+        ) : null}
+      </main>
+    </NewChatModeProvider>
   )
 }

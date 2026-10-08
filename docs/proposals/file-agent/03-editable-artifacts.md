@@ -29,6 +29,8 @@ code:
 
 > An artifact becomes a list of versions that only grows. A regenerate, a refine prompt, an edit to a selected passage, an accepted tracked change, a restore, a workflow run and a file the agent wrote each make a new version, and every version is created by one function and run by a named job on the Studio or the engines queue. The version shown and indexed, the head, moves only when a run succeeds, so a failed or cancelled run never hides the last good output. Every edit names the version it was made against and is refused when the head has moved. A filled questionnaire or a redlined contract is an artifact derived from the user's file: its first version is that file with the edits applied as tracked changes, the user's file is never written, and the copy downloads without internal comments unless the user asks for them. Every edit returns a per-operation report built by the engine that applied it, not by the model, and an edit the user did not ask to be partial either applies whole or saves nothing.
 
+**Status, 6 Oct 2026:** on `slice/revise`, a cut of the revised copies is built: `surfsense_revise_document` makes v1 of a revised copy from a ticked `.docx`, `.xlsx`, `.xlsm` or `.pptx` source and its next versions, with all-or-nothing reports, Word edits always tracked, internal comments, Accept all and Reject all as versions, and the "With changes" and "Clean" downloads under localized names. Versions stay artifacts with `version` in metadata, not `artifact_versions` rows; the engines run in the Studio worker, not an engines queue; quotes replace `inspect_document` ids. What is true now, and what was cut, is in [studio](../../architecture/studio.md#revised-copies) and its Known gaps.
+
 Stream 03 of the file-agent proposal. Facts were checked against `dev_mod` at `0847e12f7` on 2026-10-03; "verified" means read in the linked file, "estimate" means not measured. Milestones (M0 to M10) are the [README](README.md)'s.
 
 ## Depends on
@@ -343,7 +345,7 @@ The workspace export and import bundle (README, M6) carries each artifact's vers
 
 ### Agent outputs
 
-This matters once a model has `agent` in `capability_of(session).engines` (05). Agent threads stay behind the developer switch until M5 turns the agent on in installers, which waits for this phase. The working folder is the thread's, from 01: `thread_working_dir(ws, thread)/outputs/`.
+This matters once a model has `agent` in `capability_of(session).engines` (05). Installers carry the agent since 7 Oct 2026, ahead of this phase. The working folder is the thread's, from 01: `thread_working_dir(ws, thread)/outputs/`.
 
 **What counts as a deliverable.** A file in `outputs/` or a subfolder, not under `_work/` or a dot-folder, not an Office lock file `~$*`, with suffix `.docx .xlsx .pptx .pdf .html .md .txt .csv .png .jpg .jpeg`, passing [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py)`::validate_upload`, non-empty and at most 100 MB. The agent prompt gains one line: finished files in `outputs/`, working files in `outputs/_work/` (the skills project's convention, I5).
 

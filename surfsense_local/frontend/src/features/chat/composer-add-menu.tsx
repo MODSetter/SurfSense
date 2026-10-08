@@ -29,12 +29,15 @@ import { ThinkingMenuItem } from "./thinking-menu-item"
  */
 export function ComposerAddMenu({
   readsImages,
+  agentic = false,
   thinking,
   onUploadSources,
   isUploadingSources,
   className,
 }: {
   readsImages: boolean
+  // The agent reads no attached images yet, so an Agentic chat takes none.
+  agentic?: boolean
   // Absent with no model chosen: there is nothing to tell.
   thinking?: { canSkip: boolean }
   // Absent, the menu offers no upload.
@@ -55,15 +58,21 @@ export function ComposerAddMenu({
     id: "chat_composer_upload_sources_label",
     defaultMessage: "Upload sources",
   })
-  const attachHint = readsImages
+  const takesImages = readsImages && !agentic
+  const attachHint = takesImages
     ? intl.formatMessage({
         id: "chat_composer_attach_images_tooltip",
         defaultMessage: "Add images to this message",
       })
-    : intl.formatMessage({
-        id: "chat_composer_attach_images_unavailable_tooltip",
-        defaultMessage: "This model can’t read images",
-      })
+    : readsImages
+      ? intl.formatMessage({
+          id: "chat_composer_attach_images_agentic_tooltip",
+          defaultMessage: "Agentic mode doesn’t read images yet",
+        })
+      : intl.formatMessage({
+          id: "chat_composer_attach_images_unavailable_tooltip",
+          defaultMessage: "This model can’t read images",
+        })
   const uploadHint = isUploadingSources
     ? intl.formatMessage({
         id: "chat_composer_upload_sources_uploading_tooltip",
@@ -117,7 +126,7 @@ export function ComposerAddMenu({
         {/* Below by default; Base UI flips it above when the bottom has no room. */}
         <DropdownMenuContent side="bottom" align="start" className="w-52">
           <DropdownMenuGroup>
-            {readsImages ? (
+            {takesImages ? (
               <MenuItemHint hint={attachHint}>
                 {/* assistant-ui's own picker, which takes the adapter's accepted types. */}
                 <ComposerPrimitive.AddAttachment asChild multiple>

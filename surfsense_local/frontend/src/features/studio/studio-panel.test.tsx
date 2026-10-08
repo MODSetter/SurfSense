@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { ArtifactList } from "./artifact-list"
 import { StudioPanel } from "./studio-panel"
@@ -137,7 +138,7 @@ describe("studio panel", () => {
           formats={[
             {
               key: "summary",
-              label: "Summary",
+              label: "Markdown",
               requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
@@ -151,7 +152,7 @@ describe("studio panel", () => {
       </TooltipProvider>
     )
 
-    await user.click(await screen.findByRole("button", { name: "Summary" }))
+    await user.click(await screen.findByRole("button", { name: "Markdown" }))
     await user.click(screen.getByRole("button", { name: /Generate/ }))
 
     expect(onGenerate).toHaveBeenCalledWith({
@@ -179,7 +180,7 @@ describe("studio panel", () => {
       </TooltipProvider>
     )
 
-    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Markdown" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Infographic" })).toBeTruthy()
     expect(document.querySelector("[data-slot=skeleton]")).toBeNull()
   })
@@ -230,7 +231,7 @@ describe("studio panel", () => {
         .map((button) => button.textContent)
     ).toEqual(["Timeline", "Quiz"])
     expect(
-      within(formats).queryByRole("button", { name: "Summary" })
+      within(formats).queryByRole("button", { name: "Markdown" })
     ).toBeNull()
   })
 
@@ -242,7 +243,7 @@ describe("studio panel", () => {
           return Response.json([
             {
               key: "summary",
-              label: "Summary",
+              label: "Markdown",
               requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
@@ -263,8 +264,8 @@ describe("studio panel", () => {
 
     renderStudio()
 
-    await user.click(await screen.findByRole("button", { name: "Summary" }))
-    expect(screen.getByRole("dialog", { name: "Summary" })).toBeTruthy()
+    await user.click(await screen.findByRole("button", { name: "Markdown" }))
+    expect(screen.getByRole("dialog", { name: "Markdown" })).toBeTruthy()
     // The one ready source is picked for you, so Generate works on open.
     expect(screen.getByRole("button", { name: "1 source" })).toBeTruthy()
     expect(screen.getByText("Prompt (optional)")).toBeTruthy()
@@ -281,7 +282,7 @@ describe("studio panel", () => {
       document_ids: [4],
     })
     await vi.waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Summary" })).toBeNull()
+      expect(screen.queryByRole("dialog", { name: "Markdown" })).toBeNull()
     )
     expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
     expect(
@@ -383,7 +384,7 @@ describe("studio panel", () => {
         return Response.json([
           {
             key: "summary",
-            label: "Summary",
+            label: "Markdown",
             requires_model_types: ["text_gen"],
             available: true,
             unavailable_reason: null,
@@ -401,7 +402,7 @@ describe("studio panel", () => {
       { ...readyDocument, id: 5, title: "Titan notes" },
     ])
 
-    await user.click(await screen.findByRole("button", { name: "Summary" }))
+    await user.click(await screen.findByRole("button", { name: "Markdown" }))
     // The list lives in the second pane, which the count opens.
     await user.click(screen.getByRole("button", { name: "2 sources" }))
     expect(screen.getByText("Sources (2 selected)")).toBeTruthy()
@@ -414,6 +415,51 @@ describe("studio panel", () => {
     await user.click(screen.getByText("Titan notes"))
     expect(titan.getAttribute("aria-checked")).toBe("false")
     expect(screen.getByText("Sources (1 selected)")).toBeTruthy()
+  })
+
+  it("names a cut-off source in full in the picker, and its name still ticks it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "summary",
+              label: "Markdown",
+              requires_model_types: ["text_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const title = "Saturn and its moons, a field guide for the outer planets"
+    const user = userEvent.setup()
+    renderStudio([{ ...readyDocument, title }])
+
+    await user.click(await screen.findByRole("button", { name: "Markdown" }))
+    await user.click(screen.getByRole("button", { name: "1 source" }))
+    const name = screen.getByText(title)
+    // jsdom lays nothing out: the widths of a name its row cuts off.
+    Object.defineProperty(name, "scrollWidth", {
+      configurable: true,
+      value: 320,
+    })
+    Object.defineProperty(name, "clientWidth", {
+      configurable: true,
+      value: 120,
+    })
+    await user.hover(name)
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(title)
+    await user.click(name)
+    expect(
+      screen.getByRole("checkbox", { name: title }).getAttribute("aria-checked")
+    ).toBe("false")
   })
 
   it("explains why an unavailable image format is disabled", async () => {
@@ -440,9 +486,15 @@ describe("studio panel", () => {
 
     renderStudio()
 
-    const image = await screen.findByRole("button", { name: "Image" })
-    expect(image.getAttribute("aria-disabled")).toBe("true")
-    await user.hover(image)
+    // The catalog card shows first; the server's answer disables it.
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "Image" })
+          .getAttribute("aria-disabled")
+      ).toBe("true")
+    )
+    await user.hover(screen.getByRole("button", { name: "Image" }))
     expect(await screen.findByText("Needs an image model")).toBeTruthy()
   })
 
@@ -637,7 +689,7 @@ describe("studio panel", () => {
           formats={[
             {
               key: "summary",
-              label: "Summary",
+              label: "Markdown",
               requires_model_types: ["text_gen"],
               available: false,
               unavailable_reason: null,
@@ -664,7 +716,7 @@ describe("studio panel", () => {
       await screen.findByText("Needs a chat model and an image model.")
     ).toBeTruthy()
     await user.unhover(image)
-    const summary = screen.getByRole("button", { name: "Summary" })
+    const summary = screen.getByRole("button", { name: "Markdown" })
     await user.hover(summary)
     expect(await screen.findByText("Needs a chat model.")).toBeTruthy()
   })

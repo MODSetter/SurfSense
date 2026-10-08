@@ -376,11 +376,13 @@ unconstrained, because losing a whole Studio format to a template quirk is worse
 than an answer the parser can still repair. Before sending, `for_template()`
 folds the system prompt into the first non-system turn for a template with no
 system role ([`selection.md`](selection.md)).
-A request that sets no temperature carries the one its curated entry commits
-for the mode it answers in: the `thinking` set when the template reasons and
-thinking is not turned off, else `non_thinking`, and nothing when that mode has
-no set, rather than the other mode's ([`sampling.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/sampling.py)).
-A caller's own temperature, such as the title's zero, wins.
+A request carries the sampling its curated entry commits for the mode it
+answers in: `temperature`, `top_p`, `top_k` and `min_p` from the `thinking` set
+when the template reasons and thinking is not turned off, else `non_thinking`,
+and none of them when that mode has no set, rather than the other mode's
+([`sampling.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/sampling.py)).
+`top_k` and `min_p` are llama-server's own fields beside OpenAI's. A caller's
+own temperature, such as the title's zero, wins; callers set none of the rest.
 
 There is no `pull()`. Fetching weights by name made sense when the runtime owned
 the download; here SurfSense fetches the GGUF itself, because an in-process fetch

@@ -1,5 +1,6 @@
 """The document tools as opencode's MCP client calls them: render, read, and list images."""
 
+import asyncio
 import base64
 import logging
 import re
@@ -19,7 +20,7 @@ from modules.agent.previews.inline_images import (
     INLINE_PIXELS,
     inline_image,
 )
-from modules.agent.tool_endpoint import list_images, render_document
+from modules.agent.tool_endpoint import list_images, render_document, version_pages
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.offered_tools import IMAGES_LEFT_OUT
 from modules.artifacts.models import Artifact
@@ -38,6 +39,7 @@ from shared.queue import ingest_queue
 from tests.integration.agent.conftest import MAX_PATH, declare_image_input
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.worker.conftest import stub_model  # noqa: F401
+from tests.office_stand_in import office_on
 
 # The job indexes what the script wrote; the stub stands in for the embedder.
 pytestmark = [
@@ -207,6 +209,22 @@ async def test_a_render_waits_for_the_ready_document_and_says_what_it_made(
     assert listed["version"] == {"root_id": artifact_id, "number": 1, "parent_id": None}
 
 
+async def test_a_render_with_every_optional_id_sent_as_zero_makes_a_new_document(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """OpenAI's models fill every field, so an id they do not mean arrives as 0."""
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render(artifact_id=0, template_source_id=0, images=[]),
+    )
+
+    assert is_error is False, text
+    assert text.splitlines()[0].endswith("version 1: Client proposal")
+
+
 async def test_a_render_naming_its_artifact_makes_the_next_version(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
@@ -333,7 +351,7 @@ async def test_a_model_that_cannot_read_images_is_drawn_no_previews(
     declare_image_input(False)
     drawn: list[object] = []
     monkeypatch.setattr(
-        render_document, "previews_for", lambda *args, **kwargs: drawn.append(args)
+        version_pages, "previews_for", lambda *args, **kwargs: drawn.append(args)
     )
     workspace_id = await tools.workspace()
 
@@ -373,7 +391,7 @@ async def test_word_previews_say_they_leave_out_headers_and_footers(
         _blank_page(page)
         return Previews([page])
 
-    monkeypatch.setattr(render_document, "previews_for", previews_for)
+    monkeypatch.setattr(version_pages, "previews_for", previews_for)
 
     text, images, is_error = await tools.call_content(
         workspace_id, "render_document", render()
@@ -412,7 +430,7 @@ async def test_a_page_that_cannot_be_attached_is_named_and_the_others_still_show
             raise OSError("cannot identify image file")
         return inline_image(path)
 
-    monkeypatch.setattr(render_document, "inline_image", page_2_breaks)
+    monkeypatch.setattr(version_pages, "inline_image", page_2_breaks)
     workspace_id = await tools.workspace()
 
     text, images, is_error = await tools.call_content(
@@ -438,7 +456,7 @@ async def test_a_render_whose_pages_all_fail_to_attach_says_it_has_no_previews(
     def broken(path: Path):
         raise OSError("cannot identify image file")
 
-    monkeypatch.setattr(render_document, "inline_image", broken)
+    monkeypatch.setattr(version_pages, "inline_image", broken)
     workspace_id = await tools.workspace()
 
     text, images, is_error = await tools.call_content(
@@ -466,7 +484,7 @@ async def test_a_model_switched_to_text_only_during_the_render_is_sent_no_images
         declare_image_input(False)
         return Previews([page])
 
-    monkeypatch.setattr(render_document, "previews_for", previews_for)
+    monkeypatch.setattr(version_pages, "previews_for", previews_for)
 
     with caplog.at_level(logging.WARNING):
         text, images, is_error = await tools.call_content(
@@ -490,7 +508,7 @@ async def test_the_word_preview_gets_only_the_time_the_call_has_left(
         given.append(time_left)
         return Previews([], "not drawn in this test")
 
-    monkeypatch.setattr(render_document, "previews_for", previews_for)
+    monkeypatch.setattr(version_pages, "previews_for", previews_for)
     monkeypatch.setattr(render_document, "CALL_SECONDS", 20)
     workspace_id = await tools.workspace()
 
@@ -604,8 +622,29 @@ async def test_after_three_failed_runs_the_next_render_is_refused_and_runs_nothi
     text, is_error = await tools.call(workspace_id, "render_document", render())
 
     assert is_error is True
-    assert "no more renders run until the user's next message" in text
+    assert (
+        "3 renders failed in this request, so no more renders or revisions run until "
+        "the user's next message" in text
+    )
     assert len(await _listed(tools, workspace_id)) == 4
+
+
+async def test_renders_called_at_once_still_fail_at_most_three_times(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """opencode runs a step's tool calls at once: four calls all passed the count before any failed."""
+    workspace_id = await tools.workspace()
+    failing = [render(title=f"Proposal {n}", script=FAILING) for n in range(4)]
+
+    results = await asyncio.gather(
+        *(tools.call(workspace_id, "render_document", call) for call in failing)
+    )
+
+    stops = [text for text, _ in results if "failed in this request" in text]
+    assert [is_error for _, is_error in results] == [True] * 4
+    assert len(stops) == 1
+    assert stops[0].startswith("3 renders failed in this request")
+    assert len(await _listed(tools, workspace_id)) == 3
 
 
 async def test_a_render_still_running_when_the_user_writes_again_counts_toward_its_own_turn(
@@ -1184,7 +1223,7 @@ async def test_a_preview_that_breaks_still_reports_the_ready_version(
     def broken(_artifact: Artifact, _folder: Path, time_left: float) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(render_document, "previews_for", broken)
+    monkeypatch.setattr(version_pages, "previews_for", broken)
     workspace_id = await tools.workspace()
 
     text, is_error = await tools.call(workspace_id, "render_document", render())
@@ -1310,3 +1349,100 @@ async def test_refusals_to_continue_studios_document_leave_a_new_one_free_to_ren
 
     assert is_error is False, text
     assert text.startswith("Rendered artifact ")
+
+
+async def test_with_office_support_word_previews_are_drawn_by_libreoffice(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No desktop app is needed, and the result names the renderer instead of the viewer's gaps."""
+    office = office_on(monkeypatch, pages=6)
+    workspace_id = await tools.workspace()
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render()
+    )
+
+    assert is_error is False, text
+    assert len(images) == 4
+    assert "in order: page 1, page 2, page 3, page 4." in text
+    assert "Drawn by LibreOffice 26.8.1" in text
+    assert "headers and footers included" in text
+    assert "SurfSense's Word viewer" not in text
+    ((suffix, handed),) = office.read
+    assert suffix == ".docx"
+    assert handed.startswith(b"PK")
+
+
+async def test_when_libreoffice_fails_the_desktop_app_is_tried_and_both_reasons_given(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Today's path stays the fallback: with no desktop app either, the model learns both."""
+    office_on(monkeypatch, failure="LibreOffice was busy with another file.")
+    workspace_id = await tools.workspace()
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "render_document", render()
+    )
+
+    assert is_error is False, text
+    assert images == []
+    assert (
+        "No page previews: LibreOffice was busy with another file. Word pages are "
+        "drawn by the SurfSense desktop app"
+    ) in text
+
+
+WORKBOOK = """\
+import os
+import xlsxwriter
+
+book = xlsxwriter.Workbook(os.environ["OUTPUT_PATH"])
+sheet = book.add_worksheet("Costs")
+sheet.write_row(0, 0, ["Item", "Cost"])
+sheet.write_row(1, 0, ["Pilot", 100])
+sheet.write_row(2, 0, ["Rollout", 200])
+sheet.write(3, 0, "Total")
+sheet.write_formula(3, 1, "=SUM(B2:B3)")
+book.close()
+"""
+
+
+async def test_a_recalculated_workbook_says_its_values_are_real(
+    tools: ToolEndpoint, studio_worker: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The summary shows the total, and the model is told it can trust it."""
+    office_on(monkeypatch, values={"Costs": {"B4": 300}})
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render(title="Costs", format="xlsx", script=WORKBOOK),
+    )
+
+    assert is_error is False, text
+    assert "Total | 300" in text
+    assert (
+        "LibreOffice 26.8.1 recalculated the workbook: the summary and Studio show "
+        "the values of 1 formula, saved in the file"
+    ) in text
+
+
+async def test_a_workbook_rendered_without_office_support_says_its_values_are_not_recalculated(
+    tools: ToolEndpoint, studio_worker: None
+) -> None:
+    """xlsxwriter cached 0 for the total; the model must not read that as the answer."""
+    workspace_id = await tools.workspace()
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render(title="Costs", format="xlsx", script=WORKBOOK),
+    )
+
+    assert is_error is False, text
+    assert "Total | =SUM(B2:B3)" in text
+    assert (
+        "Values not recalculated: Office support is off. Studio and the summary "
+        "show what the script saved for 1 formula"
+    ) in text
