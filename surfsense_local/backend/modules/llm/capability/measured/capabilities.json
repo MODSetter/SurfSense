@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "provisional": true,
-  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific",
+  "source": "docs/proposals/file-agent/08-model-ladder-results.md: screening, one run per cell, 4 Oct 2026 Pacific; tests/live/sweep: OpenRouter screening (smoke, PDF brief, board pack), 7 Oct 2026 Pacific",
   "models": [
     {
       "key": "claude-sonnet-5-5",
@@ -281,6 +281,6590 @@
         "run": 8
       },
       "note": "Passed 1 of 8; many script errors, a silently dropped logo and no citation marker."
+    },
+    {
+      "key": "claude-haiku-5-5",
+      "match": {
+        "keys": [
+          "claude-haiku-5-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-haiku-5.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-large-4-0",
+      "match": {
+        "keys": [
+          "mistral-large-4-0"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-large-4-0",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "pareto-26-10-preview",
+      "match": {
+        "keys": [
+          "pareto-26-10-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "unbiased/pareto-26.10-preview",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "perceptron-mk1-5",
+      "match": {
+        "keys": [
+          "perceptron-mk1-5"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "perceptron/perceptron-mk1.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "glm-5-3-prime",
+      "match": {
+        "keys": [
+          "glm-5-3-prime"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5.3-prime",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "aion-3-5-mini",
+      "match": {
+        "keys": [
+          "aion-3-5-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "aion-labs/aion-3.5-mini",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "solar-mini4",
+      "match": {
+        "keys": [
+          "solar-mini4"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "upstage/solar-mini4",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "command-a-plus",
+      "match": {
+        "keys": [
+          "command-a-plus"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "cohere/command-a-plus",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-6-luna-pro",
+      "match": {
+        "keys": [
+          "gpt-6-luna-pro"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6-luna-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-6-luna",
+      "match": {
+        "keys": [
+          "gpt-6-luna"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6-luna",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mimo-v2-6-flash",
+      "match": {
+        "keys": [
+          "mimo-v2-6-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "xiaomi/mimo-v2.6-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mimo-v2-6-pro",
+      "match": {
+        "keys": [
+          "mimo-v2-6-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "xiaomi/mimo-v2.6-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "grok-4-7",
+      "match": {
+        "keys": [
+          "grok-4-7"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "x-ai/grok-4.7",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-8-omni-flash",
+      "match": {
+        "keys": [
+          "qwen3-8-omni-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.8-omni-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "ternary-bonsai-2-27b",
+      "match": {
+        "keys": [
+          "ternary-bonsai-2-27b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "prism-ml/ternary-bonsai-2-27b",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5-3-flashx",
+      "match": {
+        "keys": [
+          "glm-5-3-flashx"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5.3-flashx",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "pareto",
+      "match": {
+        "keys": [
+          "pareto"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "unbiased/pareto",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "fugu-max",
+      "match": {
+        "keys": [
+          "fugu-max"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "sakana/fugu-max",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "ling-3-0-flash-vl",
+      "match": {
+        "keys": [
+          "ling-3-0-flash-vl"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "inclusionai/ling-3.0-flash-vl",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-v4-1-flash",
+      "match": {
+        "keys": [
+          "deepseek-v4-1-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v4.1-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mercury-2-5",
+      "match": {
+        "keys": [
+          "mercury-2-5"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "inception/mercury-2.5",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nex-n2-5-pro",
+      "match": {
+        "keys": [
+          "nex-n2-5-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "nex-agi/nex-n2.5-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-8-max-0902",
+      "match": {
+        "keys": [
+          "qwen3-8-max-0902"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-07",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.8-max-0902",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "muse-spark-1-3-contributor",
+      "match": {
+        "keys": [
+          "muse-spark-1-3-contributor"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta/muse-spark-1.3-contributor",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "muse-spark-1-3",
+      "match": {
+        "keys": [
+          "muse-spark-1-3"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta/muse-spark-1.3",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gemini-3-8-flash",
+      "match": {
+        "keys": [
+          "gemini-3-8-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.8-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "granite-4-2-8b",
+      "match": {
+        "keys": [
+          "granite-4-2-8b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "ibm-granite/granite-4.2-8b",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "hy4-preview",
+      "match": {
+        "keys": [
+          "hy4-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "tencent/hy4-preview",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "ling-3-0-flash-fin",
+      "match": {
+        "keys": [
+          "ling-3-0-flash-fin"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "inclusionai/ling-3.0-flash-fin",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5-3-flash",
+      "match": {
+        "keys": [
+          "glm-5-3-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5.3-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "muse-spark-1-2-contributor",
+      "match": {
+        "keys": [
+          "muse-spark-1-2-contributor"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta/muse-spark-1.2-contributor",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "deepseek-v4-flash-vision-exp",
+      "match": {
+        "keys": [
+          "deepseek-v4-flash-vision-exp"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v4-flash-vision-exp",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-7-flash",
+      "match": {
+        "keys": [
+          "gemini-3-7-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.7-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "seed-2-1-turbo",
+      "match": {
+        "keys": [
+          "seed-2-1-turbo"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "bytedance-seed/seed-2-1-turbo",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-8-2-4t-a95b",
+      "match": {
+        "keys": [
+          "qwen3-8-2-4t-a95b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.8-2.4t-a95b",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "seed-2-0-code",
+      "match": {
+        "keys": [
+          "seed-2-0-code"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "bytedance-seed/seed-2.0-code",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "grok-4-6",
+      "match": {
+        "keys": [
+          "grok-4-6"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "x-ai/grok-4.6",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nemotron-3-5-lightning",
+      "match": {
+        "keys": [
+          "nemotron-3-5-lightning"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "nvidia/nemotron-3.5-lightning",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "sakana-namazu",
+      "match": {
+        "keys": [
+          "sakana-namazu"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "sakana/sakana-namazu",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "solar-pro4",
+      "match": {
+        "keys": [
+          "solar-pro4"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "upstage/solar-pro4",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "muse-glimmer-30b",
+      "match": {
+        "keys": [
+          "muse-glimmer-30b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta/muse-glimmer-30b",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "muse-spark-1-2",
+      "match": {
+        "keys": [
+          "muse-spark-1-2"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta/muse-spark-1.2",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "deepseek-v4-flash-0731",
+      "match": {
+        "keys": [
+          "deepseek-v4-flash-0731"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v4-flash-0731",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "inkling-small",
+      "match": {
+        "keys": [
+          "inkling-small"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "thinkingmachines/inkling-small",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-7-flash",
+      "match": {
+        "keys": [
+          "qwen3-7-flash"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.7-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "ling-3-0-flash",
+      "match": {
+        "keys": [
+          "ling-3-0-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "inclusionai/ling-3.0-flash",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "laguna-s-2-1",
+      "match": {
+        "keys": [
+          "laguna-s-2-1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "poolside/laguna-s-2.1",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-6-flash",
+      "match": {
+        "keys": [
+          "gemini-3-6-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.6-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-5-flash-lite",
+      "match": {
+        "keys": [
+          "gemini-3-5-flash-lite"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.5-flash-lite",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "longcat-2-0",
+      "match": {
+        "keys": [
+          "longcat-2-0"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meituan/longcat-2.0",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "inkling",
+      "match": {
+        "keys": [
+          "inkling"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "thinkingmachines/inkling",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "muse-spark-1-1",
+      "match": {
+        "keys": [
+          "muse-spark-1-1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta/muse-spark-1.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gpt-5-6-luna-pro",
+      "match": {
+        "keys": [
+          "gpt-5-6-luna-pro"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.6-luna-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-5-6-luna",
+      "match": {
+        "keys": [
+          "gpt-5-6-luna"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.6-luna",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "grok-4-5",
+      "match": {
+        "keys": [
+          "grok-4-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "x-ai/grok-4.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "aion-3-0-mini",
+      "match": {
+        "keys": [
+          "aion-3-0-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "aion-labs/aion-3.0-mini",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "hy3",
+      "match": {
+        "keys": [
+          "hy3"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "tencent/hy3",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "laguna-xs-2-1",
+      "match": {
+        "keys": [
+          "laguna-xs-2-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "poolside/laguna-xs-2.1",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-pro-image",
+      "match": {
+        "keys": [
+          "gemini-3-pro-image"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3-pro-image",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5-2",
+      "match": {
+        "keys": [
+          "glm-5-2"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5.2",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "kimi-k2-7-code",
+      "match": {
+        "keys": [
+          "kimi-k2-7-code"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k2.7-code",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nemotron-3-ultra-550b-a55b",
+      "match": {
+        "keys": [
+          "nemotron-3-ultra-550b-a55b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-7-plus",
+      "match": {
+        "keys": [
+          "qwen3-7-plus"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.7-plus",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "minimax-m3",
+      "match": {
+        "keys": [
+          "minimax-m3"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "minimax/minimax-m3",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "step-3-7-flash",
+      "match": {
+        "keys": [
+          "step-3-7-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "stepfun/step-3.7-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-7-max",
+      "match": {
+        "keys": [
+          "qwen3-7-max"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.7-max",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "grok-build-0-1",
+      "match": {
+        "keys": [
+          "grok-build-0-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "x-ai/grok-build-0.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-5-flash",
+      "match": {
+        "keys": [
+          "gemini-3-5-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.5-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-1-flash-lite",
+      "match": {
+        "keys": [
+          "gemini-3-1-flash-lite"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.1-flash-lite",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "grok-4-3",
+      "match": {
+        "keys": [
+          "grok-4-3"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "x-ai/grok-4.3",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-medium-3-5",
+      "match": {
+        "keys": [
+          "mistral-medium-3-5"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-medium-3-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "qwen3-5-plus",
+      "match": {
+        "keys": [
+          "qwen3-5-plus"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-plus-20260420",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-6-flash",
+      "match": {
+        "keys": [
+          "qwen3-6-flash"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.6-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "qwen3-6-max-preview",
+      "match": {
+        "keys": [
+          "qwen3-6-max-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.6-max-preview",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-6-27b",
+      "match": {
+        "keys": [
+          "qwen3-6-27b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.6-27b",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-v4-pro",
+      "match": {
+        "keys": [
+          "deepseek-v4-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v4-pro",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-v4-flash",
+      "match": {
+        "keys": [
+          "deepseek-v4-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v4-flash",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "hy3-preview",
+      "match": {
+        "keys": [
+          "hy3-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "tencent/hy3-preview",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mimo-v2-5-pro",
+      "match": {
+        "keys": [
+          "mimo-v2-5-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "xiaomi/mimo-v2.5-pro",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mimo-v2-5",
+      "match": {
+        "keys": [
+          "mimo-v2-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "xiaomi/mimo-v2.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "kimi-k2-6",
+      "match": {
+        "keys": [
+          "kimi-k2-6"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k2.6",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5-1",
+      "match": {
+        "keys": [
+          "glm-5-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5.1",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemma-4-26b-a4b-it",
+      "match": {
+        "keys": [
+          "gemma-4-26b-a4b-it"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemma-4-26b-a4b-it",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-6-plus",
+      "match": {
+        "keys": [
+          "qwen3-6-plus"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.6-plus",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5v-turbo",
+      "match": {
+        "keys": [
+          "glm-5v-turbo"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5v-turbo",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "trinity-large-thinking",
+      "match": {
+        "keys": [
+          "trinity-large-thinking"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "arcee-ai/trinity-large-thinking",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "grok-4-20",
+      "match": {
+        "keys": [
+          "grok-4-20"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "x-ai/grok-4.20",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "minimax-m2-7",
+      "match": {
+        "keys": [
+          "minimax-m2-7"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "minimax/minimax-m2.7",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-5-4-nano",
+      "match": {
+        "keys": [
+          "gpt-5-4-nano"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.4-nano",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-5-4-mini",
+      "match": {
+        "keys": [
+          "gpt-5-4-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.4-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-small-2603",
+      "match": {
+        "keys": [
+          "mistral-small-2603"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-small-2603",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5-turbo",
+      "match": {
+        "keys": [
+          "glm-5-turbo"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5-turbo",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nemotron-3-super-120b-a12b",
+      "match": {
+        "keys": [
+          "nemotron-3-super-120b-a12b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "nvidia/nemotron-3-super-120b-a12b",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "seed-2-0-lite",
+      "match": {
+        "keys": [
+          "seed-2-0-lite"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "bytedance-seed/seed-2.0-lite",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mercury-2",
+      "match": {
+        "keys": [
+          "mercury-2"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "inception/mercury-2",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gemini-3-1-flash-lite-preview",
+      "match": {
+        "keys": [
+          "gemini-3-1-flash-lite-preview"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.1-flash-lite-preview",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "seed-2-0-mini",
+      "match": {
+        "keys": [
+          "seed-2-0-mini"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "bytedance-seed/seed-2.0-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-5-35b-a3b",
+      "match": {
+        "keys": [
+          "qwen3-5-35b-a3b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-35b-a3b",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-5-27b",
+      "match": {
+        "keys": [
+          "qwen3-5-27b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-27b",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-5-122b-a10b",
+      "match": {
+        "keys": [
+          "qwen3-5-122b-a10b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-122b-a10b",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-5-flash-02-23",
+      "match": {
+        "keys": [
+          "qwen3-5-flash-02-23"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-flash-02-23",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "aion-2-0",
+      "match": {
+        "keys": [
+          "aion-2-0"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "aion-labs/aion-2.0",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-5-plus-02-15",
+      "match": {
+        "keys": [
+          "qwen3-5-plus-02-15"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-plus-02-15",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-5-397b-a17b",
+      "match": {
+        "keys": [
+          "qwen3-5-397b-a17b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.5-397b-a17b",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "minimax-m2-5",
+      "match": {
+        "keys": [
+          "minimax-m2-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "minimax/minimax-m2.5",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-5",
+      "match": {
+        "keys": [
+          "glm-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-5",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-max-thinking",
+      "match": {
+        "keys": [
+          "qwen3-max-thinking"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-max-thinking",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-coder-next",
+      "match": {
+        "keys": [
+          "qwen3-coder-next"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-coder-next",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "step-3-5-flash",
+      "match": {
+        "keys": [
+          "step-3-5-flash"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "stepfun/step-3.5-flash",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "kimi-k2-5",
+      "match": {
+        "keys": [
+          "kimi-k2-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k2.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "solar-pro-3",
+      "match": {
+        "keys": [
+          "solar-pro-3"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "upstage/solar-pro-3",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "glm-4-7-flash",
+      "match": {
+        "keys": [
+          "glm-4-7-flash"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.7-flash",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "seed-1-6-flash",
+      "match": {
+        "keys": [
+          "seed-1-6-flash"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "bytedance-seed/seed-1.6-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "seed-1-6",
+      "match": {
+        "keys": [
+          "seed-1-6"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "bytedance-seed/seed-1.6",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "minimax-m2-1",
+      "match": {
+        "keys": [
+          "minimax-m2-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "minimax/minimax-m2.1",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-4-7",
+      "match": {
+        "keys": [
+          "glm-4-7"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.7",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-3-flash-preview",
+      "match": {
+        "keys": [
+          "gemini-3-flash-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3-flash-preview",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nemotron-3-nano-30b-a3b",
+      "match": {
+        "keys": [
+          "nemotron-3-nano-30b-a3b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "nvidia/nemotron-3-nano-30b-a3b",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "devstral-2512",
+      "match": {
+        "keys": [
+          "devstral-2512"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/devstral-2512",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "relace-search",
+      "match": {
+        "keys": [
+          "relace-search"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "relace/relace-search",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-4-6v",
+      "match": {
+        "keys": [
+          "glm-4-6v"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.6v",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nova-2-lite-v1",
+      "match": {
+        "keys": [
+          "nova-2-lite-v1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "amazon/nova-2-lite-v1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "ministral-8b-2512",
+      "match": {
+        "keys": [
+          "ministral-8b-2512"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/ministral-8b-2512",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "ministral-3b-2512",
+      "match": {
+        "keys": [
+          "ministral-3b-2512"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/ministral-3b-2512",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-v3-2",
+      "match": {
+        "keys": [
+          "deepseek-v3-2"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v3.2",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-5-1-codex-mini",
+      "match": {
+        "keys": [
+          "gpt-5-1-codex-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.1-codex-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "kimi-k2-thinking",
+      "match": {
+        "keys": [
+          "kimi-k2-thinking"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k2-thinking",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "voxtral-small-24b-2507",
+      "match": {
+        "keys": [
+          "voxtral-small-24b-2507"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/voxtral-small-24b-2507",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-oss-safeguard-20b",
+      "match": {
+        "keys": [
+          "gpt-oss-safeguard-20b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-oss-safeguard-20b",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "minimax-m2",
+      "match": {
+        "keys": [
+          "minimax-m2"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "minimax/minimax-m2",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-vl-32b-instruct",
+      "match": {
+        "keys": [
+          "qwen3-vl-32b-instruct"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-32b-instruct",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-vl-8b-thinking",
+      "match": {
+        "keys": [
+          "qwen3-vl-8b-thinking"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-8b-thinking",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-vl-8b-instruct",
+      "match": {
+        "keys": [
+          "qwen3-vl-8b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-8b-instruct",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "qwen3-vl-30b-a3b-thinking",
+      "match": {
+        "keys": [
+          "qwen3-vl-30b-a3b-thinking"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-30b-a3b-thinking",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-vl-30b-a3b-instruct",
+      "match": {
+        "keys": [
+          "qwen3-vl-30b-a3b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-30b-a3b-instruct",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-4-6",
+      "match": {
+        "keys": [
+          "glm-4-6"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.6",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-v3-2-exp",
+      "match": {
+        "keys": [
+          "deepseek-v3-2-exp"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v3.2-exp",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-vl-235b-a22b-thinking",
+      "match": {
+        "keys": [
+          "qwen3-vl-235b-a22b-thinking"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-235b-a22b-thinking",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-vl-235b-a22b-instruct",
+      "match": {
+        "keys": [
+          "qwen3-vl-235b-a22b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-vl-235b-a22b-instruct",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-max",
+      "match": {
+        "keys": [
+          "qwen3-max"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-max",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-coder-plus",
+      "match": {
+        "keys": [
+          "qwen3-coder-plus"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-coder-plus",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-v3-1-terminus",
+      "match": {
+        "keys": [
+          "deepseek-v3-1-terminus"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-v3.1-terminus",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-coder-flash",
+      "match": {
+        "keys": [
+          "qwen3-coder-flash"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-coder-flash",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "qwen3-next-80b-a3b-thinking",
+      "match": {
+        "keys": [
+          "qwen3-next-80b-a3b-thinking"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-next-80b-a3b-thinking",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-next-80b-a3b-instruct",
+      "match": {
+        "keys": [
+          "qwen3-next-80b-a3b-instruct"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-next-80b-a3b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen-plus-2025-07-28",
+      "match": {
+        "keys": [
+          "qwen-plus-2025-07-28"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen-plus-2025-07-28",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "kimi-k2-0905",
+      "match": {
+        "keys": [
+          "kimi-k2-0905"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k2-0905",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-30b-a3b-thinking-2507",
+      "match": {
+        "keys": [
+          "qwen3-30b-a3b-thinking-2507"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-30b-a3b-thinking-2507",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-chat-v3-1",
+      "match": {
+        "keys": [
+          "deepseek-chat-v3-1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-chat-v3.1",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-medium-3-1",
+      "match": {
+        "keys": [
+          "mistral-medium-3-1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-medium-3.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "glm-4-5v",
+      "match": {
+        "keys": [
+          "glm-4-5v"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.5v",
+      "reads_images": true,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-5-mini",
+      "match": {
+        "keys": [
+          "gpt-5-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-5-nano",
+      "match": {
+        "keys": [
+          "gpt-5-nano"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5-nano",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-oss-120b",
+      "match": {
+        "keys": [
+          "gpt-oss-120b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-oss-120b",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gpt-oss-20b",
+      "match": {
+        "keys": [
+          "gpt-oss-20b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-oss-20b",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "codestral-2508",
+      "match": {
+        "keys": [
+          "codestral-2508"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/codestral-2508",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-coder-30b-a3b-instruct",
+      "match": {
+        "keys": [
+          "qwen3-coder-30b-a3b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-coder-30b-a3b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-30b-a3b-instruct-2507",
+      "match": {
+        "keys": [
+          "qwen3-30b-a3b-instruct-2507"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-30b-a3b-instruct-2507",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-4-5",
+      "match": {
+        "keys": [
+          "glm-4-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.5",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "glm-4-5-air",
+      "match": {
+        "keys": [
+          "glm-4-5-air"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "z-ai/glm-4.5-air",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-235b-a22b-thinking-2507",
+      "match": {
+        "keys": [
+          "qwen3-235b-a22b-thinking-2507"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-235b-a22b-thinking-2507",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-coder",
+      "match": {
+        "keys": [
+          "qwen3-coder"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-coder",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemini-2-5-flash-lite",
+      "match": {
+        "keys": [
+          "gemini-2-5-flash-lite"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-2.5-flash-lite",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-235b-a22b-2507",
+      "match": {
+        "keys": [
+          "qwen3-235b-a22b-2507"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-235b-a22b-2507",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "kimi-k2",
+      "match": {
+        "keys": [
+          "kimi-k2"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "moonshotai/kimi-k2",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-small-3-2-24b-instruct",
+      "match": {
+        "keys": [
+          "mistral-small-3-2-24b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-small-3.2-24b-instruct",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "minimax-m1",
+      "match": {
+        "keys": [
+          "minimax-m1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "minimax/minimax-m1",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gemini-2-5-flash",
+      "match": {
+        "keys": [
+          "gemini-2-5-flash"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-2.5-flash",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-r1-0528",
+      "match": {
+        "keys": [
+          "deepseek-r1-0528"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-r1-0528",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-medium-3",
+      "match": {
+        "keys": [
+          "mistral-medium-3"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-medium-3",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "qwen3-30b-a3b",
+      "match": {
+        "keys": [
+          "qwen3-30b-a3b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-30b-a3b",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-8b",
+      "match": {
+        "keys": [
+          "qwen3-8b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-8b",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen3-14b",
+      "match": {
+        "keys": [
+          "qwen3-14b"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-14b",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "qwen3-235b-a22b",
+      "match": {
+        "keys": [
+          "qwen3-235b-a22b"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3-235b-a22b",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "o4-mini-high",
+      "match": {
+        "keys": [
+          "o4-mini-high"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o4-mini-high",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "o3",
+      "match": {
+        "keys": [
+          "o3"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o3",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "o4-mini",
+      "match": {
+        "keys": [
+          "o4-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o4-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4-1",
+      "match": {
+        "keys": [
+          "gpt-4-1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4-1-mini",
+      "match": {
+        "keys": [
+          "gpt-4-1-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4.1-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4-1-nano",
+      "match": {
+        "keys": [
+          "gpt-4-1-nano"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4.1-nano",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "llama-4-maverick",
+      "match": {
+        "keys": [
+          "llama-4-maverick"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta-llama/llama-4-maverick",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "deepseek-chat-v3-0324",
+      "match": {
+        "keys": [
+          "deepseek-chat-v3-0324"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-chat-v3-0324",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-small-3-1-24b-instruct",
+      "match": {
+        "keys": [
+          "mistral-small-3-1-24b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-small-3.1-24b-instruct",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gemma-3-12b-it",
+      "match": {
+        "keys": [
+          "gemma-3-12b-it"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemma-3-12b-it",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gemma-3-27b-it",
+      "match": {
+        "keys": [
+          "gemma-3-27b-it"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemma-3-27b-it",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "mistral-saba",
+      "match": {
+        "keys": [
+          "mistral-saba"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-saba",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "o3-mini-high",
+      "match": {
+        "keys": [
+          "o3-mini-high"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o3-mini-high",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen-plus",
+      "match": {
+        "keys": [
+          "qwen-plus"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen-plus",
+      "reads_images": false,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "o3-mini",
+      "match": {
+        "keys": [
+          "o3-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o3-mini",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-r1",
+      "match": {
+        "keys": [
+          "deepseek-r1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-r1",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "deepseek-chat",
+      "match": {
+        "keys": [
+          "deepseek-chat"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "deepseek/deepseek-chat",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "llama-3-3-70b-instruct",
+      "match": {
+        "keys": [
+          "llama-3-3-70b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta-llama/llama-3.3-70b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "nova-lite-v1",
+      "match": {
+        "keys": [
+          "nova-lite-v1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "amazon/nova-lite-v1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "nova-micro-v1",
+      "match": {
+        "keys": [
+          "nova-micro-v1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "amazon/nova-micro-v1",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "nova-pro-v1",
+      "match": {
+        "keys": [
+          "nova-pro-v1"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "amazon/nova-pro-v1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4o-2024-11-20",
+      "match": {
+        "keys": [
+          "gpt-4o-2024-11-20"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4o-2024-11-20",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-large-2407",
+      "match": {
+        "keys": [
+          "mistral-large-2407"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-large-2407",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen-2-5-7b-instruct",
+      "match": {
+        "keys": [
+          "qwen-2-5-7b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen-2.5-7b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "qwen-2-5-72b-instruct",
+      "match": {
+        "keys": [
+          "qwen-2-5-72b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen-2.5-72b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4o-2024-08-06",
+      "match": {
+        "keys": [
+          "gpt-4o-2024-08-06"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4o-2024-08-06",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "llama-3-1-70b-instruct",
+      "match": {
+        "keys": [
+          "llama-3-1-70b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta-llama/llama-3.1-70b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "llama-3-1-8b-instruct",
+      "match": {
+        "keys": [
+          "llama-3-1-8b-instruct"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "meta-llama/llama-3.1-8b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "mistral-nemo",
+      "match": {
+        "keys": [
+          "mistral-nemo"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-nemo",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 0
+      },
+      "note": "Did not pass the smoke check, so neither screening case ran."
+    },
+    {
+      "key": "gpt-4o-mini",
+      "match": {
+        "keys": [
+          "gpt-4o-mini"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4o-mini",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4o-mini-2024-07-18",
+      "match": {
+        "keys": [
+          "gpt-4o-mini-2024-07-18"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4o-mini-2024-07-18",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 0 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "gpt-4o",
+      "match": {
+        "keys": [
+          "gpt-4o"
+        ],
+        "served": [
+          "remote",
+          "local"
+        ]
+      },
+      "level": "studio_only",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4o",
+      "reads_images": true,
+      "passes": {
+        "passed": 1,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed 1 of 2 screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mixtral-8x22b-instruct",
+      "match": {
+        "keys": [
+          "mixtral-8x22b-instruct"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mixtral-8x22b-instruct",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "mistral-large",
+      "match": {
+        "keys": [
+          "mistral-large"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "openrouter-screen",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "mistralai/mistral-large",
+      "reads_images": false,
+      "passes": {
+        "passed": 2,
+        "counted": 2,
+        "run": 2
+      },
+      "note": "Passed both screening cases on OpenRouter: a PDF brief and a board pack."
+    },
+    {
+      "key": "ember-1",
+      "match": {
+        "keys": [
+          "ember-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "fireworks/ember-1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "qwen3-8-max-prime",
+      "match": {
+        "keys": [
+          "qwen3-8-max-prime"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "qwen/qwen3.8-max-prime",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "aion-3-5",
+      "match": {
+        "keys": [
+          "aion-3-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "aion-labs/aion-3.5",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "mimo-v2-6-pro-ultraspeed",
+      "match": {
+        "keys": [
+          "mimo-v2-6-pro-ultraspeed"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "xiaomi/mimo-v2.6-pro-ultraspeed",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "fugu-ultra-v2",
+      "match": {
+        "keys": [
+          "fugu-ultra-v2"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "sakana/fugu-ultra-v2",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-6-astra",
+      "match": {
+        "keys": [
+          "gpt-6-astra"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6-astra",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-6-astra-pro",
+      "match": {
+        "keys": [
+          "gpt-6-astra-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6-astra-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-fable-5-1",
+      "match": {
+        "keys": [
+          "claude-fable-5-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-fable-5.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-opus-5",
+      "match": {
+        "keys": [
+          "claude-opus-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-opus-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-6-terra-pro",
+      "match": {
+        "keys": [
+          "gpt-5-6-terra-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.6-terra-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-6-terra",
+      "match": {
+        "keys": [
+          "gpt-5-6-terra"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.6-terra",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-6-sol-pro",
+      "match": {
+        "keys": [
+          "gpt-5-6-sol-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.6-sol-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-6-sol",
+      "match": {
+        "keys": [
+          "gpt-5-6-sol"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.6-sol",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "aion-3-0",
+      "match": {
+        "keys": [
+          "aion-3-0"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "aion-labs/aion-3.0",
+      "reads_images": false,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-sonnet-5",
+      "match": {
+        "keys": [
+          "claude-sonnet-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-sonnet-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "fugu-ultra",
+      "match": {
+        "keys": [
+          "fugu-ultra"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "sakana/fugu-ultra",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-fable-5",
+      "match": {
+        "keys": [
+          "claude-fable-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-fable-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-opus-4-8",
+      "match": {
+        "keys": [
+          "claude-opus-4-8"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-opus-4.8",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-5-pro",
+      "match": {
+        "keys": [
+          "gpt-5-5-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.5-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-5",
+      "match": {
+        "keys": [
+          "gpt-5-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-opus-4-7",
+      "match": {
+        "keys": [
+          "claude-opus-4-7"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-opus-4.7",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-4-pro",
+      "match": {
+        "keys": [
+          "gpt-5-4-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.4-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-4",
+      "match": {
+        "keys": [
+          "gpt-5-4"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.4",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gemini-3-1-pro-preview-customtools",
+      "match": {
+        "keys": [
+          "gemini-3-1-pro-preview-customtools"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.1-pro-preview-customtools",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-3-codex",
+      "match": {
+        "keys": [
+          "gpt-5-3-codex"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.3-codex",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gemini-3-1-pro-preview",
+      "match": {
+        "keys": [
+          "gemini-3-1-pro-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-3.1-pro-preview",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-sonnet-4-6",
+      "match": {
+        "keys": [
+          "claude-sonnet-4-6"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-sonnet-4.6",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-opus-4-6",
+      "match": {
+        "keys": [
+          "claude-opus-4-6"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-opus-4.6",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-2-codex",
+      "match": {
+        "keys": [
+          "gpt-5-2-codex"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.2-codex",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-2-pro",
+      "match": {
+        "keys": [
+          "gpt-5-2-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.2-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-2",
+      "match": {
+        "keys": [
+          "gpt-5-2"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.2",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-1-codex-max",
+      "match": {
+        "keys": [
+          "gpt-5-1-codex-max"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.1-codex-max",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-opus-4-5",
+      "match": {
+        "keys": [
+          "claude-opus-4-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-opus-4.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-1",
+      "match": {
+        "keys": [
+          "gpt-5-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-1-codex",
+      "match": {
+        "keys": [
+          "gpt-5-1-codex"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5.1-codex",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "nova-premier-v1",
+      "match": {
+        "keys": [
+          "nova-premier-v1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "amazon/nova-premier-v1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5-pro",
+      "match": {
+        "keys": [
+          "gpt-5-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-sonnet-4-5",
+      "match": {
+        "keys": [
+          "claude-sonnet-4-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-sonnet-4.5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-5",
+      "match": {
+        "keys": [
+          "gpt-5"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-5",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-opus-4-1",
+      "match": {
+        "keys": [
+          "claude-opus-4-1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-opus-4.1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gemini-2-5-pro",
+      "match": {
+        "keys": [
+          "gemini-2-5-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-2.5-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "o3-pro",
+      "match": {
+        "keys": [
+          "o3-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o3-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gemini-2-5-pro-preview",
+      "match": {
+        "keys": [
+          "gemini-2-5-pro-preview"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "google/gemini-2.5-pro-preview",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "claude-sonnet-4",
+      "match": {
+        "keys": [
+          "claude-sonnet-4"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "anthropic/claude-sonnet-4",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "o1",
+      "match": {
+        "keys": [
+          "o1"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/o1",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-4o-2024-05-13",
+      "match": {
+        "keys": [
+          "gpt-4o-2024-05-13"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4o-2024-05-13",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-4-turbo",
+      "match": {
+        "keys": [
+          "gpt-4-turbo"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-4-turbo",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-6-1-sol-pro",
+      "match": {
+        "keys": [
+          "gpt-6-1-sol-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6.1-sol-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-6-1-sol",
+      "match": {
+        "keys": [
+          "gpt-6-1-sol"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6.1-sol",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-6-sol-pro",
+      "match": {
+        "keys": [
+          "gpt-6-sol-pro"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6-sol-pro",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
+    },
+    {
+      "key": "gpt-6-sol",
+      "match": {
+        "keys": [
+          "gpt-6-sol"
+        ],
+        "served": [
+          "remote"
+        ]
+      },
+      "level": "agent",
+      "suite": "assumed",
+      "suite_version": 1,
+      "measured_on": "2026-10-08",
+      "provider": "openrouter",
+      "host": "openrouter.ai",
+      "model_id": "openai/gpt-6-sol",
+      "reads_images": true,
+      "passes": {
+        "passed": 0,
+        "counted": 0,
+        "run": 0
+      },
+      "note": "Not run: an expensive flagship assumed to pass"
     }
   ]
 }
