@@ -81,6 +81,7 @@ import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { sessionLog } from "./session-log/session-log.ts"
+import { warnMain } from "./session-log/main-warn.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
 import { appMenu } from "./menu/app-menu.ts"
 import { helpMenu } from "./menu/help-menu.ts"
@@ -116,7 +117,7 @@ let shuttingDown = false
 let stopDocxSnapshots: (() => void) | null = null
 
 function onSidecarCrash(name: string, code: number | null): void {
-  process.stderr.write(`[main] sidecar ${name} crashed (code=${code})\n`)
+  warnMain(sessionLog, `sidecar ${name} crashed (code=${code})`)
   // best-effort: let the renderer show an error instead of hanging
   mainWindow?.webContents.send("sidecar:crashed", {
     name,
@@ -743,7 +744,7 @@ function main(): void {
       })
     })
     .catch((err: unknown) => {
-      process.stderr.write(`failed to start: ${String(err)}\n`)
+      warnMain(sessionLog, `failed to start: ${String(err)}`)
       void shutdown().finally(() => app.exit(1))
     })
 

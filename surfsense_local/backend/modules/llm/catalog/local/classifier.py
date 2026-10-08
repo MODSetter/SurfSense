@@ -14,10 +14,12 @@ refuses or refines, never admits: the tags that mean chat (`text-generation`,
 are not keys and must never be.
 
 Grouped by what the model is, so adding an entry answers one question. Each
-group keeps its own sentence, which is why a type alone is not enough.
+group keeps its own sentence, which is why a type alone is not enough, and a
+code the interface has its own words for.
 """
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from modules.llm.model_type import ModelType
 
@@ -134,10 +136,40 @@ _VIDEO = (
 )
 
 
+class NotRunnableCode(StrEnum):
+    """Why the local chat runtime cannot run a model.
+
+    The sentence still travels with it, which the interface shows for a code it
+    does not know. An install refusal carries one in the field an `InstallCode`
+    takes, so the two never share a value. Keep in sync with
+    `not-runnable-text.ts` in the frontend.
+    """
+
+    EMBEDDER = "embedder"
+    SPEECH_OUT = "speech_out"
+    SPEECH_IN = "speech_in"
+    AUDIO_CPP = "audio_cpp"
+    LABELLER = "labeller"
+    OCR = "ocr"
+    DRAFTER = "drafter"
+    PROJECTOR = "projector"
+    NOT_WEIGHTS = "not_weights"
+    IMAGE = "image"
+    IMAGE_EDIT = "image_edit"
+    VIDEO = "video"
+    # Nothing here says why.
+    UNSUPPORTED = "unsupported"
+
+
+# What a row or a refusal says when no group does.
+UNSUPPORTED_REASON = "SurfSense cannot run this model."
+
+
 @dataclass(frozen=True)
 class Group:
     types: tuple[ModelType, ...]
     reason: str
+    code: NotRunnableCode
 
 
 _NONE = ()
@@ -150,6 +182,7 @@ GROUPS: dict[str, Group] = {
                 "This model turns text into numbers for search. It cannot answer "
                 "questions, and SurfSense already has its own."
             ),
+            NotRunnableCode.EMBEDDER,
         ),
     ),
     **dict.fromkeys(
@@ -157,6 +190,7 @@ GROUPS: dict[str, Group] = {
         Group(
             (ModelType.AUDIO_GEN,),
             ("This model reads text aloud. SurfSense cannot run speech models yet."),
+            NotRunnableCode.SPEECH_OUT,
         ),
     ),
     **dict.fromkeys(
@@ -166,6 +200,7 @@ GROUPS: dict[str, Group] = {
             (
                 "This model writes down what it hears in audio. It cannot answer questions."
             ),
+            NotRunnableCode.SPEECH_IN,
         ),
     ),
     **dict.fromkeys(
@@ -175,12 +210,15 @@ GROUPS: dict[str, Group] = {
             (
                 "This model runs on audio.cpp. SurfSense runs only the voices in its list."
             ),
+            NotRunnableCode.AUDIO_CPP,
         ),
     ),
     **dict.fromkeys(
         _LABELLERS,
         Group(
-            _NONE, ("This model puts labels on things. It cannot hold a conversation.")
+            _NONE,
+            ("This model puts labels on things. It cannot hold a conversation."),
+            NotRunnableCode.LABELLER,
         ),
     ),
     **dict.fromkeys(
@@ -190,6 +228,7 @@ GROUPS: dict[str, Group] = {
             (
                 "This model reads text out of images in one pass. It cannot hold a conversation."
             ),
+            NotRunnableCode.OCR,
         ),
     ),
     **dict.fromkeys(
@@ -197,6 +236,7 @@ GROUPS: dict[str, Group] = {
         Group(
             _NONE,
             ("This file makes another model faster. It cannot answer on its own."),
+            NotRunnableCode.DRAFTER,
         ),
     ),
     **dict.fromkeys(
@@ -206,17 +246,23 @@ GROUPS: dict[str, Group] = {
             (
                 "This is the vision half of another model. Install the model it belongs to instead."
             ),
+            NotRunnableCode.PROJECTOR,
         ),
     ),
     **dict.fromkeys(
         _NOT_WEIGHTS,
-        Group(_NONE, ("This file steers another model. It is not a model on its own.")),
+        Group(
+            _NONE,
+            ("This file steers another model. It is not a model on its own."),
+            NotRunnableCode.NOT_WEIGHTS,
+        ),
     ),
     **dict.fromkeys(
         _IMAGE,
         Group(
             (ModelType.IMAGE_GEN,),
             ("This model makes pictures. SurfSense cannot run it from search yet."),
+            NotRunnableCode.IMAGE,
         ),
     ),
     **dict.fromkeys(
@@ -224,6 +270,7 @@ GROUPS: dict[str, Group] = {
         Group(
             (ModelType.IMAGE_EDIT,),
             ("This model edits pictures. SurfSense cannot run picture editing yet."),
+            NotRunnableCode.IMAGE_EDIT,
         ),
     ),
     **dict.fromkeys(
@@ -231,6 +278,7 @@ GROUPS: dict[str, Group] = {
         Group(
             (ModelType.VIDEO_GEN,),
             ("This model makes video. SurfSense cannot run video models yet."),
+            NotRunnableCode.VIDEO,
         ),
     ),
 }
@@ -241,12 +289,13 @@ _TEXT = (ModelType.TEXT_GEN,)
 @dataclass(frozen=True)
 class Classification:
     """What a model is for. `reason` says why the local chat runtime cannot run
-    it, and is empty for a chat model."""
+    it, and is empty for a chat model; `code` names that reason."""
 
     types: tuple[ModelType, ...]
     known: bool = True
     approximate: bool = False
     reason: str = ""
+    code: NotRunnableCode | None = None
 
 
 def classify(
@@ -262,5 +311,5 @@ def classify(
         return Classification(_TEXT, approximate=True)
     for name in (architecture, pipeline_tag):
         if name and (group := GROUPS.get(name.lower())):
-            return Classification(group.types, reason=group.reason)
+            return Classification(group.types, reason=group.reason, code=group.code)
     return Classification(_TEXT)

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from modules.agent.agent_threads.steps import MAX_INPUT_CHARS, step_of
 from tests.live.live_model import PROVIDERS, LiveModel
 from tests.live.model_prices import Prices
 from tests.live.run_folder import RunFolder
@@ -106,6 +107,19 @@ def test_the_cost_carries_what_openrouter_billed_when_every_call_says(
     assert cost["reported_dollars"] is None
 
 
+def test_the_result_carries_what_the_case_graded_but_did_not_check(
+    tmp_path: Path,
+) -> None:
+    """A quality signal the case records without failing on it, such as the board pack's stated assumptions."""
+    run = RunFolder("board-pack", HAIKU, root=tmp_path)
+    run.metrics["says_what_it_assumed"] = False
+
+    _finish(run, tmp_path, [])
+
+    result = json.loads((run.path / "result.json").read_text(encoding="utf-8"))
+    assert result["metrics"] == {"says_what_it_assumed": False}
+
+
 def test_the_run_keeps_what_each_analysis_saved(tmp_path: Path) -> None:
     """A wrong figure is traced from the chart and table the analysis left behind."""
     run = RunFolder("sales-targets", HAIKU, root=tmp_path / "runs")
@@ -117,3 +131,31 @@ def test_the_run_keeps_what_each_analysis_saved(tmp_path: Path) -> None:
 
     kept = run.path / "analysis" / "a1b2c3d4" / "shortfall.png"
     assert kept.read_bytes() == b"png"
+
+
+def test_the_transcript_says_a_script_it_shows_is_only_its_start(
+    tmp_path: Path,
+) -> None:
+    """A step's frame carries the script's start; a refused render has no version holding the rest."""
+    script = "doc.add_paragraph('Revenue rose.')\n" * 400
+    part = {
+        "id": "prt_1",
+        "type": "tool",
+        "tool": "surfsense_render_document",
+        "state": {
+            "status": "error",
+            "input": {"title": "Proposal", "format": "docx", "script": script},
+            "error": "The script failed validation.",
+        },
+    }
+    run = RunFolder("demo-flow", HAIKU, root=tmp_path)
+    run.add_turn("Write the proposal.", [{"type": "agent-step", **step_of(part)}])
+
+    _finish(run, tmp_path, [])
+
+    transcript = (run.path / "transcript.md").read_text(encoding="utf-8")
+    assert script[:MAX_INPUT_CHARS] in transcript
+    assert (
+        f"The script's first {MAX_INPUT_CHARS} characters; "
+        "the whole call is in model-requests.json:"
+    ) in transcript

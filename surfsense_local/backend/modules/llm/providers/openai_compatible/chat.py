@@ -9,6 +9,7 @@ from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.prompt_reuse import chunk_reuse, log_reuse
+from modules.llm.providers.sse_lines import sse_lines
 from modules.llm.providers.stream_deadline import with_deadlines
 from modules.llm.providers.types import Delta, Message, Model, PromptProgress
 
@@ -209,7 +210,7 @@ class OpenAICompatibleChatProvider:
                     response=reply,
                 )
             reuse = None
-            async for line in reply.aiter_lines():
+            async for line in sse_lines(reply):
                 delta = _delta(line)
                 if delta:
                     yield delta

@@ -3,7 +3,7 @@
 > Owns: `surfsense_local/backend/modules/agent/plugin_tools/`, `surfsense_local/backend/modules/chat/plugin_router/`, the `@` mention in the composer, plugin steps in both kinds of thread, Save to Sources, the router test in the [chat eval](../../chat-eval.md).
 > Decision for the chat engine: [ADR 0052](../../../adr/0052-the-chat-model-never-calls-tools.md). Gateway: [`01-architecture.md`](01-architecture.md).
 
-The two engines stay as they are: opencode for a model that passes the agent test, the chat engine for every model ([agent](../../../architecture/agent.md), [chat](../../../architecture/chat.md)). Both reach plugins only through the gateway.
+The two engines stay as they are: a thread opened in Agentic mode is opencode's, and one in Basic mode the chat engine's ([agent](../../../architecture/agent.md#which-threads-get-it), [chat](../../../architecture/chat.md)). Both reach plugins only through the gateway.
 
 ## opencode
 

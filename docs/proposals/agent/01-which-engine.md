@@ -50,6 +50,8 @@ A rule based only on tool support would give Qwen3-0.6B, at 3.62% on multi-turn 
 
 ## Decision
 
+Superseded on 7 Oct 2026: the user picks Basic (Q&A) or Agentic for each new chat, every model may pick Agentic, and only technical gates keep one out; a measured level sets the default ([model capabilities](../../architecture/model-capabilities.md#the-modes)). What follows is the earlier decision.
+
 - **opencode** runs a model only if the model is on the tested list and its tool support is confirmed: `supports_tool_calls` from llama-server for a local model, `tool_call: true` for a remote one. The list starts empty.
 - **Fixed workflows** ([`04-workflows.md`](04-workflows.md)) run every other model. The formatting step uses the model's own structured output where it has one. For a remote model without it, a local model does the formatting step. With no local text model installed, the workflow parses the reply the way Studio does today.
 - Nanbeige4-3B-Thinking and xLAM-2 are not candidates for the list.

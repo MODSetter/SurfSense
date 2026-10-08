@@ -6,11 +6,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react"
-import {
-  useExternalStoreRuntime,
-  type AppendMessage,
-  type ThreadMessageLike,
-} from "@assistant-ui/react"
+import type { AppendMessage } from "@assistant-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -40,23 +36,20 @@ import {
   type ChatThread,
   type ImageUpload,
 } from "./api"
-import {
-  ChatImageAdapter,
-  attachmentsOf,
-  previewOf,
-  uploadsOf,
-} from "./image-attachments"
+import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
+import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
+import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
+import type { LiveThreadSource } from "./live-thread-runtime"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
 import {
   beginRun,
   dropRun,
   liveRun,
-  liveRuns,
   onRunEnded,
   onRunFrame,
   pump,
-  runsVersion,
+  runSummaries,
   subscribeToRuns,
   updatePair,
   type LiveRun,
@@ -65,6 +58,7 @@ import {
 import { storedUploads } from "./runs/stored-uploads"
 import { markRead, markUnread, readUnread } from "./runs/unread-replies"
 import type { ChatErrorKind, ChatStreamEvent } from "./sse"
+import { composedThread, isOptimistic, OPTIMISTIC_ID } from "./thread-messages"
 import { readThinkingOn } from "./thinking-preference"
 
 /** A backend error kind, or a refusal the app recognises before any stream:
@@ -140,9 +134,12 @@ function lastThreadKey(workspaceId: number) {
 const NEW_CHAT = "new"
 
 export type ConversationView =
-  | { status: "new" }
+  // `returned` is what a refused new chat hands back to the composer.
+  | { status: "new"; returned?: ReturnedDraft }
   | { status: "creating" }
   | { status: "active"; threadId: number }
+
+export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
 function rememberThread(workspaceId: number, threadId: number | null) {
   try {
@@ -169,32 +166,6 @@ function readStoredView(workspaceId: number): ConversationView {
   return { status: "new" }
 }
 
-const OPTIMISTIC_ID = "optimistic-"
-
-function isOptimistic(id: number | string) {
-  return String(id).startsWith(OPTIMISTIC_ID)
-}
-
-/**
- * The thread as shown: its stored turns, with the reply a run is writing in
- * place of its stored copy. The question is the stored one once it exists,
- * which a reattached run never had the text of.
- */
-function composed(
-  persisted: ChatMessage[],
-  run: LiveRun | null
-): ChatMessage[] {
-  if (!run?.pair) return persisted
-  const [user, assistant] = run.pair
-  const hidden = new Set([...run.replaces, user.id, assistant.id])
-  const question = persisted.find((message) => message.id === user.id) ?? user
-  return [
-    ...persisted.filter((message) => !hidden.has(message.id)),
-    question,
-    assistant,
-  ]
-}
-
 function stoppedBeforeAWord(pair: LivePair) {
   const reply = pair[1]
   return reply.content.ending?.type === "stopped" && !reply.content.text
@@ -206,72 +177,14 @@ function storedTurnCaughtUp(canonical: ChatMessage[], pair: LivePair) {
   return ids.has(pair[0].id) && ids.has(pair[1].id)
 }
 
-function errorOf(
-  message: ChatMessage,
-  latestAssistantId: string | null
-): ChatTurnError | null {
-  const ending = message.content.ending
-  const retryable = String(message.id) === latestAssistantId
-  if (ending?.type === "error") {
-    return {
-      kind: ending.kind,
-      message: ending.message,
-      provider: ending.provider ?? "",
-      detailIsLocal: ending.local,
-      retryable,
-    }
-  }
-  if (ending?.type === "interrupted") {
-    return { kind: "interrupted", message: "", provider: "", retryable }
-  }
-  return null
-}
-
-function toRuntimeMessage(
-  message: ChatMessage,
-  latestAssistantId: string | null,
-  threadId: number | null
-): ThreadMessageLike {
-  const value =
-    message.role === "assistant" ? message.completed_at : message.created_at
-  // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
-  const timestamp =
-    value && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? `${value}Z` : value
-  const error =
-    message.role === "assistant" ? errorOf(message, latestAssistantId) : null
-  const stopped =
-    message.role === "assistant" && message.content.ending?.type === "stopped"
-  return {
-    id: String(message.id),
-    role: message.role,
-    content: [{ type: "text", text: message.content.text ?? "" }],
-    ...(message.role === "user"
-      ? { attachments: attachmentsOf(message, threadId) }
-      : {}),
-    ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
-    ...(error
-      ? { status: { type: "incomplete", reason: "error", error } as const }
-      : stopped
-        ? // Without it assistant-ui calls a stopped reply complete.
-          { status: { type: "incomplete", reason: "cancelled" } as const }
-        : {}),
-    metadata: {
-      custom: {
-        citations: message.content.citations ?? [],
-        steps: message.content.steps ?? [],
-        reasoning: message.content.reasoning
-          ? {
-              text: message.content.reasoning.text,
-              durationMs: message.content.reasoning.duration_ms,
-            }
-          : null,
-        progress: message.content.progress ?? null,
-        queue: message.content.queue ?? null,
-        preparing: message.content.preparing ?? null,
-        scope: message.content.scope ?? null,
-      },
-    },
-  }
+/**
+ * Whether the thread still holds the run that ended, and not one started
+ * since: a Retry pressed while the end's read was out is a new reply.
+ */
+function stillTheEndedRun(threadId: number, ended: LiveRun | null) {
+  const held = liveRun(threadId)
+  if (!held?.ended) return false
+  return ended?.pair ? held.pair?.[1].id === ended.pair[1].id : !held.pair
 }
 
 function optimisticPair(
@@ -310,6 +223,8 @@ export function useChatRuntime({
   sourceScope = null,
   readsImages,
   canSkipThinking,
+  newChatMode = null,
+  onAgenticGate,
   onModelRequired,
 }: {
   workspaceId: number
@@ -324,6 +239,10 @@ export function useChatRuntime({
   readsImages: boolean
   // Whether the selected model can be told not to think; no other is asked to.
   canSkipThinking: boolean
+  // The mode a new chat opens in; null leaves it to the API's default.
+  newChatMode?: NewChatChoice | null
+  // A gate the API refused an Agentic chat by, which the model's modes did not say.
+  onAgenticGate?: (gate: string) => void
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -333,6 +252,13 @@ export function useChatRuntime({
   const [autoNamingThreadId, setAutoNamingThreadId] = useState<number | null>(
     null
   )
+  // What was last set, so a streamed token can ask without queueing an
+  // update of this page per token.
+  const autoNamingRef = useRef<number | null>(null)
+  const setAutoNaming = useCallback((threadId: number | null) => {
+    autoNamingRef.current = threadId
+    setAutoNamingThreadId(threadId)
+  }, [])
   const [animatingTitleThreadId, setAnimatingTitleThreadId] = useState<
     number | null
   >(null)
@@ -346,8 +272,9 @@ export function useChatRuntime({
   >({})
   const requestVersion = useRef(0)
 
-  // Re-render on every change to any run, wherever its thread is.
-  useSyncExternalStore(subscribeToRuns, runsVersion)
+  // Where each run stands, never its text: a streamed token renders the open
+  // thread's messages alone (LiveThreadRuntime), not this page.
+  const runs = useSyncExternalStore(subscribeToRuns, runSummaries)
 
   const threadsQuery = useQuery({
     queryKey: chatKeys.threads(workspaceId),
@@ -375,13 +302,20 @@ export function useChatRuntime({
     enabled: activeThreadId !== null,
   })
   const persistedMessages = messagesQuery.data ?? EMPTY_MESSAGES
-  const activeRun = liveRun(activeThreadId)
+  const activeRun =
+    activeThreadId === null ? null : (runs[activeThreadId] ?? null)
   const isRunning = activeRun !== null && !activeRun.ended
-  const threadMessages = composed(persistedMessages, activeRun)
 
   const createThreadMutation = useMutation({
-    mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
-      createThread(workspaceId, title, signal),
+    mutationFn: ({
+      title,
+      mode,
+      signal,
+    }: {
+      title: string
+      mode: NewChatChoice | null
+      signal: AbortSignal
+    }) => createThread(workspaceId, title, mode, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
@@ -400,19 +334,19 @@ export function useChatRuntime({
       setConversationView({ status: "active", threadId })
       rememberThread(workspaceId, threadId)
       setUnreadThreadIds(markRead(workspaceId, threadId))
-      setAutoNamingThreadId(null)
+      setAutoNaming(null)
       setAnimatingTitleThreadId(null)
     },
-    [activeThreadId, workspaceId]
+    [activeThreadId, setAutoNaming, workspaceId]
   )
 
   const startNewChat = useCallback(() => {
     requestVersion.current += 1
     setConversationView({ status: "new" })
     rememberThread(workspaceId, null)
-    setAutoNamingThreadId(null)
+    setAutoNaming(null)
     setAnimatingTitleThreadId(null)
-  }, [workspaceId])
+  }, [setAutoNaming, workspaceId])
 
   useEffect(() => {
     if (!threadsQuery.isSuccess) return
@@ -436,9 +370,13 @@ export function useChatRuntime({
   useEffect(
     () =>
       onRunEnded((threadId) => {
+        const run = liveRun(threadId)
+        // Not always this page's: a run keeps going when another workspace
+        // opens, and its thread is marked in its own.
+        const runWorkspaceId = run?.workspaceId ?? workspaceId
         // This window saw it end; the list need not be read again to know.
         queryClient.setQueryData<ChatThread[]>(
-          chatKeys.threads(workspaceId),
+          chatKeys.threads(runWorkspaceId),
           (current) =>
             current?.map((thread) =>
               thread.id === threadId
@@ -453,11 +391,12 @@ export function useChatRuntime({
           delete rest[threadId]
           return rest
         })
-        if (threadId !== activeThreadIdRef.current) {
+        if (runWorkspaceId !== workspaceId) {
+          markUnread(runWorkspaceId, threadId)
+        } else if (threadId !== activeThreadIdRef.current) {
           setUnreadThreadIds(markUnread(workspaceId, threadId))
         }
         void (async () => {
-          const run = liveRun(threadId)
           const canonical = await queryClient
             .fetchQuery({
               queryKey: chatKeys.messages(threadId),
@@ -465,6 +404,9 @@ export function useChatRuntime({
               staleTime: 0,
             })
             .catch(() => null)
+          // A run started while that read was out is not this one to drop;
+          // its own end reads the turns again.
+          if (!stillTheEndedRun(threadId, run)) return
           if (!run?.pair) {
             dropRun(threadId)
           } else if (canonical && storedTurnCaughtUp(canonical, run.pair)) {
@@ -474,10 +416,27 @@ export function useChatRuntime({
             dropRun(threadId)
           } else if (!isOptimistic(run.pair[1].id)) {
             // Read before the store caught up: read again, and the live copy
-            // goes once the stored turns hold it.
-            void queryClient.invalidateQueries({
-              queryKey: chatKeys.messages(threadId),
-            })
+            // goes once the stored turns hold it. A thread that is not open
+            // has nothing reading it again, so it is read here, or its run
+            // would stay until the thread is opened.
+            const open = threadId === activeThreadIdRef.current
+            await queryClient
+              .invalidateQueries({
+                queryKey: chatKeys.messages(threadId),
+                refetchType: open ? "active" : "all",
+              })
+              .catch(() => undefined)
+            const stored = queryClient.getQueryData<ChatMessage[]>(
+              chatKeys.messages(threadId)
+            )
+            if (
+              !open &&
+              stored &&
+              stillTheEndedRun(threadId, run) &&
+              storedTurnCaughtUp(stored, run.pair)
+            ) {
+              dropRun(threadId)
+            }
           }
           // An optimistic pair is a request that never reached the API; its
           // error stays on screen until the person moves on.
@@ -487,22 +446,23 @@ export function useChatRuntime({
   )
 
   useEffect(() => {
-    if (activeRun?.ended && activeRun.pair) {
-      if (storedTurnCaughtUp(persistedMessages, activeRun.pair)) {
-        dropRun(activeRun.threadId)
-      }
+    if (activeThreadId === null || !activeRun?.ended) return
+    const run = liveRun(activeThreadId)
+    if (run?.pair && storedTurnCaughtUp(persistedMessages, run.pair)) {
+      dropRun(activeThreadId)
     }
-  }, [activeRun, persistedMessages])
+  }, [activeRun, activeThreadId, persistedMessages])
 
   // Frames the reply itself does not hold: a new title, and the agent's asks.
   useEffect(
     () =>
       onRunFrame((threadId, event: ChatStreamEvent) => {
         if (event.type === "thread-title-update") {
-          setAutoNamingThreadId(null)
+          setAutoNaming(null)
           setAnimatingTitleThreadId(threadId)
+          // In the run's own list, as its end marks it unread there.
           queryClient.setQueryData<ChatThread[]>(
-            chatKeys.threads(workspaceId),
+            chatKeys.threads(liveRun(threadId)?.workspaceId ?? workspaceId),
             (current = []) =>
               current.map((thread) =>
                 thread.id === threadId
@@ -511,9 +471,7 @@ export function useChatRuntime({
               )
           )
         } else if (event.type === "delta") {
-          setAutoNamingThreadId((current) =>
-            current === threadId ? null : current
-          )
+          if (autoNamingRef.current === threadId) setAutoNaming(null)
         } else if (event.type === "permission-request") {
           const { id, permission, patterns, command } = event
           setApprovalsByThread((all) => {
@@ -534,7 +492,7 @@ export function useChatRuntime({
           )
         }
       }),
-    [queryClient, workspaceId]
+    [queryClient, setAutoNaming, workspaceId]
   )
 
   // Another window, or this one after a reload, may have started a run: the
@@ -564,9 +522,9 @@ export function useChatRuntime({
     if (activeThread === null || !activeThread.running) return
     if (liveRun(activeThread.id)) return
     const threadId = activeThread.id
-    const signal = beginRun(threadId)
+    const signal = beginRun(threadId, { workspaceId })
     void pump(threadId, followRun(threadId, 0, signal)).catch(() => undefined)
-  }, [activeThread])
+  }, [activeThread, workspaceId])
 
   const removeThread = async (threadId: number) => {
     try {
@@ -654,11 +612,32 @@ export function useChatRuntime({
         conversationView.status === "active" ? conversationView.threadId : null
       let usesAgent =
         threads.find((thread) => thread.id === threadId)?.uses_agent ?? false
+      const agentic =
+        threadId === null ? newChatMode?.mode === "agentic" : usesAgent
+      if (agentic && images.length > 0) {
+        // The agent would refuse the turn: a new chat's question comes back,
+        // and nothing is opened or sent.
+        if (threadId === null) {
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
+        }
+        errorToast(
+          intl.formatMessage({
+            id: "chat_runtime_agentic_images_toast",
+            defaultMessage:
+              "Agentic mode doesn’t read images yet. Ask about images in a Basic (Q&A) chat.",
+          })
+        )
+        return
+      }
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
+            mode: newChatMode,
             signal: new AbortController().signal,
           })
           if (requestVersion.current !== version) {
@@ -675,19 +654,38 @@ export function useChatRuntime({
           )
           queryClient.setQueryData(chatKeys.messages(thread.id), EMPTY_MESSAGES)
           setConversationView({ status: "active", threadId: thread.id })
-          setAutoNamingThreadId(thread.id)
+          setAutoNaming(thread.id)
           rememberThread(workspaceId, thread.id)
         }
       } catch (cause) {
         if (requestVersion.current === version) {
-          setConversationView({ status: "new" })
+          // An Agentic chat may be refused after a minute's wait for the
+          // agent; what was typed comes back rather than being lost.
+          setConversationView({
+            status: "new",
+            returned: { text: typed, images },
+          })
         }
-        errorToast(messageFrom(cause))
+        if (
+          cause instanceof ApiError &&
+          cause.code !== null &&
+          AGENTIC_GATES.has(cause.code)
+        ) {
+          onAgenticGate?.(cause.code)
+        }
+        errorToast(
+          cause instanceof ApiError &&
+            cause.code !== null &&
+            AGENTIC_REFUSALS.has(cause.code)
+            ? agenticRefusedText(cause.code)
+            : messageFrom(cause)
+        )
         return
       }
 
       const runThreadId = threadId
       const signal = beginRun(runThreadId, {
+        workspaceId,
         pair: optimisticPair(
           version,
           text,
@@ -776,9 +774,7 @@ export function useChatRuntime({
           ])
         }
       } finally {
-        setAutoNamingThreadId((current) =>
-          current === runThreadId ? null : current
-        )
+        if (autoNamingRef.current === runThreadId) setAutoNaming(null)
       }
     },
     [
@@ -787,10 +783,13 @@ export function useChatRuntime({
       conversationView,
       createThreadMutation,
       isRunning,
+      newChatMode,
+      onAgenticGate,
       onModelRequired,
       queryClient,
       selectedDocumentIds,
       selectedSourceTitles,
+      setAutoNaming,
       sourceScope,
       threads,
       workspaceId,
@@ -805,24 +804,26 @@ export function useChatRuntime({
 
   const retry = useCallback(
     (assistantId: string) => {
-      const index = threadMessages.findIndex(
-        (message) => String(message.id) === assistantId
-      )
-      const failed = threadMessages[index]
-      const question = threadMessages[index - 1]
-      const latest = threadMessages.findLast(
-        (message) => message.role === "assistant"
-      )
-      if (
-        !failed ||
-        question?.role !== "user" ||
-        latest !== failed ||
-        activeThreadId === null
-      ) {
-        return
-      }
+      if (activeThreadId === null) return
       const threadId = activeThreadId
       const held = liveRun(threadId)
+      // Read when asked, not held from a render: a streamed token would
+      // otherwise make a new Retry for every message in the thread.
+      const shown = composedThread(
+        queryClient.getQueryData<ChatMessage[]>(chatKeys.messages(threadId)) ??
+          EMPTY_MESSAGES,
+        held?.pair ?? null,
+        held?.replaces ?? []
+      )
+      const index = shown.findIndex(
+        (message) => String(message.id) === assistantId
+      )
+      const failed = shown[index]
+      const question = shown[index - 1]
+      const latest = shown.findLast((message) => message.role === "assistant")
+      if (!failed || question?.role !== "user" || latest !== failed) {
+        return
+      }
       void (async () => {
         const images =
           held?.retry && held.pair && String(held.pair[1].id) === assistantId
@@ -840,7 +841,7 @@ export function useChatRuntime({
         ])
       })()
     },
-    [activeThread, activeThreadId, send, threadMessages]
+    [activeThread, activeThreadId, queryClient, send]
   )
 
   const cancel = useCallback(async () => {
@@ -887,7 +888,7 @@ export function useChatRuntime({
 
   const isLoadingThreads = threadsQuery.isPending
   const isLoadingMessages =
-    activeThreadId !== null && !activeRun?.pair && messagesQuery.isPending
+    activeThreadId !== null && !activeRun?.hasPair && messagesQuery.isPending
 
   useEffect(() => {
     if (threadsQuery.error) {
@@ -922,23 +923,19 @@ export function useChatRuntime({
     [readsImages]
   )
 
-  const latestAssistantId = useMemo(() => {
-    const latest = threadMessages.findLast(
-      (message) => message.role === "assistant"
-    )
-    return latest ? String(latest.id) : null
-  }, [threadMessages])
-
-  const runtime = useExternalStoreRuntime<ChatMessage>({
-    messages: threadMessages,
-    convertMessage: (message) =>
-      toRuntimeMessage(message, latestAssistantId, activeThreadId),
-    adapters,
-    onNew,
-    isRunning,
-    isSendDisabled: !canSend || isLoadingMessages || isLoadingThreads,
-    onCancel: cancel,
-  })
+  const isSendDisabled = !canSend || isLoadingMessages || isLoadingThreads
+  // For LiveThreadRuntime, which turns it and the run into the open thread.
+  const liveThread = useMemo<LiveThreadSource>(
+    () => ({
+      threadId: activeThreadId,
+      persistedMessages,
+      adapters,
+      isSendDisabled,
+      onNew,
+      onCancel: cancel,
+    }),
+    [activeThreadId, adapters, cancel, isSendDisabled, onNew, persistedMessages]
+  )
 
   // Where each thread's reply stands: what the list says, sharpened by what
   // this window follows itself, which hears each change first.
@@ -948,21 +945,18 @@ export function useChatRuntime({
       const listed = listedRunState(thread)
       if (listed) states[thread.id] = listed
     }
-    for (const run of liveRuns()) {
-      if (!run.ended) states[run.threadId] = run.state
+    for (const [threadId, run] of Object.entries(runs)) {
+      if (!run.ended) states[Number(threadId)] = run.state
     }
     return states
-    // `runsVersion` is what changes when a run does.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threads, runsVersion()])
+  }, [threads, runs])
 
   return {
-    runtime,
+    liveThread,
     threads,
     conversationView,
     activeThread,
     activeThreadId,
-    messages: threadMessages,
     isLoadingThreads,
     isLoadingMessages,
     isRunning,

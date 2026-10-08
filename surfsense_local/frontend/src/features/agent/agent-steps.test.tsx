@@ -6,6 +6,13 @@ import { OpenArtifactContext } from "@/features/studio/open-artifact"
 
 import { AgentSteps } from "./agent-steps"
 import type { AgentStep } from "./api"
+import { stepLabel } from "./step-label"
+
+// Counts how often a step's line is drawn.
+vi.mock("./step-label", async (original) => {
+  const actual = await original<typeof import("./step-label")>()
+  return { stepLabel: vi.fn(actual.stepLabel) }
+})
 
 function rendered(extra: Partial<AgentStep> = {}): AgentStep {
   return {
@@ -338,6 +345,42 @@ describe("agent steps", () => {
 
     expect(screen.getByRole("listitem").textContent).toBe(
       "Converted a document to PDF"
+    )
+  })
+
+  it("redraws only the steps that changed as a reply streams", () => {
+    const pages = (id: string, documentId: number): AgentStep => ({
+      id,
+      tool: "surfsense_source_pages",
+      status: "completed",
+      title: null,
+      input: { document_id: documentId },
+    })
+    const scope = { document_ids: [7, 8], titles: ["Notes.md", "Brief.pdf"] }
+    const first = pages("prt_30", 7)
+    const second = pages("prt_31", 8)
+    const { rerender } = render(
+      <AgentSteps steps={[first, second]} scope={scope} />
+    )
+    vi.mocked(stepLabel).mockClear()
+
+    rerender(
+      <AgentSteps steps={[first, second, pages("prt_32", 8)]} scope={scope} />
+    )
+
+    expect(vi.mocked(stepLabel).mock.calls.map(([step]) => step.id)).toEqual([
+      "prt_32",
+    ])
+
+    rerender(
+      <AgentSteps
+        steps={[first, second]}
+        scope={{ document_ids: [7, 8], titles: ["Notes v2.md", "Brief.pdf"] }}
+      />
+    )
+
+    expect(screen.getAllByRole("listitem")[0].textContent).toBe(
+      "Looked at pages of Notes v2.md"
     )
   })
 

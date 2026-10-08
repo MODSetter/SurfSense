@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from modules.agent.agent_threads.steps import MAX_INPUT_CHARS
 from tests.live.live_model import LiveModel
 from tests.live.live_runs_dir import live_runs_dir
 from tests.live.spend_ledger import SpendLedger, Usage
@@ -28,6 +29,8 @@ class RunFolder:
         self.path = (root or live_runs_dir()) / _safe(name)
         self.path.mkdir(parents=True)
         self.turns: list[dict[str, Any]] = []
+        # What the case grades without failing on it, kept in result.json.
+        self.metrics: dict[str, Any] = {}
 
     def keep_source(self, name: str, data: bytes) -> None:
         """A source the run made, as it was uploaded."""
@@ -113,6 +116,7 @@ class RunFolder:
                         "outcome": outcome,
                         "detail": detail,
                         "word_previews": word_previews,
+                        "metrics": self.metrics,
                     },
                     indent=2,
                 )
@@ -156,6 +160,13 @@ def _step_lines(step: dict[str, Any]) -> list[str]:
         "```",
     ]
     if script is not None:
+        # Only a version's own .py holds the rest, and a refused render has none.
+        if len(script) > MAX_INPUT_CHARS:
+            lines += [
+                "",
+                f"The script's first {MAX_INPUT_CHARS} characters; "
+                "the whole call is in model-requests.json:",
+            ]
         lines += ["", "```python", script, "```"]
     result = step.get("output") or step.get("error") or ""
     if len(result) > _SHOWN_OUTPUT_CHARS:

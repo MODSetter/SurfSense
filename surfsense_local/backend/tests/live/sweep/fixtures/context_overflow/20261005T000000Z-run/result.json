@@ -1,0 +1,13 @@
+{
+ "case": "demo-flow",
+ "model": "qwen/qwen3.6-35b-a3b",
+ "provider": "openrouter",
+ "reads_images": true,
+ "outcome": "failed",
+ "detail": "tests\\live\\test_demo_flow.py:55: in test_the_agent_drafts_edits_and_exports_a_proposal\n    assert len(documents[word[0]]) >= 2, f\"no second Word version: {documents[word[0]]}\"\nE   AssertionError: no second Word version: [1]\nE   assert 1 >= 2\nE    +  where 1 = len([1])",
+ "word_previews": {
+  "unavailable": null,
+  "printed": 1,
+  "failures": []
+ }
+}

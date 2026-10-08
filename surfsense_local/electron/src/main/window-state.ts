@@ -3,6 +3,9 @@ import { join } from "node:path"
 
 import { app, type BrowserWindow, type Rectangle, screen } from "electron"
 
+import { warnMain } from "./session-log/main-warn.ts"
+import { sessionLog } from "./session-log/session-log.ts"
+
 export type WindowState = {
   bounds: Rectangle
   maximized: boolean
@@ -89,8 +92,6 @@ export function saveWindowState(win: BrowserWindow): void {
     renameSync(temporary, path)
   } catch (error) {
     // ponytail: window state is best-effort; failing to save must never block exit.
-    process.stderr.write(
-      `[main] failed to save window state: ${String(error)}\n`,
-    )
+    warnMain(sessionLog, `failed to save window state: ${String(error)}`)
   }
 }

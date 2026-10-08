@@ -83,14 +83,11 @@ measured on any model yet
 - **Frontier results on local models.** A 4B model fails agent loops (BFCL v4
   multi-turn 22.1% for Qwen3-4B-Instruct-2507,
   [leaderboard](https://gorilla.cs.berkeley.edu/leaderboard.html)).
-- **Anything about timing against Cowork's change.** It takes effect on 6 Oct
-  2026, and SurfSense's agent is still off in installers
-  (`ENABLED_BY_DEFAULT = false` in
-  [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs)).
-  There is nothing to point a Cowork user to yet. The flag flips in M5, once
-  05's `agent_smoke` rows on the native Claude route and its `free_agent_tasks`
-  rows are committed and agent files become versions (03 phase 3)
-  ([README](../../docs/proposals/file-agent/README.md)).
+- **Anything about timing against Cowork's change.** It took effect on 6 Oct
+  2026, and SurfSense's agent reaches installers only with the first release
+  built after 7 Oct 2026, when `ENABLED_BY_DEFAULT` turned true in
+  [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs).
+  Until that release is out there is nothing to point a Cowork user to.
 
 ## Who buys first, and which job ships first
 

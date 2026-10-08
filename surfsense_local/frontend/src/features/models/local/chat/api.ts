@@ -25,12 +25,18 @@ export type Fit = {
 /**
  * A warning when there is one, plus one plain line of why. `none` means there
  * is nothing to flag: the verdict is empty and the reason, if any, is quiet.
- * The API owns this copy.
+ * The API decides which warning and sends it in English; `fit-text.ts` words
+ * it in the interface language.
  */
 export type Badge = {
   level: "none" | "notice" | "refuse"
   verdict: string
   reason: string
+  /** The tier the two sentences describe, which `fit-text.ts` words in the
+   *  interface language; it falls back to them for one it does not know. */
+  code?: string | null
+  /** Unified memory: "the GPU", not "the graphics card". */
+  uma?: boolean
 }
 
 export type BuildFile = {
@@ -102,6 +108,11 @@ export type LocalRow = {
   support: LocalSupport
   runnable: boolean
   not_runnable_reason: string | null
+  /**
+   * The reason as a code, which `notRunnableReason()` has a line for in the
+   * interface's language; absent for a reason that has none.
+   */
+  not_runnable_code?: string | null
   builds: LocalBuild[]
   /** Curated models only. */
   default_quantization: string | null

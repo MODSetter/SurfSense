@@ -3,6 +3,9 @@
 import pytest
 from httpx import AsyncClient
 
+from modules.llm.catalog.local import service as service_module
+from modules.llm.fit import HardwareBudget
+
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
@@ -22,8 +25,31 @@ async def test_the_catalog_renders_with_no_network_and_no_scan(
             badge = build["badge"]
             assert badge["level"] in {"none", "notice", "refuse"}
             assert bool(badge["verdict"]) == (badge["level"] != "none")
+            # A badge that says anything names it, for the interface to word.
+            assert (badge["code"] is None) == (badge["reason"] == "")
     assert body["projector_notices"] == []
     assert "scanned" not in body
+
+
+async def test_a_badge_carries_its_tier_and_unified_memory(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What the interface needs to word a refusal as "This Mac" in its language."""
+    mib = 1024**2
+    apple = HardwareBudget(5461 * mib, 5461 * mib, 1024 * mib, 6144 * mib, True, True)
+    monkeypatch.setattr(service_module, "build_budget", lambda *_, **__: apple)
+
+    body = (await client.get("/llm/catalog/local")).json()
+
+    badges = [
+        build["badge"]
+        for row in body["rows"]
+        if row["engine"] == "llamacpp"
+        for build in row["builds"]
+    ]
+    refused = [badge for badge in badges if badge["level"] == "refuse"]
+    assert refused
+    assert all(badge["code"] == "too_big" and badge["uma"] for badge in refused)
 
 
 async def test_every_local_row_has_one_shape(client: AsyncClient) -> None:
@@ -33,6 +59,11 @@ async def test_every_local_row_has_one_shape(client: AsyncClient) -> None:
     for row in body["rows"]:
         assert row["source"] == "local"
         assert {"types", "selectable_for", "support", "builds", "runnable"} <= set(row)
+        # A reason and its code come and go together with `runnable`.
+        assert {"not_runnable_reason", "not_runnable_code"} <= set(row)
+        if row["runnable"]:
+            assert row["not_runnable_reason"] is None
+            assert row["not_runnable_code"] is None
         assert "reads_images" in row["support"]
         for build in row["builds"]:
             assert {

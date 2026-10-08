@@ -15,7 +15,7 @@ Every URL is in one file, [`endpoints.py`](../../surfsense_local/backend/modules
 |---|---|
 | Authorize | `https://auth.openai.com/api/accounts/authorize` |
 | Token exchange and refresh | `https://auth.openai.com/api/accounts/oauth/token` |
-| Revocation, on sign-out and delete | `POST https://auth.openai.com/api/accounts/oauth/revoke` |
+| Revocation, on sign-out, delete and signing in again | `POST https://auth.openai.com/api/accounts/oauth/revoke` |
 | ID-token keys | `https://auth.openai.com/.well-known/jwks.json` |
 | Plan's models | `GET https://api.openai.com/v1/models` |
 | Answers | `POST https://api.openai.com/v1/responses` |
@@ -27,7 +27,7 @@ Every URL is in one file, [`endpoints.py`](../../surfsense_local/backend/modules
 3. The authorize URL asks for `client_id=dynamic_agent_client`, so OpenAI issues a client for this user on first sign-in, or, for a connection that still holds a sign-in, its issued client with `id_token_hint`, OpenAI's returning-user path. It goes with `agent_name_hint=SurfSense`, an `ext_agent_host_id`, scopes `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, `resource=https://api.openai.com/v1`, `state`, `nonce` and an S256 PKCE challenge. The host id is `urn:uuid:` over an HMAC of the install secret, so it is stable for the install and stored nowhere ([`host_id.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/host_id.py)).
 4. The renderer opens it through Electron, which allows `auth.openai.com/api/accounts/authorize` only with a `redirect_uri` of `http://127.0.0.1:<port>/callback`, so a crafted link cannot send the code anywhere else.
 5. The callback must carry the flow's `state`, and a renewal must name the connection's own client: one naming another fails the flow and leaves the connection as it was. The code is exchanged with the issued `client_id` and the PKCE verifier, and the result is refused unless it grants `chatgpt.tokens.use.direct` and carries a refresh token. The ID token's RS256 signature is checked against the JWKS, then its issuer, audience, expiry (two minutes of leeway) and nonce. Its `sub` and `email` are kept.
-6. The tokens are saved on a new connection, or on the one being signed in again, and the flow reads `signed_in`. The renderer polls `GET /llm/connections/chatgpt/sign-in/{flow_id}` every second. A flow not finished in five minutes fails and frees its port. `DELETE` on the flow cancels it.
+6. The tokens are saved on a new connection, or on the one being signed in again, and the flow reads `signed_in`; a revocation of tokens it replaced, when there is one, runs after that. The renderer polls `GET /llm/connections/chatgpt/sign-in/{flow_id}` every second. A flow not finished in five minutes fails and frees its port. `DELETE` on the flow cancels it.
 
 Flows live in the API's memory ([`flows.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/flows.py)): only the API signs in, and a restart only abandons a sign-in in progress.
 
@@ -39,7 +39,8 @@ A ChatGPT connection is a `provider_connections` row with `auth_kind = 'chatgpt'
 - `GET /llm/connections` adds `auth_kind`, `signed_in` and `account_email`; no token leaves the API.
 - `PUT` on a ChatGPT connection renames it and changes nothing else.
 - `DELETE /llm/connections/{id}/sign-in` signs out: the tokens go, the connection and its selection stay. Signing in again registers a new client, since the issued one went with the tokens.
-- Signing out, or deleting the connection, also revokes the refresh token at the issuer's `revocation_endpoint` (`/api/accounts/oauth/revoke`, RFC 7009, as a public client) once the local change has committed ([`revocation.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/revocation.py)). It is best effort: a failure is logged and the sign-out stands. It is skipped when the sign-in host has been turned off since, and when this install can no longer decrypt the tokens (a keychain reset or a backup restored elsewhere), so a lost key never blocks the sign-out or delete that recovers from it.
+- Signing out or deleting the connection also revokes the refresh token at the issuer's `revocation_endpoint` (`/api/accounts/oauth/revoke`, RFC 7009, as a public client) once the local change has committed ([`revocation.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/revocation.py)). It is best effort: a failure is logged without the token, and the sign-out or delete stands. It is skipped when the sign-in host has been turned off since, and when this install can no longer decrypt the tokens (a keychain reset or a backup restored elsewhere), so a lost key never blocks the sign-out or delete that recovers from it.
+- Signing in again revokes the tokens it replaces only when they belong to another client, after the new ones are saved and the flow reads `signed_in`, under the same guards. The returning path keeps the client, and RFC 7009 lets a server end the whole grant when one of its refresh tokens is revoked, which would take the new session with it.
 - It serves `text_gen` only. What a connection serves is one rule, [`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py), keyed by `auth_kind`: selection refuses any other slot even with `allow_unlisted`, the image and speech tests answer `422`, image and speech resolution refuse it, and `GET /llm/connections` reports it as `serves`.
 
 ## Tokens
@@ -76,7 +77,7 @@ opencode never signs in and never holds a token ([ADR 0050](../adr/0050-a-model-
 - passes the stream on unchanged;
 - answers a used-up plan with `403` and code `subscription_limit`, so opencode does not retry it as a `429`, and a sign-in that is needed with `401` and code `subscription_sign_in`. The agent's screen reads those codes into the chat's kinds ([`error_kind.py`](../../surfsense_local/backend/modules/agent/agent_threads/error_kind.py)).
 
-The OpenAI catalog records the plan's models as calling tools, so "Try the agent" is offered on them as on any remote model ([model capabilities](model-capabilities.md)).
+The OpenAI catalog records the plan's models as calling tools, so Agentic mode is offered on them as on any remote model ([model capabilities](model-capabilities.md#the-modes)).
 
 ## Frontend
 
@@ -84,7 +85,7 @@ Every model list reads `serves` rather than deciding: the Settings sections, the
 
 ## Known gaps
 
-- **Sign in again** on a connection still signed in overwrites its tokens through `save_sign_in()` without revoking the grant they replace.
+- Signing in again as the same client leaves the replaced refresh token to expire on its own: whether revoking it would end OpenAI's whole grant is unknown.
 - A plan's refusal inside the stream (`response.failed`) reaches the agent's screen as `unknown`, not as `subscription_limit` or `subscription_sign_in`.
 - Built against OpenAI's documentation and a fake server; not yet run against a real ChatGPT account.
 - Signing in again after signing out registers a new client, not the returning-user path, because signing out drops the client id with the tokens.
