@@ -20,6 +20,7 @@ from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     ProjectorNotice,
 )
 from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_sampling
+from modules.llm.catalog.local.engines.llamacpp.search.hits import SearchHit
 from modules.llm.catalog.local.engines.onnxruntime.engine import OnnxRuntimeEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
@@ -35,6 +36,7 @@ from modules.llm.catalog.local.installs import (
 )
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
+from modules.llm.catalog.local.search_cache import SearchCache
 from modules.llm.fit import HardwareBudget, ModelShape
 from modules.llm.hardware import (
     BudgetMode,
@@ -89,6 +91,7 @@ class LocalCatalogService:
         # The startup warm and the first request race for this.
         self._inventory_lock = threading.Lock()
         self._tickets = TicketStore()
+        self._search_cache = SearchCache()
         self._curated_ids: dict[str, tuple[Build, str]] = {}
         self._curated_tokens: dict[tuple[str, str], str] = {}
         # The shape each curated build was committed with, by the key an id is
@@ -221,6 +224,18 @@ class LocalCatalogService:
             return token
 
         return mint
+
+    async def search(self, query: str, *, limit: int = 30) -> list[SearchHit]:
+        """Hugging Face search, answered from the cache inside its window.
+
+        The router gates egress before calling, so a cached answer is never
+        served while egress is off.
+        """
+        if (hits := self._search_cache.get(query, limit)) is not None:
+            return hits
+        hits = await self.llamacpp.search(query, limit=limit)
+        self._search_cache.put(query, limit, hits)
+        return hits
 
     async def repo(self, repo: str) -> tuple[LocalRow, bool]:
         """A searched repo's row, its builds installable through tickets."""

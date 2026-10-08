@@ -4,7 +4,7 @@ What the maintainers are working on, grouped by when. This page names the initia
 
 ## Now
 
-- **Release and CI health.** v2.0.3 was the first release to carry the llama.cpp, sd.cpp and audio.cpp runtimes, built and packaged on all three runners, and [`desktop-tests.yml`](../.github/workflows/desktop-tests.yml) runs the desktop backend, frontend and Electron tests on pull requests. What is left is the CI that proves the runtimes: no job generates an image with the staged `sd-server`, and the release workflow still accepts a prerelease version. See [packaging](architecture/packaging.md) and [updates](architecture/updates.md).
+- **Release and CI health.** v2.0.3 was the first release to carry the llama.cpp, sd.cpp and audio.cpp runtimes, built and packaged on all three runners, and [`desktop-tests.yml`](../.github/workflows/desktop-tests.yml) runs the desktop backend, frontend and Electron tests on pull requests. What is left is the CI that proves the runtimes: the release workflow still accepts a prerelease version. See [packaging](architecture/packaging.md) and [updates](architecture/updates.md).
 - **Egress gaps.** The follow-up fetch for a remote image URL leaves without a consent decision, and some stored grants no longer match what Settings › Network shows. See [egress](architecture/egress.md).
 - **Import from cloud.** The hosted export window closes on 18 Oct 2026. Imports need a progress summary, and a re-run must bring back the chat threads an interrupted import missed. See [import](architecture/import.md).
 - **Scraper API and MCP license mode.** PATs are purged on 18 Oct 2026; after that, license mode is how scraper API and MCP users keep access. See [contract 2](contracts/02-scraper-api-auth.md).

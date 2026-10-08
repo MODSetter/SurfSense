@@ -722,6 +722,5 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `ins
 - Qwen3.8 27B is a hybrid model (`qwen35`): the fit estimate charges a KV cache on all 65 layers where 16 keep one, about four times too much, and does not size its recurrent state ([runtime](runtime.md)).
 - Qwen3.8 27B commits no `sampling`: its repo has no `params` file, so it runs on llama-server's defaults rather than the model card's.
 - `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.
