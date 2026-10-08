@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { notRunnableLine, notRunnableReason } from "./not-runnable-text"
 
-// `NotRunnableCode` in the backend's modules/llm/catalog/local/classifier.py.
+// `NotRunnableCode` in the backend's modules/llm/catalog/local/classifier.py,
+// then `NotAnEmbedderCode` in modules/embedding/huggingface/pick.py.
 const CODES = [
   "embedder",
   "speech_out",
@@ -17,6 +18,10 @@ const CODES = [
   "image_edit",
   "video",
   "unsupported",
+  "repo_gated",
+  "repo_no_onnx",
+  "repo_no_tokenizer",
+  "repo_scan_flagged",
 ]
 
 describe("why a row cannot run", () => {
@@ -45,9 +50,24 @@ describe("why a row cannot run", () => {
     expect(new Set(lines).size).toBe(CODES.length)
   })
 
+  it("words an opened embedder repo's refusal itself", () => {
+    expect(
+      notRunnableReason({
+        not_runnable_code: "repo_no_onnx",
+        not_runnable_reason: "backend prose",
+      })
+    ).toBe("This repo has no ONNX build SurfSense can run.")
+    expect(
+      notRunnableReason({
+        not_runnable_code: "repo_scan_flagged",
+        not_runnable_reason: "backend prose",
+      })
+    ).toBe("Hugging Face’s security scan flags this repo.")
+  })
+
   it("keeps the backend's sentence for a reason with no code", () => {
-    // An embedder repo's failed check words itself and carries no code.
-    const reason = "This repo has no ONNX build SurfSense can run."
+    // The one embedder refusal that names a file carries no code.
+    const reason = "Hugging Face lists no checksum for onnx/model.onnx."
 
     expect(
       notRunnableReason({

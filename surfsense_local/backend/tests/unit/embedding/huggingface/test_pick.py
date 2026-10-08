@@ -4,10 +4,13 @@ the repo may be downloaded at all."""
 import pytest
 
 from modules.embedding.huggingface.pick import (
+    NotAnEmbedderCode,
     NotRunnableError,
     pick_files,
     scan_verdict,
 )
+from modules.llm.catalog.local.classifier import NotRunnableCode
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.listed_file import ListedFile
 
 pytestmark = pytest.mark.unit
@@ -83,6 +86,38 @@ def test_an_unhashed_file_cannot_be_checked_after_download() -> None:
         pick_files(
             [ListedFile("onnx/model.onnx", 1000, None), *listing("tokenizer.json")]
         )
+
+
+def test_a_refusal_the_interface_can_word_names_its_code() -> None:
+    """The interface words these two in the reader's language, by the code."""
+    with pytest.raises(NotRunnableError) as no_onnx:
+        pick_files(listing("model.safetensors", "tokenizer.json"))
+    with pytest.raises(NotRunnableError) as no_tokenizer:
+        pick_files(listing("onnx/model.onnx"))
+
+    assert no_onnx.value.code is NotAnEmbedderCode.NO_ONNX
+    assert no_tokenizer.value.code is NotAnEmbedderCode.NO_TOKENIZER
+
+
+def test_the_unhashed_file_s_sentence_has_no_code() -> None:
+    """It names the file, which a code alone cannot carry, so it travels as it
+    is written."""
+    with pytest.raises(NotRunnableError) as unhashed:
+        pick_files(
+            [ListedFile("onnx/model.onnx", 1000, None), *listing("tokenizer.json")]
+        )
+
+    assert unhashed.value.code is None
+    assert str(unhashed.value) == "Hugging Face lists no checksum for onnx/model.onnx."
+
+
+def test_a_repo_s_code_is_never_a_model_s_or_an_install_s() -> None:
+    """All three travel to one interface, and a row carries either of the first
+    two in one field, so no value may mean two things."""
+    ours = {c.value for c in NotAnEmbedderCode}
+
+    assert not ours & {c.value for c in NotRunnableCode}
+    assert not ours & {c.value for c in InstallCode}
 
 
 def test_a_repo_hugging_face_flags_is_refused() -> None:

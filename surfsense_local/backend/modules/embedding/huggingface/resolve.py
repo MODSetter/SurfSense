@@ -15,6 +15,7 @@ import httpx
 from modules.embedding.huggingface import hub
 from modules.embedding.huggingface.pick import (
     TOKENIZER,
+    NotAnEmbedderCode,
     NotRunnableError,
     PickedFiles,
     pick_files,
@@ -44,6 +45,8 @@ class Resolved:
     # Why it cannot be an embedder here; None when it can.
     reason: str | None
     gated: bool = False
+    # The reason as a code, when it has one.
+    code: NotAnEmbedderCode | None = None
 
 
 async def resolve(repo: str) -> Resolved:
@@ -62,6 +65,7 @@ async def resolve(repo: str) -> Resolved:
                 None,
                 "This repo needs an account to download.",
                 gated=True,
+                code=NotAnEmbedderCode.GATED,
             )
         tree = await _json(
             client, f"/api/models/{repo}/tree/{revision}", {"recursive": "true"}
@@ -80,10 +84,12 @@ async def resolve(repo: str) -> Resolved:
         try:
             picked = pick_files(listing)
         except NotRunnableError as error:
-            return Resolved(repo, revision, None, None, str(error))
+            return Resolved(repo, revision, None, None, str(error), code=error.code)
         ours = {f.path for f in picked.all}
         if refused := scan_verdict(info.get("securityRepoStatus"), ours):
-            return Resolved(repo, revision, None, None, refused)
+            return Resolved(
+                repo, revision, None, None, refused, code=NotAnEmbedderCode.SCAN_FLAGGED
+            )
         listed = {f.path for f in listing}
         configs = await asyncio.gather(
             *(
