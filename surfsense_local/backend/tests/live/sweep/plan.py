@@ -1,6 +1,8 @@
 """What a model runs next, and its verdict once nothing is left: smoke first, then the PDF brief and the board pack.
 
-A smoke the model fails stops it at 0 of 2. A transient or harness failure is
+A smoke the model fails stops it at 0 of 2. A case stopped at the per-case
+dollar cap stops the model too: one that costs that much to run is taken as a
+flagship and assumed to pass, as the dearest ones are. A transient or harness failure is
 tried up to twice more and never counted; three in a row leave the case
 unresolved, and so the model. When exactly one of the two cases fails for the
 model's own reasons it is run once more, and that run decides the case.
@@ -17,6 +19,8 @@ CASES = (SMOKE, *SCORED)
 RETRIES = 2
 # A provider that just failed gets a minute before the same case goes back to it.
 RETRY_AFTER_SECONDS = 60.0
+# The kind attempt.classify gives a run its own dollar stop ended.
+CASE_CAP = "case-cap"
 
 RollOutcome = Literal["passed", "failed", "unresolved"]
 Cell = Literal["pass", "fail", "not_run", "unresolved"]
@@ -43,8 +47,8 @@ class Next:
 
 @dataclass(frozen=True)
 class Verdict:
-    # None while a case is unresolved.
-    level: Literal["agent", "below"] | None
+    # None while a case is unresolved; "assumed" once a case hit the dollar cap.
+    level: Literal["agent", "below", "assumed"] | None
     passed: int
     counted: int
     run: int
@@ -84,6 +88,23 @@ def rolls(attempts: list[Attempt]) -> list[Roll]:
 
 def plan(by_case: dict[str, list[Attempt]], in_flight: set[str]) -> ModelPlan:
     """The cases to start (not those in flight), or the verdict once none is left."""
+    capped = [a for case in CASES for a in by_case.get(case, []) if a.kind == CASE_CAP]
+    if capped:
+        spent = sum(a.cost for case in CASES for a in by_case.get(case, []))
+        return ModelPlan(
+            [],
+            Verdict(
+                "assumed",
+                0,
+                0,
+                0,
+                dict.fromkeys(CASES, "not_run"),
+                [
+                    f"{capped[0].case} stopped at the per-case dollar cap after "
+                    f"${spent:.2f}: too dear to test, assumed to pass"
+                ],
+            ),
+        )
     smoke = _decided(by_case, SMOKE, 0)
     if smoke is None:
         return ModelPlan(_start(by_case, SMOKE, in_flight), None)

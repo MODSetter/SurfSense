@@ -131,3 +131,21 @@ def test_an_assumed_flagship_is_not_taken_for_measured(tmp_path: Path) -> None:
     )
 
     assert measured_keys(shipped) == {"qwen3-8-27b", "glm-5-3"}
+
+
+def test_models_named_to_assume_are_assumed_whatever_their_price() -> None:
+    """The maintainer's call for reasoning flagships that cost more than a case's stop to run."""
+    listing = {
+        "data": [_entry("openai/gpt-5.4", "0.0000025", "0.000015"), _entry("a/fine")]
+    }
+
+    chosen = select(listing, set(), frozenset({"openai/gpt-5.4"}))
+
+    assert [m.id for m in chosen.sweep] == ["a/fine"]
+    assert [m.id for m in chosen.assumed] == ["openai/gpt-5.4"]
+
+
+def test_a_model_to_assume_must_be_listed() -> None:
+    """A mistyped id fails loudly rather than quietly running the model."""
+    with pytest.raises(ValueError, match="does not list openai/gpt-5-4"):
+        select({"data": [_entry("a/fine")]}, set(), frozenset({"openai/gpt-5-4"}))

@@ -12,15 +12,16 @@ import queue
 import shutil
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
 import psutil
 
-from tests.live.lane_ports import lane_block_base
+from tests.live.lane_ports import BLOCK_SIZE, lane_block_base
 from tests.live.sweep import report, results, runner_lock
 from tests.live.sweep.attempt import Attempt, classify, ledger_dollars
 from tests.live.sweep.attempt_log import AttemptLog
@@ -75,6 +76,39 @@ class Sweep:
     poll_seconds: float = 1.0
     progress_seconds: float = 300.0
     say: Callable[[str], None] = print
+
+
+def reap_lane(
+    lane_dir: Path,
+    port_base: int,
+    processes: Callable[[], Iterable[Any]] = lambda: psutil.process_iter(
+        ["name", "cmdline"]
+    ),
+) -> list[str]:
+    """Kill what a lane's earlier cases left running: anything run from its folder, or an opencode on its ports.
+
+    pytest closes its opencode when a case ends, but not when the case is killed
+    or dies, and the orphan keeps the lane's database open, so every later case
+    in that lane fails before it starts. Returns what it stopped.
+    """
+    folder = str(lane_dir)
+    ports = {str(port) for port in range(port_base, port_base + BLOCK_SIZE)}
+    stopped = []
+    for process in processes():
+        try:
+            info = process.info
+            command = info.get("cmdline") or []
+            name = (info.get("name") or "").lower()
+            own_folder = any(folder in part for part in command)
+            own_port = name.startswith("opencode") and any(
+                flag == "--port" and port in ports for flag, port in pairwise(command)
+            )
+            if own_folder or own_port:
+                process.kill()
+                stopped.append(f"{info.get('name')} (pid {process.pid})")
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return stopped
 
 
 class Runner:
@@ -207,6 +241,9 @@ class Runner:
             attempt_dir.rename(aside)
         attempt_dir.mkdir(parents=True)
         lane_dir = self.sweep.out / ".lanes" / str(lane)
+        # A case that died can leave its opencode holding the lane's files.
+        for left in reap_lane(lane_dir, lane_block_base(lane + 1)):
+            self.log(f"lane {lane}: stopped a leftover {left}")
         shutil.rmtree(lane_dir, ignore_errors=True)
         for sub in ("data", "temp"):
             (lane_dir / sub).mkdir(parents=True, exist_ok=True)
@@ -265,6 +302,9 @@ class Runner:
             except queue.Empty:
                 return
             self.running.pop((running.model.id, running.case), None)
+            lane_dir = self.sweep.out / ".lanes" / str(running.lane)
+            for left in reap_lane(lane_dir, lane_block_base(running.lane + 1)):
+                self.log(f"lane {running.lane}: stopped a leftover {left}")
             if running.kill.is_set():
                 self.log(
                     f"{running.model.id} {running.case} #{running.number}: killed, "
