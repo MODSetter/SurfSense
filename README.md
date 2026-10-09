@@ -45,7 +45,7 @@
 
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
-SurfSense is a free, open-source desktop app for documents you can't upload. Add your files, ask questions and get answers that cite their sources, then have the agent write a report, deck, workbook or PDF, or revise your own file as a copy. The index stays on your disk, you pick the model, local or remote, and there is no account.
+SurfSense is a free, open-source desktop app for documents you can't upload. A privacy focused notebooklm style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
 
 | Platform | Download |
 |---|---|
@@ -55,6 +55,11 @@ SurfSense is a free, open-source desktop app for documents you can't upload. Add
 
 > [!NOTE]
 > **Used the hosted web app?** Export your workspaces before 18 October 2026 and import them here. See [the sunset page](https://www.surfsense.com/sunset).
+## Quick start
+
+1. Install SurfSense and do the initial onboarding setup.
+2. Drop your files or folders in your sources.
+3. Ask the agent to search or extract or edit your files.
 
 ## What it does with each format
 
@@ -75,32 +80,6 @@ SurfSense is a free, open-source desktop app for documents you can't upload. Add
 
 Edits, conversions and PDF tools always make a new file; your original is never changed. PDF, Word and Excel do the most today, and support for the other formats keeps improving.
 
-## Quick start
-
-1. **Install and open SurfSense.** Get the file for your system from the download table above, then click **Start setting up**. On Linux, run `chmod +x SurfSense.AppImage` first; on Ubuntu 22.04 or later, use the deb (`sudo apt install ./SurfSense.deb`).
-
-   <!-- Record before merge: the first screen after install, "Air-gapped, open source NotebookLM alternative" with the "Start setting up" button. -->
-   <img src="surfsense_web/public/docs/quick-start/quick-start-01-welcome.png" alt="The SurfSense welcome screen with the Start setting up button" width="720" />
-
-2. **Choose a chat model.** Click **Download** on the **Recommended** model, or **Connect** to an OpenAI-compatible API and click **Use** on one of its models. Click **Allow** if asked. Once the model is in use, click **Continue** and **Skip** the optional models.
-
-   <!-- Record before merge: the "Choose a text generation model" step after the download, with the Recommended row showing "In use" and the footer reading "Using <model> on this computer" beside an enabled Continue. -->
-   <img src="surfsense_web/public/docs/quick-start/quick-start-02-chat-model.png" alt="The Choose a text generation model step, with the recommended local model downloaded and in use" width="720" />
-
-3. **Add your documents.** Drop files on the **Sources** list, or click **+** next to it and choose **Upload files…**. A file is ready when its spinner turns into a checkbox.
-
-   <!-- Record before merge: dropping a PDF, a .docx and an .xlsx on the Sources list, the "3 sources added" toast, then each row's spinner turning into a ticked checkbox. Cut or speed up the parsing wait. -->
-   <img src="surfsense_web/public/docs/quick-start/quick-start-03-add-sources.gif" alt="Three files dropped on the Sources list, each showing a spinner until it is ready" width="720" />
-
-4. **Ask a question.** Type it in the box that reads **Turn your sources into answers** and press Enter. Click a number in the answer to see the passage it came from.
-
-   <!-- Record before merge: a question about the step 3 files, the answer streaming in with number chips, then a click on one chip opening the Citation panel with the "Cited chunk" outlined. -->
-   <img src="surfsense_web/public/docs/quick-start/quick-start-04-ask.gif" alt="A question answered from the sources, then a citation opened to show the passage it came from" width="720" />
-
-5. **Make a file.** Close the citation, click **Word** in **Studio**, then click **Generate**. When the file is ready, click it under **Artifacts** to preview and download it.
-
-   <!-- Record before merge: the Word tile in Studio, its dialog with "3 sources" and Generate, the spinner in Artifacts, the "<name> is ready" toast, then the Word preview with its Download button. Cut or speed up the generation wait. -->
-   <img src="surfsense_web/public/docs/quick-start/quick-start-05-studio.gif" alt="Studio making a Word document from the sources, then showing its preview" width="720" />
 
 ## How it compares
 
@@ -108,10 +87,9 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 |---|---|---|
 | Runs offline / air-gapped | No | **Yes** |
 | Your documents leave your machine | Yes | **No**, unless you pick a remote model |
+| Can edit your files | No | **Yes** |
 | Open source | No | **Apache-2.0** |
 | Models | Gemini only | Any OpenAI-compatible API, or a local one |
-
-Jan, LM Studio and Ollama pair well with it: point SurfSense at their OpenAI-compatible server.
 
 ## Community
 
@@ -135,4 +113,4 @@ Jan, LM Studio and Ollama pair well with it: point SurfSense at their OpenAI-com
 
 ## License
 
-Apache-2.0, except `surfsense_backend/app/proprietary/` (BSL 1.1). See [LICENSE](LICENSE).
+Apache-2.0 See [LICENSE](LICENSE).
