@@ -3,7 +3,7 @@ import { Streamdown } from "streamdown"
 import { intl } from "@/i18n/intl"
 
 import type { ArtifactDetail } from "../api"
-import { streamdownPlugins } from "./streamdown-config"
+import { STREAMDOWN_LINK_SAFETY, streamdownPlugins } from "./streamdown-config"
 import { VIEWER_PADDING } from "./viewer-layout"
 
 export function SummaryViewer({ artifact }: { artifact: ArtifactDetail }) {
@@ -17,7 +17,7 @@ export function SummaryViewer({ artifact }: { artifact: ArtifactDetail }) {
       <Streamdown
         mode="static"
         plugins={streamdownPlugins}
-        linkSafety={{ enabled: true }}
+        linkSafety={STREAMDOWN_LINK_SAFETY}
       >
         {artifact.content ||
           intl.formatMessage({

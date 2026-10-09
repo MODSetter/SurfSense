@@ -41,11 +41,15 @@ added. A re-export after document edits lands each edited document as a second
 copy, not an update.
 
 App versions before this database migration imported threads without retaining
-their hosted ids. On upgrade, a workspace containing that history is marked and
+their hosted ids. On upgrade, a workspace with a user message carrying the
+importer's `citations` key is marked as containing that history, and
 later imports leave all of its threads untouched rather than guessing identity
 from titles or messages. To import newer hosted threads into one of those
 workspaces, delete the workspace and import its bundle afresh, or reconcile the
 histories manually.
+
+A workspace containing only locally created turns is not marked, so those
+turns do not prevent a re-import from recovering missing hosted threads.
 
 ## Entry points
 

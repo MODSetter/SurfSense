@@ -1,0 +1,13 @@
+{
+ "case": "board-pack",
+ "model": "moonshotai/kimi-k3",
+ "provider": "openrouter",
+ "reads_images": true,
+ "outcome": "failed",
+ "detail": "E   AssertionError: turn 2: no version was rendered",
+ "word_previews": {
+  "unavailable": null,
+  "printed": 0,
+  "failures": []
+ }
+}

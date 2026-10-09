@@ -145,31 +145,8 @@ async function responseError(response: Response): Promise<ErrorDetails> {
         "message" in body.detail &&
         typeof body.detail.message === "string"
       ) {
-        const required =
-          "required" in body.detail && typeof body.detail.required === "number"
-            ? body.detail.required
-            : null
-        const available =
-          "available" in body.detail &&
-          typeof body.detail.available === "number"
-            ? body.detail.available
-            : null
         return {
-          message:
-            required !== null && available !== null
-              ? intl.formatMessage(
-                  {
-                    id: "app_api_insufficient_space_error",
-                    defaultMessage:
-                      "{message} ({required, number, ::unit/gigabyte .#} required, {available, number, ::unit/gigabyte .#} available)",
-                  },
-                  {
-                    message: body.detail.message,
-                    required: required / 1e9,
-                    available: available / 1e9,
-                  }
-                )
-              : body.detail.message,
+          message: body.detail.message,
           code:
             "code" in body.detail && typeof body.detail.code === "string"
               ? body.detail.code

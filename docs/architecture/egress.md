@@ -11,6 +11,7 @@ Nothing is meant to leave the machine until the user allows where it goes. Befor
 |---|---|---|
 | `host:huggingface.co` | `huggingface.co` | searching Hugging Face and reading a repo on the model screen, downloading a GGUF for the llama.cpp runtime, and downloading weights for the bundled sd-server |
 | `host:<hostname>` | that host | everything sent to one remote OpenAI-compatible connection: probes, model lists, tests, chat, image generation |
+| `host:downloadarchive.documentfoundation.org` | `downloadarchive.documentfoundation.org` | downloading the Office pack, The Document Foundation's LibreOffice build, when the user turns Office support on ([office pack](office-pack.md)) |
 
 There is one row per host by construction: the key is the hostname, so a destination cannot exist twice under two names, and the user is asked about the host rather than about each errand sent to it. `host:huggingface.co` is built in (`BUILT_IN` in `modules/egress/service.py`), so it is listed before any connection names it. Its dialog names every errand, search first because it is the widest: searching sends what the user types, as they type it; downloading sends the name of the model they chose; both send their IP address, and neither sends chats or documents.
 
@@ -18,7 +19,7 @@ State is one table, `egress_destinations`: a row per destination with `enabled`,
 
 `host_destination()` returns no destination for `localhost` or a loopback address, so a model server on the same machine needs no consent and has no row. A server elsewhere on the LAN is a destination like any other.
 
-The plugins proposal adds a consent for each host a plugin declares, asked before the plugin's first run ([plugins](../proposals/plugins/README.md)).
+The plugins proposal adds a consent for each host a plugin declares, asked before the user connects it, and a list of hosts on the refusal so one prompt covers them ([plugins](../proposals/plugins/remote/01-mcp-client.md#egress)).
 
 ## Where the check runs
 
@@ -35,6 +36,7 @@ The plugins proposal adds a consent for each host a plugin declares, asked befor
 | Downloading a GGUF | `POST /llm/installs` in `modules/llm/catalog/local/install_jobs/router.py`, checked before the job starts | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Downloading sd-server weights | `POST /llm/installs`, the same job as chat models | `host:huggingface.co` |
+| Downloading the Office pack | `POST /runtime-packs/office/install` in `modules/runtime_packs/office/router.py`, checked before the install starts | `host:downloadarchive.documentfoundation.org` |
 
 The GGUF download runs inside the API (`modules/llm/providers/llamacpp/download.py`) instead of through llama-server's own fetch. llama-server is a second process the app does not proxy, so an in-process fetch is the only place the check can hold.
 
@@ -68,4 +70,4 @@ Settings › Network lists the App updates row and every destination with its ho
 ## Known gaps
 
 - The Office Studio formats run model-written code in the worker, and that code can open connections of its own ([studio](studio.md)).
-- Grants stored under the earlier destination names, `model_download`, `model_search` and `image_model_pull`, are not carried over to `host:huggingface.co`. Nothing reads them any more, so someone who had allowed model downloads is asked again, and the old rows stay in the table; revision 0012 still turns an Ollama-era `ollama_pull` grant into `model_download`.
+- The Office pack's download is allowed by its host, `downloadarchive.documentfoundation.org`, which redirects to one of TDF's mirrors; the mirror sees the user's IP address and is not asked about ([office pack](office-pack.md)).

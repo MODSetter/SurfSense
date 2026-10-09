@@ -46,5 +46,7 @@ def _text_tokens(text: str) -> int:
     """Denser than the chat budget's four characters a token: Latin text runs
     near four, but Chinese, Japanese and Korean run near one a character, and
     pricing those at a quarter would admit requests the cache cannot hold."""
-    ascii_chars = sum(1 for char in text if char.isascii())
+    # Counted in C: a per-character loop took 35 ms on a 1 MB agent prompt,
+    # on the event loop, at every step.
+    ascii_chars = len(text) if text.isascii() else len(text.encode("ascii", "ignore"))
     return -(-ascii_chars // 3) + (len(text) - ascii_chars)

@@ -1,12 +1,16 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { ChevronDownIcon, PencilIcon, Trash2Icon } from "@/components/ui/icons"
 
-import {
-  AssistantRuntimeProvider,
-  ThreadPrimitive,
-  type AssistantRuntime,
-  useAui,
-} from "@assistant-ui/react"
+import { ThreadPrimitive, useAui, type MessageState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
@@ -21,13 +25,19 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
+import { composerAttachmentOf } from "./image-attachments"
+import { LiveThreadRuntime, type LiveThreadSource } from "./live-thread-runtime"
 import { AssistantMessage, UserMessage } from "./message"
 import type { Citation } from "./sse"
 import type { ConversationView } from "./use-chat-runtime"
+
+// Shared, so a reply without citations passes the same props at every render.
+const NO_CITATIONS: Citation[] = []
 
 function citationsFrom(message: {
   metadata?: { custom?: unknown }
@@ -41,7 +51,55 @@ function citationsFrom(message: {
   ) {
     return custom.citations as Citation[]
   }
-  return []
+  return NO_CITATIONS
+}
+
+// Its props hold still between frames, so a reply re-renders only from its own
+// state: the live one by its text, the rest not at all.
+const ThreadAssistantMessage = memo(AssistantMessage)
+
+type MessageHandlers = {
+  onCitation: (chunkId: number) => void
+  onModelSetup: () => void
+  onRetry: (assistantId: string) => void
+  onNewChat: () => void
+}
+
+/**
+ * The thread's message renderer, made once. The handlers are read when a
+ * message calls them, so new ones from the page re-render no message.
+ */
+function useMessageRenderer({
+  onCitation,
+  onModelSetup,
+  onRetry,
+  onNewChat,
+}: MessageHandlers) {
+  const citation = useStableCallback(onCitation)
+  const modelSetup = useStableCallback(onModelSetup)
+  const retry = useStableCallback(onRetry)
+  const newChat = useStableCallback(onNewChat)
+  const stable = useMemo<MessageHandlers>(
+    () => ({
+      onCitation: citation,
+      onModelSetup: modelSetup,
+      onRetry: retry,
+      onNewChat: newChat,
+    }),
+    [citation, modelSetup, retry, newChat]
+  )
+  return useCallback(
+    ({ message }: { message: MessageState }) =>
+      message.role === "user" ? (
+        <UserMessage />
+      ) : (
+        <ThreadAssistantMessage
+          citations={citationsFrom(message)}
+          {...stable}
+        />
+      ),
+    [stable]
+  )
 }
 
 function ThreadWelcome({ composer }: { composer: ReactNode }) {
@@ -59,6 +117,7 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
   const aui = useAui()
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
+  const returned = view.status === "new" ? view.returned : undefined
 
   useEffect(() => {
     if (conversationId === "creating") {
@@ -67,11 +126,23 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     void aui.thread.composer().reset()
   }, [aui, conversationId])
 
+  // After the reset above, which empties the composer before it awaits.
+  useEffect(() => {
+    if (!returned) return
+    const composer = aui.thread.composer()
+    composer.setText(returned.text)
+    returned.images.forEach((image, index) => {
+      composer
+        .addAttachment(composerAttachmentOf(image, index))
+        .catch(() => undefined)
+    })
+  }, [aui, returned])
+
   return null
 }
 
 export function ThreadPanel({
-  runtime,
+  live,
   thread,
   view,
   model,
@@ -94,7 +165,7 @@ export function ThreadPanel({
   onUploadSources,
   isUploadingSources,
 }: {
-  runtime: AssistantRuntime
+  live: LiveThreadSource
   thread: ChatThread | null
   view: ConversationView
   model: ModelSelection | null
@@ -149,9 +220,19 @@ export function ThreadPanel({
       describedBy={thread == null ? undefined : headingId}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
+      threadMode={
+        thread == null ? null : thread.uses_agent ? "agentic" : "basic"
+      }
+      onNewChat={onNewChat}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined
+  const renderMessage = useMessageRenderer({
+    onCitation,
+    onModelSetup,
+    onRetry,
+    onNewChat,
+  })
 
   useEffect(() => {
     if (editing) {
@@ -181,8 +262,10 @@ export function ThreadPanel({
     void onRename(thread.id, next)
   }
 
+  // Built here, once per render of the panel: a streamed token renders the
+  // runtime alone, which hands React these same elements, so it skips them.
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <LiveThreadRuntime {...live}>
       <ComposerDraftLifecycle view={view} />
       <section
         className="flex h-full min-w-0 flex-col bg-background"
@@ -330,24 +413,12 @@ export function ThreadPanel({
 
             {view.status === "active" && !isLoading ? (
               <ThreadPrimitive.Messages>
-                {({ message }) =>
-                  message.role === "user" ? (
-                    <UserMessage />
-                  ) : (
-                    <AssistantMessage
-                      citations={citationsFrom(message)}
-                      onCitation={onCitation}
-                      onModelSetup={onModelSetup}
-                      onRetry={onRetry}
-                      onNewChat={onNewChat}
-                    />
-                  )
-                }
+                {renderMessage}
               </ThreadPrimitive.Messages>
             ) : null}
           </ChatViewport>
         </ThreadPrimitive.Root>
       </section>
-    </AssistantRuntimeProvider>
+    </LiveThreadRuntime>
   )
 }

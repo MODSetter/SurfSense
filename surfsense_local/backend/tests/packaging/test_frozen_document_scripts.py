@@ -10,9 +10,11 @@ import sys
 from pathlib import Path
 
 import docx
+import openpyxl
 import pypdfium2
 import pytest
 
+from worker.document_script.analysis_run import AnalysisInput, run_analysis_script
 from worker.document_script.run import run_document_script
 
 pytestmark = pytest.mark.packaging
@@ -141,3 +143,33 @@ def test_a_frozen_worker_writes_decks_and_workbooks() -> None:
 
     assert result.ok, result.traceback_tail
     assert (result.output or b"").startswith(b"PK")
+
+
+ANALYSIS_OF_A_WORKBOOK = """\
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+stock = pd.read_excel(os.path.join(os.environ["INPUT_DIR"], "Stock.xlsx"))
+print(int(np.sum(stock["units"])))
+stock.to_csv(os.path.join(os.environ["OUTPUT_DIR"], "stock.csv"), index=False)
+stock.plot(x="product", y="units", kind="bar")
+plt.savefig(os.path.join(os.environ["OUTPUT_DIR"], "stock.png"))
+"""
+
+
+@pytest.mark.usefixtures("as_frozen")
+def test_a_frozen_worker_analyses_a_workbook_with_pandas(tmp_path: Path) -> None:
+    """pandas reads .xlsx through openpyxl and plots through matplotlib, all by name."""
+    book = openpyxl.Workbook()
+    book.active.append(["product", "units"])
+    book.active.append(["Crate", 12])
+    book.save(tmp_path / "Stock.xlsx")
+    source = AnalysisInput(tmp_path / "Stock.xlsx", "Stock.xlsx", 1, "Stock")
+
+    run = run_analysis_script(ANALYSIS_OF_A_WORKBOOK, [source], tmp_path / "kept")
+
+    assert run.ok, run.traceback_tail
+    assert run.stdout == "12\n"
+    assert run.kept == ("stock.csv", "stock.png")

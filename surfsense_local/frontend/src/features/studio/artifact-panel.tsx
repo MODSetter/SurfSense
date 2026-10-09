@@ -12,6 +12,7 @@ import {
   type Artifact,
   type ArtifactDetail,
   type ArtifactFile,
+  type RevisionDecision,
 } from "./api"
 import {
   newestReady,
@@ -20,8 +21,11 @@ import {
 } from "./artifact-versions"
 import { canRefine } from "./can-refine"
 import { RefineBox } from "./refine-box"
+import { RevisedCopyBar } from "./revised-copy-bar"
+import { RevisedCopyDownloads } from "./revised-copy-downloads"
 import { VersionSwitcher } from "./version-switcher"
 import { getArtifactViewer } from "./viewers/registry"
+import { studioKeys } from "./query-keys"
 
 const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
   primary: () =>
@@ -67,6 +71,7 @@ export function ArtifactPanel({
   artifacts,
   onOpenVersion,
   onRefine,
+  onDecideAll = async () => {},
   onClose,
 }: {
   artifactId: number
@@ -75,26 +80,40 @@ export function ArtifactPanel({
   onOpenVersion: (artifactId: number) => void
   /** Rejects with the reason the next version was refused. */
   onRefine: (artifactId: number, instruction: string) => Promise<void>
+  /** Accepts or rejects all of a revised copy's changes as its next version;
+   *  rejects with the reason it was refused. */
+  onDecideAll?: (
+    artifactId: number,
+    decision: RevisionDecision
+  ) => Promise<void>
   onClose: () => void
 }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["artifact-panel", artifactId],
+    queryKey: studioKeys.artifact(artifactId),
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
   const versions = versionsOf(artifacts, artifactId)
   useFollowNewestVersion(versions, onOpenVersion)
   // The list follows each run's status; the detail is read once.
   const shown = artifacts.find((artifact) => artifact.id === artifactId) ?? data
-  const versionRunning = versions.some(
+  const writing = versions.find(
     (version) => version.status === "pending" || version.status === "processing"
   )
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
+  const revision = data?.revision ?? null
+  // A decision starts from the newest ready version, so only it offers one.
+  const newestShown = (newestReady(versions)?.id ?? artifactId) === artifactId
+  // A version not ready has no file of its own to download.
+  const shownReady = (shown?.status ?? data?.status) === "ready"
 
   return (
     <DetailPanel
+      // The list names a version before its body arrives, so a switch of
+      // version changes the title without passing through "Loading…".
       title={
         data?.title ??
+        shown?.title ??
         (isLoading
           ? intl.formatMessage({
               id: "studio_artifact_panel_loading_status",
@@ -128,29 +147,43 @@ export function ArtifactPanel({
           <div ref={setActionsContainer} className="flex items-center gap-1" />
           {/* A flashcard deck's or quiz's only file is its raw JSON —
               nothing a user should download. */}
-          {data?.files.length &&
-          data.format !== "flashcards" &&
-          data.format !== "quiz"
-            ? data.files.map((file) => (
-                // A plain link: Base UI's Button would give it role="button".
-                <a
-                  key={file.role}
-                  href={downloadUrl(data.id, file.role)}
-                  download
-                  aria-label={DOWNLOAD_LABELS[file.role]()}
-                  className={buttonVariants({
-                    variant: "secondary",
-                    size: "icon-sm",
-                  })}
-                >
-                  <Download01Icon />
-                </a>
-              ))
-            : null}
+          {data && revision ? (
+            shownReady ? (
+              <RevisedCopyDownloads artifactId={data.id} revision={revision} />
+            ) : null
+          ) : data?.files.length &&
+            data.format !== "flashcards" &&
+            data.format !== "quiz" ? (
+            data.files.map((file) => (
+              // A plain link: Base UI's Button would give it role="button".
+              <a
+                key={file.role}
+                href={downloadUrl(data.id, file.role)}
+                download
+                aria-label={DOWNLOAD_LABELS[file.role]()}
+                className={buttonVariants({
+                  variant: "secondary",
+                  size: "icon-sm",
+                })}
+              >
+                <Download01Icon />
+              </a>
+            ))
+          ) : null}
         </>
       }
     >
-      <div className="flex h-full flex-col">
+      <div className="relative flex h-full flex-col">
+        {!isLoading && !error && data && revision ? (
+          <RevisedCopyBar
+            key={artifactId}
+            artifactId={artifactId}
+            revision={revision}
+            versionRunning={writing !== undefined}
+            newest={newestShown}
+            onDecideAll={onDecideAll}
+          />
+        ) : null}
         {/* The one viewable stage every artifact format renders into: same
             size and position below the shared header, regardless of format.
             No padding here — a viewer that wants breathing room (like
@@ -178,13 +211,22 @@ export function ArtifactPanel({
             <Viewer artifact={data} actionsContainer={actionsContainer} />
           ) : null}
         </div>
-        {!isLoading && !error && shown && canRefine(shown) ? (
-          <RefineBox
-            key={artifactId}
-            artifactId={artifactId}
-            versionRunning={versionRunning}
-            onRefine={onRefine}
-          />
+        {/* Floats over the document, so the pages keep the panel's height;
+            their own bottom margin is what it covers at the end. One per
+            document, kept through a switch of version so the version being
+            made turns back into the button in place. */}
+        {!error && shown && canRefine(shown) ? (
+          // Clicks pass through to the document beside the button. The
+          // container is what the refine box measures its open width by.
+          <div className="@container pointer-events-none absolute inset-x-0 bottom-0 flex justify-end px-3 pb-3">
+            <RefineBox
+              key={shown.version?.root_id ?? artifactId}
+              artifactId={artifactId}
+              versionShown={!isLoading}
+              writingVersion={writing?.version.number ?? null}
+              onRefine={onRefine}
+            />
+          </div>
         ) : null}
       </div>
     </DetailPanel>

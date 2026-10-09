@@ -20,7 +20,7 @@ Authorization: License <key>
 | `403` | Key known to Keygen but not usable | `{"reason": "expired" \| "invalid" \| "revoked"}` |
 | `2xx` | Key valid | the route's normal response |
 
-The client passes `reason` on to the user verbatim. For the plugin, that means writing it to stderr, which the run keeps as its log tail and shows ([plugins protocol](../proposals/plugins/01-protocol.md)).
+The client passes `reason` on to the user verbatim. For the plugin, that means writing it to stderr, which the run keeps as its log tail and shows ([plugins protocol](../proposals/plugins/bundles/01-protocol.md)).
 
 `revoked` covers Keygen `SUSPENDED` and `BANNED`. `invalid` covers unknown key and policy mismatch. `expired` is Keygen `EXPIRED`.
 

@@ -128,18 +128,29 @@ def test_a_deck_and_a_map_are_capped_where_their_prompts_say_they_are() -> None:
     assert map_body.count("\n- ") == mindmap.BRANCHES
 
 
-def test_a_summary_takes_its_title_from_the_first_h1() -> None:
+def test_a_markdown_document_takes_its_title_from_the_first_h1() -> None:
     """The document title comes from the model's H1, so the list reads well."""
     built = summary.build("# Saturn's rings\n\nThey are mostly ice.", [])
 
     assert built.title == "Saturn's rings"
     assert built.markdown.startswith("# Saturn's rings")
-    assert built.primary is None  # the markdown is the body, not a file
 
 
-def test_a_summary_without_a_heading_still_has_a_title() -> None:
+def test_a_markdown_document_is_kept_as_a_file_to_download() -> None:
+    """The body is also the primary file, so the panel offers it as a .md."""
+    built = summary.build("# Saturn's rings\n\nThey are mostly ice.", [])
+
+    assert built.primary == built.markdown.encode()
+    assert built.primary_mime == "text/markdown"
+    assert built.primary_filename == "saturn-s-rings.md"
+
+
+def test_a_markdown_document_without_a_heading_still_has_a_title() -> None:
     """A model that skips the H1 still yields a named, openable artifact."""
-    assert summary.build("Just prose, no heading.", []).title == "Summary"
+    built = summary.build("Just prose, no heading.", [])
+
+    assert built.title == "Markdown"
+    assert built.primary_filename == "markdown.md"
 
 
 def test_parse_json_survives_fences_and_surrounding_prose() -> None:

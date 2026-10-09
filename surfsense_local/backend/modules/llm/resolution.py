@@ -6,6 +6,7 @@ from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.connections.serves import connection_serves
+from modules.llm.connections.text_generator import connection_generator
 from modules.llm.model_route.runtime_hold import text_runtime_given_up
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
@@ -14,7 +15,6 @@ from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
-    OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.openai_compatible.image import AllowUrlHost
@@ -22,8 +22,6 @@ from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
-from modules.llm.subscriptions.chatgpt.account import CHATGPT
-from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
 
 
 class ModelResolutionError(RuntimeError):
@@ -65,15 +63,10 @@ def resolve_generation_of(
         return ResolvedGeneration(selected, provider)
     connection = _connection(session, selected)
     reads_images = remote_reads_images(selected.name, connection.catalog_provider)
-    if connection.auth_kind == CHATGPT:
-        return ResolvedGeneration(
-            selected,
-            plan_generator(session.get_bind(), connection, reads_images=reads_images),
-        )
     return ResolvedGeneration(
         selected,
-        OpenAICompatibleChatProvider(
-            connection.base_url, connection.api_key, reads_images=reads_images
+        connection_generator(
+            session.get_bind(), connection, selected.name, reads_images=reads_images
         ),
     )
 

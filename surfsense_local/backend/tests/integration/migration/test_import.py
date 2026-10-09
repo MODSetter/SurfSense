@@ -5,9 +5,11 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
+from alembic.config import Config
 from httpx import AsyncClient, Response
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 
+from alembic import command
 from modules.chat.models import ChatThread
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
@@ -16,6 +18,53 @@ from shared.queue import ingest_queue
 pytestmark = pytest.mark.integration
 
 SAMPLE = Path(__file__).resolve().parents[5] / "docs/contracts/export-sample"
+
+
+@pytest.mark.parametrize("imported_history", [False, True])
+async def test_upgrade_then_reimport_preserves_local_and_imported_history(
+    client: AsyncClient, engine: Engine, tmp_path: Path, imported_history: bool
+) -> None:
+    """Local turns do not block recovery; old imported history is not duplicated."""
+    config = Config()
+    config.set_main_option(
+        "script_location", str(Path(__file__).resolve().parents[3] / "alembic")
+    )
+    config.attributes["engine"] = engine
+    command.downgrade(config, "0027")
+    content = {"text": "My existing turn"}
+    if imported_history:
+        content["citations"] = []
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workspaces(id, name, cloud_id) VALUES (1, 'Research', 12)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO chat_threads(id, workspace_id, title) "
+                "VALUES (1, 1, 'My existing notes')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO chat_messages(id, chat_thread_id, role, content) "
+                "VALUES (1, 1, 'user', :content)"
+            ),
+            {"content": json.dumps(content)},
+        )
+    command.upgrade(config, "head")
+
+    response = await import_bundle(client, bundle(tmp_path))
+
+    assert response.status_code == 202
+    threads = (await client.get("/workspaces/1/chat/threads")).json()
+    expected = ["My existing notes"]
+    if not imported_history:
+        expected += ["Quick hello", "Why scale the dot product?"]
+    assert sorted(thread["title"] for thread in threads) == sorted(expected)
+    messages = (await client.get("/chat/threads/1/messages")).json()
+    assert [message["content"]["text"] for message in messages] == ["My existing turn"]
 
 
 def bundle(

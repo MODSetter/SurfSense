@@ -132,7 +132,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | `format` | text, not an enum |
 | `generation` | integer, `CHECK (generation > 0)`, bumped by each regenerate |
 | `created_by_tool_call_id`, `updated_by_tool_call_id` | provenance; a REST job passes none |
-| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)) |
+| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)); for a revised copy of the user's file its `revision`, which also records the `clean` and `external` Word files kept beside the primary in the artifact's folder, since `artifact_files.role` allows only `primary` and `preview` ([`studio.md`](studio.md#revised-copies)) |
 
 `artifacts` has no status column; its status is its document's. `artifact_files` keeps one immutable blob per role: `role` (`primary` or `preview`), `storage_key` (the path relative to the data directory), `original_filename`, `mime_type`, `size_bytes` (`CHECK > 0`) and `checksum_sha256`, unique on `(artifact_id, role)` and on `storage_key`. There is no `storage_backend` column, since there is one backend. See [`studio.md`](studio.md).
 
@@ -158,11 +158,11 @@ Connections are in [`connections.md`](connections.md); selection and onboarding 
 | `license_state` | `id`, `certificate`, `imported_at`, `clock_watermark` | a singleton; plan and expiry are re-derived from the certificate on every read, and `clock_watermark` is the highest instant ever seen |
 | `egress_destinations` | `destination`, `enabled`, `last_call_at` | one row per host; `enabled` defaults to false |
 
-A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Rows under the earlier names `model_download`, `model_search` and `image_model_pull` are no longer read; revision `0012` renamed `ollama_pull` to `model_download` before that change. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
+A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Revision `0027` removes rows under the earlier names `model_download`, `model_search` and `image_model_pull`, carrying a grant to `host:huggingface.co` only where search and a download were both allowed and the host had no answer of its own. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
 
 ### `plugin_runs`
 
-One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/runtime/01-process.md)).
+One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/bundles/runtime/01-process.md)).
 
 | Column | Notes |
 |---|---|
@@ -370,19 +370,22 @@ erDiagram
 | `0014` | `0014_connection_catalog_provider.py` | `provider_connections.catalog_provider`, `custom` for every existing connection; downgrading drops the column in place, because a table rebuild would cascade into `selected_models` |
 | `0015` | `0015_image_selection_by_build.py` | a local `image_gen` selection is renamed from the old list's name to its curated build's id (`stable-diffusion-1.5` to `v1-5-pruned_Q4_0`, and the two SDXL models); the map is frozen in the migration, and downgrading reverses it |
 | `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
+| `0017` | `0017_keyword_index_keeps_combining_marks.py` | the keyword index rebuilt from `chunks` with combining marks kept inside a word |
+| `0018` | `0018_sdcpp_edit_and_video.py` | `selected_models` rebuilt so `sdcpp` may hold `image_edit` and `video_gen`; downgrading drops such a selection |
 | `0019` | `0019_selection_settings.py` | `selected_models.settings`, a nullable JSON column added in place; its first entry is a server audio model's `voices` |
 | `0020` | `0020_plugin_runs.py` | `plugin_runs` |
 | `0022` | `0022_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
 | `0024` | `0024_thread_source_scope.py` | `chat_threads.source_scope`, by a plain `ALTER TABLE`; no row is backfilled, so every older thread uses every source |
 | `0025` | `0025_source_roots_and_folders.py` | `source_roots` and `folders`; a Library root and root folder per workspace; `documents.folder_id` by a plain `ALTER TABLE`; every `FILE` and `NOTE` filed, an imported `folder_path` becoming a chain of folders (case and normalization variants merged, levels past 8 joined with " / " into the eighth); `content_hash` filled from `dedup_key`; the dedup index swapped to per folder by `DROP` and `CREATE INDEX` |
 | `0026` | `0026_chat_history_start.py` | `chat_threads.history_start_message_id`, by a plain `ALTER TABLE`; no row is backfilled, so a thread sends its whole history until it first outgrows its budget |
-| `0027` | `0027_chat_thread_cloud_id.py` | `chat_threads.cloud_id`, nullable and unique; marks workspaces with older unkeyed imported threads |
+| `0027` | `0027_retire_pre_host_egress_grants.py` | egress rows under `model_download`, `model_search` and `image_model_pull` removed; `host:huggingface.co` allowed only where search and a download were both allowed and the host had no row; downgrading changes nothing |
+| `0028` | `0028_chat_thread_cloud_id.py` | `chat_threads.cloud_id`, nullable and unique; marks workspaces with older unkeyed imported threads |
 
 - Before the API applies a pending revision to an existing database, `upgrade_to_head` writes a `VACUUM INTO` copy to `<data>/backups/<from>-<to>.db` (via `.partial`, renamed once complete) and keeps the newest two ([`migration_snapshot.py`](../../surfsense_local/backend/shared/migration_snapshot.py)). A new database or one at head writes none. If the copy fails, nothing migrates and the API start fails with the reason. To restore: quit SurfSense, replace `surfsense.db` with the snapshot, and start the app.
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
-- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py` and `test_migration_0014.py` beside it test what those revisions change.
+- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py` and `test_migration_0027.py` beside it test what those revisions change.
 
 ## Known gaps
 

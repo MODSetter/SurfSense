@@ -59,7 +59,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0022 | [Hosted accounts move to the app as a markdown-only export that is re-embedded locally](0022-markdown-only-cloud-import.md) | Accepted |
 | 0023 | [Every hosted sunset behaviour sits behind a runtime flag, and nothing is deleted or redirected unconditionally](0023-sunset-behind-flags.md) | Accepted |
 | 0024 | [The license portal has no accounts and no license tables; Stripe and Keygen are the system of record](0024-portal-without-accounts.md) | Accepted |
-| 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Accepted |
+| 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Accepted, in part superseded by 0047 |
 | 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |
 | 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted, in part superseded by 0039 |
@@ -72,7 +72,12 @@ The Date is the day the decision was first written down. Source links are permal
 | 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted |
 | 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
-| 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |
+| 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050 |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
+| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
+| 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted |
+| 0051 | [A plugin is an MCP server, and every caller reaches plugin tools through one Tool Gateway, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Proposed |
+| 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed |
+| 0053 | [Plugins are listed in a registry in this repository, and every plugin not published by SurfSense starts off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |

@@ -48,6 +48,12 @@ def thread_turns(
     """
     turns: list[dict[str, Any]] = []
     openers = turn_openers(messages)
+    # Every turn's steps in one pass, not one pass per turn: a long thread is
+    # thousands of messages, read again at the end of every turn.
+    steps: dict[str, list[dict[str, Any]]] = {}
+    for message in messages:
+        if (opener := _opener_of(message, openers)) is not None:
+            steps.setdefault(opener, []).append(message)
     opened = [
         m["info"]["id"]
         for m in messages
@@ -68,7 +74,7 @@ def thread_turns(
             }
         )
         live = answering and info["id"] == opened[-1]
-        reply = turn_reply(messages, info["id"], citations, noted, live)
+        reply = _reply(steps.get(info["id"], []), info["id"], citations, noted, live)
         if reply is not None:
             turns.append(reply)
     return turns
@@ -86,18 +92,28 @@ def turn_reply(
     Its labels become citations as a chat answer's do; one the session's searches
     never returned is dropped.
     """
-    in_turn = {
-        message_id
-        for message_id, opener in turn_openers(messages).items()
-        if opener == user_message_id
-    }
-    steps = [
-        m
-        for m in messages
-        if m["info"]["role"] == "assistant"
-        and m["info"].get("parentID") in in_turn
-        and not is_summary(m["info"])
-    ]
+    openers = turn_openers(messages)
+    steps = [m for m in messages if _opener_of(m, openers) == user_message_id]
+    return _reply(steps, user_message_id, citations, noted, live)
+
+
+def _opener_of(message: dict[str, Any], openers: dict[str, str]) -> str | None:
+    """The user message that opened the turn an agent's step belongs to; None for
+    any other message, a compaction's summary included."""
+    info = message["info"]
+    if info["role"] != "assistant" or is_summary(info):
+        return None
+    return openers.get(info.get("parentID"))
+
+
+def _reply(
+    steps: list[dict[str, Any]],
+    user_message_id: str,
+    citations: list[Citation],
+    noted: dict[str, dict[str, Any]] | None,
+    live: bool,
+) -> dict[str, Any] | None:
+    """The reply that a turn's steps, given oldest first, make up."""
     if not steps:
         return None
     texts = [text for step in steps if (text := _text(step["parts"]))]

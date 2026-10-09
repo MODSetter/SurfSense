@@ -22,6 +22,7 @@ import type { LocalBuild, LocalRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
+import { notRunnableReason } from "./not-runnable-text"
 
 const formatSize = (bytes: number) =>
   intl.formatNumber(bytes / 1e9, {
@@ -111,10 +112,10 @@ export function ModelCard({
             </span>
           </div>
           {row.runnable ? (
-            <FitReason copy={lead.badge} />
+            <FitReason fit={lead.fit} copy={lead.badge} />
           ) : (
             <p className="text-xs text-muted-foreground">
-              {row.not_runnable_reason}
+              {notRunnableReason(row)}
             </p>
           )}
         </div>

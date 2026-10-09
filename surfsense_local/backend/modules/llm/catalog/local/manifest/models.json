@@ -1,7 +1,345 @@
 {
   "schema_version": 1,
-  "refreshed_at": "2026-10-01",
+  "refreshed_at": "2026-10-06",
   "models": [
+    {
+      "id": "qwen3.8-27b",
+      "name": "Qwen3.8 27B",
+      "family": "Qwen3.8",
+      "publisher": "Qwen",
+      "description": "Best with documents and tools, and reads images, for 24 GB machines",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3.8-27B",
+      "aliases": [
+        "Qwen/Qwen3.8-27B"
+      ],
+      "evidence": {
+        "architecture": "qwen35",
+        "pipeline_tag": null,
+        "parameters_b": 27.32
+      },
+      "context": 262144,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": null,
+      "image": null,
+      "shape": {
+        "block_count": 65,
+        "head_count_kv": 4,
+        "key_length": 256,
+        "value_length": 256,
+        "n_vocab": 248320,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 5120,
+        "feed_forward_length": 17408,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-UD-Q2_K_XL.gguf",
+              "size_bytes": 9828981664,
+              "sha256": "fd4730dd8aad070517978752b63d530aeb1740d2283cab9fa24f1e404032ddb0"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-UD-Q3_K_XL.gguf",
+              "size_bytes": 13146393504,
+              "sha256": "8c2a45ff85e7674ca185ec8eb6cdeab0e617ed9d8018caed0b64380eb2a67a5e"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+              "size_bytes": 17559178144,
+              "sha256": "3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-UD-Q5_K_XL.gguf",
+              "size_bytes": 20876938144,
+              "sha256": "8601193d3d5760c37fb8ce1b43afebc69df5fb24e1fbc5a547c32e2200305276"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-UD-Q6_K_XL.gguf",
+              "size_bytes": 25299061664,
+              "sha256": "701d8fa9ed214ab21bfc130cd2a7df19ca89bbef7713e2dfb19f3c63696aa917"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-Q8_0.gguf",
+              "size_bytes": 29047086048,
+              "sha256": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "Qwen3.8-27B-UD-Q8_K_XL.gguf",
+              "size_bytes": 31457991680,
+              "sha256": "af36ecb6b5db1407953345b746c14ac93f0657dda413910b4348683a2d990377"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "BF16/Qwen3.8-27B-BF16-00001-of-00002.gguf",
+              "size_bytes": 49986159616,
+              "sha256": "b9966e82b7a4d87028b5eae061d578ee826305ebf8baea5bfc6e09bad0ba191f"
+            },
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "BF16/Qwen3.8-27B-BF16-00002-of-00002.gguf",
+              "size_bytes": 4671576000,
+              "sha256": "92e3943c4f9bd6292a7bef82369f65fed9bfed088b9df0fb2fa2ce17c9edfa02"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/Qwen3.8-27B-GGUF",
+              "upstream_repo": null,
+              "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 927607488,
+              "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+              "gguf": {
+                "general.type": "mmproj",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 5120
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
     {
       "id": "qwen3-32b",
       "name": "Qwen3 32B",

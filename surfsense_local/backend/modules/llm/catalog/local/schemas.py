@@ -43,6 +43,10 @@ class BadgeRead(BaseModel):
     level: str
     verdict: str
     reason: str
+    # The tier the two sentences describe, for the interface to word in its own
+    # language; null when they are empty. `uma` picks between its wordings.
+    code: str | None = None
+    uma: bool = False
 
 
 class FitRead(BaseModel):
@@ -122,6 +126,9 @@ class LocalRowRead(BaseModel):
     support: SupportRead
     runnable: bool
     not_runnable_reason: str | None
+    # The reason as a `NotRunnableCode`, where it has one, so the interface can
+    # say it in its own language.
+    not_runnable_code: str | None = None
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool
