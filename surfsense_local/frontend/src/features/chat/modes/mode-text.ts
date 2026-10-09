@@ -29,6 +29,32 @@ export function modeDescription(mode: ChatMode) {
       })
 }
 
+/** One line per mode, short enough for the new chat's menu. */
+export function modeShortDescription(mode: ChatMode) {
+  return mode === "agentic"
+    ? intl.formatMessage({
+        id: "chat_mode_agentic_short_body",
+        defaultMessage: "Does tasks across your files",
+      })
+    : intl.formatMessage({
+        id: "chat_mode_basic_short_body",
+        defaultMessage: "Answers from your sources",
+      })
+}
+
+/** The tag beside Agentic; a model that passed gets none. */
+export function agenticReasonTag(reason: CapabilityReason) {
+  if (reason.code === "measured_pass") return null
+  return intl.formatMessage(
+    {
+      id: "chat_mode_agentic_reason_label",
+      defaultMessage:
+        "{code, select, measured_near {May need nudges} measured_below {Low score} assumed {Expected to pass} local_copy {Local copy} other {Not tested}}",
+    },
+    { code: reason.code }
+  )
+}
+
 /** What Agentic says for this model: its score, a note, or the untested warning. */
 export function agenticReasonText(reason: CapabilityReason) {
   return intl.formatMessage(

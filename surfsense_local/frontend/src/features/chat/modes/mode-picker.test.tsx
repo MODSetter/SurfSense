@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 
@@ -146,6 +146,40 @@ describe("the composer's mode switch", () => {
     expect(trigger().textContent).toContain("Agentic")
     expect(nextChat()).toBe("agentic")
     expect(composerNote()).toEqual([])
+  })
+
+  it("tags an untested Agentic, and says the full warning beside the row", async () => {
+    const user = userEvent.setup()
+    renderComposer({ model: SONNET_99 })
+
+    await user.click(trigger())
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+    await user.hover(agentic)
+
+    expect(within(agentic).getByText("Not tested")).toBeTruthy()
+    expect(agentic.textContent).toContain("Does tasks across your files")
+    // Once read with the row, once in the tooltip.
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(
+          "Not tested with this model yet, so it may stop early or make mistakes."
+        )
+      ).toHaveLength(2)
+    )
+  })
+
+  it("leaves a passing model's Agentic untagged", async () => {
+    const user = userEvent.setup()
+    renderComposer({ model: KIMI })
+
+    await user.click(trigger())
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+
+    expect(within(agentic).queryByText("Not tested")).toBeNull()
   })
 
   it("offers a low scorer Agentic with its score", async () => {

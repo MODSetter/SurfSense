@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { Fragment, type ReactNode } from "react"
 
 import {
   DropdownMenu,
@@ -16,18 +16,21 @@ import {
   ChevronDownIcon,
   PlusIcon,
 } from "@/components/ui/icons"
+import { Badge } from "@/components/ui/badge"
 import type { ChatMode, ChatModes } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
-import { HINTED_ROW_CLASS } from "../menu-item-hint"
+import { HINTED_ROW_CLASS, MenuItemHint } from "../menu-item-hint"
 import { modelControlButtonClassName } from "../model-picker"
 import {
   agenticBlockedText,
+  agenticReasonTag,
   agenticReasonText,
   modeDescription,
   modeLabel,
+  modeShortDescription,
 } from "./mode-text"
 import {
   useChatModes,
@@ -85,22 +88,38 @@ export function ModePicker({
               value={newChatMode}
               onValueChange={(next) => pick(model, next as ChatMode)}
             >
-              {(["basic", "agentic"] as const).map((mode) => (
-                <DropdownMenuRadioItem
-                  key={mode}
-                  value={mode}
-                  closeOnClick
-                  disabled={mode === "agentic" && !modes.agentic_allowed}
-                  className={cn("items-start", HINTED_ROW_CLASS)}
-                >
-                  <ModeRow
-                    mode={mode}
-                    label={modeLabel(mode)}
-                    detail={modeDescription(mode)}
-                    note={mode === "agentic" ? agenticNote(modes) : null}
-                  />
-                </DropdownMenuRadioItem>
-              ))}
+              {(["basic", "agentic"] as const).map((mode) => {
+                // Agentic's score or gate, said beside the menu as the add
+                // menu says why a row is held.
+                const hint = mode === "agentic" ? agenticNote(modes) : null
+                const item = (
+                  <DropdownMenuRadioItem
+                    value={mode}
+                    closeOnClick
+                    disabled={mode === "agentic" && !modes.agentic_allowed}
+                    className={cn("items-start", HINTED_ROW_CLASS)}
+                  >
+                    <ModeRow
+                      mode={mode}
+                      label={modeLabel(mode)}
+                      detail={modeShortDescription(mode)}
+                      tag={
+                        mode === "agentic" && modes.agentic_allowed
+                          ? agenticReasonTag(modes.reason)
+                          : null
+                      }
+                      hint={hint}
+                    />
+                  </DropdownMenuRadioItem>
+                )
+                return hint ? (
+                  <MenuItemHint key={mode} hint={hint}>
+                    {item}
+                  </MenuItemHint>
+                ) : (
+                  <Fragment key={mode}>{item}</Fragment>
+                )
+              })}
             </DropdownMenuRadioGroup>
           </DropdownMenuGroup>
         </DropdownMenuContent>
@@ -209,23 +228,36 @@ function ModeRow({
   label,
   detail,
   note,
+  tag,
+  hint,
 }: {
   mode: ChatMode
   icon?: ReactNode
   label: string
   detail: string
-  note: string | null
+  note?: string | null
+  tag?: string | null
+  // The row's tooltip, which screen readers cannot see.
+  hint?: string | null
 }) {
   const Icon = MODE_ICON[mode]
   return (
     <>
       {icon ?? <Icon className="mt-0.5" />}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span>{label}</span>
+        <span className="flex items-center gap-1.5">
+          <span>{label}</span>
+          {tag ? (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+              {tag}
+            </Badge>
+          ) : null}
+        </span>
         <span className="text-xs text-muted-foreground">{detail}</span>
         {note ? (
           <span className="text-xs text-muted-foreground">{note}</span>
         ) : null}
+        {hint ? <span className="sr-only">{hint}</span> : null}
       </span>
     </>
   )
