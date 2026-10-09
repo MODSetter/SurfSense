@@ -10,7 +10,6 @@ import { intl } from "@/i18n/intl"
 
 import { ComposerImage } from "./attached-image"
 import { ComposerAddMenu } from "./composer-add-menu"
-import { AgenticNote } from "./modes/agentic-note"
 import { ModePicker } from "./modes/mode-picker"
 import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
@@ -287,9 +286,6 @@ export function ChatComposer({
         >
           {limitNotice}
         </p>
-      ) : null}
-      {placement === "center" ? (
-        <AgenticNote model={model} mode={newChatMode} />
       ) : null}
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">

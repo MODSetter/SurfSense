@@ -130,7 +130,7 @@ describe("the composer's mode switch", () => {
     expect(composerNote()).toEqual([])
   })
 
-  it("starts an untested model in Basic, and warns once Agentic is picked", async () => {
+  it("starts an untested model in Basic, and warns only in the menu", async () => {
     const user = userEvent.setup()
     renderComposer({ model: SONNET_99 })
 
@@ -145,9 +145,7 @@ describe("the composer's mode switch", () => {
 
     expect(trigger().textContent).toContain("Agentic")
     expect(nextChat()).toBe("agentic")
-    expect(composerNote()).toEqual([
-      "Not tested with this model yet, so it may stop early or make mistakes.",
-    ])
+    expect(composerNote()).toEqual([])
   })
 
   it("offers a low scorer Agentic with its score", async () => {
@@ -178,13 +176,15 @@ describe("the composer's mode switch", () => {
     })
 
     await user.click(trigger())
-    await user.click(
-      await screen.findByRole("menuitemradio", { name: /^Agentic/ })
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+    expect(agentic.textContent).toContain(
+      "Passed on its full-size version. A local copy may do worse."
     )
+    await user.click(agentic)
 
-    expect(composerNote()).toEqual([
-      "Passed on its full-size version. A local copy may do worse.",
-    ])
+    expect(composerNote()).toEqual([])
   })
 
   it("holds Agentic out with the reason when a gate blocks it", async () => {

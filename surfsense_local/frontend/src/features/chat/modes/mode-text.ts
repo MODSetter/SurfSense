@@ -45,11 +45,6 @@ export function agenticReasonText(reason: CapabilityReason) {
   )
 }
 
-/** Whether the reason is worth saying under the composer once Agentic is picked. */
-export function agenticReasonWarns(reason: CapabilityReason) {
-  return reason.code !== "measured_pass"
-}
-
 /** Why Agentic cannot be picked: a technical gate, never a score. */
 export function agenticBlockedText(blocked: string) {
   return intl.formatMessage(
