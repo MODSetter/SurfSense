@@ -1,6 +1,6 @@
 # ADR 0007: Embeddings come from a bundled bge-small model run in process on the CPU
 
-- **Status:** Accepted; amended by [ADR 0036](0036-the-index-records-its-embedder.md): the width comes from the index's own record, and bge-small is the default rather than the only embedder
+- **Status:** Accepted; amended by [ADR 0036](0036-the-index-records-its-embedder.md): the width comes from the index's own record, and bge-small is the default rather than the only embedder; the bundled file is FP16, not the int8 the Decision names (66,465,124 bytes, measured in [embedding](../architecture/embedding.md#choosing), [#1996](https://github.com/MODSetter/SurfSense/issues/1996))
 - **Date:** 2026-09-04
 - **Source:** [Umbrella plan L106](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L106), [Data model L220–224](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00c-data-model.md#L220-L224)
 

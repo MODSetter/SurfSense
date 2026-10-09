@@ -64,6 +64,7 @@ def estimate(
     n_ctx: int = CONTEXT_FLOOR_TOKENS,
     precision: KvPrecision = KvPrecision.F16,
     mmproj_bytes: int = 0,
+    slots: int = 1,
 ) -> FitVerdict:
     """Price one build against one device.
 
@@ -71,7 +72,7 @@ def estimate(
     window: a model that will not fit at the floor cannot be rescued by a
     smaller context, and the remedy to offer is a smaller build.
     """
-    items = itemise(shape, weights_bytes, n_ctx, precision, mmproj_bytes)
+    items = itemise(shape, weights_bytes, n_ctx, precision, mmproj_bytes, slots)
     need = items.total
     # Two questions, two numbers, and the budget owns the difference between
     # them. On a discrete card residency is the card and physics is the card plus
@@ -81,7 +82,9 @@ def estimate(
     resident = budget.resident_bytes
     refusal = budget.refusal_bytes
 
-    floor = itemise(shape, weights_bytes, CONTEXT_FLOOR_TOKENS, precision, mmproj_bytes)
+    floor = itemise(
+        shape, weights_bytes, CONTEXT_FLOOR_TOKENS, precision, mmproj_bytes, slots
+    )
     if floor.total > refusal:
         return FitVerdict(
             state=FitState.TOO_BIG,

@@ -1,5 +1,7 @@
 """llama.cpp behind the engine seam: chat models in llama-server's folder."""
 
+import asyncio
+import contextlib
 import threading
 from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
@@ -7,6 +9,7 @@ from pathlib import Path
 import httpx
 
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
+from modules.llm.catalog.local.classifier import UNSUPPORTED_REASON, NotRunnableCode
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
 from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
@@ -31,6 +34,7 @@ from modules.llm.catalog.local.engines.llamacpp.search.hits import (
 )
 from modules.llm.catalog.local.engines.llamacpp.search.listing import read_listing
 from modules.llm.catalog.local.engines.llamacpp.search.repo_row import repo_row
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.installs import projector_filename, read_installs
 from modules.llm.catalog.local.manifest import CuratedModel
@@ -39,14 +43,19 @@ from modules.llm.fit import FitState, HardwareBudget
 from modules.llm.hardware import BudgetMode
 from modules.llm.model_type import ModelType
 from modules.llm.providers.llamacpp import PROVIDER
+from modules.llm.providers.llamacpp.router_client import RouterClient
 
 _TOO_BIG = "This build is too big for this computer. Pick a smaller one."
 
+
+# An unload is quick. The client's own read timeout is sized for a load.
+UNLOAD_WAIT_SECONDS = 10.0
 
 class LlamaCppEngine:
     name = ENGINE
     model_types = (ModelType.TEXT_GEN,)
     provider = PROVIDER
+    server_follows_selection = False
 
     def __init__(
         self,
@@ -135,13 +144,16 @@ class LlamaCppEngine:
                 client, plan.build, plan.pipeline_tag, self._budget(BudgetMode.CAPACITY)
             )
         if not checked.is_model:
-            raise InstallRefusedError("This file is not a model SurfSense can run.")
+            raise InstallRefusedError(
+                "This file is not a model SurfSense can run.", InstallCode.NOT_A_MODEL
+            )
         if ModelType.TEXT_GEN not in checked.classification.types:
             raise InstallRefusedError(
-                checked.classification.reason or "SurfSense cannot run this model."
+                checked.classification.reason or UNSUPPORTED_REASON,
+                checked.classification.code or NotRunnableCode.UNSUPPORTED,
             )
         if checked.fit.state is FitState.TOO_BIG:
-            raise InstallRefusedError(_TOO_BIG)
+            raise InstallRefusedError(_TOO_BIG, InstallCode.TOO_BIG)
         return InstallPlan(
             plan.model_id, checked.build, self.name, pipeline_tag=plan.pipeline_tag
         )
@@ -159,7 +171,7 @@ class LlamaCppEngine:
             self._budget(BudgetMode.CAPACITY),
         )
         if fit.state is FitState.TOO_BIG:
-            raise InstallRefusedError(_TOO_BIG)
+            raise InstallRefusedError(_TOO_BIG, InstallCode.TOO_BIG)
 
     async def after_install(self, model_id: str) -> AsyncIterator[InstallStep]:
         # The router only learns about a model by restarting, and reporting
@@ -171,6 +183,16 @@ class LlamaCppEngine:
     def after_remove(self) -> None:
         # A stale section is served as a real entry and fails when chosen.
         self.reprice()
+
+    async def release(self, model_id: str) -> None:
+        # The router never unloads on its own, and an unchanged preset is not
+        # rewritten, so nothing restarts it either.
+        # Refused when not loaded or no router: no worker of ours has the file.
+        # A silent router has nothing to wait for either: the caller holds the
+        # install lock.
+        with contextlib.suppress(httpx.HTTPError, TimeoutError):
+            async with asyncio.timeout(UNLOAD_WAIT_SECONDS):
+                await RouterClient(self._runtime_url).unload(model_id)
 
     def on_startup(self) -> None:
         self.reprice()

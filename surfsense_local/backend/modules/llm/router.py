@@ -9,8 +9,16 @@ from api.dependencies import SessionDep, transact
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import active_index
-from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.activity import (
+    ModelBusyError,
+    ModelFileHeldError,
+    model_activity,
+    model_key,
+)
+from modules.llm.capability import capability_of
+from modules.llm.capability.read import capability_read
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
+from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
 from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
@@ -111,9 +119,13 @@ async def list_models(provider: ProviderDep) -> list[ModelRead]:
             capabilities=list(model.capabilities),
             display_name=model.display_name or model.name,
             types=list(model.types),
-            selectable_for=selectable_for(model.types, model.known),
+            selectable_for=slots,
+            capability_level=capability_of(model.name, None).level
+            if provider.name == llamacpp.PROVIDER and ModelType.TEXT_GEN in slots
+            else None,
         )
         for model in await provider.models()
+        for slots in [selectable_for(model.types, model.known)]
     ]
 
 
@@ -131,7 +143,7 @@ async def delete_model(
     # dead router made models undeletable, which is backwards: one reason to
     # delete a model is that things are broken, and removing a file needs
     # nothing running.
-    engine = service.engine_holding(model_name)
+    engine = service.engine_to_delete_from(model_name)
     if engine is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"model not found: {model_name}")
     if engine.bundled(model_name):
@@ -163,6 +175,17 @@ async def delete_model(
                 # Every part of a split build and its projector, from the
                 # install record, and whatever the engine settles after.
                 service.remove(model_name, engine=engine.name)
+        except ModelFileHeldError as error:
+            # Only sd-server is stopped by an empty slot. The others keep their
+            # selection until the delete works, and are told to let go.
+            if engine.server_follows_selection:
+                await _clear_selections(session, engine, model_name)
+            await engine.release(model_name)
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"{model_name} is still in use, so it is being stopped. "
+                "Delete it again in a few seconds.",
+            ) from error
         except ModelBusyError as error:
             raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
         except FileNotFoundError as error:
@@ -172,13 +195,21 @@ async def delete_model(
     finally:
         install_lock.release()
 
+    selection_cleared = await _clear_selections(session, engine, model_name)
+    return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
+
+
+async def _clear_selections(
+    session: SessionDep, engine: LocalEngine, model_name: str
+) -> bool:
+    """Empty every slot of the engine's that named the model."""
     selection_cleared = False
     for model_type in engine.model_types:
         cleared = await transact(
             session, _clear_selection, engine.provider, model_name, model_type
         )
         selection_cleared = selection_cleared or cleared
-    return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
+    return selection_cleared
 
 
 def _embeds_the_library(session: Session, model_name: str) -> bool:
@@ -329,7 +360,8 @@ async def _selection_read(session: Session, selected: SelectedModel) -> Selectio
 def _read_with_provider(
     session: Session, selected: SelectedModel
 ) -> tuple[SelectionRead, str | None]:
-    return (
-        SelectionRead.model_validate(selected),
-        connection_catalog_provider(session, selected),
-    )
+    read = SelectionRead.model_validate(selected)
+    catalog_provider = connection_catalog_provider(session, selected)
+    if selected.model_type is ModelType.TEXT_GEN:
+        read.capability = capability_read(selected, catalog_provider)
+    return read, catalog_provider

@@ -10,7 +10,7 @@ from httpx import AsyncClient
 from PIL import Image as Pillow
 from sqlalchemy import Engine
 
-from tests.integration.chat.conftest import set_sees
+from tests.integration.chat.conftest import set_props_n_ctx, set_sees
 from tests.integration.chat.test_chat import _open_thread, _seed
 
 pytestmark = pytest.mark.integration
@@ -63,7 +63,8 @@ async def test_a_model_that_sees_receives_the_image_and_the_turn_keeps_it(
 
     assert status == 200
     asked = llamacpp_server[-1]["messages"][-1]
-    assert asked["content"][0] == {"type": "text", "text": "what is this?"}
+    assert asked["content"][0]["type"] == "text"
+    assert asked["content"][0]["text"].endswith("what is this?")
     (part,) = image_parts(asked)
     assert part["image_url"]["url"].startswith("data:image/jpeg;base64,")
 
@@ -96,6 +97,48 @@ async def test_a_model_that_cannot_see_is_refused_and_nothing_is_kept(
     assert (await client.get(f"/chat/threads/{thread_id}/messages")).json() == []
     assert stored_images(data_dir) == []
     assert llamacpp_server == []
+
+
+async def test_images_that_outgrow_the_window_are_refused_and_nothing_is_kept(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+    data_dir: Path,
+) -> None:
+    """2,048 tokens hold at most four 256-token images once the answer is
+    reserved, fewer with the turn's text: four overflow even at 256 each."""
+    set_sees(True)
+    set_props_n_ctx(2048)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    status, body = await send(client, thread_id, "what are these?", [picture()] * 4)
+
+    assert status == 409
+    assert "Send fewer" in json.loads("".join(body))["detail"]
+    assert (await client.get(f"/chat/threads/{thread_id}/messages")).json() == []
+    assert stored_images(data_dir) == []
+    assert llamacpp_server == []
+
+
+async def test_images_a_cheap_projector_fits_are_sent(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+) -> None:
+    """Three images on an 8,192 window cost 768 on Gemma 3, so they are sent,
+    though the history trim prices each at 1,400."""
+    set_sees(True)
+    set_props_n_ctx(8192)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    status, _ = await send(client, thread_id, "what are these?", [picture()] * 3)
+
+    assert status == 200
+    assert len(image_parts(llamacpp_server[-1]["messages"][-1])) == 3
 
 
 async def test_bytes_that_are_not_an_image_are_refused(
@@ -144,7 +187,8 @@ async def test_a_followup_resends_only_the_newest_image_turn(
     with_images = [m for m in sent if image_parts(m)]
     assert [m["content"][0]["text"] for m in with_images] == ["second chart"]
     assert "first chart" in [m["content"] for m in sent]
-    assert sent[-1] == {"role": "user", "content": "and the left axis?"}
+    assert sent[-1]["role"] == "user"
+    assert sent[-1]["content"].endswith("and the left axis?")
 
 
 async def test_deleting_a_thread_removes_its_images(
@@ -165,21 +209,29 @@ async def test_deleting_a_thread_removes_its_images(
     assert stored_images(data_dir) == []
 
 
-async def test_a_failed_reply_leaves_no_image_behind(
+async def test_a_failed_reply_keeps_its_image_until_it_is_retried(
     client: AsyncClient,
     engine: Engine,
     real_model: object,
     llamacpp_server_unauthorized: None,
     data_dir: Path,
 ) -> None:
-    """The turn is discarded, and so is the file only it referenced. The
-    runtime could not be asked whether the model sees, so the turn was let
-    through and failed on its own terms."""
+    """A failed turn is kept with what it carried; a retry replaces it, and
+    the file only the failed turn referenced goes with it. The runtime could
+    not be asked whether the model sees, so the turn was let through and
+    failed on its own terms."""
     workspace_id, _ = _seed(engine)
     thread_id = await _open_thread(client, workspace_id)
 
     status, _ = await send(client, thread_id, "what is this?", [picture()])
+    failed = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    kept = stored_images(data_dir)
+    await client.post(
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "what is this?", "retry_of": failed[1]["id"]},
+    )
 
     assert status == 200
-    assert (await client.get(f"/chat/threads/{thread_id}/messages")).json() == []
+    assert len(failed[0]["content"]["images"]) == 1
+    assert len(kept) == 1
     assert stored_images(data_dir) == []

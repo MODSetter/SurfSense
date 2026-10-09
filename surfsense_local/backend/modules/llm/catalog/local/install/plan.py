@@ -3,11 +3,27 @@
 from dataclasses import dataclass
 
 from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.classifier import NotRunnableCode
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.fit import ModelShape
 
 
 class InstallRefusedError(Exception):
-    """A build that cannot be installed here, with the sentence a person reads."""
+    """A build that cannot be installed here, with the sentence a person reads.
+
+    `code` names the reason where the interface has its own words for it: an
+    install's own, or the classifier's for a file that is not a chat model.
+    `values` are the raw numbers those words take."""
+
+    def __init__(
+        self,
+        message: str,
+        code: InstallCode | NotRunnableCode | None = None,
+        **values: int,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.values = values
 
 
 @dataclass(frozen=True)

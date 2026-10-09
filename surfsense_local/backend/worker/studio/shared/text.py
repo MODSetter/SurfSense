@@ -4,6 +4,8 @@ import json
 import re
 from typing import Any
 
+from pathvalidate import sanitize_filename
+
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 _SLUG = re.compile(r"[^a-z0-9]+")
 
@@ -37,6 +39,11 @@ def slug(title: str, fallback: str) -> str:
     """A safe file stem from a title, for the download filename."""
     cleaned = _SLUG.sub("-", title.lower()).strip("-")
     return cleaned[:60] or fallback
+
+
+def file_stem(title: str, fallback: str) -> str:
+    """The title as a file name any system can save: forbidden characters dropped."""
+    return sanitize_filename(title, platform="universal").strip() or fallback
 
 
 def as_list(value: Any) -> list[Any]:

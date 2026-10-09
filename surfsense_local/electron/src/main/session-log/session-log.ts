@@ -17,6 +17,11 @@ const MAX_LINE_LENGTH = 2000
 // them through rather than hiding anything else.
 const SUCCESSFUL_READ = /^INFO: +\S+ - "GET [^"]*" [23]\d\d\b/
 
+// A copy of its own. V8 keeps a slice, or a string built from one, pointing
+// into the text it was cut from, so a kept line would hold its whole pipe read
+// or uncut line alive and the length cap would bound nothing.
+const flat = (text: string): string => Buffer.from(text, "utf8").toString("utf8")
+
 export function createSessionLog(options: {
   home: string
   now?: () => Date
@@ -40,7 +45,7 @@ export function createSessionLog(options: {
         if (!line || SUCCESSFUL_READ.test(line)) continue
         for (const path of homes) line = line.replaceAll(path, "~")
         if (line.length > MAX_LINE_LENGTH) line = `${line.slice(0, MAX_LINE_LENGTH)}…`
-        kept.push(`${time} [${source}] ${line}`)
+        kept.push(flat(`${time} [${source}] ${line}`))
         if (kept.length > maxLines) kept.shift()
       }
     },

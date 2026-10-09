@@ -9,25 +9,34 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from modules.embedding.spec import EmbedderSpec
+from modules.llm.activity import ModelFileHeldError
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
+from modules.llm.catalog.local.engines.llamacpp.manifest_fields import SamplingSet
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     ProjectorNotice,
 )
-from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_temperature
+from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_sampling
+from modules.llm.catalog.local.engines.llamacpp.search.hits import SearchHit
 from modules.llm.catalog.local.engines.onnxruntime.engine import OnnxRuntimeEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.install.tickets import TicketStore
 from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
-from modules.llm.catalog.local.installs import forget_install
+from modules.llm.catalog.local.installs import (
+    forget_install,
+    install_files,
+    read_installs,
+)
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
+from modules.llm.catalog.local.search_cache import SearchCache
 from modules.llm.fit import HardwareBudget, ModelShape
 from modules.llm.hardware import (
     BudgetMode,
@@ -82,6 +91,7 @@ class LocalCatalogService:
         # The startup warm and the first request race for this.
         self._inventory_lock = threading.Lock()
         self._tickets = TicketStore()
+        self._search_cache = SearchCache()
         self._curated_ids: dict[str, tuple[Build, str]] = {}
         self._curated_tokens: dict[tuple[str, str], str] = {}
         # The shape each curated build was committed with, by the key an id is
@@ -160,6 +170,19 @@ class LocalCatalogService:
         """The engine with an installed model called `model_id`, if any."""
         return next((e for e in self._engines if e.holds(model_id)), None)
 
+    def engine_to_delete_from(self, model_id: str) -> LocalEngine | None:
+        """The engine a delete of `model_id` belongs to: the one holding it, or
+        the one whose record still names it after a delete that stopped part
+        way, when no engine lists a build that is missing files."""
+        return self.engine_holding(model_id) or next(
+            (
+                e
+                for e in self._engines
+                if e.folder is not None and model_id in read_installs(e.folder)
+            ),
+            None,
+        )
+
     # the catalog ------------------------------------------------------------
 
     def catalog(self, selected: Mapping[ModelType, str] | None = None) -> Catalog:
@@ -202,15 +225,29 @@ class LocalCatalogService:
 
         return mint
 
+    async def search(self, query: str, *, limit: int = 30) -> list[SearchHit]:
+        """Hugging Face search, answered from the cache inside its window.
+
+        The router gates egress before calling, so a cached answer is never
+        served while egress is off.
+        """
+        if (hits := self._search_cache.get(query, limit)) is not None:
+            return hits
+        hits = await self.llamacpp.search(query, limit=limit)
+        self._search_cache.put(query, limit, hits)
+        return hits
+
     async def repo(self, repo: str) -> tuple[LocalRow, bool]:
         """A searched repo's row, its builds installable through tickets."""
         return await self.llamacpp.repo(
             repo, lambda build, tag: self._tickets.mint(build, pipeline_tag=tag)
         )
 
-    def publisher_temperature(self, model: str, reasoning: bool | None) -> float | None:
+    def publisher_sampling(
+        self, model: str, reasoning: bool | None
+    ) -> SamplingSet | None:
         """What a curated chat model's publisher set for this mode, else None."""
-        return publisher_temperature(self._manifest.models, model, reasoning)
+        return publisher_sampling(self._manifest.models, model, reasoning)
 
     # installing -------------------------------------------------------------
 
@@ -263,14 +300,24 @@ class LocalCatalogService:
         )
 
     def remove(self, model_id: str, *, engine: str) -> None:
-        """Delete a model's files, every part and its projector, and forget it."""
+        """Delete a model's files, every part and its projector, and forget it.
+
+        Files first: Windows refuses to delete one a server still has open, and
+        a record dropped before that left the model unlisted with its files on
+        disk."""
         folder = self._folder(engine)
-        for name in forget_install(folder, model_id):
-            (folder / name).unlink(missing_ok=True)
+        for name in install_files(folder, model_id):
+            try:
+                (folder / name).unlink(missing_ok=True)
+            except PermissionError as error:
+                raise ModelFileHeldError(model_id) from error
+        forget_install(folder, model_id)
         self.engine(engine).after_remove()
 
     def _folder(self, engine: str) -> Path:
         folder = self.engine(engine).folder
         if folder is None:
-            raise InstallRefusedError("This build of SurfSense cannot run this model.")
+            raise InstallRefusedError(
+                "This build of SurfSense cannot run this model.", InstallCode.NO_ENGINE
+            )
         return folder

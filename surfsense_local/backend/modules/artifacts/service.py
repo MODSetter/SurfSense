@@ -1,11 +1,13 @@
 import logging
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
+from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
@@ -15,6 +17,8 @@ from modules.llm.resolution import (
     ModelResolutionError,
     speech_selected,
 )
+from modules.source_scope.resolve import pruned, resolve_scope
+from modules.source_scope.schemas import SourceScope
 from modules.workspaces.models import Workspace
 from worker.jobs import cancel_studio_job
 
@@ -25,14 +29,15 @@ def list_formats(session: Session) -> list[FormatRead]:
     """The catalog, each marked usable or not for the current setup."""
     formats: list[FormatRead] = []
     for fmt in FORMATS:
-        available, reason = _availability(session, fmt)
+        missing = _missing(session, fmt)
         formats.append(
             FormatRead(
                 key=fmt.key,
                 label=fmt.label,
                 requires_model_types=list(fmt.requires_model_types),
-                available=available,
-                unavailable_reason=reason,
+                available=not missing,
+                unavailable_reason=_required(missing) if missing else None,
+                unavailable_code=_required_code(missing) if missing else None,
             )
         )
     return formats
@@ -55,11 +60,9 @@ def create_artifact_job(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown format: {payload.format}"
         )
-    available, reason = _availability(session, fmt)
-    if not available:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    _require_available(session, fmt)
 
-    documents = _resolve_sources(session, workspace.id, payload.document_ids)
+    source_ids, recorded_scope = _resolve_sources(session, workspace.id, payload)
     options = _resolve_options(session, fmt, payload.options)
 
     document = Document(
@@ -77,7 +80,8 @@ def create_artifact_job(
         format=fmt.key,
         created_by_tool_call_id=tool_call_id,
         artifact_metadata={
-            "source_document_ids": [doc.id for doc in documents],
+            "source_document_ids": source_ids,
+            **recorded_scope,
             "prompt": payload.prompt,
             "options": options,
         },
@@ -94,17 +98,25 @@ def create_artifact_job(
 
 
 def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
-    """Run a finished or failed artifact's job again: same sources and prompt.
+    """Run a finished or failed artifact's job again: a draft from its sources
+    re-resolved, a refine's same rewrite, or the same document script.
 
-    The artifact_metadata that created it (sources, prompt, options) is still
+    The artifact_metadata that created it (sources, prompt, options, spec) is still
     there, so this resets the backing document and re-enqueues — no new row.
     """
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
         raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
-    available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
-    if not available:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    meta = artifact.artifact_metadata
+    # A document script runs as stored: its format's models are never asked.
+    if not renders_as_stored(meta):
+        _require_available(session, FORMATS_BY_KEY[artifact.format])
+        # A refine rewrites its base's spec, so it needs none of its sources back.
+        if refinement(meta) is None:
+            artifact.artifact_metadata = {
+                **(meta or {}),
+                "source_document_ids": _replayed_sources(session, artifact),
+            }
 
     document.status = DocumentStatus.PENDING
     document.error_message = None
@@ -127,13 +139,58 @@ def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
 
 
 def _resolve_sources(
-    session: Session, workspace_id: int, document_ids: list[int]
-) -> list[Document]:
-    if not document_ids:
+    session: Session, workspace_id: int, payload: StudioJobCreate
+) -> tuple[list[int], dict]:
+    """The job's source ids, and what the artifact records of the scope."""
+    if payload.source_scope is None:
+        if not payload.document_ids:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
+            )
+        documents = load_selected_sources(session, workspace_id, payload.document_ids)
+        return [doc.id for doc in documents], {}
+    resolved = resolve_scope(session, workspace_id, payload.source_scope)
+    if not resolved.ids:
+        if resolved.counts.indexing:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "the chosen sources are still indexing"
+            )
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
         )
-    return load_selected_sources(session, workspace_id, document_ids)
+    scope = pruned(payload.source_scope, resolved)
+    return resolved.ids, {"source_scope": scope.model_dump()}
+
+
+def _replayed_sources(session: Session, artifact: Artifact) -> list[int]:
+    """A recorded scope re-resolved, so files added since are used; else the
+    recorded ids that still exist. Never the artifact's own document."""
+    meta = artifact.artifact_metadata or {}
+    if meta.get("source_scope") is not None:
+        ids = resolve_scope(
+            session,
+            artifact.workspace_id,
+            SourceScope.model_validate(meta["source_scope"]),
+            exclude_document_ids=[artifact.document_id],
+        ).ids
+    else:
+        recorded = [
+            i for i in meta.get("source_document_ids", []) if i != artifact.document_id
+        ]
+        existing = set(
+            session.scalars(
+                select(Document.id).where(
+                    Document.id.in_(recorded),
+                    Document.workspace_id == artifact.workspace_id,
+                )
+            )
+        )
+        ids = [i for i in recorded if i in existing]
+    if not ids:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "None of this artifact's sources are left."
+        )
+    return ids
 
 
 def _resolve_options(session: Session, fmt: Format, raw: dict | None) -> dict | None:
@@ -157,6 +214,15 @@ _TYPE_PHRASES: dict[ModelType, str] = {
     ModelType.AUDIO_GEN: "an audio model",
 }
 
+# The same types as they appear in `unavailable_code`. The interface keys its
+# translated lines on these: studio-unavailable-text.ts and
+# studio-error-text.ts, keep them in sync.
+_TYPE_CODES: dict[ModelType, str] = {
+    ModelType.TEXT_GEN: "chat",
+    ModelType.IMAGE_GEN: "image",
+    ModelType.AUDIO_GEN: "audio",
+}
+
 # Sentence order, which is not the order a format lists its types in: the
 # pipeline takes them in the order it runs them, and a reader wants the same
 # phrasing whichever format they are looking at.
@@ -167,8 +233,18 @@ _TYPE_ORDER: tuple[ModelType, ...] = (
 )
 
 
-def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    """Whether this format can run, and the one line saying why not.
+def _require_available(session: Session, fmt: Format) -> None:
+    """Refuse a format that cannot run, with the listing's line and its code."""
+    missing = _missing(session, fmt)
+    if missing:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {"message": _required(missing), "code": _required_code(missing)},
+        )
+
+
+def _missing(session: Session, fmt: Format) -> list[ModelType]:
+    """The model types this format needs and does not have.
 
     Every missing type is named, not the first one noticed. A format needing
     two of them reported only whichever `requires_model_types` happened to list
@@ -181,16 +257,24 @@ def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
         if session.get(SelectedModel, model_type) is None
     ]
     if missing:
-        return False, _required(missing)
+        return missing
     if ModelType.AUDIO_GEN in fmt.requires_model_types:
         try:
             speech_selected(session)
         except ModelResolutionError:
-            return False, _required([ModelType.AUDIO_GEN])
-    return True, None
+            return [ModelType.AUDIO_GEN]
+    return []
 
 
 def _required(missing: list[ModelType]) -> str:
-    """"Needs a chat model and an image model", in a fixed reading order."""
+    """ "Needs a chat model and an image model", in a fixed reading order."""
     phrases = [_TYPE_PHRASES[kind] for kind in _TYPE_ORDER if kind in missing]
     return f"Needs {' and '.join(phrases)}"
+
+
+def _required_code(missing: list[ModelType]) -> str:
+    """`needs_chat_image`: the same line as a code the interface has its own
+    text for, in every language. The English stays its fallback."""
+    return "needs_" + "_".join(
+        _TYPE_CODES[kind] for kind in _TYPE_ORDER if kind in missing
+    )

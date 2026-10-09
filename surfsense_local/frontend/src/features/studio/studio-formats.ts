@@ -44,7 +44,7 @@ const FORMAT_LABELS: Record<string, () => string> = {
   summary: () =>
     intl.formatMessage({
       id: "studio_format_summary_label",
-      defaultMessage: "Summary",
+      defaultMessage: "Markdown",
     }),
   docx: () =>
     intl.formatMessage({

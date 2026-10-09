@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, renderHook, waitFor } from "@testing-library/react"
+import { createElement, type ReactNode } from "react"
+import { QueryClientProvider } from "@tanstack/react-query"
+import {
+  cleanup,
+  renderHook as renderBareHook,
+  waitFor,
+} from "@testing-library/react"
 import { toast } from "sonner"
+
+import { createQueryClient } from "@/lib/query-client"
 
 import { useStudio } from "./use-studio"
 import type { Artifact } from "./api"
@@ -23,6 +31,9 @@ function artifact(overrides: Partial<Artifact> = {}): Artifact {
     error_message: null,
     created_at: "2026-09-15T00:00:00Z",
     updated_at: "2026-09-15T00:00:00Z",
+    version: null,
+    spec_kind: null,
+    refinable: false,
     ...overrides,
   }
 }
@@ -64,6 +75,19 @@ function studioApi(lists: Artifact[][]) {
   return { stream, listReads: () => listed }
 }
 
+/** Each hook with its own query cache, as the app gives it one. */
+function renderHook<Result, Props>(
+  hook: (props: Props) => Result,
+  options?: { initialProps: Props }
+) {
+  const client = createQueryClient()
+  return renderBareHook(hook, {
+    ...options,
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children),
+  })
+}
+
 type Studio = { current: ReturnType<typeof useStudio> }
 
 /** The list as it was at mount, then the workspace saying it changed. */
@@ -101,7 +125,9 @@ describe("useStudio", () => {
   })
 
   it("reads a running list again after a while, in case a notice was lost", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    })
     const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
 
     const { result } = renderHook(() => useStudio(1))
@@ -146,6 +172,40 @@ describe("useStudio", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.artifacts[0]?.status).toBe("ready")
+  })
+
+  it("keeps a created artifact when a list read started before it lands after", async () => {
+    const stream = eventStream()
+    let answerSecondRead!: (response: Response) => void
+    let listed = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (init?.method === "POST") {
+          return Response.json(artifact({ id: 2, status: "pending" }))
+        }
+        if (listed++ === 0)
+          return Response.json([artifact({ status: "ready" })])
+        return new Promise<Response>((resolve) => {
+          answerSecondRead = resolve
+        })
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    stream.connected()
+    stream.artifactsChanged([1])
+    await waitFor(() => expect(listed).toBe(2))
+    await result.current.create({ format: "summary", document_ids: [1] })
+    // The read began before the job existed, so its answer lacks it.
+    answerSecondRead(Response.json([artifact({ status: "ready" })]))
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(result.current.artifacts.map((a) => a.id)).toEqual([2, 1])
   })
 
   it("shows a success toast once a running artifact turns ready", async () => {
@@ -253,6 +313,63 @@ describe("useStudio", () => {
     expect(toast.error).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
   })
+
+  it("does not toast when the agent’s document script fails", async () => {
+    const scriptDocument = {
+      format: "docx",
+      version: { root_id: 1, number: 1, parent_id: null },
+      spec_kind: "python",
+      refinable: false,
+    } as const
+    const api = studioApi([
+      [artifact(scriptDocument)],
+      [
+        artifact({
+          ...scriptDocument,
+          status: "failed",
+          error_message:
+            "Script error: AttributeError: 'Document' object has no attribute",
+        }),
+      ],
+    ])
+
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
+
+    await waitFor(() =>
+      expect(result.current.artifacts[0]?.status).toBe("failed")
+    )
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("toasts when a document script fails for a reason outside it, since a retry can finish it", async () => {
+    const scriptDocument = {
+      format: "docx",
+      version: { root_id: 1, number: 1, parent_id: null },
+      spec_kind: "python",
+      refinable: false,
+    } as const
+    const api = studioApi([
+      [artifact(scriptDocument)],
+      [
+        artifact({
+          ...scriptDocument,
+          status: "failed",
+          error_message: "database is locked",
+        }),
+      ],
+    ])
+
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Summary of the source failed",
+        expect.anything()
+      )
+    )
+  })
 })
 
 describe("useStudio formats freshness", () => {
@@ -286,6 +403,116 @@ describe("useStudio formats freshness", () => {
           String(path).includes("/studio/formats")
         )
       ).toHaveLength(2)
+    )
+  })
+})
+
+describe("useStudio refine", () => {
+  const v1 = artifact({
+    id: 40,
+    format: "docx",
+    title: "Quarterly report",
+    status: "ready",
+    version: { root_id: 40, number: 1, parent_id: null },
+    spec_kind: "markdown",
+    refinable: true,
+  })
+
+  function refineApi(answer: Response) {
+    const calls: { path: string; init?: RequestInit }[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push({ path, init })
+        if (path.endsWith("/events")) return new Response(null, { status: 204 })
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (path.endsWith("/refine")) return answer.clone()
+        return Response.json([v1])
+      })
+    )
+    return calls
+  }
+
+  it("puts the next version in the list as soon as the API takes it", async () => {
+    const v2 = {
+      ...v1,
+      id: 41,
+      status: "pending" as const,
+      version: { root_id: 40, number: 2, parent_id: 40 },
+    }
+    const calls = refineApi(Response.json(v2))
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await result.current.refine(40, "Add a chart of the revenue")
+
+    const sent = calls.find((call) => call.path === "/artifacts/40/refine")
+    expect(sent?.init?.method).toBe("POST")
+    expect(JSON.parse(String(sent?.init?.body))).toEqual({
+      instruction: "Add a chart of the revenue",
+    })
+    await waitFor(() =>
+      expect(result.current.artifacts.map((each) => each.id)).toEqual([41, 40])
+    )
+  })
+
+  it("rejects with the API’s reason and leaves the list as it was", async () => {
+    refineApi(
+      Response.json(
+        { detail: "This document is too long for the selected model." },
+        { status: 422 }
+      )
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    await expect(result.current.refine(40, "Shorter")).rejects.toThrow(
+      "This document is too long for the selected model."
+    )
+    expect(result.current.artifacts.map((each) => each.id)).toEqual([40])
+  })
+})
+
+describe("useStudio decide all", () => {
+  it("puts the version accepting every change in the list as soon as the API takes it", async () => {
+    const v1 = artifact({
+      id: 50,
+      format: "docx",
+      title: "MSA_Acme (revised)",
+      status: "ready",
+      version: { root_id: 50, number: 1, parent_id: null },
+    })
+    const v2 = {
+      ...v1,
+      id: 51,
+      status: "pending" as const,
+      version: { root_id: 50, number: 2, parent_id: 50 },
+    }
+    const calls: { path: string; init?: RequestInit }[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push({ path, init })
+        if (path.endsWith("/events")) return new Response(null, { status: 204 })
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (path.endsWith("/accept-all")) return Response.json(v2)
+        return Response.json([v1])
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await result.current.decideAll(50, "accept_all")
+
+    const sent = calls.find(
+      (call) => call.path === "/artifacts/50/revisions/accept-all"
+    )
+    expect(sent?.init?.method).toBe("POST")
+    await waitFor(() =>
+      expect(result.current.artifacts.map((each) => each.id)).toEqual([51, 50])
     )
   })
 })

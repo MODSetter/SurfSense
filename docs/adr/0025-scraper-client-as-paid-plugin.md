@@ -1,6 +1,6 @@
 # ADR 0025: The hosted scraper API client ships as a paid plugin whose source lives in this repo
 
-- **Status:** Accepted
+- **Status:** Accepted; paid plugin source living in `plugins/` under Apache-2.0 superseded by [ADR 0047](0047-premium-plugins-are-source-available.md)
 - **Date:** 2026-09-22
 - **Supersedes:** the pivot plan's Plugins decisions ([Pivot plan L55–60](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L55-L60)), its private-repo decision ([Pivot plan L46](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L46)) and its T+7 client paragraph ([Pivot plan L239](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L239)); the plugin spec's network rule ([Plugin spec L31](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/plugins/00-umbrella.md#L31)) and trial rule ([Plugin spec L34](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/plugins/00-umbrella.md#L34))
 - **Source:** maintainer decision, 22 Sep 2026 (no permalink)

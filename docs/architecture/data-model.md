@@ -59,13 +59,23 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | `status` | `pending` by default; `cancelled` arrived in `0011` |
 | `error_message` | why a job failed, at most 500 characters; cleared by retry and by a later success |
 | `content` | the markdown body: extracted text, the note itself, or an artifact's body |
-| `content_hash` | declared but never written |
+| `content_hash` | SHA-256 of a file's bytes, equal to `dedup_key` for an uploaded or imported file; `0025` copied it from `dedup_key`; null for notes and artifacts |
 | `dedup_key` | SHA-256 of an uploaded or imported file's bytes; null for notes and artifacts |
 | `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids |
 | `embedding_index_id` | foreign key to `embedding_indexes`: the index its chunks were embedded into; null until its first ingest |
+| `folder_id` | foreign key to `folders`, `ON DELETE SET NULL`, from `0025`: every `FILE` and `NOTE` is filed; null is an unfiled artifact, or a source the backstop unfiled, which scopes and the tree treat as the top of the Library |
 | `created_at`, `updated_at` | |
 
-`documents_workspace` indexes `workspace_id`. `documents_workspace_dedup_key` is unique on `(workspace_id, dedup_key)` where `dedup_key IS NOT NULL`, so dedup is per workspace and rows without a key stay out of it. Routes and behaviour are in [`documents.md`](documents.md).
+`documents_workspace` indexes `workspace_id` and `documents_folder` indexes `folder_id`. `documents_folder_dedup_key` is unique on `(workspace_id, folder_id, dedup_key)` where `dedup_key IS NOT NULL`, so dedup is per folder: a copied folder keeps a file that already sits in another one, and rows without a key stay out of it. Routes and behaviour are in [`documents.md`](documents.md).
+
+### `source_roots` and `folders`
+
+| Table | Columns | Notes |
+|---|---|---|
+| `source_roots` | `id`, `workspace_id`, `kind`, `name`, `name_key`, `disk_path`, `state`, `created_at`, `updated_at` | `kind` is `managed` or `linked`; each workspace has one `managed` root, the Library (partial unique index), made by `0025` for existing workspaces and on first use otherwise. Linked roots are designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)); `state` already holds every value they will need, so adding one never rebuilds the table |
+| `folders` | `id`, `workspace_id`, `root_id`, `parent_id`, `name`, `name_key`, `disk_name`, `role`, `state`, `trash_kind`, `trashed_at`, `created_at`, `updated_at` | a root's own folder has no parent and is depth 0; Library folders go 1 to 8 deep. `name_key` is the name in NFC, case-folded in Python, unique among live siblings; `role` is one of `evidence`, `target`, `playbook`, `library`. `state` is `ready`, or `deleting` while a delete runs, which takes the subtree out of every scope at once; `placeholder`, `trashed` and `trash_kind` are for linked roots and the Trash, not built |
+
+Both cascade with their workspace, and `folders` with its root and its parent.
 
 ### `chunks`
 
@@ -104,10 +114,10 @@ One `active` row, enforced in code rather than by a singleton constraint, becaus
 
 | Table | Columns | Notes |
 |---|---|---|
-| `chat_threads` | `id`, `workspace_id`, `title`, `opencode_session_id`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat". `opencode_session_id`, from `0021`, is set on a thread the agent answers, whose turns live in that opencode session rather than in `chat_messages` ([`chat.md`](chat.md#agent-threads)) |
+| `chat_threads` | `id`, `workspace_id`, `title`, `opencode_session_id`, `source_scope`, `history_start_message_id`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat". `opencode_session_id`, from `0021`, is set on a thread the agent answers, whose turns live in that opencode session rather than in `chat_messages` ([`chat.md`](chat.md#agent-threads)). `source_scope`, JSON from `0024`, holds the sources ticked for the thread; null means every source ([`chat.md`](chat.md#source-scope)). `history_start_message_id`, from `0026`, is the oldest message the model is still sent once history was trimmed, and `NULL` until it first was ([`chat.md`](chat.md#message-assembly)) |
 | `chat_messages` | `id`, `chat_thread_id`, `role`, `content`, `created_at`, `completed_at` | `role` is `user`, `assistant` or `system`; `completed_at` arrived in `0002` |
 
-`content` is JSON: `{"text"}` for a user turn, plus `images: [{"key", "mime", "size_bytes", "sha256"}]` when it carried any, and `{"text", "citations"}` for an assistant turn, whose text carries `[citation:<chunk_id>]` markers. The server reads `text` to build the model's history, and a user turn's `images` for the newest turn that carried some; the citations are for the UI. Imported user turns also carry an empty `citations` list. Messages are indexed on `(chat_thread_id, created_at)` and cascade with their thread. Visibility, authorship, cloning, turn ids, token usage and LangGraph checkpoints are left out. See [`chat.md`](chat.md).
+`content` is JSON: `{"text"}` for a user turn, plus `images: [{"key", "mime", "size_bytes", "sha256"}]` when it carried any, and `source_scope` with `resolved: {"count", "ids_sha256"}` when it was grounded on a scope, and `{"text", "citations"}` for an assistant turn, whose text carries `[citation:<chunk_id>]` markers. The server reads `text` to build the model's history, and a user turn's `images` for the newest turn that carried some; the citations are for the UI. Imported user turns also carry an empty `citations` list. Messages are indexed on `(chat_thread_id, created_at)` and cascade with their thread. Visibility, authorship, cloning, turn ids, token usage and LangGraph checkpoints are left out. See [`chat.md`](chat.md).
 
 ### `artifacts` and `artifact_files`
 
@@ -117,11 +127,11 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 |---|---|
 | `document_id` | foreign key, unique and cascading: one sidecar per document |
 | `workspace_id` | foreign key, cascading |
-| `chat_thread_id` | foreign key, set null: clearing a chat must not delete what it produced |
+| `chat_thread_id` | foreign key, set null: clearing a chat must not delete what it produced; set on each version the agent renders |
 | `format` | text, not an enum |
 | `generation` | integer, `CHECK (generation > 0)`, bumped by each regenerate |
 | `created_by_tool_call_id`, `updated_by_tool_call_id` | provenance; a REST job passes none |
-| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, and quiz or flashcard progress |
+| `artifact_metadata` | JSON: the source ids, prompt and options the job was created with, the `source_scope` it was resolved from and the `grounded_document_ids` that reached the model, quiz or flashcard progress, and for a Word document or PDF its `spec`, `version` and `recipe` ([`studio.md`](studio.md#word-and-pdf)); for a revised copy of the user's file its `revision`, which also records the `clean` and `external` Word files kept beside the primary in the artifact's folder, since `artifact_files.role` allows only `primary` and `preview` ([`studio.md`](studio.md#revised-copies)) |
 
 `artifacts` has no status column; its status is its document's. `artifact_files` keeps one immutable blob per role: `role` (`primary` or `preview`), `storage_key` (the path relative to the data directory), `original_filename`, `mime_type`, `size_bytes` (`CHECK > 0`) and `checksum_sha256`, unique on `(artifact_id, role)` and on `storage_key`. There is no `storage_backend` column, since there is one backend. See [`studio.md`](studio.md).
 
@@ -147,11 +157,11 @@ Connections are in [`connections.md`](connections.md); selection and onboarding 
 | `license_state` | `id`, `certificate`, `imported_at`, `clock_watermark` | a singleton; plan and expiry are re-derived from the certificate on every read, and `clock_watermark` is the highest instant ever seen |
 | `egress_destinations` | `destination`, `enabled`, `last_call_at` | one row per host; `enabled` defaults to false |
 
-A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Rows under the earlier names `model_download`, `model_search` and `image_model_pull` are no longer read; revision `0012` renamed `ollama_pull` to `model_download` before that change. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
+A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Revision `0027` removes rows under the earlier names `model_download`, `model_search` and `image_model_pull`, carrying a grant to `host:huggingface.co` only where search and a download were both allowed and the host had no answer of its own. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
 
 ### `plugin_runs`
 
-One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/runtime/01-process.md)).
+One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/bundles/runtime/01-process.md)).
 
 | Column | Notes |
 |---|---|
@@ -168,6 +178,7 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 ```text
 <data dir>/                       ~/.surfsense by default
 ├── surfsense.db
+├── backups/<from>-<to>.db       the database as it was before a migration; the newest two are kept
 ├── huey.db                       three queues, ingest, studio and plugins, in one file
 └── data/
     └── workspaces/<workspace_id>/
@@ -175,11 +186,14 @@ One row per run of a plugin's action. What the run produced is not here: the plu
         │   └── <file name>       an uploaded or imported file, under its own name
         ├── chats/<thread_id>/
         │   └── <sha256>.<ext>    an image a turn carried, normalised to PNG or JPEG
-        └── artifacts/<artifact_id>/
-            └── primary.<ext>     the rendered file; a preview would sit beside it
+        ├── artifacts/<artifact_id>/
+        │   └── primary.<ext>     the rendered file; a preview would sit beside it
+        └── agent/                the agent's working files (hosts with opencode staged)
+            ├── text/<document_id>-<sha16>.md   one per version of a source's text
+            └── threads/<thread_id>/            an agent thread's sources/ and outputs/
 ```
 
-Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory. The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
+Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory, an agent thread's folder under `agent/threads/` included. `agent/text/` holds no row's file: each thread's `sources/` hard-links into it, and a file no thread links is swept ([`agent.md`](agent.md#folders)). The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
 
 ## Entity graph
 
@@ -247,6 +261,7 @@ erDiagram
     int id PK
     int workspace_id FK
     text title
+    int history_start_message_id
     datetime created_at
     datetime updated_at
   }
@@ -354,15 +369,22 @@ erDiagram
 | `0014` | `0014_connection_catalog_provider.py` | `provider_connections.catalog_provider`, `custom` for every existing connection; downgrading drops the column in place, because a table rebuild would cascade into `selected_models` |
 | `0015` | `0015_image_selection_by_build.py` | a local `image_gen` selection is renamed from the old list's name to its curated build's id (`stable-diffusion-1.5` to `v1-5-pruned_Q4_0`, and the two SDXL models); the map is frozen in the migration, and downgrading reverses it |
 | `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
+| `0017` | `0017_keyword_index_keeps_combining_marks.py` | the keyword index rebuilt from `chunks` with combining marks kept inside a word |
+| `0018` | `0018_sdcpp_edit_and_video.py` | `selected_models` rebuilt so `sdcpp` may hold `image_edit` and `video_gen`; downgrading drops such a selection |
 | `0019` | `0019_selection_settings.py` | `selected_models.settings`, a nullable JSON column added in place; its first entry is a server audio model's `voices` |
 | `0020` | `0020_plugin_runs.py` | `plugin_runs` |
 | `0022` | `0022_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
+| `0024` | `0024_thread_source_scope.py` | `chat_threads.source_scope`, by a plain `ALTER TABLE`; no row is backfilled, so every older thread uses every source |
+| `0025` | `0025_source_roots_and_folders.py` | `source_roots` and `folders`; a Library root and root folder per workspace; `documents.folder_id` by a plain `ALTER TABLE`; every `FILE` and `NOTE` filed, an imported `folder_path` becoming a chain of folders (case and normalization variants merged, levels past 8 joined with " / " into the eighth); `content_hash` filled from `dedup_key`; the dedup index swapped to per folder by `DROP` and `CREATE INDEX` |
+| `0026` | `0026_chat_history_start.py` | `chat_threads.history_start_message_id`, by a plain `ALTER TABLE`; no row is backfilled, so a thread sends its whole history until it first outgrows its budget |
+| `0027` | `0027_retire_pre_host_egress_grants.py` | egress rows under `model_download`, `model_search` and `image_model_pull` removed; `host:huggingface.co` allowed only where search and a download were both allowed and the host had no row; downgrading changes nothing |
 
+- Before the API applies a pending revision to an existing database, `upgrade_to_head` writes a `VACUUM INTO` copy to `<data>/backups/<from>-<to>.db` (via `.partial`, renamed once complete) and keeps the newest two ([`migration_snapshot.py`](../../surfsense_local/backend/shared/migration_snapshot.py)). A new database or one at head writes none. If the copy fails, nothing migrates and the API start fails with the reason. To restore: quit SurfSense, replace `surfsense.db` with the snapshot, and start the app.
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
-- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py` and `test_migration_0014.py` beside it test what those revisions change.
+- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py` and `test_migration_0027.py` beside it test what those revisions change.
 
 ## Known gaps
 
-- Documents have no folders: there is no `folder_id`, and import keeps the hosted folder path in `document_metadata` instead. This needs a design.
+- Deleting a folder is permanent: the Trash is designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)).

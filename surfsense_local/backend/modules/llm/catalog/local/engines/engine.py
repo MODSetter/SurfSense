@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol
 
 from modules.llm.catalog.local.build import Build, BuildFile
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import LocalRow
@@ -20,6 +21,7 @@ class InstallStep:
     kind: str
     message: str
     progress: float | None = None
+    code: InstallCode | None = None
 
 
 class LocalEngine(Protocol):
@@ -28,6 +30,8 @@ class LocalEngine(Protocol):
     # and the provider those selections name.
     model_types: tuple[ModelType, ...]
     provider: str
+    # Electron runs its server from the selection, so an empty slot stops it.
+    server_follows_selection: bool
 
     @property
     def folder(self) -> Path | None:
@@ -59,5 +63,10 @@ class LocalEngine(Protocol):
     def after_install(self, model_id: str) -> AsyncIterator[InstallStep]: ...
 
     def after_remove(self) -> None: ...
+
+    async def release(self, model_id: str) -> None:
+        """Make its server let go of `model_id`'s files, after a delete found
+        one held open."""
+        ...
 
     def on_startup(self) -> None: ...

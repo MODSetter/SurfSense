@@ -3,12 +3,15 @@ import { ComposerPrimitive, useAuiState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
 import { ArrowUp02Icon, CircleStopIcon } from "@/components/ui/icons"
+import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
 import { ComposerImage } from "./attached-image"
 import { ComposerAddMenu } from "./composer-add-menu"
+import { ModePicker } from "./modes/mode-picker"
+import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
 import { QUESTION_MAX_CHARS } from "./question-limit"
 import { canSkipThinking } from "./thinking-preference"
@@ -127,8 +130,11 @@ export function ChatComposer({
   onModelSetup,
   onModelSelected,
   readsImages,
+  describedBy,
   onUploadSources,
   isUploadingSources = false,
+  threadMode = null,
+  onNewChat,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -141,11 +147,22 @@ export function ChatComposer({
   blockedPlaceholder?: string
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
-  // Attach and paste take images only while the selected model reads them.
+  // Attach and paste take images only while the selected model reads them,
+  // and the chat is not Agentic.
   readsImages: boolean
+  // The conversation the composer writes into, named for a screen reader.
+  describedBy?: string
   onUploadSources?: (files: File[]) => void
   isUploadingSources?: boolean
+  // The open chat's mode, which it keeps; null for a new chat or one being made.
+  threadMode?: ChatMode | null
+  // Starts a new chat, for an open chat's offer of the other mode.
+  onNewChat?: () => void
 }) {
+  const newChatMode = useNewChatMode(model)
+  // The agent reads no attached images yet: an Agentic chat takes none. Images
+  // already attached stay in view, so they can be removed.
+  const agentic = (threadMode ?? newChatMode) === "agentic"
   // Said only once the cap is reached: that is the moment typing, or the tail
   // of a paste, stops landing, and the one moment it needs explaining.
   const atLimit = useAuiState(
@@ -163,7 +180,11 @@ export function ChatComposer({
   const addMenu = (className: string) => (
     <ComposerAddMenu
       readsImages={readsImages}
-      thinking={model ? { canSkip: canSkipThinking(model) } : undefined}
+      agentic={agentic}
+      // The agent never reads the switch, open chat or new, so it is not offered.
+      thinking={
+        model && !agentic ? { canSkip: canSkipThinking(model) } : undefined
+      }
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
       className={className}
@@ -196,6 +217,7 @@ export function ChatComposer({
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
+          aria-describedby={describedBy}
           // Held whenever a send could not go anywhere: no model, a model that
           // can't be used, or egress to it still off.
           disabled={
@@ -226,7 +248,7 @@ export function ChatComposer({
                   })
           }
           submitMode="enter"
-          addAttachmentOnPaste={readsImages}
+          addAttachmentOnPaste={readsImages && !agentic}
           rows={1}
           maxLength={QUESTION_MAX_CHARS}
           aria-label={intl.formatMessage({
@@ -236,7 +258,10 @@ export function ChatComposer({
         />
         {placement === "center" ? (
           <>
-            {addMenu("absolute bottom-2 left-1.5")}
+            <div className="absolute bottom-2 left-1.5 flex items-center gap-1">
+              {addMenu("")}
+              {model ? <ModePicker model={model} threadMode={null} /> : null}
+            </div>
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
               <SourceCount count={sourceCount} />
               <ModelControl
@@ -264,9 +289,10 @@ export function ChatComposer({
       ) : null}
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
-          {/* Keeps its line and leaves the model name what is left, never less
-          than 7rem, so a long translation truncates the name before wrapping. */}
-          <p className="max-w-[calc(100%-7rem)] shrink-0 text-left text-[11px] text-muted-foreground select-none">
+          {/* Keeps its line and leaves the mode and the model name what is
+          left, never less than 13rem, so a long translation truncates the
+          name before wrapping. */}
+          <p className="max-w-[calc(100%-13rem)] shrink-0 text-left text-[11px] text-muted-foreground select-none">
             {limitNotice ? (
               <span role="status">{limitNotice}</span>
             ) : !model || providerAvailable ? (
@@ -284,6 +310,13 @@ export function ChatComposer({
             )}
           </p>
           <div className="flex min-w-0 items-center gap-1">
+            {model && threadMode !== null ? (
+              <ModePicker
+                model={model}
+                threadMode={threadMode}
+                onNewChat={onNewChat}
+              />
+            ) : null}
             <ModelControl
               model={model}
               onModelSetup={onModelSetup}

@@ -121,6 +121,8 @@ def test_a_large_selection_without_a_prompt_reaches_every_document(
     """The budget is shared, so the last document is not left out; a short one
     is read whole and what it leaves over goes to the others."""
     monkeypatch.setattr(gather, "BUDGET_CHARS", 3_000)
+    # Shares of 1,000 stay in the even-share regime this test is about.
+    monkeypatch.setattr(gather, "MIN_SHARE_CHARS", 500)
     short = log("note", 2)
     workspace_id, ids = select(session, log("pump", 60), short, log("valve", 60))
     seen = grounding(monkeypatch, "quiz")
@@ -140,6 +142,8 @@ def test_a_prompt_reaches_its_answer_in_the_middle_of_the_last_document(
     """The passage that answers the prompt is found wherever it sits, and every
     other document still contributes."""
     monkeypatch.setattr(gather, "BUDGET_CHARS", 3_000)
+    # Shares of 1,000 stay in the even-share regime this test is about.
+    monkeypatch.setattr(gather, "MIN_SHARE_CHARS", 500)
     workspace_id, ids = select(
         session, log("pump", 60), log("valve", 60), log("probe", 60, answer_at=30)
     )
@@ -169,3 +173,51 @@ def test_a_summary_reads_each_document_from_its_start_even_with_a_prompt(
         "Line 0 of the pump log",
         "Line 0 of the probe lo",
     ]
+
+
+def test_a_selection_too_big_to_share_takes_its_best_passages(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Below the minimum share, every document cut to a sliver says nothing, so
+    the scope's best passages are taken instead and the job records which."""
+    monkeypatch.setattr(gather, "BUDGET_CHARS", 3_000)
+    logs = [log(f"unit{n}", 60) for n in range(8)]
+    workspace_id, ids = select(
+        session, *logs, log("probe", 60, answer_at=30), log("pump", 60)
+    )
+    seen = grounding(monkeypatch, "quiz")
+
+    artifact = make(session, workspace_id, ids, "quiz", "RTGX7 generator")
+    run(artifact.id)
+
+    sources = seen[0]
+    assert sum(len(s.content) for s in sources) <= 3_000
+    assert any(ANSWER in s.content for s in sources)
+    session.refresh(artifact)
+    grounded = artifact.artifact_metadata["grounded_document_ids"]
+    assert grounded == [s.document_id for s in sources]
+    assert ids[8] in grounded
+    assert len(grounded) < len(ids)
+
+
+def test_a_selection_read_whole_records_every_source_as_grounding(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A selection read whole records every source as grounding."""
+    workspace_id, ids = select(session, log("pump", 5), log("valve", 5))
+    grounding(monkeypatch, "quiz")
+
+    artifact = make(session, workspace_id, ids, "quiz", None)
+    run(artifact.id)
+
+    session.refresh(artifact)
+    assert artifact.artifact_metadata["grounded_document_ids"] == ids
+
+
+def test_a_budget_passed_in_is_honoured(session: Session, stub_model: None) -> None:
+    """The model's own profile can set the budget; the default is 24,000."""
+    _, ids = select(session, log("pump", 60), log("valve", 60))
+
+    sources = gather.gather(session, ids, None, budget_chars=1_000)
+
+    assert sum(len(s.content) for s in sources) <= 1_000

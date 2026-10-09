@@ -46,10 +46,19 @@ QUESTION_TOKENS = 1024
 # drops a turn rather than overflowing the window.
 IMAGE_TOKENS = 1400
 
+# The cheapest image the code knows: Gemma 3's fixed 256. A refusal prices at
+# this, so it only stops a turn that overflows even at Gemma 3's 256.
+SMALLEST_IMAGE_TOKENS = 256
+
 # What MessageText refuses past, at the wire (modules/chat/schemas.py). One
 # global cap rather than one per window: it runs before any model is resolved,
 # and the budget prices the question at the same 1,024 for every window.
 QUESTION_CHARS = QUESTION_TOKENS * CHARS_PER_TOKEN
+
+# How far under its budget history is cut once it overflows, so the next turns
+# fit without moving where it starts. Cut to the brim, every later turn moved
+# it, and the runtime reuses a prompt only up to its first changed token.
+HISTORY_HEADROOM = 0.25
 
 # Today's number, kept as the fallback for a window this module cannot see:
 # unchanged so a remote model with no reported `n_ctx` behaves exactly as it
@@ -81,3 +90,16 @@ def answer_max_tokens(n_ctx: int | None) -> int | None:
     a limit that was never really theirs.
     """
     return ANSWER_RESERVE_TOKENS if n_ctx is not None else None
+
+
+def image_room(n_ctx: int | None, text_chars: int) -> int | None:
+    """The most images the window could take, or None when it is unknown.
+
+    A lower bound on the turn's cost: the answer reserve, the turn's own text
+    and Gemma 3's 256 per image. IMAGE_TOKENS stays the price the history trim
+    uses; as a limit it would refuse turns Gemma 3 answers.
+    """
+    if n_ctx is None:
+        return None
+    left = n_ctx - ANSWER_RESERVE_TOKENS - text_chars // CHARS_PER_TOKEN
+    return max(0, left // SMALLEST_IMAGE_TOKENS)

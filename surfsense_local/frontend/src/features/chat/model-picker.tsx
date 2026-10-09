@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +26,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
+import { capabilityLabel } from "@/features/models/capability/capability-label"
 import { getAvailableGenerationModels } from "@/features/models/chat-candidates/api"
 import { MODELS_QUERY_KEY } from "@/features/models/models-query"
 import {
@@ -230,6 +232,15 @@ export function ModelPicker({
                             </span>
                           ) : null}
                         </span>
+                        {/* Dev builds only; production never shows this badge. */}
+                        {import.meta.env.DEV && candidate.capability_level ? (
+                          <Badge
+                            variant="secondary"
+                            className="h-4 px-1.5 text-[10px]"
+                          >
+                            {capabilityLabel(candidate.capability_level)}
+                          </Badge>
+                        ) : null}
                       </DropdownMenuRadioItem>
                     )
                   })}

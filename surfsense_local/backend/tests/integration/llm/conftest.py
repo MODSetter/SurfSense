@@ -13,6 +13,7 @@ from shared.config import get_llm_settings
 
 INSTALLED = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
 DELETED: list[str] = []
+UNLOADED: list[str] = []
 # Installed models whose preset projector reads images, which the real router
 # lists as `image` input whether or not the model is loaded.
 SEES: set[str] = set()
@@ -50,7 +51,10 @@ class StubRouter(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        if self.path in ("/models/load", "/models/unload"):
+        if self.path == "/models/unload":
+            UNLOADED.append(body["model"])
+            self._json({"success": True})
+        elif self.path == "/models/load":
             self._json({"success": True})
         elif self.path == "/v1/chat/completions":
             self._send(
@@ -103,6 +107,7 @@ def llamacpp_server(
     """
     INSTALLED[:] = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
     DELETED.clear()
+    UNLOADED.clear()
     SEES.clear()
     models = tmp_path_factory.mktemp("models")
     for name in INSTALLED:
@@ -254,6 +259,13 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
                 for field, text in deltas
             ]
             frames.append("data: [DONE]\n\n")
+            self._send("".join(frames).encode())
+        elif self.path == "/responses":
+            events = [
+                {"type": "response.output_text.delta", "delta": text}
+                for text in CHAT_DELTAS
+            ] + [{"type": "response.completed", "response": {"status": "completed"}}]
+            frames = [f"data: {json.dumps(event)}\n\n" for event in events]
             self._send("".join(frames).encode())
         elif self.path == "/images/generations" and IMAGE_URL is not None:
             self._json({"data": [{"url": IMAGE_URL}]})

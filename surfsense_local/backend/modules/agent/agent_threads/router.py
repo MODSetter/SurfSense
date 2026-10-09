@@ -32,7 +32,7 @@ async def answer_permission(
         client = connect_opencode()
     except AgentUnavailableError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    folder = get_storage_settings().agent_working_dir(thread.workspace_id)
+    folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
     async with client:
         try:
             await client.reply(folder, request_id, payload.reply)

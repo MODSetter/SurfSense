@@ -6,6 +6,7 @@ from modules.documents.models import DocumentType
 from modules.plugins.interrupted_runs import fail_interrupted_runs
 from shared.db import import_models
 from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
+from worker.document_script.leftover_run_folders import remove_leftover_run_folders
 from worker.interrupted_documents import fail_interrupted_documents
 from worker.wait_for_schema import wait_for_schema
 
@@ -34,6 +35,8 @@ def consume(name: str) -> None:
     elif queue is ingest_queue:
         fail_interrupted_documents({DocumentType.FILE, DocumentType.NOTE})
     else:
+        # No script runs yet, so every run folder is one a killed worker left.
+        remove_leftover_run_folders()
         fail_interrupted_documents({DocumentType.ARTIFACT})
     logging.getLogger(__name__).info(
         "%s: worker consuming with %s threads", name, workers

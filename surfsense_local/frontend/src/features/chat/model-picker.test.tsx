@@ -97,6 +97,87 @@ describe("composer model picker", () => {
     ).toBeNull()
   })
 
+  it("labels each chat model with how it did in the Agentic tests", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") return Response.json([])
+        if (path === "/llm/connections") {
+          return Response.json([
+            {
+              id: 1,
+              label: "OpenRouter",
+              provider: "openai_compatible",
+              base_url: "https://openrouter.ai/api/v1",
+              has_api_key: true,
+              serves: ["text_gen"],
+              created_at: "2026-10-04T00:00:00Z",
+              updated_at: "2026-10-04T00:00:00Z",
+            },
+          ])
+        }
+        if (path === "/llm/connections/1/models") {
+          const listed = (name: string, capability_level: string) => ({
+            connection_id: 1,
+            connection_label: "OpenRouter",
+            name,
+            types: ["text_gen"],
+            capability_source: "catalog",
+            selectable_for: ["text_gen"],
+            reads_images: true,
+            capability_level,
+          })
+          return Response.json([
+            listed("moonshotai/kimi-k3", "agent"),
+            listed("anthropic/claude-haiku-4.5", "agent_limited"),
+            listed("google/gemma-4-31b-it", "studio_only"),
+            listed("openai/gpt-9", "not_measured"),
+          ])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <ModelPicker
+        model={{
+          model_type: "text_gen",
+          provider: "openai_compatible",
+          connection_id: 1,
+          name: "moonshotai/kimi-k3",
+          updated_at: "2026-10-04T00:00:00Z",
+        }}
+        onModelSelected={vi.fn()}
+        onManageModels={vi.fn()}
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Model moonshotai/kimi-k3. Change model.",
+      })
+    )
+
+    expect(
+      await screen.findByRole("menuitemradio", { name: /kimi-k3.*Agentic$/ })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("menuitemradio", {
+        name: /claude-haiku-4\.5.*Agentic, may need nudges/,
+      })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("menuitemradio", {
+        name: /gemma-4-31b-it.*Low Agentic score/,
+      })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("menuitemradio", { name: /gpt-9.*Not tested/ })
+    ).toBeTruthy()
+  })
+
   it("searches installed models, selects one, and opens model management", async () => {
     const onModelSelected = vi.fn()
     const onManageModels = vi.fn()

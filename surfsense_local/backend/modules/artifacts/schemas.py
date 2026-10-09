@@ -9,18 +9,37 @@ from modules.artifacts.flashcard_progress import (
 )
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
+from modules.artifacts.revised_copies.revision import revision_of
+from modules.artifacts.script_documents.spec import SpecKind, spec_kind
+from modules.artifacts.script_documents.version import version_of
+from modules.artifacts.studio_documents.recipe import shown_spec_kind, studio_made
 from modules.documents.models import DocumentStatus
+from modules.source_scope.schemas import SourceScope
 
 Prompt = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 
 
 class StudioJobCreate(BaseModel):
-    """A request to generate one artifact from a workspace's documents."""
+    """A request to generate one artifact from a workspace's documents.
+
+    `source_scope` is resolved on the server and recorded, so regenerate can
+    re-resolve it. `document_ids` is the older explicit list, used only when no
+    scope is sent.
+    """
 
     format: str
-    document_ids: list[int]
+    source_scope: SourceScope | None = None
+    document_ids: list[int] | None = None
     prompt: Prompt | None = None
     options: dict | None = None
+
+
+class RefineRequest(BaseModel):
+    """What to change in a Word document or PDF; the whole spec is rewritten for it."""
+
+    instruction: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    ]
 
 
 class FormatRead(BaseModel):
@@ -31,6 +50,8 @@ class FormatRead(BaseModel):
     requires_model_types: list[str]
     available: bool
     unavailable_reason: str | None
+    # The reason as a code the interface translates; the prose is its fallback.
+    unavailable_code: str | None = None
 
 
 class ArtifactFileRead(BaseModel):
@@ -99,6 +120,29 @@ class FlashcardOrderUpdate(BaseModel):
     order: list[CardIndex]
 
 
+class ArtifactVersionRead(BaseModel):
+    """Which version of a document an artifact is; the list shows each root once."""
+
+    root_id: int
+    number: int
+    parent_id: int | None
+
+
+class RevisionCountsRead(BaseModel):
+    changes: int
+    comments: int
+
+
+class RevisionRead(BaseModel):
+    """What a revised copy's version came from and holds; counts are a Word version's."""
+
+    derived_from_document_id: int | None
+    source_name: str
+    counts: RevisionCountsRead | None
+    # Operations this version applied; None when it accepted or rejected all.
+    applied: int | None
+
+
 class ArtifactRead(BaseModel):
     """An artifact and the state of its underlying ARTIFACT document."""
 
@@ -111,6 +155,11 @@ class ArtifactRead(BaseModel):
     error_message: str | None
     created_at: datetime
     updated_at: datetime
+    # None for an artifact that keeps no spec and so has no versions.
+    version: ArtifactVersionRead | None = None
+    spec_kind: SpecKind | None = None
+    # Whether Refine may rewrite this version: a ready Word or PDF Studio made.
+    refinable: bool = False
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactRead":
@@ -125,6 +174,9 @@ class ArtifactRead(BaseModel):
             error_message=document.error_message,
             created_at=artifact.created_at,
             updated_at=artifact.updated_at,
+            version=_version(artifact),
+            spec_kind=shown_spec_kind(artifact.artifact_metadata),
+            refinable=_refinable(artifact),
         )
 
 
@@ -135,6 +187,7 @@ class ArtifactDetail(ArtifactRead):
     files: list[ArtifactFileRead]
     quiz_state: QuizStateRead | None = None
     flashcard_state: FlashcardStateRead | None = None
+    revision: RevisionRead | None = None
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactDetail":
@@ -153,7 +206,40 @@ class ArtifactDetail(ArtifactRead):
             ],
             quiz_state=_quiz_state(artifact),
             flashcard_state=_flashcard_state(artifact),
+            revision=_revision(artifact),
         )
+
+
+def _refinable(artifact: Artifact) -> bool:
+    """The agent's own documents are edited in its chat (07, decision 8)."""
+    meta = artifact.artifact_metadata
+    return (
+        artifact.document.status is DocumentStatus.READY
+        and spec_kind(meta) is not None
+        and studio_made(meta)
+    )
+
+
+def _version(artifact: Artifact) -> ArtifactVersionRead | None:
+    version = version_of(artifact.artifact_metadata)
+    if version is None:
+        return None
+    return ArtifactVersionRead(
+        root_id=version.root, number=version.number, parent_id=version.parent
+    )
+
+
+def _revision(artifact: Artifact) -> RevisionRead | None:
+    revision = revision_of(artifact.artifact_metadata)
+    if revision is None:
+        return None
+    report = revision.get("report")
+    return RevisionRead(
+        derived_from_document_id=revision.get("derived_from_document_id"),
+        source_name=revision["source_name"],
+        counts=revision.get("counts"),
+        applied=report["applied"] if report else None,
+    )
 
 
 def _quiz_state(artifact: Artifact) -> QuizStateRead | None:

@@ -38,7 +38,13 @@ class FakeOpenAI:
         self.refresh_delay = 0.0
         self.scope = PLAN_SCOPE
         self.authorized: list[dict[str, str]] = []
+        # The client the callback names; another one plays a mixed-up registration.
+        self.callback_client = ISSUED_CLIENT
         self.revoked_refresh: set[str] = set()
+        self.issued_refresh: list[str] = []
+        # Each revocation request's form, as RFC 7009 sends it.
+        self.revocations: list[dict[str, str]] = []
+        self.revocation_down = False
         self.live_access: set[str] = set()
         self._codes: dict[str, dict[str, str]] = {}
         self.models = [
@@ -46,6 +52,8 @@ class FakeOpenAI:
             {"slug": "gpt-hidden", "display_name": "Hidden", "visibility": "hide"},
         ]
         self.answers: list[dict] = []
+        # Set, every answer is refused as the plan's used-up limit.
+        self.limit_reached = False
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.url = f"http://127.0.0.1:{self._server.server_address[1]}"
 
@@ -62,6 +70,7 @@ class FakeOpenAI:
             serial = self._serial
         access = f"at-{serial}"
         self.live_access.add(access)
+        self.issued_refresh.append(f"rt-{serial}")
         return {
             "access_token": access,
             "refresh_token": f"rt-{serial}",
@@ -152,7 +161,7 @@ class FakeOpenAI:
                         {
                             "code": code,
                             "state": params["state"],
-                            "client_id": ISSUED_CLIENT,
+                            "client_id": fake.callback_client,
                         }
                     )
                     self.send_response(302)
@@ -174,10 +183,22 @@ class FakeOpenAI:
                 if self.path == "/api/accounts/oauth/token":
                     form = {k: v[0] for k, v in parse_qs(raw).items()}
                     self._json(*fake._token_reply(form))
+                elif self.path == "/api/accounts/oauth/revoke":
+                    if fake.revocation_down:
+                        self._json(503, {"error": "unavailable"})
+                        return
+                    form = {k: v[0] for k, v in parse_qs(raw).items()}
+                    fake.revocations.append(form)
+                    fake.revoked_refresh.add(form.get("token", ""))
+                    self._json(200, {})
                 elif self.path == "/v1/responses":
                     if not self._authorized():
                         return
                     fake.answers.append(json.loads(raw))
+                    if fake.limit_reached:
+                        code = "subscription_sharing_usage_limit_exceeded"
+                        self._json(429, {"error": {"code": code, "message": "Limit."}})
+                        return
                     events = [
                         {"type": "response.output_text.delta", "delta": "Hi"},
                         {

@@ -190,9 +190,12 @@ On an M2 with roughly 2 GB genuinely free it reported 8192.0 MiB total and
 8192.0 MiB free, physical RAM restated twice. So `system_memory.available_bytes()`
 asks the operating system: `MemAvailable` from `/proc/meminfo` on Linux, free
 plus inactive pages from `vm_stat` on macOS, which is what a large allocation can
-actually claim, and `sysconf` totals as the fallback rather than zero. The figure
+actually claim, `ullAvailPhys` from `GlobalMemoryStatusEx` on Windows, and
+`sysconf` totals as the fallback rather than zero. The figure
 matters because host memory is what separates `PARTIAL` from `TOO_BIG` on a
 discrete card.
+Each reader and its fallbacks are tested against sample `/proc/meminfo` and
+`vm_stat` output and a stand-in `GlobalMemoryStatusEx` ([`test_system_memory.py`](../../../surfsense_local/backend/tests/unit/llm/hardware/test_system_memory.py)).
 
 ### Unified memory is one pool
 
@@ -381,8 +384,10 @@ nothing chooses them.
 cache is padded to 256 cells on every backend, and a sliding-window layer
 allocates `min(pad(n_ctx), pad(n_swa + n_ubatch))`, because the batch being
 processed sits in the cache beside the window it attends to. `n_ubatch` is
-llama-server's default 512, and `n_seq_max` is 1, pinned by the `parallel = 1`
-every preset writes.
+llama-server's default 512. With more than one slot the cache is unified: a
+global layer's cells are shared by every slot, while a sliding layer holds a
+window per slot, `pad(n_swa × slots + n_ubatch)` ([admission](admission.md#slots)).
+Gemma 3 4B's cache at 16,384 is 752 MiB at one slot and 1,232 MiB at four.
 
 **Which layers hold the whole window** (`sliding_window.py`). Three sources, in
 the order llama.cpp consults them: a per-layer flag array in the header, then a
@@ -412,11 +417,12 @@ activation_width = max(12 * n_embd,
                        4 * n_ff,
                        n_used * (2 * n_embd + 3 * n_ff_exp) + 3 * n_ff_shared)
 
-flat  = int((activation_width * 512 + n_vocab * min(512, SLOTS)) * 4 * SAFETY)
+flat  = int((activation_width * 512 + n_vocab * min(512, slots)) * 4 * SAFETY)
 total = flat + 5_120 * n_ctx
 ```
 
-with `SAFETY = 1.20` and `SLOTS = 1`, matching the `parallel = 1` in every preset.
+with `SAFETY = 1.20` and `slots` the count the preset writes, one output row per
+slot decoding at once.
 
 The safety factor and the per-token slope are fitted, not derived, and the module
 says so. Qwen3 1.7B on Metal reported 102.24 MiB at 16,384 and 222.24 MiB at
@@ -512,8 +518,14 @@ against every budget shape.
 A badge is a **warning**, shown only when there is something to warn about. It
 carries a `level` (`none`, `notice` or `refuse`), a verdict and one plain line
 of why, all from `fit/copy.py`, which reads the speed tier and never the
-runtime's name; the renderer shows the text verbatim and picks the style from the
-level. On a discrete GPU:
+runtime's name. Beside the two English sentences it carries the tier as `code`
+(`too_big`, `heavy_spill`, `moderate_spill` or `light_spill`; null when it says
+nothing) and the budget's `uma`. The renderer picks the style from the level and
+words the badge in the interface language from `code` and `uma`, formatting a
+refusal's two sizes from the fit's `need_bytes` and `budget_bytes`
+([`fit-text.ts`](../../../surfsense_local/frontend/src/features/models/local/chat/fit-text.ts), [localization](../localization.md#backend-text));
+for a code it does not know it shows the backend's sentences verbatim. On a
+discrete GPU, in English:
 
 ```text
 tier            level    verdict         reason
@@ -547,8 +559,12 @@ approximate, and the screen puts `~` before it.
 
 ## The load plan
 
-`plan_load()` decides the window and the cache precision once, because llama.cpp
-fixes context at load and it cannot be renegotiated mid-conversation. The ceiling
+`plan_load()` decides the slot count, the window and the cache precision once,
+because llama.cpp fixes them at load and they cannot be renegotiated
+mid-conversation. The slots come first, from `planned_slots()`: four, or on a
+discrete card or the CPU the most from four down to one that stay resident at the
+floor, or four where none would; the window and precision are then planned at that
+count ([admission](admission.md#slots)). The ceiling
 is the model's own `context_length` and the floor is
 `min(CONTEXT_FLOOR_TOKENS, ceiling)`, so the cap beats the floor: a model trained
 to 4,096 tokens is not asked for 8,192.
@@ -564,8 +580,8 @@ to 4,096 tokens is not asked for 8,192.
   choice is per model because on a 6 GB card `f16` KV at a 16K window cannot
   allocate while `q8_0` runs (see Measurements).
 - **One precision rule for every caller.** `planned_precision()` is the same rule
-  with the `f16` fallback, and the curated rows, the recommendation and a searched
-  build's exact check all call it; a searched repo's listed builds are priced
+  with the `f16` fallback, priced at `planned_slots()`, and the curated rows, the
+  recommendation and a searched build's exact check all call it; a searched repo's listed builds are priced
   from their sizes and do not. Before it existed the badge priced `f16` while the
   loader chose `q8_0`, so a row read "Reduced speed" for a model the runtime then
   placed entirely on the device.
@@ -705,7 +721,7 @@ holds the badge to the load, and `tests/unit/chat/test_budget.py` the chat budge
 
 ## Known gaps
 
-- `Device.reports_live_memory`, which tells a live reading from a restated total, is never read, so a device whose `free` merely restates `total`, as WSL2 and macOS do, is trusted as if it had reported free memory. `system_memory.available_bytes()` has no test.
+- `Device.reports_live_memory`, which tells a live reading from a restated total, is never read, so a device whose `free` merely restates `total`, as WSL2 and macOS do, is trusted as if it had reported free memory.
 - The `q8_0` preference is unmeasured: nobody has timed a resident `q8_0` cache against a small `f16` spill on prompt rate, and published figures report quantized caches generating materially slower.
 - The light-spill boundary may be tight: `LIGHT_SPILL` ends at 0.25, which puts Qwen3 8B on a 6 GB RTX 3050 (0.33 by layers) out of the recommendation although its owner runs it without noticeable lag; one prefill and decode measurement of that configuration against the resident 4B settles it, and moving the boundary moves the badge and the star together.
 - The weights term is unconfirmed against the pinned files: the measured model buffers exceeded them (2,680 MiB against 2,382 for the 4B, 1,294 against 1,056 for the 1.7B), probably because those runs used another publisher's build, and if not, the largest term is under-estimated by 12 to 22%.

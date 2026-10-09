@@ -17,4 +17,4 @@ Apple Silicon only. Revisit only if users ask.
 - The release matrix in [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml) has one macOS runner, `macos-15`, marked Apple Silicon only. The `macos-15-intel` entry was removed.
 - Installers ship for four targets: macOS arm64, Windows x64, Linux AppImage and Linux deb.
 - A Mac with an Intel chip has no installer.
-- The plugin interpreter proposal follows the same rule and has no Intel Mac asset ([`proposals/plugins/python/01-interpreter.md`](../proposals/plugins/python/01-interpreter.md)).
+- The plugin interpreter proposal follows the same rule and has no Intel Mac asset ([`proposals/plugins/python/01-interpreter.md`](../proposals/plugins/bundles/python/01-interpreter.md)).

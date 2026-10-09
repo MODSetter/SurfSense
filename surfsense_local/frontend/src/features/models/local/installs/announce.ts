@@ -6,6 +6,7 @@ import { intl } from "@/i18n/intl"
 
 import { MODELS_QUERY_KEY } from "../../models-query"
 import type { InstallJob } from "./api"
+import { installMessage } from "./install-text"
 
 /** What a finished job does to the app, once, whichever page is open. */
 export function announce(client: QueryClient, job: InstallJob) {
@@ -20,6 +21,6 @@ export function announce(client: QueryClient, job: InstallJob) {
       { id: "model-install-cancelled" }
     )
   } else if (job.event.type === "error") {
-    errorToast(job.event.message, { id: "model-install-error" })
+    errorToast(installMessage(job.event), { id: "model-install-error" })
   }
 }

@@ -1,0 +1,55 @@
+"""How many slides or sheets an Office file holds, read from its package without laying it out.
+
+The API has no Office library to spare for a count, and a count needs only
+the package's index parts.
+"""
+
+import lzma
+import re
+import zipfile
+import zlib
+from io import BytesIO
+from pathlib import Path
+
+_SLIDE = re.compile(rb"<(?:\w+:)?sldId\b")
+# The deck's own slide list, which comes before any section's list of the same ids.
+_SLIDE_LIST = re.compile(rb"<(\w+:|)sldIdLst\b[^>]*?(?:/>|>(.*?)</\1sldIdLst>)", re.S)
+# Each worksheet the workbook lists has one relationship of this type; a
+# chartsheet's is `/chartsheet`.
+_WORKSHEET = re.compile(rb'Type="[^"]*/worksheet"')
+
+
+def slide_count(file: bytes | Path) -> int | None:
+    """The deck's slides, hidden ones included; None when it does not open."""
+    found = _part(file, "ppt/presentation.xml")
+    if found is None:
+        return None
+    listed = _SLIDE_LIST.search(found)
+    return len(_SLIDE.findall(listed[2] or b"")) if listed else 0
+
+
+def sheet_count(file: bytes | Path) -> int | None:
+    """The workbook's worksheets, as its summary counts them: a chartsheet holds
+    no cells and counts as a chart. None when it does not open."""
+    found = _part(file, "xl/_rels/workbook.xml.rels")
+    return None if found is None else len(_WORKSHEET.findall(found))
+
+
+def _part(file: bytes | Path, name: str) -> bytes | None:
+    try:
+        with zipfile.ZipFile(
+            BytesIO(file) if isinstance(file, bytes) else file
+        ) as package:
+            return package.read(name)
+    # A damaged entry raises while it inflates, past the archive's own checks.
+    except (
+        zipfile.BadZipFile,
+        KeyError,
+        OSError,
+        zlib.error,
+        lzma.LZMAError,
+        EOFError,
+        NotImplementedError,
+        RuntimeError,
+    ):
+        return None

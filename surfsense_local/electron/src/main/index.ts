@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import {
   app,
@@ -22,6 +23,8 @@ import {
   nameDevBuild,
 } from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
+import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
+import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
 import { allowedExternalUrl } from "./external-url.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
@@ -78,9 +81,12 @@ import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { sessionLog } from "./session-log/session-log.ts"
+import { warnMain } from "./session-log/main-warn.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
 import { appMenu } from "./menu/app-menu.ts"
 import { helpMenu } from "./menu/help-menu.ts"
+import { apiQuitConfirmation } from "./quit/api-quit-confirmation.ts"
+import { confirmQuit } from "./quit/confirm-running-replies.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -101,13 +107,19 @@ const DATA_DIR = join(
 app.setPath("userData", join(DATA_DIR, "electron"))
 
 let sidecars: Sidecars | null = null
+// This run's API, once it answers; the quit asks it about running replies.
+let apiUrl: string | null = null
+// Asked once per quit, whether it began at the menu or at the last window.
+let quitConfirmed = false
+let confirmingQuit = false
 let mainWindow: BrowserWindow | null = null
 let shuttingDown = false
+let stopDocxSnapshots: (() => void) | null = null
 
 function onSidecarCrash(name: string, code: number | null): void {
-  process.stderr.write(`[main] sidecar ${name} crashed (code=${code})\n`)
+  warnMain(sessionLog, `sidecar ${name} crashed (code=${code})`)
   // best-effort: let the renderer show an error instead of hanging
-  BrowserWindow.getAllWindows()[0]?.webContents.send("sidecar:crashed", {
+  mainWindow?.webContents.send("sidecar:crashed", {
     name,
     code,
   })
@@ -250,6 +262,21 @@ function watchAgentConfig(ctx: SidecarContext): void {
   timer.unref()
 }
 
+// The agent looks at the pages of a Word document or deck it made or was given,
+// and only Electron can lay one out (docx-snapshot/). The API has the routes only
+// beside an opencode.
+function serveWordPreviews(ctx: SidecarContext): void {
+  if (ctx.docxSnapshotKey == null) return
+  const page = app.isPackaged
+    ? pathToFileURL(join(app.getAppPath(), "..", "frontend", "dist", "docx-snapshot.html"))
+    : new URL("/docx-snapshot.html", DEV_RENDERER_URL)
+  stopDocxSnapshots = serveDocxSnapshots({
+    apiUrl: `http://${ctx.host}:${ctx.apiPort}`,
+    key: ctx.docxSnapshotKey,
+    print: printInHiddenWindow(page),
+  })
+}
+
 /** Size and mtime, which is enough to notice a rewrite and costs no read. */
 function presetStamp(path: string): string {
   try {
@@ -332,6 +359,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     ctx.opencodeBinariesDir = opencodeBinariesDir
     ctx.opencodePort = await getFreePort(host)
     ctx.opencodePassword = randomBytes(32).toString("base64url")
+    ctx.docxSnapshotKey = randomBytes(32).toString("base64url")
     ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
     ctx.agentDir = join(dataDir, "agent")
     mkdirSync(ctx.agentDir, { recursive: true })
@@ -358,6 +386,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   watchGenerationPreset(ctx)
   watchAudioModels(ctx)
   watchAgentConfig(ctx)
+  serveWordPreviews(ctx)
 
   // gate on the API only; fail fast if it dies during startup. llama-server is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
@@ -597,13 +626,24 @@ function createWindow(apiUrl: string): void {
   mainWindow = win
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null
+    // A hidden Word snapshot window is not the app's; it must not keep the app running.
+    app.quit()
   })
   // Its info level is React's and Vite's development chatter.
   win.webContents.on("console-message", ({ level, message }) => {
     if (level === "warning" || level === "error") sessionLog.append("renderer", message)
   })
 
-  win.on("close", () => saveWindowState(win))
+  win.on("close", (event) => {
+    saveWindowState(win)
+    // Closing the last window quits the app, so it asks as a quit does.
+    if (quitConfirmed || shuttingDown || BrowserWindow.getAllWindows().length > 1)
+      return
+    event.preventDefault()
+    void quitWithConfirmation().then((quit) => {
+      if (quit) win.close()
+    })
+  })
 
   win.once("ready-to-show", () => {
     if (savedState?.maximized ?? true) {
@@ -621,9 +661,25 @@ function createWindow(apiUrl: string): void {
   }
 }
 
+/** Whether to quit: asks, and saves, only while replies are being written. */
+async function quitWithConfirmation(): Promise<boolean> {
+  if (quitConfirmed || apiUrl === null) return true
+  if (confirmingQuit) return false
+  confirmingQuit = true
+  try {
+    quitConfirmed = await confirmQuit(
+      apiQuitConfirmation(apiUrl, () => mainWindow)
+    )
+    return quitConfirmed
+  } finally {
+    confirmingQuit = false
+  }
+}
+
 async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
+  stopDocxSnapshots?.()
   withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
 }
@@ -668,6 +724,7 @@ function main(): void {
       applyLocalePreference(loadLocalePreference())
       applyDevAppIdentity()
       const boot = await bootSidecars()
+      apiUrl = boot.apiUrl
       announceApiUrl(boot.dataDir, boot.apiUrl)
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({
@@ -683,12 +740,11 @@ function main(): void {
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
       app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0)
-          createWindow(boot.apiUrl)
+        if (mainWindow === null) createWindow(boot.apiUrl)
       })
     })
     .catch((err: unknown) => {
-      process.stderr.write(`failed to start: ${String(err)}\n`)
+      warnMain(sessionLog, `failed to start: ${String(err)}`)
       void shutdown().finally(() => app.exit(1))
     })
 
@@ -698,7 +754,9 @@ function main(): void {
   app.on("before-quit", (event) => {
     if (!sidecars || shuttingDown) return
     event.preventDefault()
-    void shutdown().finally(() => app.quit())
+    void quitWithConfirmation().then((quit) => {
+      if (quit) void shutdown().finally(() => app.quit())
+    })
   })
 
   // Ctrl-C / dev loop: before-quit does not fire on a signal, so reap here too
@@ -720,10 +778,10 @@ refuseSpellcheckDownloads(app)
 // file and the port, so hand off to the primary window and quit
 if (app.requestSingleInstanceLock()) {
   app.on("second-instance", () => {
-    const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return
-    if (win.isMinimized()) win.restore()
-    win.focus()
+    // Not getAllWindows()[0]: that is the newest, which may be a hidden Word snapshot window.
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
   })
   main()
 } else {

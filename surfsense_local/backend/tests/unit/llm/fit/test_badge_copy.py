@@ -100,6 +100,23 @@ def test_a_refusal_states_both_numbers() -> None:
     assert "13.6 GB" in text.reason
 
 
+def test_a_badge_names_its_tier_and_memory_for_the_interface_to_word() -> None:
+    """The sentences stay English; the code is what each language has words for,
+    and unified memory is what picks between "the GPU" and "the graphics card"."""
+    spills = {0.1: "light_spill", 0.35: "moderate_spill", 0.7: "heavy_spill"}
+    for fraction, code in spills.items():
+        text = badge(verdict(FitState.PARTIAL, fraction), DISCRETE)
+        assert (text.code, text.uma) == (code, False)
+
+    assert badge(verdict(FitState.TOO_BIG), DISCRETE).code == "too_big"
+    assert badge(verdict(FitState.TOO_BIG), APPLE).uma is True
+
+
+def test_a_build_that_says_nothing_has_no_code() -> None:
+    """Nothing to word, so nothing to look up."""
+    assert badge(verdict(FitState.FITS), DISCRETE).code == ""
+
+
 def test_apple_silicon_is_never_told_about_system_ram() -> None:
     """There is no separate pool to spill into, so no transfer to describe."""
     for fraction in FRACTIONS:

@@ -18,6 +18,7 @@ from modules.llm.fit import (
     estimate,
     planned_precision,
 )
+from modules.llm.fit.plan_load import planned_slots
 
 # Unsloth Studio's size-only rule: activations run about 15% over the weights,
 # and a flat gibibyte covers a working context.
@@ -38,11 +39,18 @@ _SIZE_ONLY = ModelShape(
 def exact_price(
     shape: ModelShape, weights_bytes: int, projector_bytes: int, budget: HardwareBudget
 ) -> FitVerdict:
+    # Priced at the slots the load will serve, so the badge is that load.
+    slots = planned_slots(shape, weights_bytes, budget, mmproj_bytes=projector_bytes)
     precision = planned_precision(
-        shape, weights_bytes, budget, mmproj_bytes=projector_bytes
+        shape, weights_bytes, budget, mmproj_bytes=projector_bytes, slots=slots
     )
     return estimate(
-        shape, weights_bytes, budget, precision=precision, mmproj_bytes=projector_bytes
+        shape,
+        weights_bytes,
+        budget,
+        precision=precision,
+        mmproj_bytes=projector_bytes,
+        slots=slots,
     )
 
 

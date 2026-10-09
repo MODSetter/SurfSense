@@ -38,6 +38,14 @@ datas.append(
         "modules/llm/catalog/local/manifest",
     )
 )
+# Studio's Word and PDF path follows the measured level; without the list a
+# frozen build drafts every remote model by script and every local one by Markdown.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "capability" / "measured" / "capabilities.json"),
+        "modules/llm/capability/measured",
+    )
+)
 
 for package in (
     "onnxruntime",
@@ -60,6 +68,9 @@ for package in (
     "pptx",
     "xlsxwriter",
     "reportlab",
+    # Document scripts may write Excel with it, and the workbook summary reads
+    # every script's workbook with it (worker/studio/script_document/).
+    "openpyxl",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas
@@ -74,7 +85,24 @@ datas += collect_data_files("worker.studio", includes=["**/*.md"])
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 
 # Huey resolves a task by its name, so the module that registers it must be in.
-hiddenimports += ["modules.documents.tasks", "modules.artifacts.tasks"]
+hiddenimports += [
+    "modules.documents.tasks",
+    "modules.artifacts.tasks",
+    "modules.agent.data_analysis.task",
+]
+
+# Document scripts (worker/document_script/) draw charts, and nothing imports
+# matplotlib statically. Naming pyplot runs PyInstaller's own hooks, which add
+# mpl-data and the backend chosen below. savefig to .pdf or .svg, and PdfPages,
+# import their canvas by name, which the hooks do not follow.
+hiddenimports += [
+    "matplotlib.pyplot",
+    "matplotlib.backends.backend_pdf",
+    "matplotlib.backends.backend_svg",
+    # Analysis scripts read spreadsheets with it (modules/agent/data_analysis);
+    # only Docling reaches it statically, so it is named in case that changes.
+    "pandas",
+]
 
 a = Analysis(
     [str(BACKEND / "worker.py")],
@@ -82,6 +110,8 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
+    # Scripts run with MPLBACKEND=Agg; the default would also freeze Tk's GUI.
+    hooksconfig={"matplotlib": {"backends": "Agg"}},
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="worker", console=True)

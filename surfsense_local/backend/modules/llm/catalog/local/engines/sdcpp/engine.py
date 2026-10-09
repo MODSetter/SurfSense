@@ -14,6 +14,7 @@ from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
 )
 from modules.llm.catalog.local.engines.sdcpp.images_folder.legacy import adopt
 from modules.llm.catalog.local.engines.sdcpp.rows.catalog import image_catalog
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.installs import read_installs, record_install
 from modules.llm.catalog.local.manifest import CuratedModel
@@ -27,6 +28,7 @@ class SdCppEngine:
     # sd-server makes images, edits them, and makes video.
     model_types = (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT, ModelType.VIDEO_GEN)
     provider = PROVIDER
+    server_follows_selection = True
 
     def __init__(self, images_dir: Path | None, models: Sequence[CuratedModel]) -> None:
         # None where Electron staged no sd-server: nothing is offered.
@@ -82,10 +84,13 @@ class SdCppEngine:
     async def after_install(self, model_id: str) -> AsyncIterator[InstallStep]:
         # sd-server takes its model at launch, from the selection: nothing to
         # restart and nothing to warm.
-        yield InstallStep("complete", "Model is ready")
+        yield InstallStep("complete", "Model is ready", code=InstallCode.READY)
 
     def after_remove(self) -> None:
         pass
+
+    async def release(self, model_id: str) -> None:
+        pass  # the emptied slot is what stops sd-server
 
     def on_startup(self) -> None:
         """Record image models the old hard-coded list downloaded, once."""

@@ -1,22 +1,19 @@
 // `pnpm build:opencode`: stage the pinned opencode and the ripgrep it greps
 // with into electron/opencode, swapped in whole once both report their versions.
 // The installer downloads nothing, so this is the only fetch either one gets.
-import { execFileSync } from "node:child_process"
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { download, unpack } from "../pinned-download.mjs"
+import { renameWhenUnlocked } from "../windows-locks/rename-when-unlocked.mjs"
+import { checkStage, OPENCODE, RG, RIPGREP_LICENCES, versionOf } from "./check-stage.mjs"
 import { opencodeEnabled } from "./enabled.mjs"
 import { HOSTS, OPENCODE_LICENCE, RIPGREP_VERSION, VERSION } from "./pins.mjs"
 
 const OUT = fileURLToPath(new URL("../../opencode", import.meta.url))
 const windows = process.platform === "win32"
-const OPENCODE = windows ? "opencode.exe" : "opencode"
-const RG = windows ? "rg.exe" : "rg"
-// ripgrep is dual-licensed MIT or Unlicense; COPYING says so, and all three ship.
-const RIPGREP_LICENCES = ["COPYING", "LICENSE-MIT", "UNLICENSE"]
 
 /** The first file under `root` called `name`, wherever the archive nests it. */
 function find(root, name) {
@@ -24,15 +21,6 @@ function find(root, name) {
     if (entry.isFile() && entry.name === name) return join(entry.parentPath, entry.name)
   }
   throw new Error(`no ${name} in ${root}`)
-}
-
-/** What a staged executable says its version is, or null when it will not run. */
-function versionOf(binary, args = ["--version"]) {
-  try {
-    return execFileSync(binary, args, { encoding: "utf8", timeout: 60_000, windowsHide: true }).trim()
-  } catch {
-    return null
-  }
 }
 
 /** Download one pinned archive and unpack it into its own folder under `work`. */
@@ -52,21 +40,12 @@ function copyExecutable(from, to) {
   if (!windows) chmodSync(to, 0o755)
 }
 
-/** Prove the stage runs: the server is the pinned release, and so is ripgrep. */
-function verifyStage(stage) {
-  const opencode = versionOf(join(stage, OPENCODE))
-  if (opencode !== VERSION) throw new Error(`staged opencode says ${opencode}, expected ${VERSION}`)
-  const ripgrep = versionOf(join(stage, RG)) ?? ""
-  if (!ripgrep.startsWith(`ripgrep ${RIPGREP_VERSION}`)) {
-    throw new Error(`staged ripgrep says ${ripgrep}, expected ${RIPGREP_VERSION}`)
-  }
-}
-
 async function main() {
   // Off also removes an earlier stage, so neither a dev run nor an installer carries one.
   if (!opencodeEnabled()) {
     rmSync(OUT, { recursive: true, force: true })
-    console.log("opencode is off; SURFSENSE_LOCAL_OPENCODE_ENABLED=1 stages it")
+    const value = process.env.SURFSENSE_LOCAL_OPENCODE_ENABLED || "unset"
+    console.log(`opencode is off (SURFSENSE_LOCAL_OPENCODE_ENABLED is ${value}): nothing staged`)
     return
   }
 
@@ -98,12 +77,12 @@ async function main() {
       copyFileSync(find(ripgrep, licence), join(stage, "ripgrep", licence))
     }
 
-    verifyStage(stage)
+    checkStage(stage)
 
     rmSync(backup, { recursive: true, force: true })
     if (existsSync(OUT)) renameSync(OUT, backup)
     try {
-      renameSync(stage, OUT)
+      await renameWhenUnlocked(stage, OUT)
     } catch (error) {
       if (existsSync(backup)) renameSync(backup, OUT)
       throw error

@@ -168,6 +168,7 @@ async def test_a_runnable_repo_resolves_to_a_build_and_what_it_will_be(
     body = reply.json()
     assert reply.status_code == 200, body
     assert body["row"]["runnable"] and body["row"]["not_runnable_reason"] is None
+    assert body["row"]["not_runnable_code"] is None
     assert body["row"]["engine"] == "onnxruntime"
     build = build_of(body)
     assert build["footprint_bytes"] == 118_000_000 + 17_000_000
@@ -184,6 +185,9 @@ async def test_a_repo_without_onnx_says_why_it_cannot_run(
 
     assert not body["row"]["runnable"]
     assert "ONNX" in body["row"]["not_runnable_reason"]
+    # The embedder check's own sentence has no code: not the embedding group's,
+    # whose words would replace it on screen.
+    assert body["row"]["not_runnable_code"] is None
     assert body["row"]["builds"] == []
 
 
@@ -232,6 +236,7 @@ async def test_a_pick_that_passes_its_checks_installs_and_can_be_locked(
     job = await wait_for_end(client, started.json()["id"])
 
     assert job["event"]["type"] == "complete", job
+    assert job["event"]["code"] == "ready"
     # Opened again, the search offers Use rather than a second download.
     reopened = (await client.get(f"/embedding/huggingface/repo/{REPO}")).json()
     assert build_of(reopened)["installed_as"] == INSTALLED_AS
@@ -268,5 +273,7 @@ async def test_a_pick_that_fails_its_checks_is_removed(
     job = await wait_for_end(client, started.json()["id"])
 
     assert job["event"]["type"] == "error"
+    # Its counts are in the sentence, which has no code yet.
+    assert job["event"]["code"] is None
     assert "6 of 10" in json.dumps(job["event"])
     assert not (data_dir / "embeddings" / INSTALLED_AS).exists()

@@ -8,11 +8,17 @@ import psutil
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from shared.config import get_storage_settings
+from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
+from worker.ingestion.slideless_deck import describe_slideless_deck
 
 # Already text: read off disk rather than round-trip through Docling.
 TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
+
+
+class UnreadableFileError(Exception):
+    """Docling could not load the file's bytes, so it would refuse them again."""
 
 
 def markdown_for(document: Document) -> str:
@@ -32,10 +38,33 @@ def _markdown_from(path: Path) -> str:
     if suffix in TEXT_SUFFIXES:
         return path.read_text(encoding="utf-8", errors="replace")
 
+    converted = convert(path)
+    keep_figures(path, converted)
+    template = describe_slideless_deck(path)
+    return converted.export_to_markdown() if template is None else template
+
+
+def convert(path: Path) -> Any:
+    """Docling's reading of a file: its DoclingDocument."""
+    if describe_slideless_deck(path) is not None:
+        from docling_core.types.doc import DoclingDocument
+
+        # Nothing for Docling to read, and it refuses a deck with no pages.
+        return DoclingDocument(name=path.stem)
+
     # First: it sets the environment docling reads as it is imported.
     converter = _converter()
-    source = as_page(path) if suffix in IMAGE_SUFFIXES else path
-    return converter.convert(source).document.export_to_markdown()
+    from docling.exceptions import ConversionError, DocumentLoadError
+
+    source = as_page(path) if path.suffix.lower() in IMAGE_SUFFIXES else path
+    try:
+        return converter.convert(source).document
+    except ConversionError as refused:
+        # Docling also reports a file it cannot open yet and a model that ran
+        # out of memory this way; only bytes it cannot load fail the same again.
+        if isinstance(refused.__cause__, DocumentLoadError):
+            raise UnreadableFileError(str(refused)) from refused
+        raise
 
 
 @lru_cache(maxsize=1)
@@ -62,6 +91,8 @@ def _converter() -> Any:
     options = PdfPipelineOptions()
     options.do_ocr = True
     options.do_table_structure = True
+    # No picture images: figures are cropped from the original afterwards
+    # (figures/pdf_crops.py), as these keep every page's render in memory.
     # Docling's default is 4 threads; one per physical core parsed 1.4x faster
     # on 8 cores. At most 8, as for audio.cpp, since chat may share the CPU.
     options.accelerator_options = AcceleratorOptions(

@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
 import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -11,21 +17,25 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
+  refineArtifact,
+  decideAllRevisions,
+  type RevisionDecision,
   regenerateArtifact,
   type Artifact,
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
+import { canRetry } from "./can-retry"
+import { studioKeys } from "./query-keys"
+import { translatedStudioError } from "./studio-error-text"
 
 // The worker's notices are best-effort: one lost while a job runs would leave
 // its row stale, so the list is still re-read now and then until none does.
 const LOST_NOTICE_POLL_MS = 10_000
 
-function isAbort(error: unknown) {
-  return error instanceof DOMException && error.name === "AbortError"
-}
-
 export function messageFrom(error: unknown) {
+  const translated = translatedStudioError(error)
+  if (translated !== null) return translated
   return error instanceof Error
     ? error.message
     : intl.formatMessage({
@@ -38,33 +48,50 @@ function isRunning(artifact: Artifact) {
   return artifact.status === "pending" || artifact.status === "processing"
 }
 
-function wait(ms: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    const onAbort = () => {
-      window.clearTimeout(timeout)
-      reject(new DOMException("Aborted", "AbortError"))
-    }
-    const timeout = window.setTimeout(() => {
-      signal.removeEventListener("abort", onAbort)
-      resolve()
-    }, ms)
-    signal.addEventListener("abort", onAbort, { once: true })
-  })
-}
+const NO_ARTIFACTS: Artifact[] = []
+const NO_FORMATS: StudioFormat[] = []
 
-/**
- * One read of the artifact list, or `null` once a newer read has started:
- * the first load, the event reload and the backstop each ask on their own, and
- * an older answer landing last would put a finished job back to running.
- */
-async function readNewest(
-  reads: { current: number },
-  workspaceId: number,
-  signal: AbortSignal
-) {
-  const read = ++reads.current
-  const next = await listArtifacts(workspaceId, signal)
-  return read === reads.current ? next : null
+/** A toast for each job a new read of the list shows finished. */
+function announceFinished(before: Artifact[], after: Artifact[]) {
+  for (const artifact of after) {
+    const was = before.find((candidate) => candidate.id === artifact.id)
+    if (!was || !isRunning(was)) continue
+    if (artifact.status === "ready") {
+      toast.success(
+        intl.formatMessage(
+          {
+            id: "studio_artifact_ready_toast",
+            defaultMessage: "{name} is ready",
+          },
+          { name: artifact.title }
+        )
+      )
+    } else if (
+      artifact.status === "failed" &&
+      // A script's own failure goes back to the agent that wrote it, and a
+      // retry would only run the same script again: no toast to retry.
+      canRetry(artifact)
+    ) {
+      // The raw error (often a multi-line HTTP exception) belongs in
+      // the row's own Ctrl/Cmd-hover tooltip, not a toast.
+      errorToast(
+        intl.formatMessage(
+          {
+            id: "studio_artifact_failed_toast",
+            defaultMessage: "{name} failed",
+          },
+          { name: artifact.title }
+        ),
+        {
+          description: intl.formatMessage({
+            id: "studio_artifact_failed_toast_body",
+            defaultMessage:
+              "This artifact couldn’t be generated. Retry it from the artifacts tab.",
+          }),
+        }
+      )
+    }
+  }
 }
 
 /**
@@ -75,212 +102,163 @@ async function readNewest(
  * page is reloaded. The value is never read, only compared.
  */
 export function useStudio(workspaceId: number, selectionToken = "") {
-  const [formats, setFormats] = useState<StudioFormat[]>([])
-  const [artifacts, setArtifacts] = useState<Artifact[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const pollController = useRef<AbortController | null>(null)
-  const changeController = useRef<AbortController | null>(null)
-  const listReads = useRef(0)
-  const hasRunning = artifacts.some(isRunning)
-  // What the last read of the list held, to tell which jobs a new read ended.
-  const artifactsRef = useRef(artifacts)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [dismissedLoadError, setDismissedLoadError] = useState<unknown>(null)
+
+  const formatsQuery = useQuery({
+    queryKey: studioKeys.formats(workspaceId, selectionToken),
+    queryFn: ({ signal }) => listFormats(workspaceId, signal),
+    // The tiles keep the last answer while a new selection is asked about.
+    placeholderData: keepPreviousData,
+  })
+  const artifactsQuery = useQuery({
+    queryKey: studioKeys.artifacts(workspaceId),
+    queryFn: ({ signal }) => listArtifacts(workspaceId, signal),
+    refetchInterval: (query) =>
+      query.state.data?.some(isRunning) ? LOST_NOTICE_POLL_MS : false,
+  })
+  const artifacts = artifactsQuery.data ?? NO_ARTIFACTS
+
+  // What the list held before this read, to tell which jobs it ended.
+  const seen = useRef<Artifact[] | undefined>(undefined)
   useEffect(() => {
-    artifactsRef.current = artifacts
-  }, [artifacts])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    void Promise.all([
-      listFormats(workspaceId, controller.signal),
-      readNewest(listReads, workspaceId, controller.signal),
-    ])
-      .then(([nextFormats, nextArtifacts]) => {
-        if (controller.signal.aborted) {
-          return
-        }
-        setFormats(nextFormats)
-        if (nextArtifacts) {
-          setArtifacts(nextArtifacts)
-        }
-        setError(null)
-        setIsLoading(false)
-      })
-      .catch((cause: unknown) => {
-        if (!isAbort(cause) && !controller.signal.aborted) {
-          setError(messageFrom(cause))
-          setIsLoading(false)
-        }
-      })
-    return () => {
-      controller.abort()
-      changeController.current?.abort()
+    const before = seen.current
+    seen.current = artifactsQuery.data
+    if (before && artifactsQuery.data) {
+      announceFinished(before, artifactsQuery.data)
     }
-  }, [workspaceId, selectionToken])
+  }, [artifactsQuery.data])
 
-  const showReread = (next: Artifact[]) => {
-    for (const artifact of next) {
-      const before = artifactsRef.current.find(
-        (candidate) => candidate.id === artifact.id
-      )
-      if (!before || !isRunning(before)) continue
-      if (artifact.status === "ready") {
-        toast.success(
-          intl.formatMessage(
-            {
-              id: "studio_artifact_ready_toast",
-              defaultMessage: "{name} is ready",
-            },
-            { name: artifact.title }
-          )
-        )
-      } else if (artifact.status === "failed") {
-        // The raw error (often a multi-line HTTP exception) belongs in
-        // the row's own Ctrl/Cmd-hover tooltip, not a toast.
-        errorToast(
-          intl.formatMessage(
-            {
-              id: "studio_artifact_failed_toast",
-              defaultMessage: "{name} failed",
-            },
-            { name: artifact.title }
-          ),
-          {
-            description: intl.formatMessage({
-              id: "studio_artifact_failed_toast_body",
-              defaultMessage:
-                "This artifact couldn’t be generated. Retry it from the artifacts tab.",
-            }),
-          }
-        )
-      }
-    }
-    // Now, not after the render: a second read landing first would otherwise
-    // compare against the same running rows and toast them again.
-    artifactsRef.current = next
-    setArtifacts(next)
-  }
-
+  // One event refreshes the list and everything read for an open artifact.
   useWorkspaceChanges(workspaceId, "artifacts", () => {
-    changeController.current?.abort()
-    const controller = new AbortController()
-    changeController.current = controller
-    void readNewest(listReads, workspaceId, controller.signal)
-      .then((next) => {
-        if (next && changeController.current === controller) {
-          showReread(next)
-        }
-      })
-      .catch(() => {
-        // The next change, or the re-read while a job runs, reloads.
-      })
+    const list = studioKeys.artifacts(workspaceId)
+    // Cancelled first: a read still in flight with no answer yet would
+    // otherwise be reused, and its older answer would land last.
+    void queryClient
+      .cancelQueries({ queryKey: list })
+      .then(() => queryClient.invalidateQueries({ queryKey: list }))
+    void queryClient.invalidateQueries({
+      queryKey: studioKeys.openArtifacts(),
+    })
   })
 
-  // The backstop for a lost notice, and only while a job runs.
-  useEffect(() => {
-    if (!hasRunning) {
-      return
-    }
-    const controller = new AbortController()
-    pollController.current?.abort()
-    pollController.current = controller
+  // Only a list never read is an error to show: a failed reread keeps the
+  // last answer, and the next event or the backstop reads again.
+  const loadError =
+    (artifactsQuery.data === undefined && artifactsQuery.error) ||
+    (formatsQuery.data === undefined && formatsQuery.error) ||
+    null
+  const error =
+    actionError ??
+    (loadError && loadError !== dismissedLoadError
+      ? messageFrom(loadError)
+      : null)
 
-    void (async () => {
-      try {
-        while (!controller.signal.aborted) {
-          await wait(LOST_NOTICE_POLL_MS, controller.signal)
-          const next = await readNewest(
-            listReads,
-            workspaceId,
-            controller.signal
-          )
-          if (pollController.current !== controller) {
-            return
-          }
-          if (!next) {
-            continue
-          }
-          showReread(next)
-          if (!next.some(isRunning)) {
-            return
-          }
-        }
-      } catch (cause) {
-        if (!isAbort(cause) && pollController.current === controller) {
-          setError(messageFrom(cause))
-        }
-      }
-    })()
+  // A read that began before the action would carry the list from before it,
+  // so it is cancelled before the action's result goes in.
+  const setList = async (update: (current: Artifact[]) => Artifact[]) => {
+    const list = studioKeys.artifacts(workspaceId)
+    await queryClient.cancelQueries({ queryKey: list })
+    queryClient.setQueryData<Artifact[]>(list, (current = []) =>
+      update(current)
+    )
+  }
+  const replace = (updated: Artifact) =>
+    setList((current) =>
+      current.map((artifact) =>
+        artifact.id === updated.id ? updated : artifact
+      )
+    )
 
-    return () => controller.abort()
-  }, [hasRunning, workspaceId])
-
-  const create = async (job: StudioJobCreate) => {
+  const create = useStableCallback(async (job: StudioJobCreate) => {
     setIsCreating(true)
-    setError(null)
+    setActionError(null)
     try {
       const artifact = await createJob(workspaceId, job)
-      setArtifacts((current) => [artifact, ...current])
+      await setList((current) => [artifact, ...current])
       return true
     } catch (cause) {
-      setError(messageFrom(cause))
+      setActionError(messageFrom(cause))
       return false
     } finally {
       setIsCreating(false)
     }
-  }
+  })
 
-  // Puts the artifact back to "pending" in state; the workspace's events
-  // follow it the same way they do a freshly created one.
-  const regenerate = async (artifactId: number) => {
-    setError(null)
+  // Puts the artifact back to "pending"; the workspace's events follow it
+  // the same way they do a freshly created one.
+  const regenerate = useStableCallback(async (artifactId: number) => {
+    setActionError(null)
     try {
-      const updated = await regenerateArtifact(artifactId)
-      setArtifacts((current) =>
-        current.map((artifact) =>
-          artifact.id === artifactId ? updated : artifact
-        )
-      )
+      await replace(await regenerateArtifact(artifactId))
     } catch (cause) {
-      setError(messageFrom(cause))
+      setActionError(messageFrom(cause))
     }
-  }
+  })
 
-  const cancel = async (artifactId: number) => {
-    setError(null)
+  // Rejects with the API's reason, for the Refine box to show where it was typed.
+  const refine = useStableCallback(
+    async (artifactId: number, instruction: string) => {
+      const next = await refineArtifact(artifactId, instruction)
+      // A re-read of the list may have brought it in first.
+      await setList((current) => [
+        next,
+        ...current.filter((artifact) => artifact.id !== next.id),
+      ])
+    }
+  )
+
+  // Rejects with the API's reason, for the revised copy's bar to show.
+  const decideAll = useStableCallback(
+    async (artifactId: number, decision: RevisionDecision) => {
+      const next = await decideAllRevisions(artifactId, decision)
+      await setList((current) => [
+        next,
+        ...current.filter((artifact) => artifact.id !== next.id),
+      ])
+    }
+  )
+
+  const cancel = useStableCallback(async (artifactId: number) => {
+    setActionError(null)
     try {
-      const updated = await cancelArtifact(artifactId)
-      setArtifacts((current) =>
-        current.map((artifact) =>
-          artifact.id === artifactId ? updated : artifact
-        )
-      )
+      await replace(await cancelArtifact(artifactId))
     } catch (cause) {
-      setError(messageFrom(cause))
+      setActionError(messageFrom(cause))
     }
-  }
+  })
 
-  const remove = async (artifactId: number) => {
-    setError(null)
+  const remove = useStableCallback(async (artifactId: number) => {
+    setActionError(null)
     try {
       await deleteArtifact(artifactId)
-      setArtifacts((current) => current.filter((a) => a.id !== artifactId))
+      await setList((current) => current.filter((a) => a.id !== artifactId))
     } catch (cause) {
-      setError(messageFrom(cause))
+      setActionError(messageFrom(cause))
     }
-  }
+  })
 
+  const clearError = useStableCallback(() => {
+    setActionError(null)
+    setDismissedLoadError(loadError)
+  })
+
+  // The actions keep their identity, so the memoized Studio panel and
+  // artifact list skip the dashboard's renders.
   return {
-    formats,
+    formats: formatsQuery.data ?? NO_FORMATS,
     artifacts,
-    isLoading,
+    isLoading: formatsQuery.isPending || artifactsQuery.isPending,
     isCreating,
     error,
     create,
     regenerate,
+    refine,
+    decideAll,
     cancel,
     remove,
-    clearError: () => setError(null),
+    clearError,
   }
 }
