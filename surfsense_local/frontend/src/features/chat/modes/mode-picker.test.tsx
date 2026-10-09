@@ -279,28 +279,39 @@ describe("the composer's mode switch", () => {
     expect(nextChat()).toBe("agentic")
   })
 
-  it("shows an open chat's mode and offers the other only as a new chat", async () => {
+  it("lists both modes for an open chat, and opens a new chat for the other", async () => {
     const user = userEvent.setup()
     const onNewChat = vi.fn()
     renderComposer({ model: KIMI, threadMode: "agentic", onNewChat })
 
     expect(trigger().textContent).toContain("Agentic")
     await user.click(trigger())
-    expect(
-      await screen.findByText("This chat runs in Agentic mode")
-    ).toBeTruthy()
-    expect(screen.queryByRole("menuitemradio")).toBeNull()
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: /^Start a new chat in Basic \(Q&A\) mode/,
-      })
-    )
+    expect(await screen.findByText("This chat’s mode")).toBeTruthy()
+    const agentic = screen.getByRole("menuitemradio", { name: /^Agentic/ })
+    const basic = screen.getByRole("menuitemradio", { name: /^Basic/ })
+    expect(agentic.getAttribute("aria-checked")).toBe("true")
+    expect(within(basic).getByText("New chat")).toBeTruthy()
+    expect(within(agentic).queryByText("New chat")).toBeNull()
+    await user.click(basic)
 
     expect(onNewChat).toHaveBeenCalledOnce()
     expect(nextChat()).toBe("basic")
   })
 
-  it("does not offer an open chat's other mode when a gate blocks Agentic", async () => {
+  it("keeps an open chat when its own mode is picked again", async () => {
+    const user = userEvent.setup()
+    const onNewChat = vi.fn()
+    renderComposer({ model: KIMI, threadMode: "agentic", onNewChat })
+
+    await user.click(trigger())
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Agentic/ })
+    )
+
+    expect(onNewChat).not.toHaveBeenCalled()
+  })
+
+  it("holds an open chat's other mode when a gate blocks Agentic", async () => {
     const user = userEvent.setup()
     const onNewChat = vi.fn()
     renderComposer({
@@ -314,13 +325,14 @@ describe("the composer's mode switch", () => {
     })
 
     await user.click(trigger())
-    const offer = await screen.findByRole("menuitem", {
-      name: /^Start a new chat in Agentic mode/,
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
     })
-    expect(offer.textContent).toContain(
+    expect(agentic.getAttribute("aria-disabled")).toBe("true")
+    expect(agentic.textContent).toContain(
       "This install doesn’t include the agent."
     )
-    await user.click(offer)
+    await user.click(agentic)
 
     expect(onNewChat).not.toHaveBeenCalled()
   })

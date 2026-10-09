@@ -16,19 +16,6 @@ export function modeLabel(mode: ChatMode) {
       })
 }
 
-export function modeDescription(mode: ChatMode) {
-  return mode === "agentic"
-    ? intl.formatMessage({
-        id: "chat_mode_agentic_body",
-        defaultMessage:
-          "Works on your files in steps, and makes and edits documents.",
-      })
-    : intl.formatMessage({
-        id: "chat_mode_basic_body",
-        defaultMessage: "Answers from your sources, with Studio for documents.",
-      })
-}
-
 /** One line per mode, short enough for the new chat's menu. */
 export function modeShortDescription(mode: ChatMode) {
   return mode === "agentic"
