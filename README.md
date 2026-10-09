@@ -3,10 +3,9 @@
   something (AGENTS.md). Ship the agent copy only with the first release whose
   installer carries the agent; v2.1.0 does not.
   The format table is checked against origin/dev c5ff7938a; re-check each cell before a release.
-  The Quick start is checked against dev_mod 4330d8978. Record its five images in
-  surfsense_web/public/docs/quick-start/ before merge, GIFs under about 5 MB each; the note above each image says what to show.
   The demo video under the header is a GitHub upload, not a file in the repo. To replace it, drag an
   MP4 under 10 MB into any comment box in this repo, copy the user-attachments link and swap the URL.
+  Every README.<locale>.md follows this file section for section; change them together.
   Time-boxed: delete the sunset callout on 18 October 2026, here and in every README.<locale>.md.
 -->
 
@@ -45,7 +44,7 @@
 
 https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
-SurfSense is a free, open-source desktop app for documents you can't upload. A privacy focused notebooklm style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
+SurfSense is a free, open-source desktop app for documents you can't upload. A privacy-focused, NotebookLM-style AI agent that researches, transforms and edits your documents, on your machine. The index stays on your disk, you pick the model, local or remote, and there is no account.
 
 | Platform | Download |
 |---|---|
@@ -55,6 +54,7 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 
 > [!NOTE]
 > **Used the hosted web app?** Export your workspaces before 18 October 2026 and import them here. See [the sunset page](https://www.surfsense.com/sunset).
+
 ## Quick start
 
 1. Install SurfSense and do the initial onboarding setup.
@@ -79,7 +79,6 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 <sub>¹ With Office support (LibreOffice), turned on in Settings; it is never in the installer. ² Needs an image model, local or remote; none is chosen by default. ³ OCR reads Latin, Chinese and Japanese script.</sub>
 
 Edits, conversions and PDF tools always make a new file; your original is never changed. PDF, Word and Excel do the most today, and support for the other formats keeps improving.
-
 
 ## How it compares
 
@@ -112,4 +111,4 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 ## License
 
-Apache-2.0 See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
