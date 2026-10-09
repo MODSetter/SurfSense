@@ -5,6 +5,8 @@
   The format table is checked against origin/dev c5ff7938a; re-check each cell before a release.
   The Quick start is checked against dev_mod 4330d8978. Record its five images in
   surfsense_web/public/docs/quick-start/ before merge, GIFs under about 5 MB each; the note above each image says what to show.
+  The demo video under the header is a GitHub upload, not a file in the repo. To replace it, drag an
+  MP4 under 10 MB into any comment box in this repo, copy the user-attachments link and swap the URL.
   Time-boxed: delete the sunset callout on 18 October 2026, here and in every README.<locale>.md.
 -->
 
@@ -41,10 +43,7 @@
   </p>
 </div>
 
-<p align="center">
-  <!-- Record before merge: the agent revising a Word file, under 5 MB (proposal, "Visuals"). -->
-  <img src="surfsense_web/public/homepage/agent-demo.gif" alt="The SurfSense agent revising a Word document as a copy with tracked changes" />
-</p>
+https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 SurfSense is a free, open-source desktop app for documents you can't upload. Add your files, ask questions and get answers that cite their sources, then have the agent write a report, deck, workbook or PDF, or revise your own file as a copy. The index stays on your disk, you pick the model, local or remote, and there is no account.
 
