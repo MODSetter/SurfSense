@@ -133,6 +133,18 @@ def test_a_script_that_raises_returns_its_error_and_traceback() -> None:
     assert "runpy" not in result.traceback_tail
 
 
+def test_a_traceback_names_the_script_without_its_run_folder(data_dir: Path) -> None:
+    """The folder is gone once the run ends, and its absolute path in every frame
+    would crowd the traceback's lines out of the stored reason."""
+    script = "def build():\n    raise ValueError('no table rows')\n\nbuild()\n"
+
+    result = run_document_script(script, output_name="document.docx", images={})
+
+    assert result.traceback_tail is not None
+    assert 'File "script.py", line 2, in build' in result.traceback_tail
+    assert _scripts_root(data_dir).name not in result.traceback_tail
+
+
 def test_a_syntax_error_names_itself() -> None:
     """A script that does not compile fails with the SyntaxError, not a crash."""
     result = run_document_script(
