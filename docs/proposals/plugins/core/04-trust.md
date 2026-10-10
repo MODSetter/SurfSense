@@ -34,7 +34,7 @@ This follows Claude's connectors, where a new tool needs approval until the user
 
 ## Permissions per tool
 
-Settings → Plugins shows each connected plugin's tools in two groups, read-only and the rest, each tool with an on/off switch and its approval setting, and each group with one setting for all its tools, as browser extensions show their permissions. A new tool starts off ([`02-registry.md`](02-registry.md#tools-added-later)). Each plugin has an activity view: its recent calls, from which thread, with what arguments, and how they ended.
+Settings → Plugins shows each connected plugin's tools in two groups, read-only and the rest, each tool with an on/off switch and its approval setting, the plugin itself with a switch that pauses it without disconnecting, and each group with one setting for all its tools, as browser extensions show their permissions. A new tool starts off ([`02-registry.md`](02-registry.md#tools-added-later)). Each plugin has an activity view: its recent calls, from which thread, with what arguments, and how they ended.
 
 ## Prompt injection
 
@@ -42,7 +42,7 @@ The user's sources, and a plugin's own results, can carry text aimed at the mode
 
 - Approval with the exact arguments is the main defence.
 - Hosts are declared and consented, so data can go only to a host the user allowed. For the agent the check runs as each turn is given its plugins.
-- Tool descriptions are reviewed when an entry is listed and shown on the plugin's row, and a changed description switches the tool off until the user allows it again ([`02-registry.md`](02-registry.md#tools-added-later)); for the agent the switch is a `deny` rule, so a changed tool is refused, and its new text reaches the model only if opencode cannot leave a blocked tool out of what it lists ([`03-engines.md`](03-engines.md#each-turn), [open questions](../README.md#open-questions)). Where SurfSense itself lists tools to a model, as the chat engine will, it cuts each description to 2,000 characters; opencode reads descriptions from the server, so the agent's are not cut.
+- Tool descriptions are reviewed when an entry is listed and shown on the plugin's row, and a changed description switches the tool off until the user allows it again ([`02-registry.md`](02-registry.md#tools-added-later)); for the agent the switch is a `deny` rule, and opencode leaves a denied tool out of what it lists, so the new text never reaches the model ([`03-engines.md`](03-engines.md#each-turn)). Where SurfSense itself lists tools to a model, as the chat engine will, it cuts each description to 2,000 characters; opencode reads descriptions from the server, so the agent's are not cut.
 - Third-party plugins stay off until the user allows them, so they never reach a user who did not choose them.
 
 None of this is a sandbox.

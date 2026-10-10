@@ -145,7 +145,6 @@ Plugins that change SurfSense itself (providers, interface, prompts); local MCP 
 
 ## Open questions
 
-- Three things to confirm against the staged opencode: that SurfSense can change a tool's rule between turns without restarting it; that giving a server again each turn keeps its session; and that a blocked tool can be left out of what opencode lists, not only refused. Where one fails, SurfSense serves that plugin's tools to opencode itself, in front of the gateway, so the rule holds at the cost of one hop.
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long tool results are kept and how large a stored one may be.
 - Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.

@@ -25,6 +25,7 @@
 | **Sampling** | A server asking to use the user's own model | The model route ([ADR 0048](../../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)) and a limit on what it may spend |
 | **Long-running tools** | Tools that run past a call's 190 seconds, such as a large crawl | `job` tools on the `plugins` queue, and paging a large result |
 | **Connections kept open** | One session per plugin for SurfSense's own calls, dropped after ten minutes idle, instead of one per call: faster calls for the chat engine, and stateful plugins there. The agent's opencode keeps its own sessions already | A holder task, since the SDK's tasks must close where they opened |
+| **Taking access away mid-turn** | Blocking a tool, pausing a plugin or switching third-party plugins off reaches a turn already running, not only the next one | The threads with a turn running, and their session rules set again as the setting changes; opencode applies new rules from the next call |
 | **Sync and schedules** | A tool run on a schedule, its result kept in Sources and updated in place | A scheduler, and the `plugins` queue for the runs |
 | **Organisation policy** | Plugins off, third-party plugins locked off, or an allow-list | Enterprise settings the gateway reads ([`04-trust.md`](04-trust.md#organisation-policy)) |
 | **Company registries** | A company's own list of plugins beside SurfSense's | An administrator setting, never a user's click, so a link cannot add one |

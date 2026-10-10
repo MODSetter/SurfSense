@@ -101,6 +101,7 @@ Added later, each with the feature that needs it, without changing these tables:
 | `POST` | `/plugins/{id}/connect` | Starts connecting: a token, OAuth, or the license, after egress consent |
 | `POST` | `/plugins/custom` | Adds a remote server by URL |
 | `DELETE` | `/plugins/{id}` | Disconnects: the sign-in and the tools go; past calls stay in their threads' sessions |
+| `PUT` | `/plugins/{id}` | Switches a plugin off or on. Off pauses it: its sign-in and tool settings stay, and none of its tools reach a caller |
 | `PUT` | `/plugins/{id}/tools/{tool}` | Turns a tool on or off and sets its approval |
 | `PUT` | `/plugins/third-party` | Allows or refuses third-party plugins |
 | `GET` | `/plugins/{id}/calls` | The plugin's recent calls in agent threads, read from their sessions, for its activity view |
