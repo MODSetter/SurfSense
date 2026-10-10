@@ -20,9 +20,13 @@ BUILT_IN = (HUGGINGFACE,)
 
 
 class EgressDeniedError(Exception):
-    def __init__(self, destination: str, host: str | None = None) -> None:
+    def __init__(
+        self, destination: str, host: str | None = None, hosts: list[str] | None = None
+    ) -> None:
         self.destination = destination
         self.host = host or host_of(destination)
+        # Every host still to allow, so one prompt asks for them together; the first is `host`.
+        self.hosts = hosts or [self.host]
         super().__init__(f"sending data to {self.host} is off in Settings > Network")
 
 
@@ -49,9 +53,7 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
-def require(
-    session: Session, destination: str | None, host: str | None = None
-) -> None:
+def require(session: Session, destination: str | None, host: str | None = None) -> None:
     if destination is None:
         return
     row = session.get(EgressDestination, destination)

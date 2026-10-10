@@ -9,7 +9,9 @@ RETRYABLE_STATUSES = frozenset({408, 429})
 
 def refused(status: int) -> ServerError:
     retryable = status in RETRYABLE_STATUSES or status >= 500
-    return ServerError(f"the plugin's server answered {status}", retryable=retryable)
+    return ServerError(
+        f"the plugin's server answered {status}", retryable=retryable, status=status
+    )
 
 
 def unreachable(error: httpx2.TransportError) -> ServerError:

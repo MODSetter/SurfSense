@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from sqlalchemy.orm import Session
 
 from modules.egress.models import EgressDestination
-from modules.egress.service import host_destination
+from modules.egress.service import EgressDeniedError, host_destination
 from modules.plugins.installed.models import InstalledPlugin
 
 
@@ -26,3 +26,26 @@ def hosts_not_allowed(session: Session, plugin: InstalledPlugin) -> list[str]:
         if row is None or not row.enabled:
             missing.append(host)
     return missing
+
+
+def refused_hosts(session: Session, hosts: list[str]) -> EgressDeniedError | None:
+    """The refusal naming every host still to allow, or None when all are allowed.
+
+    A refused host with no row is recorded off, so Settings > Network lists it to allow.
+    Returned rather than raised, so the caller's commit keeps those rows.
+    """
+    missing = []
+    for host in dict.fromkeys(hosts):
+        destination = host_destination(f"https://{host}")
+        if destination is None:
+            continue
+        row = session.get(EgressDestination, destination)
+        if row is None:
+            session.add(EgressDestination(destination=destination, enabled=False))
+        if row is None or not row.enabled:
+            missing.append(host)
+    if not missing:
+        return None
+    session.flush()
+    first = host_destination(f"https://{missing[0]}")
+    return EgressDeniedError(first, hosts=missing)

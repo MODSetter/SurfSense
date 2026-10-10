@@ -10,7 +10,7 @@ Nothing is meant to leave the machine until the user allows where it goes. Befor
 | Destination | Host | Covers |
 |---|---|---|
 | `host:huggingface.co` | `huggingface.co` | searching Hugging Face and reading a repo on the model screen, downloading a GGUF for the llama.cpp runtime, and downloading weights for the bundled sd-server |
-| `host:<hostname>` | that host | everything sent to one remote OpenAI-compatible connection: probes, model lists, tests, chat, image generation |
+| `host:<hostname>` | that host | everything sent to one remote OpenAI-compatible connection: probes, model lists, tests, chat, image generation; or to one plugin's server: listing its tools and calling them |
 | `host:downloadarchive.documentfoundation.org` | `downloadarchive.documentfoundation.org` | downloading the Office pack, The Document Foundation's LibreOffice build, when the user turns Office support on ([office pack](office-pack.md)) |
 
 There is one row per host by construction: the key is the hostname, so a destination cannot exist twice under two names, and the user is asked about the host rather than about each errand sent to it. `host:huggingface.co` is built in (`BUILT_IN` in `modules/egress/service.py`), so it is listed before any connection names it. Its dialog names every errand, search first because it is the widest: searching sends what the user types, as they type it; downloading sends the name of the model they chose; both send their IP address, and neither sends chats or documents.
@@ -19,11 +19,11 @@ State is one table, `egress_destinations`: a row per destination with `enabled`,
 
 `host_destination()` returns no destination for `localhost` or a loopback address, so a model server on the same machine needs no consent and has no row. A server elsewhere on the LAN is a destination like any other.
 
-The plugins proposal adds a consent for each host a plugin declares, asked before the user connects it, and a list of hosts on the refusal so one prompt covers them ([plugins](../proposals/plugins/remote/01-mcp-client.md#egress)).
+A plugin's hosts are asked about before it connects, all at once: the refusal carries `hosts`, every host still to allow, so one prompt covers them. A refused plugin host with no row is recorded off, so Settings › Network lists it ([plugins](../proposals/plugins/remote/01-mcp-client.md#egress)).
 
 ## Where the check runs
 
-`egress.require(session, destination)` raises `EgressDeniedError` when the row is missing or off, and `api/main.py` turns that into a `403` whose `detail` carries `code: "egress_disabled"`, the `destination`, its `host` and a message. The check sits in front of each call site, in whichever process makes the call:
+`egress.require(session, destination)` raises `EgressDeniedError` when the row is missing or off, and `api/main.py` turns that into a `403` whose `detail` carries `code: "egress_disabled"`, the `destination`, its `host`, `hosts` (every host still to allow, `host` first) and a message. The check sits in front of each call site, in whichever process makes the call:
 
 | Call | Where | Destination |
 |---|---|---|
@@ -33,6 +33,8 @@ The plugins proposal adds a consent for each host a plugin declares, asked befor
 | Chat and Studio generation, text or image, through a remote connection | `_connection()` in `modules/llm/resolution.py` | `host:` |
 | The agent's turns, which opencode sends to SurfSense's model endpoint and SurfSense forwards to a remote connection | `address_selected_model()` in `modules/agent/model_endpoint/model_address.py`, through `allowed_connection()`; a refusal answers opencode with a `403` whose message names the host | `host:` |
 | Downloading an image an endpoint returned as a URL, whose host the endpoint chose | `refused_named_host()`, called before the download through the image provider's `allow_url_host`: by `POST /llm/connections/{id}/image-test` (a `403`) and by `resolution.py` for Studio (the job fails with the refusal, not retried, since the image was already billed). A refused host with no row is recorded off, so it is listed | `host:` |
+| Adding a plugin by URL, before its server is contacted | `POST /plugins/custom` in `modules/plugins/routes.py`, through `refused_hosts()` | `host:` |
+| Calling a plugin's tool | `call_tool()` in `modules/plugins/gateway/calling.py`, which calls only tools `list_tools()` offers; `list_tools()` offers nothing from a plugin whose hosts are not all allowed | `host:` |
 | Downloading a GGUF | `POST /llm/installs` in `modules/llm/catalog/local/install_jobs/router.py`, checked before the job starts | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Downloading sd-server weights | `POST /llm/installs`, the same job as chat models | `host:huggingface.co` |
@@ -69,5 +71,6 @@ Settings › Network lists the App updates row and every destination with its ho
 
 ## Known gaps
 
+- `EgressPrompt` reads only `destination`, so a plugin with several hosts is asked about one host at a time, though the refusal names them all in `hosts`. The Settings → Plugins screen asks for `hosts` together ([plugins](../proposals/plugins/remote/01-mcp-client.md#egress)).
 - The Office Studio formats run model-written code in the worker, and that code can open connections of its own ([studio](studio.md)).
 - The Office pack's download is allowed by its host, `downloadarchive.documentfoundation.org`, which redirects to one of TDF's mirrors; the mirror sees the user's IP address and is not asked about ([office pack](office-pack.md)).
