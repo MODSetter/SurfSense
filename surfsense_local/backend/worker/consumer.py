@@ -3,7 +3,7 @@ import logging
 from huey.consumer import Consumer
 
 from modules.documents.models import DocumentType
-from modules.plugins.interrupted_runs import fail_interrupted_runs
+from modules.plugins.bundles.interrupted_runs import fail_interrupted_runs
 from shared.db import import_models
 from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
 from worker.document_script.leftover_run_folders import remove_leftover_run_folders

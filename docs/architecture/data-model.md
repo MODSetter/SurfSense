@@ -47,7 +47,7 @@ The conventions every table follows are in [`shared/db.py`](../../surfsense_loca
 | `id`, `name`, `created_at`, `updated_at` | a name is 1 to 200 characters after trimming |
 | `cloud_id` | nullable, unique: the hosted workspace an import came from, so re-importing the same bundle reuses the row ([`import.md`](import.md)) |
 
-The API seeds one workspace, "My Workspace", at startup when none exists. Deleting a workspace first stops its plugin runs ([`stop_workspace_runs.py`](../../surfsense_local/backend/modules/plugins/stop_workspace_runs.py)), then cascades its documents, threads, artifacts and runs.
+The API seeds one workspace, "My Workspace", at startup when none exists. Deleting a workspace first stops its plugin runs ([`stop_workspace_runs.py`](../../surfsense_local/backend/modules/plugins/bundles/stop_workspace_runs.py)), then cascades its documents, threads, artifacts and runs.
 
 ### `documents`
 

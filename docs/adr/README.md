@@ -74,10 +74,11 @@ The Date is the day the decision was first written down. Source links are permal
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050 |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
-| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted |
+| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part to be superseded by 0054 |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted |
 | 0051 | [A plugin is an MCP server, and every caller reaches plugin tools through one Tool Gateway, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Proposed |
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed |
-| 0053 | [Plugins are listed in a registry in this repository, and every plugin not published by SurfSense starts off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |
+| 0053 | [SurfSense's plugins are listed in the app, every other publisher's in a registry in this repository, and those start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |
+| 0054 | [SurfSense's own plugins, free and paid, run on one plugin host that also serves the registry](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Proposed |

@@ -1,0 +1,66 @@
+[project]
+name = "surfsense-plugin-cli"
+# Never published: authors, CI and maintainers run it from this repository.
+version = "0.0.0"
+description = "The surfsense-plugins command: what authors, CI and maintainers run on a plugin outside the app."
+# The Python plugins run on, as plugins/bundles/core/build-targets.json names it:
+# invoke runs a plugin on this interpreter.
+requires-python = "==3.12.*"
+license = { text = "Apache-2.0" }
+# uv as a package, so every machine pins and installs with the same uv.
+dependencies = ["typer>=0.15", "uv>=0.8", "surfsense-plugin-manifest"]
+
+[project.scripts]
+surfsense-plugins = "surfsense_plugin_cli.main:app"
+
+[tool.uv.sources]
+surfsense-plugin-manifest = { path = "../manifest", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["surfsense_plugin_cli"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+markers = [
+    "unit: needs no app",
+    "app: runs against the real app, started for the test",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "RUF",
+    # Every package, public class, method and function says what it is for.
+    # Private helpers are held to the same in review: pydocstyle skips them.
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+]
+# Exceptions are named for what happened, as the SDK's HostNotDeclared is.
+ignore = ["N818"]
+
+[tool.ruff.format]
+quote-style = "double"

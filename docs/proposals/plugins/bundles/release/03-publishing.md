@@ -1,6 +1,6 @@
 # Release — publishing
 
-> Owns: the `release/` job in `plugins/core/cli/surfsense_plugin_cli/`, `plugins/core/policy/withdrawn-versions.txt`, the plugin jobs in `.github/workflows/release-local.yml`, the plugin steps in `surfsense_local/RELEASE.md`, `.github/workflows/plugins-release-plan.yml`, `.github/workflows/plugins-go-live.yml`, `.github/workflows/plugins-withdraw-version.yml`, `surfsense_local/electron/scripts/fetch-plugin-catalog.mjs`, the repository `SurfSense-Inc/surfsense-plugin-releases`, and the GitHub App that writes to it.
+> Owns: the `release/` job in `plugins/bundles/core/cli/surfsense_plugin_cli/`, `plugins/bundles/core/policy/withdrawn-versions.txt`, the plugin jobs in `.github/workflows/release-local.yml`, the plugin steps in `surfsense_local/RELEASE.md`, `.github/workflows/plugins-release-plan.yml`, `.github/workflows/plugins-go-live.yml`, `.github/workflows/plugins-withdraw-version.yml`, `surfsense_local/electron/scripts/fetch-plugin-catalog.mjs`, the repository `SurfSense-Inc/surfsense-plugin-releases`, and the GitHub App that writes to it.
 > Contract: [`../01-protocol.md`](../01-protocol.md). Versioning: [`../04-versioning.md`](../04-versioning.md). Packaging: [`01-packaging.md`](01-packaging.md). Checks: [`02-pull-request-checks.md`](02-pull-request-checks.md).
 
 ## Goal
@@ -23,11 +23,11 @@ Every job that writes to the second repository runs in that environment and turn
 
 What that credential can and cannot do. Workflows on pull requests from forks never receive secrets, so a contributor cannot reach it. The token cannot write to this repository, so it can never touch the app's releases or update channel. If the private key leaked, someone could publish a false catalog until an owner of SurfSense-Inc deletes the key, which takes one click; that is the same kind of risk as the app's own release pipeline, and the key gets the same care.
 
-`plugins/core/cli/surfsense_plugin_cli/release/README.md` is the maintainers' guide: this setup, the release flow below, reading the plan comment, withdrawing a version, and replacing the App's key.
+`plugins/bundles/core/cli/surfsense_plugin_cli/release/README.md` is the maintainers' guide: this setup, the release flow below, reading the plan comment, withdrawing a version, and replacing the App's key.
 
 ### What a release publishes
 
-A plugin is published when it changed since the last published release, as [`../04-versioning.md`](../04-versioning.md#a-plugins-version) defines it. The last published release is the `released_with` of the live catalog; the comparison is between that release's tag and this one, folder by folder, plus whatever `plugins/core/build-targets.json` changed for each plugin's packaged files. A new folder is published; a folder that is gone gets `removed_from_app` set to this release. The first release ever publishes every plugin.
+A plugin is published when it changed since the last published release, as [`../04-versioning.md`](../04-versioning.md#a-plugins-version) defines it. The last published release is the `released_with` of the live catalog; the comparison is between that release's tag and this one, folder by folder, plus whatever `plugins/bundles/core/build-targets.json` changed for each plugin's packaged files. A new folder is published; a folder that is gone gets `removed_from_app` set to this release. The first release ever publishes every plugin.
 
 ### The release, step by step
 
@@ -50,7 +50,7 @@ A prerelease app tag, such as `v2.5.0-rc.1`, uploads nothing and never goes live
 
 ### Withdrawing a version
 
-`plugins/core/policy/withdrawn-versions.txt` holds one line per withdrawn version, `<id> <version> [from <app-version>] <reason>`, and `#` comments. The reason is what users read. A maintainer adds the line by pull request into `dev`, then runs `plugins-withdraw-version.yml`, which runs `surfsense-plugins withdraw`: it rewrites the live catalog's `maintainer` entries from the file and publishes the result as a release `withdrawal-<UTC timestamp>`, holding only the catalog, marked latest. It reads the list from `dev` without waiting for a release, because a withdrawal can only stop a version, never add one, so it cannot bring unreleased code to users. It then rebuilds the directory site.
+`plugins/bundles/core/policy/withdrawn-versions.txt` holds one line per withdrawn version, `<id> <version> [from <app-version>] <reason>`, and `#` comments. The reason is what users read. A maintainer adds the line by pull request into `dev`, then runs `plugins-withdraw-version.yml`, which runs `surfsense-plugins withdraw`: it rewrites the live catalog's `maintainer` entries from the file and publishes the result as a release `withdrawal-<UTC timestamp>`, holding only the catalog, marked latest. It reads the list from `dev` without waiting for a release, because a withdrawal can only stop a version, never add one, so it cannot bring unreleased code to users. It then rebuilds the directory site.
 
 The file is the source of every `maintainer` entry, so editing a line changes its block and deleting one lifts it. `checks` entries are never lifted.
 

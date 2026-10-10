@@ -12,7 +12,7 @@ Desktop app plus scraper API. Five trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
-| `plugins` | Plugins, ours and contributed, and in `core/` what maintainers own: the SDK and the plugin tooling. Being built from the [proposal](docs/proposals/plugins/README.md) |
+| `plugins` | SurfSense's own plugin servers and the registry, being built from the [proposal](docs/proposals/plugins/README.md). `bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
 The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
@@ -66,11 +66,11 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
-# plugins: the manifest rules, the SDK, the surfsense-plugins command
-cd plugins/core/manifest && uv sync
-cd plugins/core/sdk && uv sync
-cd plugins/core/sdk && uv run pyright
-cd plugins/core/cli && uv sync
+# bundles (deferred): the manifest rules, the SDK, the surfsense-plugins command
+cd plugins/bundles/core/manifest && uv sync
+cd plugins/bundles/core/sdk && uv sync
+cd plugins/bundles/core/sdk && uv run pyright
+cd plugins/bundles/core/cli && uv sync
 
 # compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
@@ -88,10 +88,10 @@ pre-commit run --all-files
 | Web unit | `cd surfsense_web && pnpm test:unit` |
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
-| Plugins: manifest rules | `cd plugins/core/manifest && uv run pytest -m unit` |
-| Plugins: SDK | `cd plugins/core/sdk && uv run pytest -m unit` |
-| Plugins: SDK against the app | `cd plugins/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
-| Plugins: CLI | `cd plugins/core/cli && uv run pytest` (starts the backend; `uv sync` it first) |
+| Bundles: manifest rules | `cd plugins/bundles/core/manifest && uv run pytest -m unit` |
+| Bundles: SDK | `cd plugins/bundles/core/sdk && uv run pytest -m unit` |
+| Bundles: SDK against the app | `cd plugins/bundles/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
+| Bundles: CLI | `cd plugins/bundles/core/cli && uv run pytest` (starts the backend; `uv sync` it first) |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 

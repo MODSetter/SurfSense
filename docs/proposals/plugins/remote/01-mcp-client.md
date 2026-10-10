@@ -1,6 +1,6 @@
 # Remote plugins: the MCP client
 
-> Owns: `surfsense_local/backend/modules/plugins/mcp_client/`, the OAuth callback route, the egress changes.
+> Owns: `surfsense_local/backend/modules/plugins/remote/`: `mcp_client/`, `sign_in/` with the OAuth callback route, and `source.py`; the egress changes.
 > Gateway: [`../core/01-architecture.md`](../core/01-architecture.md). Trust: [`../core/04-trust.md`](../core/04-trust.md). Paid: [`../core/05-paid.md`](../core/05-paid.md). SurfSense's own servers: [`02-surfsense-servers.md`](02-surfsense-servers.md).
 
 ## The MCP client
@@ -17,7 +17,7 @@ The API carries a small MCP client of its own, as Pi does with [`@earendil-works
 
 ## Signing in
 
-`auth` in the registry entry, or what a custom server's first `401` asks for, picks one of four.
+`auth` in the plugin's entry, or what a custom server's first `401` asks for, picks one of four.
 
 | `auth` | What the user does | What the client sends |
 |---|---|---|

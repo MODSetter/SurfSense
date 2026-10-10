@@ -21,7 +21,7 @@ plugins/
   <id>/                          one folder per plugin; nothing else sits beside core/
 ```
 
-`plugins/core/cli/` is one Python project with one command, `surfsense-plugins`, and a subcommand per job. For authors: `new`, `add`, `remove`, `pin-dependencies`, `invoke` and `check`. For CI and maintainers: `audit`, `plan`, `upload`, `go-live`, `withdraw` and `build-directory-site`. Each job is a folder in its package, `surfsense_plugin_cli` ([`cli/01-author-commands.md`](cli/01-author-commands.md)). Workflows only call it, so every step also runs on a maintainer's machine.
+`plugins/bundles/core/cli/` is one Python project with one command, `surfsense-plugins`, and a subcommand per job. For authors: `new`, `add`, `remove`, `pin-dependencies`, `invoke` and `check`. For CI and maintainers: `audit`, `plan`, `upload`, `go-live`, `withdraw` and `build-directory-site`. Each job is a folder in its package, `surfsense_plugin_cli` ([`cli/01-author-commands.md`](cli/01-author-commands.md)). Workflows only call it, so every step also runs on a maintainer's machine.
 
 A plugin's folder:
 
@@ -64,7 +64,7 @@ It pins every transitive dependency for every platform, with a sha256 per file, 
 | `access` | `free` or `paid`. Only a reserved id may be `paid`. |
 | `hosts` | Array of exact hostnames: no scheme, path, port or wildcard, and never a loopback name. Shown in the app and on the directory site. Each one needs the user's consent before the plugin's first run, and the SDK's `http` refuses any host not listed. |
 | `secrets` | Optional array of what the user enters once, in Settings, stored encrypted and never shown again: an API token, a password. Each is `{ "name", "title", "description" }`: `name` matches `^[a-z][a-z0-9_]{0,63}$` so it is a legal variable name, `title` is the label, and the optional `description` says where to get it. Every declared secret is required. Values are never in this file. |
-| `platforms` | Optional. A non-empty subset of the platform keys in `plugins/core/build-targets.json`. Absent means all of them. On any other system the app does not list the plugin. |
+| `platforms` | Optional. A non-empty subset of the platform keys in `plugins/bundles/core/build-targets.json`. Absent means all of them. On any other system the app does not list the plugin. |
 | `actions` | At least one. |
 
 An author writes no `version` and no compatibility field: the release stamps the version into the packaged copy of this file, where the app reads it, and compatibility follows from it ([`04-versioning.md`](04-versioning.md)). A `version` written in the repository is replaced.
@@ -102,7 +102,7 @@ More kinds of input, and settings that are not secret, come the way any capabili
 
 ### Build targets
 
-`plugins/core/build-targets.json` is the one list of what plugins are built for: the CPython version the app ships, and each platform with the `uv` target that picks wheels old enough for the app's oldest supported systems, Ubuntu 22.04, RHEL 9 and macOS 13.3 ([packaging](../../../architecture/packaging.md)).
+`plugins/bundles/core/build-targets.json` is the one list of what plugins are built for: the CPython version the app ships, and each platform with the `uv` target that picks wheels old enough for the app's oldest supported systems, Ubuntu 22.04, RHEL 9 and macOS 13.3 ([packaging](../../../architecture/packaging.md)).
 
 ```json
 {
@@ -121,7 +121,7 @@ The interpreter fetch script, packaging and the checks all read it. There is no 
 
 A download key is `any`, or `cp<major><minor>-<platform>` such as `cp312-linux-x64`, because compiled code runs only on the platform and the Python it was built for. Packaging builds one `any` file when the dependencies install to the same files on every target in `platforms`, and one file per target otherwise ([`release/01-packaging.md`](release/01-packaging.md)).
 
-`<id>-<version>-<key>.tar.gz`, for example `pdf-tools-2.4.0-cp312-linux-x64.tar.gz`. One top-level directory, `<id>-<version>/`, holding the files of the plugin's folder, not the folder itself, plus `site-packages/` when there are dependencies. Its `manifest.json` is the repository's with the stamped `version` added, and it replaces the original. That `manifest.json`, less `id` and `version`, must deep-equal the catalog version's `manifest`, and its `id` and `version` must equal the catalog's. A mismatch rejects the install. The sha256 is of the gzip bytes. A file is at most 100 MB unless `plugins/core/policy/size-limit-exceptions.txt` names the plugin.
+`<id>-<version>-<key>.tar.gz`, for example `pdf-tools-2.4.0-cp312-linux-x64.tar.gz`. One top-level directory, `<id>-<version>/`, holding the files of the plugin's folder, not the folder itself, plus `site-packages/` when there are dependencies. Its `manifest.json` is the repository's with the stamped `version` added, and it replaces the original. That `manifest.json`, less `id` and `version`, must deep-equal the catalog version's `manifest`, and its `id` and `version` must equal the catalog's. A mismatch rejects the install. The sha256 is of the gzip bytes. A file is at most 100 MB unless `plugins/bundles/core/policy/size-limit-exceptions.txt` names the plugin.
 
 A published version never changes. Uploading a version that already exists with different bytes fails.
 

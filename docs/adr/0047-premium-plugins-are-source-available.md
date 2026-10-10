@@ -1,6 +1,6 @@
 # ADR 0047: SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license
 
-- **Status:** Accepted
+- **Status:** Accepted; where paid plugins live and that each is its own container would be superseded by [ADR 0054](0054-surfsenses-plugins-run-on-one-plugin-host.md), proposed
 - **Date:** 2026-10-08
 - **Supersedes:** [ADR 0025](0025-scraper-client-as-paid-plugin.md) in part: paid plugin source living in `plugins/` under Apache-2.0
 - **Source:** [file-agent README L252](https://github.com/MODSetter/SurfSense/blob/2327494854e590f484bd61e3b5ff9d1fc4db70ce/docs/proposals/file-agent/README.md#L252), [file-agent strategy L171–187](https://github.com/MODSetter/SurfSense/blob/2327494854e590f484bd61e3b5ff9d1fc4db70ce/plans/community-local/file-agent-strategy.md#L171-L187), maintainer decision, 8 Oct 2026 (no permalink)
