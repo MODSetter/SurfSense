@@ -11,6 +11,7 @@ from modules.plugins.installed.custom_plugin import (
     url_host,
 )
 from modules.plugins.installed.disconnect import disconnect
+from modules.plugins.installed.https_required import needs_https
 from modules.plugins.installed.models import InstalledPlugin, ToolApproval
 from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
@@ -70,6 +71,11 @@ async def add_custom_plugin(
     if taken is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"This server is already connected as {taken}."
+        )
+    if needs_https(url):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "A plugin's server must use HTTPS, unless it runs on this computer.",
         )
     refusal = await transact(session, refused_hosts, [url_host(url)])
     if refusal is not None:

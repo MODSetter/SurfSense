@@ -133,3 +133,27 @@ async def test_the_same_server_spelled_differently_is_still_the_same_server(
     assert first.status_code == 201, first.text
     assert second.status_code == 409
     assert (await client.get("/plugins")).json()[0]["url"] == f"{base}/mcp"
+
+
+async def test_a_plugin_named_surfsense_does_not_take_surfsenses_own_tools(
+    client: AsyncClient,
+) -> None:
+    """The agent's own tools are a server named `surfsense`; a plugin is never given that name."""
+    with serving(notes_server().streamable_http_app()) as base:
+        added = await client.post(
+            "/plugins/custom", json={"url": f"{base}/mcp", "name": "SurfSense"}
+        )
+
+    assert added.status_code == 201, added.text
+    assert added.json()["id"] != "surfsense"
+    assert added.json()["name"] == "SurfSense"
+
+
+async def test_a_remote_server_must_use_https(client: AsyncClient) -> None:
+    """The agent reaches remote plugins only through a TLS tunnel; a server on this computer may use HTTP."""
+    added = await client.post(
+        "/plugins/custom", json={"url": "http://notes.example.com/mcp", "name": "Notes"}
+    )
+
+    assert added.status_code == 422
+    assert "HTTPS" in added.json()["detail"]

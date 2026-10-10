@@ -17,6 +17,7 @@ from modules.agent.model_endpoint.responses_relay.router import (
     router as agent_responses_router,
 )
 from modules.agent.model_endpoint.router import router as agent_model_router
+from modules.agent.plugin_proxy.server import serving_plugin_proxy
 from modules.agent.previews.router import file_router as agent_preview_files_router
 from modules.agent.previews.router import router as agent_previews_router
 from modules.agent.tool_endpoint.router import router as agent_tools_router
@@ -124,9 +125,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
-        yield
+        async with _plugin_proxy(session_factory):
+            yield
     finally:
         engine.dispose()
+
+
+@asynccontextmanager
+async def _plugin_proxy(session_factory: sessionmaker[Session]) -> AsyncIterator[None]:
+    """opencode's way out, beside an opencode only: without it, opencode reaches no plugin."""
+    agent = get_agent_settings()
+    if not agent.has_opencode() or agent.plugin_proxy_port is None:
+        yield
+        return
+    host = get_settings().host
+    async with serving_plugin_proxy(session_factory, host, agent.plugin_proxy_port):
+        yield
 
 
 def _finish_folder_deletes(session_factory: sessionmaker[Session]) -> None:
