@@ -12,13 +12,21 @@ Moving the hosted service's current users onto the desktop app is the point of t
 
 - The export is one ZIP for the whole account, markdown only ([contract 3](../contracts/03-export-bundle.md)): every ready document's extracted content with its folder structure and title, plus the chat threads. Original uploads and old generated artifacts stay behind. Tool calls and agent steps are dropped, and citations are reduced to document titles.
 - Import is a bulk upload on the API side, and nothing touches the network. It creates one local workspace per hosted workspace, writes each markdown file through the upload path so it gets a `dedup_key`, keeps `folder_path`, `source` and the hosted ids in `document_metadata`, and enqueues the existing `ingest_document` ([`modules/migration/`](../../surfsense_local/backend/modules/migration/)).
+- An imported chat thread keeps its hosted id in `cloud_id`. Re-import skips a
+  thread with that id without changing it and creates one that is missing.
 - The app re-chunks and re-embeds everything locally. Markdown is in `TEXT_SUFFIXES` ([`worker/ingestion/parsing.py`](../../surfsense_local/backend/worker/ingestion/parsing.py)), so Docling is skipped and import is chunk and embed only.
 - An imported assistant message keeps its citations as a "Sources: A, B" line in its text, because local citations are chunk-backed and imported ones cannot be.
 
 ## Consequences
 
 - The migration is lossy by design. The export step on the `/sunset` page says so, and the info tooltip beside Import from SurfSense cloud in the app's Settings says original files and generated artifacts stay behind.
-- Re-running a bundle is safe for documents. `dedup_key` skips each one already imported, and each workspace is found again by its `cloud_id`. A re-export after edits lands as a second copy, not an update.
-- Chat threads carry no dedup key, so they import only with a workspace's first import. The `ponytail:` in [`modules/migration/service.py`](../../surfsense_local/backend/modules/migration/service.py) names the upgrade: a hosted thread id column on `chat_threads`.
+- Re-running a bundle is safe for documents and threads. `dedup_key` skips each
+  document already imported, each workspace is found again by its `cloud_id`,
+  and each thread is found by its own `cloud_id`. A re-export after document
+  edits lands as a second copy, not an update; a locally edited thread is
+  retained.
+- A workspace with threads imported before hosted ids were retained is marked
+  during upgrade. Re-import leaves those threads untouched because titles and
+  messages are mutable and cannot safely recover their identity.
 - A large account is embed-bound on a laptop: minutes to an hour for thousands of documents, in the background.
 - Migrating original files would be a `format` bump on contract 3, if users ask for it.

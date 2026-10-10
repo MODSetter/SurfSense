@@ -76,6 +76,8 @@ Import keeps the frontmatter in the stored file. It is a few lines and carries u
 ]
 ```
 
+- `id` is the globally unique primary key of the hosted chat thread. Import
+  stores it as `chat_threads.cloud_id` and uses it to deduplicate re-imports.
 - `role` is `user` or `assistant`. System, tool, and step messages are dropped.
 - `text` is plain markdown with every hosted citation marker **removed** by the exporter.
 - `citations` is `[{"title": ...}]`, distinct titles in first-seen order. It carries no chunk or document ids.
@@ -96,7 +98,9 @@ Import stores each message as `{"text": text, "citations": []}`, appending `\n\n
 - Cap ZIP entries and unpacked size with import-specific limits; the upload limits in `documents/storage.py` (10,000 entries) are too small for a large account once OKF index/log files are counted.
 - Write each document through the existing upload path so it gets a content-hash `dedup_key`; store `folder_path` (directory part of `path` under `documents/`), `source`, and `cloud: {workspace_id, document_id}` in `document_metadata`.
 - Re-importing the same bundle is a no-op per document via `dedup_key`. A re-export after edits lands as a second copy, not an update; acceptable for a one-shot migration.
-- Chat threads carry no dedup key, so they import only with a workspace's first import. A re-import adds none, and an import interrupted before its threads were written never adds them.
+- Re-importing skips each chat thread already present by its hosted `id` and
+  creates any missing thread. Threads imported by app versions that did not
+  retain this id are left untouched rather than guessed from mutable content.
 
 ## Fixture
 
