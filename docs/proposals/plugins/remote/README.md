@@ -2,7 +2,7 @@
 status: proposed
 code:
   - surfsense_local/backend/modules/plugins/mcp_client/
-  - plugins/proprietary/surfsense-scrapers/
+  - plugins/remote/
   - plugins/registry/
 ---
 
@@ -36,7 +36,7 @@ chat engine ─► router step ──────────┼──► Tool G
 
 | Publisher | Code | Runs on |
 |---|---|---|
-| SurfSense | [`plugins/`](../../../../plugins/README.md), and `plugins/proprietary/` when paid | Its own containers, apart from `surfsense_backend` ([`02-surfsense-servers.md`](02-surfsense-servers.md)) |
+| SurfSense | `plugins/remote/`, and `plugins/remote/proprietary/` when paid | One plugin host at `plugins.surfsense.com`, apart from `surfsense_backend` ([`02-surfsense-servers.md`](02-surfsense-servers.md#the-plugin-host)) |
 | A partner or a community developer | Wherever they keep it | Their own server |
 | A user's custom plugin | Wherever its publisher keeps it | Its publisher's server; it is in the user's app only, not in the registry |
 

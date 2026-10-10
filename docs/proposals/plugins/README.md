@@ -2,7 +2,7 @@
 status: proposed
 code:
   - plugins/registry/
-  - plugins/proprietary/
+  - plugins/remote/
   - plugins/bundles/core/
   - surfsense_local/backend/modules/plugins/
   - surfsense_local/backend/modules/agent/plugin_tools/
@@ -43,7 +43,7 @@ plugins/
 |---|---|
 | [`README.md`](remote/README.md) | What a remote plugin is, how one works, who hosts what |
 | [`01-mcp-client.md`](remote/01-mcp-client.md) | The app's MCP client, signing in, credentials, egress |
-| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The servers SurfSense hosts, and SurfSense Scrapers as its own container |
+| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The plugin host that runs SurfSense's plugins and serves the registry, the code layout, SurfSense Scrapers |
 
 **[`bundles/`](bundles/README.md)**: deferred. Plugins that run on the user's machine, and the earlier design they build on.
 
@@ -85,7 +85,8 @@ plugins/
 | Approval | From the tool's MCP annotations, in SurfSense's own dialog, for every caller |
 | Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |
 | Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`core/05-paid.md`](core/05-paid.md)) |
-| SurfSense's own plugin servers | In [`plugins/`](../../../plugins/README.md) (Apache-2.0) and `plugins/proprietary/` (Business Source License 1.1), each its own container ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
+| License of SurfSense's plugin code | The folder decides it: `proprietary/` is Business Source License, everything else Apache-2.0. Price is the registry's `access`, a separate question ([`core/05-paid.md`](core/05-paid.md#which-license-a-surfsense-plugin-is-under)) |
+| SurfSense's own plugin servers | In `plugins/remote/` (Apache-2.0) and `plugins/remote/proprietary/` (Business Source License 1.1), all run by one plugin host on Azure Container Apps at `plugins.surfsense.com`, which also serves the registry ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
 | `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
 | Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`core/04-trust.md`](core/04-trust.md#organisation-policy)) |
 
@@ -93,13 +94,14 @@ plugins/
 
 | Stream | Owns | Needs |
 |---|---|---|
-| **Registry** | `plugins/registry/plugins.json`, its schema and CI check, signing and publishing it to SurfSense's plugin host, the copy the app ships and refreshes | a host for the signed file |
+| **Registry** | `plugins/registry/plugins.json`, its schema and CI check, signing it, the copy the app ships and refreshes | the plugin host, to serve the signed file |
 | **MCP client** | `modules/plugins/mcp_client/`: Streamable HTTP, sign-in, credentials | nothing |
 | **Gateway** | `modules/plugins/gateway/`, the tables, approval, permissions, results | the MCP client |
 | **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, Restricted mode, permissions, activity | the gateway's routes; can start against their shapes |
 | **opencode** | `modules/agent/plugin_tools/` | the gateway |
 | **Chat router** | `modules/chat/plugin_router/`, `@` mentions, the chat eval's router test | the gateway |
-| **SurfSense scrapers** | `plugins/proprietary/surfsense-scrapers/`: the scraping code copied out of `surfsense_backend`, the MCP server, the license check, the container with Redis and SearXNG, its deployment | the root `LICENSE` line for `plugins/proprietary/` |
+| **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one container on Azure Container Apps, its image, its deployment, Redis and SearXNG | nothing |
+| **SurfSense scrapers** | `plugins/remote/proprietary/`: the scraping code copied out of `surfsense_backend`, its MCP tools, the license check | the plugin host; the root `LICENSE` line for `plugins/remote/proprietary/` |
 | **Contributor guide** | [`plugins/README.md`](../../../plugins/README.md), rewritten: building a remote MCP server, trying it with a custom plugin by URL, the registry pull request | the registry's rules |
 | **Bundles** | [`bundles/`](bundles/README.md) | deferred |
 
@@ -114,7 +116,7 @@ plugins/
 3. **Settings → Plugins**: Connect, sign-in, egress consent, Restricted mode, tool switches, approval, activity.
 4. **The registry**: `plugins.json`, its check, signing and publishing to SurfSense's host, the app's refresh.
 5. **The chat router and `@` mentions**, with the chat eval's router test.
-6. **SurfSense Scrapers**, its own container ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
+6. **The plugin host and SurfSense Scrapers** on it ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
 7. **Bundles**, when something needs them.
 
 ## What this design gives up
@@ -131,7 +133,7 @@ In return, both engines call plugins and get live results, existing MCP servers 
 
 ## What happens to the code already built
 
-The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/core/`](../../../plugins/bundles/core/) and [`modules/plugins/`](../../../surfsense_local/backend/modules/plugins/) were built for the earlier design. They stay in the tree, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. [`plugins/README.md`](../../../plugins/README.md), the contributor guide, still describes the earlier design and is rewritten by the contributor guide stream.
+The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/core/`](../../../plugins/bundles/core/) and [`modules/plugins/`](../../../surfsense_local/backend/modules/plugins/) were built for the earlier design. They moved to `plugins/bundles/` and stay there, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. The earlier design's contributor guide moved with them to [`plugins/bundles/README.md`](../../../plugins/bundles/README.md); [`plugins/README.md`](../../../plugins/README.md) is rewritten by the contributor guide stream.
 
 ## Out of scope
 
@@ -142,5 +144,5 @@ Plugins that change SurfSense itself (providers, interface, prompts); local MCP 
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long tool results are kept and how large a stored one may be.
 - The router's default per model, from the chat eval's router test.
-- Where SurfSense's plugin servers and the signed list are deployed, and under which hostname.
-- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the scrapers container once the backend's scraper API is retired.
+- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.
+- Whether contributions under `plugins/remote/proprietary/` need a contributor agreement, so SurfSense can still move that code to Apache-2.0.

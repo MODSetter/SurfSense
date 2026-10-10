@@ -1,13 +1,13 @@
 # Paid plugins
 
-> Owns: the `access` rules, the license header, `plugins/proprietary/`, how Settings → Plugins shows a paid plugin.
+> Owns: the `access` rules, the license header, `plugins/remote/proprietary/`, which license SurfSense's plugin code is under, how Settings → Plugins shows a paid plugin.
 > Decision: [ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md). License: [ADR 0019](../../../adr/0019-offline-licenses.md), [license in the app](../../../architecture/license/app.md). License checks on the server: [contract 2](../../../contracts/02-scraper-api-auth.md).
 
 Who publishes a plugin and whether it costs money are separate questions.
 
 | | Free | Paid |
 |---|---|---|
-| **SurfSense** | `access: free`. Server in `plugins/<id>/`, Apache-2.0 | `access: license`, unlocked by the SurfSense license key, checked by SurfSense's server. Server in `plugins/proprietary/<id>/`, Business Source License 1.1 |
+| **SurfSense** | `access: free`. Code in `plugins/remote/<id>/`, Apache-2.0 | `access: license`, unlocked by the SurfSense license key, checked by SurfSense's server. Code in `plugins/remote/proprietary/<id>/`, Business Source License 1.1 |
 | **Partner or community** | `access: free` | `access: external`: the publisher prices, sells and checks access on its own service. SurfSense takes no payment and never sees what the user bought |
 
 ## The license is checked on the server, never in the app
@@ -23,17 +23,33 @@ Whether a user may use a paid plugin is decided by the plugin's server on every 
 - The key goes only to SurfSense's plugin host ([`02-registry.md`](02-registry.md#how-the-app-gets-the-registry)), compiled into the app. An entry pointing anywhere else is refused before any request, so a mistaken or tampered entry cannot send the key away. This guards the key; it does not decide access.
 - A trial unlocks paid plugins for its term, because the server accepts a trial key ([ADR 0025](../../../adr/0025-scraper-client-as-paid-plugin.md), still in force on this point).
 
+## Which license a SurfSense plugin is under
+
+Price and license are separate questions. The registry's `access` decides the price; the folder decides the license.
+
+| Folder | License |
+|---|---|
+| `plugins/remote/proprietary/` | Business Source License 1.1 |
+| Everything else in `plugins/`: the host, `mcp_server/`, the registry, free plugins | Apache-2.0 |
+
+- Code goes under `proprietary/` when it is what someone could compete with SurfSense on: the scrapers and the license check today. Everything a free plugin might need stays Apache-2.0.
+- So a free plugin is usually Apache-2.0, and a paid one Business Source License. The exception is a free plugin built on paid code, or one meant to become paid: it starts under `proprietary/` with `access: free`, because Apache-2.0 code once published cannot be closed again.
+- Apache-2.0 code never imports from `proprietary/`. A check in the plugin pull-request workflow fails any import that does.
+- Code SurfSense owns can move out of `proprietary/` to Apache-2.0 at any time, by moving its folder. Each released version also turns Apache-2.0 four years after release, as the license's change date says. Moving the other way works only for code never published under Apache-2.0.
+
 ## Where their code lives
 
 ```
-plugins/proprietary/
-  LICENSE                     Business Source License 1.1, as surfsense_backend/app/proprietary/LICENSE
-  surfsense-scrapers/         the scrapers plugin: its server and the scraping code it runs
+plugins/remote/proprietary/
+  LICENSE      Business Source License 1.1, as surfsense_backend/app/proprietary/LICENSE
+  license/     the Keygen check every SurfSense paid plugin uses
+  scrapers/    the scrapers plugin and the scraping code it runs
 ```
 
-- The root [`LICENSE`](../../../../LICENSE) names only `surfsense_backend/app/proprietary/` as BSL today. It needs a second line naming `plugins/proprietary/`, and a maintainer has to approve that change before any code lands there.
-- `CODEOWNERS` gives `plugins/proprietary/` to the maintainers, as AGENTS.md treats `surfsense_backend/app/proprietary/`.
-- Everything under it is under the Business Source License. Each paid plugin is its own container ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md)).
+- The root [`LICENSE`](../../../../LICENSE) names only `surfsense_backend/app/proprietary/` as BSL today. It needs a second line naming `plugins/remote/proprietary/`, and a maintainer has to approve that change before any code lands there.
+- `CODEOWNERS` gives `plugins/remote/proprietary/` to the maintainers, as AGENTS.md treats `surfsense_backend/app/proprietary/`.
+- Paid plugins run on the plugin host beside the free ones ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)).
+- A SurfSense paid bundle, when bundles come, would live in `plugins/bundles/proprietary/`, with a third line in the root `LICENSE`.
 
 ## Third parties' paid plugins
 
@@ -49,3 +65,4 @@ plugins/proprietary/
 - A registry entry with `auth: license` on a host outside the compiled list is refused, and no request carries the key.
 - A community entry with `access: license` fails the registry check.
 - A partner plugin with `access: external` shows its note before Connect, and its requests carry the user's partner credentials and never the license key.
+- A file outside `plugins/remote/proprietary/` that imports from it fails the plugin pull-request check.
