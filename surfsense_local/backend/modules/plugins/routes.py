@@ -14,6 +14,7 @@ from modules.plugins.installed.disconnect import disconnect
 from modules.plugins.installed.models import InstalledPlugin, ToolApproval
 from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
+from modules.plugins.installed.plugin_switch import set_plugin_enabled
 from modules.plugins.installed.server_url import server_url
 from modules.plugins.installed.third_party import set_third_party_on
 from modules.plugins.installed.tool_settings import set_tool
@@ -28,6 +29,10 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 class ToolWrite(BaseModel):
     enabled: bool | None = None
     approval: ToolApproval | None = None
+
+
+class PluginWrite(BaseModel):
+    enabled: bool
 
 
 class ThirdPartyWrite(BaseModel):
@@ -106,6 +111,16 @@ def write_tool(
 )
 def write_third_party(payload: ThirdPartyWrite, session: SessionDep) -> None:
     set_third_party_on(session, payload.allowed)
+
+
+@router.put("/{plugin_id}", response_model=PluginRead, summary="Switch a plugin")
+def write_plugin(
+    plugin_id: str, payload: PluginWrite, session: SessionDep
+) -> PluginRead:
+    plugin = set_plugin_enabled(session, plugin_id, payload.enabled)
+    if plugin is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    return read_plugin(session, plugin)
 
 
 @router.delete("/{plugin_id}", status_code=204, summary="Disconnect a plugin")
