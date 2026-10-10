@@ -34,6 +34,7 @@ async def test_upgrade_then_reimport_preserves_local_and_imported_history(
     content = {"text": "My existing turn"}
     if imported_history:
         content["citations"] = []
+    created_at = "2026-06-01 10:00:00"
     with engine.begin() as connection:
         connection.execute(
             text(
@@ -48,10 +49,15 @@ async def test_upgrade_then_reimport_preserves_local_and_imported_history(
         )
         connection.execute(
             text(
-                "INSERT INTO chat_messages(id, chat_thread_id, role, content) "
-                "VALUES (1, 1, 'user', :content)"
+                "INSERT INTO chat_messages("
+                "id, chat_thread_id, role, content, created_at, completed_at"
+                ") VALUES (1, 1, 'user', :content, :created_at, :completed_at)"
             ),
-            {"content": json.dumps(content)},
+            {
+                "content": json.dumps(content),
+                "created_at": created_at,
+                "completed_at": created_at if imported_history else None,
+            },
         )
     command.upgrade(config, "head")
 
@@ -67,11 +73,99 @@ async def test_upgrade_then_reimport_preserves_local_and_imported_history(
     assert [message["content"]["text"] for message in messages] == ["My existing turn"]
 
 
+async def test_upgrade_then_reimport_claims_an_assistant_only_legacy_thread(
+    client: AsyncClient, engine: Engine, tmp_path: Path
+) -> None:
+    """The old importer's timestamps identify a thread even without a user turn."""
+    config = Config()
+    config.set_main_option(
+        "script_location", str(Path(__file__).resolve().parents[3] / "alembic")
+    )
+    config.attributes["engine"] = engine
+    command.downgrade(config, "0027")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO workspaces(id, name, cloud_id) VALUES (1, 'Research', 12)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO chat_threads(id, workspace_id, title, created_at) "
+                "VALUES (1, 1, 'My renamed greeting', '2026-06-03 09:00:00')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO chat_messages("
+                "id, chat_thread_id, role, content, created_at, completed_at"
+                ") VALUES (1, 1, 'assistant', :content, :created_at, :created_at)"
+            ),
+            {
+                "content": json.dumps(
+                    {
+                        "text": (
+                            "Hello. What would you like to look at in this workspace?"
+                        ),
+                        "citations": [],
+                    }
+                ),
+                "created_at": "2026-06-03 09:00:03",
+            },
+        )
+    command.upgrade(config, "head")
+    assistant_only = [
+        {
+            "id": 502,
+            "title": "Quick hello",
+            "created_at": "2026-06-03T09:00:00+00:00",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "text": "Hello. What would you like to look at in this workspace?",
+                    "citations": [],
+                    "created_at": "2026-06-03T09:00:03+00:00",
+                }
+            ],
+        }
+    ]
+
+    response = await import_bundle(
+        client,
+        bundle(
+            tmp_path,
+            replacements={"workspaces/12/chats.json": json.dumps(assistant_only)},
+        ),
+    )
+
+    assert response.status_code == 202
+    threads = (await client.get("/workspaces/1/chat/threads")).json()
+    assert [(thread["id"], thread["title"]) for thread in threads] == [
+        (1, "My renamed greeting")
+    ]
+    messages = (await client.get("/chat/threads/1/messages")).json()
+    assert [message["role"] for message in messages] == ["assistant"]
+    with engine.connect() as connection:
+        assert connection.execute(
+            text(
+                "SELECT chat_threads.cloud_id, has_unkeyed_imported_threads "
+                "FROM chat_threads JOIN workspaces "
+                "ON workspaces.id = chat_threads.workspace_id "
+                "WHERE chat_threads.id = 1"
+            )
+        ).one() == (502, 1)
+
+
 def bundle(
-    tmp_path: Path, manifest: dict | None = None, *, missing: str | None = None
+    tmp_path: Path,
+    manifest: dict | None = None,
+    *,
+    missing: str | None = None,
+    replacements: dict[str, str] | None = None,
 ) -> Path:
     """Zip the committed fixture, optionally with a manifest of the test's own."""
     path = tmp_path / "export.zip"
+    replacements = replacements or {}
     with ZipFile(path, "w") as archive:
         if manifest is None:
             archive.write(SAMPLE / "manifest.json", "manifest.json")
@@ -80,7 +174,10 @@ def bundle(
         for file in sorted(SAMPLE.rglob("*")):
             relative = file.relative_to(SAMPLE).as_posix()
             if file.is_file() and file.name != "manifest.json" and relative != missing:
-                archive.write(file, relative)
+                if relative in replacements:
+                    archive.writestr(relative, replacements[relative])
+                else:
+                    archive.write(file, relative)
     return path
 
 

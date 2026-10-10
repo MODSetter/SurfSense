@@ -41,12 +41,16 @@ added. A re-export after document edits lands each edited document as a second
 copy, not an update.
 
 App versions before this database migration imported threads without retaining
-their hosted ids. On upgrade, a workspace with a user message carrying the
-importer's `citations` key is marked as containing that history, and
-later imports leave all of its threads untouched rather than guessing identity
-from titles or messages. To import newer hosted threads into one of those
-workspaces, delete the workspace and import its bundle afresh, or reconcile the
-histories manually.
+their hosted ids. On upgrade, a workspace is marked when a thread carries the
+old importer's complete message signature: every user or assistant message has
+the `citations` key and an identical `created_at` and `completed_at`. This also
+recognises an assistant-only imported thread, while an ordinary local turn does
+not match. On re-import, an exported thread claims the one unkeyed row with its
+preserved creation time, fills that row's `cloud_id`, and leaves its local title
+and messages untouched. An ambiguous or unmatched row stays untouched rather
+than guessing identity from titles or messages. To import newer hosted threads
+into one of those marked workspaces, delete the workspace and import its bundle
+afresh, or reconcile the histories manually.
 
 A workspace containing only locally created turns is not marked, so those
 turns do not prevent a re-import from recovering missing hosted threads.

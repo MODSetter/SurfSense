@@ -37,11 +37,28 @@ def upgrade() -> None:
         SET has_unkeyed_imported_threads = 1
         WHERE cloud_id IS NOT NULL
           AND EXISTS (
-              SELECT 1 FROM chat_threads
-              JOIN chat_messages ON chat_messages.chat_thread_id = chat_threads.id
+              SELECT 1
+              FROM chat_threads
               WHERE chat_threads.workspace_id = workspaces.id
-                AND chat_messages.role = 'user'
-                AND json_type(chat_messages.content, '$.citations') IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM chat_messages
+                    WHERE chat_messages.chat_thread_id = chat_threads.id
+                      AND chat_messages.role IN ('user', 'assistant')
+                )
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM chat_messages
+                    WHERE chat_messages.chat_thread_id = chat_threads.id
+                      AND chat_messages.role IN ('user', 'assistant')
+                      AND (
+                          json_type(
+                              chat_messages.content, '$.citations'
+                          ) IS NULL
+                          OR chat_messages.completed_at IS NULL
+                          OR chat_messages.completed_at != chat_messages.created_at
+                      )
+                )
           )
         """
     )

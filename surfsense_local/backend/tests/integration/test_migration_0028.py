@@ -25,7 +25,7 @@ def _config(engine: Engine) -> Config:
 def test_chat_threads_gain_identity_without_reimporting_legacy_history(
     tmp_path: Path,
 ) -> None:
-    """Imported history from an older app is marked so re-import will skip it."""
+    """The old importer's message signature marks user and assistant-only history."""
     engine = create_db_engine(tmp_path / "surfsense.db")
     config = _config(engine)
     command.upgrade(config, "0027")
@@ -34,22 +34,30 @@ def test_chat_threads_gain_identity_without_reimporting_legacy_history(
             text(
                 "INSERT INTO workspaces(id, name, cloud_id) "
                 "VALUES (1, 'Imported', 12), (2, 'Interrupted', 13), "
-                "(3, 'Local', NULL)"
+                "(3, 'Local', NULL), (4, 'Assistant only', 14)"
             )
         )
         connection.execute(
             text(
                 "INSERT INTO chat_threads(id, workspace_id, title) "
                 "VALUES (1, 1, 'Imported thread'), (2, 3, 'Local thread'), "
-                "(3, 2, 'Local turn after interrupted import')"
+                "(3, 2, 'Local turn after interrupted import'), "
+                "(4, 4, 'Imported assistant only')"
             )
         )
         connection.execute(
             text(
-                "INSERT INTO chat_messages(id, chat_thread_id, role, content) "
-                """VALUES (1, 1, 'user', '{"text": "kept", "citations": []}'), """
-                """(2, 3, 'user', '{"text": "local"}'), """
-                """(3, 3, 'assistant', '{"text": "answer", "citations": []}')"""
+                "INSERT INTO chat_messages("
+                "id, chat_thread_id, role, content, created_at, completed_at"
+                ") VALUES "
+                """(1, 1, 'user', '{"text": "kept", "citations": []}', """
+                "'2026-06-01 10:00:00', '2026-06-01 10:00:00'), "
+                """(2, 3, 'user', '{"text": "local"}', """
+                "'2026-06-02 10:00:00', NULL), "
+                """(3, 3, 'assistant', '{"text": "answer", "citations": []}', """
+                "'2026-06-02 10:00:01', '2026-06-02 10:00:02'), "
+                """(4, 4, 'assistant', '{"text": "imported", "citations": []}', """
+                "'2026-06-03 10:00:00', '2026-06-03 10:00:00')"
             )
         )
 
@@ -70,7 +78,7 @@ def test_chat_threads_gain_identity_without_reimporting_legacy_history(
         )
         assert connection.execute(
             text("SELECT id, has_unkeyed_imported_threads FROM workspaces ORDER BY id")
-        ).all() == [(1, 1), (2, 0), (3, 0)]
+        ).all() == [(1, 1), (2, 0), (3, 0), (4, 1)]
         assert (
             connection.execute(
                 text("SELECT content FROM chat_messages WHERE id = 1")
