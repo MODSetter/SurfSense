@@ -361,6 +361,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     ctx.opencodePassword = randomBytes(32).toString("base64url")
     ctx.docxSnapshotKey = randomBytes(32).toString("base64url")
     ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
+    ctx.pluginProxyPort = await getFreePort(host)
     ctx.agentDir = join(dataDir, "agent")
     mkdirSync(ctx.agentDir, { recursive: true })
     await stopLeftoverOpencode(ctx.agentDir, host)
