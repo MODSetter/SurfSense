@@ -13,6 +13,7 @@ from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
     collect_dynamic_libs,
+    copy_metadata,
 )
 
 sys.path.insert(0, SPECPATH)
@@ -83,6 +84,10 @@ binaries += collect_dynamic_libs("tokenizers")
 # importlib.resources, so the analyser does not see them as source.
 datas += collect_data_files("worker.studio", includes=["**/*.md"])
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
+
+# lameenc, which encodes a podcast as MP3, is found by its import; the wheel
+# carries LAME's LGPL text only in its dist-info, which ships only when named.
+datas += copy_metadata("lameenc")
 
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += [

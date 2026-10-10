@@ -11,14 +11,12 @@ fails the run: CI sets the folder, and a skip there would pass unseen.
 import asyncio
 import contextlib
 import hashlib
-import io
 import os
 import shutil
 import socket
 import subprocess
 import sys
 import time
-import wave
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -203,8 +201,24 @@ def test_a_curated_model_voices_through_the_app_and_is_given_back(
         sys.stderr.write("\n".join(["audiocpp_server's log, last lines:", *tail]))
         raise
 
-    with wave.open(io.BytesIO(voiced.content)) as joined:
-        assert joined.getframerate() == audio.sample_rate
-        assert joined.getnframes() / joined.getframerate() > 1.0
+    assert voiced.media_type == "audio/mpeg"
+    assert _mp3_rate(voiced.content) == audio.sample_rate
+    # At least a second of speech at 64 kbit/s per channel.
+    assert len(voiced.content) > 64_000 // 8
     listed = httpx.get(f"{server}/v1/models").json()["data"]
     assert not [m["id"] for m in listed if m["loaded"]]
+
+
+# The sample rates an MPEG audio frame header can name, by version.
+_MPEG_RATES = {
+    3: (44100, 48000, 32000),
+    2: (22050, 24000, 16000),
+    0: (11025, 12000, 8000),
+}
+
+
+def _mp3_rate(episode: bytes) -> int:
+    """The sample rate the episode's first MPEG frame header names."""
+    assert episode[0] == 0xFF and episode[1] & 0xE0 == 0xE0, "an MPEG frame first"
+    version = (episode[1] >> 3) & 0b11
+    return _MPEG_RATES[version][(episode[2] >> 2) & 0b11]

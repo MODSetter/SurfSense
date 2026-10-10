@@ -11,6 +11,7 @@ import httpx
 
 from modules.llm.catalog.local.engines.audiocpp.manifest_fields import AudioDefaults
 from modules.llm.hardware import system_memory
+from modules.llm.providers.audiocpp.encoded_episode import encoded_episode
 from modules.llm.providers.audiocpp.joined_wav import joined_wav
 from modules.llm.providers.audiocpp.memory import (
     NotEnoughMemoryError,
@@ -108,7 +109,8 @@ class AudioCppSpeech:
                     voiced = await self._voice_each(client, turns, language, speaks)
                 finally:
                     await _unload(client)
-        return SynthesizedAudio(joined_wav(voiced), "audio/wav")
+        # Off the event loop: encoding a long episode takes seconds of CPU.
+        return await asyncio.to_thread(lambda: encoded_episode(joined_wav(voiced)))
 
     async def _wait_for_memory(self, seconds: float) -> None:
         deadline = time.monotonic() + seconds
