@@ -26,10 +26,10 @@ class Asker:
 
 @pytest.fixture
 def scope(session: Session) -> Scope:
-    """A workspace with other publishers on, so third-party plugins can be called."""
+    """A workspace with third-party plugins allowed, so they can be called."""
     workspace = Workspace(name="Test")
     session.add(workspace)
-    session.add(PluginSettings(id=1, other_publishers_on=True))
+    session.add(PluginSettings(id=1, third_party_on=True))
     session.commit()
     return Scope(workspace_id=workspace.id, thread_id=1, message_id=None)
 

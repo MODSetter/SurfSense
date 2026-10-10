@@ -25,8 +25,8 @@ surfsense_local/backend/modules/plugins/
   installed/         what is connected: installed_plugins, credentials, tool switches
   results/           plugin_calls, Save to Sources
   lists/             where plugins come from, every kind (02-registry.md)
-    built_in/        SurfSense's plugins: plugins.json and icons/, packaged into the app
-    registry/        other publishers': fetch, signature check, cache
+    first_party/     SurfSense's plugins: plugins.json and icons/, packaged into the app
+    registry/        third-party plugins: fetch, signature check, cache
   remote/            the remote kind (../remote/01-mcp-client.md)
     mcp_client/      Streamable HTTP: initialize, tools/list, tools/call, cancel, progress
     sign_in/         token, OAuth and its callback route, the License header
@@ -42,7 +42,7 @@ What every kind shares sits at the top, in folders named for what they do. Each 
 
 | Call | Returns |
 |---|---|
-| `list_tools(scope) -> list[PluginTool]` | The tools ready in this workspace: plugin connected and enabled, Restricted mode allowing it, credentials present, its hosts allowed, the tool itself on. A paid plugin's license is not checked here: its server decides ([`05-paid.md`](05-paid.md)) |
+| `list_tools(scope) -> list[PluginTool]` | The tools ready in this workspace: plugin connected and enabled, third-party plugins allowed if it is one, credentials present, its hosts allowed, the tool itself on. A paid plugin's license is not checked here: its server decides ([`05-paid.md`](05-paid.md)) |
 | `call_tool(scope, name, arguments, caller) -> ToolOutcome` | Checks the arguments against the tool's schema, asks for approval when its policy says so ([`04-trust.md`](04-trust.md)), records a `plugin_calls` row, calls the source, trims the result, stores it, returns it |
 
 `scope` carries the workspace, the thread, and the turn. `caller` is `agent` or `mention`; `chat_router` is kept for the chat engine's router step, later ([`03-engines.md`](03-engines.md#the-chat-engine-later)). A refusal (no credentials, a host revoked, a server refusing the license, the user denying) comes back as a `ToolOutcome` with a sentence the model or the screen shows, never an exception.
@@ -80,11 +80,19 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 
 | Table | Holds |
 |---|---|
-| `installed_plugins` | `id`, `kind` (`remote`), `source` (`built_in`, `registry` or `custom`), `url`, `publisher`, `enabled`, `connected_at`, the list entry it was connected from |
-| `plugin_credentials` | `plugin_id`, `kind` (`oauth`, `token`, `license`), encrypted values through `shared/secrets.py`: token, refresh token, expiry, the registered OAuth client |
+| `installed_plugins` | `id`, `kind` (`remote`), `source` (`first_party`, `registry` or `custom`), `url` (unique: one plugin per server, stored in one spelling, with scheme and host lowercased and no default port, trailing slash or fragment), `publisher`, `enabled`, `connected_at`, the list entry it was connected from, and its sign-in: `credential_kind` and `credential_ciphertext`, encrypted through `shared/secrets.py`, as `provider_connections` keeps a connection's key |
 | `plugin_tools` | `plugin_id`, `tool`, `position` (the server's order), `first_seen_at`, `enabled`, `approval` (`ask` or `always`, [`04-trust.md`](04-trust.md#approval)), `exposure`, and the description, annotations and schema last seen, which [`02-registry.md`](02-registry.md#tools-added-later) compares on each listing |
 | `plugin_calls` | `id`, `workspace_id`, `thread_id`, `message_id`, `caller`, `plugin_id`, `tool`, `arguments`, `status` (`waiting_approval`, `running`, `succeeded`, `failed`, `denied`, `cancelled`), `result_text`, `result_data`, `error`, `started_at`, `finished_at` |
-| `plugin_settings` | One row: `other_publishers_on`, whether Restricted mode is off ([`02-registry.md`](02-registry.md#restricted-mode)) |
+| `plugin_settings` | One row: `third_party_on`, whether the user allowed third-party plugins ([`02-registry.md`](02-registry.md#third-party-plugins)) |
+
+A tool is a row, not an entry in a JSON list on its plugin: each carries the user's switch and approval, the gateway finds ready tools and one tool by name in a query, and tool search needs an index over rows. Its schema and annotations, always read whole, are JSON within the row. LobeChat keeps a row per tool with its permission, as here.
+
+Added later, each with the feature that needs it, without changing these tables:
+
+- an FTS5 index, and a sqlite-vec one for search by meaning, over each tool's name, title and description, for finding tools beyond the 24 a thread lists ([`06-later.md`](06-later.md));
+- an index on `plugin_calls (workspace_id, thread_id)`, once reopening a thread reads many calls;
+- a fingerprint of a plugin's last listing, so a listing that changed nothing skips the comparison;
+- the sign-in's expiry, with OAuth, so tokens refresh before they lapse.
 
 `plugin_runs`, built for the earlier design, stays for bundles, with its runner in `modules/plugins/bundles/`.
 
@@ -92,13 +100,13 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/plugins` | The built-in list and, with other publishers on, the registry, joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
+| `GET` | `/plugins` | The first-party list and, once third-party plugins are allowed, the registry, joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
 | `POST` | `/plugins/registry/refresh` | Fetches the registry again ([`02-registry.md`](02-registry.md#how-the-app-gets-the-registry)) |
 | `POST` | `/plugins/{id}/connect` | Starts connecting: a token, OAuth, or the license, after egress consent |
 | `POST` | `/plugins/custom` | Adds a remote server by URL |
 | `DELETE` | `/plugins/{id}` | Disconnects: credentials deleted, tools gone; past calls stay in their threads |
 | `PUT` | `/plugins/{id}/tools/{tool}` | Turns a tool on or off and sets its approval |
-| `PUT` | `/plugins/restricted-mode` | Turns third-party plugins on or off |
+| `PUT` | `/plugins/third-party` | Allows or refuses third-party plugins |
 | `GET` | `/plugins/{id}/calls` | The plugin's recent calls, for its activity view |
 | `POST` | `/workspaces/{id}/plugin-calls/{call}/save` | Saves a result to Sources ([`03-engines.md`](03-engines.md#save-to-sources)) |
 

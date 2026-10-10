@@ -14,13 +14,13 @@ Who publishes a plugin and whether it costs money are separate questions.
 
 Whether a user may use a paid plugin is decided by the plugin's server on every call. The app holds no rule about plans, trials or expiry; it carries the key and shows the server's answer. A check in the open-source app could be removed by anyone, so it would add nothing.
 
-- The plugin's entry in the built-in list has `publisher: surfsense`, `access: license` and `auth: { "type": "license" }`. Only the built-in list can carry them: the registry check refuses them, and the app drops them from a fetched registry ([`02-registry.md`](02-registry.md#two-lists)).
+- The plugin's entry in the first-party list has `publisher: surfsense`, `access: license` and `auth: { "type": "license" }`. Only the first-party list can carry them: the registry check refuses them, and the app drops them from a fetched registry ([`02-registry.md`](02-registry.md#two-lists)).
 - When the user has imported a license file, the gateway sends `Authorization: License <key>`, the key from the file as contract 2 defines it, on every request to the plugin's server. It is an ordinary HTTP header, which MCP's HTTP transport carries like any other, not a change to MCP. With no license file, it sends the request without the header.
 - The server validates the key with Keygen on every call, as contract 2's producer rules say: a result cached for five minutes, a key validated in the last 24 hours still accepted while Keygen is unreachable, and a key never seen refused with `503 license_service_unavailable` then.
 - A refusal comes back as contract 2 defines it: `401 missing_license`, or `403` with `expired`, `invalid` or `revoked`. The gateway turns it into the tool's refusal, the sentence the user reads, with a link to Settings → License; `503` is shown as temporary and retried on the next call.
 - Connect is never disabled for a missing license. Connecting works; the first call, or `tools/list` when the server refuses it, says what is missing.
 - Settings → Plugins labels the entry "License required", from its `access`, as information for the user, not as a check.
-- The key goes only to plugins from the built-in list, and only to a SurfSense host compiled into the app: the plugin host for a remote plugin ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)), and, when bundles come, the license server that delivers a paid bundle ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)). A built-in entry pointing anywhere else fails the check, and the gateway refuses it before any request, so a mistaken entry cannot send the key away. This guards the key; it does not decide access.
+- The key goes only to plugins from the first-party list, and only to a SurfSense host compiled into the app: the plugin host for a remote plugin ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)), and, when bundles come, the license server that delivers a paid bundle ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)). A first-party entry pointing anywhere else fails the check, and the gateway refuses it before any request, so a mistaken entry cannot send the key away. This guards the key; it does not decide access.
 - A trial unlocks paid plugins for its term, because the server accepts a trial key ([ADR 0025](../../../adr/0025-scraper-client-as-paid-plugin.md), still in force on this point).
 
 ## Which license a SurfSense plugin is under
@@ -62,7 +62,7 @@ plugins/remote/proprietary/
 - With no license file, SurfSense Scrapers connects; its first call is refused by the server with `missing_license`, and the step says a license is needed and links to Settings → License.
 - With a trial license, its tools run; after the trial's expiry the server refuses the next call with `expired`, and the step says so.
 - The app contains no expiry or plan check for plugins: a license file edited to look valid gets the server's refusal.
-- A built-in entry with `auth: license` on a host other than the compiled one fails the check, and no request carries the key.
+- A first-party entry with `auth: license` on a host other than the compiled one fails the check, and no request carries the key.
 - A registry entry with `access: license` or `auth: license` fails the registry check.
 - A partner plugin with `access: external` shows its note before Connect, and its requests carry the user's partner credentials and never the license key.
 - A file outside `plugins/remote/proprietary/` that imports from it fails the plugin pull-request check.

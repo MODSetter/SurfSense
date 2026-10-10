@@ -6,20 +6,20 @@ from sqlalchemy.orm import Session
 from modules.plugins.gateway.qualified_name import qualified_name
 from modules.plugins.gateway.ready_tool import ReadyTool
 from modules.plugins.installed.models import InstalledPlugin, PluginTool
-from modules.plugins.installed.other_publishers import other_publishers_on
 from modules.plugins.installed.plugin_hosts import hosts_not_allowed
+from modules.plugins.installed.third_party import third_party_on
 
-SURFSENSE = "surfsense"
+FIRST_PARTY_PUBLISHER = "surfsense"
 
 
 def list_tools(session: Session) -> list[ReadyTool]:
-    others_on = other_publishers_on(session)
+    third_party_allowed = third_party_on(session)
     ready: dict[str, bool] = {}
 
     def is_ready(plugin: InstalledPlugin) -> bool:
         if plugin.id not in ready:
             ready[plugin.id] = (
-                others_on or plugin.publisher == SURFSENSE
+                third_party_allowed or plugin.publisher == FIRST_PARTY_PUBLISHER
             ) and not hosts_not_allowed(session, plugin)
         return ready[plugin.id]
 

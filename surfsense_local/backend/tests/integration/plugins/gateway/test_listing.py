@@ -31,15 +31,15 @@ async def test_a_tool_switched_off_is_not_listed(session: Session) -> None:
     assert [t.tool for t in list_tools(session)] == ["search"]
 
 
-async def test_other_publishers_plugins_wait_until_the_user_turns_them_on(
+async def test_third_party_plugins_wait_until_the_user_allows_them(
     session: Session,
 ) -> None:
-    """Restricted mode: only SurfSense's plugins are offered until the user opts in."""
+    """Only first-party plugins are offered until the user allows third-party ones."""
     await connect(session, "notion", FakeSource([tool("search")]), publisher="partner")
 
     assert list_tools(session) == []
 
-    session.add(PluginSettings(id=1, other_publishers_on=True))
+    session.add(PluginSettings(id=1, third_party_on=True))
     session.commit()
 
     assert [t.qualified_name for t in list_tools(session)] == ["notion__search"]

@@ -1,7 +1,7 @@
 # Trust
 
 > Owns: approval and per-tool permissions in the gateway, the approval dialog's plugin variant, the activity view, organisation policy hooks.
-> Related: [`02-registry.md`](02-registry.md) (review, Restricted mode, tools added later), [`../remote/README.md`](../remote/README.md) (credentials, egress).
+> Related: [`02-registry.md`](02-registry.md) (review, allowing third-party plugins, tools added later), [`../remote/README.md`](../remote/README.md) (credentials, egress).
 
 ## What a remote plugin can and cannot do
 
@@ -21,7 +21,7 @@ Approval follows the tool's MCP annotations. A server that sets none gets MCP's 
 
 | Tool | Before a call |
 |---|---|
-| `readOnlyHint: true` on a plugin from the built-in list | Runs without asking. Annotations are the server's own claim, trusted only from servers SurfSense runs |
+| `readOnlyHint: true` on a plugin from the first-party list | Runs without asking. Annotations are the server's own claim, trusted only from servers SurfSense runs |
 | Not destructive | Asks, offering Allow once, Always allow this tool, or Deny, until the user picks Always allow. A third party's read-only tool is here too |
 | `destructiveHint: true` | Asks every call, offering Allow once or Deny |
 
@@ -44,19 +44,19 @@ The user's sources, and a plugin's own results, can carry text aimed at the mode
 - Approval with the exact arguments is the main defence.
 - Hosts are declared and consented, so data can go only to a host the user allowed.
 - Tool descriptions are reviewed when an entry is listed and shown on the plugin's row. The gateway cuts every description to 2,000 characters, a custom plugin's included, and a changed description switches the tool off ([`02-registry.md`](02-registry.md#tools-added-later)).
-- Restricted mode keeps third-party plugins away from users who never chose them.
+- Third-party plugins stay off until the user allows them, so they never reach a user who did not choose them.
 
 None of this is a sandbox.
 
 ## Organisation policy
 
-Later Enterprise work, kept possible by this design: a policy can turn plugins off, keep Restricted mode on, or allow a fixed list of plugin ids. The gateway is the one place that would read it.
+Later Enterprise work, kept possible by this design: a policy can turn plugins off, keep third-party plugins off, or allow a fixed list of plugin ids. The gateway is the one place that would read it.
 
 ## Acceptance
 
 - A tool asks until Always allow is picked and not after; revoking it restores the dialog.
 - A destructive tool asks on every call and never offers Always allow, including after an `@` mention.
 - A tool with no annotations asks on every call.
-- A read-only tool runs without asking on a built-in plugin, and asks on a third-party one.
+- A read-only tool runs without asking on a first-party plugin, and asks on a third-party one.
 - A call left unanswered past its deadline ends `denied`.
 - The activity view lists a call's thread, arguments and outcome, and no credential.

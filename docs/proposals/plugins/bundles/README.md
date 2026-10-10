@@ -30,7 +30,7 @@ The files in this folder are the earlier design, written when a plugin was a sid
 | Cost to the user's machine | None | Code running with the user's permissions; about 30–60 MB per active process |
 | Behind the gateway | `RemoteMcpSource` | `BundleSource` |
 
-Both are MCP servers, and both reach opencode, the chat router and `@` mentions through the same gateway, with the same approval and Restricted mode.
+Both are MCP servers, and both reach opencode, the chat router and `@` mentions through the same gateway, with the same approval, and third-party ones off until allowed.
 
 ## What changes when bundles are picked up
 
@@ -45,7 +45,7 @@ Both are MCP servers, and both reach opencode, the chat router and `@` mentions 
 | A catalog of every version, written by SurfSense's release workflow | Each version's file URLs and sha256s in the plugin's `plugins.json` entry, committed by SurfSense's scanner when the release passes the checks. The app downloads from the author's release and refuses a file whose sha256 differs |
 | Every version reviewed by a maintainer | The first version, and any version that adds a host, a secret, or an open-world or destructive tool, reviewed by a person; every version checked by the scanner, as Obsidian scans every version of its community plugins |
 | `free` or `paid` on a reserved id in `plugins/` | `access` as in [`../core/05-paid.md`](../core/05-paid.md); a SurfSense paid bundle comes from the license server ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)) |
-| Run with no review gate in the app | Behind Restricted mode, like every third-party plugin |
+| Run with no review gate in the app | Off until third-party plugins are allowed, like every third-party plugin |
 
 What stays: a separate process with its environment built from scratch, declared hosts checked by the SDK's `http`, hash-pinned dependencies, prebuilt wheels only, no `pip` on the user's machine, a sha256 for every download, the bundled Python ([`python/01-interpreter.md`](python/01-interpreter.md)), and the block list.
 

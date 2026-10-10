@@ -23,7 +23,7 @@
 | **Elicitation** | A server asking the user a question mid-call | A dialog, and a rule on what a server may ask |
 | **Sampling** | A server asking to use the user's own model | The model route ([ADR 0048](../../../adr/0048-the-api-is-the-only-path-to-a-text-model.md)) and a limit on what it may spend |
 | **Sync and schedules** | A tool run on a schedule, its result kept in Sources and updated in place | A scheduler, and the `plugins` queue for the runs |
-| **Organisation policy** | Plugins off, Restricted mode locked, or an allow-list | Enterprise settings the gateway reads ([`04-trust.md`](04-trust.md#organisation-policy)) |
+| **Organisation policy** | Plugins off, third-party plugins locked off, or an allow-list | Enterprise settings the gateway reads ([`04-trust.md`](04-trust.md#organisation-policy)) |
 | **Company registries** | A company's own list of plugins beside SurfSense's | An administrator setting, never a user's click, so a link cannot add one |
 | **Bundles** | Plugins that run on the user's machine: offline and air-gapped use, local software, private processing, no hosting | [`bundles/`](../bundles/README.md): the bundle host, a bundled Python, a release Action for authors' repositories, the scanner that records each version's sha256 in the list ([`02-registry.md`](02-registry.md#bundle-entries-later)) |
 | **Paid bundles** | A SurfSense paid plugin that runs locally | Delivery from the license server ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)) |

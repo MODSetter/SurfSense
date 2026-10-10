@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, func
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.db import Base, text_enum
@@ -14,7 +14,7 @@ class PluginKind(enum.StrEnum):
 
 
 class PluginSource(enum.StrEnum):
-    BUILT_IN = "built_in"
+    FIRST_PARTY = "first_party"
     REGISTRY = "registry"
     CUSTOM = "custom"
 
@@ -30,40 +30,38 @@ class ToolExposure(enum.StrEnum):
 
 
 class InstalledPlugin(Base):
-    """A plugin the user connected, and the list entry it was connected from."""
+    """A plugin the user connected, the list entry it was connected from, and its sign-in.
+
+    The sign-in sits on the row, as a connection's key does in `provider_connections`,
+    encrypted; nothing that reads plugins for a screen or a model returns it.
+    """
 
     __tablename__ = "installed_plugins"
 
     id: Mapped[str] = mapped_column(primary_key=True)
     kind: Mapped[PluginKind] = mapped_column(text_enum(PluginKind))
     source: Mapped[PluginSource] = mapped_column(text_enum(PluginSource))
-    url: Mapped[str]
+    # One plugin per server, so a server's tools and key are never split across two.
+    url: Mapped[str] = mapped_column(unique=True)
     publisher: Mapped[str]
     # The entry as listed at connect: name, auth, hosts, access. Kept so a plugin whose
     # entry later leaves its list still shows what it was.
     entry: Mapped[dict[str, Any]] = mapped_column(JSON)
     enabled: Mapped[bool] = mapped_column(default=True)
     connected_at: Mapped[datetime] = mapped_column(server_default=func.now())
-
-
-class PluginCredential(Base):
-    """A plugin's sign-in, encrypted; never shown to a model, a log or a step."""
-
-    __tablename__ = "plugin_credentials"
-
-    plugin_id: Mapped[str] = mapped_column(
-        ForeignKey("installed_plugins.id", ondelete="CASCADE"), primary_key=True
-    )
-    kind: Mapped[str]
-    ciphertext: Mapped[bytes]
+    # `token` now; OAuth's token set later. None when the server needs no sign-in.
+    credential_kind: Mapped[str | None]
+    credential_ciphertext: Mapped[bytes | None]
 
     @property
-    def token(self) -> str:
-        return decrypt(self.ciphertext)
+    def credential(self) -> str | None:
+        if self.credential_ciphertext is None:
+            return None
+        return decrypt(self.credential_ciphertext)
 
-    @token.setter
-    def token(self, value: str) -> None:
-        self.ciphertext = encrypt(value)
+    @credential.setter
+    def credential(self, value: str | None) -> None:
+        self.credential_ciphertext = None if value is None else encrypt(value)
 
 
 class PluginTool(Base):
@@ -92,9 +90,10 @@ class PluginTool(Base):
 
 
 class PluginSettings(Base):
-    """One row: whether other publishers' plugins are on (Restricted mode off)."""
+    """One row: whether the user allowed third-party plugins."""
 
     __tablename__ = "plugin_settings"
+    __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    other_publishers_on: Mapped[bool] = mapped_column(default=False)
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    third_party_on: Mapped[bool] = mapped_column(default=False)

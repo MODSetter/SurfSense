@@ -1,4 +1,4 @@
-# ADR 0053: SurfSense's plugins are listed in the app, every other publisher's in a registry in this repository, and those start off
+# ADR 0053: First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off
 
 - **Status:** Proposed, with the [plugins proposal](../proposals/plugins/README.md)
 - **Date:** 2026-10-08
@@ -12,14 +12,14 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 
 ## Decision
 
-- SurfSense's plugins are listed in a built-in list packaged into the app, shown with no network and no consent. It changes with app releases. It holds entries only, a few hundred bytes each, never plugin code, bundle files or version lists.
-- Every other publisher's plugin is listed in one file, `plugins/registry/plugins.json` in this repository. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
+- SurfSense's plugins are listed in a first-party list packaged into the app, shown with no network and no consent. It changes with app releases. It holds entries only, a few hundred bytes each, never plugin code, bundle files or version lists.
+- Every third-party plugin is listed in one file, `plugins/registry/plugins.json` in this repository. An entry is added by pull request and reviewed once by a maintainer. A change to the server behind it needs no review.
 - Neither list holds plugins: a plugin's code, and later its bundle files, stay with its publisher, in its own host or repository.
-- Both lists share one entry schema with a `kind`, `remote` now, with `bundle` reserved. The publisher is set by the list: `surfsense` only in the built-in list, `partner` or `community` in the registry. `auth: license` and `access: license` appear only in the built-in list, so a fetched file can never claim to be SurfSense or receive the license key. `CODEOWNERS` requires a maintainer's approval for every change to the registry.
-- Every plugin not published by SurfSense, a custom one added by URL included, is off until the user turns other publishers on once.
+- Both lists share one entry schema with a `kind`, `remote` now, with `bundle` reserved. The publisher is set by the list: `surfsense` only in the first-party list, `partner` or `community` in the registry. `auth: license` and `access: license` appear only in the first-party list, so a fetched file can never claim to be SurfSense or receive the license key. `CODEOWNERS` requires a maintainer's approval for every change to the registry.
+- Every plugin not published by SurfSense, a custom one added by URL included, is third-party and off until the user allows third-party plugins once. The switch plays the part of Obsidian's Restricted mode, named for what it allows.
 - A tool a server adds after the user connected, or one that changes as the proposal's rule says, starts off until the user turns it on ([tools added later](../proposals/plugins/core/02-registry.md#tools-added-later)).
 - A maintainer delists a registry plugin by moving its entry to `removed` with a reason; apps stop offering its tools.
-- On each merge to `main`, CI signs the registry and publishes it to SurfSense's own plugin host. The app fetches it when the user turns on other publishers, after consent, checks the signature against a key compiled in, and caches it. No installer carries it, so the registry grows and shrinks without app updates.
+- On each merge to `main`, CI signs the registry and publishes it to SurfSense's own plugin host. The app fetches it when the user allows third-party plugins, after consent, checks the signature against a key compiled in, and caches it. No installer carries it, so the registry grows and shrinks without app updates.
 
 ## Consequences
 
@@ -30,4 +30,4 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 
 ## Where the code stands
 
-`plugins/registry/` and the built-in list do not exist, and the app has no copy of the registry, Restricted mode or plugin screen. The only plugin interface is a "Plugins / Coming soon" button in [`dashboard-page.tsx`](../../surfsense_local/frontend/src/features/dashboard/dashboard-page.tsx).
+`plugins/registry/` and the first-party list do not exist, and the app has no copy of the registry, third-party switch or plugin screen. The only plugin interface is a "Plugins / Coming soon" button in [`dashboard-page.tsx`](../../surfsense_local/frontend/src/features/dashboard/dashboard-page.tsx).

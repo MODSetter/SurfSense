@@ -1,4 +1,4 @@
-"""Record connected plugins, their sign-in, their tools, and every call of one.
+"""Record connected plugins with their sign-in, their tools, and every call of one.
 
 Remote plugins first; `kind` and the enums carry only what is built, since SQLite
 rebuilds a table to widen a check constraint. `plugin_calls` keeps no foreign key
@@ -31,7 +31,7 @@ def upgrade() -> None:
         sa.Column("kind", _enum("pluginkind", "remote"), nullable=False),
         sa.Column(
             "source",
-            _enum("pluginsource", "built_in", "registry", "custom"),
+            _enum("pluginsource", "first_party", "registry", "custom"),
             nullable=False,
         ),
         sa.Column("url", sa.String(), nullable=False),
@@ -44,20 +44,10 @@ def upgrade() -> None:
             server_default=sa.text("(CURRENT_TIMESTAMP)"),
             nullable=False,
         ),
+        sa.Column("credential_kind", sa.String(), nullable=True),
+        sa.Column("credential_ciphertext", sa.LargeBinary(), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_installed_plugins")),
-    )
-    op.create_table(
-        "plugin_credentials",
-        sa.Column("plugin_id", sa.String(), nullable=False),
-        sa.Column("kind", sa.String(), nullable=False),
-        sa.Column("ciphertext", sa.LargeBinary(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["plugin_id"],
-            ["installed_plugins.id"],
-            name=op.f("fk_plugin_credentials_plugin_id_installed_plugins"),
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("plugin_id", name=op.f("pk_plugin_credentials")),
+        sa.UniqueConstraint("url", name=op.f("uq_installed_plugins_url")),
     )
     op.create_table(
         "plugin_tools",
@@ -90,7 +80,8 @@ def upgrade() -> None:
     op.create_table(
         "plugin_settings",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("other_publishers_on", sa.Boolean(), nullable=False),
+        sa.Column("third_party_on", sa.Boolean(), nullable=False),
+        sa.CheckConstraint("id = 1", name=op.f("ck_plugin_settings_singleton")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_plugin_settings")),
     )
     op.create_table(
@@ -146,5 +137,4 @@ def downgrade() -> None:
     op.drop_table("plugin_calls")
     op.drop_table("plugin_settings")
     op.drop_table("plugin_tools")
-    op.drop_table("plugin_credentials")
     op.drop_table("installed_plugins")

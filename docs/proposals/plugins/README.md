@@ -31,7 +31,7 @@ plugins/
 | File | Covers |
 |---|---|
 | [`01-architecture.md`](core/01-architecture.md) | The Tool Gateway, tool sources, naming, the tables, the routes |
-| [`02-registry.md`](core/02-registry.md) | The two plugin lists, built-in and registry, who publishes, review, Restricted mode, tools added later, delisting, how the app gets each list |
+| [`02-registry.md`](core/02-registry.md) | The two plugin lists, first-party and registry, who publishes, review, allowing third-party plugins, tools added later, delisting, how the app gets each list |
 | [`03-engines.md`](core/03-engines.md) | opencode, `@` mentions, results, Save to Sources; the chat engine's router step, later |
 | [`04-trust.md`](core/04-trust.md) | Approval, permissions, what a plugin can and cannot do, prompt injection |
 | [`05-paid.md`](core/05-paid.md) | SurfSense's paid plugins on the license key, checked on the server, and third parties billing on their own |
@@ -49,7 +49,7 @@ plugins/
 
 ## What it looks like
 
-- **A user** opens Settings → Plugins and sees SurfSense's plugins at once, with no network; other publishers' appear when they turn other publishers on. They press **Connect**, sign in or paste a key, allow the plugin's host, and its tools are ready.
+- **A user** opens Settings → Plugins and sees first-party plugins, SurfSense's own, at once, with no network; third-party plugins appear once they allow them. They press **Connect**, sign in or paste a key, allow the plugin's host, and its tools are ready.
 - **In an agent thread**, opencode sees the plugin's tools beside SurfSense's own and calls one when it needs it.
 - **In an agent thread**, the user can also type `@notion search` to ask for a tool by name; the agent fills its inputs.
 - **In a chat thread**, plugins come later. Settings → Plugins says plugins work in Agentic threads.
@@ -61,7 +61,7 @@ plugins/
 |---|---|---|
 | [Pi](https://github.com/earendil-works/pi) | Its own tool pipeline, with MCP as a built-in extension adapting servers into it through Pi's own client; exposure modes and a tool search; MCP annotations driving permission checks; results trimmed at 20 KB | The structure: one gateway of SurfSense's own, MCP as a source behind it, exposure, annotations, trimming. Not its in-process extensions, its installs from npm and git, or its lack of review |
 | Claude's connectors | A reviewed directory of remote MCP servers, custom connectors by URL, local servers packaged as [MCP Bundles](https://github.com/modelcontextprotocol/mcpb) | Remote plugins listed and reviewed; custom plugins by URL; MCPB as the format of later bundles |
-| [Obsidian](https://github.com/obsidianmd/obsidian-releases) | One list of community plugins on its own server, each pointing at the author's repository and its GitHub releases; every version scanned; community plugins off until turned on | One list served from SurfSense's host; code and files staying with their authors; Restricted mode; scanning every bundle version |
+| [Obsidian](https://github.com/obsidianmd/obsidian-releases) | One list of community plugins on its own server, each pointing at the author's repository and its GitHub releases; every version scanned; community plugins off until turned on | One list served from SurfSense's host; code and files staying with their authors; third-party plugins off until allowed; scanning every bundle version |
 
 ## Locked decisions
 
@@ -72,11 +72,11 @@ plugins/
 | Sources of tools | Remote MCP servers over HTTPS first. Bundles (`kind: bundle`) later, through the same gateway |
 | Who hosts a remote plugin | Its publisher: SurfSense, a company, or a community developer |
 | Name | "Plugins", in the app and in the docs |
-| The lists | SurfSense's plugins are in a built-in list packaged into the app, shown with no network or consent. Every other publisher's plugin is in one file, `plugins/registry/plugins.json` in this repository, added to by pull request and reviewed once per entry, signed and served from SurfSense's plugin host, and fetched once the user turns on other publishers, so it grows without app updates ([`core/02-registry.md`](core/02-registry.md)). "The registry" always means this file. No list holds plugin code |
+| The lists | SurfSense's plugins are in a first-party list packaged into the app, shown with no network or consent. Every third-party plugin is in one file, `plugins/registry/plugins.json` in this repository, added to by pull request and reviewed once per entry, signed and served from SurfSense's plugin host, and fetched once the user allows third-party plugins, so it grows without app updates ([`core/02-registry.md`](core/02-registry.md)). "The registry" always means this file. No list holds plugin code |
 | Where a plugin's code lives | With its publisher: a remote server on its host, a bundle in its author's repository and releases. The list only points at it |
-| Publishers | `surfsense`, `partner` (a verified company) or `community`, set by the list, never by the plugin. Only the built-in list says `surfsense` |
-| Restricted mode | Every plugin not published by SurfSense is off until the user turns other publishers on once, which is also when the app fetches the registry ([ADR 0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)) |
-| Custom plugins | A user can add any remote MCP server by URL, labelled "Not reviewed by SurfSense", behind Restricted mode |
+| Publishers | `surfsense`, `partner` (a verified company) or `community`, set by the list, never by the plugin. Only the first-party list says `surfsense` |
+| Third-party plugins | Every plugin not published by SurfSense is off until the user allows third-party plugins once, which is also when the app fetches the registry. The switch plays the part of Obsidian's Restricted mode, named for what it does ([ADR 0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)) |
+| Custom plugins | A user can add any remote MCP server by URL, labelled "Not reviewed by SurfSense", off until third-party plugins are allowed |
 | Tools added later | A tool a server adds after the user connected starts off; the app asks before turning it on |
 | opencode | Plugin tools reach it as a second MCP server, `plugins`, registered before each turn beside `surfsense` |
 | Chat engine | Plugins reach agent threads first. The chat engine gets them later, through a router step: its model never calls tools; it chooses a tool and fills its inputs under JSON schemas, and SurfSense makes the call ([ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md), [`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)) |
@@ -94,10 +94,10 @@ plugins/
 
 | Stream | Owns | Needs |
 |---|---|---|
-| **Plugin lists** | `modules/plugins/lists/`: the built-in list and the app's fetched, cached copy of the registry; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry | the plugin host, to serve the signed registry |
+| **Plugin lists** | `modules/plugins/lists/`: the first-party list and the app's fetched, cached copy of the registry; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry | the plugin host, to serve the signed registry |
 | **MCP client** | `modules/plugins/remote/`: the MCP client over Streamable HTTP, sign-in, `RemoteMcpSource` | nothing |
 | **Gateway** | `modules/plugins/gateway/`, `installed/`, `results/`, `routes.py`, the tables, approval, permissions | the MCP client |
-| **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, Restricted mode, permissions, activity | the gateway's routes; can start against their shapes |
+| **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, allowing third-party plugins, permissions, activity | the gateway's routes; can start against their shapes |
 | **opencode** | `modules/agent/plugin_tools/` | the gateway |
 | **`@` mentions** | The agent composer's `@` list, and the mention in `modules/agent/plugin_tools/` | the opencode endpoint |
 | **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one container on Azure Container Apps, its image, its deployment, Redis and SearXNG | nothing |
@@ -107,14 +107,14 @@ plugins/
 
 **Demo:** a thread on a tool-calling model connects a test remote server added as a custom plugin by URL, the agent calls one of its tools, and the result shows as a step.
 
-**Ship:** Settings → Plugins lists SurfSense's plugins with no network and the registry once other publishers are on, a user connects SurfSense Scrapers with a trial license and a partner plugin with OAuth, the agent and `@` mentions use them, and Restricted mode, approval and Save to Sources work.
+**Ship:** Settings → Plugins lists SurfSense's plugins with no network and the registry once third-party plugins are allowed, a user connects SurfSense Scrapers with a trial license and a partner plugin with OAuth, the agent and `@` mentions use them, and the third-party switch, approval and Save to Sources work.
 
 ## Order of work
 
 1. **License mode on the scraper API** ([contract 2](../../contracts/02-scraper-api-auth.md)), in `surfsense_backend`, for outside clients such as `surfsense_mcp`, whose personal keys are purged on 18 Oct 2026. It starts at once and in parallel; the plugins do not depend on it.
 2. **MCP client, gateway, tables and the opencode endpoint**, shown with a test server added as a custom plugin by URL. The agent calling a plugin is the first thing to demonstrate.
-3. **Settings → Plugins**: Connect, sign-in, egress consent, Restricted mode, tool switches, approval, activity.
-4. **The plugin lists**: the built-in list, the registry, their check, signing and publishing the registry to SurfSense's host, the app's fetch and cache.
+3. **Settings → Plugins**: Connect, sign-in, egress consent, allowing third-party plugins, tool switches, approval, activity.
+4. **The plugin lists**: the first-party list, the registry, their check, signing and publishing the registry to SurfSense's host, the app's fetch and cache.
 5. **`@` mentions** in agent threads.
 6. **The plugin host and SurfSense Scrapers** on it ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
 7. **The chat engine's router step**, when plugins reach Basic threads, with the chat eval's router test ([`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)).

@@ -16,7 +16,7 @@ Approve = Callable[[ReadyTool, dict[str, Any]], Awaitable[bool]]
 
 def needs_approval(tool: ReadyTool) -> bool:
     read_only = tool.annotations.get("readOnlyHint") is True
-    if read_only and tool.plugin_source == PluginSource.BUILT_IN:
+    if read_only and tool.plugin_source == PluginSource.FIRST_PARTY:
         return False
     # MCP's default for a tool that says nothing: it may destroy.
     destructive = (

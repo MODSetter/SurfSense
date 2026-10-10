@@ -32,7 +32,7 @@ OAuth follows MCP's authorization spec, through the SDK's OAuth client:
 2. It identifies itself with a Client ID Metadata Document when the server supports one, otherwise registers dynamically ([RFC 7591](https://www.rfc-editor.org/rfc/rfc7591)), and keeps the client it registered.
 3. It opens the authorization URL in the user's browser through Electron, with PKCE and the resource indicator ([RFC 8707](https://www.rfc-editor.org/rfc/rfc8707)).
 4. The redirect lands on the API's own loopback address, `http://127.0.0.1:<port>/plugins/oauth/callback`, which already listens there; no extra port.
-5. Tokens are stored encrypted in `plugin_credentials` through `shared/secrets.py`, refreshed before they expire or when a call gets `401`. A refresh that fails marks the plugin "Sign in again".
+5. Tokens are stored encrypted on the plugin's row in `installed_plugins` through `shared/secrets.py`, refreshed before they expire or when a call gets `401`. A refresh that fails marks the plugin "Sign in again".
 
 Credentials never reach a model, a log line, a step, or `plugin_calls`.
 
