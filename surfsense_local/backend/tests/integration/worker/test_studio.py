@@ -275,27 +275,23 @@ def test_quiz_becomes_a_question_file_and_a_question_list_body(
     assert "arrival facts" in seen[0]
 
 
-# --- Office: the model writes library code the runner executes to a real file.
+# --- Office: the model writes a script the script runner runs to a real file.
 # Word and PDF take their own paths (tests/integration/artifacts/test_studio_documents.py). ---
 
 _PPTX_CODE = (
-    "from io import BytesIO\n"
+    "import os\n"
     "from pptx import Presentation\n"
     "p = Presentation()\n"
     "p.slides.add_slide(p.slide_layouts[6])\n"
-    "buf = BytesIO()\n"
-    "p.save(buf)\n"
-    "output_bytes = buf.getvalue()\n"
+    "p.save(os.environ['OUTPUT_PATH'])\n"
 )
 
 _XLSX_CODE = (
-    "from io import BytesIO\n"
+    "import os\n"
     "import xlsxwriter\n"
-    "buf = BytesIO()\n"
-    "wb = xlsxwriter.Workbook(buf)\n"
+    "wb = xlsxwriter.Workbook(os.environ['OUTPUT_PATH'])\n"
     "wb.add_worksheet().write(0, 0, 'Cassini')\n"
     "wb.close()\n"
-    "output_bytes = buf.getvalue()\n"
 )
 
 

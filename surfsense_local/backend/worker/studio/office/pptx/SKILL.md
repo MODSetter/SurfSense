@@ -5,8 +5,9 @@ description: Create polished, editable PowerPoint decks for slide presentations.
 
 # PPTX
 
-Author the deck with `python-pptx`, then save it to a `BytesIO`. Plan the slide
-purposes and visual system first, then build the whole deck.
+Author the deck with `python-pptx`, then save it with
+`prs.save(os.environ["OUTPUT_PATH"])`. Plan the slide purposes and visual system
+first, then build the whole deck.
 
 ## Authoring rules
 

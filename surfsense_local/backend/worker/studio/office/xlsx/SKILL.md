@@ -5,9 +5,10 @@ description: Create polished Excel workbooks for budgets, trackers, and data tab
 
 # XLSX
 
-Author the workbook with `xlsxwriter`, saving to a `BytesIO` opened with
-`{"in_memory": True}`. XlsxWriter is preferred because it writes the explicit
-formula caches the in-browser grid needs.
+Author the workbook with `xlsxwriter`, opened on the output path:
+`xlsxwriter.Workbook(os.environ["OUTPUT_PATH"])`, and `close()` it at the end.
+XlsxWriter is preferred because it writes the explicit formula caches the
+in-browser grid needs.
 
 ## Authoring rules
 

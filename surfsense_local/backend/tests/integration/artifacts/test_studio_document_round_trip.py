@@ -266,11 +266,6 @@ async def test_a_remote_model_drafts_word_as_a_script_and_refines_it(
 ) -> None:
     """The script runs in the runner with the figure it names; v2 runs its rewrite."""
     _choose(session, monkeypatch, REMOTE)
-
-    def refuse(_code: str) -> dict:
-        raise AssertionError("Word must not run code with exec()")
-
-    monkeypatch.setattr("worker.studio.office.runner.execute", refuse)
     first = WORD_SCRIPT.format(figure=source_figure, cost="12,000")
     revised = WORD_SCRIPT.format(figure=source_figure, cost="15,000")
     calls = _scripted_model(monkeypatch, first, f"```python\n{revised}```")
