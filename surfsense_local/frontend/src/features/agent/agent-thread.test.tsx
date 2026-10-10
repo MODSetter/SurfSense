@@ -388,6 +388,27 @@ describe("an agent thread", () => {
     expect(state.sent[0].source_scope?.all).toBe(true)
   })
 
+  it("names the plugins a turn could not reach, and why", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-plugins-unavailable",
+          plugins: [
+            { title: "Notion", reason: "unreachable" },
+            { title: "Linear", reason: "sign_in" },
+          ],
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Couldn’t reach Notion")).toBeTruthy()
+    expect(screen.getByText("Sign in to Linear again")).toBeTruthy()
+  })
+
   it("shows the sources a stored turn worked from", async () => {
     backend({
       stored: [

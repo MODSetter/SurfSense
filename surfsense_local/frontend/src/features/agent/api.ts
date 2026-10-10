@@ -39,6 +39,13 @@ export type TurnSources = {
   count?: number
 }
 
+/** A connected plugin a turn could not use: its server did not answer, or
+ *  refused its sign-in. */
+export type UnavailablePlugin = {
+  title: string
+  reason: "unreachable" | "sign_in"
+}
+
 /** Something the agent wants to do that waits for the user's answer. */
 export type PermissionRequest = {
   id: string

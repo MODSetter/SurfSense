@@ -59,6 +59,11 @@ export function applyFrame(
         assistant,
       ]
     }
+    case "agent-plugins-unavailable":
+      return content((current) => ({
+        ...current,
+        unavailable_plugins: event.plugins,
+      }))
     case "run-state":
       return content((current) =>
         event.state === "queued"

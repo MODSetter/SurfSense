@@ -23,6 +23,8 @@
   "agent_approval_others_body": "{count, plural, one {Wenn du ablehnst, wird auch # weitere wartende Anfrage in diesem Chat abgelehnt.} other {Wenn du ablehnst, werden auch # weitere wartende Anfragen in diesem Chat abgelehnt.}}",
   "agent_approval_shell_body": "Der Agent möchte diesen Befehl auf deinem Computer ausführen, mit deinen Berechtigungen.",
   "agent_approval_shell_title": "Shell-Befehl ausführen?",
+  "agent_plugin_sign_in_label": "Melde dich erneut bei {plugin} an",
+  "agent_plugin_unreachable_label": "{plugin} nicht erreichbar",
   "agent_scope_count_label": "Arbeitet mit {count, plural, one {# Quelle} other {# Quellen}}",
   "agent_scope_named_label": "Arbeitet mit {names}",
   "agent_scope_none_label": "Arbeitet ohne Quellen",

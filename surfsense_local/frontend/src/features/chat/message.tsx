@@ -11,7 +11,12 @@ import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
 import { AgentSteps } from "@/features/agent/agent-steps"
-import type { AgentStep, TurnSources } from "@/features/agent/api"
+import type {
+  AgentStep,
+  TurnSources,
+  UnavailablePlugin,
+} from "@/features/agent/api"
+import { PluginsUnavailable } from "@/features/agent/plugins-unavailable"
 import { WorkingFrom } from "@/features/agent/working-from"
 import { OfficeOfferBanner } from "@/features/office-support/office-offer-banner"
 import {
@@ -180,6 +185,24 @@ function stepsFrom(custom: unknown): AgentStep[] {
     return custom.steps as AgentStep[]
   }
   return NO_STEPS
+}
+
+function unavailablePluginsFrom(custom: unknown): UnavailablePlugin[] | null {
+  if (
+    typeof custom === "object" &&
+    custom !== null &&
+    "unavailablePlugins" in custom
+  ) {
+    return (custom.unavailablePlugins as UnavailablePlugin[] | null) ?? null
+  }
+  return null
+}
+
+function MessagePluginsUnavailable() {
+  const plugins = useAuiState(({ message }) =>
+    unavailablePluginsFrom(message.metadata.custom)
+  )
+  return <PluginsUnavailable plugins={plugins} />
 }
 
 function MessageSteps() {
@@ -380,6 +403,7 @@ export function AssistantMessage({
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessageThinking />
+          <MessagePluginsUnavailable />
           <MessageSteps />
           <MessagePrimitive.Parts components={assistantMessageParts} />
           <MessageOfficeOffer />

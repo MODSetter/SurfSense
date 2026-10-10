@@ -23,6 +23,8 @@
   "agent_approval_others_body": "{count, plural, one {Refuser refuse aussi # autre demande en attente dans ce chat.} many {Refuser refuse aussi # autres demandes en attente dans ce chat.} other {Refuser refuse aussi # autres demandes en attente dans ce chat.}}",
   "agent_approval_shell_body": "L’agent veut exécuter cette commande sur votre ordinateur, avec vos autorisations.",
   "agent_approval_shell_title": "Exécuter une commande shell ?",
+  "agent_plugin_sign_in_label": "Reconnectez-vous à {plugin}",
+  "agent_plugin_unreachable_label": "Impossible de joindre {plugin}",
   "agent_scope_count_label": "Travaille avec {count, plural, one {# source} many {# sources} other {# sources}}",
   "agent_scope_named_label": "Travaille avec {names}",
   "agent_scope_none_label": "Travaille sans source",
