@@ -1,6 +1,6 @@
 # Plugin lists
 
-> Owns: the built-in list (`surfsense_local/backend/modules/plugins/built_in/`), the registry (`plugins/registry/`: `plugins.json`, the entry schema both lists follow, its check, the signing job, later the bundle scanner), the app's cached copy of the registry and its refresh (`modules/plugins/registry/`), the `CODEOWNERS` line for `plugins/registry/`.
+> Owns: the built-in list (`surfsense_local/backend/modules/plugins/lists/built_in/`), the registry (`plugins/registry/`: `plugins.json`, the entry schema both lists follow, its check, the signing job, later the bundle scanner), the app's cached copy of the registry and its refresh (`modules/plugins/lists/registry/`), the `CODEOWNERS` line for `plugins/registry/`.
 > Decision: [ADR 0053](../../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md).
 
 ## Two lists
@@ -10,7 +10,7 @@ The app knows plugins from two lists that share one entry schema. Only custom pl
 | | The built-in list | The registry |
 |---|---|---|
 | Lists | SurfSense's plugins | Partners' and community plugins, plus removed ones |
-| Lives in | `surfsense_local/backend/modules/plugins/built_in/plugins.json` | `plugins/registry/plugins.json` |
+| Lives in | `surfsense_local/backend/modules/plugins/lists/built_in/plugins.json` | `plugins/registry/plugins.json` |
 | Reaches the app | Packaged into the API binary, as the model catalogs are | Fetched, signed, from `plugins.surfsense.com` once the user turns on other publishers, then cached |
 | Changes with | An app release | A merged pull request, with no app update |
 | Shown | Always, with no network and no consent | Once the user turns on other publishers |
@@ -61,7 +61,7 @@ An illustrative registry entry, not a real listing:
 | `access` | `free` or `external`, or `license` in the built-in list only ([`05-paid.md`](05-paid.md)) |
 | `access_note` | Required when `access` is `external`: what the user must buy or have, in a sentence |
 | `privacy_policy` | Required in the registry |
-| `homepage`, `icon` | Optional. Icons live beside their list: `plugins/registry/icons/`, or `built_in/icons/` in the app |
+| `homepage`, `icon` | Optional. Icons live beside their list: `plugins/registry/icons/`, or `lists/built_in/icons/` in the app |
 | `min_app_version` | Registry only, optional. Older apps do not list the entry |
 
 Unknown fields are ignored, so a newer field does not break an older app. `schema_version` rises only when the structure breaks.
@@ -92,7 +92,7 @@ SurfSense adds a plugin by adding its entry to the built-in list in the same cha
 | Has an API but no MCP server | Builds a remote MCP server over its API, with any MCP SDK, and hosts it: then it works in SurfSense and every other MCP client. Later, a bundle is the alternative for a publisher that will not host anything ([`bundles/`](../bundles/README.md)) |
 | Wants the agent to use its tools well | Adds skills to its entry once plugins carry them ([`06-later.md`](06-later.md)) |
 | A community developer wrapping someone else's public API | Hosts the server themselves and lists it as `community`, never `partner`. The entry and the screen say who runs the server, and its privacy policy is the developer's, since the user's requests and credentials pass through it |
-| SurfSense | Its own plugins in `plugins/remote/` and `plugins/remote/proprietary/`, run on its plugin host and listed in the built-in list ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#surfsenses-own-servers)) |
+| SurfSense | Its own remote plugins in `plugins/remote/` and `plugins/remote/proprietary/`, run on its plugin host ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#surfsenses-own-servers)); later its bundles, in `plugins/bundles/` ([`bundles/`](../bundles/README.md)). Both kinds are listed in the built-in list |
 
 A publisher never touches SurfSense's code, and the user sees the same Connect button whatever the publisher.
 
@@ -124,7 +124,7 @@ The plugin's row says what changed, such as "Notion added 1 tool: delete page", 
 ## Removing a plugin
 
 - **From the registry:** a maintainer moves the entry to `removed` with a reason. An app that refreshes such a list stops offering the plugin's tools, keeps the user's connection so nothing is lost if it comes back, and shows the reason on its row. No installer carries a third-party entry, so a removed plugin is never listed again from an old copy.
-- **From the built-in list:** SurfSense's server refuses the plugin's calls at once, which the user reads as the tool's refusal, and the next release drops the entry.
+- **From the built-in list:** SurfSense stops the plugin at once, with no app release: a remote plugin's server refuses its calls, which the user reads as the tool's refusal, and a bundle's versions are blocked where they are listed. The next release drops the entry.
 
 ## How the app gets the registry
 

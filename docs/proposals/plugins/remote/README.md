@@ -1,7 +1,7 @@
 ---
 status: proposed
 code:
-  - surfsense_local/backend/modules/plugins/mcp_client/
+  - surfsense_local/backend/modules/plugins/remote/
   - plugins/remote/
   - plugins/registry/
 ---

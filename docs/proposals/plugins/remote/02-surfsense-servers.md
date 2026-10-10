@@ -62,7 +62,7 @@ plugins/
   bundles/                     deferred (../bundles/README.md)
 ```
 
-SurfSense's plugins are listed in the app's built-in list, `surfsense_local/backend/modules/plugins/built_in/`, not in `registry/` ([`../core/02-registry.md`](../core/02-registry.md#two-lists)).
+SurfSense's plugins are listed in the app's built-in list, `surfsense_local/backend/modules/plugins/lists/built_in/`, not in `registry/` ([`../core/02-registry.md`](../core/02-registry.md#two-lists)).
 
 `host`, `mcp_server`, `proprietary` and `license` are never plugin ids. `mcp_server/` holds nothing about scraping or licensing: it is what a free plugin needs too. Code moves into it, or out of a plugin, only when a second plugin needs it.
 

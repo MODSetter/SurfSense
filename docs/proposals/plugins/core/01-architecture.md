@@ -1,6 +1,6 @@
 # Architecture
 
-> Owns: `surfsense_local/backend/modules/plugins/` (`gateway/`, `installed/`, `results/`, `routes.py`), the plugin tables. The MCP client is [`../remote/01-mcp-client.md`](../remote/01-mcp-client.md)'s, the built-in list and the copy of the registry [`02-registry.md`](02-registry.md)'s.
+> Owns: `surfsense_local/backend/modules/plugins/` (`gateway/`, `installed/`, `results/`, `routes.py`), the plugin tables. `remote/` is [`../remote/01-mcp-client.md`](../remote/01-mcp-client.md)'s, `lists/` [`02-registry.md`](02-registry.md)'s, `bundles/` [`../bundles/`](../bundles/README.md)'s.
 > Callers: [`03-engines.md`](03-engines.md). Sources: [`../remote/README.md`](../remote/README.md), later [`bundles/`](../bundles/README.md).
 
 ## Shape
@@ -15,6 +15,26 @@ chat engine ──► modules/chat/plugin_router ────┼──► Tool G
 ```
 
 The app owns one tool pipeline that every call passes through, and MCP is a source of tools adapted into it, as in Pi ([README](../README.md#prior-art)). No plugin code runs inside the app. The app is an MCP client towards plugin servers and, for opencode, an MCP server in front of the gateway ([`03-engines.md`](03-engines.md#opencode)); both sides are plain MCP.
+
+## Layout
+
+```
+surfsense_local/backend/modules/plugins/
+  routes.py          the /plugins routes, the same for every kind
+  gateway/           the only door to a tool: list_tools, call_tool, ToolSource, names, trimming, approval
+  installed/         what is connected: installed_plugins, credentials, tool switches
+  results/           plugin_calls, Save to Sources
+  lists/             where plugins come from, every kind (02-registry.md)
+    built_in/        SurfSense's plugins: plugins.json and icons/, packaged into the app
+    registry/        other publishers': fetch, signature check, cache
+  remote/            the remote kind (../remote/01-mcp-client.md)
+    mcp_client/      Streamable HTTP: initialize, tools/list, tools/call, cancel, progress
+    sign_in/         token, OAuth and its callback route, the License header
+    source.py        RemoteMcpSource
+  bundles/           the bundle kind, deferred: the earlier design's runner, later BundleSource
+```
+
+What every kind shares sits at the top, in folders named for what they do. Each kind is one folder that plugs into the gateway through a `ToolSource`, so a new kind adds a folder and changes nothing above it.
 
 ## The Tool Gateway
 
@@ -39,8 +59,8 @@ class ToolSource(Protocol):
     async def call_tool(self, name: str, arguments: dict, *, cancel: CancelToken) -> SourceResult: ...
 ```
 
-- `RemoteMcpSource` (`mcp_client/`) is the first, one per connected remote plugin ([`../remote/README.md`](../remote/README.md)).
-- `BundleSource` comes with bundles: the same interface over a local process ([`bundles/`](../bundles/README.md)).
+- `RemoteMcpSource`, in `remote/source.py` over `remote/mcp_client/`, is the first, one per connected remote plugin ([`../remote/README.md`](../remote/README.md)).
+- `BundleSource`, in `bundles/`, comes with bundles: the same interface over a local process ([`bundles/`](../bundles/README.md)).
 
 Nothing above the gateway knows which kind of source a tool came from.
 
@@ -65,7 +85,7 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 | `plugin_tools` | `plugin_id`, `tool`, `first_seen_at`, `enabled`, `approval` (`ask` or `always`, [`04-trust.md`](04-trust.md#approval)), `exposure`, and the description, annotations and schema last seen, which [`02-registry.md`](02-registry.md#tools-added-later) compares on each listing |
 | `plugin_calls` | `id`, `workspace_id`, `thread_id`, `message_id`, `caller`, `plugin_id`, `tool`, `arguments`, `status` (`waiting_approval`, `running`, `succeeded`, `failed`, `denied`, `cancelled`), `result_text`, `result_data`, `error`, `started_at`, `finished_at` |
 
-`plugin_runs`, built for the earlier design, stays for bundles, with its runner in `modules/plugins/bundles/`, beside the folders above.
+`plugin_runs`, built for the earlier design, stays for bundles, with its runner in `modules/plugins/bundles/`.
 
 ## Routes
 

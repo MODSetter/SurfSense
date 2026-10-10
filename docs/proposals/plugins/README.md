@@ -3,7 +3,7 @@ status: proposed
 code:
   - plugins/registry/
   - plugins/remote/
-  - surfsense_local/backend/modules/plugins/built_in/
+  - surfsense_local/backend/modules/plugins/lists/
   - plugins/bundles/core/
   - surfsense_local/backend/modules/plugins/
   - surfsense_local/backend/modules/agent/plugin_tools/
@@ -95,9 +95,9 @@ plugins/
 
 | Stream | Owns | Needs |
 |---|---|---|
-| **Plugin lists** | The built-in list in `modules/plugins/built_in/`; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry, the app's fetched and cached copy | the plugin host, to serve the signed registry |
-| **MCP client** | `modules/plugins/mcp_client/`: Streamable HTTP, sign-in, credentials | nothing |
-| **Gateway** | `modules/plugins/gateway/`, the tables, approval, permissions, results | the MCP client |
+| **Plugin lists** | `modules/plugins/lists/`: the built-in list and the app's fetched, cached copy of the registry; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry | the plugin host, to serve the signed registry |
+| **MCP client** | `modules/plugins/remote/`: the MCP client over Streamable HTTP, sign-in, `RemoteMcpSource` | nothing |
+| **Gateway** | `modules/plugins/gateway/`, `installed/`, `results/`, `routes.py`, the tables, approval, permissions | the MCP client |
 | **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, Restricted mode, permissions, activity | the gateway's routes; can start against their shapes |
 | **opencode** | `modules/agent/plugin_tools/` | the gateway |
 | **Chat router** | `modules/chat/plugin_router/`, `@` mentions, the chat eval's router test | the gateway |
