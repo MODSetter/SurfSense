@@ -1,11 +1,13 @@
 """Service for exporting knowledge base content as a ZIP archive."""
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
 import re
 import tempfile
+import threading
 import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -258,29 +260,69 @@ class _WorkspaceWrite:
     wrote: bool
 
 
-async def _write_zip_entries(
-    zip_path: str, entries: list[tuple[str, str]], *, fresh: bool
-) -> None:
-    mode = "w" if fresh else "a"
+class _ZipWriter:
+    """One archive, held open for a whole export.
 
-    def _write() -> None:
-        with zipfile.ZipFile(zip_path, mode, zipfile.ZIP_DEFLATED) as zf:
+    Reopening it in append mode for every batch of 100 documents made zipfile
+    read the central directory back and write it out again each time, so an
+    export of n documents did n squared work: 100,000 small documents took
+    132 s where 20,000 took 9.5 s (#2006).
+    """
+
+    def __init__(self, zip_path: str, compression: int = zipfile.ZIP_DEFLATED) -> None:
+        self._path = zip_path
+        self._zip = zipfile.ZipFile(zip_path, "w", compression)
+        self._discarded = threading.Event()
+        self._writing: asyncio.Future | None = None
+        self.wrote = False
+
+    async def write(self, entries: list[tuple[str, str]]) -> None:
+        def _write() -> None:
             for path, content in entries:
-                zf.writestr(path, content)
+                # A cancelled export discards the archive while this thread may
+                # still be in the batch: stop at the next entry.
+                if self._discarded.is_set():
+                    return
+                self._zip.writestr(path, content)
 
-    await asyncio.to_thread(_write)
+        # Shielded: cancelling the request must not lose track of the thread,
+        # which `discard` has to wait for before it can close the archive.
+        self._writing = asyncio.ensure_future(asyncio.to_thread(_write))
+        await asyncio.shield(self._writing)
+        self.wrote = self.wrote or bool(entries)
+
+    def close(self) -> None:
+        self._zip.close()
+
+    def discard(self) -> None:
+        """Close and delete the archive, once no thread is writing into it.
+
+        zipfile refuses to close under a write in progress, and cancelling a
+        request does not stop the thread doing one.
+        """
+        self._discarded.set()
+
+        def _remove(_writing: asyncio.Future | None = None) -> None:
+            with contextlib.suppress(Exception):
+                self._zip.close()
+            if os.path.exists(self._path):
+                os.unlink(self._path)
+
+        if self._writing is not None and not self._writing.done():
+            self._writing.add_done_callback(_remove)
+        else:
+            _remove()
 
 
 async def _export_workspace_markdown(
     session: AsyncSession,
     workspace_id: int,
-    zip_path: str,
+    archive: _ZipWriter,
     *,
     path_prefix: str = "",
     folder_id: int | None = None,
-    fresh: bool = True,
 ) -> _WorkspaceWrite:
-    """Write one workspace's OKF markdown (concepts, index.md, log.md) into zip_path."""
+    """Write one workspace's OKF markdown (concepts, index.md, log.md) into the archive."""
     if folder_id is not None:
         folder = await session.get(Folder, folder_id)
         if not folder or folder.workspace_id != workspace_id:
@@ -306,7 +348,6 @@ async def _export_workspace_markdown(
     skipped: list[_SkippedDoc] = []
     listed: list[_ListedDoc] = []
     wrote = False
-    is_first_batch = fresh
     dir_concepts: dict[str, list[ConceptRef]] = {}
     dir_logs: dict[str, list[LogEntry]] = {}
     batch_size = 100
@@ -396,8 +437,7 @@ async def _export_workspace_markdown(
             )
 
         if entries:
-            await _write_zip_entries(zip_path, entries, fresh=is_first_batch)
-            is_first_batch = False
+            await archive.write(entries)
             wrote = True
 
         offset += batch_size
@@ -407,8 +447,7 @@ async def _export_workspace_markdown(
         for rel, body in _build_index_files(dir_concepts)
     ]
     if index_files:
-        await _write_zip_entries(zip_path, index_files, fresh=is_first_batch)
-        is_first_batch = False
+        await archive.write(index_files)
         wrote = True
 
     log_files = [
@@ -416,7 +455,7 @@ async def _export_workspace_markdown(
         for rel, body in _build_log_files(dir_logs)
     ]
     if log_files:
-        await _write_zip_entries(zip_path, log_files, fresh=is_first_batch)
+        await archive.write(log_files)
         wrote = True
 
     return _WorkspaceWrite(documents=listed, skipped=skipped, wrote=wrote)
@@ -437,14 +476,15 @@ async def build_export_zip(
     fd, tmp_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
+    archive = _ZipWriter(tmp_path)
     try:
         written = await _export_workspace_markdown(
             session,
             workspace_id,
-            tmp_path,
+            archive,
             folder_id=folder_id,
-            fresh=True,
         )
+        archive.close()
         folder_path_map = {}
         if folder_id is not None:
             folder_result = await session.execute(
@@ -464,9 +504,8 @@ async def build_export_zip(
             zip_size=os.path.getsize(tmp_path),
             skipped_docs=[row.title for row in written.skipped],
         )
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+    except BaseException:
+        archive.discard()
         raise
 
 
@@ -568,7 +607,18 @@ async def flatten_workspace_chats(
     return exported
 
 
-def _manifest_first_zip(staging_path: str, manifest: dict[str, Any]) -> str:
+class _ExportAbandonedError(Exception):
+    """The request that asked for this archive is gone."""
+
+
+def _manifest_first_zip(
+    staging_path: str, manifest: dict[str, Any], abandoned: threading.Event
+) -> str:
+    """Write the final archive on a worker thread.
+
+    Cancelling the request does not stop a thread, so the thread is told
+    through ``abandoned`` and removes its own output: nobody else is left to.
+    """
     fd, final_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
     try:
@@ -577,10 +627,17 @@ def _manifest_first_zip(staging_path: str, manifest: dict[str, Any]) -> str:
                 "manifest.json",
                 json.dumps(manifest, ensure_ascii=False, indent=2),
             )
-            if os.path.getsize(staging_path) > 0:
-                with zipfile.ZipFile(staging_path, "r") as src:
-                    for info in src.infolist():
-                        dst.writestr(info, src.read(info.filename))
+            # The staging archive is stored, not deflated, so each entry is
+            # compressed once, here.
+            with zipfile.ZipFile(staging_path, "r") as src:
+                for info in src.infolist():
+                    if abandoned.is_set():
+                        raise _ExportAbandonedError
+                    data = src.read(info.filename)
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    dst.writestr(info, data)
+        if abandoned.is_set():
+            raise _ExportAbandonedError
     except Exception:
         if os.path.exists(final_path):
             os.unlink(final_path)
@@ -591,12 +648,21 @@ def _manifest_first_zip(staging_path: str, manifest: dict[str, Any]) -> str:
     return final_path
 
 
+def _discard_abandoned(final: asyncio.Future) -> None:
+    """Remove a final archive that finished just as its request was cancelled."""
+    if final.cancelled():
+        return
+    if final.exception() is None and os.path.exists(final.result()):
+        os.unlink(final.result())
+
+
 async def build_account_export_zip(session: AsyncSession, user_id: Any) -> ExportResult:
     """Build a contract-3 ZIP of every workspace the user is a member of."""
     workspaces = await _member_workspaces(session, user_id)
     fd, staging_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
-    fresh = True
+    staging = _ZipWriter(staging_path, zipfile.ZIP_STORED)
+    abandoned = threading.Event()
     manifest_workspaces: list[dict[str, Any]] = []
     skipped_titles: list[str] = []
 
@@ -606,21 +672,15 @@ async def build_account_export_zip(session: AsyncSession, user_id: Any) -> Expor
             written = await _export_workspace_markdown(
                 session,
                 workspace.id,
-                staging_path,
+                staging,
                 path_prefix=prefix,
-                fresh=fresh,
             )
-            if written.wrote:
-                fresh = False
 
             chats = await flatten_workspace_chats(session, workspace.id)
             chats_path = f"workspaces/{workspace.id}/chats.json"
-            await _write_zip_entries(
-                staging_path,
-                [(chats_path, json.dumps(chats, ensure_ascii=False, indent=2))],
-                fresh=fresh,
+            await staging.write(
+                [(chats_path, json.dumps(chats, ensure_ascii=False, indent=2))]
             )
-            fresh = False
 
             skipped_titles.extend(row.title for row in written.skipped)
             manifest_workspaces.append(
@@ -651,15 +711,30 @@ async def build_account_export_zip(session: AsyncSession, user_id: Any) -> Expor
             "exported_at": datetime.now(UTC).isoformat(),
             "workspaces": manifest_workspaces,
         }
-        zip_path = _manifest_first_zip(staging_path, manifest)
+        staging.close()
+        # Off the event loop: it compresses the whole account, and every other
+        # request waited behind it (22 s for 1 GB of markdown).
+        final = asyncio.ensure_future(
+            asyncio.to_thread(_manifest_first_zip, staging_path, manifest, abandoned)
+        )
+        # The thread owns both files from here: it removes the staging archive
+        # when it is done, and its own output if the request is abandoned.
         staging_path = ""
+        try:
+            zip_path = await asyncio.shield(final)
+        except asyncio.CancelledError:
+            abandoned.set()
+            final.add_done_callback(_discard_abandoned)
+            raise
         return ExportResult(
             zip_path=zip_path,
             export_name="surfsense-export",
             zip_size=os.path.getsize(zip_path),
             skipped_docs=skipped_titles,
         )
-    except Exception:
-        if staging_path and os.path.exists(staging_path):
-            os.unlink(staging_path)
+    except BaseException:
+        # BaseException: a cancelled request must not leave its archive behind.
+        # Once the final pass has started, its thread owns the staging file.
+        if staging_path:
+            staging.discard()
         raise
