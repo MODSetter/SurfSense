@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto"
-import { existsSync, mkdirSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -26,41 +24,10 @@ import { managedOriginalPath } from "./document-files.ts"
 import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
 import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
 import { allowedExternalUrl } from "./external-url.ts"
-import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
-import {
-  llamacppSpec,
-  LLAMACPP_SIDECAR,
-  PRESET_FILE,
-} from "./sidecars/llamacpp.ts"
-import {
-  audiocppSpec,
-  AUDIOCPP_SIDECAR,
-  SERVER_CONFIG,
-} from "./sidecars/audiocpp.ts"
-import {
-  binaryPath as opencodeBinaryPath,
-  configPath as opencodeConfigPath,
-  opencodeSpec,
-  OPENCODE_SIDECAR,
-} from "./sidecars/opencode.ts"
-import { prepareOpencodeHome } from "./sidecars/opencode-home.ts"
-import { recordOpencode, stopLeftoverOpencode } from "./sidecars/opencode-leftovers.ts"
-import { apiSpec, workerSpec } from "./sidecars/python.ts"
-import {
-  binaryPath as sdcppBinaryPath,
-  sdcppSpec,
-  SDCPP_SIDECAR,
-  type ImageRuntime,
-} from "./sidecars/sdcpp.ts"
-import {
-  startAll,
-  startOne,
-  stopAll,
-  stopNamed,
-  type Sidecars,
-} from "./sidecars/supervisor.ts"
-import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
+import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
+import { stopAll, type Sidecars } from "./sidecars/supervisor.ts"
+import type { SidecarContext } from "./sidecars/types.ts"
 import { refuseSpellcheckDownloads } from "./spellcheck.ts"
 import {
   attachUpdater,
@@ -115,6 +82,8 @@ let confirmingQuit = false
 let mainWindow: BrowserWindow | null = null
 let shuttingDown = false
 let stopDocxSnapshots: (() => void) | null = null
+// Boot's watchers; they must stop before the sidecars they would otherwise restart.
+let stopSidecarWatchers: (() => void) | null = null
 
 function onSidecarCrash(name: string, code: number | null): void {
   warnMain(sessionLog, `sidecar ${name} crashed (code=${code})`)
@@ -123,143 +92,6 @@ function onSidecarCrash(name: string, code: number | null): void {
     name,
     code,
   })
-}
-
-// sd-server takes its model as a startup argument and dies without one, so it
-// cannot be started at boot like the others: the model arrives later, on a
-// download, and changes again whenever a different one is chosen. The API is the
-// authority on which weights that is, so follow it and restart on a change.
-// ponytail: a poll, not a push. It costs one local request every few seconds and
-// needs no IPC channel of its own; a change is user-initiated and rare, so the
-// few seconds of lag are not felt.
-function watchImageModel(ctx: SidecarContext): void {
-  if (ctx.imageModelsDir == null) return
-  const endpoint = `http://${ctx.host}:${ctx.apiPort}/llm/image/local/runtime`
-  let current: string | null = null
-
-  const reconcile = async () => {
-    if (!sidecars || shuttingDown) return
-    const response = await fetch(endpoint)
-    if (!response.ok) return
-    const runtime = (await response.json()) as ImageRuntime
-
-    const spec = sdcppSpec(ctx, runtime)
-    const wanted = spec ? spec.args.join("\u0000") : null
-    if (wanted === current) return
-
-    if (sidecars.has(SDCPP_SIDECAR)) await stopNamed(sidecars, SDCPP_SIDECAR)
-    current = wanted
-    if (spec) startOne(sidecars, spec, onSidecarCrash)
-  }
-
-  const timer = setInterval(() => {
-    void reconcile().catch(() => {
-      // The API is down or restarting; the next tick tries again.
-    })
-  }, 5000)
-  timer.unref()
-}
-
-// llama-server reads its per-model arguments from a preset INI **once, at
-// startup**: appending a section while it runs does not surface the model,
-// measured. The API rewrites that file whenever it installs a model or reprices
-// one, so the router has to be restarted to see it. Same shape as
-// watchImageModel, and for the same reason: the API is the authority, and a
-// change is user-initiated and rare.
-function watchGenerationPreset(ctx: SidecarContext): void {
-  if (ctx.llamacppModelsDir == null) return
-  const preset = join(ctx.llamacppModelsDir, PRESET_FILE)
-  let current = presetStamp(preset)
-
-  const reconcile = async () => {
-    if (!sidecars || shuttingDown) return
-    const stamp = presetStamp(preset)
-    if (stamp === current) return
-    current = stamp
-
-    if (sidecars.has(LLAMACPP_SIDECAR)) await stopNamed(sidecars, LLAMACPP_SIDECAR)
-    const spec = llamacppSpec(ctx)
-    if (spec) startOne(sidecars, spec, onSidecarCrash)
-  }
-
-  const timer = setInterval(() => {
-    void reconcile().catch(() => {
-      // Mid-write or mid-restart; the next tick tries again.
-    })
-  }, 5000)
-  timer.unref()
-}
-
-// audio.cpp's server refuses an empty model list, so it runs only while the API's
-// config names a model. The API rewrites that file on every audio install and
-// delete, and removes it with the last model; follow it, as for the preset.
-function watchAudioModels(ctx: SidecarContext): void {
-  if (ctx.audioModelsDir == null) return
-  const config = join(ctx.audioModelsDir, SERVER_CONFIG)
-  let current = presetStamp(config)
-
-  const reconcile = async () => {
-    if (!sidecars || shuttingDown) return
-    const stamp = presetStamp(config)
-    if (stamp === current) return
-    current = stamp
-
-    if (sidecars.has(AUDIOCPP_SIDECAR)) await stopNamed(sidecars, AUDIOCPP_SIDECAR)
-    const spec = audiocppSpec(ctx)
-    if (spec) startOne(sidecars, spec, onSidecarCrash)
-  }
-
-  const timer = setInterval(() => {
-    void reconcile().catch(() => {
-      // Mid-write or mid-restart; the next tick tries again.
-    })
-  }, 5000)
-  timer.unref()
-}
-
-// opencode starts the first time a thread needs the agent, which the API says
-// by writing its configuration. A rewrite is not a restart: opencode reads the
-// file per folder, and the API makes it read it again (`POST /global/dispose`),
-// so no turn is cut off by a restart it did not ask for. Removing the file stops
-// opencode; a crash restarts it, at most once per AGENT_RESTART_MS.
-const AGENT_RESTART_MS = 10_000
-
-function watchAgentConfig(ctx: SidecarContext): void {
-  if (ctx.agentDir == null || ctx.opencodeBinariesDir == null) return
-  const agentDir = ctx.agentDir
-  const config = opencodeConfigPath(agentDir)
-  let lastStart = 0
-
-  const reconcile = async () => {
-    if (!sidecars || shuttingDown) return
-    const child = sidecars.get(OPENCODE_SIDECAR)
-    const running = child != null && child.exitCode === null && child.signalCode === null
-    const wanted = existsSync(config)
-    if (wanted === running) return
-
-    if (!wanted) {
-      await stopNamed(sidecars, OPENCODE_SIDECAR)
-      return
-    }
-    if (Date.now() - lastStart < AGENT_RESTART_MS) return
-    const spec = opencodeSpec(ctx)
-    if (!spec) return
-    prepareOpencodeHome(agentDir)
-    startOne(sidecars, spec, onSidecarCrash)
-    lastStart = Date.now()
-    const pid = sidecars.get(OPENCODE_SIDECAR)?.pid
-    if (pid != null && ctx.opencodePort != null && ctx.opencodePassword != null) {
-      recordOpencode(agentDir, { pid, port: ctx.opencodePort, password: ctx.opencodePassword })
-    }
-  }
-
-  const timer = setInterval(() => {
-    void reconcile().catch(() => {
-      // Mid-write or mid-restart; the next tick tries again.
-    })
-    // Faster than the other watchers: someone is waiting on their first agent turn.
-  }, 2000)
-  timer.unref()
 }
 
 // The agent looks at the pages of a Word document or deck it made or was given,
@@ -277,121 +109,40 @@ function serveWordPreviews(ctx: SidecarContext): void {
   })
 }
 
-/** Size and mtime, which is enough to notice a rewrite and costs no read. */
-function presetStamp(path: string): string {
-  try {
-    const stats = statSync(path)
-    return `${stats.size}:${stats.mtimeMs}`
-  } catch {
-    return "absent"
-  }
-}
-
-async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
-  const host = "127.0.0.1"
-  const packaged = app.isPackaged
-  const apiPort = await getFreePort(host)
-  const dataDir = DATA_DIR
+/** What only Electron knows: the paths beside the app, and the keychain secret. */
+function bootContext(): BootContext {
   // Linux without a keyring daemon: keep booting on Chromium's built-in key
   // rather than refusing to start; same fallback every Electron app takes.
   if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true)
-
-  const ctx: SidecarContext = {
+  const packaged = app.isPackaged
+  const appPath = app.getAppPath()
+  const resources = process.resourcesPath
+  return {
     packaged,
     // dev: backend sits next to electron/; packaged: frozen binaries in resources/
-    backendDir: join(app.getAppPath(), "..", "backend"),
-    binariesDir: process.resourcesPath,
-    host,
-    apiPort,
-    dataDir,
+    backendDir: join(appPath, "..", "backend"),
+    binariesDir: resources,
+    dataDir: DATA_DIR,
     secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
-      ? join(process.resourcesPath, "models")
-      : join(app.getAppPath(), "..", "backend", "models"),
+      ? join(resources, "models")
+      : join(appPath, "..", "backend", "models"),
     // The staged llama.cpp build, same bytes either way: `fetch-llamacpp.mjs`
     // writes electron/llamacpp/ and packaging copies that folder verbatim.
     llamacppBinariesDir: packaged
-      ? join(process.resourcesPath, "llamacpp")
-      : join(app.getAppPath(), "llamacpp"),
+      ? join(resources, "llamacpp")
+      : join(appPath, "llamacpp"),
     // The staged audio.cpp build, same bytes either way, as for llama.cpp.
     audioBinariesDir: packaged
-      ? join(process.resourcesPath, "audiocpp")
-      : join(app.getAppPath(), "audiocpp"),
+      ? join(resources, "audiocpp")
+      : join(appPath, "audiocpp"),
+    // Same staging in both modes, like llama.cpp.
+    sdcppBinariesDir: packaged ? join(resources, "sdcpp") : join(appPath, "sdcpp"),
+    opencodeBinariesDir: packaged
+      ? join(resources, "opencode")
+      : join(appPath, "opencode"),
   }
-  // Unconditional, because dev needs a runtime too and DATA_DIR already keeps
-  // dev models out of the real install (~/.surfsense-dev).
-  ctx.llamacppPort = await getFreePort(host)
-  ctx.llamacppModelsDir = join(dataDir, "models")
-  ctx.llamacppUrl = `http://${host}:${ctx.llamacppPort}`
-  // llama-server exits 1 when --models-dir does not exist, and on a clean
-  // install nothing has created it yet: only a download would, and a download
-  // needs the runtime. Measured: "failed to initialize router models: error:
-  // '<path>' does not exist or is not a directory".
-  mkdirSync(ctx.llamacppModelsDir, { recursive: true })
-
-  // Dev too, as for llama.cpp: podcasts are voiced by the binary that ships.
-  ctx.audioPort = await getFreePort(host)
-  ctx.audioUrl = `http://${host}:${ctx.audioPort}`
-  ctx.audioModelsDir = join(dataDir, "audio")
-  mkdirSync(ctx.audioModelsDir, { recursive: true })
-
-  // Same staging in both modes, like llama.cpp. Only a host with a staged
-  // sd-server gets an images dir: without one the API offers no image models,
-  // rather than downloads that can never run.
-  const sdcppBinariesDir = packaged
-    ? join(process.resourcesPath, "sdcpp")
-    : join(app.getAppPath(), "sdcpp")
-  if (existsSync(sdcppBinaryPath({ ...ctx, sdcppBinariesDir }))) {
-    ctx.sdcppBinariesDir = sdcppBinariesDir
-    ctx.imagePort = await getFreePort(host)
-    ctx.imageModelsDir = join(dataDir, "images")
-    ctx.imageUrl = `http://${host}:${ctx.imagePort}`
-  }
-
-  // Same staging in both modes. Only a host with a staged opencode gets an
-  // agent: the port and password are chosen now so the API knows where it will
-  // be, and opencode itself waits for the API's configuration (watchAgentConfig).
-  const opencodeBinariesDir = packaged
-    ? join(process.resourcesPath, "opencode")
-    : join(app.getAppPath(), "opencode")
-  if (existsSync(opencodeBinaryPath({ ...ctx, opencodeBinariesDir }))) {
-    ctx.opencodeBinariesDir = opencodeBinariesDir
-    ctx.opencodePort = await getFreePort(host)
-    ctx.opencodePassword = randomBytes(32).toString("base64url")
-    ctx.docxSnapshotKey = randomBytes(32).toString("base64url")
-    ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
-    ctx.agentDir = join(dataDir, "agent")
-    mkdirSync(ctx.agentDir, { recursive: true })
-    await stopLeftoverOpencode(ctx.agentDir, host)
-    // Each run's API writes its own; the last run's names a key this one never made.
-    rmSync(opencodeConfigPath(ctx.agentDir), { force: true })
-  }
-
-  // llamacppSpec is null in dev, where no binary is staged. sd-server is absent
-  // here on purpose: watchImageModel owns it, because only the API knows which
-  // model was chosen.
-  const specs = [
-    apiSpec(ctx),
-    workerSpec(ctx, "ingest"),
-    workerSpec(ctx, "studio"),
-    llamacppSpec(ctx),
-    // Null until the API's config names an audio model.
-    audiocppSpec(ctx),
-  ].filter(
-    (s): s is SidecarSpec => s !== null
-  )
-  sidecars = startAll(specs, onSidecarCrash)
-  watchImageModel(ctx)
-  watchGenerationPreset(ctx)
-  watchAudioModels(ctx)
-  watchAgentConfig(ctx)
-  serveWordPreviews(ctx)
-
-  // gate on the API only; fail fast if it dies during startup. llama-server is
-  // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
-  await waitForHealth(host, apiPort, { child: sidecars.get("api") })
-  return { apiUrl: `http://${host}:${apiPort}`, dataDir }
 }
 
 function registerDocumentHandlers(dataDir: string): void {
@@ -679,6 +430,7 @@ async function quitWithConfirmation(): Promise<boolean> {
 async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
+  stopSidecarWatchers?.()
   stopDocxSnapshots?.()
   withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
@@ -723,8 +475,12 @@ function main(): void {
     .then(async () => {
       applyLocalePreference(loadLocalePreference())
       applyDevAppIdentity()
-      const boot = await bootSidecars()
+      const boot = await bootSidecars(bootContext(), onSidecarCrash)
       apiUrl = boot.apiUrl
+      sidecars = boot.sidecars
+      stopSidecarWatchers = boot.stopWatching
+      serveWordPreviews(boot.ctx)
+      await boot.waitHealthy()
       announceApiUrl(boot.dataDir, boot.apiUrl)
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({

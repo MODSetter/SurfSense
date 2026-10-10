@@ -8,7 +8,7 @@ import type { Writable } from "node:stream"
 
 import { sessionLog } from "../session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
-import type { CrashHandler, SidecarSpec } from "./types.ts"
+import type { CrashHandler, SidecarContext, SidecarSpec } from "./types.ts"
 
 /** The running children, keyed by spec name so index.ts can wait on one. */
 export type Sidecars = Map<string, ChildProcess>
@@ -121,6 +121,40 @@ export async function stopNamed(
   if (!child) return
   children.delete(name)
   await stopOne(child, timeoutMs)
+}
+
+/**
+ * The running children and the two changes a watcher makes to them. A watcher
+ * takes one so a test can hand it fakes and spawn nothing.
+ */
+export interface SidecarControl {
+  readonly running: Sidecars
+  /** Start `spec`, replacing any child under its name. */
+  start(spec: SidecarSpec): void
+  /** Stop the child under `name`, leaving the rest running. */
+  stop(name: string): Promise<void>
+}
+
+/** A control over `children`, giving every child it starts the same crash handler. */
+export function sidecarControl(
+  children: Sidecars,
+  onCrash?: CrashHandler,
+): SidecarControl {
+  return {
+    running: children,
+    start: (spec) => startOne(children, spec, onCrash),
+    stop: (name) => stopNamed(children, name),
+  }
+}
+
+/** What a watcher reads: the context, the children, and whether to stop. */
+export interface WatcherOptions {
+  ctx: SidecarContext
+  control: SidecarControl
+  /** True once the app is shutting down; a restart then would fight it. */
+  stopping: () => boolean
+  /** How often to look at the file or the API; a test lowers it. */
+  pollMs?: number
 }
 
 function stopOne(child: ChildProcess, timeoutMs: number): Promise<void> {
