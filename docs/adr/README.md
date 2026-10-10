@@ -78,7 +78,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted |
-| 0051 | [A plugin is an MCP server, and every caller reaches plugin tools through one Tool Gateway, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Proposed |
+| 0051 | [A plugin is an MCP server, and SurfSense decides which of its tools each caller gets, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Proposed |
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed, deferred |
 | 0053 | [First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host that also serves the registry](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Proposed |

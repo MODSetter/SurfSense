@@ -5,14 +5,15 @@
 
 ## The MCP client
 
+SurfSense's own client lists a plugin's tools: when it is connected, and in the checks for changed tools before turns. It calls no tool today; the chat engine adds calling when it is built. The agent's calls go through opencode's own MCP client ([`../core/03-engines.md`](../core/03-engines.md#opencode)).
+
 The API uses the client of the official MCP Python SDK, [`mcp`](https://pypi.org/project/mcp/), pinned to one minor version and used only inside `modules/plugins/remote/`, so a breaking release touches one folder and nothing above the gateway. It adds about 5 MB to the packaged API and brings the parts of MCP that keep growing: OAuth sign-in, new protocol revisions, notifications. The rules below are SurfSense's, whatever the SDK's defaults; where the SDK does not keep one, a thin layer in `remote/` does, and the client's tests check each against the SDK's own server.
 
 - **Transport:** Streamable HTTP only, answering both JSON and SSE responses, keeping the `Mcp-Session-Id` a server issues. The legacy SSE transport and stdio are not supported.
 - **Protocol:** the SDK's `auto` mode: it asks a server for `2026-07-28` first and falls back to the `initialize` handshake of `2025-11-25` down to `2025-03-26`, which most servers speak today.
-- **Requests:** `initialize`, `tools/list` (following its cursor), `tools/call`, `ping`, and the notifications `notifications/cancelled`, `notifications/progress` and `notifications/tools/list_changed`. Resources, prompts, sampling and elicitation wait for [`../core/06-later.md`](../core/06-later.md).
-- **Connecting:** each listing and each call opens its own connection, since the SDK's tasks must close in the task that opened them. A server on the 2025 protocol that forgets the session gets the request again on a new one, which is safe because it handled nothing. Keeping one connection per plugin, dropped after ten minutes idle, waits for a holder task of its own.
-- **Time:** each call carries the caller's deadline ([`../core/03-engines.md`](../core/03-engines.md)). At the deadline the client sends `notifications/cancelled` and the call ends `failed` with `timeout`. Progress notifications are passed up for the step to show.
-- **Retries:** connecting, listing and `ping` retry twice on a network error, 408, 429 or 5xx. `tools/call` is never retried, since the server may already have acted.
+- **Requests:** `initialize` and `tools/list`, following its cursor. `tools/call`, with its progress and cancel notifications, comes with the chat engine; resources, prompts, sampling and elicitation wait for [`../core/06-later.md`](../core/06-later.md).
+- **Connecting:** each listing opens its own connection, since the SDK's tasks must close in the task that opened them. A server on the 2025 protocol that forgets the session gets the request again on a new one, which is safe because it handled nothing. Keeping one connection per plugin, dropped after ten minutes idle, waits for a holder task of its own.
+- **Retries:** a listing is retried twice on a network error, 408, 429 or 5xx, since it changes nothing on the server. The chat engine's calls, when they come, are never retried, since the server may already have acted.
 - **Tool list:** read at connect, on `list_changed`, and when the user opens the plugin's row. What changed is applied as [`../core/02-registry.md`](../core/02-registry.md#tools-added-later) says.
 
 ## Signing in
@@ -34,7 +35,7 @@ OAuth follows MCP's authorization spec, through the SDK's OAuth client:
 4. The redirect lands on the API's own loopback address, `http://127.0.0.1:<port>/plugins/oauth/callback`, which already listens there; no extra port.
 5. Tokens are stored encrypted on the plugin's row in `installed_plugins` through `shared/secrets.py`, refreshed before they expire or when a call gets `401`. A refresh that fails marks the plugin "Sign in again".
 
-Credentials never reach a model, a log line, a step, or `plugin_calls`.
+Credentials never reach a model, a log line, or a step.
 
 ## Egress
 
@@ -47,8 +48,9 @@ Every host in the entry's `hosts` needs the user's consent before connecting, on
 
 ## Acceptance
 
-- Against a test server: connect, list across two pages, call, receive progress, cancel at the deadline; the server sees `notifications/cancelled`.
-- A `tools/call` that fails with a 503 is not retried; a `tools/list` that does is retried twice.
+- Against a test server: connect and list across two pages, in JSON and in SSE, with the sign-in on every request.
+- A `tools/list` that fails with a 503 is retried twice, and one that keeps failing is refused with its status.
+- A 2025 server that forgets the session gets the listing again on a new one.
 - OAuth against a test authorization server: discovery, dynamic registration, PKCE, the callback on the API's port, a stored token, a refresh on `401`, and "Sign in again" when the refresh fails.
 - A plugin whose two hosts are not allowed raises one `403` naming both, and no connection opens.
-- No credential appears in a log line, a step or `plugin_calls`.
+- No credential appears in a log line, a step, or an API response.

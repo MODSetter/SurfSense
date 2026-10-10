@@ -1,55 +1,76 @@
 # Engines
 
-> Owns: `surfsense_local/backend/modules/agent/plugin_tools/`, the `@` mention in the agent composer, plugin steps in agent threads, Save to Sources.
+> Owns: `surfsense_local/backend/modules/agent/plugin_tools/` (what each turn gives opencode), the `@` mention in the agent composer, plugin steps in agent threads, Save to Sources.
 > Later: the chat engine's router step, [below](#the-chat-engine-later), decided by [ADR 0052](../../../adr/0052-the-chat-model-never-calls-tools.md). Gateway: [`01-architecture.md`](01-architecture.md).
 
-Plugins reach agent threads first. A thread opened in Agentic mode is opencode's, and opencode already calls tools natively, so plugins need only an MCP endpoint in front of the gateway. A thread in Basic mode is the chat engine's, which never calls tools; it gets plugins later, through a router step of its own ([below](#the-chat-engine-later)). The two engines stay as they are ([agent](../../../architecture/agent.md#which-threads-get-it), [chat](../../../architecture/chat.md)).
+Plugins reach agent threads first. A thread opened in Agentic mode is opencode's, and opencode is an MCP client already, so it calls plugin servers itself. A thread in Basic mode is the chat engine's, which never calls tools; it gets plugins later, through a router step of its own ([below](#the-chat-engine-later)). The two engines stay as they are ([agent](../../../architecture/agent.md#which-threads-get-it), [chat](../../../architecture/chat.md)).
 
 Agentic mode is offered only for models tested with opencode, so a user on a chat-only model has no plugins until the chat engine gets them. Settings → Plugins says so: "Plugins work in Agentic threads."
 
 ## opencode
 
-- Before each turn, [`registration.py`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py) registers a second MCP server, `plugins`, beside `surfsense`, at `/agent/plugin-tools/workspaces/{workspace}/threads/{thread}`, with the same launch key, `Origin` refusal and 200-second limit.
-- The endpoint works like [`tool_endpoint/`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/). `tools/list` is the gateway's `list_tools`, with schemas flattened as SurfSense's own tools are, so small models do not send nested arguments as strings. `tools/call` is `call_tool` with `caller: agent` and a 190-second deadline.
-- opencode never connects to a plugin server itself. The endpoint is an MCP server in front of the gateway, which forwards each call to the plugin's server through the MCP client, so approval, egress consent and the record of calls apply to every call. Both sides are plain MCP.
-- SurfSense's own tool list, and the test that pins its order, do not change.
-- A plugin connected or a tool switched on mid-thread appears at the next turn, which misses the prompt cache once.
-- Only `direct` tools are listed, at most 24 per thread, the plugins connected first winning.
-- A call shows as a step. [`step-label.tsx`](../../../../surfsense_local/frontend/src/features/agent/step-label.tsx) already labels an unknown tool "Used {tool}"; it gains the plugin's name and the tool's title.
-- A call that needs approval waits for it inside its deadline ([`04-trust.md`](04-trust.md#approval)).
+opencode connects to plugin servers itself, through its own MCP client, and SurfSense decides everything it may do there. SurfSense is the controller, not a hop: it is in no call's path, so a call is as fast as opencode's own, its session stays open across calls, and progress, cancellation and images work as opencode handles them.
+
+### Each turn
+
+Before each turn, [`registration.py`](../../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py), which already gives the thread's opencode SurfSense's own tools, also gives it:
+
+- **The ready plugins' servers.** Each plugin connected, switched on, with its hosts allowed and, if third-party, third-party plugins allowed, is given to opencode under its id: its URL, its sign-in as headers from the encrypted credential, opencode's own OAuth off, and a 200-second limit, as SurfSense's own tools have. opencode keeps the credential in memory only. A plugin that is not ready is not given, so none of its tools reach the agent. With no ready plugin, nothing is given.
+- **A rule per tool.** opencode names a server's tools `<plugin>_<tool>` and takes an `allow`, `ask` or `deny` rule per name, the last match winning. SurfSense writes `<plugin>_*: deny` first, so a tool it has not reviewed is refused, then each recorded tool's own rule from the user's setting and the gateway's approval rules ([`04-trust.md`](04-trust.md#approval)). A blocked tool is also left out of what opencode lists, where opencode allows it.
+- **A check for changed tools.** SurfSense lists each ready plugin with its own MCP client ([`../remote/01-mcp-client.md`](../remote/01-mcp-client.md)) and records the listing in `plugin_tools`, so the rule for tools added later applies: a new tool starts blocked, and a tool whose description changes or whose annotations become less safe is blocked until the user allows it again ([`02-registry.md`](02-registry.md#tools-added-later)). It runs when the plugin is connected and before a turn, at most once per plugin every few minutes.
+
+A plugin connected, or a tool's setting changed, mid-thread takes effect at the next turn, which misses the prompt cache once. SurfSense's own tools, and the test that pins their order, do not change. At most 24 plugin tools are given a turn, the plugins connected first winning.
+
+### Asking and recording
+
+- **Approval** is opencode's: a tool whose rule is `ask` is asked about through the permission prompt the agent already uses ([`04-trust.md`](04-trust.md#approval)).
+- **The record is opencode's.** Each call, its arguments and its result are kept in the thread's opencode session, which SurfSense already reads to show the thread. SurfSense keeps no copy.
+- **A server opencode could not reach.** After giving the servers, the turn reads opencode's `GET /mcp`. A plugin it reports as `failed` or `needs_auth` is named in the thread, "Couldn't reach Notion" or "Sign in to Notion again", so the agent's missing tools are explained. Settings → Plugins shows the result of SurfSense's own last listing, not this, since opencode knows only the servers a thread has been given, and only while it runs.
+- **Limits accepted for speed.** The host check runs when servers are given to a turn, so a host revoked mid-turn is refused from the next turn. opencode reads a tool's description from its server, so the description is not cut to 2,000 characters for the agent; it reaches the model only once the tool has been reviewed, and a change to it blocks the tool.
 
 ## `@` mentions
 
 The user can name a tool rather than leave the choice to the agent.
 
 - Typing `@` in the agent composer lists ready tools as `@<plugin> <tool>`.
-- A mention makes that tool offered for the turn, even beyond the 24 a thread lists, and tells the agent the user asked for it: "The user asked you to use Notion's Search for this."
+- The turn gives opencode the mentioned tool's plugin, even beyond the 24, and the user's message gains one line: "The user asked you to use Notion's Search for this."
 - The agent fills the inputs and makes the call, as with any tool, so a mention needs no form and no model call of its own.
 - Approval is unchanged: the agent chose the inputs, not the user, so the call asks as [`04-trust.md`](04-trust.md#approval) says.
 
 ## Results
 
-- A call is a step in the agent's message: the tool's title, the plugin's name, a one-line summary, and the result when expanded.
-- The model gets the result trimmed to 20 KB ([`01-architecture.md`](01-architecture.md#results)); the step shows all of it.
-- Reopening a thread shows its steps from `plugin_calls`, without calling anything again.
+- A call is a step in the agent's message, from opencode's own record of the call. A plugin step, a tool named `<plugin>_<tool>`, shows the tool's title, the plugin's name, a one-line summary, and the whole result when expanded. [`step-label.tsx`](../../../../surfsense_local/frontend/src/features/agent/step-label.tsx), which labels an unknown tool "Used {tool}", gains the plugin's name and the tool's title.
+- Progress the plugin reports shows on the running step, as opencode passes it on.
+- Reopening a thread shows its steps from its opencode session, without calling anything again.
 
 ## Save to Sources
 
-- A step has "Save to Sources". It writes a note with the result as markdown and `document_metadata` naming `plugin_id`, `tool`, `call_id` and `fetched_at` ([documents](../../../architecture/documents.md)).
+- A step has "Save to Sources". It writes a note with the step's result as markdown and `document_metadata` naming `plugin_id`, `tool`, the thread and opencode's id for the step, and `fetched_at` ([documents](../../../architecture/documents.md)).
 - Saving the result of the same tool with the same arguments again updates that note in place and its `fetched_at`, rather than adding a copy.
 - Nothing is saved without the user asking.
 
 ## Acceptance
 
-- An agent thread with a test plugin connected: the agent calls its tool, the step shows the plugin and title, and SurfSense's own tool list is unchanged.
-- A plugin tool switched off disappears from the next turn's `tools/list`.
-- `@test search` in an agent thread offers `test__search` that turn and the agent calls it; a call that needs approval still asks.
-- A thread in Basic mode lists no plugin tools, and Settings → Plugins says plugins work in Agentic threads.
+- An agent thread with a test plugin connected: through the real opencode, the agent calls its tool on the plugin's server directly, the step shows the plugin and title, and reopening the thread shows it again from opencode's session. SurfSense's own tools are unchanged.
+- A tool set to Block, and a plugin switched off or not ready, never reach the agent; with no ready plugin, the turn is given none.
+- A tool the server adds after connect is refused until the user allows it, and so is a tool whose description changes.
+- A tool set to Ask is asked about through the agent's permission prompt; Deny ends the call refused, and Allow once runs it.
+- Two calls to a stateful test server in one turn share one session.
+- A plugin whose server stops answering after it was listed is named in the thread as unreachable, and the turn goes on without its tools.
+- `@test search` in an agent thread gives the agent `test_search` that turn and the agent calls it; a call that must be approved still asks.
+- A thread in Basic mode is given no plugin tools, and Settings → Plugins says plugins work in Agentic threads.
 - Save to Sources twice on the same call leaves one note, with the later `fetched_at`.
 
 ## The chat engine (later)
 
 Not built until plugins reach Basic threads. The design is kept here so it can be picked up as it stands.
+
+The chat engine has no opencode session to keep its calls, and calls plugin servers through SurfSense, so it brings with it what only it needs, restored from git history, where it was first built and tested:
+
+- **`plugin_calls`**, in its first migration: one row per call, with its workspace, thread and message, its caller, the plugin and tool, the arguments, its status (`waiting_approval`, `running`, `succeeded`, `failed`, `denied`, `cancelled`), the whole result and any error. It keeps no foreign key to the plugin, so a past call stays in its thread after a disconnect, and the chat's steps, whole results and Save to Sources read from it.
+- **The gateway's `call_tool`**: arguments checked against the tool's schema, approval taken from the caller, the call recorded, the result trimmed to 20 KB for the model and stored whole, a source's failure a sentence and never an exception.
+- **The client's calls**: progress passed up, a deadline that tells the server to stop, and a call never resent, since the server may have acted.
+- **Connections kept open** per plugin ([`06-later.md`](06-later.md)), so its calls skip a handshake each.
 
 The chat model never calls a tool ([ADR 0052](../../../adr/0052-the-chat-model-never-calls-tools.md)). Before the answer, SurfSense asks it two small questions, each held to a JSON schema, then makes the call itself. Every text route the chat engine uses already takes a schema, ChatGPT plans included, so plugins add nothing model-specific.
 

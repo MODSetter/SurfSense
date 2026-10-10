@@ -1,4 +1,4 @@
-# ADR 0051: A plugin is an MCP server, and every caller reaches plugin tools through one Tool Gateway, remote servers first
+# ADR 0051: A plugin is an MCP server, and SurfSense decides which of its tools each caller gets, remote servers first
 
 - **Status:** Proposed, with the [plugins proposal](../proposals/plugins/README.md)
 - **Date:** 2026-10-08
@@ -13,9 +13,11 @@ The agent already calls SurfSense's own tools over MCP ([agent](../architecture/
 ## Decision
 
 - A plugin is an MCP server. SurfSense speaks MCP unmodified and defines no protocol of its own.
-- One Tool Gateway in the API is the only way any caller reaches a plugin tool: opencode and `@` mentions now, the chat engine's router step later. Approval, policy, logging, trimming and storing results live there.
+- SurfSense decides, in one place, which plugin tools each caller gets and which must be approved.
+- The agent's opencode is an MCP client, so it calls plugin servers itself: before each turn SurfSense gives it the ready servers, their sign-in, and an `allow`, `ask` or `deny` rule per tool, every unreviewed tool denied. The calls and their results are kept in the thread's opencode session. SurfSense is in no call's path, so the agent's calls keep opencode's speed, sessions, progress and cancellation.
+- SurfSense's own callers, the chat engine's router step later, reach plugin tools through one Tool Gateway, where policy and approval live, and which records the calls it makes, since nothing else keeps them.
 - Behind the gateway, sources implement one interface. The first is a remote MCP server over HTTPS, hosted by its publisher, which may be SurfSense, a company or a community developer. Plugins that run on the user's machine come later as bundles behind the same interface.
-- A tool's result returns into the turn and is stored with the call. Nothing reaches Sources unless the user saves it.
+- A tool's result returns into the turn. Nothing reaches Sources unless the user saves it.
 - The API uses the official MCP Python SDK's client, pinned to one minor version and wrapped in one folder.
 - No plugin code runs inside the app, and a plugin cannot change SurfSense's own behaviour.
 
@@ -25,8 +27,9 @@ The agent already calls SurfSense's own tools over MCP ([agent](../architecture/
 - The agent and the user, and later the chat engine, get one set of tools; adding a kind of source changes none of them.
 - What a tool is sent leaves the machine for its publisher's host. Plugins are optional, and the app keeps working offline without them; offline plugins wait for bundles.
 - SurfSense cannot see or check a remote server's code. Review of the listing, egress consent, approval and delisting are the controls.
+- For the agent, SurfSense's checks run per turn, not per call: a host revoked mid-turn is refused from the next turn, and a reviewed tool's description reaches the model uncut.
 - The local runner, SDK and CLI built for the earlier design are kept for bundles, not wired in.
 
 ## Where the code stands
 
-Nothing of the gateway, the client or the plugin tables exists. `modules/plugins/bundles/` holds the earlier design's runner, and `plugins/bundles/core/` its SDK, CLI and manifest rules.
+The MCP client's listing, the gateway's readiness and approval rules, the plugin tables and the `/plugins` routes are in `surfsense_local/backend/modules/plugins/`. Nothing yet gives the agent's opencode plugin servers or rules. The gateway's call path and a table of calls come with the chat engine. `modules/plugins/bundles/` holds the earlier design's runner, and `plugins/bundles/core/` its SDK, CLI and manifest rules.

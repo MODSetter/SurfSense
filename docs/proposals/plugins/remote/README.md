@@ -20,16 +20,17 @@ code:
 ## How one works
 
 ```
-list entry ──────────► Settings → Plugins ──Connect──► egress consent ──► sign in (OAuth, token or license)
-                                                                              │
-opencode ─MCP─► /agent/plugin-tools ─┐                                         ▼
-"@tool" in the agent composer ───────┼──► Tool Gateway ──► MCP client ──HTTPS──► the publisher's MCP server
-chat engine, later ──────────────────┘    (approval, logging, trimming)        (its own host, its own code)
+list entry ──► Settings → Plugins ──Connect──► egress consent ──► sign in (OAuth, token or license)
+
+each turn: SurfSense gives opencode the ready servers, their sign-in and a rule per tool
+
+opencode ────────────────────── MCP over HTTPS ──────────► the publisher's MCP server
+chat engine, later ──► Tool Gateway ──► MCP client ──────► (its own host, its own code)
 ```
 
 1. The plugin is an entry in a list, first-party ones packaged into the app and third-party ones in the registry: its URL, how to sign in, its hosts, its publisher, and whether it is free, paid with the SurfSense license, or paid on the publisher's own service ([`../core/02-registry.md`](../core/02-registry.md)).
 2. The user connects it: egress consent for its hosts, then sign-in ([`01-mcp-client.md`](01-mcp-client.md)).
-3. The gateway lists its tools and calls them for opencode and `@` mentions, and later for the chat engine's router step ([`../core/01-architecture.md`](../core/01-architecture.md), [`../core/03-engines.md`](../core/03-engines.md)), asking for approval as the tool's annotations require ([`../core/04-trust.md`](../core/04-trust.md)).
+3. Each turn, SurfSense gives the agent's opencode the plugin's server and a rule per tool, and opencode calls it directly; later the chat engine's router step calls it through the gateway ([`../core/01-architecture.md`](../core/01-architecture.md), [`../core/03-engines.md`](../core/03-engines.md)), asking for approval as the tool's annotations and the user's settings require ([`../core/04-trust.md`](../core/04-trust.md)).
 4. The publisher's server does the work and answers. A paid SurfSense plugin's server checks the license on every call ([`../core/05-paid.md`](../core/05-paid.md)).
 
 ## Who hosts what
