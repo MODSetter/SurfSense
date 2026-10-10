@@ -1,6 +1,6 @@
 # Architecture
 
-> Owns: `surfsense_local/backend/modules/plugins/` (`gateway/`, `installed/`, `results/`, `routes.py`), the plugin tables. The MCP client is [`../remote/01-mcp-client.md`](../remote/01-mcp-client.md)'s, the copy of the registry [`02-registry.md`](02-registry.md)'s.
+> Owns: `surfsense_local/backend/modules/plugins/` (`gateway/`, `installed/`, `results/`, `routes.py`), the plugin tables. The MCP client is [`../remote/01-mcp-client.md`](../remote/01-mcp-client.md)'s, the built-in list and the copy of the registry [`02-registry.md`](02-registry.md)'s.
 > Callers: [`03-engines.md`](03-engines.md). Sources: [`../remote/README.md`](../remote/README.md), later [`bundles/`](../bundles/README.md).
 
 ## Shape
@@ -60,7 +60,7 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 
 | Table | Holds |
 |---|---|
-| `installed_plugins` | `id`, `kind` (`remote`), `source` (`registry` or `custom`), `url`, `publisher`, `enabled`, `connected_at`, the registry entry it was connected from |
+| `installed_plugins` | `id`, `kind` (`remote`), `source` (`built_in`, `registry` or `custom`), `url`, `publisher`, `enabled`, `connected_at`, the list entry it was connected from |
 | `plugin_credentials` | `plugin_id`, `kind` (`oauth`, `token`, `license`), encrypted values through `shared/secrets.py`: token, refresh token, expiry, the registered OAuth client |
 | `plugin_tools` | `plugin_id`, `tool`, `first_seen_at`, `enabled`, `approval` (`ask` or `always`, [`04-trust.md`](04-trust.md#approval)), `exposure`, and the description, annotations and schema last seen, which [`02-registry.md`](02-registry.md#tools-added-later) compares on each listing |
 | `plugin_calls` | `id`, `workspace_id`, `thread_id`, `message_id`, `caller`, `plugin_id`, `tool`, `arguments`, `status` (`waiting_approval`, `running`, `succeeded`, `failed`, `denied`, `cancelled`), `result_text`, `result_data`, `error`, `started_at`, `finished_at` |
@@ -71,7 +71,7 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/plugins` | The registry joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
+| `GET` | `/plugins` | The built-in list and, with other publishers on, the registry, joined with what is installed: each plugin's entry, publisher, access, connection state, the server's last refusal if any, tools and their switches |
 | `POST` | `/plugins/registry/refresh` | Fetches the registry again ([`02-registry.md`](02-registry.md#how-the-app-gets-the-registry)) |
 | `POST` | `/plugins/{id}/connect` | Starts connecting: a token, OAuth, or the license, after egress consent |
 | `POST` | `/plugins/custom` | Adds a remote server by URL |

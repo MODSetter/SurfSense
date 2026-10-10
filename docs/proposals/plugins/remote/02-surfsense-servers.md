@@ -5,18 +5,18 @@
 
 ## SurfSense's own servers
 
-SurfSense publishes plugins the same way anyone does, as remote MCP servers listed in the registry with `publisher: surfsense`. It hosts all of them, free and paid, on one plugin host.
+SurfSense publishes plugins as remote MCP servers, like anyone, and lists them in the app's built-in list with `publisher: surfsense` ([`../core/02-registry.md`](../core/02-registry.md#two-lists)). It hosts all of them, free and paid, on one plugin host.
 
 | Where the code lives | License | Example |
 |---|---|---|
 | `plugins/remote/<id>/` | Apache-2.0 | a free plugin, such as a search of a public API |
 | `plugins/remote/proprietary/<id>/` | Business Source License 1.1 ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)) | `scrapers` |
 
-The folder decides the license and the registry's `access` decides the price ([`../core/05-paid.md`](../core/05-paid.md#which-license-a-surfsense-plugin-is-under)). The license check belongs to SurfSense's paid plugins alone: third parties' paid plugins check access on their own service.
+The folder decides the license and the plugin's `access` decides the price ([`../core/05-paid.md`](../core/05-paid.md#which-license-a-surfsense-plugin-is-under)). The license check belongs to SurfSense's paid plugins alone: third parties' paid plugins check access on their own service.
 
 ## The plugin host
 
-One container, deployed by SurfSense to Azure Container Apps at `plugins.surfsense.com`, serves the registry and every SurfSense plugin. It runs apart from `surfsense_backend`, imports none of its code and uses none of its services.
+One container, deployed by SurfSense to Azure Container Apps at `plugins.surfsense.com`, serves the registry of other publishers' plugins and every SurfSense plugin. It runs apart from `surfsense_backend`, imports none of its code and uses none of its services.
 
 ```
 plugins.surfsense.com ──► the plugin host (one Container App, at least one replica: browsers start slowly)
@@ -28,7 +28,7 @@ plugins.surfsense.com ──► the plugin host (one Container App, at least one
 ```
 
 - **One container, as the backend runs the scrapers today.** One image carries Python, Xvfb and the browsers once; one deploy ships every plugin. A container per plugin was rejected: it multiplies images, deployments and routing for plugins that are mostly small.
-- **A plugin is a folder** whose `server.py` returns its MCP server, built on the official MCP Python SDK: unlike the app, a hosted server has no size limit worth the cost of a client of our own. The folder name is the registry `id` and the path: `plugins/remote/proprietary/scrapers/` is `id: scrapers` at `/scrapers/mcp`.
+- **A plugin is a folder** whose `server.py` returns its MCP server, built on the official MCP Python SDK: unlike the app, a hosted server has no size limit worth the cost of a client of our own. The folder name is the plugin's `id` and its path: `plugins/remote/proprietary/scrapers/` is `id: scrapers` at `/scrapers/mcp`. Adding a plugin adds its entry to the built-in list in the same change, so it reaches users with the next app release.
 - **One project.** `host/pyproject.toml` and its `uv.lock` hold every plugin's dependencies. A plugin has no `pyproject.toml` or `Dockerfile` of its own. The import root is `plugins/remote/`, so code imports `mcp_server.progress` or `proprietary.scrapers.server`.
 - **Failures stay in their plugin.** A mounted plugin turns its own exceptions into MCP errors, every call runs under a deadline, and a replica failing `/health` is restarted. Each plugin reads only its own settings section, `<ID>_*`; that is a convention, not isolation, acceptable because every plugin here is SurfSense's own code.
 - **The registry ships in the image.** The Docker build context is `plugins/`, so the image copies `remote/` and the signed `registry/plugins.json`. Publishing the registry is a deploy of the host ([`../core/02-registry.md`](../core/02-registry.md#how-the-app-gets-the-registry)). If the host is down, apps keep their last copy.
@@ -39,7 +39,7 @@ plugins.surfsense.com ──► the plugin host (one Container App, at least one
 
 ```
 plugins/
-  registry/                    Apache-2.0   the list of every kind of plugin (../core/02-registry.md)
+  registry/                    Apache-2.0   other publishers' plugins, every kind (../core/02-registry.md)
   remote/                      everything the plugin host runs
     host/                      Apache-2.0   the deployable
       pyproject.toml  uv.lock  Dockerfile  compose.yaml (host, Redis, SearXNG, for local runs)
@@ -61,6 +61,8 @@ plugins/
       scrapers/                SurfSense Scrapers
   bundles/                     deferred (../bundles/README.md)
 ```
+
+SurfSense's plugins are listed in the app's built-in list, `surfsense_local/backend/modules/plugins/built_in/`, not in `registry/` ([`../core/02-registry.md`](../core/02-registry.md#two-lists)).
 
 `host`, `mcp_server`, `proprietary` and `license` are never plugin ids. `mcp_server/` holds nothing about scraping or licensing: it is what a free plugin needs too. Code moves into it, or out of a plugin, only when a second plugin needs it.
 

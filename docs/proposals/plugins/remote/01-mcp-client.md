@@ -17,7 +17,7 @@ The API carries a small MCP client of its own, as Pi does with [`@earendil-works
 
 ## Signing in
 
-`auth` in the registry entry, or what a custom server's first `401` asks for, picks one of four.
+`auth` in the plugin's entry, or what a custom server's first `401` asks for, picks one of four.
 
 | `auth` | What the user does | What the client sends |
 |---|---|---|

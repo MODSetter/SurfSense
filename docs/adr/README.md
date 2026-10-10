@@ -80,5 +80,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted |
 | 0051 | [A plugin is an MCP server, and every caller reaches plugin tools through one Tool Gateway, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Proposed |
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed |
-| 0053 | [Plugins are listed in a registry in this repository, and every plugin not published by SurfSense starts off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |
+| 0053 | [SurfSense's plugins are listed in the app, every other publisher's in a registry in this repository, and those start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host that also serves the registry](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Proposed |
