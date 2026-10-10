@@ -211,6 +211,31 @@ class OpencodeClient:
         added.raise_for_status()
         return added.json().get(name, {}).get("status", "unknown")
 
+    async def tool_servers(self, directory: Path) -> dict[str, str]:
+        """Each MCP server the folder's instance holds, by name, with its status."""
+        reply = await self._http.get("/mcp", params=_in(directory))
+        reply.raise_for_status()
+        return {
+            name: held.get("status", "unknown") for name, held in reply.json().items()
+        }
+
+    async def drop_tool_server(self, directory: Path, name: str) -> None:
+        """Close the folder's connection to a server; its tools leave the next call."""
+        reply = await self._http.post(f"/mcp/{name}/disconnect", params=_in(directory))
+        reply.raise_for_status()
+
+    async def set_session_rules(
+        self, directory: Path, session_id: str, rules: list[dict[str, str]]
+    ) -> None:
+        """Replace the session's own permission rules; they apply from its next call.
+
+        A denied tool is also left out of what the model is offered.
+        """
+        reply = await self._http.patch(
+            f"/session/{session_id}", params=_in(directory), json={"permission": rules}
+        )
+        reply.raise_for_status()
+
     def events(self, directory: Path) -> AsyncIterator[Event]:
         """The folder's event stream, until it drops or falls silent."""
         return read_events(self._http, directory)

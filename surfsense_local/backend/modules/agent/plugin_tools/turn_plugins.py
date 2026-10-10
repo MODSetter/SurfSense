@@ -1,0 +1,52 @@
+"""The plugin servers a turn gives opencode, and a rule for each of their tools."""
+
+import re
+from dataclasses import dataclass, field
+
+from sqlalchemy.orm import Session
+
+from modules.plugins.gateway.approval import needs_approval
+from modules.plugins.gateway.listing import list_tools
+from modules.plugins.installed.models import InstalledPlugin
+from modules.plugins.remote.sign_in.token_headers import token_headers
+
+# More tools than this crowd the model's choice and its prompt; the plugins connected first win.
+MAX_TOOLS = 24
+
+
+@dataclass(frozen=True)
+class TurnPlugin:
+    """One ready plugin, under its id, which opencode prefixes to each of its tools."""
+
+    name: str
+    title: str
+    url: str
+    headers: dict[str, str]
+    # `<plugin>_<tool>` to `allow` or `ask`; every other tool of the plugin is denied.
+    rules: dict[str, str] = field(default_factory=dict)
+
+
+def opencode_tool_name(server: str, tool: str) -> str:
+    """The name opencode gives a server's tool, as its MCP client spells it."""
+
+    def clean(name: str) -> str:
+        return re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+
+    return f"{clean(server)}_{clean(tool)}"
+
+
+def turn_plugins(session: Session) -> list[TurnPlugin]:
+    plugins: dict[str, TurnPlugin] = {}
+    for tool in list_tools(session)[:MAX_TOOLS]:
+        if tool.plugin_id not in plugins:
+            row = session.get_one(InstalledPlugin, tool.plugin_id)
+            plugins[tool.plugin_id] = TurnPlugin(
+                name=row.id,
+                title=tool.plugin_name,
+                url=row.url,
+                headers=token_headers(row.credential),
+            )
+        rule = "ask" if needs_approval(tool) else "allow"
+        name = opencode_tool_name(tool.plugin_id, tool.tool)
+        plugins[tool.plugin_id].rules[name] = rule
+    return list(plugins.values())

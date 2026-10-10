@@ -36,6 +36,9 @@ from modules.agent.opencode_runtime import (
     ReadyAgent,
     ready_opencode,
 )
+from modules.agent.plugin_tools.changed_tools import check_changed_tools
+from modules.agent.plugin_tools.give_plugins import give_plugins
+from modules.agent.plugin_tools.turn_plugins import turn_plugins
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import register_thread_tools
@@ -189,6 +192,18 @@ async def _stream(
         # The turn's first call into its instance: one being disposed is finished first.
         await live_instances.wait_for_disposal(folder)
         await register_thread_tools(client, folder, workspace_id, thread_id, launch_key)
+        await check_changed_tools(session)
+        plugins = await transact(session, turn_plugins)
+        unavailable = await give_plugins(client, folder, session_id, plugins)
+        if unavailable:
+            yield _frame(
+                {
+                    "type": "agent-plugins-unavailable",
+                    "plugins": [
+                        {"title": p.title, "reason": p.reason} for p in unavailable
+                    ],
+                }
+            )
         begin_turn(thread_id)
         if sending.sources.shown is not None:
             # First, so the turn shows what the server resolved, not what the client guessed.

@@ -6,26 +6,82 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import uvicorn
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 from mcp.server.mcpserver import MCPServer
 from mcp_types import ToolAnnotations
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 
+@dataclass(frozen=True)
+class Certificate:
+    """A self-signed certificate for `localhost`, which a client is told to trust."""
+
+    cert: Path
+    key: Path
+
+
+def localhost_certificate(folder: Path) -> Certificate:
+    """Written into `folder`; valid for a day either side of now."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
+    now = datetime.now(UTC)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=1))
+        .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost")]), False)
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), True)
+        .sign(key, hashes.SHA256())
+    )
+    made = Certificate(folder / "localhost.pem", folder / "localhost-key.pem")
+    made.cert.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    made.key.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    return made
+
+
 @contextmanager
-def serving(app: ASGIApp) -> Iterator[str]:
-    """Serve `app` on a free loopback port and yield its base URL."""
+def serving(app: ASGIApp, tls: Certificate | None = None) -> Iterator[str]:
+    """Serve `app` on a free loopback port and yield its base URL.
+
+    With `tls`, it is `https://localhost:<port>`, as a remote plugin is reached.
+    """
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", lifespan="on"))
+    # A client holding its stream open, as opencode does, must not keep the server up.
+    config = uvicorn.Config(
+        app,
+        log_level="warning",
+        lifespan="on",
+        timeout_graceful_shutdown=1,
+        ssl_certfile=tls and str(tls.cert),
+        ssl_keyfile=tls and str(tls.key),
+    )
+    server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]})
     thread.start()
     while not server.started:
         time.sleep(0.01)
     try:
-        yield f"http://127.0.0.1:{port}"
+        yield f"https://localhost:{port}" if tls else f"http://127.0.0.1:{port}"
     finally:
         server.should_exit = True
         thread.join()
@@ -80,6 +136,36 @@ class FailingFirst:
                 )
                 await send({"type": "http.response.body", "body": b""})
                 return
+        replayed = False
+
+        async def replay():
+            nonlocal replayed
+            if replayed:
+                return await receive()
+            replayed = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay, send)
+
+
+class RecordingMethods:
+    """Wraps an app and keeps the JSON-RPC method of every request it gets."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.methods: list[str] = []
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "POST":
+            await self.app(scope, receive, send)
+            return
+        body = b""
+        while True:
+            event = await receive()
+            body += event.get("body", b"")
+            if not event.get("more_body"):
+                break
+        self.methods.append(json.loads(body).get("method", ""))
         replayed = False
 
         async def replay():

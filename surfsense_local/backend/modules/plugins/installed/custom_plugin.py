@@ -15,12 +15,14 @@ from modules.plugins.installed.models import (
 from modules.plugins.installed.recorded_tools import record_tools
 
 PUBLISHER = "custom"
+# The agent's own tools are an MCP server by this name; a plugin under it would replace them.
+RESERVED_IDS = {"surfsense"}
 
 
 def custom_plugin_id(name: str) -> str:
     """The name as an id: lowercase words joined by hyphens, as list entries' ids are."""
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    return slug or "plugin"
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "plugin"
+    return f"{slug}-plugin" if slug in RESERVED_IDS else slug
 
 
 def connected_name(session: Session, url: str) -> str | None:
