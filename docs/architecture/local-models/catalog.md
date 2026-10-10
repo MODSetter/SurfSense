@@ -354,7 +354,8 @@ otherwise
 ([`not-runnable-text.ts`](../../../surfsense_local/frontend/src/features/models/local/chat/not-runnable-text.ts), [localization](../localization.md#backend-text)).
 A row that no group refuses says "SurfSense cannot run this model." under the
 code `unsupported`. A Hugging Face embedder repo that fails its check words the
-refusal itself, and that row has no code.
+refusal itself and carries that check's own code, a `NotAnEmbedderCode`, never
+the embedding group's ([embedding](../embedding.md#hugging-face)).
 
 A diffusion GGUF from sd.cpp's converter carries no metadata at all, not even
 `general.architecture`, so the sd.cpp slice reads its architecture from tensor

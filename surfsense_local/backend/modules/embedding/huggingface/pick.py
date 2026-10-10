@@ -9,6 +9,7 @@ and the search check after the download.
 import re
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from modules.llm.catalog.local.listed_file import ListedFile
@@ -24,8 +25,28 @@ _PREFERENCE = (
 TOKENIZER = "tokenizer.json"
 
 
+class NotAnEmbedderCode(StrEnum):
+    """Why an opened repo cannot be an embedder here.
+
+    The sentence still travels with it, which the interface shows for a code it
+    does not know. A row carries it where a `NotRunnableCode` goes, so the two
+    never share a value. Keep in sync with `not-runnable-text.ts` in the
+    frontend.
+    """
+
+    GATED = "repo_gated"
+    NO_ONNX = "repo_no_onnx"
+    NO_TOKENIZER = "repo_no_tokenizer"
+    SCAN_FLAGGED = "repo_scan_flagged"
+
+
 class NotRunnableError(Exception):
-    """Why this repo cannot be an embedder here, in words the screen shows."""
+    """Why this repo cannot be an embedder here, in words the screen shows, and
+    as a code when the sentence needs nothing but the code to be said again."""
+
+    def __init__(self, reason: str, code: NotAnEmbedderCode | None = None) -> None:
+        super().__init__(reason)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -44,10 +65,14 @@ def pick_files(listing: Iterable[ListedFile]) -> PickedFiles:
     files = {f.path: f for f in listing}
     weights = next((files[p] for p in _PREFERENCE if p in files), None)
     if weights is None:
-        raise NotRunnableError("This repo has no ONNX build SurfSense can run.")
+        raise NotRunnableError(
+            "This repo has no ONNX build SurfSense can run.", NotAnEmbedderCode.NO_ONNX
+        )
     tokenizer = files.get(TOKENIZER)
     if tokenizer is None:
-        raise NotRunnableError("This repo has no tokenizer.json.")
+        raise NotRunnableError(
+            "This repo has no tokenizer.json.", NotAnEmbedderCode.NO_TOKENIZER
+        )
     data = tuple(
         f
         for path, f in sorted(files.items())
@@ -55,6 +80,7 @@ def pick_files(listing: Iterable[ListedFile]) -> PickedFiles:
     )
     picked = PickedFiles(weights, data, tokenizer)
     if unhashed := [f.path for f in picked.all if not f.sha256]:
+        # No code: the sentence names the file.
         raise NotRunnableError(f"Hugging Face lists no checksum for {unhashed[0]}.")
     return picked
 

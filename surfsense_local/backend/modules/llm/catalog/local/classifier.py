@@ -289,13 +289,14 @@ _TEXT = (ModelType.TEXT_GEN,)
 @dataclass(frozen=True)
 class Classification:
     """What a model is for. `reason` says why the local chat runtime cannot run
-    it, and is empty for a chat model; `code` names that reason."""
+    it, and is empty for a chat model; `code` names that reason. An opened
+    embedder repo that cannot run carries its check's code here instead."""
 
     types: tuple[ModelType, ...]
     known: bool = True
     approximate: bool = False
     reason: str = ""
-    code: NotRunnableCode | None = None
+    code: StrEnum | None = None
 
 
 def classify(
