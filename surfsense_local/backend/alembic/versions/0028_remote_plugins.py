@@ -1,8 +1,9 @@
-"""Record connected plugins with their sign-in, their tools, and every call of one.
+"""Record connected plugins with their sign-in, their tools, and whether third-party
+plugins are allowed.
 
 Remote plugins first; `kind` and the enums carry only what is built, since SQLite
-rebuilds a table to widen a check constraint. `plugin_calls` keeps no foreign key
-to the plugin: a past call stays in its thread after a disconnect.
+rebuilds a table to widen a check constraint. The agent's calls are kept in
+opencode's session; a table of calls comes with the chat engine, which has none.
 
 Revision ID: 0028
 Revises: 0027
@@ -84,57 +85,9 @@ def upgrade() -> None:
         sa.CheckConstraint("id = 1", name=op.f("ck_plugin_settings_singleton")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_plugin_settings")),
     )
-    op.create_table(
-        "plugin_calls",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("workspace_id", sa.Integer(), nullable=False),
-        sa.Column("thread_id", sa.Integer(), nullable=True),
-        sa.Column("message_id", sa.Integer(), nullable=True),
-        sa.Column(
-            "caller",
-            _enum("plugincaller", "agent", "chat_router", "mention"),
-            nullable=False,
-        ),
-        sa.Column("plugin_id", sa.String(), nullable=False),
-        sa.Column("tool", sa.String(), nullable=False),
-        sa.Column("arguments", sa.JSON(), nullable=False),
-        sa.Column(
-            "status",
-            _enum(
-                "plugincallstatus",
-                "waiting_approval",
-                "running",
-                "succeeded",
-                "failed",
-                "denied",
-                "cancelled",
-            ),
-            nullable=False,
-        ),
-        sa.Column("result_text", sa.String(), nullable=True),
-        sa.Column("result_data", sa.JSON(), nullable=True),
-        sa.Column("error", sa.String(), nullable=True),
-        sa.Column(
-            "started_at",
-            sa.DateTime(),
-            server_default=sa.text("(CURRENT_TIMESTAMP)"),
-            nullable=False,
-        ),
-        sa.Column("finished_at", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["workspace_id"],
-            ["workspaces.id"],
-            name=op.f("fk_plugin_calls_workspace_id_workspaces"),
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_plugin_calls")),
-    )
-    op.create_index("plugin_calls_plugin", "plugin_calls", ["plugin_id"])
 
 
 def downgrade() -> None:
-    op.drop_index("plugin_calls_plugin", table_name="plugin_calls")
-    op.drop_table("plugin_calls")
     op.drop_table("plugin_settings")
     op.drop_table("plugin_tools")
     op.drop_table("installed_plugins")

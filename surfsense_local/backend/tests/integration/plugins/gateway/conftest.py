@@ -1,11 +1,9 @@
 from collections.abc import Iterator
-from typing import Any
 
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from modules.plugins.gateway.source_result import SourceResult
 from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.models import InstalledPlugin, PluginKind, PluginSource
 from modules.plugins.installed.recorded_tools import record_tools
@@ -20,25 +18,13 @@ def session(engine: Engine) -> Iterator[Session]:
 
 
 class FakeSource:
-    """A plugin's server, answered from memory, so the gateway is tested on its own."""
+    """A plugin's server listing from memory, so the gateway is tested on its own."""
 
-    def __init__(self, tools: list[SourceTool], answer: Any = "done") -> None:
+    def __init__(self, tools: list[SourceTool]) -> None:
         self.tools = tools
-        self.answer = answer
-        self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def list_tools(self) -> list[SourceTool]:
         return self.tools
-
-    async def call_tool(
-        self, name: str, arguments: dict[str, Any], *, timeout: float | None = None
-    ) -> SourceResult:
-        self.calls.append((name, arguments))
-        if isinstance(self.answer, Exception):
-            raise self.answer
-        if isinstance(self.answer, SourceResult):
-            return self.answer
-        return SourceResult(text=self.answer, structured=None, is_error=False)
 
 
 def tool(name: str, **annotations: bool) -> SourceTool:

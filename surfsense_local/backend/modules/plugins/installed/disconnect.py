@@ -1,7 +1,6 @@
-"""Disconnecting a plugin: its credentials and tools go, its past calls stay in their threads.
+"""Disconnecting a plugin: its row goes, its encrypted sign-in and its tools with it.
 
-The cascade is the database's: both tables reference `installed_plugins`, and
-`plugin_calls` deliberately does not.
+The cascade is the database's: `plugin_tools` references `installed_plugins`.
 """
 
 from sqlalchemy.orm import Session
