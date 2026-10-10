@@ -1,6 +1,6 @@
 # Install — install, update and uninstall
 
-> Owns: `modules/plugins/install.py`, `modules/plugins/catalog.py`, `modules/plugins/choose_version.py`, the `installed_plugins` table, the two built-in egress hosts.
+> Owns: `modules/plugins/bundles/install.py`, `modules/plugins/bundles/catalog.py`, `modules/plugins/bundles/choose_version.py`, the `installed_plugins` table, the two built-in egress hosts.
 > Contract: [`../01-protocol.md`](../01-protocol.md). Versioning: [`../04-versioning.md`](../04-versioning.md). Publishing: [`../release/03-publishing.md`](../release/03-publishing.md).
 
 ## Goal

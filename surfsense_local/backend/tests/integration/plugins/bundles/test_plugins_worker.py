@@ -16,8 +16,8 @@ import pytest
 from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
-from modules.plugins.models import PluginRun, PluginRunStatus
-from modules.plugins.tasks import run_plugin
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.tasks import run_plugin
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from shared.migrations import upgrade_to_head
@@ -25,7 +25,7 @@ from shared.queue import plugins_queue
 
 pytestmark = pytest.mark.integration
 
-BACKEND = Path(__file__).resolve().parents[3]
+BACKEND = Path(__file__).resolve().parents[4]
 # The queue opens its file at import, so the worker has to be handed the same
 # data directory conftest set before anything else was imported.
 DATA_DIR = Path(os.environ["SURFSENSE_LOCAL_DATA_DIR"])

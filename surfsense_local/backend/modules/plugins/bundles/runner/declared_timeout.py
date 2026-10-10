@@ -1,6 +1,6 @@
 from surfsense_plugin_manifest import load_manifest
 
-from modules.plugins.models import PluginRun
+from modules.plugins.bundles.models import PluginRun
 from shared.config import get_storage_settings
 
 

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from modules.plugins.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
 from shared.queue import plugins_queue, revoke_pending
 
 

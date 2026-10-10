@@ -1,6 +1,6 @@
 # Runtime — process
 
-> Owns: `surfsense_local/backend/modules/plugins/runner/`, `modules/plugins/tasks.py`, the `plugin_runs` table, the `plugins` queue and its worker, and one change outside the module: deleting a workspace stops its runs first.
+> Owns: `surfsense_local/backend/modules/plugins/bundles/runner/`, `modules/plugins/bundles/tasks.py`, the `plugin_runs` table, the `plugins` queue and its worker, and one change outside the module: deleting a workspace stops its runs first.
 > Contract: [`../01-protocol.md`](../01-protocol.md).
 
 ## Goal

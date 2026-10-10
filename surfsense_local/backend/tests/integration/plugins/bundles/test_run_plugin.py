@@ -9,8 +9,8 @@ import httpx
 import pytest
 from sqlalchemy.orm import Session
 
-from modules.plugins.models import PluginRun, PluginRunStatus
-from modules.plugins.tasks import run_plugin
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.tasks import run_plugin
 
 pytestmark = pytest.mark.integration
 

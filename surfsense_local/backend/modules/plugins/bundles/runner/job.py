@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from modules.plugins.models import PluginRun, PluginRunStatus
-from modules.plugins.runner.declared_timeout import declared_timeout
-from modules.plugins.runner.plugin_process import Stopped, run_plugin_process
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.runner.declared_timeout import declared_timeout
+from modules.plugins.bundles.runner.plugin_process import Stopped, run_plugin_process
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 

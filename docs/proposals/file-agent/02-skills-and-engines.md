@@ -68,7 +68,7 @@ Facts below were checked on 3 Oct 2026 in this repo (`dev_mod` at `0847e12f7`), 
 
 - `consume()` fails every `PROCESSING` artifact document at start for any queue that is neither ingest nor plugins ([`worker/consumer.py`](../../../surfsense_local/backend/worker/consumer.py), [`interrupted_documents.py`](../../../surfsense_local/backend/worker/interrupted_documents.py)). A new queue added to `_QUEUES` falls into that branch.
 - [`worker.py`](../../../surfsense_local/backend/worker.py) imports `worker.consumer` before reading its arguments, so any extra entry point pays for the queue and model imports.
-- The plugin runner already builds a child environment from scratch and stops process trees ([`plugin_environment.py`](../../../surfsense_local/backend/modules/plugins/runner/plugin_environment.py), [`stop_process_tree.py`](../../../surfsense_local/backend/modules/plugins/runner/stop_process_tree.py)).
+- The plugin runner already builds a child environment from scratch and stops process trees ([`plugin_environment.py`](../../../surfsense_local/backend/modules/plugins/bundles/runner/plugin_environment.py), [`stop_process_tree.py`](../../../surfsense_local/backend/modules/plugins/bundles/runner/stop_process_tree.py)).
 - `original_path()` returns a document's original only when its folder holds exactly one file other than what the OS leaves there ([`original_file.py`](../../../surfsense_local/backend/modules/documents/original_file.py)), so nothing derived may be stored beside an original.
 
 ### Studio's Office path

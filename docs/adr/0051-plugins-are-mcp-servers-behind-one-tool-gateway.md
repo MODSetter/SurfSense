@@ -29,4 +29,4 @@ The agent already calls SurfSense's own tools over MCP ([agent](../architecture/
 
 ## Where the code stands
 
-Nothing of the gateway, the client or the plugin tables exists. `modules/plugins/` holds the earlier design's runner, and `plugins/bundles/core/` its SDK, CLI and manifest rules.
+Nothing of the gateway, the client or the plugin tables exists. `modules/plugins/bundles/` holds the earlier design's runner, and `plugins/bundles/core/` its SDK, CLI and manifest rules.

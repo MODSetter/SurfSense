@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import psutil
 from sqlalchemy import and_, func, or_, select
 
-from modules.plugins.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from shared.queue import plugins_queue, revoke_pending

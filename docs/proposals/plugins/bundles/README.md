@@ -3,7 +3,7 @@ status: deferred
 code:
   - plugins/bundles/core/
   - plugins/bundles/example/
-  - surfsense_local/backend/modules/plugins/runner/
+  - surfsense_local/backend/modules/plugins/bundles/runner/
   - .github/workflows/plugins-pull-request-checks.yml
 ---
 
@@ -11,7 +11,7 @@ code:
 
 > Deferred. The [plugins proposal](../README.md) ships remote plugins first. A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([later](../core/06-later.md)).
 
-The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/runner/`](../../../../surfsense_local/backend/modules/plugins/runner/), the SDK, the CLI's author commands and the manifest rules in [`plugins/bundles/core/`](../../../../plugins/bundles/core/). Where a file here disagrees with the [plugins proposal](../README.md), the proposal holds.
+The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`plugins/bundles/core/`](../../../../plugins/bundles/core/). Where a file here disagrees with the [plugins proposal](../README.md), the proposal holds.
 
 **Where a bundle lives.** A third party's bundle lives in its author's repository: its code, its manifest, and the files of each release, which the author attaches to a GitHub release there. This repository holds only its entry in [`plugins.json`](../core/02-registry.md#bundle-entries-later), with each approved version's file URLs and sha256s, and never a copy of the code or the files. The exceptions are SurfSense's own: a bundle SurfSense publishes lives in `plugins/bundles/<id>/`, or `plugins/bundles/proprietary/` when paid, the teaching example in `plugins/bundles/example/`, and the tooling in `plugins/bundles/core/`.
 
@@ -73,7 +73,7 @@ Same letter can be picked up at the same time. A stream's own files are in order
 |---|---|---|---|
 | **SDK** | [`sdk/01-library.md`](sdk/01-library.md) | `plugins/bundles/core/sdk/` and its contract tests | the protocol |
 | **CLI** | [`cli/01-author-commands.md`](cli/01-author-commands.md) | `plugins/bundles/core/cli/` and its author commands, `plugins/bundles/example/`, `plugins/README.md` | the SDK and the manifest rules |
-| **Runtime** | [`runtime/01-process.md`](runtime/01-process.md) | `surfsense_local/backend/modules/plugins/` runner, the `plugins` queue and its worker | the protocol. There is no result import: the plugin wrote through the API while it ran |
+| **Runtime** | [`runtime/01-process.md`](runtime/01-process.md) | `surfsense_local/backend/modules/plugins/bundles/` runner, the `plugins` queue and its worker | the protocol. There is no result import: the plugin wrote through the API while it ran |
 | **Release** | [`release/01-packaging.md`](release/01-packaging.md), then [`release/02-pull-request-checks.md`](release/02-pull-request-checks.md), then [`release/03-publishing.md`](release/03-publishing.md), then [`release/04-plugin-directory-site.md`](release/04-plugin-directory-site.md) | the release jobs of `surfsense-plugins` in `plugins/bundles/core/cli/`, `build-targets.json`, the policy lists, the plugin workflows, the plugins repository | the protocol. Each file builds on the one before |
 | **Install** | [`install/01-install-update-uninstall.md`](install/01-install-update-uninstall.md) | choosing a version, install, update, uninstall, the two download hosts | the protocol and the manifest rules. It can test against a fixture catalog before a release publishes a real one |
 | **App** | [`app/01-api.md`](app/01-api.md) and [`app/02-screen.md`](app/02-screen.md) | plugin routes, the plugin screen | the route list in `01`. The screen can be built against that list before the routes exist |

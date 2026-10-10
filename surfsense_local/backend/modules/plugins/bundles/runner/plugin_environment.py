@@ -1,7 +1,7 @@
 import os
 
-from modules.plugins.models import PluginRun
-from modules.plugins.plugin_interpreter import plugin_sdk
+from modules.plugins.bundles.models import PluginRun
+from modules.plugins.bundles.plugin_interpreter import plugin_sdk
 
 # What the protocol lets through from the operating system.
 _FROM_THE_SYSTEM = (

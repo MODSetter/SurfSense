@@ -1,4 +1,4 @@
-from modules.plugins.runner.job import run
+from modules.plugins.bundles.runner.job import run
 from shared.queue import plugins_queue
 
 

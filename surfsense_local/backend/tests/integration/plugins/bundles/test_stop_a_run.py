@@ -11,9 +11,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from modules.plugins.cancel_run import cancel_plugin_run
-from modules.plugins.models import PluginRun, PluginRunStatus
-from modules.plugins.tasks import run_plugin
+from modules.plugins.bundles.cancel_run import cancel_plugin_run
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.tasks import run_plugin
 from shared.config import get_storage_settings
 from shared.queue import plugins_queue
 
@@ -254,7 +254,9 @@ async def test_a_run_no_worker_is_carrying_out_does_not_keep_its_workspace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Left running by a worker that is gone: its plugin went with it, so the wait ends."""
-    monkeypatch.setattr("modules.plugins.stop_workspace_runs.STOP_WAIT_SECONDS", 1)
+    monkeypatch.setattr(
+        "modules.plugins.bundles.stop_workspace_runs.STOP_WAIT_SECONDS", 1
+    )
     run = queued_run()
     run.status = PluginRunStatus.RUNNING
     session.commit()

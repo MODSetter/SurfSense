@@ -134,7 +134,7 @@ In return, both engines call plugins and get live results, existing MCP servers 
 
 ## What happens to the code already built
 
-The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/core/`](../../../plugins/bundles/core/) and [`modules/plugins/`](../../../surfsense_local/backend/modules/plugins/) were built for the earlier design. They moved to `plugins/bundles/` and stay there, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. The earlier design's contributor guide moved with them to [`plugins/bundles/README.md`](../../../plugins/bundles/README.md); [`plugins/README.md`](../../../plugins/README.md) is rewritten by the contributor guide stream.
+The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/core/`](../../../plugins/bundles/core/) and [`modules/plugins/bundles/`](../../../surfsense_local/backend/modules/plugins/bundles/) were built for the earlier design. They sit in those `bundles/` folders, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. The earlier design's contributor guide moved with them to [`plugins/bundles/README.md`](../../../plugins/bundles/README.md); [`plugins/README.md`](../../../plugins/README.md) is rewritten by the contributor guide stream.
 
 ## Out of scope
 

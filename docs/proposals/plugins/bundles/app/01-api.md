@@ -1,6 +1,6 @@
 # App — API
 
-> Owns: `surfsense_local/backend/modules/plugins/router.py`, `schemas.py`, the `plugin_secrets` table, and two changes outside the module: `document_metadata` on `NoteCreate`, and a list of hosts on the egress refusal.
+> Owns: `surfsense_local/backend/modules/plugins/bundles/router.py`, `schemas.py`, the `plugin_secrets` table, and two changes outside the module: `document_metadata` on `NoteCreate`, and a list of hosts on the egress refusal.
 > Routes the screen in [`02-screen.md`](02-screen.md) calls. Runtime: [`../runtime/01-process.md`](../runtime/01-process.md). Install: [`../install/01-install-update-uninstall.md`](../install/01-install-update-uninstall.md).
 
 ## Goal

@@ -6,7 +6,7 @@ code:
   - surfsense_local/backend/worker.py
   - surfsense_local/backend/modules/runtime_packs/
   - surfsense_local/backend/modules/egress/service.py
-  - surfsense_local/backend/modules/plugins/plugin_interpreter.py
+  - surfsense_local/backend/modules/plugins/bundles/plugin_interpreter.py
   - surfsense_local/backend/modules/resource_usage/engines.py
   - surfsense_local/backend/worker/ingestion/parsing.py
   - surfsense_local/backend/tests/packaging/
@@ -56,7 +56,7 @@ Facts below were checked on 3 Oct 2026 in this repo, in the local Windows build 
 
 ### Interpreters and JavaScript
 
-- [`plugin_interpreter.py`](../../../surfsense_local/backend/modules/plugins/plugin_interpreter.py) `plugin_python()` returns `sys.executable`, with the comment "The packaged worker is not a Python, so the app will ship one for plugins." Plugins therefore run only in development today. The design pins python-build-standalone CPython at [`build-targets.json`](../../../plugins/bundles/core/build-targets.json) `"python": "3.12"` for `windows-x64`, `macos-arm64` and `linux-x64` ([plugin interpreter](../plugins/bundles/python/01-interpreter.md)). The staging script it names, `fetch-plugin-python.mjs`, does not exist. Plugin dependencies may be compiled wheels, installed after the app is ([plugin packaging](../plugins/bundles/release/01-packaging.md)).
+- [`plugin_interpreter.py`](../../../surfsense_local/backend/modules/plugins/bundles/plugin_interpreter.py) `plugin_python()` returns `sys.executable`, with the comment "The packaged worker is not a Python, so the app will ship one for plugins." Plugins therefore run only in development today. The design pins python-build-standalone CPython at [`build-targets.json`](../../../plugins/bundles/core/build-targets.json) `"python": "3.12"` for `windows-x64`, `macos-arm64` and `linux-x64` ([plugin interpreter](../plugins/bundles/python/01-interpreter.md)). The staging script it names, `fetch-plugin-python.mjs`, does not exist. Plugin dependencies may be compiled wheels, installed after the app is ([plugin packaging](../plugins/bundles/release/01-packaging.md)).
 - opencode's environment puts opencode's own folder, then the system `PATH`, on `PATH` ([`opencode.ts`](../../../surfsense_local/electron/src/main/sidecars/opencode.ts) `opencodeEnvironment`). `python` in the agent's shell is the user's own, or on Windows the Store stub. Its proxies point at `127.0.0.1:9`, so nothing it starts can install packages.
 - Two JavaScript runtimes already ship. `ELECTRON_RUN_AS_NODE=1 electron.exe` reports Node 24.20.0 on Electron 44.2.0, and `BUN_BE_BUN=1 opencode.exe --version` reports Bun 1.3.14 (**measured** on the staged binaries). Neither ships npm.
 - No Electron fuses are configured: nothing in `src/`, `scripts/` or `electron-builder.yml` mentions fuses, and nothing in the app sets `ELECTRON_RUN_AS_NODE` (**measured**, grep). electron-builder 26.16.1, the pinned version, supports `electronFuses`, `win.signExts`, `mac.signIgnore` and `mac.binaries`, but not per-file entitlements (its `configuration.d.ts` and `macOptions.d.ts`).

@@ -65,7 +65,7 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 | `plugin_tools` | `plugin_id`, `tool`, `first_seen_at`, `enabled`, `approval` (`ask` or `always`, [`04-trust.md`](04-trust.md#approval)), `exposure`, and the description, annotations and schema last seen, which [`02-registry.md`](02-registry.md#tools-added-later) compares on each listing |
 | `plugin_calls` | `id`, `workspace_id`, `thread_id`, `message_id`, `caller`, `plugin_id`, `tool`, `arguments`, `status` (`waiting_approval`, `running`, `succeeded`, `failed`, `denied`, `cancelled`), `result_text`, `result_data`, `error`, `started_at`, `finished_at` |
 
-`plugin_runs`, built for the earlier design, stays for bundles.
+`plugin_runs`, built for the earlier design, stays for bundles, with its runner in `modules/plugins/bundles/`, beside the folders above.
 
 ## Routes
 

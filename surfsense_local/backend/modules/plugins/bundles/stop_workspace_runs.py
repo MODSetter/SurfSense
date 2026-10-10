@@ -3,8 +3,8 @@ import time
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from modules.plugins.cancel_run import cancel_plugin_run
-from modules.plugins.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.cancel_run import cancel_plugin_run
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
 
 # Enough for the worker to see a cancel (a second) and for a plugin to be asked
 # to stop, then killed (five more). A run still going after that has no worker.

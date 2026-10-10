@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
 
-# The repository's root, four folders above this file.
-_REPOSITORY = Path(__file__).resolve().parents[4]
+# The repository's root, five folders above this file.
+_REPOSITORY = Path(__file__).resolve().parents[5]
 
 
 def plugin_python() -> Path:

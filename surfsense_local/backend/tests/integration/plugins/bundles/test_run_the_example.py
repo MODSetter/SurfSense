@@ -8,14 +8,14 @@ import httpx
 import pytest
 from sqlalchemy.orm import Session
 
-from modules.plugins.models import PluginRun, PluginRunStatus
-from modules.plugins.tasks import run_plugin
+from modules.plugins.bundles.models import PluginRun, PluginRunStatus
+from modules.plugins.bundles.tasks import run_plugin
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 
 pytestmark = pytest.mark.integration
 
-EXAMPLE = Path(__file__).resolve().parents[5] / "plugins" / "bundles" / "example"
+EXAMPLE = Path(__file__).resolve().parents[6] / "plugins" / "bundles" / "example"
 VERSION = "2.0.3"
 
 

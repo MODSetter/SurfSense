@@ -8,11 +8,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from modules.plugins.models import PluginRun
-from modules.plugins.plugin_interpreter import plugin_python
-from modules.plugins.runner.log_tail import LogTail
-from modules.plugins.runner.plugin_environment import plugin_environment
-from modules.plugins.runner.stop_process_tree import stop_process_tree
+from modules.plugins.bundles.models import PluginRun
+from modules.plugins.bundles.plugin_interpreter import plugin_python
+from modules.plugins.bundles.runner.log_tail import LogTail
+from modules.plugins.bundles.runner.plugin_environment import plugin_environment
+from modules.plugins.bundles.runner.stop_process_tree import stop_process_tree
 from shared.config import get_storage_settings
 
 # How often a running plugin is checked for its timeout and for a cancel.

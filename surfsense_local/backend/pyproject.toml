@@ -41,7 +41,7 @@ dependencies = [
     # (worker/studio/script_document). Docling brings it too; named so it
     # cannot vanish.
     "pypdfium2>=5.13.0",
-    # Stops a plugin and every process it started (modules/plugins/runner).
+    # Stops a plugin and every process it started (modules/plugins/bundles/runner).
     "psutil>=7",
     "python-docx>=1.2.0",
     "python-multipart>=0.0.32",

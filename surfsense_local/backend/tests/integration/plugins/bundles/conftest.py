@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from modules.plugins.models import PluginRun
+from modules.plugins.bundles.models import PluginRun
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
