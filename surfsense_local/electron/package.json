@@ -25,7 +25,8 @@
     "build:sdcpp": "node scripts/sdcpp/stage.mjs",
     "build:audiocpp": "node scripts/audiocpp/stage.mjs",
     "build:opencode": "node scripts/opencode/stage.mjs",
-    "dist": "pnpm build:llamacpp && pnpm build:sdcpp --strict && pnpm build:audiocpp --strict && pnpm build:opencode && pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build && electron-builder",
+    "build:notices": "node scripts/notices/npm.mjs && node scripts/notices/native.mjs && uv --directory ../backend run scripts/write_python_notices.py ../electron/notices/fragments && uv --directory ../backend run scripts/write_model_notices.py ../electron/notices/fragments && node scripts/notices/merge.mjs",
+    "dist": "pnpm build:llamacpp && pnpm build:sdcpp --strict && pnpm build:audiocpp --strict && pnpm build:opencode && pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:notices && pnpm build && electron-builder",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/*.test.ts src/main/**/*.test.ts scripts/**/*.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:sidecars": "node scripts/check-sidecars.mjs"

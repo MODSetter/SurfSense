@@ -47,6 +47,12 @@ extraResources:
   # warns that the folder is missing and skips it.
   - from: opencode
     to: opencode
+  # Third-party licence notices for everything above (build:notices,
+  # scripts/notices/). The generators' fragments stay behind.
+  - from: notices
+    to: notices
+    filter:
+      - THIRD_PARTY_NOTICES.*
 
 # Runs the packaged opencode once it is signed, before any installer is made and
 # so before a tag's build uploads one (scripts/opencode/after-sign.mjs).
