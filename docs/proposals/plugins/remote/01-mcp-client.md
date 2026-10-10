@@ -43,7 +43,7 @@ Every host in the entry's `hosts` needs the user's consent before connecting, on
 
 - `EgressDeniedError` and its `403` gain `hosts`, every host still to allow, so one prompt asks for them together. `destination` and `host` stay as the first of them, so today's callers do not change. [`egress.md`](../../../architecture/egress.md) is updated in the same change.
 - Settings → Network lists a plugin's hosts with its name beside them (`list_destinations()`), and a host already allowed stays listed after the plugin is disconnected.
-- A host revoked in Settings → Network makes the plugin's next call a refusal, "Notion's host is not allowed", not a broken connection.
+- A host revoked in Settings → Network makes the plugin's next call a refusal, "Notion's host is not allowed", not a broken connection. The agent's opencode reaches a plugin only through SurfSense's proxy, which tunnels to a ready plugin's host and refuses the rest ([`../core/03-engines.md`](../core/03-engines.md#asking-and-recording)), so a server off this computer must be on HTTPS.
 - Fetching the registry adds SurfSense's plugin host to `BUILT_IN` ([`../core/02-registry.md`](../core/02-registry.md#how-the-app-gets-the-registry)).
 
 ## Acceptance

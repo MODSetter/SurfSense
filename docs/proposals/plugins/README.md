@@ -130,7 +130,7 @@ Against the earlier design, where plugins ran locally from reviewed code:
 - **Data staying on the machine.** Each call's arguments go to the plugin's publisher. Consent per host, the privacy policy shown before Connect, and approval with the exact arguments make that visible.
 - **Seeing the code.** SurfSense reviews a listing, not the server behind it, which can change at any time. Tools added or changed later start off, and a plugin can be delisted.
 - **Availability.** A plugin stops working if its publisher's server does.
-- **Some checks, for the agent's speed.** The agent's opencode calls plugin servers itself, so the host check runs per turn rather than per call, and descriptions reach the model uncut once a tool is reviewed.
+- **Some checks, for the agent's speed.** The agent's opencode calls plugin servers itself, so SurfSense checks the host on each connection, through the proxy opencode's traffic leaves by, rather than on each call, and descriptions reach the model uncut once a tool is reviewed.
 - **Plugins in Basic threads, for now.** Only Agentic threads have plugins, and Agentic mode is offered only for models tested with opencode, so a user on a chat-only model waits for the chat engine's router step.
 
 In return, the agent calls plugins and gets live results, existing MCP servers become plugins with one pull request, publishers update without app releases, and there is far less for SurfSense to build before the first plugin ships.

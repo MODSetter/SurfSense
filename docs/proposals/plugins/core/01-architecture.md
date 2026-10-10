@@ -8,15 +8,16 @@
 ```
                 each turn: ready servers, sign-in as headers, a rule per tool
 SurfSense ──────────────────────────────────────────────────────► opencode ──MCP──► remote MCP server
-   │  ◄──────────── opencode's tool steps, read back to show the thread ───┘
-   │
+   │  ◄──────────── opencode's tool steps, read back to show the thread ───┘  │ TLS through
+   │                                                                          │ SurfSense's proxy:
+   ├── Proxy: tunnels only to a ready plugin's host ◄─────────────────────────┘ host checked, content not seen
    ├── Installed: what is connected, enabled, ready
    ├── Policy and approval: which tools each caller gets, which ask
    └── Tool Gateway ──► ToolSource ──► remote MCP server       chat engine, later; SurfSense's own checks
                                        (later: bundle process)
 ```
 
-SurfSense decides, in one place, which plugin tools each caller gets and which must be approved. No plugin code runs inside the app. The agent's opencode is an MCP client already, so it calls the plugin servers SurfSense gives each turn itself, under the rules SurfSense writes, and SurfSense stays out of the call's path ([`03-engines.md`](03-engines.md#opencode)). SurfSense's own callers, the chat engine later and the listing checks it runs, reach servers through the Tool Gateway, where MCP is a source of tools adapted into one pipeline, as in Pi ([README](../README.md#prior-art)). Both sides speak plain MCP.
+SurfSense decides, in one place, which plugin tools each caller gets and which must be approved. No plugin code runs inside the app. The agent's opencode is an MCP client already, so it calls the plugin servers SurfSense gives each turn itself, under the rules SurfSense writes, and SurfSense stays out of the call's path but for the TLS tunnel its proxy opens to a ready plugin's host ([`03-engines.md`](03-engines.md#opencode)). SurfSense's own callers, the chat engine later and the listing checks it runs, reach servers through the Tool Gateway, where MCP is a source of tools adapted into one pipeline, as in Pi ([README](../README.md#prior-art)). Both sides speak plain MCP.
 
 ## Layout
 

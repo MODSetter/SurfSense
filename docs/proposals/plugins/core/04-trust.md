@@ -41,7 +41,7 @@ Settings → Plugins shows each connected plugin's tools in two groups, read-onl
 The user's sources, and a plugin's own results, can carry text aimed at the model, and a tool description from a server is text the model reads too. A source can steer the model into calling a tool and sending what it read to that tool's host.
 
 - Approval with the exact arguments is the main defence.
-- Hosts are declared and consented, so data can go only to a host the user allowed. For the agent the check runs as each turn is given its plugins.
+- Hosts are declared and consented, so data can go only to a host the user allowed. For the agent the check runs on each connection opencode opens, through SurfSense's proxy, which tunnels only to a ready plugin's host.
 - Tool descriptions are reviewed when an entry is listed and shown on the plugin's row, and a changed description switches the tool off until the user allows it again ([`02-registry.md`](02-registry.md#tools-added-later)); for the agent the switch is a `deny` rule, and opencode leaves a denied tool out of what it lists, so the new text never reaches the model ([`03-engines.md`](03-engines.md#each-turn)). Where SurfSense itself lists tools to a model, as the chat engine will, it cuts each description to 2,000 characters; opencode reads descriptions from the server, so the agent's are not cut.
 - Third-party plugins stay off until the user allows them, so they never reach a user who did not choose them.
 

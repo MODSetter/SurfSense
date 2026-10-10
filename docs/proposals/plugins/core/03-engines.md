@@ -26,7 +26,8 @@ A plugin connected, or a tool's setting changed, mid-thread takes effect at the 
 - **Approval** is opencode's: a tool whose rule is `ask` is asked about through the permission prompt the agent already uses ([`04-trust.md`](04-trust.md#approval)).
 - **The record is opencode's.** Each call, its arguments and its result are kept in the thread's opencode session, which SurfSense already reads to show the thread. SurfSense keeps no copy.
 - **A server opencode could not reach.** After giving the servers, the turn reads opencode's `GET /mcp`. A plugin it reports as `failed` or `needs_auth` is named in the thread, "Couldn't reach Notion" or "Sign in to Notion again", so the agent's missing tools are explained. Settings → Plugins shows the result of SurfSense's own last listing, not this, since opencode knows only the servers a thread has been given, and only while it runs.
-- **Limits accepted for speed.** The host check runs when servers are given to a turn, so a host revoked mid-turn is refused from the next turn. opencode reads a tool's description from its server, so the description is not cut to 2,000 characters for the agent; it reaches the model only once the tool has been reviewed, and a change to it blocks the tool.
+- **Its way out.** opencode reaches plugin hosts only through SurfSense's proxy, where its proxy variables point: a `CONNECT` tunnel to a ready plugin's host, checked on each connection, and nothing else, so TLS runs from opencode to the plugin and SurfSense sees the host, never the content. A host revoked or a plugin switched off mid-turn is refused at opencode's next connection; one already open runs until it closes. A remote plugin must therefore be on HTTPS.
+- **Limits accepted for speed.** opencode reads a tool's description from its server, so the description is not cut to 2,000 characters for the agent; it reaches the model only once the tool has been reviewed, and a change to it blocks the tool.
 
 ## `@` mentions
 
@@ -56,6 +57,7 @@ The user can name a tool rather than leave the choice to the agent.
 - A tool the server adds after connect is refused until the user allows it, and so is a tool whose description changes.
 - A tool set to Ask is asked about through the agent's permission prompt; Deny ends the call refused, and Allow once runs it.
 - Two calls to a stateful test server in one turn share one session.
+- A plugin on HTTPS is reached through SurfSense's proxy, and with the proxy refusing it, it is named unreachable.
 - A plugin whose server stops answering after it was listed is named in the thread as unreachable, and the turn goes on without its tools.
 - `@test search` in an agent thread gives the agent `test_search` that turn and the agent calls it; a call that must be approved still asks.
 - A thread in Basic mode is given no plugin tools, and Settings → Plugins says plugins work in Agentic threads.

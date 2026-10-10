@@ -35,6 +35,7 @@ A plugin's hosts are asked about before it connects, all at once: the refusal ca
 | Downloading an image an endpoint returned as a URL, whose host the endpoint chose | `refused_named_host()`, called before the download through the image provider's `allow_url_host`: by `POST /llm/connections/{id}/image-test` (a `403`) and by `resolution.py` for Studio (the job fails with the refusal, not retried, since the image was already billed). A refused host with no row is recorded off, so it is listed | `host:` |
 | Adding a plugin by URL, before its server is contacted | `POST /plugins/custom` in `modules/plugins/routes.py`, through `refused_hosts()` | `host:` |
 | Offering a plugin's tools | `list_tools()` in `modules/plugins/gateway/listing.py` offers nothing from a plugin whose hosts are not all allowed | `host:` |
+| The agent's calls to a plugin, which opencode makes itself | each connection through the plugin proxy, `may_connect()` in `modules/agent/plugin_proxy/allowed_hosts.py`: only a ready plugin's host, recorded through `require()` ([agent](agent.md#network)) | `host:` |
 | Downloading a GGUF | `POST /llm/installs` in `modules/llm/catalog/local/install_jobs/router.py`, checked before the job starts | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Downloading sd-server weights | `POST /llm/installs`, the same job as chat models | `host:huggingface.co` |
