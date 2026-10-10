@@ -17,7 +17,7 @@ People manage one version number: the app's, in `surfsense_local/VERSION`, as [`
 
 ## A plugin's version
 
-A plugin changes when anything in its folder changes, its locked dependencies included, or when `plugins/core/build-targets.json` changes in a way that alters its packaged files: a new Python version changes every plugin that has no `any` file, and a new platform every plugin that needs a file of its own there. At release, each plugin that changed since the last published release is stamped with that release's app version. A plugin that did not change keeps the version it had.
+A plugin changes when anything in its folder changes, its locked dependencies included, or when `plugins/bundles/core/build-targets.json` changes in a way that alters its packaged files: a new Python version changes every plugin that has no `any` file, and a new platform every plugin that needs a file of its own there. At release, each plugin that changed since the last published release is stamped with that release's app version. A plugin that did not change keeps the version it had.
 
 | App release | `example` | `hn-search` | `pdf-tools` |
 |---|---|---|---|
@@ -54,7 +54,7 @@ A published version never changes, but it can be stopped. A catalog version may 
 
 | Source | Written by | When | Example |
 |---|---|---|---|
-| `maintainer` | A maintainer, as a line in `plugins/core/policy/withdrawn-versions.txt` | A person finds a problem no check can see | `hn-search 2.4.0 Deletes notes by mistake.` blocks 2.4.0 everywhere |
+| `maintainer` | A maintainer, as a line in `plugins/bundles/core/policy/withdrawn-versions.txt` | A person finds a problem no check can see | `hn-search 2.4.0 Deletes notes by mistake.` blocks 2.4.0 everywhere |
 | `checks` | The release's checks | At each release, every published version not already blocked for the new app is checked against the new SDK, and fails | `hn-search 2.4.0` blocked from 2.6.0, because 2.6.0 changed something it uses |
 
 A maintainer line may also name `from <app-version>` to block only newer apps. The file is the source of every `maintainer` entry: each catalog rewrites them from it, so editing a line changes the block and deleting a line lifts it. `checks` entries are never lifted; they stay in every later catalog.

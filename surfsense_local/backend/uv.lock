@@ -3036,7 +3036,7 @@ requires-dist = [
     { name = "reportlab", specifier = ">=4.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "sqlite-vec", specifier = ">=0.1.9" },
-    { name = "surfsense-plugin-manifest", editable = "../../plugins/core/manifest" },
+    { name = "surfsense-plugin-manifest", editable = "../../plugins/bundles/core/manifest" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.2" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", marker = "sys_platform != 'linux'", specifier = ">=0.17" },
@@ -3056,7 +3056,7 @@ dev = [
 [[package]]
 name = "surfsense-plugin-manifest"
 version = "0.0.0"
-source = { editable = "../../plugins/core/manifest" }
+source = { editable = "../../plugins/bundles/core/manifest" }
 dependencies = [
     { name = "pydantic" },
 ]

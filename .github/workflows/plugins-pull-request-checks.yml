@@ -1,8 +1,8 @@
 name: Plugins Pull Request Checks
 
-# plugins/, the plugin SDK, its tooling and every plugin. It grows with each part
-# of docs/proposals/plugins/ that lands; today it checks the manifest rules and
-# the SDK.
+# plugins/bundles/: the bundle SDK, its tooling and the example, deferred with
+# docs/proposals/plugins/bundles/. Today it checks the manifest rules, the SDK
+# and the CLI.
 
 on:
   pull_request:
@@ -39,20 +39,20 @@ jobs:
         with:
           filters: |
             manifest_rules_changed:
-              - 'plugins/core/manifest/**'
+              - 'plugins/bundles/core/manifest/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             sdk_changed:
-              - 'plugins/core/sdk/**'
+              - 'plugins/bundles/core/sdk/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             # Either side can break the other: a route the SDK calls, or the SDK.
             sdk_or_app_changed:
-              - 'plugins/core/sdk/**'
+              - 'plugins/bundles/core/sdk/**'
               - 'surfsense_local/backend/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
             # invoke runs the SDK and the example against the real app.
             cli_changed:
-              - 'plugins/core/**'
-              - 'plugins/example/**'
+              - 'plugins/bundles/core/**'
+              - 'plugins/bundles/example/**'
               - 'surfsense_local/backend/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
 
@@ -66,7 +66,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # The Python the app ships to plugins, per plugins/core/build-targets.json.
+      # The Python the app ships to plugins, per plugins/bundles/core/build-targets.json.
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.2.0
         with:
@@ -74,19 +74,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/core/manifest
+        working-directory: plugins/bundles/core/manifest
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/core/manifest
+        working-directory: plugins/bundles/core/manifest
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/core/manifest
+        working-directory: plugins/bundles/core/manifest
         run: uv run ruff format --check .
 
       - name: Run unit tests
-        working-directory: plugins/core/manifest
+        working-directory: plugins/bundles/core/manifest
         run: uv run pytest -m unit
 
   check-sdk:
@@ -99,7 +99,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # The Python the app ships to plugins, per plugins/core/build-targets.json.
+      # The Python the app ships to plugins, per plugins/bundles/core/build-targets.json.
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.2.0
         with:
@@ -107,24 +107,24 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv run ruff format --check .
 
       # Strict, because every plugin is type-checked against what the SDK declares.
       - name: Check types
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv run pyright
 
       - name: Run unit tests
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv run pytest -m unit
 
   check-sdk-against-the-app:
@@ -149,11 +149,11 @@ jobs:
         run: uv sync
 
       - name: Install the SDK's dependencies
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv sync
 
       - name: Run contract tests
-        working-directory: plugins/core/sdk
+        working-directory: plugins/bundles/core/sdk
         run: uv run pytest -m contract
 
   check-cli:
@@ -178,17 +178,17 @@ jobs:
         run: uv sync
 
       - name: Install dependencies
-        working-directory: plugins/core/cli
+        working-directory: plugins/bundles/core/cli
         run: uv sync
 
       - name: Lint
-        working-directory: plugins/core/cli
+        working-directory: plugins/bundles/core/cli
         run: uv run ruff check .
 
       - name: Check formatting
-        working-directory: plugins/core/cli
+        working-directory: plugins/bundles/core/cli
         run: uv run ruff format --check .
 
       - name: Run tests
-        working-directory: plugins/core/cli
+        working-directory: plugins/bundles/core/cli
         run: uv run pytest

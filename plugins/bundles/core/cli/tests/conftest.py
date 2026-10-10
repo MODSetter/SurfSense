@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-BACKEND_DIR = Path(__file__).resolve().parents[4] / "surfsense_local" / "backend"
+BACKEND_DIR = Path(__file__).resolve().parents[5] / "surfsense_local" / "backend"
 
 # The app as a user has it once onboarding is done: plugins run only after it,
 # so the embedder is fixed (bge-small, the default) before the API starts.

@@ -46,4 +46,4 @@ The app lists only plugin versions it can run, installs without running plugin c
 
 ## Needs from
 
-The manifest rules in `plugins/core/manifest/` ([`../release/02-pull-request-checks.md`](../release/02-pull-request-checks.md)). `system_key()` from the interpreter stream. The egress module and the license verifier, which exist. A local fixture server stands in for `surfsense-plugin-releases` until [`../release/03-publishing.md`](../release/03-publishing.md) has published a real catalog.
+The manifest rules in `plugins/bundles/core/manifest/` ([`../release/02-pull-request-checks.md`](../release/02-pull-request-checks.md)). `system_key()` from the interpreter stream. The egress module and the license verifier, which exist. A local fixture server stands in for `surfsense-plugin-releases` until [`../release/03-publishing.md`](../release/03-publishing.md) has published a real catalog.

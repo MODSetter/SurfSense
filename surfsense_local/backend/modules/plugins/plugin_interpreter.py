@@ -16,4 +16,4 @@ def plugin_sdk() -> Path:
     """The folder a plugin imports `surfsense_plugin_sdk` from."""
     # In development: the repository's copy.
     # The packaged app will ship it beside the plugin's Python.
-    return _REPOSITORY / "plugins" / "core" / "sdk"
+    return _REPOSITORY / "plugins" / "bundles" / "core" / "sdk"

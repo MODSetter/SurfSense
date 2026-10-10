@@ -10,7 +10,7 @@ pytestmark = pytest.mark.app
 
 @pytest.fixture
 def example(tmp_path):
-    """A copy of plugins/example as git holds it, without what an invoke left there."""
+    """A copy of plugins/bundles/example as git holds it, without what an invoke left there."""
     copy = tmp_path / "plugins" / "example"
     left_by_invoke = shutil.ignore_patterns("dev-data", "site-packages", "__pycache__")
     shutil.copytree(PLUGINS / "example", copy, ignore=left_by_invoke)

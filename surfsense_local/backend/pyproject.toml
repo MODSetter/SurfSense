@@ -74,7 +74,7 @@ dev = [
 # published wheels are already CPU-only.
 [tool.uv.sources]
 # The rules a plugin's manifest.json follows, shared with the plugin tooling.
-surfsense-plugin-manifest = { path = "../../plugins/core/manifest", editable = true }
+surfsense-plugin-manifest = { path = "../../plugins/bundles/core/manifest", editable = true }
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 

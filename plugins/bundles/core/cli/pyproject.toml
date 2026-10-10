@@ -3,7 +3,7 @@ name = "surfsense-plugin-cli"
 # Never published: authors, CI and maintainers run it from this repository.
 version = "0.0.0"
 description = "The surfsense-plugins command: what authors, CI and maintainers run on a plugin outside the app."
-# The Python plugins run on, as plugins/core/build-targets.json names it:
+# The Python plugins run on, as plugins/bundles/core/build-targets.json names it:
 # invoke runs a plugin on this interpreter.
 requires-python = "==3.12.*"
 license = { text = "Apache-2.0" }

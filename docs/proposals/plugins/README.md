@@ -3,7 +3,7 @@ status: proposed
 code:
   - plugins/registry/
   - plugins/proprietary/
-  - plugins/core/
+  - plugins/bundles/core/
   - surfsense_local/backend/modules/plugins/
   - surfsense_local/backend/modules/agent/plugin_tools/
   - surfsense_local/backend/modules/chat/plugin_router/
@@ -131,7 +131,7 @@ In return, both engines call plugins and get live results, existing MCP servers 
 
 ## What happens to the code already built
 
-The local runner, the SDK, the CLI and the manifest rules in [`plugins/core/`](../../../plugins/core/) and [`modules/plugins/`](../../../surfsense_local/backend/modules/plugins/) were built for the earlier design. They stay in the tree, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. [`plugins/README.md`](../../../plugins/README.md), the contributor guide, still describes the earlier design and is rewritten by the contributor guide stream.
+The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/core/`](../../../plugins/bundles/core/) and [`modules/plugins/`](../../../surfsense_local/backend/modules/plugins/) were built for the earlier design. They stay in the tree, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. [`plugins/README.md`](../../../plugins/README.md), the contributor guide, still describes the earlier design and is rewritten by the contributor guide stream.
 
 ## Out of scope
 

@@ -12,7 +12,7 @@ SurfSense publishes plugins the same way anyone does, as remote MCP servers list
 | `plugins/<id>/` | Apache-2.0 | a free plugin, such as a search of a public API |
 | `plugins/proprietary/<id>/` | Business Source License 1.1 ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)) | `surfsense-scrapers` |
 
-The license check belongs to SurfSense's paid servers alone: third parties' paid plugins check access on their own service ([`../core/05-paid.md`](../core/05-paid.md)). Once a second paid server exists, the check they share moves to `plugins/proprietary/license/`, under the Business Source License, and nothing about licensing goes in `plugins/core/`.
+The license check belongs to SurfSense's paid servers alone: third parties' paid plugins check access on their own service ([`../core/05-paid.md`](../core/05-paid.md)). Once a second paid server exists, the check they share moves to `plugins/proprietary/license/`, under the Business Source License, and nothing about licensing goes in `plugins/bundles/core/`.
 
 A server is a Python project with its own `pyproject.toml`, tests and `Dockerfile`, built on the official MCP Python SDK: unlike the app, a hosted server has no size limit worth the cost of a client of our own. Each runs as its own container, deployed by SurfSense, apart from `surfsense_backend`: it imports none of the backend's code and uses none of its services. A paid one checks the license itself ([`../core/05-paid.md`](../core/05-paid.md)). `surfsense_mcp` is not reused; it stays the server outside clients such as Claude and Cursor connect to with a personal key.
 

@@ -90,7 +90,7 @@ def _another_platform() -> str:
 
 
 def _this_platform() -> str:
-    """This machine's key, as plugins/core/build-targets.json names it."""
+    """This machine's key, as plugins/bundles/core/build-targets.json names it."""
     arm = platform.machine().lower() in ("arm64", "aarch64")
     system = {"linux": "linux", "darwin": "macos", "win32": "windows"}[sys.platform]
     return f"{system}-{'arm64' if arm else 'x64'}"
