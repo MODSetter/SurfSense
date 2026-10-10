@@ -8,6 +8,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import uvicorn
+from mcp.server.mcpserver import MCPServer
+from mcp_types import ToolAnnotations
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 
@@ -88,3 +90,38 @@ class FailingFirst:
             return {"type": "http.request", "body": body, "more_body": False}
 
         await self.app(scope, replay, send)
+
+
+def notes_server() -> MCPServer:
+    """A plugin with two tools: a read-only search and a word count."""
+    server = MCPServer("notes")
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
+    def search(query: str) -> str:
+        """Search the notes."""
+        return f"found {query}"
+
+    @server.tool()
+    def count(text: str) -> dict[str, int]:
+        """Count the words in a text."""
+        return {"words": len(text.split())}
+
+    return server
+
+
+class RequiringToken:
+    """Answers 401 to any request without `Bearer <token>`, as a server needing a key does."""
+
+    def __init__(self, app: ASGIApp, token: str) -> None:
+        self.app = app
+        self.expected = f"Bearer {token}".encode()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] == "http"
+            and dict(scope["headers"]).get(b"authorization") != self.expected
+        ):
+            await send({"type": "http.response.start", "status": 401, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+            return
+        await self.app(scope, receive, send)

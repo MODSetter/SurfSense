@@ -13,7 +13,7 @@ from modules.plugins.remote.mcp_client.call_timed_out import CallTimedOutError
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.mcp_client.session import McpSession
 from modules.plugins.remote.source import RemoteMcpSource
-from tests.unit.plugins.remote.mcp_server import FailingFirst, RecordingHeaders, serving
+from tests.mcp_test_server import FailingFirst, RecordingHeaders, serving
 
 pytestmark = pytest.mark.unit
 

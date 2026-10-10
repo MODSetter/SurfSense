@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.gateway.calling import call_tool
 from modules.plugins.gateway.scope import Scope
-from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.results.models import PluginCall, PluginCaller, PluginCallStatus
 from modules.workspaces.models import Workspace
 from tests.integration.plugins.gateway.conftest import FakeSource, connect, tool
@@ -126,7 +125,7 @@ async def test_a_source_that_fails_ends_the_call_failed_with_a_sentence(
     """A server that breaks mid-call is recorded, and the model reads why."""
     source = FakeSource(
         [tool("search", readOnlyHint=True)],
-        answer=ServerError("the plugin's server answered 503"),
+        answer=RuntimeError("the plugin's server answered 503"),
     )
     await connect(session, "notes", source)
 
