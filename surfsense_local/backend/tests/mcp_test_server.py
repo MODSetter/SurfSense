@@ -18,8 +18,9 @@ from cryptography.x509.oid import NameOID
 from mcp.server.mcpserver import MCPServer
 from mcp_types import ToolAnnotations
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.routing import Mount
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Mount, Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 
@@ -91,16 +92,17 @@ def serving(app: ASGIApp, tls: Certificate | None = None) -> Iterator[str]:
 
 
 class RecordingHeaders:
-    """Wraps an app and keeps the `authorization` header of every request it gets."""
+    """Wraps an app and keeps one header, `authorization` unless named, of every request."""
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, header: str = "authorization") -> None:
         self.app = app
+        self.header = header.encode()
         self.authorizations: list[str | None] = []
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
             headers = dict(scope["headers"])
-            value = headers.get(b"authorization")
+            value = headers.get(self.header)
             self.authorizations.append(value.decode() if value else None)
         await self.app(scope, receive, send)
 
@@ -238,14 +240,18 @@ class RequiringLicense:
         self.app = app
         self.refused = refused or {}
         self.authorizations: list[str | None] = []
+        self.calls_tokens: list[str | None] = []
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        value = dict(scope["headers"]).get(b"authorization")
+        headers = dict(scope["headers"])
+        value = headers.get(b"authorization")
         authorization = value.decode() if value else None
         self.authorizations.append(authorization)
+        calls = headers.get(b"x-surfsense-calls")
+        self.calls_tokens.append(calls.decode() if calls else None)
         scheme, _, key = (authorization or "").partition(" ")
         if scheme != "License" or not key:
             await JSONResponse({"reason": "missing_license"}, 401)(scope, receive, send)
@@ -255,13 +261,37 @@ class RequiringLicense:
             await self.app(scope, receive, send)
 
 
-def plugin_host(plugin_id: str, server: MCPServer, around=lambda app: app) -> Starlette:
-    """A plugin host serving one plugin at `/<id>/mcp`, as SurfSense's does."""
+def plugin_host(
+    plugin_id: str,
+    server: MCPServer,
+    around=lambda app: app,
+    cancels: list[dict[str, str | None]] | None = None,
+) -> Starlette:
+    """A plugin host serving one plugin at `/<id>/mcp`, as SurfSense's does.
+
+    `cancels` keeps the sign-in and thread token of each `POST /cancel` it gets.
+    """
 
     @asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[None]:
         async with server.session_manager.run():
             yield
 
+    async def cancel(request: Request) -> Response:
+        if cancels is not None:
+            cancels.append(
+                {
+                    "authorization": request.headers.get("authorization"),
+                    "x-surfsense-calls": request.headers.get("x-surfsense-calls"),
+                }
+            )
+        return Response(status_code=202)
+
     app = around(server.streamable_http_app())
-    return Starlette(routes=[Mount(f"/{plugin_id}", app=app)], lifespan=lifespan)
+    return Starlette(
+        routes=[
+            Route("/cancel", cancel, methods=["POST"]),
+            Mount(f"/{plugin_id}", app=app),
+        ],
+        lifespan=lifespan,
+    )

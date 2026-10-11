@@ -39,7 +39,9 @@ from modules.agent.opencode_runtime import (
 from modules.agent.plugin_tools.changed_tools import check_changed_tools
 from modules.agent.plugin_tools.give_plugins import give_plugins
 from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
-from modules.agent.plugin_tools.turn_plugins import turn_plugins
+from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
+from modules.agent.plugin_tools.thread_calls import thread_calls_token
+from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import register_thread_tools
@@ -171,6 +173,7 @@ async def _stream(
     # Approvals asked and not yet answered: the turn waits on the user meanwhile.
     waiting: set[str] = set()
     sent = False
+    plugins: list[TurnPlugin] = []
     live_instances.turn_began(folder)
     try:
         # A big scope's first sync takes about 30 s: the thread says why it waits.
@@ -196,7 +199,10 @@ async def _stream(
         await check_changed_tools(session)
         mentions = await transact(session, mentioned_plugins, sending.text)
         plugins = await transact(
-            session, turn_plugins, frozenset(m.plugin_id for m in mentions)
+            session,
+            turn_plugins,
+            frozenset(m.plugin_id for m in mentions),
+            thread_calls_token(thread_id),
         )
         unavailable = await give_plugins(client, folder, session_id, plugins)
         if unavailable:
@@ -303,6 +309,7 @@ async def _stream(
             if run.stop_requested and not turn.finished:
                 # opencode stores a Stop as it stores a quit: only this note tells them apart.
                 await _note_stop(client, folder, session_id, turn.user_message_id)
+                await stop_plugin_calls(plugins)
             if sent and not turn.finished:
                 try:
                     await client.abort(folder, session_id)

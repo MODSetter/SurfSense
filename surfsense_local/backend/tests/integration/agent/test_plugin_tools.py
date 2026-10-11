@@ -10,6 +10,7 @@ from modules.agent.plugin_tools import turn_plugins
 from shared.config import get_plugin_host_settings
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
+    hang_up_mid_turn,
     of_type,
     open_thread,
     send,
@@ -21,6 +22,7 @@ from tests.license_samples import (
     trust_sample_licenses,
 )
 from tests.mcp_test_server import (
+    RecordingHeaders,
     RecordingMethods,
     RequiringLicense,
     RequiringToken,
@@ -217,6 +219,43 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
     step = of_type(frames, "agent-step")[-1]
     assert (step["tool"], step["status"]) == ("reddit_search_posts", "completed")
     assert set(guarded[0].authorizations) == {f"License {INDIVIDUAL_KEY}"}
+
+
+async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch, notes_url: str
+) -> None:
+    """opencode's own cancel cannot reach a call on a host without sessions, so the app's Stop does."""
+    trust_sample_licenses(monkeypatch)
+    await import_license(agent_api.http, "individual.lic")
+    guarded: list[RequiringLicense] = []
+    cancels: list[dict[str, str | None]] = []
+
+    def around(app):
+        guarded.append(RequiringLicense(app))
+        return guarded[0]
+
+    host = plugin_host("reddit", reddit_server(), around, cancels)
+    others = RecordingHeaders(notes_server().streamable_http_app(), "x-surfsense-calls")
+    with serving(host) as base, serving(others) as third_party:
+        monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
+        assert (
+            await agent_api.http.post("/plugins/first-party/reddit")
+        ).status_code == 201
+        await connect_notes(agent_api, f"{third_party}/mcp")
+        agent_api.model.replies = [("stall", "Thinking about")]
+        thread = await open_thread(agent_api)
+
+        await hang_up_mid_turn(agent_api, thread["id"])
+        stopped = await agent_api.http.post(f"/chat/threads/{thread['id']}/run/stop")
+        agent_api.model.release.set()
+
+    (token,) = {token for token in guarded[0].calls_tokens if token}
+    assert stopped.status_code == 204
+    assert cancels == [
+        {"authorization": f"License {INDIVIDUAL_KEY}", "x-surfsense-calls": token}
+    ]
+    # The token names the user's thread; it never leaves for a third party's server.
+    assert set(others.authorizations) == {None}
 
 
 async def test_a_plugin_whose_server_is_down_is_named_in_the_thread(

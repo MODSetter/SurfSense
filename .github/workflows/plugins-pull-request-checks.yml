@@ -202,6 +202,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.plugin_host_changed == 'true'
+    # A Stop sent to one copy of the host reaches the copy running the call through Redis.
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+    env:
+      REDIS_URL: redis://localhost:6379/0
 
     steps:
       - name: Checkout code

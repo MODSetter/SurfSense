@@ -11,6 +11,8 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     # What mcp itself speaks HTTP with; the license check calls Keygen with it.
     "httpx2>=2.10.0",
+    # Passes a Stop to the copy of the host running the call.
+    "redis>=5.2",
 ]
 
 [dependency-groups]
