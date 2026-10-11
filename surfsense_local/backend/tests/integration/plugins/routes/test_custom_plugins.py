@@ -94,6 +94,7 @@ async def test_a_host_not_yet_allowed_is_asked_about_before_anything_is_sent(
     assert detail["code"] == "egress_disabled"
     assert detail["hosts"] == ["mcp.notes.example"]
     assert detail["host"] == "mcp.notes.example"
+    assert detail["purpose"] == "plugin"
     network = {
         row["host"]: row["enabled"] for row in (await client.get("/egress")).json()
     }
@@ -113,8 +114,25 @@ async def test_the_same_server_cannot_be_connected_twice(client: AsyncClient) ->
 
     assert first.status_code == 201, first.text
     assert second.status_code == 409
-    assert "Notes" in second.json()["detail"]
+    detail = second.json()["detail"]
+    assert (detail["code"], detail["name"]) == ("plugin_already_connected", "Notes")
     assert [p["id"] for p in (await client.get("/plugins")).json()] == ["notes"]
+
+
+async def test_a_second_plugin_cannot_take_a_name_in_use(client: AsyncClient) -> None:
+    """Two plugins under one name would share an id, and opencode one server."""
+    with serving(notes_server().streamable_http_app()) as first_base:
+        await client.post(
+            "/plugins/custom", json={"url": f"{first_base}/mcp", "name": "Notes"}
+        )
+    with serving(notes_server().streamable_http_app()) as second_base:
+        second = await client.post(
+            "/plugins/custom", json={"url": f"{second_base}/mcp", "name": "notes"}
+        )
+
+    assert second.status_code == 409
+    detail = second.json()["detail"]
+    assert (detail["code"], detail["name"]) == ("plugin_name_taken", "notes")
 
 
 async def test_the_same_server_spelled_differently_is_still_the_same_server(
@@ -156,4 +174,4 @@ async def test_a_remote_server_must_use_https(client: AsyncClient) -> None:
     )
 
     assert added.status_code == 422
-    assert "HTTPS" in added.json()["detail"]
+    assert added.json()["detail"]["code"] == "plugin_needs_https"

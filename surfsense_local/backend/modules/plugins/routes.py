@@ -17,7 +17,7 @@ from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
 from modules.plugins.installed.plugin_switch import set_plugin_enabled
 from modules.plugins.installed.server_url import server_url
-from modules.plugins.installed.third_party import set_third_party_on
+from modules.plugins.installed.third_party import set_third_party_on, third_party_on
 from modules.plugins.installed.tool_settings import set_tool
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
@@ -36,7 +36,7 @@ class PluginWrite(BaseModel):
     enabled: bool
 
 
-class ThirdPartyWrite(BaseModel):
+class ThirdPartyAllowed(BaseModel):
     allowed: bool
 
 
@@ -64,18 +64,31 @@ async def add_custom_plugin(
     plugin_id = custom_plugin_id(payload.name)
     if await transact(session, lambda s: s.get(InstalledPlugin, plugin_id)) is not None:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, f"a plugin named {plugin_id} is connected"
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "plugin_name_taken",
+                "message": f"A plugin named {payload.name} is already connected.",
+                "name": payload.name,
+            },
         )
 
     taken = await transact(session, connected_name, url)
     if taken is not None:
         raise HTTPException(
-            status.HTTP_409_CONFLICT, f"This server is already connected as {taken}."
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "plugin_already_connected",
+                "message": f"This server is already connected as {taken}.",
+                "name": taken,
+            },
         )
     if needs_https(url):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "A plugin's server must use HTTPS, unless it runs on this computer.",
+            {
+                "code": "plugin_needs_https",
+                "message": "A plugin's server must use HTTPS, unless it runs on this computer.",
+            },
         )
     refusal = await transact(session, refused_hosts, [url_host(url)])
     if refusal is not None:
@@ -112,10 +125,19 @@ def write_tool(
     return read_plugin(session, session.get_one(InstalledPlugin, plugin_id))
 
 
+@router.get(
+    "/third-party",
+    response_model=ThirdPartyAllowed,
+    summary="Whether third-party plugins are allowed",
+)
+def read_third_party(session: SessionDep) -> ThirdPartyAllowed:
+    return ThirdPartyAllowed(allowed=third_party_on(session))
+
+
 @router.put(
     "/third-party", status_code=204, summary="Allow or refuse third-party plugins"
 )
-def write_third_party(payload: ThirdPartyWrite, session: SessionDep) -> None:
+def write_third_party(payload: ThirdPartyAllowed, session: SessionDep) -> None:
     set_third_party_on(session, payload.allowed)
 
 

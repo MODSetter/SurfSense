@@ -48,4 +48,4 @@ def refused_hosts(session: Session, hosts: list[str]) -> EgressDeniedError | Non
         return None
     session.flush()
     first = host_destination(f"https://{missing[0]}")
-    return EgressDeniedError(first, hosts=missing)
+    return EgressDeniedError(first, hosts=missing, purpose="plugin")

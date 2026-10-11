@@ -21,9 +21,15 @@ BUILT_IN = (HUGGINGFACE,)
 
 class EgressDeniedError(Exception):
     def __init__(
-        self, destination: str, host: str | None = None, hosts: list[str] | None = None
+        self,
+        destination: str,
+        host: str | None = None,
+        hosts: list[str] | None = None,
+        purpose: str | None = None,
     ) -> None:
         self.destination = destination
+        # What the call is for, when the host alone does not say: the prompt words its question by it.
+        self.purpose = purpose
         self.host = host or host_of(destination)
         # Every host still to allow, so one prompt asks for them together; the first is `host`.
         self.hosts = hosts or [self.host]

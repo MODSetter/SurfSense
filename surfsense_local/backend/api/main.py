@@ -273,6 +273,7 @@ def egress_denied(_request: Request, error: EgressDeniedError) -> JSONResponse:
                 "destination": error.destination,
                 "host": error.host,
                 "hosts": error.hosts,
+                "purpose": error.purpose,
             }
         },
         status.HTTP_403_FORBIDDEN,

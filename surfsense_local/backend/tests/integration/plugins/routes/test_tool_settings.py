@@ -53,3 +53,15 @@ async def test_a_custom_plugin_waits_until_third_party_plugins_are_allowed(
     await client.put("/plugins/third-party", json={"allowed": True})
 
     assert offered(engine) == ["notes__search", "notes__count"]
+
+
+async def test_the_screen_reads_whether_third_party_plugins_are_allowed(
+    client: AsyncClient,
+) -> None:
+    """Off until the user allows them, and the switch reads back what was set."""
+    before = await client.get("/plugins/third-party")
+    await client.put("/plugins/third-party", json={"allowed": True})
+    after = await client.get("/plugins/third-party")
+
+    assert before.json() == {"allowed": False}
+    assert after.json() == {"allowed": True}
