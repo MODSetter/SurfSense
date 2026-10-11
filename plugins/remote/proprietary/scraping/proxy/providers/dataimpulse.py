@@ -13,10 +13,12 @@ Example URL::
 
     http://<token>__cr.us:<password>@gw.dataimpulse.com:823
 
-Sticky sessions use the vendor's ``__sid.<id>`` username suffix, allowing a
-caller to keep cookies and requests on the same exit IP.
+A sticky session is a port: each of 10000 to 20000 holds one exit IP, with or
+without a country. DataImpulse ignores a session id in the username and still
+rotates per request (measured live, 2026-10-12), so the session id picks the port.
 """
 
+import hashlib
 import logging
 import re
 from urllib.parse import quote, urlsplit, urlunsplit
@@ -31,13 +33,16 @@ logger = logging.getLogger(__name__)
 _COUNTRY_MARKER = "__cr."
 _COUNTRY_RE = re.compile(r"__cr\.[A-Za-z]{2,}")
 _SESSION_RE = re.compile(r"__sid\.[A-Za-z0-9_-]+")
+# Each port in this range is one sticky exit IP.
+_STICKY_PORTS = range(10000, 20001)
 
 
-def _safe_session_id(session_id: str) -> str:
-    safe_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id).strip("-")
-    if not safe_id:
+def _sticky_port(session_id: str) -> int:
+    """The same session always lands on the same port, so on the same IP."""
+    if not re.search(r"[A-Za-z0-9]", session_id):
         raise ValueError("session_id must contain at least one letter or digit")
-    return safe_id
+    digest = int.from_bytes(hashlib.sha256(session_id.encode()).digest()[:8], "big")
+    return _STICKY_PORTS[digest % len(_STICKY_PORTS)]
 
 
 def _safe_country(country: str | None) -> str | None:
@@ -79,15 +84,14 @@ class DataImpulseProvider(ProxyProvider):
             username += f"__cr.{safe_country}"
         elif _COUNTRY_MARKER in (parts.username or ""):
             username += f"__cr.{self.get_location()}"
-        if session_id is not None:
-            username += f"__sid.{_safe_session_id(session_id)}"
         userinfo = quote(username, safe="%")
         if parts.password is not None:
             userinfo += f":{quote(parts.password, safe='%')}"
         host = parts.hostname or ""
         netloc = f"{userinfo}@{host}"
-        if parts.port:
-            netloc += f":{parts.port}"
+        port = _sticky_port(session_id) if session_id is not None else parts.port
+        if port:
+            netloc += f":{port}"
         return urlunsplit(
             (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
         )
@@ -101,5 +105,5 @@ class DataImpulseProvider(ProxyProvider):
     def get_sticky_proxy_url(
         self, session_id: str, country: str | None = None
     ) -> str | None:
-        """Return the configured URL with deterministic country/session suffixes."""
+        """The configured URL on the session's sticky port, with its country."""
         return self._rewrite_proxy_url(country=country, session_id=session_id)

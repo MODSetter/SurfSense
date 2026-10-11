@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 import pytest
 
 from proprietary.scraping.config import Config
@@ -18,8 +20,9 @@ def test_dataimpulse_sticky_url_is_deterministic(monkeypatch):
     second = provider.get_sticky_proxy_url("location-123")
 
     assert first == second
-    assert "token__cr.us__sid.location-123" in first
-    assert first.endswith("@gw.dataimpulse.com:823")
+    parts = urlsplit(first)
+    assert parts.username == "token__cr.us"
+    assert 10000 <= parts.port <= 20000
 
 
 def test_dataimpulse_sticky_url_replaces_existing_session(monkeypatch):
@@ -31,8 +34,8 @@ def test_dataimpulse_sticky_url_replaces_existing_session(monkeypatch):
 
     result = DataImpulseProvider().get_sticky_proxy_url("new")
 
-    assert "__sid.old" not in result
-    assert result.count("__sid.new") == 1
+    assert "__sid" not in result
+    assert 10000 <= urlsplit(result).port <= 20000
 
 
 def test_dataimpulse_sticky_url_rewrites_country(monkeypatch):
@@ -44,8 +47,7 @@ def test_dataimpulse_sticky_url_rewrites_country(monkeypatch):
 
     result = DataImpulseProvider().get_sticky_proxy_url("new", "gb")
 
-    assert "token__cr.gb__sid.new" in result
-    assert "__cr.us" not in result
+    assert urlsplit(result).username == "token__cr.gb"
 
 
 def test_dataimpulse_sticky_url_rejects_empty_session(monkeypatch):
