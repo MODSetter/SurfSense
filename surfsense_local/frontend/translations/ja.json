@@ -448,6 +448,7 @@
   "models_error_install_no_engine": "このビルドのSurfSenseでは、このモデルを実行できません。",
   "models_error_install_not_a_model": "このファイルはSurfSenseで実行できるモデルではありません。",
   "models_error_install_not_enough_disk": "このダウンロードには{needed, number, ::unit/gigabyte .#}の空き容量が必要ですが、このコンピューターの空きは{free, number, ::unit/gigabyte .#}です。",
+  "models_error_install_retrieval_check_failed": "{asked, plural, other {#件}}の回答のうち{found, number}件を最初に見つけました。検索用モデルは{asked, number}件すべてを見つける必要があります。",
   "models_error_install_too_big": "このビルドはこのコンピューターには大きすぎます。小さいビルドを選んでください。",
   "models_error_unverified_connection": "エンドポイントのモデル一覧を確認できませんでした。",
   "models_family_group_aria": "{family}のモデル",

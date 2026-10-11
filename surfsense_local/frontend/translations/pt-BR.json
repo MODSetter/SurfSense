@@ -448,6 +448,7 @@
   "models_error_install_no_engine": "Esta versão do SurfSense não consegue executar este modelo.",
   "models_error_install_not_a_model": "Este arquivo não é um modelo que o SurfSense consiga executar.",
   "models_error_install_not_enough_disk": "Este download precisa de {needed, number, ::unit/gigabyte .#} livres; este computador tem {free, number, ::unit/gigabyte .#}.",
+  "models_error_install_retrieval_check_failed": "Ele encontrou primeiro {found, number} de {asked, plural, one {# resposta} many {# respostas} other {# respostas}}; um modelo de busca precisa encontrar todas as {asked, number}.",
   "models_error_install_too_big": "Esta variante é grande demais para este computador. Escolha uma menor.",
   "models_error_unverified_connection": "Não foi possível verificar a lista de modelos do endpoint.",
   "models_family_group_aria": "Modelos {family}",

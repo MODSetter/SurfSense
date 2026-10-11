@@ -117,7 +117,12 @@ class OnnxRuntimeEngine:
             width, refusal = await asyncio.to_thread(verify, offered)
             if refusal is not None:
                 self._discard(model_id)
-                yield InstallStep("error", refusal)
+                yield InstallStep(
+                    "error",
+                    refusal.message,
+                    code=InstallCode.RETRIEVAL_CHECK_FAILED,
+                    values={"found": refusal.found, "asked": refusal.asked},
+                )
                 return
             checked = offered.model_copy(update={"dimension": width})
             (self._folder / model_id / SPEC_FILE).write_text(checked.model_dump_json())

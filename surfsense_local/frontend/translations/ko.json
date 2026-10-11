@@ -448,6 +448,7 @@
   "models_error_install_no_engine": "이 빌드의 SurfSense는 이 모델을 실행할 수 없습니다.",
   "models_error_install_not_a_model": "이 파일은 SurfSense가 실행할 수 있는 모델이 아닙니다.",
   "models_error_install_not_enough_disk": "이 다운로드에는 {needed, number, ::unit/gigabyte .#}의 여유 공간이 필요하지만, 이 컴퓨터에는 {free, number, ::unit/gigabyte .#}만 있습니다.",
+  "models_error_install_retrieval_check_failed": "답 {asked, plural, other {#개}} 중 {found, number}개를 가장 먼저 찾았습니다. 검색 모델은 {asked, number}개를 모두 찾아야 합니다.",
   "models_error_install_too_big": "이 빌드는 이 컴퓨터에 너무 큽니다. 더 작은 빌드를 선택하세요.",
   "models_error_unverified_connection": "엔드포인트의 모델 목록을 확인할 수 없습니다.",
   "models_family_group_aria": "{family} 모델",
