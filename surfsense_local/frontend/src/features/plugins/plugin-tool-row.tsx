@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
@@ -113,7 +114,22 @@ export function PluginToolRow({
   return (
     <li className="flex items-center justify-between gap-6 py-2.5">
       <div className="min-w-0">
-        <p className="truncate text-sm">{label}</p>
+        <p className="flex min-w-0 items-center gap-2 text-sm">
+          <span className="truncate">{label}</span>
+          {tool.change ? (
+            <Badge variant="secondary" className="shrink-0">
+              {tool.change === "added"
+                ? intl.formatMessage({
+                    id: "plugins_tool_added_label",
+                    defaultMessage: "New",
+                  })
+                : intl.formatMessage({
+                    id: "plugins_tool_changed_label",
+                    defaultMessage: "Changed",
+                  })}
+            </Badge>
+          ) : null}
+        </p>
         <p className="line-clamp-2 text-xs text-pretty text-muted-foreground">
           {tool.description}
         </p>

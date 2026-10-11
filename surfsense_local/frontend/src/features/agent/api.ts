@@ -1,4 +1,4 @@
-import { requestVoid } from "@/lib/api"
+import { requestJson, requestVoid } from "@/lib/api"
 
 /** The Studio artifact a `surfsense_render_document`,
  *  `surfsense_revise_document` or `surfsense_convert_document` call made,
@@ -70,4 +70,15 @@ export function answerPermission(
       body: JSON.stringify({ reply }),
     }
   )
+}
+
+/** What a step returned, whole: its frames carry only the start. */
+export function readStepResult(
+  threadId: number,
+  stepId: string,
+  signal?: AbortSignal
+): Promise<{ output: string | null; error: string | null }> {
+  return requestJson(`/chat/threads/${threadId}/steps/${stepId}/result`, {
+    signal,
+  })
 }

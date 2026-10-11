@@ -9,6 +9,8 @@ export type PluginTool = {
   annotations: Record<string, unknown>
   enabled: boolean
   approval: ToolApproval
+  /** Why it was switched off on its own, until the user allows it again. */
+  change: "added" | "changed" | null
 }
 
 export type Plugin = {
@@ -20,6 +22,9 @@ export type Plugin = {
   hosts: string[]
   enabled: boolean
   connected_at: string
+  /** When SurfSense last listed the server, and why that failed; null when it answered. */
+  checked_at: string | null
+  check_failure: "unreachable" | "sign_in" | null
   tools: PluginTool[]
 }
 
@@ -61,6 +66,20 @@ export function setTool(
   return requestJson<Plugin>(
     `/plugins/${id}/tools/${encodeURIComponent(tool)}`,
     { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(change) }
+  )
+}
+
+export function checkPlugin(id: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/${id}/check`, { method: "POST" })
+}
+
+export function savePluginStep(
+  threadId: number,
+  stepId: string
+): Promise<{ document_id: number }> {
+  return requestJson<{ document_id: number }>(
+    `/chat/threads/${threadId}/plugin-steps/${stepId}/save`,
+    { method: "POST" }
   )
 }
 

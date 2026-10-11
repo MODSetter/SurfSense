@@ -1,5 +1,7 @@
 import { useId } from "react"
 
+import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
@@ -44,11 +46,32 @@ function ToolGroup({
   )
 }
 
+function checkLabel(plugin: Plugin) {
+  if (plugin.check_failure === "unreachable") {
+    return intl.formatMessage({
+      id: "plugins_row_unreachable_status",
+      defaultMessage: "Couldn’t connect",
+    })
+  }
+  if (plugin.check_failure === "sign_in") {
+    return intl.formatMessage({
+      id: "plugins_row_sign_in_status",
+      defaultMessage: "Needs a new key",
+    })
+  }
+  return intl.formatMessage({
+    id: "plugins_row_connected_status",
+    defaultMessage: "Connected",
+  })
+}
+
 /** A connected plugin: its switch, its tools, and the way to disconnect it. */
 export function PluginRow({
   plugin,
   thirdPartyAllowed,
   disconnecting,
+  checking,
+  onCheck,
   onEnabled,
   onTool,
   onDisconnect,
@@ -56,6 +79,8 @@ export function PluginRow({
   plugin: Plugin
   thirdPartyAllowed: boolean
   disconnecting: boolean
+  checking: boolean
+  onCheck: () => void
   onEnabled: (enabled: boolean) => void
   onTool: (
     tool: string,
@@ -107,6 +132,37 @@ export function PluginRow({
           />
         </div>
       </div>
+      <div className="mt-1 flex items-center gap-2 text-xs">
+        <span
+          className={
+            plugin.check_failure ? "text-destructive" : "text-muted-foreground"
+          }
+        >
+          {checkLabel(plugin)}
+        </span>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          disabled={checking}
+          onClick={onCheck}
+        >
+          {checking ? <Spinner data-icon="inline-start" /> : null}
+          {intl.formatMessage({
+            id: "plugins_row_check_button",
+            defaultMessage: "Check now",
+          })}
+        </Button>
+      </div>
+      {plugin.tools.some((tool) => tool.change) ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "plugins_row_changed_tools_body",
+            defaultMessage:
+              "Some tools are new or changed. They stay off until you allow them.",
+          })}
+        </p>
+      ) : null}
       {unused ? (
         <p className="mt-2 text-xs text-muted-foreground">
           {intl.formatMessage({

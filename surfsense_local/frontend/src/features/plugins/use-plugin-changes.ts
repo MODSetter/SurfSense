@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import {
+  checkPlugin,
   disconnectPlugin,
   pluginsQueryKey,
   setPluginEnabled,
@@ -32,6 +33,10 @@ export function usePluginChanges() {
     plugin: useMutation({
       mutationFn: ({ plugin, enabled }: { plugin: string; enabled: boolean }) =>
         setPluginEnabled(plugin, enabled),
+      onSettled: refresh,
+    }),
+    check: useMutation({
+      mutationFn: (plugin: string) => checkPlugin(plugin),
       onSettled: refresh,
     }),
     disconnect: useMutation({

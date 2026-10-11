@@ -17,6 +17,8 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
     hosts: ["notes.example"],
     enabled: true,
     connected_at: "2026-10-01T00:00:00Z",
+    checked_at: "2026-10-01T00:00:00Z",
+    check_failure: null,
     tools: [
       {
         name: "search",
@@ -25,6 +27,7 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
         annotations: { readOnlyHint: true },
         enabled: true,
         approval: "ask",
+        change: null,
       },
       {
         name: "count",
@@ -33,6 +36,7 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
         annotations: {},
         enabled: true,
         approval: "ask",
+        change: null,
       },
     ],
     ...extra,
@@ -76,6 +80,12 @@ function api({
         const added = notes({ name: body.name, url: body.url })
         connected = [...connected, added]
         return Response.json(added, { status: 201 })
+      }
+      if (url.pathname.endsWith("/check")) {
+        connected = connected.map((plugin) =>
+          plugin.id === id ? { ...plugin, check_failure: null } : plugin
+        )
+        return Response.json(connected.find((plugin) => plugin.id === id))
       }
       if (method === "GET") return Response.json(connected)
       if (method === "DELETE") {
@@ -127,7 +137,9 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    await user.click(await screen.findByRole("button", { name: "Add MCP server" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Add MCP server" })
+    )
     const dialog = await screen.findByRole("dialog")
     await user.type(within(dialog).getByLabelText("Name"), "Notes")
     await user.type(
@@ -160,7 +172,9 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    await user.click(await screen.findByRole("button", { name: "Add MCP server" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Add MCP server" })
+    )
     const dialog = await screen.findByRole("dialog")
     await user.type(within(dialog).getByLabelText("Name"), "Notes")
     await user.type(
@@ -275,5 +289,56 @@ describe("plugins settings", () => {
         )
       ).toBeNull()
     )
+  })
+
+  it("says a server could not be reached, and checks it again on request", async () => {
+    const calls = api({
+      plugins: [notes({ check_failure: "unreachable" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Couldn’t connect")).toBeTruthy()
+    await user.click(within(plugin).getByRole("button", { name: "Check now" }))
+
+    expect(await within(plugin).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/check", body: null },
+    ])
+  })
+
+  it("asks for a new key when the server refused the last one", async () => {
+    api({ plugins: [notes({ check_failure: "sign_in" })], allowed: true })
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Needs a new key")).toBeTruthy()
+  })
+
+  it("marks the tools that are new or changed, which wait to be allowed", async () => {
+    const base = notes()
+    api({
+      plugins: [
+        notes({
+          tools: [
+            { ...base.tools[0], enabled: false, change: "changed" },
+            { ...base.tools[1], enabled: false, change: "added" },
+          ],
+        }),
+      ],
+      allowed: true,
+    })
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Changed")).toBeTruthy()
+    expect(within(plugin).getByText("New")).toBeTruthy()
+    expect(
+      within(plugin).getByText(
+        "Some tools are new or changed. They stay off until you allow them."
+      )
+    ).toBeTruthy()
   })
 })

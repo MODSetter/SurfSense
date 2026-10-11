@@ -87,6 +87,10 @@ export function PluginsSettings() {
                 changes.disconnect.isPending &&
                 changes.disconnect.variables === plugin.id
               }
+              checking={
+                changes.check.isPending && changes.check.variables === plugin.id
+              }
+              onCheck={() => changes.check.mutate(plugin.id)}
               onEnabled={(enabled) =>
                 changes.plugin.mutate({ plugin: plugin.id, enabled })
               }

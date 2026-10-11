@@ -127,6 +127,7 @@ export function toRuntimeMessage(
         preparing: message.content.preparing ?? null,
         scope: message.content.scope ?? null,
         unavailablePlugins: message.content.unavailable_plugins ?? null,
+        threadId,
       },
     },
   }

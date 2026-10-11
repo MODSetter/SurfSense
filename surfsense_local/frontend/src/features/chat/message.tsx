@@ -205,8 +205,18 @@ function MessagePluginsUnavailable() {
   return <PluginsUnavailable plugins={plugins} />
 }
 
+function threadIdFrom(custom: unknown): number | null {
+  if (typeof custom === "object" && custom !== null && "threadId" in custom) {
+    return (custom.threadId as number | null) ?? null
+  }
+  return null
+}
+
 function MessageSteps() {
   const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
+  const threadId = useAuiState(({ message }) =>
+    threadIdFrom(message.metadata.custom)
+  )
   // The turn's sources are kept on the user's message this reply answers.
   const scope = useAuiState(({ thread, message }) => {
     for (let index = message.index - 1; index >= 0; index -= 1) {
@@ -215,7 +225,7 @@ function MessageSteps() {
     }
     return null
   })
-  return <AgentSteps steps={steps} scope={scope} />
+  return <AgentSteps steps={steps} scope={scope} threadId={threadId} />
 }
 
 type ThreadReply = { id: string; role: string; metadata: { custom: unknown } }

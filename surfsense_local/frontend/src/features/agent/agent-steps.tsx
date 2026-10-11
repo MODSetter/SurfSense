@@ -7,6 +7,8 @@ import {
   CircleAlertIcon,
 } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { mayBePluginStep } from "@/features/plugins/plugin-of-step"
+import { PluginStepLine } from "@/features/plugins/plugin-step-line"
 import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -46,12 +48,24 @@ function StepStatus({ status }: { status: AgentStep["status"] }) {
  *  reply, and a step keeps its object until it changes. */
 const StepLine = memo(function StepLine({
   step,
+  threadId,
   sourceTitle,
 }: {
   step: AgentStep
+  threadId: number | null
   sourceTitle: (documentId: number) => string | null
 }) {
   const openArtifact = useOpenArtifact()
+  if (threadId !== null && mayBePluginStep(step.tool)) {
+    return (
+      <PluginStepLine
+        step={step}
+        threadId={threadId}
+        status={<StepStatus status={step.status} />}
+        fallback={stepLabel(step, sourceTitle)}
+      />
+    )
+  }
   const detail = step.error ?? step.output
   const line = (
     <span className="flex min-w-0 items-center gap-2">
@@ -102,9 +116,12 @@ const StepLine = memo(function StepLine({
 export function AgentSteps({
   steps,
   scope = null,
+  threadId = null,
 }: {
   steps: AgentStep[]
   scope?: TurnSources | null
+  /** Where a plugin step reads its whole result and saves it; none while a turn is unsaved. */
+  threadId?: number | null
 }) {
   const sourceTitle = useCallback(
     (documentId: number) => {
@@ -125,7 +142,12 @@ export function AgentSteps({
       className="mb-3 flex flex-col text-sm text-muted-foreground"
     >
       {steps.map((step) => (
-        <StepLine key={step.id} step={step} sourceTitle={sourceTitle} />
+        <StepLine
+          key={step.id}
+          step={step}
+          threadId={threadId}
+          sourceTitle={sourceTitle}
+        />
       ))}
     </ol>
   )
