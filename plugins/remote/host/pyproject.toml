@@ -13,6 +13,8 @@ dependencies = [
     "httpx2>=2.10.0",
     # Passes a Stop to the copy of the host running the call.
     "redis>=5.2",
+    # The scraper plugins' fetchers and stealth browsers; `scrapling install` adds the browsers.
+    "scrapling[fetchers]>=0.4.11,<0.5",
 ]
 
 [dependency-groups]

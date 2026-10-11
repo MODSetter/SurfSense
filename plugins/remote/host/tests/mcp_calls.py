@@ -15,12 +15,24 @@ async def tool_names(url: str, headers: dict[str, str] | None = None) -> list[st
         return [tool.name for tool in (await client.list_tools()).tools]
 
 
-async def call(url: str, tool: str, arguments: dict[str, Any]) -> Any:
+async def call(
+    url: str,
+    tool: str,
+    arguments: dict[str, Any],
+    headers: dict[str, str] | None = None,
+    progress: list[float] | None = None,
+) -> Any:
+    """`progress` collects each progress notification the call sends."""
+
+    async def heard(value: float, total: float | None, message: str | None) -> None:
+        if progress is not None:
+            progress.append(value)
+
     async with (
-        httpx2.AsyncClient() as http,
+        httpx2.AsyncClient(headers=headers or {}) as http,
         Client(streamable_http_client(url, http_client=http)) as client,
     ):
-        return await client.call_tool(tool, arguments)
+        return await client.call_tool(tool, arguments, progress_callback=heard)
 
 
 # What opencode's client sends: the 2025-11-25 handshake, over Streamable HTTP.

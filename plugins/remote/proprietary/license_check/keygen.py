@@ -1,6 +1,6 @@
 """Keygen's validate-key action, which needs no token: the key is the credential."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import httpx2
 
@@ -17,8 +17,9 @@ class KeygenUnreachableError(Exception):
 
 @dataclass(frozen=True)
 class Keygen:
-    api_url: str = KEYGEN_API_URL
-    account_id: str = SURFSENSE_ACCOUNT_ID
+    # Read when made, not when defined, so a test can point a plugin at a stand-in.
+    api_url: str = field(default_factory=lambda: KEYGEN_API_URL)
+    account_id: str = field(default_factory=lambda: SURFSENSE_ACCOUNT_ID)
 
     def __post_init__(self) -> None:
         if not self.account_id:
