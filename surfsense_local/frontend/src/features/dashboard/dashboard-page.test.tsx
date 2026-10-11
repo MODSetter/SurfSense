@@ -1115,10 +1115,9 @@ describe("dashboard chat", () => {
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
+    // An open chat lists both modes; the other one opens a new chat.
     await user.click(
-      await screen.findByRole("menuitem", {
-        name: /^Start a new chat in Agentic mode/,
-      })
+      await screen.findByRole("menuitemradio", { name: /^Agentic/ })
     )
 
     expect(
