@@ -1,6 +1,6 @@
 """Modular residential / rotating proxy provider package.
 
-Selects a provider via the ``PROXY_PROVIDER`` env var (see ``registry.py``) and
+Selects a provider via the ``SCRAPING_PROXY_PROVIDER`` env var (see ``registry.py``) and
 exposes proxy settings in the formats different HTTP libraries expect. Add new
 vendors by implementing :class:`ProxyProvider` in ``providers/`` and registering
 them in ``registry.py``.
@@ -35,14 +35,6 @@ def get_requests_proxies() -> dict[str, str] | None:
     return get_active_provider().get_requests_proxies()
 
 
-def is_pool_backed() -> bool:
-    """Whether the active provider rotates across a client-side pool of endpoints.
-
-    The crawler gates its bounded proxy-error rotation-retry on this.
-    """
-    return get_active_provider().is_pool_backed
-
-
 def get_residential_proxy_url() -> str | None:
     """Backward-compatible alias for :func:`get_proxy_url`."""
     return get_proxy_url()
@@ -57,5 +49,4 @@ __all__ = [
     "get_requests_proxies",
     "get_residential_proxy_url",
     "get_sticky_proxy_url",
-    "is_pool_backed",
 ]

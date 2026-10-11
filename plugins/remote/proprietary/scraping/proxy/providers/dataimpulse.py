@@ -1,16 +1,13 @@
 """DataImpulse residential / rotating proxy provider.
 
-Takes the shared ``PROXY_URL`` env, exactly like the BYO ``custom`` provider —
-the format is uniform, paste it straight from the vendor dashboard. What makes
-this a *named* provider rather than just ``custom`` is the vendor-specific
-knowledge it layers on top of that URL:
+Takes the shared ``SCRAPING_PROXY_URL`` env, pasted straight from the vendor
+dashboard, and layers the vendor's knowledge on top of that URL:
 
 * :meth:`get_location` reads DataImpulse's ``__cr.<country>`` username suffix so
-  the crawler's geoip-match can align the browser locale with the exit country
-  (``custom`` can't — it treats the URL as opaque).
+  the crawler's geoip-match can align the browser locale with the exit country.
 
-Rotation happens server-side (a fresh exit IP per request on the default pool
-port), so this is NOT :pyattr:`~ProxyProvider.is_pool_backed`.
+Rotation happens server-side: a fresh exit IP per request on the default pool
+port.
 
 Example URL::
 
@@ -51,7 +48,7 @@ def _safe_country(country: str | None) -> str | None:
 
 
 class DataImpulseProvider(ProxyProvider):
-    """Provider for a DataImpulse proxy URL in the shared ``PROXY_URL`` env."""
+    """Provider for a DataImpulse proxy URL in the shared ``SCRAPING_PROXY_URL`` env."""
 
     name = "dataimpulse"
 

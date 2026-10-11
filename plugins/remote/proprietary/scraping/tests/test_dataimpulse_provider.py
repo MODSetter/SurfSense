@@ -1,6 +1,6 @@
 """Unit tests for the DataImpulseProvider.
 
-Takes a single full URL (like ``custom``); the vendor-specific bit is parsing the
+Takes a single full URL; the vendor-specific bit is parsing the
 ``__cr.<country>`` username suffix for :meth:`get_location`. Playwright/requests
 shapes come from the shared base parse, so a couple of checks cover the wiring.
 """
@@ -22,7 +22,6 @@ def test_returns_configured_url(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Config, "PROXY_URL", _URL)
     provider = DataImpulseProvider()
 
-    assert provider.is_pool_backed is False
     assert provider.get_proxy_url() == _URL
     assert provider.get_requests_proxies() == {"http": _URL, "https": _URL}
 

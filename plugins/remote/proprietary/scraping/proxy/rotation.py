@@ -9,9 +9,8 @@ worldwide pool therefore burns every rotation on cookie-less IPs and fails.
 
 Walking a spread of country pools instead lets the flow escape a wholly-blocked
 pool. The provider's configured country leads (so an operator's choice is
-honoured first); the fallbacks are large, reliable residential pools. Non-geo
-providers (e.g. the custom single-URL provider) ignore the country and re-draw
-their one URL, so this is a harmless no-op there.
+honoured first); the fallbacks are large, reliable residential pools. With no
+proxy configured, the country is ignored, so this is a harmless no-op there.
 """
 
 from __future__ import annotations

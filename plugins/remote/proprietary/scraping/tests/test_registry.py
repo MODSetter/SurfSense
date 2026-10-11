@@ -1,15 +1,9 @@
-"""Unit tests for proxy provider selection.
-
-``PROXY_PROVIDER`` selects the single app-wide provider; ``custom`` (the default),
-``dataimpulse`` and ``nodemaven`` are registered, and unknown values still warn and fall back
-to the default.
-"""
+"""Which proxy provider the scrapers use: the vendor SCRAPING_PROXY_PROVIDER names, or none."""
 
 import pytest
 
 from proprietary.scraping.config import Config
-from proprietary.scraping.proxy import registry
-from proprietary.scraping.proxy.providers.custom import CustomProxyProvider
+from proprietary.scraping.proxy import get_proxy_url, get_sticky_proxy_url, registry
 from proprietary.scraping.proxy.providers.dataimpulse import DataImpulseProvider
 from proprietary.scraping.proxy.providers.nodemaven import NodeMavenProvider
 
@@ -20,9 +14,15 @@ def _reset_active_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(registry, "_active_provider", None)
 
 
-def test_resolves_custom(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(Config, "PROXY_PROVIDER", "custom")
-    assert isinstance(registry.get_active_provider(), CustomProxyProvider)
+@pytest.mark.parametrize("unset", [None, "", "  "])
+def test_no_provider_scrapes_direct(
+    monkeypatch: pytest.MonkeyPatch, unset: str | None
+) -> None:
+    """Development and tests: no vendor, so no proxy, sticky or not."""
+    monkeypatch.setattr(Config, "PROXY_PROVIDER", unset)
+
+    assert get_proxy_url() is None
+    assert get_sticky_proxy_url("s1", "us") is None
 
 
 def test_resolves_dataimpulse(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,10 +31,13 @@ def test_resolves_dataimpulse(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_resolves_nodemaven(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(Config, "PROXY_PROVIDER", "nodemaven")
+    monkeypatch.setattr(Config, "PROXY_PROVIDER", " nodemaven ")
     assert isinstance(registry.get_active_provider(), NodeMavenProvider)
 
 
-def test_unknown_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(Config, "PROXY_PROVIDER", "does_not_exist")
-    assert isinstance(registry.get_active_provider(), CustomProxyProvider)
+def test_an_unknown_provider_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A typo must not quietly scrape from the container's own address."""
+    monkeypatch.setattr(Config, "PROXY_PROVIDER", "custom")
+
+    with pytest.raises(ValueError, match="custom"):
+        registry.get_active_provider()

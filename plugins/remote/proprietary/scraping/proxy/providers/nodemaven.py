@@ -1,6 +1,6 @@
 """NodeMaven residential / rotating proxy provider.
 
-Takes the shared ``PROXY_URL`` env, like ``custom`` and ``dataimpulse``. What it
+Takes the shared ``SCRAPING_PROXY_URL`` env, like ``dataimpulse``. What it
 adds is NodeMaven's username syntax, ``<login>-<param>-<value>-...``:
 
 * :meth:`get_location` reads the ``-country-<cc>`` parameter so the crawler's
@@ -8,8 +8,7 @@ adds is NodeMaven's username syntax, ``<login>-<param>-<value>-...``:
 * Country routing and sticky sessions rewrite the username with
   ``-country-<cc>`` and ``-sid-<id>``.
 
-Rotation happens server-side (a fresh exit IP per connection without ``sid``),
-so this is NOT :pyattr:`~ProxyProvider.is_pool_backed`.
+Rotation happens server-side: a fresh exit IP per connection without ``sid``.
 
 Example URL::
 
@@ -47,7 +46,7 @@ def _safe_country(country: str | None) -> str | None:
 
 
 class NodeMavenProvider(ProxyProvider):
-    """Provider for a NodeMaven proxy URL in the shared ``PROXY_URL`` env."""
+    """Provider for a NodeMaven proxy URL in the shared ``SCRAPING_PROXY_URL`` env."""
 
     name = "nodemaven"
 

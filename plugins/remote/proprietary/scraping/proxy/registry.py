@@ -1,15 +1,15 @@
 """Proxy provider registry.
 
-Maps the ``PROXY_PROVIDER`` config value to a :class:`ProxyProvider`
-implementation. To add a new vendor: implement a provider in ``providers/`` and
-add a single entry to ``_PROVIDERS`` below - no caller changes required.
+Maps ``SCRAPING_PROXY_PROVIDER`` to the vendor whose URL format the scrapers
+rewrite for sticky sessions and countries. Unset, they scrape direct, as in
+development and tests. To add a vendor: implement a provider in ``providers/``
+and add it to ``_PROVIDERS`` below.
 """
 
 import logging
 
 from proprietary.scraping.config import Config
 from proprietary.scraping.proxy.base import ProxyProvider
-from proprietary.scraping.proxy.providers.custom import CustomProxyProvider
 from proprietary.scraping.proxy.providers.dataimpulse import DataImpulseProvider
 from proprietary.scraping.proxy.providers.nodemaven import NodeMavenProvider
 
@@ -17,34 +17,48 @@ logger = logging.getLogger(__name__)
 
 # Registered proxy providers, keyed by their ``name``.
 _PROVIDERS: dict[str, type[ProxyProvider]] = {
-    CustomProxyProvider.name: CustomProxyProvider,
     DataImpulseProvider.name: DataImpulseProvider,
     NodeMavenProvider.name: NodeMavenProvider,
 }
 
-# BYO ``custom`` is the neutral default: it needs no vendor and returns no proxy
-# until PROXY_URL(S) is set, so an unconfigured install simply runs direct.
-_DEFAULT_PROVIDER = CustomProxyProvider.name
+
+class _Direct(ProxyProvider):
+    """No vendor configured: every scrape goes from the container's own address."""
+
+    name = ""
+
+    def get_proxy_url(self) -> str | None:
+        return None
+
 
 _active_provider: ProxyProvider | None = None
 
 
 def get_active_provider() -> ProxyProvider:
-    """Return the configured proxy provider instance (cached for the process)."""
+    """The configured provider, cached for the process.
+
+    An unknown name is an error rather than a fallback: SurfSense hosts these
+    scrapers itself, and a typo must not quietly scrape without a proxy.
+    """
     global _active_provider
     if _active_provider is not None:
         return _active_provider
 
-    key = (Config.PROXY_PROVIDER or _DEFAULT_PROVIDER).strip()
+    key = (Config.PROXY_PROVIDER or "").strip()
+    if not key:
+        _active_provider = _Direct()
+        return _active_provider
     provider_cls = _PROVIDERS.get(key)
     if provider_cls is None:
-        logger.warning(
-            "Unknown PROXY_PROVIDER '%s'; falling back to '%s'. Available: %s",
-            key,
-            _DEFAULT_PROVIDER,
-            ", ".join(sorted(_PROVIDERS)),
+        raise ValueError(
+            f"Unknown SCRAPING_PROXY_PROVIDER '{key}'. "
+            f"Available: {', '.join(sorted(_PROVIDERS))}"
         )
-        provider_cls = _PROVIDERS[_DEFAULT_PROVIDER]
-
     _active_provider = provider_cls()
+    if _active_provider.get_proxy_url() is None:
+        logger.warning(
+            "SCRAPING_PROXY_PROVIDER='%s' but SCRAPING_PROXY_URL is unset; "
+            "scrapes will run without a proxy.",
+            key,
+        )
     return _active_provider

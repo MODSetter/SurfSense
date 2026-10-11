@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 class ProxyProvider(ABC):
     """Interface every proxy provider must implement."""
 
-    #: Unique key used to select this provider via the ``PROXY_PROVIDER`` env var.
+    #: Unique key used to select this provider via the ``SCRAPING_PROXY_PROVIDER`` env var.
     name: str = "base"
 
     @abstractmethod
@@ -90,20 +90,7 @@ class ProxyProvider(ABC):
 
         Vendor-agnostic hook the crawler's geoip-match (``03e``) uses to align the
         browser locale/timezone with the exit IP's country. Default ``""``
-        (unknown) for providers that don't pin a region (e.g. BYO ``custom`` URLs,
-        where the region is baked opaquely into the URL). Override in providers
+        (unknown) for providers that don't pin a region. Override in providers
         that hold the region as a discrete field.
         """
         return ""
-
-    @property
-    def is_pool_backed(self) -> bool:
-        """Whether this provider rotates across a *client-side* pool of endpoints.
-
-        ``False`` for single-endpoint providers (including server-side rotating
-        gateways like ``dataimpulse``, whose rotation happens upstream). The
-        crawler performs its bounded proxy-error rotation-retry **only** when this
-        is ``True`` — retrying a single static endpoint would just re-hit the same
-        dead proxy.
-        """
-        return False

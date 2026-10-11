@@ -1,6 +1,6 @@
 """Unit tests for the NodeMavenProvider.
 
-Takes a single full URL (like ``custom``); the vendor-specific bit is the
+Takes a single full URL; the vendor-specific bit is the
 ``-country-<cc>`` / ``-sid-<id>`` username syntax used for geoip-match, country
 routing and sticky sessions.
 """
@@ -22,7 +22,6 @@ def test_returns_configured_url(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Config, "PROXY_URL", _URL)
     provider = NodeMavenProvider()
 
-    assert provider.is_pool_backed is False
     assert provider.get_proxy_url() == _URL
     assert provider.get_requests_proxies() == {"http": _URL, "https": _URL}
 
