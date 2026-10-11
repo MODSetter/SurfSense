@@ -4,12 +4,8 @@ Author it with the pre-installed `$library` package and the standard library. De
 $focus
 $skill
 
-The script MUST, at module level:
+The script's first line is a comment naming the document: `# title: <a short title>`.
 
-- assign the finished file's bytes to `output_bytes`;
-- assign a short `title` string;
-- assign a `summary` string: a faithful Markdown outline of the content, for search.
-
-Build everything in memory: do not read or write files on disk, and do not use the network.
+It runs alone in an empty folder for at most 120 seconds: write the content into the script, and save the file at the path in the `OUTPUT_PATH` environment variable. Use only the standard library and $library. No network.
 
 Return only the Python code. No prose before it, no explanation after it.

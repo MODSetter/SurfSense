@@ -38,4 +38,4 @@ The runner and the agent's side are built on `dev_mod` ([the create-and-edit sli
 
 - **Studio's Word and PDF.** A strong model's script runs through the runner and is kept as the version's spec; a small model writes Markdown that committed builders render ([studio](../architecture/studio.md#word-and-pdf)).
 
-Not yet: Studio's PowerPoint and Excel still run with `exec()` in [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py), and nothing blocks a script's network access or the processes it starts.
+Not yet: Studio's PowerPoint and Excel still run with `exec()` in [`office/runner.py`](https://github.com/MODSetter/SurfSense/blob/0847e12f723394ff8343e586c074d6ebb3541fed/surfsense_local/backend/worker/studio/office/runner.py), and nothing blocks a script's network access or the processes it starts.
