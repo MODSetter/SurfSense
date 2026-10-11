@@ -70,6 +70,11 @@ export interface Booted {
   waitHealthy: () => Promise<void>
 }
 
+/**
+ * Pick ports, assemble the context, start the sidecars and install the file
+ * watchers. Returns before the API is confirmed healthy: the caller holds the
+ * handles, so a failed startup still reaps every child and stops every watcher.
+ */
 export async function bootSidecars(
   context: BootContext,
   onCrash: CrashHandler,
@@ -179,6 +184,7 @@ export async function bootSidecars(
 // opencode; a crash restarts it, at most once per AGENT_RESTART_MS.
 const AGENT_RESTART_MS = 10_000
 
+/** Follow the agent config file: start opencode when it appears, stop it when it is gone. */
 function watchAgentConfig(options: {
   ctx: SidecarContext
   control: SidecarControl
@@ -190,6 +196,7 @@ function watchAgentConfig(options: {
   const config = opencodeConfigPath(agentDir)
   let lastStart = 0
 
+  /** Bring the running opencode in line with whether the config file exists. */
   const reconcile = async () => {
     if (stopping()) return
     const child = control.running.get(OPENCODE_SIDECAR)

@@ -24,6 +24,7 @@ export function watchGenerationPreset(options: WatcherOptions): () => void {
   const preset = join(ctx.llamacppModelsDir, PRESET_FILE)
   let current = fileStamp(preset)
 
+  /** Restart llama-server if the preset file's stamp changed. */
   const reconcile = async () => {
     if (stopping()) return
     const stamp = fileStamp(preset)

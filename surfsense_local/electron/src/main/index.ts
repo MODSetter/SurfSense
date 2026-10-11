@@ -427,6 +427,7 @@ async function quitWithConfirmation(): Promise<boolean> {
   }
 }
 
+/** Stop watchers and snapshots first, then reap the sidecars they would otherwise restart. */
 async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
@@ -448,6 +449,7 @@ function denyAppWindows(contents: Electron.WebContents): void {
   })
 }
 
+/** Register the app lifecycle: boot sidecars when ready, create the window, and reap everything on quit. */
 function main(): void {
   app.on("web-contents-created", (_event, contents) => {
     denyAppWindows(contents)

@@ -72,6 +72,7 @@ async function until(condition: () => boolean, ms = 3000): Promise<void> {
   }
 }
 
+/** Wait long enough for one short-interval poll to have run. */
 const settle = (ms = 40): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 

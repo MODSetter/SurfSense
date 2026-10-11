@@ -54,6 +54,7 @@ const mirror = createEcho()
 // children we asked to stop; their `exit` is a stop, not a crash
 const stopping = new WeakSet<ChildProcess>()
 
+/** Spawn one spec, mirror its output to the terminal and the session log, and tell a crash apart from an asked-for stop. */
 function spawnOne(
   spec: SidecarSpec,
   onCrash?: CrashHandler,
@@ -91,6 +92,7 @@ function spawnOne(
   return child
 }
 
+/** Spawn every spec up front, keyed by name. */
 export function startAll(
   specs: SidecarSpec[],
   onCrash?: CrashHandler,
@@ -157,6 +159,7 @@ export interface WatcherOptions {
   pollMs?: number
 }
 
+/** Ask one child to stop, kill its group if it ignores SIGTERM, and resolve once it exits. */
 function stopOne(child: ChildProcess, timeoutMs: number): Promise<void> {
   return new Promise((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null || child.pid == null) {
@@ -197,6 +200,7 @@ function killGroup(pid: number): void {
   }
 }
 
+/** Stop every sidecar in parallel, each waiting out its own timeout. */
 export async function stopAll(children: Sidecars, timeoutMs = 5000): Promise<void> {
   await Promise.all([...children.values()].map((c) => stopOne(c, timeoutMs)))
 }

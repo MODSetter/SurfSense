@@ -18,6 +18,7 @@ export function watchAudioModels(options: WatcherOptions): () => void {
   const config = join(ctx.audioModelsDir, SERVER_CONFIG)
   let current = fileStamp(config)
 
+  /** Restart audiocpp if the model config's stamp changed. */
   const reconcile = async () => {
     if (stopping()) return
     const stamp = fileStamp(config)

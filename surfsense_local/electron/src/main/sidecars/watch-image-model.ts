@@ -20,6 +20,7 @@ export function watchImageModel(options: WatcherOptions): () => void {
   const endpoint = `http://${ctx.host}:${ctx.apiPort}/llm/image/local/runtime`
   let current: string | null = null
 
+  /** Start, restart or stop sd-server to match the API's chosen runtime. */
   const reconcile = async () => {
     if (stopping()) return
     const response = await fetch(endpoint)
