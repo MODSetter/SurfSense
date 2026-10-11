@@ -39,6 +39,7 @@ function step(status: string, extra: Record<string, unknown> = {}) {
   return {
     type: "agent-step",
     id: "prt_1",
+    call_id: "call_1",
     tool: "bash",
     status,
     title: null,
@@ -47,14 +48,20 @@ function step(status: string, extra: Record<string, unknown> = {}) {
   }
 }
 
-function asked(id: string, command = "echo hi") {
+function asked(id: string, command = "echo hi", callId: string | null = null) {
   return {
     type: "permission-request",
     id,
     permission: "bash",
     patterns: [command],
     command,
+    call_id: callId,
   }
+}
+
+/** The approval the thread shows inline, waiting on the user. */
+function approval() {
+  return screen.findByRole("group", { name: "Approval needed" })
 }
 
 const sse = (frames: unknown[]) =>
@@ -260,9 +267,9 @@ describe("an agent thread", () => {
     expect(await screen.findByText("It printed hi.")).toBeTruthy()
   })
 
-  it("runs a shell command only once the user allows it", async () => {
+  it("runs a shell command only once the user allows it, asked on its step", async () => {
     const state = backend({
-      first: [ACCEPTED, step("running"), asked("per_1")],
+      first: [ACCEPTED, step("running"), asked("per_1", "echo hi", "call_1")],
       rest: [
         { type: "permission-replied", id: "per_1", reply: "once" },
         step("completed", { output: "hi\n" }),
@@ -273,23 +280,28 @@ describe("an agent thread", () => {
     renderAgentThread()
     const user = await ask("Run it")
 
-    const dialog = await screen.findByRole("alertdialog", {
-      name: "Run a shell command?",
-    })
-    expect(within(dialog).getByText("echo hi")).toBeTruthy()
-    await user.click(within(dialog).getByRole("button", { name: "Allow once" }))
+    const waiting = await approval()
+    expect(within(waiting).getByText("echo hi")).toBeTruthy()
+    // On the step it holds back, in the reply, not over the thread.
+    expect(waiting.closest("li")?.textContent).toContain("Ran")
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+    await user.click(
+      within(waiting).getByRole("button", { name: "Allow once" })
+    )
 
     await waitFor(() => {
       expect(state.answers).toEqual([{ requestId: "per_1", reply: "once" }])
     })
     await waitFor(() => {
-      expect(screen.queryByRole("alertdialog")).toBeNull()
+      expect(
+        screen.queryByRole("group", { name: "Approval needed" })
+      ).toBeNull()
     })
   })
 
-  it("denies the command when the user says no or closes the prompt", async () => {
+  it("denies the command when the user says no", async () => {
     const state = backend({
-      first: [ACCEPTED, step("running"), asked("per_1")],
+      first: [ACCEPTED, step("running"), asked("per_1", "echo hi", "call_1")],
       rest: [
         { type: "permission-replied", id: "per_1", reply: "reject" },
         step("error", { error: "The user rejected permission" }),
@@ -300,15 +312,16 @@ describe("an agent thread", () => {
     renderAgentThread()
     const user = await ask("Run it")
 
-    await screen.findByRole("alertdialog", { name: "Run a shell command?" })
-    await user.keyboard("{Escape}")
+    await user.click(
+      within(await approval()).getByRole("button", { name: "Deny" })
+    )
 
     await waitFor(() => {
       expect(state.answers).toEqual([{ requestId: "per_1", reply: "reject" }])
     })
   })
 
-  it("says that denying one request denies the others waiting", async () => {
+  it("asks in the reply for a request that names no step, and says denying one denies the others", async () => {
     backend({
       first: [ACCEPTED, asked("per_1", "echo one"), asked("per_2", "echo two")],
       waitFor: ["per_1", "per_2"],
@@ -316,14 +329,44 @@ describe("an agent thread", () => {
     renderAgentThread()
     await ask("Run both")
 
-    const dialog = await screen.findByRole("alertdialog", {
-      name: "Run a shell command?",
+    const waiting = await screen.findAllByRole("group", {
+      name: "Approval needed",
     })
+    expect(waiting).toHaveLength(2)
     expect(
-      within(dialog).getByText(
+      within(waiting[0]).getByText(
         "Denying also denies 1 other request waiting in this chat."
       )
     ).toBeTruthy()
+  })
+
+  it("shows a plugin call's inputs on the step it asks about", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        step("running", {
+          id: "prt_2",
+          call_id: "call_2",
+          tool: "notes_count",
+          input: { text: "a b c" },
+        }),
+        {
+          type: "permission-request",
+          id: "per_3",
+          permission: "notes_count",
+          patterns: ["*"],
+          command: null,
+          call_id: "call_2",
+        },
+      ],
+      waitFor: ["per_3"],
+    })
+    renderAgentThread()
+    await ask("Count it")
+
+    const waiting = await approval()
+    expect(within(waiting).getByText(/text: a b c/)).toBeTruthy()
+    expect(within(waiting).queryByText("*")).toBeNull()
   })
 
   it("shows the sources a turn works from as it is sent", async () => {

@@ -23,7 +23,7 @@ A chat thread can be the agent's. opencode, started by Electron, then answers it
 | Client | `opencode_client/` | the only code that knows opencode 1.x's HTTP API |
 | Threads | `agent_threads/`, and the chat routes that hand over to it | opening, sending to, reading and deleting an agent thread ([chat](chat.md#agent-threads)) |
 | Ticked sources | `agent_threads/turn_sources.py`, `agent_threads/scope_note.py`, `tool_endpoint/turn_scope.py` | the sources a thread may use, mirrored into its folder, told to the model and held to by the tools |
-| Screen | `frontend/src/features/agent/` | a reply's steps, the versions it made, the sources a turn works from, and the approval dialog |
+| Screen | `frontend/src/features/agent/` | a reply's steps, the versions it made, the sources a turn works from, and the approvals asked on them |
 
 ## Which threads get it
 
@@ -227,7 +227,7 @@ The chat panel sends the sources ticked in the sources panel with every message,
 
 ## Approvals
 
-The agent has no shell, so it asks for no command. A plugin's tool whose rule is `ask` asks, named as opencode names it ([plugins](#plugins)). opencode still asks for a permission left at its default, such as `doom_loop` when the same tool call with the same input comes a third time in a row. The request reaches the thread as `permission-request`. The screen shows the oldest waiting one in an alert dialog, with Deny and Allow once, and Esc answering Deny. The answer goes to `POST /chat/threads/{thread_id}/permissions/{request_id}`, which passes `once` or `reject` to opencode. SurfSense never answers `always`. opencode rejects every other request waiting in the same session when one is rejected, and the dialog says so when others wait.
+The agent has no shell, so it asks for no command. A plugin's tool whose rule is `ask` asks, named as opencode names it ([plugins](#plugins)). opencode still asks for a permission left at its default, such as `doom_loop` when the same tool call with the same input comes a third time in a row. The request reaches the thread as `permission-request`, with `call_id`, the tool call it holds back, from opencode's `tool.callID`; each `agent-step` carries its own `call_id` from the tool part. The reply asks on that step, in the thread rather than over it ([`inline-approval.tsx`](../../surfsense_local/frontend/src/features/agent/inline-approval.tsx)): under the step's line, what it will run (a command, the call's inputs as `key: value`, or the paths opencode names, never a bare `*`), with Deny and Allow once, scrolled into view when it appears. A request naming no step is asked at the end of the latest reply. The open thread's requests reach its replies through a context the dashboard provides ([`approvals-context.ts`](../../surfsense_local/frontend/src/features/agent/approvals-context.ts)). The answer goes to `POST /chat/threads/{thread_id}/permissions/{request_id}`, which passes `once` or `reject` to opencode. SurfSense never answers `always`. opencode rejects every other request waiting in the same session when one is rejected, and each ask says so when others wait.
 
 ## Plugins
 

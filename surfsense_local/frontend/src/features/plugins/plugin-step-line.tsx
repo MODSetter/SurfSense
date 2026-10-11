@@ -36,11 +36,14 @@ export function PluginStepLine({
   threadId,
   status,
   fallback,
+  ask,
 }: {
   step: AgentStep
   threadId: number
   status: ReactNode
   fallback: ReactNode
+  /** A request the step waits on, shown under it. */
+  ask?: ReactNode
 }) {
   const found = usePluginOfStep(step.tool)
   const [open, setOpen] = useState(false)
@@ -118,6 +121,7 @@ export function PluginStepLine({
           ) : null}
         </div>
       </details>
+      {ask}
     </li>
   )
 }

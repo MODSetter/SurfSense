@@ -1,6 +1,6 @@
 # Trust
 
-> Owns: approval and per-tool permissions in the gateway, the approval dialog's plugin variant, the activity view, organisation policy hooks.
+> Owns: approval and per-tool permissions in the gateway, the plugin variant of the inline approval, the activity view, organisation policy hooks.
 > Related: [`02-registry.md`](02-registry.md) (review, allowing third-party plugins, tools added later), [`../remote/README.md`](../remote/README.md) (credentials, egress).
 
 ## What a remote plugin can and cannot do
@@ -27,7 +27,7 @@ The gateway decides whether a call must be approved, from the tool's MCP annotat
 
 This follows Claude's connectors, where a new tool needs approval until the user allows it always, and only a tool annotated read-only skips it.
 
-- In an agent thread, opencode asks. Each turn, SurfSense gives opencode a rule per plugin tool with its server, `allow`, `ask` or `deny` as the gateway decided, every unreviewed tool denied ([`03-engines.md`](03-engines.md#each-turn)), so a plugin call is asked about through the agent's own permission prompt: opencode's request, the turn's `permission-request` frame, the agent's approval dialog ([`approval-dialog.tsx`](../../../../surfsense_local/frontend/src/features/agent/approval-dialog.tsx)) with the plugin, its publisher badge, the tool's title and the exact arguments, and the thread's permission route back to opencode.
+- In an agent thread, opencode asks. Each turn, SurfSense gives opencode a rule per plugin tool with its server, `allow`, `ask` or `deny` as the gateway decided, every unreviewed tool denied ([`03-engines.md`](03-engines.md#each-turn)), so a plugin call is asked about through the agent's own permission prompt: opencode's request, the turn's `permission-request` frame, and the ask on the step it holds back, inline in the reply ([`inline-approval.tsx`](../../../../surfsense_local/frontend/src/features/agent/inline-approval.tsx)) with the plugin, its publisher badge, the tool's title and the exact arguments, and the thread's permission route back to opencode.
 - The prompt offers Allow once or Deny, never "always": SurfSense does not answer the agent with "always" ([ADR 0028](../../../adr/0028-model-written-code-runs-with-approval.md)). Always allow is a setting of the tool, stored as `plugin_tools.approval` (`always`, otherwise `ask`), set and revoked in Settings → Plugins, and it reaches opencode as `allow` at the next turn.
 - An `@` mention asks as any call does: the agent chose the inputs, not the user ([`03-engines.md`](03-engines.md#-mentions)).
 - A call not answered before its deadline ends `denied`, and the model is told the user did not answer.

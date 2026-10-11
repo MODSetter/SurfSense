@@ -16,6 +16,8 @@ export type RenderedArtifact = {
 /** One tool call the agent made, as `agent-step` frames and `content.steps` carry it. */
 export type AgentStep = {
   id: string
+  /** The tool call's id, which an approval names to be asked on this step. */
+  call_id?: string | null
   tool: string | null
   status: "pending" | "running" | "completed" | "error"
   title: string | null
@@ -52,6 +54,8 @@ export type PermissionRequest = {
   permission: string
   patterns: string[]
   command: string | null
+  /** The tool call it holds back; null when it names none. */
+  call_id: string | null
 }
 
 /** The user's answer; there is no "always" (ADR 0028). */

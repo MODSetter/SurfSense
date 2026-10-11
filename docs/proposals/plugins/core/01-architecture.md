@@ -108,7 +108,7 @@ Added later, each with the feature that needs it, without changing these tables:
 | `GET` | `/plugins/{id}/calls` | The plugin's recent calls in agent threads, read from their sessions, for its activity view |
 | `POST` | `/chat/threads/{thread}/plugin-steps/{step}/save` | Saves a plugin step's result to Sources ([`03-engines.md`](03-engines.md#save-to-sources)) |
 
-In agent threads approval is asked through opencode's own permission prompt and answered on the thread's existing permission route ([`04-trust.md`](04-trust.md#approval)), so the plugin routes need none of their own.
+In agent threads approval is opencode's own request, asked on its step in the reply and answered on the thread's existing permission route ([`04-trust.md`](04-trust.md#approval)), so the plugin routes need none of their own.
 
 ## Acceptance
 

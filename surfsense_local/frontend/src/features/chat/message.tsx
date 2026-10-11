@@ -217,6 +217,9 @@ function MessageSteps() {
   const threadId = useAuiState(({ message }) =>
     threadIdFrom(message.metadata.custom)
   )
+  const latest = useAuiState(
+    ({ thread, message }) => message.index === thread.messages.length - 1
+  )
   // The turn's sources are kept on the user's message this reply answers.
   const scope = useAuiState(({ thread, message }) => {
     for (let index = message.index - 1; index >= 0; index -= 1) {
@@ -225,7 +228,14 @@ function MessageSteps() {
     }
     return null
   })
-  return <AgentSteps steps={steps} scope={scope} threadId={threadId} />
+  return (
+    <AgentSteps
+      steps={steps}
+      scope={scope}
+      threadId={threadId}
+      latest={latest}
+    />
+  )
 }
 
 type ThreadReply = { id: string; role: string; metadata: { custom: unknown } }

@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react"
+import { memo, useCallback, type ReactNode } from "react"
 
 import {
   ArrowRightIcon,
@@ -13,7 +13,9 @@ import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
+import { useAgentApprovals } from "./approvals-context"
 import type { AgentStep, TurnSources } from "./api"
+import { InlineApproval } from "./inline-approval"
 import { stepLabel } from "./step-label"
 
 function StepStatus({ status }: { status: AgentStep["status"] }) {
@@ -45,15 +47,18 @@ function StepStatus({ status }: { status: AgentStep["status"] }) {
 /** One step: what it did, and what it returned, folded until asked for. A
  *  step that made a document opens it instead of folding what it returned,
  *  which was written for the model. Memoized: a streamed token re-renders the
- *  reply, and a step keeps its object until it changes. */
+ *  reply, and a step keeps its object until it changes. `ask` is a request
+ *  the step waits on, shown under it. */
 const StepLine = memo(function StepLine({
   step,
   threadId,
   sourceTitle,
+  ask,
 }: {
   step: AgentStep
   threadId: number | null
   sourceTitle: (documentId: number) => string | null
+  ask?: ReactNode
 }) {
   const openArtifact = useOpenArtifact()
   if (threadId !== null && mayBePluginStep(step.tool)) {
@@ -63,6 +68,7 @@ const StepLine = memo(function StepLine({
         threadId={threadId}
         status={<StepStatus status={step.status} />}
         fallback={stepLabel(step, sourceTitle)}
+        ask={ask}
       />
     )
   }
@@ -85,11 +91,17 @@ const StepLine = memo(function StepLine({
           {line}
           <ArrowRightIcon className="size-3.5 shrink-0" />
         </button>
+        {ask}
       </li>
     )
   }
   if (!detail || made) {
-    return <li className="py-0.5">{line}</li>
+    return (
+      <li className="py-0.5">
+        {line}
+        {ask}
+      </li>
+    )
   }
   return (
     <li className="py-0.5">
@@ -107,6 +119,7 @@ const StepLine = memo(function StepLine({
           {detail}
         </pre>
       </details>
+      {ask}
     </li>
   )
 })
@@ -117,12 +130,16 @@ export function AgentSteps({
   steps,
   scope = null,
   threadId = null,
+  latest = false,
 }: {
   steps: AgentStep[]
   scope?: TurnSources | null
   /** Where a plugin step reads its whole result and saves it; none while a turn is unsaved. */
   threadId?: number | null
+  /** The thread's latest reply, which also asks for requests naming no step. */
+  latest?: boolean
 }) {
+  const { approvals, answer } = useAgentApprovals()
   const sourceTitle = useCallback(
     (documentId: number) => {
       const index = scope?.document_ids.indexOf(documentId) ?? -1
@@ -130,7 +147,24 @@ export function AgentSteps({
     },
     [scope]
   )
-  if (steps.length === 0) {
+  const othersWaiting = Math.max(0, approvals.length - 1)
+  const askFor = (request: (typeof approvals)[number], step?: AgentStep) => (
+    <InlineApproval
+      request={request}
+      step={step}
+      othersWaiting={othersWaiting}
+      onAnswer={answer}
+    />
+  )
+  const unnamed = latest
+    ? approvals.filter(
+        (request) =>
+          !steps.some(
+            (step) => step.call_id && step.call_id === request.call_id
+          )
+      )
+    : []
+  if (steps.length === 0 && unnamed.length === 0) {
     return null
   }
   return (
@@ -141,13 +175,24 @@ export function AgentSteps({
       })}
       className="mb-3 flex flex-col text-sm text-muted-foreground"
     >
-      {steps.map((step) => (
-        <StepLine
-          key={step.id}
-          step={step}
-          threadId={threadId}
-          sourceTitle={sourceTitle}
-        />
+      {steps.map((step) => {
+        const request = step.call_id
+          ? approvals.find((waiting) => waiting.call_id === step.call_id)
+          : undefined
+        return (
+          <StepLine
+            key={step.id}
+            step={step}
+            threadId={threadId}
+            sourceTitle={sourceTitle}
+            ask={request ? askFor(request, step) : undefined}
+          />
+        )
+      })}
+      {unnamed.map((request) => (
+        <li key={request.id} className="py-0.5">
+          {askFor(request)}
+        </li>
       ))}
     </ol>
   )
