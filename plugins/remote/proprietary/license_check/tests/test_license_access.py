@@ -94,6 +94,24 @@ async def test_keygen_down_keeps_a_key_valid_this_morning_working() -> None:
         )
 
 
+async def test_a_key_refused_since_it_was_valid_has_no_grace() -> None:
+    """An expired key stays refused while Keygen is down, though it was valid this morning."""
+    keygen = StandInKeygen({"k-1": "VALID"})
+    clock = Clock()
+    with serving(keygen.app) as url:
+        access = LicenseAccess(Keygen(url, ACCOUNT), clock)
+        await access.refusal(license_header("k-1"))
+        keygen.codes["k-1"] = "EXPIRED"
+        clock.now += 300
+        await access.refusal(license_header("k-1"))
+        keygen.down = True
+        clock.now += 300
+
+        assert await access.refusal(license_header("k-1")) == Refusal(
+            503, "license_service_unavailable"
+        )
+
+
 async def test_keygen_unreachable_refuses_a_key_never_seen_for_now() -> None:
     """A 503: the app shows it as temporary, not as a bad license."""
     with serving(StandInKeygen({}).app) as url:

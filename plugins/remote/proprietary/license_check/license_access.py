@@ -52,6 +52,9 @@ class LicenseAccess:
         )
         if refusal is None:
             self._valid_at[key] = now
+        else:
+            # A refusal ends the grace: an expired key must not pass while Keygen is down.
+            self._valid_at.pop(key, None)
         self._checked[key] = (refusal, now)
         return refusal
 
