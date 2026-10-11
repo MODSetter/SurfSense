@@ -62,5 +62,6 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 - No plugin exists: the scraper plugins, one per platform, are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)).
 - No limit on threads or browsers per plugin, and no per-IP limit for a free plugin, since none exists.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
-- No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there are no workers, Redis or Blob Storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
+- No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there is no job runner, Redis or Blob Storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
+- MCP is served with sessions kept in memory, so only one copy of the host can run, and there is no cancel route or `PLUGINS` setting yet ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#scaling)).
 - No registry files, Docker image or Azure deployment.
