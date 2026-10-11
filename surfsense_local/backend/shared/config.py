@@ -139,6 +139,20 @@ class AgentSettings(BaseSettings):
         return bool(self.opencode_url and self.opencode_password)
 
 
+class PluginHostSettings(BaseSettings):
+    """A developer's switch: SURFSENSE_LOCAL_PLUGIN_HOST_URL points SurfSense's own
+    plugins, and the license key, at a plugin host run locally instead."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    plugin_host_url: str | None = None
+
+
+@lru_cache
+def get_plugin_host_settings() -> PluginHostSettings:
+    return PluginHostSettings()
+
+
 @lru_cache
 def get_agent_settings() -> AgentSettings:
     """Cached so the environment is parsed once, not per turn."""

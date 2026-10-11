@@ -41,10 +41,12 @@ class McpSession:
 
     async def _list(self) -> list[RemoteTool]:
         failed_status: list[int] = []
+        reasons: list[str | None] = []
 
         async def record_failure(response: httpx2.Response) -> None:
             if response.status_code >= 400:
                 failed_status.append(response.status_code)
+                reasons.append(await _refusal_reason(response))
 
         try:
             async with self._client(record_failure) as client:
@@ -53,7 +55,8 @@ class McpSession:
             error = unwrapped(raised)
             if isinstance(error, MCPError):
                 status = failed_status[-1] if failed_status else None
-                raise translated(error, status) from error
+                reason = reasons[-1] if reasons else None
+                raise translated(error, status, reason) from error
             if isinstance(error, httpx2.TransportError):
                 raise unreachable(error) from error
             raise
@@ -69,6 +72,18 @@ class McpSession:
             Client(streamable_http_client(self._url, http_client=http)) as client,
         ):
             yield client
+
+
+async def _refusal_reason(response: httpx2.Response) -> str | None:
+    """A 401 or 403's `{"reason": ...}`, which SurfSense's plugin host sends; None otherwise."""
+    if response.status_code not in (401, 403):
+        return None
+    await response.aread()
+    try:
+        reason = response.json().get("reason")
+    except (ValueError, AttributeError):
+        return None
+    return reason if isinstance(reason, str) else None
 
 
 async def _every_page(client: Client) -> list[RemoteTool]:

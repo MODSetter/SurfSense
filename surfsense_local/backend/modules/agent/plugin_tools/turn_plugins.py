@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
-from modules.plugins.remote.sign_in.token_headers import token_headers
+from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
 
 # More tools than this crowd the model's choice and its prompt; the plugins connected first win.
 MAX_TOOLS = 24
@@ -51,7 +51,7 @@ def turn_plugins(
                 name=row.id,
                 title=tool.plugin_name,
                 url=row.url,
-                headers=token_headers(row.credential),
+                headers=sign_in_headers(session, row),
             )
         rule = "ask" if needs_approval(tool) else "allow"
         name = opencode_tool_name(tool.plugin_id, tool.tool)

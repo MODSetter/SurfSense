@@ -39,6 +39,11 @@ class ToolChange(enum.StrEnum):
 class CheckFailure(enum.StrEnum):
     UNREACHABLE = "unreachable"
     SIGN_IN = "sign_in"
+    # SurfSense's plugin host refused the license, for contract 2's reason.
+    NEEDS_LICENSE = "needs_license"
+    LICENSE_EXPIRED = "license_expired"
+    LICENSE_REVOKED = "license_revoked"
+    LICENSE_INVALID = "license_invalid"
 
 
 class InstalledPlugin(Base):
@@ -61,7 +66,8 @@ class InstalledPlugin(Base):
     entry: Mapped[dict[str, Any]] = mapped_column(JSON)
     enabled: Mapped[bool] = mapped_column(default=True)
     connected_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    # `token` now; OAuth's token set later. None when the server needs no sign-in.
+    # `token` or `license`; OAuth's token set later. None when the server needs no
+    # sign-in. A license's key is read from the imported license, never stored here.
     credential_kind: Mapped[str | None]
     credential_ciphertext: Mapped[bytes | None]
     # When SurfSense last listed the server, and why that failed; None when it answered.

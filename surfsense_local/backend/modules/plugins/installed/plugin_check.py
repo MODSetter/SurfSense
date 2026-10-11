@@ -17,12 +17,23 @@ def record_check(
     """A failure keeps the tools last recorded: a server down for a minute changes none."""
     plugin.checked_at = datetime.now(UTC)
     if isinstance(listed, ServerError):
-        plugin.check_failure = (
-            CheckFailure.SIGN_IN
-            if listed.status in SIGN_IN_STATUSES
-            else CheckFailure.UNREACHABLE
-        )
+        plugin.check_failure = check_failure(listed)
         session.flush()
         return
     plugin.check_failure = None
     record_tools(session, plugin, listed)
+
+
+# Contract 2's reasons. Keygen unreachable, `license_service_unavailable`, is temporary.
+_LICENSE_REFUSALS = {
+    "missing_license": CheckFailure.NEEDS_LICENSE,
+    "expired": CheckFailure.LICENSE_EXPIRED,
+    "revoked": CheckFailure.LICENSE_REVOKED,
+    "invalid": CheckFailure.LICENSE_INVALID,
+}
+
+
+def check_failure(error: ServerError) -> CheckFailure:
+    if error.status in SIGN_IN_STATUSES:
+        return _LICENSE_REFUSALS.get(error.reason or "", CheckFailure.SIGN_IN)
+    return CheckFailure.UNREACHABLE

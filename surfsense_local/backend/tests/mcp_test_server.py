@@ -4,8 +4,8 @@ import json
 import socket
 import threading
 import time
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -17,6 +17,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 from mcp.server.mcpserver import MCPServer
 from mcp_types import ToolAnnotations
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Mount
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 
@@ -211,3 +214,54 @@ class RequiringToken:
             await send({"type": "http.response.body", "body": b""})
             return
         await self.app(scope, receive, send)
+
+
+def scrapers_server() -> MCPServer:
+    """A stand-in for SurfSense Scrapers: one read-only search."""
+    server = MCPServer("scrapers")
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+    def google_search(query: str) -> str:
+        """Search Google."""
+        return f"results for {query}"
+
+    return server
+
+
+class RequiringLicense:
+    """Answers as the plugin host's license check does: `{"reason": ...}` with 401 or 403.
+
+    `refused` maps a key to its 403 reason; any other key is valid.
+    """
+
+    def __init__(self, app: ASGIApp, refused: dict[str, str] | None = None) -> None:
+        self.app = app
+        self.refused = refused or {}
+        self.authorizations: list[str | None] = []
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        value = dict(scope["headers"]).get(b"authorization")
+        authorization = value.decode() if value else None
+        self.authorizations.append(authorization)
+        scheme, _, key = (authorization or "").partition(" ")
+        if scheme != "License" or not key:
+            await JSONResponse({"reason": "missing_license"}, 401)(scope, receive, send)
+        elif key in self.refused:
+            await JSONResponse({"reason": self.refused[key]}, 403)(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
+
+
+def plugin_host(plugin_id: str, server: MCPServer, around=lambda app: app) -> Starlette:
+    """A plugin host serving one plugin at `/<id>/mcp`, as SurfSense's does."""
+
+    @asynccontextmanager
+    async def lifespan(_: Starlette) -> AsyncIterator[None]:
+        async with server.session_manager.run():
+            yield
+
+    app = around(server.streamable_http_app())
+    return Starlette(routes=[Mount(f"/{plugin_id}", app=app)], lifespan=lifespan)

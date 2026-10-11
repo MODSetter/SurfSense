@@ -14,9 +14,11 @@ from modules.plugins.remote.mcp_client.session_expired import SessionExpiredErro
 SESSION_TERMINATED = "Session terminated"
 
 
-def translated(error: MCPError, failed_status: int | None) -> Exception:
+def translated(
+    error: MCPError, failed_status: int | None, reason: str | None = None
+) -> Exception:
     if error.code == INVALID_REQUEST and error.message == SESSION_TERMINATED:
         return SessionExpiredError()
     if error.code == INTERNAL_ERROR and failed_status is not None:
-        return refused(failed_status)
+        return refused(failed_status, reason)
     return ServerError(error.message)

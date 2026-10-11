@@ -7,6 +7,7 @@ import pytest
 from mcp_types import ToolAnnotations
 
 from modules.agent.plugin_tools import turn_plugins
+from shared.config import get_plugin_host_settings
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
     of_type,
@@ -14,10 +15,18 @@ from tests.integration.agent.test_agent_threads import (
     send,
     thread_folder,
 )
+from tests.license_samples import (
+    INDIVIDUAL_KEY,
+    import_license,
+    trust_sample_licenses,
+)
 from tests.mcp_test_server import (
     RecordingMethods,
+    RequiringLicense,
     RequiringToken,
     notes_server,
+    plugin_host,
+    scrapers_server,
     serving,
 )
 
@@ -178,6 +187,36 @@ async def test_a_plugins_key_reaches_its_server_through_opencode(
 
     assert of_type(frames, "agent-step")[-1]["status"] == "completed"
     assert of_type(frames, "agent-plugins-unavailable") == []
+
+
+async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A first-party plugin needs no third-party consent, and its server sees the key."""
+    trust_sample_licenses(monkeypatch)
+    await import_license(agent_api.http, "individual.lic")
+    guarded: list[RequiringLicense] = []
+
+    def around(app):
+        guarded.append(RequiringLicense(app))
+        return guarded[0]
+
+    with serving(plugin_host("scrapers", scrapers_server(), around)) as base:
+        monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
+        connected = await agent_api.http.post("/plugins/first-party/scrapers")
+        assert connected.status_code == 201, connected.text
+        guarded[0].authorizations.clear()
+        agent_api.model.replies = [
+            call("scrapers_google_search", query="ship"),
+            ("text", "Done."),
+        ]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search the web")
+
+    step = of_type(frames, "agent-step")[-1]
+    assert (step["tool"], step["status"]) == ("scrapers_google_search", "completed")
+    assert set(guarded[0].authorizations) == {f"License {INDIVIDUAL_KEY}"}
 
 
 async def test_a_plugin_whose_server_is_down_is_named_in_the_thread(

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "scrapers",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "SurfSense Scrapers",
+      "description": "Search Google, crawl sites, and scrape Reddit, YouTube, TikTok, Instagram, Google Maps, Amazon, Walmart and Indeed.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/scrapers/mcp",
+      "auth": { "type": "license" },
+      "hosts": ["plugins.surfsense.com"],
+      "access": "license"
+    }
+  ]
+}

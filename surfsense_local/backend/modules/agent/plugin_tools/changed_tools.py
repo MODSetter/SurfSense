@@ -17,7 +17,7 @@ from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.remote.mcp_client.server_error import ServerError
-from modules.plugins.remote.sign_in.token_headers import token_headers
+from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
 from modules.plugins.remote.source import RemoteMcpSource
 
 CHECK_SECONDS = 300
@@ -41,7 +41,7 @@ def _due(session: Session) -> list[tuple[str, str, dict[str, str]]]:
         checked = plugin.checked_at
         if checked is not None and checked.replace(tzinfo=None) > stale:
             continue
-        due.append((plugin_id, plugin.url, token_headers(plugin.credential)))
+        due.append((plugin_id, plugin.url, sign_in_headers(session, plugin)))
     return due
 
 
