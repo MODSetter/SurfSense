@@ -31,7 +31,7 @@ plugins.surfsense.com ──► the plugin host: one container, one image, as ma
                           beside it, internal only: SearXNG; secrets from Key Vault
 ```
 
-- **One container, as the backend runs the scrapers today.** One image carries Python, Xvfb, the fonts and patchright's Chromium once, and one container runs every plugin and their jobs, so one deploy ships them all. A container per plugin was rejected: each would keep its own copy running while idle and its own spare room for its own peaks, where one shared container lends a quiet plugin's room to a busy one, and the work itself, a browser per scrape, costs the same either way ([below](#scaling)).
+- **One container, as the backend runs the scrapers today.** One image carries Python and what its plugins need, their browsers among them, once, and one container runs every plugin and their jobs, so one deploy ships them all. A container per plugin was rejected: each would keep its own copy running while idle and its own spare room for its own peaks, where one shared container lends a quiet plugin's room to a busy one, and the work itself, a browser per scrape, costs the same either way ([below](#scaling)).
 - **A plugin is a folder, and its own MCP server.** Its `server.py` returns an MCP server of its own, built on the official MCP Python SDK, whose client the app uses too: its own tools, sessions and license check, at its own path. To the app and to opencode each is a separate server; they only share the process. The folder's name, with underscores as hyphens, is the plugin's `id` and its path: `plugins/remote/proprietary/google_search/` is `id: google-search` at `/google-search/mcp`, since a Python package cannot be named with a hyphen. Adding a plugin adds its entry to the first-party list in the same change, so it reaches users with the next app release.
 - **One project.** `host/pyproject.toml` and its `uv.lock` hold every plugin's dependencies. A plugin has no `pyproject.toml` or `Dockerfile` of its own. The import root is `plugins/remote/`, so code imports `mcp_server.progress` or `proprietary.reddit.server`.
 - **Nothing blocks the event loop.** The plugins share each process's event loop, so one blocking call would stall every call in it. Blocking work, such as Scrapling's synchronous `StealthyFetcher`, runs in a thread with `asyncio.to_thread`, and network calls use async clients; ruff's `ASYNC` rules fail a blocking call inside an `async def` in CI. Each plugin also has its own limit on browsers and threads, so a busy plugin cannot take them all from the others.
@@ -85,7 +85,8 @@ Every SurfSense plugin, the scrapers and any later one, free or licensed, joins 
 | Its first-party list entry | `access: free`, `auth: none` | `access: license`, `auth: license` |
 | Who may call it | Anyone, limited per IP address | A valid license, limited per license |
 
-- **What the folder holds:** `server.py`, whose `server()` returns its MCP server; its `config.py`, reading only its own `<ID>_*` settings and secrets; its tests. Its dependencies go into `host/pyproject.toml`.
+- **What the folder holds:** `server.py`, whose `server()` returns its MCP server; its `config.py`, reading only its own `<ID>_*` settings and secrets; its tests.
+- **What it brings to the image, in the change that adds it.** Its Python packages go into `host/pyproject.toml` and its system packages and binaries into `host/Dockerfile`, with its settings in `host/.env.example`. The image holds what the plugins in it need and nothing for one not yet written, so it grows a plugin at a time and an unused binary never ships.
 - **What every plugin keeps to:** nothing blocks the event loop, its own limit on threads and browsers, a call that can run past three minutes as a job, and errors returned as MCP errors.
 - **One list entry,** in the same change, so the plugin reaches users with the next app release.
 - **Free plugins are limited per IP address.** A licensed plugin's caller is known by its license; a free plugin's is anyone on the internet, and SurfSense pays for every call, so the host counts a free plugin's requests per address in Redis and answers `429` past its limit.
@@ -118,12 +119,14 @@ plugins/remote/proprietary/
     config.py        their settings, from SCRAPING_* environment variables
   reddit/            one folder per plugin, each laid out alike:
     server.py        its MCP server: its tools, progress, cancel
-    scraper.py       the platform's scraper, from the backend
-    config.py        its own settings, from REDDIT_* environment variables
+    fetch.py …       the platform's scraper, its modules as the backend had them
+    config.py        its own settings, from REDDIT_* environment variables, if it has any
     tests/
 ```
 
 A new platform is a new plugin folder and a new list entry. A helper moves into `scraping/` only when a second plugin needs it.
+
+The image starts with what Reddit needs: Chromium for its stealth browsers and the fonts that make them look like a desktop's. Each later plugin adds its own as it is written; from the backend's code, YouTube brings `youtube-transcript-api` and `fake-useragent`, the Web Crawler `trafilatura` and `markdownify`, Indeed Camoufox's Firefox for its Cloudflare-solving session, TikTok Xvfb for its headed browser, and Google Search the captcha solver's settings and SearXNG's address.
 
 - **Tools.** Each declares `readOnlyHint: true` and `openWorldHint: true`, returns a readable summary as text with the items as `structuredContent`, and reports progress with MCP progress notifications. A tool that can run past three minutes, such as a site crawl, is a job ([below](#long-calls-run-as-jobs)), and so is a result too large to return whole. A cancelled call stops its scrape.
 - **The license, on the server.** Every request to each plugin needs `Authorization: License <key>`, checked by `proprietary/license_check/` as [`../core/05-paid.md`](../core/05-paid.md) says. The host counts requests per license and limits their rate. All of them are on `plugins.surfsense.com`, so one egress consent covers them, and the key reaches no other host.
