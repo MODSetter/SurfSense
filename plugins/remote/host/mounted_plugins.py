@@ -1,4 +1,7 @@
-"""The plugins the host serves: each folder with a `server.py`, under the root or `proprietary/`."""
+"""The plugins the host serves: each folder with a `server.py`, under the root or `proprietary/`.
+
+Each is its own MCP server at `/<id>/mcp`; one image and one host serve them all.
+"""
 
 import hashlib
 import importlib.util
@@ -12,8 +15,8 @@ from mcp.server.mcpserver import MCPServer
 
 from mcp_server.access import Access
 
-# The host's own folders, beside the plugins; never a plugin's id.
-RESERVED = frozenset({"host", "mcp_server", "proprietary", "license_check"})
+# The host's own folders and the code plugins share, beside the plugins; never a plugin.
+RESERVED = frozenset({"host", "mcp_server", "proprietary", "license_check", "scraping"})
 
 
 @dataclass(frozen=True)
@@ -42,7 +45,12 @@ def mounted_plugins(root: Path) -> list[MountedPlugin]:
 def _mounted(folder: Path) -> MountedPlugin:
     module = _loaded(folder / "server.py")
     build: Callable[[], MCPServer] = module.server
-    return MountedPlugin(folder.name, build(), getattr(module, "access", None))
+    return MountedPlugin(plugin_id(folder), build(), getattr(module, "access", None))
+
+
+def plugin_id(folder: Path) -> str:
+    """`google_search/` is `google-search`: a package cannot hold a hyphen, nor an id an underscore."""
+    return folder.name.replace("_", "-")
 
 
 def _loaded(path: Path) -> ModuleType:

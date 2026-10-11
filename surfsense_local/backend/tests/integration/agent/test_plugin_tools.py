@@ -26,7 +26,7 @@ from tests.mcp_test_server import (
     RequiringToken,
     notes_server,
     plugin_host,
-    scrapers_server,
+    reddit_server,
     serving,
 )
 
@@ -201,13 +201,13 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
         guarded.append(RequiringLicense(app))
         return guarded[0]
 
-    with serving(plugin_host("scrapers", scrapers_server(), around)) as base:
+    with serving(plugin_host("reddit", reddit_server(), around)) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
-        connected = await agent_api.http.post("/plugins/first-party/scrapers")
+        connected = await agent_api.http.post("/plugins/first-party/reddit")
         assert connected.status_code == 201, connected.text
         guarded[0].authorizations.clear()
         agent_api.model.replies = [
-            call("scrapers_google_search", query="ship"),
+            call("reddit_search_posts", query="ship"),
             ("text", "Done."),
         ]
         thread = await open_thread(agent_api)
@@ -215,7 +215,7 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
         frames = await send(agent_api, thread["id"], "Search the web")
 
     step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("scrapers_google_search", "completed")
+    assert (step["tool"], step["status"]) == ("reddit_search_posts", "completed")
     assert set(guarded[0].authorizations) == {f"License {INDIVIDUAL_KEY}"}
 
 

@@ -2,15 +2,163 @@
   "schema_version": 1,
   "plugins": [
     {
-      "id": "scrapers",
+      "id": "google-search",
       "kind": "remote",
       "publisher": "surfsense",
-      "name": "SurfSense Scrapers",
-      "description": "Search Google, crawl sites, and scrape Reddit, YouTube, TikTok, Instagram, Google Maps, Amazon, Walmart and Indeed.",
+      "name": "Google Search",
+      "description": "Search Google and read its results, ads and related questions.",
       "author": "SurfSense",
-      "url": "https://plugins.surfsense.com/scrapers/mcp",
-      "auth": { "type": "license" },
-      "hosts": ["plugins.surfsense.com"],
+      "url": "https://plugins.surfsense.com/google-search/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "web-crawler",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Web Crawler",
+      "description": "Read a web page, or crawl a whole site into clean text.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/web-crawler/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "reddit",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Reddit",
+      "description": "Read Reddit posts, their comments and whole subreddits.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/reddit/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "youtube",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "YouTube",
+      "description": "Read YouTube videos, channels and their comments.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/youtube/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "instagram",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Instagram",
+      "description": "Read Instagram profiles and their posts.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/instagram/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "tiktok",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "TikTok",
+      "description": "Read TikTok videos and their comments, search users, and see what is trending.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/tiktok/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "google-maps",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Google Maps",
+      "description": "Find places on Google Maps and read their reviews.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/google-maps/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "amazon",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Amazon",
+      "description": "Read Amazon products and search results.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/amazon/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "walmart",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Walmart",
+      "description": "Read Walmart products, search results and reviews.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/walmart/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license"
+    },
+    {
+      "id": "indeed",
+      "kind": "remote",
+      "publisher": "surfsense",
+      "name": "Indeed",
+      "description": "Read job listings on Indeed.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/indeed/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
       "access": "license"
     }
   ]

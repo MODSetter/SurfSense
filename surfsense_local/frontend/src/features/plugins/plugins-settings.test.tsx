@@ -43,10 +43,10 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
   }
 }
 
-const SCRAPERS: FirstPartyEntry = {
-  id: "scrapers",
-  name: "SurfSense Scrapers",
-  description: "Search Google and crawl sites.",
+const REDDIT: FirstPartyEntry = {
+  id: "reddit",
+  name: "Reddit",
+  description: "Read Reddit posts, their comments and whole subreddits.",
   author: "SurfSense",
   access: "license",
   hosts: ["plugins.surfsense.com"],
@@ -78,16 +78,16 @@ function api({
       const [, , id, , tool] = url.pathname.split("/")
       if (url.pathname === "/plugins/first-party") {
         return Response.json(
-          [SCRAPERS].map((entry) => ({
+          [REDDIT].map((entry) => ({
             ...entry,
             connected: connected.some((plugin) => plugin.id === entry.id),
           }))
         )
       }
-      if (url.pathname === "/plugins/first-party/scrapers") {
+      if (url.pathname === "/plugins/first-party/reddit") {
         const added = notes({
-          id: "scrapers",
-          name: "SurfSense Scrapers",
+          id: "reddit",
+          name: "Reddit",
           source: "first_party",
           publisher: "surfsense",
           hosts: ["plugins.surfsense.com"],
@@ -433,16 +433,14 @@ describe("plugins settings", () => {
     const surfsense = await screen.findByRole("region", {
       name: "By SurfSense",
     })
-    expect(within(surfsense).getByText("SurfSense Scrapers")).toBeTruthy()
+    expect(within(surfsense).getByText("Reddit")).toBeTruthy()
     expect(within(surfsense).getByText("License required")).toBeTruthy()
     await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
 
-    expect(
-      await screen.findByRole("region", { name: "SurfSense Scrapers" })
-    ).toBeTruthy()
+    expect(await screen.findByRole("region", { name: "Reddit" })).toBeTruthy()
     expect(await within(surfsense).findByText("Connected")).toBeTruthy()
     expect(changes(calls)).toEqual([
-      { method: "POST", path: "/plugins/first-party/scrapers", body: null },
+      { method: "POST", path: "/plugins/first-party/reddit", body: null },
     ])
   })
 

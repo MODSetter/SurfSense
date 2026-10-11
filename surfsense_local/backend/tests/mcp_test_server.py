@@ -216,14 +216,14 @@ class RequiringToken:
         await self.app(scope, receive, send)
 
 
-def scrapers_server() -> MCPServer:
-    """A stand-in for SurfSense Scrapers: one read-only search."""
-    server = MCPServer("scrapers")
+def reddit_server() -> MCPServer:
+    """A stand-in for SurfSense's Reddit plugin: one read-only search."""
+    server = MCPServer("reddit")
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
-    def google_search(query: str) -> str:
-        """Search Google."""
-        return f"results for {query}"
+    def search_posts(query: str) -> str:
+        """Search Reddit's posts."""
+        return f"posts about {query}"
 
     return server
 

@@ -22,9 +22,9 @@ The license check is `license_check/`, not `license/`: a `license/` folder besid
 
 [`host_app()`](../../plugins/remote/host/app.py) mounts each plugin and answers `GET /health` with `ok`.
 
-- A plugin is a folder with a `server.py` whose `server()` returns its `MCPServer`, from the official MCP Python SDK. The folder's name is its id and its path: `proprietary/reddit/` would be served at `/reddit/mcp` ([`mounted_plugins.py`](../../plugins/remote/host/mounted_plugins.py)).
+- A plugin is a folder with a `server.py` whose `server()` returns its `MCPServer`, from the official MCP Python SDK: its own MCP server at its own path. The folder's name, with underscores as hyphens, is its id and its path: `proprietary/google_search/` would be served at `/google-search/mcp`, since a Python package cannot hold a hyphen ([`mounted_plugins.py`](../../plugins/remote/host/mounted_plugins.py)).
 - Folders under the root and under `proprietary/` are both read. Without `proprietary/`, the open build, the host serves the Apache-2.0 plugins and has nothing else missing.
-- `host`, `mcp_server`, `proprietary` and `license_check` are never plugin ids. Two plugins with one id stop the host from starting.
+- `host`, `mcp_server`, `proprietary`, `license_check` and `scraping`, the code the scraper plugins will share, are never plugin ids. Two plugins with one id stop the host from starting.
 - A tool that raises returns an MCP error for that call; the other plugins keep answering.
 - The SDK's DNS-rebinding guard is off: it protects servers on a user's loopback, and the host is reached by its public name.
 
@@ -32,7 +32,7 @@ The license check is `license_check/`, not `license/`: a `license/` folder besid
 
 ## The license check
 
-A plugin's `server.py` may set `access`, an object with `refusal(headers)` ([`access.py`](../../plugins/remote/mcp_server/access.py)). The host asks it before every request reaches the plugin, and answers a refusal itself with its status and `{"reason": ...}` ([`refused_unless_allowed.py`](../../plugins/remote/host/refused_unless_allowed.py)). A plugin without `access` is open.
+A plugin's `server.py` may set `access`, an object with `refusal(headers)` ([`access.py`](../../plugins/remote/mcp_server/access.py)). The host asks it before every request reaches the plugin, and answers a refusal itself with its status and `{"reason": ...}` ([`refused_unless_allowed.py`](../../plugins/remote/host/refused_unless_allowed.py)). A plugin without `access` is open: SurfSense offers no free plugin yet, and nothing limits an open one per IP address ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#adding-a-plugin)).
 
 A paid plugin sets `access = LicenseAccess()` ([`license_access.py`](../../plugins/remote/proprietary/license_check/license_access.py)), which applies [contract 2](../contracts/02-scraper-api-auth.md):
 
@@ -51,15 +51,16 @@ A paid plugin sets `access = LicenseAccess()` ([`license_access.py`](../../plugi
 
 ## Tests
 
-From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run ruff format --check ..`. CI runs them in `plugins-pull-request-checks.yml` when `plugins/remote/` changes.
+From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run ruff format --check ..`. The lint includes ruff's `ASYNC` rules, which fail a blocking call inside an `async def`, since every plugin answers from one process. CI runs them in `plugins-pull-request-checks.yml` when `plugins/remote/` changes.
 
-- [`host/tests/`](../../plugins/remote/host/tests/) serve sample plugins on loopback and reach them with the official MCP client: the health check, each plugin at its path, the build without `proprietary/`, a failing tool, and reserved folders.
+- [`host/tests/`](../../plugins/remote/host/tests/) serve sample plugins on loopback and reach them with the official MCP client: the health check, each plugin at its path, the build without `proprietary/`, a failing tool, an underscored folder at its hyphenated id, and reserved folders.
 - [`proprietary/license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/) check the license against a stand-in Keygen on loopback, with the clock passed in: each answer above, the five-minute cache, the 24-hour grace, and a paid sample plugin through the host.
 
 ## Known gaps
 
 - `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
-- No plugin exists: the scraper plugins, one per platform, are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)). A folder's name is its id as-is, so a plugin such as `google_search/` would be served at `/google_search/mcp`, not `/google-search/mcp`, and `scraping` is not yet a reserved name.
+- No plugin exists: the scraper plugins, one per platform, are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)).
+- No limit on threads or browsers per plugin, and no per-IP limit for a free plugin, since none exists.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
 - No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there are no workers, Redis or Blob Storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
 - No registry files, Docker image or Azure deployment.

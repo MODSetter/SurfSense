@@ -16,6 +16,8 @@ select = [
     "T20", # flake8-print
     "SIM", # flake8-simplify
     "RUF",
+    # Every plugin answers from one process: a blocking call in a coroutine stalls them all.
+    "ASYNC",
 ]
 
 [lint.isort]

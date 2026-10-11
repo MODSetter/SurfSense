@@ -36,6 +36,8 @@ def _served(plugin: MountedPlugin) -> ASGIApp:
     # Reached by its public hostname, not on a user's loopback, so the SDK's
     # DNS-rebinding guard for local servers does not apply.
     app = plugin.server.streamable_http_app(host="0.0.0.0")
+    # A plugin without `access` is open to anyone. SurfSense offers no free plugin
+    # yet; one will be limited per IP address here, as 02-surfsense-servers.md says.
     return app if plugin.access is None else RefusedUnlessAllowed(app, plugin.access)
 
 

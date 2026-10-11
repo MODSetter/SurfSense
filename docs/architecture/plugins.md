@@ -7,13 +7,13 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 
 ## SurfSense's own plugins
 
-[`lists/first_party/plugins.json`](../../surfsense_local/backend/modules/plugins/lists/first_party/plugins.json) lists them, packaged into the API (`bundling/api.spec`), so `GET /plugins/first-party` answers with no network or consent. It holds one entry, SurfSense Scrapers, served by the [plugin host](plugin-host.md).
+[`lists/first_party/plugins.json`](../../surfsense_local/backend/modules/plugins/lists/first_party/plugins.json) lists them, packaged into the API (`bundling/api.spec`), so `GET /plugins/first-party` answers with no network or consent. It holds SurfSense's scraper plugins, one per platform: Google Search, Web Crawler, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart and Indeed. Each is its own server at `https://plugins.surfsense.com/<id>/mcp`, served by the [plugin host](plugin-host.md), so the user connects, pauses and mentions each apart, and one consent for `plugins.surfsense.com` covers them all.
 
 - **The check.** Every entry follows the schema both lists share ([`list_entry.py`](../../surfsense_local/backend/modules/plugins/lists/list_entry.py)): its id, an `https` URL with no credentials, `hosts` naming the URL's host and no loopback, and an `access_note` when `access` is `external`. A first-party entry is published by `surfsense`, and one with `auth: license` sits on `https://plugins.surfsense.com` ([`first_party_list.py`](../../surfsense_local/backend/modules/plugins/lists/first_party/first_party_list.py)). A bad entry fails naming its field, and a unit test checks the packaged list, so it fails CI.
 - **Connecting.** `POST /plugins/first-party/{id}`: an id not listed is `404`; one connected already, or whose URL is, is `409 plugin_already_connected`; a host not allowed is `403 egress_disabled`, as below. The server's tools are listed with the license, and the plugin is stored with `source: first_party` and `credential_kind: license`. A `401` or `403` still connects it, its check saying why, since a missing license is the server's to report; any other failure is `502 plugin_unreachable`.
 - **The license.** Every request to a license plugin's server carries `Authorization: License <key>`, the key read from the imported license each time and never stored on the plugin ([`plugin_headers.py`](../../surfsense_local/backend/modules/plugins/remote/sign_in/plugin_headers.py), [`license_key.py`](../../surfsense_local/backend/modules/license/license_key.py)). Its expiry is not checked here: the server decides. The key goes only to a URL on the plugin host this build reaches; a plugin connected elsewhere is sent no key.
 - **A developer's plugin host.** `SURFSENSE_LOCAL_PLUGIN_HOST_URL`, such as `http://127.0.0.1:8000`, moves every listed URL and host on `plugins.surfsense.com` to a plugin host run locally ([`plugin_host.py`](../../surfsense_local/backend/modules/plugins/lists/plugin_host.py)), and the license key with them.
-- A custom plugin never takes a first-party id: one named Scrapers is `scrapers-plugin`.
+- A custom plugin never takes a first-party id: one named Reddit is `reddit-plugin`.
 
 ## Connecting a server
 
@@ -78,7 +78,7 @@ A tool switched off by a check, because it is new or its description or annotati
 ## Known gaps
 
 - The third-party registry is not listed yet ([proposal](../proposals/plugins/core/02-registry.md)).
-- SurfSense Scrapers' entry points at `plugins.surfsense.com`, which is not deployed, so connecting it fails as `502 plugin_unreachable` outside a developer's local plugin host.
+- The scraper plugins' entries point at `plugins.surfsense.com`, which is not deployed, so connecting one fails as `502 plugin_unreachable` outside a developer's local plugin host.
 - An agent turn names a license plugin it could not use as needing sign-in, not as needing a license ([agent](agent.md#plugins)).
 - Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added; whether it should be is an [open question](../proposals/plugins/README.md#open-questions).
 - OAuth sign-in does not exist; a server that needs it cannot be connected ([proposal](../proposals/plugins/remote/01-mcp-client.md)).

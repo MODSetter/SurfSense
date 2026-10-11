@@ -34,6 +34,16 @@ async def test_without_proprietary_the_free_plugins_still_run(tmp_path: Path) ->
         assert httpx2.post(f"{base}/paid/mcp").status_code == 404
 
 
+async def test_a_folder_s_underscores_are_its_id_s_hyphens(tmp_path: Path) -> None:
+    """A Python package cannot hold a hyphen, and a plugin's id cannot hold an underscore."""
+    root = tmp_path / "plugins"
+    shutil.copytree(SAMPLES / "notes", root / "google_search")
+
+    with serving(host_app(root)) as base:
+        assert await tool_names(f"{base}/google-search/mcp") == ["search"]
+        assert httpx2.post(f"{base}/google_search/mcp").status_code == 404
+
+
 async def test_a_plugin_that_fails_leaves_the_others_answering() -> None:
     with serving(host_app(SAMPLES)) as base:
         failed = await call(f"{base}/failing/mcp", "explode", {})
@@ -43,7 +53,7 @@ async def test_a_plugin_that_fails_leaves_the_others_answering() -> None:
     assert found.structured_content == {"result": "found x"}
 
 
-@pytest.mark.parametrize("folder", ["host", "mcp_server", "license_check"])
+@pytest.mark.parametrize("folder", ["host", "mcp_server", "license_check", "scraping"])
 def test_a_reserved_folder_is_never_a_plugin(tmp_path: Path, folder: str) -> None:
     """The host's own folders sit beside the plugins and must not be served."""
     root = tmp_path / "plugins"
