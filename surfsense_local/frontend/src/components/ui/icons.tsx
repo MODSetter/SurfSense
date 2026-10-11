@@ -59,6 +59,7 @@ import {
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
   PlayIcon as PlayIconData,
+  Plug01Icon as Plug01IconData,
   PlusIcon as PlusIconData,
   PodcastIcon as PodcastIconData,
   Presentation02Icon as Presentation02IconData,
@@ -179,6 +180,7 @@ export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const Pdf01Icon = createIcon(Pdf01IconData)
 export const PencilIcon = createIcon(PencilIconData)
+export const PlugIcon = createIcon(Plug01IconData)
 export const PlusIcon = createIcon(PlusIconData)
 export const PodcastIcon = createIcon(PodcastIconData)
 export const Presentation02Icon = createIcon(Presentation02IconData)

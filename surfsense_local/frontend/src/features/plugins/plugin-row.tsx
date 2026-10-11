@@ -1,0 +1,146 @@
+import { useId } from "react"
+
+import { Switch } from "@/components/ui/switch"
+import { intl } from "@/i18n/intl"
+
+import type { Plugin, PluginTool, ToolApproval } from "./api"
+import { DisconnectPluginButton } from "./disconnect-plugin-button"
+import { PluginToolRow } from "./plugin-tool-row"
+import { isReadOnly } from "./tool-kind"
+
+function ToolGroup({
+  plugin,
+  label,
+  tools,
+  onTool,
+}: {
+  plugin: Plugin
+  label: string
+  tools: PluginTool[]
+  onTool: (
+    tool: string,
+    change: { enabled: boolean } | { approval: ToolApproval }
+  ) => void
+}) {
+  const labelId = useId()
+  if (tools.length === 0) return null
+  return (
+    <div role="group" aria-labelledby={labelId} className="mt-3">
+      <p id={labelId} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </p>
+      <ul className="divide-y">
+        {tools.map((tool) => (
+          <PluginToolRow
+            key={tool.name}
+            plugin={plugin}
+            tool={tool}
+            onEnabled={(enabled) => onTool(tool.name, { enabled })}
+            onApproval={(approval) => onTool(tool.name, { approval })}
+          />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** A connected plugin: its switch, its tools, and the way to disconnect it. */
+export function PluginRow({
+  plugin,
+  thirdPartyAllowed,
+  disconnecting,
+  onEnabled,
+  onTool,
+  onDisconnect,
+}: {
+  plugin: Plugin
+  thirdPartyAllowed: boolean
+  disconnecting: boolean
+  onEnabled: (enabled: boolean) => void
+  onTool: (
+    tool: string,
+    change: { enabled: boolean } | { approval: ToolApproval }
+  ) => void
+  onDisconnect: () => void
+}) {
+  const nameId = useId()
+  const host = plugin.hosts[0] ?? plugin.url
+  const unused = plugin.source !== "first_party" && !thirdPartyAllowed
+  return (
+    <section aria-labelledby={nameId} className="rounded-xl border px-4 py-3">
+      <div className="flex items-center justify-between gap-6">
+        <div className="min-w-0">
+          <h3 id={nameId} className="truncate text-sm font-medium">
+            {plugin.name}
+          </h3>
+          <p className="truncate text-xs text-muted-foreground">
+            {plugin.source === "first_party"
+              ? intl.formatMessage(
+                  {
+                    id: "plugins_row_first_party_label",
+                    defaultMessage: "By SurfSense · {host}",
+                  },
+                  { host }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "plugins_row_third_party_label",
+                    defaultMessage: "Third-party · {host}",
+                  },
+                  { host }
+                )}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <DisconnectPluginButton
+            name={plugin.name}
+            disconnecting={disconnecting}
+            onDisconnect={onDisconnect}
+          />
+          <Switch
+            checked={plugin.enabled}
+            onCheckedChange={onEnabled}
+            aria-label={intl.formatMessage(
+              { id: "plugins_row_use_aria", defaultMessage: "Use {plugin}" },
+              { plugin: plugin.name }
+            )}
+          />
+        </div>
+      </div>
+      {unused ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "plugins_row_third_party_off_body",
+            defaultMessage: "Not used until third-party plugins are allowed",
+          })}
+        </p>
+      ) : null}
+      {plugin.tools.length === 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "plugins_row_no_tools_empty",
+            defaultMessage: "This server lists no tools.",
+          })}
+        </p>
+      ) : null}
+      <ToolGroup
+        plugin={plugin}
+        label={intl.formatMessage({
+          id: "plugins_row_read_only_label",
+          defaultMessage: "Read-only",
+        })}
+        tools={plugin.tools.filter(isReadOnly)}
+        onTool={onTool}
+      />
+      <ToolGroup
+        plugin={plugin}
+        label={intl.formatMessage({
+          id: "plugins_row_can_change_label",
+          defaultMessage: "Can make changes",
+        })}
+        tools={plugin.tools.filter((tool) => !isReadOnly(tool))}
+        onTool={onTool}
+      />
+    </section>
+  )
+}
