@@ -1,6 +1,6 @@
 # Plugin host
 
-The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. Of the scraper plugins, [Reddit](#the-reddit-plugin) is written; the others are still in `surfsense_backend`, and the host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
+The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. Of the scraper plugins, [Reddit](#the-reddit-plugin) and [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps) are written; the others are still in `surfsense_backend`, and the host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
 
 **Code:** [`plugins/remote/`](../../plugins/remote/)
 **Decisions:** [ADR 0054](../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [ADR 0047](../adr/0047-premium-plugins-are-source-available.md)
@@ -14,7 +14,7 @@ The plugin host is the one server that runs SurfSense's own plugins, free and pa
 | [`host/`](../../plugins/remote/host/) | Apache-2.0 | The server, its `pyproject.toml` and `uv.lock` for every plugin's dependencies, and the tests of the host |
 | [`mcp_server/`](../../plugins/remote/mcp_server/) | Apache-2.0 | What a plugin builds on: [`access.py`](../../plugins/remote/mcp_server/access.py), the hook a paid plugin's check plugs into |
 | `<id>/` | Apache-2.0 | A free plugin (none yet) |
-| [`proprietary/`](../../plugins/remote/proprietary/) | Business Source License 1.1 | Paid plugins, so far [`reddit/`](../../plugins/remote/proprietary/reddit/); [`license_check/`](../../plugins/remote/proprietary/license_check/); and [`scraping/`](../../plugins/remote/proprietary/scraping/), what the scraper plugins share: the residential proxy vendors' providers and their country rotation, and the loop that drives Scrapling's stealth browsers, with their settings from `SCRAPING_*` ([`config.py`](../../plugins/remote/proprietary/scraping/config.py)) |
+| [`proprietary/`](../../plugins/remote/proprietary/) | Business Source License 1.1 | Paid plugins: [`reddit/`](../../plugins/remote/proprietary/reddit/), [`youtube/`](../../plugins/remote/proprietary/youtube/), [`amazon/`](../../plugins/remote/proprietary/amazon/), [`walmart/`](../../plugins/remote/proprietary/walmart/) and [`google_maps/`](../../plugins/remote/proprietary/google_maps/); [`license_check/`](../../plugins/remote/proprietary/license_check/); and [`scraping/`](../../plugins/remote/proprietary/scraping/), what the scraper plugins share: the residential proxy vendors' providers and their country rotation, and the loop that drives Scrapling's stealth browsers, with their settings from `SCRAPING_*` ([`config.py`](../../plugins/remote/proprietary/scraping/config.py)) |
 
 The license check is `license_check/`, not `license/`: a `license/` folder beside the `LICENSE` file is one path on macOS and Windows.
 
@@ -60,6 +60,19 @@ opencode cancels a call by sending `notifications/cancelled` as a request of its
 - **Errors** reach the agent as the tool's error, in words: no source given, a URL that is not http(s), or Reddit refusing every address. A run whose every target Reddit refused raises that refusal rather than answering with no items; one refused target among others still yields the rest.
 - Running it for real needs the browsers, `uv run scrapling install` in `host/`, and the proxy settings.
 
+## YouTube, Amazon, Walmart and Google Maps
+
+Each is the backend's scraper, copied with its imports moved and its collectors' progress turned into an `on_item` callback, behind one tool per backend verb, laid out and answering as Reddit's does: read-only and open-world, the backend's own inputs and limits, a summary as text with the items as `structuredContent`, progress per item, and `access = LicenseAccess()`.
+
+| Plugin | Tools | How it reaches the site |
+|---|---|---|
+| [YouTube](../../plugins/remote/proprietary/youtube/server.py) `/youtube/mcp` | `scrape` (videos, shorts and streams of a channel, video or search, subtitles if asked) and `comments` | InnerTube over plain HTTP on sticky residential IPs, a stealth browser when every proxy fails, and `youtube-transcript-api` for subtitles |
+| [Amazon](../../plugins/remote/proprietary/amazon/server.py) `/amazon/mcp` | `scrape` (products, by URL or search, on any Amazon domain) | Plain HTTP, the exit country following the domain |
+| [Walmart](../../plugins/remote/proprietary/walmart/server.py) `/walmart/mcp` | `scrape` (products) and `reviews` | Plain HTTP on US exits |
+| [Google Maps](../../plugins/remote/proprietary/google_maps/server.py) `/google-maps/mcp` | `scrape` (places, by search, URL or place id) and `reviews` | Plain HTTP with Google's anonymous cookie, a stealth browser for short links and walls; a sign-in wall is the tool's error |
+
+None needs a setting of its own, only the shared `SCRAPING_PROXY_*`, nor anything in the image but Chromium. Unlike Reddit, a block does not end the call with an error: Amazon and Walmart answer with an error item per input they could not reach, as the backend did, and YouTube with no items.
+
 ## The license check
 
 A plugin's `server.py` may set `access`, an object with `refusal(headers)` ([`access.py`](../../plugins/remote/mcp_server/access.py)). The host asks it before every request reaches the plugin, and answers a refusal itself with its status and `{"reason": ...}` ([`refused_unless_allowed.py`](../../plugins/remote/host/refused_unless_allowed.py)). A plugin without `access` is open: SurfSense offers no free plugin yet, and nothing limits an open one per IP address ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#adding-a-plugin)).
@@ -85,12 +98,16 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 
 - [`host/tests/`](../../plugins/remote/host/tests/) serve sample plugins on loopback and reach them with the official MCP client: the health check, each plugin at its path, the build without `proprietary/`, a failing tool, an underscored folder at its hyphenated id, and reserved folders. `test_scaling.py` drives a stateless host as opencode's client does: a request answered by a copy that never saw the one before it, `PLUGINS`, and Stop ending the thread's call with a whole response, leaving another thread's or license's alone, and reaching the call on another copy through a real Redis, from `REDIS_URL` in CI or a `redis-server` the test starts.
 - [`proprietary/license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/) check the license against a stand-in Keygen on loopback, with the clock passed in: each answer above, the five-minute cache, the 24-hour grace, and a paid sample plugin through the host.
+- `proprietary/<plugin>/tests/` hold each plugin's tests from the backend, beside a `test_<plugin>_plugin.py` that serves the real plugin on the host behind a stand-in Keygen, the site faked at its fetch seam: its tools listed read-only and open-world, each tool's results with their summary and progress, a block or sign-in wall, a call naming nothing refused, and no license refused.
 - [`proprietary/reddit/tests/`](../../plugins/remote/proprietary/reddit/tests/) run the real plugin on the host behind a stand-in Keygen, with Reddit faked at the scraper's `fetch_json` and its proxy sessions: one read-only, open-world tool; a search's posts with their summary and progress; Reddit refusing every address, and a call naming nothing, as the tool's error; and a request with no license refused. The scraper's own tests, its parsers, URLs, rotation and fan-out, came from the backend with it, as did the proxy providers' tests, in [`proprietary/scraping/tests/`](../../plugins/remote/proprietary/scraping/tests/).
 
 ## Known gaps
 
 - `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
-- Only Reddit is written: the other scraper plugins are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)). Two of the backend's Reddit parser tests stay skipped, as there, for want of captured fixtures.
+- Google Search, the Web Crawler, Instagram, TikTok and Indeed are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)).
+- A block reads as an error item (Amazon, Walmart) or as no items (YouTube), not as the tool's error, so the agent may take it for an empty result.
+- 18 of the backend's tests stay skipped, as there, for want of captured responses: 15 of Google Maps', 2 of Reddit's and 1 of YouTube's.
+- YouTube's date cutoffs need `dateparser`, which the image lacks; neither tool offers a cutoff yet.
 - With `SURFSENSE_ACCOUNT_ID` empty, the host cannot start with Reddit, even locally.
 - No limit on threads or browsers per plugin, so Reddit's warm-up browsers are bounded only by its 16 sessions per call; and no per-IP limit for a free plugin, since none exists.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.

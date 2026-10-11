@@ -102,7 +102,7 @@ SurfSense's first paid plugins: one per platform, each its own MCP server and it
 | Web Crawler | `web-crawler` | A page; a site, as a job ([below](#long-calls-run-as-jobs)) |
 | Reddit | `reddit` | Posts, comments, a subreddit |
 | YouTube | `youtube` | Videos, channels, comments |
-| Instagram | `instagram` | Profiles and their posts |
+| Instagram | `instagram` | Profiles and their posts; a keyword search finds profiles through Google Search, so it follows that plugin |
 | TikTok | `tiktok` | Videos, comments, user search, trending |
 | Google Maps | `google-maps` | Places and their reviews |
 | Amazon | `amazon` | Products and search results |
