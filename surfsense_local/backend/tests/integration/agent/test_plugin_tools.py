@@ -287,36 +287,50 @@ async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> N
     assert saved.status_code == 409
 
 
-async def test_a_mentioned_tool_is_given_past_the_turns_limit_and_named_to_the_agent(
+async def test_a_mentioned_plugin_gives_all_its_tools_past_the_limit_and_is_named(
     agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`@notes_count` is the user's choice: the turn gives it even when more tools than fit are ready."""
+    """`@notes` is the user's choice: every ready tool of it is given, even past the limit."""
     monkeypatch.setattr(turn_plugins, "MAX_TOOLS", 1)
     await connect_notes(agent_api, notes_url)
     agent_api.model.replies = [("text", "Counting.")]
     thread = await open_thread(agent_api)
 
-    await send(agent_api, thread["id"], "How many words? @notes_count")
+    await send(agent_api, thread["id"], "How many words? @notes")
 
     assert offered(agent_api) == ["notes_count", "notes_search"]
     told = json.dumps(agent_api.model.requests[0]["messages"])
-    assert "The user asked you to use count from Notes (notes_count)" in told
+    assert "The user asked you to use the Notes plugin for this." in told
     listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
-    assert listed.json()[0]["content"]["text"] == "How many words? @notes_count"
+    assert listed.json()[0]["content"]["text"] == "How many words? @notes"
 
 
-async def test_a_mention_of_a_tool_that_is_not_ready_changes_nothing(
+async def test_mentioning_a_plugin_never_unblocks_its_tools(
     agent_api: AgentAPI, notes_url: str
 ) -> None:
-    """A blocked tool stays blocked, whatever the message names."""
+    """A tool switched off stays hidden, whatever the message names."""
     await connect_notes(agent_api, notes_url)
     await agent_api.http.put("/plugins/notes/tools/count", json={"enabled": False})
     agent_api.model.replies = [("text", "Hi.")]
     thread = await open_thread(agent_api)
 
-    await send(agent_api, thread["id"], "Use @notes_count")
+    await send(agent_api, thread["id"], "Use @notes")
 
     assert offered(agent_api) == ["notes_search"]
+
+
+async def test_a_mention_of_a_plugin_that_is_not_ready_changes_nothing(
+    agent_api: AgentAPI, notes_url: str
+) -> None:
+    """With third-party plugins refused, the agent is neither given it nor told of it."""
+    await connect_notes(agent_api, notes_url)
+    await agent_api.http.put("/plugins/third-party", json={"allowed": False})
+    agent_api.model.replies = [("text", "Hi.")]
+    thread = await open_thread(agent_api)
+
+    await send(agent_api, thread["id"], "Use @notes")
+
+    assert offered(agent_api) == []
     assert "The user asked you to use" not in json.dumps(
         agent_api.model.requests[0]["messages"]
     )

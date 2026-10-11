@@ -1,7 +1,8 @@
-"""Tools the user named in their message as `@<plugin>_<tool>`, which the composer inserts.
+"""Plugins the user named in their message as `@<plugin id>`, which the composer inserts.
 
-A mention is the user choosing the tool: the turn gives it past the limit, and the
-agent is told. Only a ready tool counts, so a mention never unblocks one.
+A mention is the user choosing the plugin: the turn gives every ready tool of it past
+the limit, and the agent is told, then picks the tools itself. Only a ready plugin
+counts, and only its ready tools, so a mention never unblocks one.
 """
 
 import re
@@ -9,30 +10,24 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from modules.agent.plugin_tools.turn_plugins import opencode_tool_name
 from modules.plugins.gateway.listing import list_tools
 
-# The characters opencode keeps in a tool's name.
-_MENTION = re.compile(r"@([A-Za-z0-9_-]+)")
+# A plugin id: lowercase words joined by hyphens.
+_MENTION = re.compile(r"@([a-z0-9-]+)")
 
 
 @dataclass(frozen=True)
 class Mention:
-    name: str
-    tool: str
+    plugin_id: str
     plugin: str
 
 
-def mentioned_tools(session: Session, text: str) -> list[Mention]:
+def mentioned_plugins(session: Session, text: str) -> list[Mention]:
     named = set(_MENTION.findall(text))
     if not named:
         return []
-    mentions = []
-    for tool in list_tools(session):
-        name = opencode_tool_name(tool.plugin_id, tool.tool)
-        if name in named:
-            mentions.append(Mention(name, tool.title or tool.tool, tool.plugin_name))
-    return mentions
+    ready = {tool.plugin_id: tool.plugin_name for tool in list_tools(session)}
+    return [Mention(key, name) for key, name in ready.items() if key in named]
 
 
 def mention_note(mentions: list[Mention]) -> str | None:
@@ -40,6 +35,5 @@ def mention_note(mentions: list[Mention]) -> str | None:
     if not mentions:
         return None
     return " ".join(
-        f"The user asked you to use {m.tool} from {m.plugin} ({m.name}) for this."
-        for m in mentions
+        f"The user asked you to use the {m.plugin} plugin for this." for m in mentions
     )

@@ -38,12 +38,10 @@ def opencode_tool_name(server: str, tool: str) -> str:
 def turn_plugins(
     session: Session, mentioned: frozenset[str] = frozenset()
 ) -> list[TurnPlugin]:
-    """The first MAX_TOOLS ready tools, and any the user mentioned past them."""
+    """The first MAX_TOOLS ready tools, and every one past them of a plugin the user mentioned."""
     ready = list_tools(session)
     chosen = ready[:MAX_TOOLS] + [
-        tool
-        for tool in ready[MAX_TOOLS:]
-        if opencode_tool_name(tool.plugin_id, tool.tool) in mentioned
+        tool for tool in ready[MAX_TOOLS:] if tool.plugin_id in mentioned
     ]
     plugins: dict[str, TurnPlugin] = {}
     for tool in chosen:

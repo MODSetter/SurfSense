@@ -38,7 +38,7 @@ from modules.agent.opencode_runtime import (
 )
 from modules.agent.plugin_tools.changed_tools import check_changed_tools
 from modules.agent.plugin_tools.give_plugins import give_plugins
-from modules.agent.plugin_tools.mentions import mention_note, mentioned_tools
+from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
 from modules.agent.plugin_tools.turn_plugins import turn_plugins
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
@@ -194,9 +194,9 @@ async def _stream(
         await live_instances.wait_for_disposal(folder)
         await register_thread_tools(client, folder, workspace_id, thread_id, launch_key)
         await check_changed_tools(session)
-        mentions = await transact(session, mentioned_tools, sending.text)
+        mentions = await transact(session, mentioned_plugins, sending.text)
         plugins = await transact(
-            session, turn_plugins, frozenset(m.name for m in mentions)
+            session, turn_plugins, frozenset(m.plugin_id for m in mentions)
         )
         unavailable = await give_plugins(client, folder, session_id, plugins)
         if unavailable:
