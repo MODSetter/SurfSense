@@ -60,7 +60,7 @@ export function DisconnectPluginButton({
             {intl.formatMessage({
               id: "plugins_disconnect_dialog_body",
               defaultMessage:
-                "Its key and tool settings are removed. Steps it took stay in their threads.",
+                "The agent stops using it, and its tool settings are removed. To stop it for a while instead, switch it off.",
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>

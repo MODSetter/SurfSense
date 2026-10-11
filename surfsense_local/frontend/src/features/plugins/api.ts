@@ -73,6 +73,15 @@ export function checkPlugin(id: string): Promise<Plugin> {
   return requestJson<Plugin>(`/plugins/${id}/check`, { method: "POST" })
 }
 
+/** The server lists its tools with the new key first; a key it refuses is not saved. */
+export function replacePluginKey(id: string, token: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/${id}/key`, {
+    method: "PUT",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ token }),
+  })
+}
+
 export function savePluginStep(
   threadId: number,
   stepId: string

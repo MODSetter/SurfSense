@@ -45,7 +45,7 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
 
 type Call = { method: string; path: string; body: unknown }
 
-/** The plugin routes as the screen reaches them; `refuse` answers the next add instead. */
+/** The plugin routes as the screen reaches them; `refuse` answers an add or a new key instead. */
 function api({
   plugins = [notes()],
   allowed = false,
@@ -80,6 +80,16 @@ function api({
         const added = notes({ name: body.name, url: body.url })
         connected = [...connected, added]
         return Response.json(added, { status: 201 })
+      }
+      if (url.pathname.endsWith("/key")) {
+        if (refuse) {
+          const { status, ...detail } = refuse
+          return Response.json({ detail }, { status })
+        }
+        connected = connected.map((plugin) =>
+          plugin.id === id ? { ...plugin, check_failure: null } : plugin
+        )
+        return Response.json(connected.find((plugin) => plugin.id === id))
       }
       if (url.pathname.endsWith("/check")) {
         connected = connected.map((plugin) =>
@@ -309,12 +319,54 @@ describe("plugins settings", () => {
     ])
   })
 
-  it("asks for a new key when the server refused the last one", async () => {
-    api({ plugins: [notes({ check_failure: "sign_in" })], allowed: true })
+  it("asks for a new key when the server refused the last one, and saves it", async () => {
+    const calls = api({
+      plugins: [notes({ check_failure: "sign_in" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
     render(<PluginsSettings />)
 
     const plugin = await screen.findByRole("region", { name: "Notes" })
     expect(within(plugin).getByText("Needs a new key")).toBeTruthy()
+    await user.click(
+      within(plugin).getByRole("button", { name: "Replace key" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("New key"), "k-2")
+    await user.click(within(dialog).getByRole("button", { name: "Save" }))
+
+    expect(await within(plugin).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "PUT", path: "/plugins/notes/key", body: { token: "k-2" } },
+    ])
+  })
+
+  it("keeps the old key when the server refuses the new one", async () => {
+    api({
+      plugins: [notes({ check_failure: "sign_in" })],
+      allowed: true,
+      refuse: {
+        status: 422,
+        code: "plugin_needs_sign_in",
+        message:
+          "This server needs a key or a sign-in before it lists its tools.",
+      },
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    await user.click(
+      within(plugin).getByRole("button", { name: "Replace key" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("New key"), "wrong")
+    await user.click(within(dialog).getByRole("button", { name: "Save" }))
+
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(
+      "The server refused this key. Check it and try again."
+    )
   })
 
   it("marks the tools that are new or changed, which wait to be allowed", async () => {

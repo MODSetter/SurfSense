@@ -15,6 +15,7 @@ from modules.plugins.installed.https_required import needs_https
 from modules.plugins.installed.models import InstalledPlugin, ToolApproval
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.installed.plugin_hosts import refused_hosts
+from modules.plugins.installed.plugin_key import replace_key
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
 from modules.plugins.installed.plugin_switch import set_plugin_enabled
 from modules.plugins.installed.server_url import server_url
@@ -39,6 +40,10 @@ class PluginWrite(BaseModel):
 
 class ThirdPartyAllowed(BaseModel):
     allowed: bool
+
+
+class KeyWrite(BaseModel):
+    token: str
 
 
 class CustomPluginWrite(BaseModel):
@@ -141,6 +146,34 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
         return read_plugin(s, plugin)
 
     return await transact(session, record)
+
+
+@router.put(
+    "/{plugin_id}/key", response_model=PluginRead, summary="Replace a plugin's key"
+)
+async def write_key(
+    plugin_id: str, payload: KeyWrite, session: SessionDep
+) -> PluginRead:
+    """The server lists its tools with the new key first; a key it refuses is not saved."""
+    url = await transact(
+        session, lambda s: getattr(s.get(InstalledPlugin, plugin_id), "url", None)
+    )
+    if url is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    source = RemoteMcpSource(url, token_headers(payload.token))
+    try:
+        tools = await source.list_tools()
+    except ServerError as error:
+        raise connect_refusal(error) from error
+    finally:
+        await source.close()
+
+    def store(s):
+        plugin = s.get_one(InstalledPlugin, plugin_id)
+        replace_key(s, plugin, payload.token, tools)
+        return read_plugin(s, plugin)
+
+    return await transact(session, store)
 
 
 @router.put(

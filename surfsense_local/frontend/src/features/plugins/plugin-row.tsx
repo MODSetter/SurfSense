@@ -8,6 +8,7 @@ import { intl } from "@/i18n/intl"
 import type { Plugin, PluginTool, ToolApproval } from "./api"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginToolRow } from "./plugin-tool-row"
+import { ReplaceKeyButton } from "./replace-key-button"
 import { isReadOnly } from "./tool-kind"
 
 function ToolGroup({
@@ -140,6 +141,9 @@ export function PluginRow({
         >
           {checkLabel(plugin)}
         </span>
+        {plugin.check_failure === "sign_in" ? (
+          <ReplaceKeyButton plugin={plugin} />
+        ) : null}
         <Button
           type="button"
           size="xs"
