@@ -33,8 +33,8 @@ A plugin connected, or a tool's setting changed, mid-thread takes effect at the 
 
 The user can name a tool rather than leave the choice to the agent.
 
-- Typing `@` in the agent composer lists ready tools as `@<plugin> <tool>`.
-- The turn gives opencode the mentioned tool's plugin, even beyond the 24, and the user's message gains one line: "The user asked you to use Notion's Search for this."
+- Typing `@` in the agent composer lists ready tools as "Notion: Search", through assistant-ui's composer trigger popover, and picking one writes `@notion_search`, opencode's own name for it, into the message.
+- The turn gives opencode the mentioned tool's plugin, even beyond the 24, and a note beside the user's words, as the scope note goes, says: "The user asked you to use Search from Notion (notion_search) for this." A mentioned tool that is not ready changes nothing.
 - The agent fills the inputs and makes the call, as with any tool, so a mention needs no form and no model call of its own.
 - Approval is unchanged: the agent chose the inputs, not the user, so the call asks as [`04-trust.md`](04-trust.md#approval) says.
 
