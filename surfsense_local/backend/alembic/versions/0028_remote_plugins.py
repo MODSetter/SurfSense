@@ -1,5 +1,5 @@
-"""Record connected plugins with their sign-in, their tools, and whether third-party
-plugins are allowed.
+"""Record connected plugins with their sign-in and their last check, their tools and
+why one was switched off on its own, and whether third-party plugins are allowed.
 
 Remote plugins first; `kind` and the enums carry only what is built, since SQLite
 rebuilds a table to widen a check constraint. The agent's calls are kept in
@@ -47,6 +47,12 @@ def upgrade() -> None:
         ),
         sa.Column("credential_kind", sa.String(), nullable=True),
         sa.Column("credential_ciphertext", sa.LargeBinary(), nullable=True),
+        sa.Column("checked_at", sa.DateTime(), nullable=True),
+        sa.Column(
+            "check_failure",
+            _enum("checkfailure", "unreachable", "sign_in"),
+            nullable=True,
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_installed_plugins")),
         sa.UniqueConstraint("url", name=op.f("uq_installed_plugins_url")),
     )
@@ -70,6 +76,7 @@ def upgrade() -> None:
             server_default=sa.text("(CURRENT_TIMESTAMP)"),
             nullable=False,
         ),
+        sa.Column("change", _enum("toolchange", "added", "changed"), nullable=True),
         sa.ForeignKeyConstraint(
             ["plugin_id"],
             ["installed_plugins.id"],
