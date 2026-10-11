@@ -15,6 +15,10 @@ dependencies = [
     "redis>=5.2",
     # The scraper plugins' fetchers and stealth browsers; `scrapling install` adds the browsers.
     "scrapling[fetchers]>=0.4.11,<0.5",
+    # YouTube's subtitles.
+    "youtube-transcript-api>=1.0.3",
+    "fake-useragent>=2.2.0",
+    "requests>=2.33",
 ]
 
 [dependency-groups]
