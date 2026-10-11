@@ -54,7 +54,7 @@ plugins/
       mounted_plugins.py       the plugins it serves; skips proprietary/ when absent
       registry_files.py        serves the signed registry and its icons
       config.py                each plugin's settings section
-      azure/                   Bicep: the host's Container App and its scale rule, Redis, the results' Blob Storage, SearXNG, Key Vault references
+      azure/                   Bicep: the host's Container App and its scale rule, the Redis and SearXNG container apps, the results' Blob Storage, Key Vault references
     mcp_server/                Apache-2.0   what every plugin builds its server with
       tools.py                 declaring a tool and its MCP annotations
       progress.py              MCP progress notifications
@@ -166,7 +166,7 @@ A job's state is small and changes on every heartbeat; its result can be many me
 | Stops, passed on a channel to every copy, since any may run the thread's call | Redis | Not kept: each copy keeps its own calls in flight |
 | Google Search's warm IP pool and its link cache | Redis | Until they go stale |
 
-Redis runs with persistence on, so a Redis restart loses no job. Everything here expires within a day, is read by its key and never queried, and costs at most a rerun when lost. A database would add migrations and backups for none of it. One would come only for usage kept for months and reported on, such as billing by the call, which nothing in this design does.
+Redis runs with persistence on, so a Redis restart loses no job. It is a container, not Azure Cache for Redis: the `redis` image as a Container App of its own, one copy that never scales, since two would be two separate memories, reached only inside the environment over TCP, with a password from Key Vault and its append-only file on an Azure Files volume. Nothing here needs a managed service's replicas, and the same container runs in local runs and tests. A copy of the host reconnects when Redis restarts, and a Stop sent while Redis is down still ends the calls on the copy that took it. Everything here expires within a day, is read by its key and never queried, and costs at most a rerun when lost. A database would add migrations and backups for none of it. One would come only for usage kept for months and reported on, such as billing by the call, which nothing in this design does.
 
 ## Scaling
 
