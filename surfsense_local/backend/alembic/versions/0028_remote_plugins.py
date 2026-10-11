@@ -48,9 +48,18 @@ def upgrade() -> None:
         sa.Column("credential_kind", sa.String(), nullable=True),
         sa.Column("credential_ciphertext", sa.LargeBinary(), nullable=True),
         sa.Column("checked_at", sa.DateTime(), nullable=True),
+        # A license's four come from SurfSense's plugin host, as contract 2 words them.
         sa.Column(
             "check_failure",
-            _enum("checkfailure", "unreachable", "sign_in"),
+            _enum(
+                "checkfailure",
+                "unreachable",
+                "sign_in",
+                "needs_license",
+                "license_expired",
+                "license_revoked",
+                "license_invalid",
+            ),
             nullable=True,
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_installed_plugins")),
