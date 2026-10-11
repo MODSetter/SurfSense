@@ -13,3 +13,6 @@ class Config:
     PROXY_PROVIDER = os.getenv("SCRAPING_PROXY_PROVIDER")
     # The vendor's endpoint, http://user:pass@host:port.  # pragma: allowlist secret
     PROXY_URL = os.getenv("SCRAPING_PROXY_URL")
+    # The captcha solver, `capsolver` or `2captcha`, and its key. No key, no solves.
+    CAPTCHA_PROVIDER = os.getenv("SCRAPING_CAPTCHA_PROVIDER", "capsolver")
+    CAPTCHA_API_KEY = os.getenv("SCRAPING_CAPTCHA_API_KEY")
