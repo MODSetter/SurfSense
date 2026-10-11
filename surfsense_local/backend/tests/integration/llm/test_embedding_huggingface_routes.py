@@ -69,7 +69,7 @@ def build_of(body: dict) -> dict:
 
 
 def fake_hub(
-    *, scan: list | None = None, tree: list | None = None
+    *, scan: list | None = None, tree: list | None = None, gated: bool = False
 ) -> httpx.MockTransport:
     """Hugging Face's API and file server, answering for one repo."""
 
@@ -97,7 +97,7 @@ def fake_hub(
                 json={
                     "sha": REV,
                     "pipeline_tag": "sentence-similarity",
-                    "gated": False,
+                    "gated": gated,
                     "securityRepoStatus": {
                         "scansDone": True,
                         "filesWithIssues": scan or [],
@@ -185,10 +185,57 @@ async def test_a_repo_without_onnx_says_why_it_cannot_run(
 
     assert not body["row"]["runnable"]
     assert "ONNX" in body["row"]["not_runnable_reason"]
-    # The embedder check's own sentence has no code: not the embedding group's,
-    # whose words would replace it on screen.
-    assert body["row"]["not_runnable_code"] is None
+    # The embedder check's own code: not the embedding group's, whose words
+    # would replace its sentence on screen.
+    assert body["row"]["not_runnable_code"] == "repo_no_onnx"
     assert body["row"]["builds"] == []
+
+
+async def test_a_repo_without_a_tokenizer_says_so_by_code(
+    client: AsyncClient, huggingface
+) -> None:
+    """Without it the encoder cannot split a passage into tokens."""
+    huggingface(tree=[f for f in TREE if f["path"] != "tokenizer.json"])
+
+    body = (await client.get(f"/embedding/huggingface/repo/{REPO}")).json()
+
+    assert body["row"]["not_runnable_reason"] == "This repo has no tokenizer.json."
+    assert body["row"]["not_runnable_code"] == "repo_no_tokenizer"
+
+
+async def test_a_gated_repo_says_so_by_code(client: AsyncClient, huggingface) -> None:
+    """Refused before its files are listed: SurfSense signs in to nothing."""
+    huggingface(gated=True)
+
+    body = (await client.get(f"/embedding/huggingface/repo/{REPO}")).json()
+
+    assert body["gated"] is True
+    assert not body["row"]["runnable"]
+    assert body["row"]["not_runnable_reason"] == (
+        "This repo needs an account to download."
+    )
+    assert body["row"]["not_runnable_code"] == "repo_gated"
+
+
+async def test_an_unhashed_build_names_its_file_and_has_no_code(
+    client: AsyncClient, huggingface
+) -> None:
+    """The sentence names the file, so it travels as written; the interface
+    shows a reason without a code as it came."""
+    unhashed = [
+        {k: v for k, v in f.items() if k != "lfs"}
+        if f["path"] == "onnx/model_int8.onnx"
+        else f
+        for f in TREE
+    ]
+    huggingface(tree=unhashed)
+
+    body = (await client.get(f"/embedding/huggingface/repo/{REPO}")).json()
+
+    assert body["row"]["not_runnable_reason"] == (
+        "Hugging Face lists no checksum for onnx/model_int8.onnx."
+    )
+    assert body["row"]["not_runnable_code"] is None
 
 
 async def test_a_tokenizer_stored_without_lfs_is_hashed_from_its_bytes(
@@ -220,6 +267,7 @@ async def test_a_repo_hugging_face_flags_is_refused(
 
     assert not body["row"]["runnable"]
     assert "security scan" in body["row"]["not_runnable_reason"]
+    assert body["row"]["not_runnable_code"] == "repo_scan_flagged"
 
 
 async def test_a_pick_that_passes_its_checks_installs_and_can_be_locked(

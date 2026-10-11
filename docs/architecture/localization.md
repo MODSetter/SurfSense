@@ -85,4 +85,4 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 
 ## Known gaps
 
-- Backend prose without a code stays English in every language: why a Hugging Face embedder repo cannot run, an embedder's failed check at install, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.
+- Backend prose without a code stays English in every language: the one refusal of a Hugging Face embedder repo that names a file ("Hugging Face lists no checksum for …"), an embedder's failed check at install, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.

@@ -3,6 +3,7 @@ model, and its size is what the screen shows."""
 
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import replace
+from enum import StrEnum
 
 from modules.embedding.spec import EmbedderSpec
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
@@ -128,18 +129,24 @@ def downloaded_rows(specs: Sequence[EmbedderSpec]) -> list[LocalRow]:
     return rows
 
 
-def searched_row(repo: str, build: BuildRow | None, reason: str | None) -> LocalRow:
+def searched_row(
+    repo: str,
+    build: BuildRow | None,
+    reason: str | None,
+    code: StrEnum | None = None,
+) -> LocalRow:
     """One opened Hugging Face repo, in the shape the GGUF search answers: its
-    one build, or none and why."""
+    one build, or none and why. `code` names `reason`, when the embedder check
+    gave it one."""
     classification = classify("", "feature-extraction")
     if build is None:
-        # No build to offer: classified as nothing, so the row says why. The
-        # embedder check's own sentence has no code.
+        # No build to offer: classified as nothing, so the row says why, in the
+        # embedder check's own sentence and code. Never the embedding group's.
         classification = replace(
             classification,
             types=(),
             reason=reason or UNSUPPORTED_REASON,
-            code=None if reason else NotRunnableCode.UNSUPPORTED,
+            code=code if reason else NotRunnableCode.UNSUPPORTED,
         )
     return LocalRow(
         id=repo,
