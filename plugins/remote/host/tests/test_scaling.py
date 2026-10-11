@@ -9,7 +9,7 @@ import pytest
 from host.app import host_app
 from host.cancel_broadcast import RedisBroadcast
 from host.tests.mcp_calls import raw_request, tool_names
-from host.tests.redis_server import redis_url
+from host.tests.redis_server import redis_url, restartable_redis
 from host.tests.serving import serving
 
 SAMPLES = Path(__file__).parent / "sample_plugins"
@@ -162,3 +162,42 @@ def test_stop_reaches_the_copy_running_the_call(tmp_path: Path, redis: str) -> N
 
         wait_for(mark, "cancelled")
         call.ended()
+
+
+def test_a_copy_starts_and_stops_its_own_calls_while_redis_is_down(
+    tmp_path: Path,
+) -> None:
+    """Redis runs as a container that restarts with the platform; a copy outlives it."""
+    mark = tmp_path / "mark"
+    unreachable = RedisBroadcast("redis://127.0.0.1:1/0", retry_seconds=0.1)
+    with serving(host_app(SAMPLES, broadcast=unreachable)) as base:
+        call = SlowCall(f"{base}/slow/mcp", mark, THREAD)
+
+        assert stop(base, THREAD).status_code == 202
+
+        wait_for(mark, "cancelled")
+        call.ended()
+
+
+def test_a_copy_hears_stops_again_once_redis_is_back(tmp_path: Path) -> None:
+    mark = tmp_path / "mark"
+    with restartable_redis(tmp_path) as redis:
+        first = host_app(
+            SAMPLES, broadcast=RedisBroadcast(redis.url, retry_seconds=0.1)
+        )
+        second = host_app(
+            SAMPLES, broadcast=RedisBroadcast(redis.url, retry_seconds=0.1)
+        )
+        with serving(first) as a, serving(second) as b:
+            redis.stop()
+            redis.start()
+            call = SlowCall(f"{a}/slow/mcp", mark, THREAD)
+
+            # Until the first copy has subscribed again, a Stop on the second misses it.
+            deadline = time.monotonic() + 5
+            while mark.read_text() != "cancelled" and time.monotonic() < deadline:
+                stop(b, THREAD)
+                time.sleep(0.2)
+
+            assert mark.read_text() == "cancelled"
+            call.ended()
