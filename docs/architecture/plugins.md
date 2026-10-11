@@ -20,8 +20,8 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 
 | Table | Holds |
 |---|---|
-| `installed_plugins` | `id`, `kind` (`remote`), `source` (`first_party`, `registry` or `custom`), the unique `url`, `publisher`, the `entry` it was connected from, `enabled`, `connected_at`, and its key as `credential_kind` and `credential_ciphertext` |
-| `plugin_tools` | one row per tool: its listing (`title`, `description`, `input_schema`, `annotations`), `position`, the user's `enabled` and `approval` (`ask` or `always`), `exposure`, `first_seen_at`; removed with its plugin |
+| `installed_plugins` | `id`, `kind` (`remote`), `source` (`first_party`, `registry` or `custom`), the unique `url`, `publisher`, the `entry` it was connected from, `enabled`, `connected_at`, its key as `credential_kind` and `credential_ciphertext`, and its last check: `checked_at`, and `check_failure` (`unreachable` or `sign_in`, null when the server answered) |
+| `plugin_tools` | one row per tool: its listing (`title`, `description`, `input_schema`, `annotations`), `position`, the user's `enabled` and `approval` (`ask` or `always`), `exposure`, `first_seen_at`, and `change` (`added` or `changed`) while a tool switched off on its own waits to be allowed; removed with its plugin |
 | `plugin_settings` | one row: `third_party_on` |
 
 ## Ready tools
@@ -30,6 +30,12 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 
 **Tools added later.** Each listing after the first is recorded by [`recorded_tools.py`](../../surfsense_local/backend/modules/plugins/installed/recorded_tools.py): a new tool starts off, a tool whose description changed or whose annotations became less safe is switched off, and a tool the server dropped is deleted. The agent's turn lists again at most every five minutes ([agent](agent.md#plugins)).
 
+## Checks
+
+Every listing of a server is a check, recorded on its row ([`plugin_check.py`](../../surfsense_local/backend/modules/plugins/installed/plugin_check.py)): connecting, the agent's listing before a turn when the last check is five minutes old ([agent](agent.md#plugins)), and **Check now**. One that answers records its tools; one that fails keeps the tools last recorded and says why, a `401` or `403` as `sign_in` and anything else as `unreachable`.
+
+A tool switched off by a check, because it is new or its description or annotations changed, is marked `added` or `changed`. Switching it on clears the mark: the user has allowed it as it now reads.
+
 ## Routes
 
 | Method | Path | Does |
@@ -37,6 +43,7 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 | `GET` | `/plugins` | Every connected plugin with its tools; never a key |
 | `POST` | `/plugins/custom` | Connects a server by URL, as above |
 | `PUT` | `/plugins/{id}` | `{enabled}`: off pauses a plugin, keeping its key and tool settings |
+| `POST` | `/plugins/{id}/check` | Lists the server again and records the check |
 | `PUT` | `/plugins/{id}/tools/{tool}` | `{enabled}` or `{approval}` |
 | `GET` / `PUT` | `/plugins/third-party` | `{allowed}` |
 | `DELETE` | `/plugins/{id}` | Disconnects: the key and the tools go; steps it took stay in their threads' sessions |
@@ -47,18 +54,19 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 
 - **Allow third-party plugins**, off by default. Turning it on first asks, saying other people run those servers, what a tool is sent goes to its publisher, and SurfSense does not review changes to them. Turning it off asks nothing. While it is off, a custom plugin says "Not used until third-party plugins are allowed".
 - **Add MCP server**, under MCP servers, a dialog with Name, Server URL and an optional Key. Each refusal above is shown in the app's words by its `code` ([`refusal-message.ts`](../../surfsense_local/frontend/src/features/plugins/refusal-message.ts)); a host not allowed raises the egress prompt and retries once allowed.
-- **One card per plugin:** its name, "Third-party · host" or "By SurfSense · host", a switch that pauses it, and Disconnect, which asks first. Its tools are split into Read-only and Can make changes, each with a switch and, where the rules leave a choice, Ask or Always allow; a tool that always asks says "Always asks", and a first-party read-only one "Doesn’t ask" ([`tool-kind.ts`](../../surfsense_local/frontend/src/features/plugins/tool-kind.ts) mirrors `needs_approval()`).
+- **One card per plugin:** its name, "Third-party · host" or "By SurfSense · host", a switch that pauses it, and Disconnect, which asks first. Under them, the last check: "Connected", "Couldn’t connect" or "Needs a new key", with **Check now**. When a check switched tools off, the card says some tools are new or changed and stay off until allowed, and each such tool is marked New or Changed. Its tools are split into Read-only and Can make changes, each with a switch and, where the rules leave a choice, Ask or Always allow; a tool that always asks says "Always asks", and a first-party read-only one "Doesn’t ask" ([`tool-kind.ts`](../../surfsense_local/frontend/src/features/plugins/tool-kind.ts) mirrors `needs_approval()`).
 
 ## Tests
 
-- **Backend:** [`tests/integration/plugins/routes/`](../../surfsense_local/backend/tests/integration/plugins/routes/) connect real MCP servers on loopback ([`tests/mcp_test_server.py`](../../surfsense_local/backend/tests/mcp_test_server.py)) through the routes: each refusal, a key that reaches the server and never comes back out, the switches, disconnecting and the third-party switch. [`tests/integration/plugins/gateway/`](../../surfsense_local/backend/tests/integration/plugins/gateway/) holds readiness and tools added later, and [`tests/unit/plugins/`](../../surfsense_local/backend/tests/unit/plugins/) the MCP client, the approval rules and URL spelling. The agent's side is in [agent](agent.md#tests).
-- **Frontend:** [`plugins-settings.test.tsx`](../../surfsense_local/frontend/src/features/plugins/plugins-settings.test.tsx) drives the screen against a stand-in API: listing, adding with a key, a refusal, the tool and plugin switches, approval, disconnecting and the third-party consent.
+- **Backend:** [`tests/integration/plugins/routes/`](../../surfsense_local/backend/tests/integration/plugins/routes/) connect real MCP servers on loopback ([`tests/mcp_test_server.py`](../../surfsense_local/backend/tests/mcp_test_server.py)) through the routes: each refusal, a key that reaches the server and never comes back out, the switches, disconnecting, the third-party switch, and checks: a server gone down, a refused key, and tools marked added or changed until allowed. [`tests/integration/plugins/gateway/`](../../surfsense_local/backend/tests/integration/plugins/gateway/) holds readiness and tools added later, and [`tests/unit/plugins/`](../../surfsense_local/backend/tests/unit/plugins/) the MCP client, the approval rules and URL spelling. The agent's side is in [agent](agent.md#tests).
+- **Frontend:** [`plugins-settings.test.tsx`](../../surfsense_local/frontend/src/features/plugins/plugins-settings.test.tsx) drives the screen against a stand-in API: listing, adding with a key, a refusal, the tool and plugin switches, approval, disconnecting, the third-party consent, the check's status with Check now, and tools marked New or Changed. [`plugin-step-line.test.tsx`](../../surfsense_local/frontend/src/features/plugins/plugin-step-line.test.tsx) holds a plugin step's name, its whole result and Save to Sources.
 
 ## Known gaps
 
 - Only servers added by URL: SurfSense's own plugins and the third-party registry are not listed yet ([proposal](../proposals/plugins/core/02-registry.md)).
 - Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added; whether it should be is an [open question](../proposals/plugins/README.md#open-questions).
 - A key can be given only when connecting, and OAuth sign-in does not exist; a server that needs it cannot be connected ([proposal](../proposals/plugins/remote/01-mcp-client.md)).
-- The screen shows no status: a server that went down or refused its key is seen only when an agent turn names it.
-- A tool switched off because it changed says nothing more on the screen than any other switch that is off.
+- A check runs at connect, before an agent turn and on request, never on a schedule, so a server that went down is seen only then.
+- No activity view: a plugin's recent calls are kept in each thread's opencode session, and the screen does not gather them yet.
+- A plugin's key can be replaced only by disconnecting and connecting again, so "Needs a new key" has no button of its own.
 - Plugins reach Agentic threads only; Basic threads get none until the chat engine's router step ([proposal](../proposals/plugins/core/03-engines.md#the-chat-engine-later)).
