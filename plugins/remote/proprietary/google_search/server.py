@@ -8,6 +8,7 @@ from mcp_types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
 from proprietary.google_search import searxng
+from proprietary.google_search.query_builder import is_page_url
 from proprietary.google_search.schemas import GoogleSearchScrapeInput
 from proprietary.google_search.scraper import scrape_serps
 from proprietary.license_check.license_access import LicenseAccess
@@ -36,8 +37,8 @@ def server() -> MCPServer:
                 max_length=MAX_QUERIES,
                 description=(
                     "Search terms, such as 'wedding photographers denver', or full "
-                    "Google Search URLs. Each term is searched; each URL is "
-                    "scraped as it is."
+                    "Google Search URLs, scraped as they are. Not pages to read: "
+                    "another site's URL is refused."
                 ),
             ),
         ],
@@ -65,6 +66,14 @@ def server() -> MCPServer:
         ] = None,
     ) -> CallToolResult:
         """Search Google: organic results, ads, People Also Ask, AI Overview and related searches."""
+        pages = [query.strip() for query in queries if is_page_url(query)]
+        if pages:
+            # Searched as a term, a page's URL costs a render and finds nothing useful.
+            raise ToolError(
+                f"Google Search only searches; {', '.join(pages)} is a page to "
+                "read, not a search. Give search terms, or Google Search URLs "
+                "such as https://www.google.com/search?q=..."
+            )
         total = len(queries) * max_pages_per_query
 
         async def heard(count: int) -> None:

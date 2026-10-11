@@ -161,6 +161,36 @@ async def test_google_walling_every_address_reads_as_the_tool_s_error(
     assert "Google" in result.content[0].text
 
 
+async def test_a_page_to_read_is_refused_rather_than_searched_for(
+    google_search: str, google: list[str]
+) -> None:
+    """An agent wanting a page's text would otherwise pay a render for its URL as a term."""
+    result = await call(
+        google_search,
+        "scrape",
+        {"queries": ["apple pie", "https://www.gadgets360.com/audio/guide/best-anc"]},
+        LICENSE,
+    )
+
+    assert result.is_error
+    assert "gadgets360.com" in result.content[0].text
+    assert google == []
+
+
+async def test_a_google_search_url_is_scraped_as_it_is(
+    google_search: str, google: list[str]
+) -> None:
+    result = await call(
+        google_search,
+        "scrape",
+        {"queries": ["https://www.google.com/search?q=apple+pie&gl=de"]},
+        LICENSE,
+    )
+
+    assert not result.is_error
+    assert google == ["https://www.google.com/search?q=apple+pie&gl=de"]
+
+
 async def test_a_call_naming_nothing_to_search_is_refused(google_search: str) -> None:
     result = await call(google_search, "scrape", {"queries": []}, LICENSE)
 

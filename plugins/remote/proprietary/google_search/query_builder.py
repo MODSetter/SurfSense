@@ -66,6 +66,12 @@ def _is_search_url(line: str) -> bool:
     return "google." in host and parsed.path.startswith("/search")
 
 
+def is_page_url(line: str) -> bool:
+    """A web address that is not a Google Search URL: a page to read, not a query."""
+    line = line.strip()
+    return line.lower().startswith(("http://", "https://")) and not _is_search_url(line)
+
+
 def term_from_url(url: str) -> str | None:
     """The ``q`` parameter of a Google Search URL (for provenance stamping)."""
     return parse_qs(urlparse(url).query).get("q", [None])[0]

@@ -24,7 +24,7 @@ Strategy (measured against DataImpulse residential IPs, ~50% pass rate):
 4. **Retry across IPs** until one yields real results or we exhaust the budget.
 
 Each attempt pins one sticky IP through the proxy provider's own session
-syntax (DataImpulse's ``__sid``, NodeMaven's ``-sid-``), so any vendor that can
+syntax (DataImpulse's sticky ports, NodeMaven's ``-sid-``), so any vendor that can
 hold a session gets the pool.
 """
 
