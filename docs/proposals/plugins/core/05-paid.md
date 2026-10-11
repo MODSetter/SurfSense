@@ -35,7 +35,8 @@ Price and license are separate questions. A plugin's `access` decides the price;
 - Code goes under `proprietary/` when it is what someone could compete with SurfSense on: the scrapers and the license check today. Everything a free plugin might need stays Apache-2.0.
 - So a free plugin is usually Apache-2.0, and a paid one Business Source License. The exception is a free plugin built on paid code, or one meant to become paid: it starts under `proprietary/` with `access: free`, because Apache-2.0 code once published cannot be closed again.
 - Apache-2.0 code never imports from `proprietary/`. A check in the plugin pull-request workflow fails any import that does.
-- Code SurfSense owns can move out of `proprietary/` to Apache-2.0 at any time, by moving its folder. Each released version also turns Apache-2.0 four years after release, as the license's change date says. Moving the other way works only for code never published under Apache-2.0.
+- Only SurfSense's maintainers change `proprietary/`. A pull request from anyone else that touches it fails the Proprietary Code check in `code-quality.yml` and is closed, so no contributor agreement is needed: SurfSense holds all of its copyright.
+- So its code can move out of `proprietary/` to Apache-2.0 at any time, by moving its folder. Each released version also turns Apache-2.0 four years after release, as the license's change date says. Moving the other way works only for code never published under Apache-2.0.
 
 ## Where their code lives
 
@@ -46,8 +47,8 @@ plugins/remote/proprietary/
   scrapers/    the scrapers plugin and the scraping code it runs
 ```
 
-- The root [`LICENSE`](../../../../LICENSE) names only `surfsense_backend/app/proprietary/` as BSL today. It needs a second line naming `plugins/remote/proprietary/`, and a maintainer has to approve that change before any code lands there.
-- `CODEOWNERS` gives `plugins/remote/proprietary/` to the maintainers, as AGENTS.md treats `surfsense_backend/app/proprietary/`.
+- The root [`LICENSE`](../../../../LICENSE) names both `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/` as BSL, and each folder holds its own copy of the license.
+- `CODEOWNERS` gives `plugins/remote/proprietary/` to the maintainers, as it gives `surfsense_backend/app/proprietary/`, and only they can merge.
 - Paid plugins run on the plugin host beside the free ones ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)).
 - A SurfSense paid bundle, when bundles come, would live in `plugins/bundles/proprietary/`, with a third line in the root `LICENSE`.
 
@@ -66,3 +67,4 @@ plugins/remote/proprietary/
 - A registry entry with `access: license` or `auth: license` fails the registry check.
 - A partner plugin with `access: external` shows its note before Connect, and its requests carry the user's partner credentials and never the license key.
 - A file outside `plugins/remote/proprietary/` that imports from it fails the plugin pull-request check.
+- A pull request from anyone but a maintainer that touches `plugins/remote/proprietary/` fails its Proprietary Code check.

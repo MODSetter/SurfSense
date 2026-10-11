@@ -14,6 +14,7 @@ SurfSense publishes its plugins as remote MCP servers and hosts them itself ([AD
 - One container, the plugin host, deployed to Azure Container Apps at `plugins.surfsense.com`, runs every SurfSense plugin, free and paid, each at `/<id>/mcp`, and serves the signed registry. It is apart from `surfsense_backend` and imports none of its code.
 - Its code lives in `plugins/remote/`: the host, the server kit every plugin builds on, free plugins under Apache-2.0, and paid plugins in `plugins/remote/proprietary/` under the Business Source License 1.1. The registry of third-party plugins stays in `plugins/registry/`, since it lists bundles too.
 - The folder decides a plugin's license; its entry's `access` decides its price.
+- Only SurfSense's maintainers change `plugins/remote/proprietary/`. A pull request from anyone else that touches it fails its check, so SurfSense holds all of its copyright and can move any of it to Apache-2.0 without a contributor agreement.
 
 ## Consequences
 
@@ -25,4 +26,4 @@ SurfSense publishes its plugins as remote MCP servers and hosts them itself ([AD
 
 ## Where the code stands
 
-- No plugin host, `plugins/remote/` or `plugins/registry/` exists. The earlier design's tooling is in `plugins/bundles/`.
+- No plugin host or `plugins/registry/` exists. `plugins/remote/` holds only `proprietary/LICENSE`, which the root `LICENSE` names. The earlier design's tooling is in `plugins/bundles/`.

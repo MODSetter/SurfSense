@@ -85,7 +85,7 @@ plugins/
 | Approval | Decided by the gateway from the tool's MCP annotations and the user's setting for it; in agent threads opencode's own request, asked on its step in the reply, Allow once or Deny ([`core/04-trust.md`](core/04-trust.md#approval)) |
 | Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |
 | Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`core/05-paid.md`](core/05-paid.md)) |
-| License of SurfSense's plugin code | The folder decides it: `proprietary/` is Business Source License, everything else Apache-2.0. Price is the plugin's `access`, a separate question ([`core/05-paid.md`](core/05-paid.md#which-license-a-surfsense-plugin-is-under)) |
+| License of SurfSense's plugin code | The folder decides it: `proprietary/` is Business Source License, everything else Apache-2.0. Only SurfSense's maintainers change `proprietary/`, so SurfSense holds all of its copyright. Price is the plugin's `access`, a separate question ([`core/05-paid.md`](core/05-paid.md#which-license-a-surfsense-plugin-is-under)) |
 | SurfSense's own plugin servers | In `plugins/remote/` (Apache-2.0) and `plugins/remote/proprietary/` (Business Source License 1.1), all run by one plugin host on Azure Container Apps at `plugins.surfsense.com`, which also serves the registry ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
 | `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
 | Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`core/04-trust.md`](core/04-trust.md#organisation-policy)) |
@@ -156,4 +156,3 @@ Plugins that change SurfSense itself (providers, interface, prompts); a sandbox;
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long tool results are kept and how large a stored one may be.
 - Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.
-- Whether contributions under `plugins/remote/proprietary/` need a contributor agreement, so SurfSense can still move that code to Apache-2.0.
