@@ -35,9 +35,18 @@ def opencode_tool_name(server: str, tool: str) -> str:
     return f"{clean(server)}_{clean(tool)}"
 
 
-def turn_plugins(session: Session) -> list[TurnPlugin]:
+def turn_plugins(
+    session: Session, mentioned: frozenset[str] = frozenset()
+) -> list[TurnPlugin]:
+    """The first MAX_TOOLS ready tools, and any the user mentioned past them."""
+    ready = list_tools(session)
+    chosen = ready[:MAX_TOOLS] + [
+        tool
+        for tool in ready[MAX_TOOLS:]
+        if opencode_tool_name(tool.plugin_id, tool.tool) in mentioned
+    ]
     plugins: dict[str, TurnPlugin] = {}
-    for tool in list_tools(session)[:MAX_TOOLS]:
+    for tool in chosen:
         if tool.plugin_id not in plugins:
             row = session.get_one(InstalledPlugin, tool.plugin_id)
             plugins[tool.plugin_id] = TurnPlugin(

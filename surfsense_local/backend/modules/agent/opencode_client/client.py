@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 from typing import Any, Literal, Self
 
@@ -139,18 +139,17 @@ class OpencodeClient:
         text: str,
         *,
         model: str,
-        note: str | None = None,
+        notes: Sequence[str] = (),
     ) -> None:
         """Start a turn and return at once; what happens next arrives as events.
 
         The model is named on every turn, so a session keeps working after the
-        selected model, and with it opencode's configuration, changes. A `note`
-        goes beside the user's words as a synthetic part: the model reads it,
-        and it is marked as not the user's.
+        selected model, and with it opencode's configuration, changes. Each of
+        `notes` goes beside the user's words as a synthetic part: the model
+        reads it, and it is marked as not the user's.
         """
         parts: list[dict[str, Any]] = [{"type": "text", "text": text}]
-        if note is not None:
-            parts.append({"type": "text", "text": note, "synthetic": True})
+        parts += [{"type": "text", "text": note, "synthetic": True} for note in notes]
         body = {
             "agent": AGENT,
             "model": {"providerID": PROVIDER, "modelID": model},
