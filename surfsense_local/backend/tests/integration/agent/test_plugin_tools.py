@@ -106,7 +106,11 @@ async def test_a_tool_that_may_destroy_asks_the_user_first(
     frames = await send(agent_api, thread["id"], "Count", approve)
 
     assert [f["permission"] for f in asked] == ["notes_count"]
-    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
+    step = of_type(frames, "agent-step")[-1]
+    assert step["status"] == "completed"
+    # The ask names its step, so the thread can show it there.
+    assert asked[0]["call_id"] is not None
+    assert asked[0]["call_id"] == step["call_id"]
 
 
 async def test_turns_of_a_thread_keep_one_session_with_the_plugin(
