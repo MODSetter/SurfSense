@@ -113,6 +113,7 @@ function backend({
   storedAfter = null as unknown[] | null,
   documents = [] as unknown[],
   plugins = [] as unknown[],
+  thirdPartyAllowed = true,
 } = {}): Backend {
   const state: Backend = { answers: [], sent: [] }
   let sent = false
@@ -137,7 +138,7 @@ function backend({
       if (path === "/artifacts/40") return Response.json(PROPOSAL)
       if (path === "/plugins") return Response.json(plugins)
       if (path === "/plugins/third-party") {
-        return Response.json({ allowed: true })
+        return Response.json({ allowed: thirdPartyAllowed })
       }
       const answer = path.match(/^\/chat\/threads\/10\/permissions\/(.+)$/)
       if (answer && init?.method === "POST") {
@@ -397,55 +398,103 @@ describe("an agent thread", () => {
     expect(state.sent[0].source_scope?.all).toBe(true)
   })
 
-  it("offers the ready plugin tools after @, and sends the one picked", async () => {
-    const state = backend({
+  it("says third-party plugins must be allowed when only those are connected", async () => {
+    backend({
       plugins: [
         {
-          id: "notes",
-          name: "Notes",
+          id: "wiki",
+          name: "Wiki",
           source: "custom",
           publisher: "custom",
-          url: "https://notes.example/mcp",
-          hosts: ["notes.example"],
+          url: "https://wiki.example/mcp",
+          hosts: ["wiki.example"],
           enabled: true,
           connected_at: "2026-10-01T00:00:00Z",
           checked_at: "2026-10-01T00:00:00Z",
           check_failure: null,
           tools: [
             {
-              name: "count",
-              title: "Count words",
-              description: "Count the words in a text.",
+              name: "search",
+              title: null,
+              description: "Search.",
               annotations: {},
               enabled: true,
-              approval: "ask",
-              change: null,
-            },
-            {
-              name: "delete",
-              title: null,
-              description: "Delete a note.",
-              annotations: {},
-              enabled: false,
               approval: "ask",
               change: null,
             },
           ],
         },
       ],
+      thirdPartyAllowed: false,
       waitFor: ["never"],
     })
     renderAgentThread()
     const user = userEvent.setup()
     const composer = await screen.findByRole("textbox", { name: "Message" })
 
-    await user.type(composer, "How long is it? @")
-    await user.click(await screen.findByText("Notes: Count words"))
-    expect(screen.queryByText("Notes: delete")).toBeNull()
+    await user.type(composer, "@")
+
+    expect(
+      await screen.findByText(
+        "Allow third-party plugins in Settings › Plugins to use them here."
+      )
+    ).toBeTruthy()
+  })
+
+  it("offers the ready plugins after @, and sends the one picked", async () => {
+    const plugin = (id: string, name: string, enabled: boolean) => ({
+      id,
+      name,
+      source: "custom",
+      publisher: "custom",
+      url: `https://${id}.example/mcp`,
+      hosts: [`${id}.example`],
+      enabled,
+      connected_at: "2026-10-01T00:00:00Z",
+      checked_at: "2026-10-01T00:00:00Z",
+      check_failure: null,
+      tools: [
+        {
+          name: "search",
+          title: null,
+          description: "Search.",
+          annotations: { readOnlyHint: true },
+          enabled: true,
+          approval: "ask",
+          change: null,
+        },
+      ],
+    })
+    const state = backend({
+      plugins: [plugin("notes", "Notes", true), plugin("wiki", "Wiki", false)],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    const user = userEvent.setup()
+    const composer = await screen.findByRole("textbox", { name: "Message" })
+
+    await user.type(composer, "Summarize it with @")
+    await user.click(await screen.findByText("Notes"))
+    expect(screen.queryByText("Wiki")).toBeNull()
     await user.type(composer, "{Enter}")
 
     await waitFor(() => expect(state.sent).toHaveLength(1))
-    expect(state.sent[0].text).toContain("@notes_count")
+    expect(state.sent[0].text).toContain("@notes")
+  })
+
+  it("says where to connect a plugin when none is ready", async () => {
+    backend({ waitFor: ["never"] })
+    renderAgentThread()
+    const user = userEvent.setup()
+    const composer = await screen.findByRole("textbox", { name: "Message" })
+
+    await user.type(composer, "@")
+
+    expect(
+      await screen.findByText(
+        "No plugins connected. Add one in Settings › Plugins."
+      )
+    ).toBeTruthy()
   })
 
   it("names the plugins a turn could not reach, and why", async () => {

@@ -16,14 +16,14 @@ import {
   thirdPartyQueryKey,
   type Plugin,
 } from "./api"
-import { opencodeToolName } from "./tool-name"
 
-const MENTION = /@([A-Za-z0-9_-]+)/g
+// A plugin id: lowercase words joined by hyphens.
+const MENTION = /@([a-z0-9-]+)/g
 
 /**
- * A mention reads `@notes_search` in the box and in the sent message: opencode's
- * own name for the tool, which the API looks for in the text. The library's
- * `:tool[label]{name=id}` would show as written, since the composer is a textarea.
+ * A mention reads `@notes` in the box and in the sent message: the plugin's id,
+ * which the API looks for in the text. The library's `:plugin[label]{name=id}`
+ * would show as written, since the composer is a textarea.
  */
 const mentionFormatter: Unstable_DirectiveFormatter = {
   serialize: (item) => `@${item.id}`,
@@ -37,19 +37,23 @@ const mentionFormatter: Unstable_DirectiveFormatter = {
       }
       segments.push({
         kind: "mention",
-        type: "tool",
+        type: "plugin",
         label: match[1],
         id: match[1],
       })
       last = match.index + match[0].length
     }
-    if (last < text.length)
+    if (last < text.length) {
       segments.push({ kind: "text", text: text.slice(last) })
+    }
     return segments
   },
 }
 
-/** The tools a turn may use, as the gateway decides; one it refuses is ignored if named. */
+/**
+ * The plugins a turn may use, as the gateway decides: switched on, allowed, and
+ * with a tool on. One the API finds not ready is ignored if named.
+ */
 function readyMentions(
   plugins: Plugin[],
   thirdPartyOn: boolean
@@ -57,24 +61,43 @@ function readyMentions(
   return plugins
     .filter(
       (plugin) =>
-        plugin.enabled && (plugin.source === "first_party" || thirdPartyOn)
+        plugin.enabled &&
+        (plugin.source === "first_party" || thirdPartyOn) &&
+        plugin.tools.some((tool) => tool.enabled)
     )
-    .flatMap((plugin) =>
-      plugin.tools
-        .filter((tool) => tool.enabled)
-        .map((tool) => ({
-          id: opencodeToolName(plugin.id, tool.name),
-          type: "tool",
-          label: intl.formatMessage(
-            { id: "plugins_step_label", defaultMessage: "{plugin}: {tool}" },
-            { plugin: plugin.name, tool: tool.title ?? tool.name }
-          ),
-          description: tool.description,
-        }))
-    )
+    .map((plugin) => ({
+      id: plugin.id,
+      type: "plugin",
+      label: plugin.name,
+      description: plugin.hosts[0] ?? plugin.url,
+    }))
 }
 
-/** Typing `@` in an Agentic composer lists the ready plugin tools to name for the agent. */
+/** Why `@` lists nothing: nothing connected, third-party plugins refused, or all switched off. */
+function emptyMessage(plugins: Plugin[], thirdPartyOn: boolean) {
+  if (plugins.length === 0) {
+    return intl.formatMessage({
+      id: "plugins_mentions_none_empty",
+      defaultMessage: "No plugins connected. Add one in Settings › Plugins.",
+    })
+  }
+  if (
+    !thirdPartyOn &&
+    plugins.every((plugin) => plugin.source !== "first_party")
+  ) {
+    return intl.formatMessage({
+      id: "plugins_mentions_third_party_off_empty",
+      defaultMessage:
+        "Allow third-party plugins in Settings › Plugins to use them here.",
+    })
+  }
+  return intl.formatMessage({
+    id: "plugins_mentions_all_off_empty",
+    defaultMessage: "Your plugins are switched off in Settings › Plugins.",
+  })
+}
+
+/** Typing `@` in an Agentic composer lists the ready plugins to name for the agent, which picks their tools. */
 export function PluginMentions() {
   const plugins = useQuery({
     queryKey: pluginsQueryKey,
@@ -101,7 +124,7 @@ export function PluginMentions() {
       adapter={mention.adapter}
       aria-label={intl.formatMessage({
         id: "plugins_mentions_aria",
-        defaultMessage: "Plugin tools",
+        defaultMessage: "Plugins",
       })}
       className="absolute inset-x-1.5 bottom-full z-50 mb-2 max-h-64 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-md"
     >
@@ -112,10 +135,12 @@ export function PluginMentions() {
         {(found) =>
           found.length === 0 ? (
             <p className="px-2 py-1.5 text-sm text-muted-foreground">
-              {intl.formatMessage({
-                id: "plugins_mentions_empty",
-                defaultMessage: "No plugin tools match",
-              })}
+              {items.length === 0
+                ? emptyMessage(plugins.data ?? [], thirdParty.data ?? false)
+                : intl.formatMessage({
+                    id: "plugins_mentions_empty",
+                    defaultMessage: "No plugins match",
+                  })}
             </p>
           ) : (
             found.map((item, index) => (
