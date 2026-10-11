@@ -44,7 +44,8 @@ Price and license are separate questions. A plugin's `access` decides the price;
 plugins/remote/proprietary/
   LICENSE      Business Source License 1.1, as surfsense_backend/app/proprietary/LICENSE
   license_check/  the Keygen check every SurfSense paid plugin uses
-  scrapers/    the scrapers plugin and the scraping code it runs
+  scraping/    the code every scraper plugin shares: proxies, captcha, browsers
+  reddit/  youtube/  google_search/  …   a scraper plugin each, its own MCP server
 ```
 
 - The root [`LICENSE`](../../../../LICENSE) names both `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/` as BSL, and each folder holds its own copy of the license.
@@ -60,7 +61,7 @@ plugins/remote/proprietary/
 
 ## Acceptance
 
-- With no license file, SurfSense Scrapers connects; its first call is refused by the server with `missing_license`, and the step says a license is needed and links to Settings → License.
+- With no license file, a scraper plugin such as Reddit connects; its first call is refused by the server with `missing_license`, and the step says a license is needed and links to Settings → License.
 - With a trial license, its tools run; after the trial's expiry the server refuses the next call with `expired`, and the step says so.
 - The app contains no expiry or plan check for plugins: a license file edited to look valid gets the server's refusal.
 - A first-party entry with `auth: license` on a host other than the compiled one fails the check, and no request carries the key.

@@ -15,7 +15,7 @@ code:
 | File | Covers |
 |---|---|
 | [`01-mcp-client.md`](01-mcp-client.md) | The app's MCP client, signing in, credentials, egress |
-| [`02-surfsense-servers.md`](02-surfsense-servers.md) | The servers SurfSense publishes and hosts, starting with SurfSense Scrapers |
+| [`02-surfsense-servers.md`](02-surfsense-servers.md) | The servers SurfSense publishes and hosts, starting with its scraper plugins, one per platform |
 
 ## How one works
 

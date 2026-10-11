@@ -22,7 +22,7 @@ The license check is `license_check/`, not `license/`: a `license/` folder besid
 
 [`host_app()`](../../plugins/remote/host/app.py) mounts each plugin and answers `GET /health` with `ok`.
 
-- A plugin is a folder with a `server.py` whose `server()` returns its `MCPServer`, from the official MCP Python SDK. The folder's name is its id and its path: `proprietary/scrapers/` would be served at `/scrapers/mcp` ([`mounted_plugins.py`](../../plugins/remote/host/mounted_plugins.py)).
+- A plugin is a folder with a `server.py` whose `server()` returns its `MCPServer`, from the official MCP Python SDK. The folder's name is its id and its path: `proprietary/reddit/` would be served at `/reddit/mcp` ([`mounted_plugins.py`](../../plugins/remote/host/mounted_plugins.py)).
 - Folders under the root and under `proprietary/` are both read. Without `proprietary/`, the open build, the host serves the Apache-2.0 plugins and has nothing else missing.
 - `host`, `mcp_server`, `proprietary` and `license_check` are never plugin ids. Two plugins with one id stop the host from starting.
 - A tool that raises returns an MCP error for that call; the other plugins keep answering.
@@ -59,7 +59,7 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 ## Known gaps
 
 - `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
-- No plugin exists: SurfSense Scrapers is still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#surfsense-scrapers)).
+- No plugin exists: the scraper plugins, one per platform, are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)). A folder's name is its id as-is, so a plugin such as `google_search/` would be served at `/google_search/mcp`, not `/google-search/mcp`, and `scraping` is not yet a reserved name.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
 - No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there are no workers, Redis or Blob Storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
 - No registry files, Docker image or Azure deployment.

@@ -43,7 +43,7 @@ plugins/
 |---|---|
 | [`README.md`](remote/README.md) | What a remote plugin is, how one works, who hosts what |
 | [`01-mcp-client.md`](remote/01-mcp-client.md) | The app's MCP client, signing in, credentials, egress |
-| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The plugin host that runs SurfSense's plugins and serves the registry, the code layout, SurfSense Scrapers |
+| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The plugin host that runs SurfSense's plugins and serves the registry, the code layout, the scraper plugins |
 
 **[`bundles/`](bundles/README.md)**: deferred. Plugins that run on the user's machine, and the earlier design they build on.
 
@@ -103,13 +103,13 @@ plugins/
 | **opencode** | `modules/agent/plugin_tools/`: the plugin servers and per-tool rules each turn gives opencode, and the listing check for changed tools | the gateway's readiness and approval rules, the MCP client |
 | **`@` mentions** | The agent composer's `@` list, and the mention in `modules/agent/plugin_tools/` | the opencode endpoint |
 | **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one image on Azure Container Apps, run as the host and its workers, its deployment, Redis, Blob Storage and SearXNG | nothing |
-| **SurfSense scrapers** | `plugins/remote/proprietary/`: the scraping code copied out of `surfsense_backend`, its MCP tools, the license check | the plugin host; the root `LICENSE` line for `plugins/remote/proprietary/` |
+| **SurfSense scrapers** | `plugins/remote/proprietary/`: the scraping code copied out of `surfsense_backend` as one plugin per platform, their MCP tools, the code they share, the license check | the plugin host; the root `LICENSE` line for `plugins/remote/proprietary/` |
 | **Contributor guide** | [`plugins/README.md`](../../../plugins/README.md), rewritten: building a remote MCP server, trying it with a custom plugin by URL, the registry pull request | the registry's rules |
 | **Bundles** | [`bundles/`](bundles/README.md) | deferred |
 
 **Demo:** a thread on a tool-calling model connects a test remote server added as a custom plugin by URL, the agent calls one of its tools, and the result shows as a step.
 
-**Ship:** Settings → Plugins lists SurfSense's plugins with no network and the registry once third-party plugins are allowed, a user connects SurfSense Scrapers with a trial license and a partner plugin with OAuth, the agent and `@` mentions use them, and the third-party switch, approval and Save to Sources work.
+**Ship:** Settings → Plugins lists SurfSense's plugins with no network and the registry once third-party plugins are allowed, a user connects SurfSense's scraper plugins with a trial license and a partner plugin with OAuth, the agent and `@` mentions use them, and the third-party switch, approval and Save to Sources work.
 
 ## Order of work
 
@@ -119,7 +119,7 @@ plugins/
 4. **Settings → Plugins**: Connect, egress consent for every host at once, allowing third-party plugins, tool switches, activity.
 5. **`@` mentions** in agent threads.
 6. **The plugin lists and sign-in**: the first-party list, the registry, their check, signing and publishing the registry to SurfSense's host, the app's fetch and cache; OAuth; a connection kept open per plugin; progress on the screen.
-7. **The plugin host and SurfSense Scrapers** on it ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
+7. **The plugin host and SurfSense's scraper plugins** on it, one per platform ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
 8. **Scale**: the 24 a thread lists ranked by use, finding tools beyond them, third-party tools that run as jobs ([`core/06-later.md`](core/06-later.md)).
 9. **The chat engine's router step**, when plugins reach Basic threads, with the chat eval's router test ([`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)).
 10. **Bundles**, when something needs them.
