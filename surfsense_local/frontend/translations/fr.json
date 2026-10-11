@@ -751,6 +751,8 @@
   "plugins_error_plugin_needs_https": "Un serveur sur un autre ordinateur doit utiliser une URL https://.",
   "plugins_error_plugin_needs_sign_in": "Ce serveur demande une clé. Ajoutez-en une et réessayez.",
   "plugins_error_plugin_unreachable": "Impossible de joindre ce serveur. Vérifiez l’URL et que le serveur fonctionne.",
+  "plugins_mentions_aria": "Outils des plugins",
+  "plugins_mentions_empty": "Aucun outil de plugin ne correspond",
   "plugins_row_can_change_label": "Peut apporter des modifications",
   "plugins_row_changed_tools_body": "Certains outils sont nouveaux ou ont changé. Ils restent désactivés tant que vous ne les autorisez pas.",
   "plugins_row_check_button": "Vérifier",

@@ -751,6 +751,8 @@
   "plugins_error_plugin_needs_https": "其他电脑上的服务器必须使用 https:// 网址。",
   "plugins_error_plugin_needs_sign_in": "此服务器需要密钥。请添加后重试。",
   "plugins_error_plugin_unreachable": "无法访问此服务器。请检查网址，并确认服务器正在运行。",
+  "plugins_mentions_aria": "插件工具",
+  "plugins_mentions_empty": "没有匹配的插件工具",
   "plugins_row_can_change_label": "可做出更改",
   "plugins_row_changed_tools_body": "部分工具是新增的或已变更，在你允许之前保持关闭。",
   "plugins_row_check_button": "立即检查",

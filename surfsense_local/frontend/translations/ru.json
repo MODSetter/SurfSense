@@ -751,6 +751,8 @@
   "plugins_error_plugin_needs_https": "Сервер на другом компьютере должен использовать URL https://.",
   "plugins_error_plugin_needs_sign_in": "Этому серверу нужен ключ. Добавьте его и попробуйте снова.",
   "plugins_error_plugin_unreachable": "Не удалось связаться с сервером. Проверьте URL и что сервер запущен.",
+  "plugins_mentions_aria": "Инструменты плагинов",
+  "plugins_mentions_empty": "Нет подходящих инструментов плагинов",
   "plugins_row_can_change_label": "Может вносить изменения",
   "plugins_row_changed_tools_body": "Некоторые инструменты новые или изменились. Они отключены, пока вы их не разрешите.",
   "plugins_row_check_button": "Проверить",

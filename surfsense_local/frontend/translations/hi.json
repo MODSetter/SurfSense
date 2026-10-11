@@ -751,6 +751,8 @@
   "plugins_error_plugin_needs_https": "किसी दूसरे कंप्यूटर पर चल रहे सर्वर को https:// URL इस्तेमाल करना होगा।",
   "plugins_error_plugin_needs_sign_in": "इस सर्वर को कुंजी चाहिए। कुंजी जोड़ें और फिर से कोशिश करें।",
   "plugins_error_plugin_unreachable": "इस सर्वर तक नहीं पहुँचा जा सका। URL जाँचें और देखें कि सर्वर चल रहा है।",
+  "plugins_mentions_aria": "प्लगइन टूल",
+  "plugins_mentions_empty": "कोई मेल खाता प्लगइन टूल नहीं",
   "plugins_row_can_change_label": "बदलाव कर सकते हैं",
   "plugins_row_changed_tools_body": "कुछ टूल नए हैं या बदल गए हैं। आपकी अनुमति तक वे बंद रहेंगे।",
   "plugins_row_check_button": "अभी जाँचें",

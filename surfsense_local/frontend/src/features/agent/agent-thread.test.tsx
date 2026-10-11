@@ -75,7 +75,11 @@ function pausedStream(first: unknown[], gate: Promise<void>, rest: unknown[]) {
 
 type Backend = {
   answers: { requestId: string; reply: string }[]
-  sent: { document_ids?: number[]; source_scope?: { all: boolean } }[]
+  sent: {
+    text?: string
+    document_ids?: number[]
+    source_scope?: { all: boolean }
+  }[]
 }
 
 // The version a completed render made, as the API reads it back.
@@ -108,6 +112,7 @@ function backend({
   stored = [] as unknown[],
   storedAfter = null as unknown[] | null,
   documents = [] as unknown[],
+  plugins = [] as unknown[],
 } = {}): Backend {
   const state: Backend = { answers: [], sent: [] }
   let sent = false
@@ -130,6 +135,10 @@ function backend({
       }
       if (path === "/workspaces/1/chat/threads") return Response.json([thread])
       if (path === "/artifacts/40") return Response.json(PROPOSAL)
+      if (path === "/plugins") return Response.json(plugins)
+      if (path === "/plugins/third-party") {
+        return Response.json({ allowed: true })
+      }
       const answer = path.match(/^\/chat\/threads\/10\/permissions\/(.+)$/)
       if (answer && init?.method === "POST") {
         const { reply } = JSON.parse(String(init.body)) as { reply: string }
@@ -386,6 +395,57 @@ describe("an agent thread", () => {
 
     expect(await screen.findByText("Working from 300 sources")).toBeTruthy()
     expect(state.sent[0].source_scope?.all).toBe(true)
+  })
+
+  it("offers the ready plugin tools after @, and sends the one picked", async () => {
+    const state = backend({
+      plugins: [
+        {
+          id: "notes",
+          name: "Notes",
+          source: "custom",
+          publisher: "custom",
+          url: "https://notes.example/mcp",
+          hosts: ["notes.example"],
+          enabled: true,
+          connected_at: "2026-10-01T00:00:00Z",
+          checked_at: "2026-10-01T00:00:00Z",
+          check_failure: null,
+          tools: [
+            {
+              name: "count",
+              title: "Count words",
+              description: "Count the words in a text.",
+              annotations: {},
+              enabled: true,
+              approval: "ask",
+              change: null,
+            },
+            {
+              name: "delete",
+              title: null,
+              description: "Delete a note.",
+              annotations: {},
+              enabled: false,
+              approval: "ask",
+              change: null,
+            },
+          ],
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    const user = userEvent.setup()
+    const composer = await screen.findByRole("textbox", { name: "Message" })
+
+    await user.type(composer, "How long is it? @")
+    await user.click(await screen.findByText("Notes: Count words"))
+    expect(screen.queryByText("Notes: delete")).toBeNull()
+    await user.type(composer, "{Enter}")
+
+    await waitFor(() => expect(state.sent).toHaveLength(1))
+    expect(state.sent[0].text).toContain("@notes_count")
   })
 
   it("names the plugins a turn could not reach, and why", async () => {

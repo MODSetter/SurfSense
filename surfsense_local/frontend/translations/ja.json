@@ -751,6 +751,8 @@
   "plugins_error_plugin_needs_https": "別のコンピューター上のサーバーにはhttps://のURLが必要です。",
   "plugins_error_plugin_needs_sign_in": "このサーバーにはキーが必要です。キーを追加して再試行してください。",
   "plugins_error_plugin_unreachable": "このサーバーに接続できませんでした。URLとサーバーが起動しているかを確認してください。",
+  "plugins_mentions_aria": "プラグインのツール",
+  "plugins_mentions_empty": "一致するプラグインのツールはありません",
   "plugins_row_can_change_label": "変更を加えるツール",
   "plugins_row_changed_tools_body": "新しいツールまたは変更されたツールがあります。許可するまでオフのままです。",
   "plugins_row_check_button": "今すぐ確認",

@@ -751,6 +751,8 @@
   "plugins_error_plugin_needs_https": "A server on another computer must use an https:// URL.",
   "plugins_error_plugin_needs_sign_in": "This server needs a key. Add one and try again.",
   "plugins_error_plugin_unreachable": "Couldn’t reach this server. Check the URL and that the server is running.",
+  "plugins_mentions_aria": "Plugin tools",
+  "plugins_mentions_empty": "No plugin tools match",
   "plugins_row_can_change_label": "Can make changes",
   "plugins_row_changed_tools_body": "Some tools are new or changed. They stay off until you allow them.",
   "plugins_row_check_button": "Check now",

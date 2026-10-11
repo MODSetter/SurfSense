@@ -6,12 +6,7 @@ import {
   type Plugin,
   type PluginTool,
 } from "./api"
-
-// opencode's MCP client keeps these in a server's and a tool's names, and turns
-// anything else into "_"; SurfSense's own server is never a plugin.
-function clean(name: string) {
-  return name.replace(/[^a-zA-Z0-9_-]/g, "_")
-}
+import { opencodeToolName } from "./tool-name"
 
 /** Whether opencode's name for a step could be a plugin's `<plugin>_<tool>`. */
 export function mayBePluginStep(tool: string | null) {
@@ -30,7 +25,7 @@ export function usePluginOfStep(
   })
   for (const plugin of plugins.data ?? []) {
     for (const row of plugin.tools) {
-      if (`${clean(plugin.id)}_${clean(row.name)}` === tool) {
+      if (opencodeToolName(plugin.id, row.name) === tool) {
         return { plugin, tool: row }
       }
     }
