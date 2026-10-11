@@ -19,11 +19,11 @@ State is one table, `egress_destinations`: a row per destination with `enabled`,
 
 `host_destination()` returns no destination for `localhost` or a loopback address, so a model server on the same machine needs no consent and has no row. A server elsewhere on the LAN is a destination like any other.
 
-A plugin's hosts are asked about before it connects, all at once: the refusal carries `hosts`, every host still to allow, so one prompt covers them. A refused plugin host with no row is recorded off, so Settings › Network lists it ([plugins](../proposals/plugins/remote/01-mcp-client.md#egress)).
+A plugin's hosts are asked about before it connects: the refusal carries `hosts`, every host still to allow, and `purpose: "plugin"`, which the prompt words its question by, saying the host gets what a tool is sent rather than every chat. A refused plugin host with no row is recorded off, so Settings › Network lists it ([plugins](plugins.md)).
 
 ## Where the check runs
 
-`egress.require(session, destination)` raises `EgressDeniedError` when the row is missing or off, and `api/main.py` turns that into a `403` whose `detail` carries `code: "egress_disabled"`, the `destination`, its `host`, `hosts` (every host still to allow, `host` first) and a message. The check sits in front of each call site, in whichever process makes the call:
+`egress.require(session, destination)` raises `EgressDeniedError` when the row is missing or off, and `api/main.py` turns that into a `403` whose `detail` carries `code: "egress_disabled"`, the `destination`, its `host`, `hosts` (every host still to allow, `host` first), `purpose` when the host alone does not say what the call is for (`plugin`), and a message. The check sits in front of each call site, in whichever process makes the call:
 
 | Call | Where | Destination |
 |---|---|---|
@@ -72,6 +72,6 @@ Settings › Network lists the App updates row and every destination with its ho
 
 ## Known gaps
 
-- `EgressPrompt` reads only `destination`, so a plugin with several hosts is asked about one host at a time, though the refusal names them all in `hosts`. The Settings → Plugins screen asks for `hosts` together ([plugins](../proposals/plugins/remote/01-mcp-client.md#egress)).
+- `EgressPrompt` reads only `destination`, so a plugin with several hosts would be asked about one host at a time, though the refusal names them all in `hosts`. A server added by URL has one host, so none is asked about twice yet ([plugins](plugins.md)).
 - The Office Studio formats run model-written code in the worker, and that code can open connections of its own ([studio](studio.md)).
 - The Office pack's download is allowed by its host, `downloadarchive.documentfoundation.org`, which redirects to one of TDF's mirrors; the mirror sees the user's IP address and is not asked about ([office pack](office-pack.md)).

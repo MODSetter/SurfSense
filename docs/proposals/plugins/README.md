@@ -141,10 +141,18 @@ The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/c
 
 ## Out of scope
 
-Plugins that change SurfSense itself (providers, interface, prompts); local MCP servers started by an arbitrary command such as `npx` or `uvx`; a sandbox; payments for third parties; plugin-authored interface.
+Plugins that change SurfSense itself (providers, interface, prompts); a sandbox; payments for third parties; plugin-authored interface. Local MCP servers are an [open question](#open-questions).
 
 ## Open questions
 
+- **Whether to run local MCP servers**, those started by a command such as `npx -y @modelcontextprotocol/server-filesystem` or `uvx mcp-server-git`, which most of the MCP ecosystem is today. opencode runs them already (`type: "local"`, a command and its environment), so calling one is the small part. The rest is a decision about what SurfSense promises:
+  - **Trust.** The command downloads code and runs it with the user's permissions; approving each tool call does not limit a program already running. Claude Desktop and Cursor accept this for users who ask for it.
+  - **The network fence.** The program inherits opencode's proxy variables, so `npx` and `uvx` cannot download and most such servers fail to start. Making them work means giving them their own environment, which leaves the program outside egress consent altogether, since the proxy only holds what respects it.
+  - **Listing.** The rules for tools added later need SurfSense's own listing, with annotations, so SurfSense would start the command itself to list it; opencode's tool list carries none, which would leave every tool asking.
+  - **One copy per thread.** Each thread's opencode instance starts its own process, so six open threads run six copies; a shared copy reached over HTTP would need a small bridge.
+  - **What is installed.** `npx` needs Node and `uvx` needs uv, neither shipped, so a missing one has to read as that rather than as a broken plugin.
+
+  The smallest version that keeps the promise honest is an advanced **Run a command** kind, off by default: the exact command and its environment variables, encrypted as keys are, shown and confirmed before it first runs, with a warning that it can reach anything the user can and that Settings › Network does not cover it. The alternative is to leave local plugins to [bundles](bundles/README.md), which run pinned code without `npx` at runtime.
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long tool results are kept and how large a stored one may be.
 - Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.

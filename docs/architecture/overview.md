@@ -107,11 +107,11 @@ The rules that keep the processes out of each other's way:
 ## Codemap
 
 - [`backend/api/`](../../surfsense_local/backend/api/): `create_app()` and its lifespan (migrations, the default workspace, a background catalog warm-up), the per-request session and `transact()`.
-- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
+- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `plugins`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
 - [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0012`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
-- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration`, `updates` and `feedback`.
+- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `plugins`, `license`, `migration`, `updates` and `feedback`.
 - [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (boot, window, IPC and the image-model, preset, audio and agent watchers), `sidecars/` (the supervisor and one spec per sidecar), `session-log/` (this run's output, for issue reports), `secret.ts`, `updater.ts` and `document-files.ts`.
 
 ## Where to read next
