@@ -18,6 +18,7 @@ from modules.agent.model_endpoint.responses_relay.router import (
 )
 from modules.agent.model_endpoint.router import router as agent_model_router
 from modules.agent.plugin_proxy.server import serving_plugin_proxy
+from modules.agent.plugin_tools.router import router as plugin_steps_router
 from modules.agent.previews.router import file_router as agent_preview_files_router
 from modules.agent.previews.router import router as agent_previews_router
 from modules.agent.tool_endpoint.router import router as agent_tools_router
@@ -233,6 +234,7 @@ def create_app() -> FastAPI:
         app.include_router(agent_responses_router)
         app.include_router(agent_tools_router)
         app.include_router(agent_threads_router)
+        app.include_router(plugin_steps_router)
         app.include_router(agent_previews_router)
         app.include_router(agent_preview_files_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)

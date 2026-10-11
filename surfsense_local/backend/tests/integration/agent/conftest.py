@@ -129,9 +129,9 @@ def no_live_instances(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def no_plugins_checked(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test's plugins are new, though another test's may have had the same id."""
-    monkeypatch.setattr(changed_tools, "_checked_at", {})
+def plugins_checked_every_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test's server changes within seconds of connecting, not minutes."""
+    monkeypatch.setattr(changed_tools, "CHECK_SECONDS", 0)
 
 
 # MAX_PATH less its terminator: the most a path may hold where long paths are off.

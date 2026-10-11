@@ -29,6 +29,18 @@ class ToolExposure(enum.StrEnum):
     DEFERRED = "deferred"
 
 
+class ToolChange(enum.StrEnum):
+    """Why a tool was switched off on its own: new since connect, or no longer as reviewed."""
+
+    ADDED = "added"
+    CHANGED = "changed"
+
+
+class CheckFailure(enum.StrEnum):
+    UNREACHABLE = "unreachable"
+    SIGN_IN = "sign_in"
+
+
 class InstalledPlugin(Base):
     """A plugin the user connected, the list entry it was connected from, and its sign-in.
 
@@ -52,6 +64,9 @@ class InstalledPlugin(Base):
     # `token` now; OAuth's token set later. None when the server needs no sign-in.
     credential_kind: Mapped[str | None]
     credential_ciphertext: Mapped[bytes | None]
+    # When SurfSense last listed the server, and why that failed; None when it answered.
+    checked_at: Mapped[datetime | None]
+    check_failure: Mapped[CheckFailure | None] = mapped_column(text_enum(CheckFailure))
 
     @property
     def credential(self) -> str | None:
@@ -87,6 +102,8 @@ class PluginTool(Base):
         text_enum(ToolExposure), default=ToolExposure.DIRECT
     )
     first_seen_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Cleared once the user switches the tool back on.
+    change: Mapped[ToolChange | None] = mapped_column(text_enum(ToolChange))
 
 
 class PluginSettings(Base):

@@ -13,6 +13,7 @@ from modules.plugins.installed.custom_plugin import (
 from modules.plugins.installed.disconnect import disconnect
 from modules.plugins.installed.https_required import needs_https
 from modules.plugins.installed.models import InstalledPlugin, ToolApproval
+from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
 from modules.plugins.installed.plugin_switch import set_plugin_enabled
@@ -107,6 +108,39 @@ async def add_custom_plugin(
         return read_plugin(s, plugin)
 
     return await transact(session, store)
+
+
+@router.post(
+    "/{plugin_id}/check",
+    response_model=PluginRead,
+    summary="List a plugin's server again",
+)
+async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
+    """Records what the server lists now, or why it could not be listed."""
+
+    def address(s):
+        plugin = s.get(InstalledPlugin, plugin_id)
+        return (
+            None if plugin is None else (plugin.url, token_headers(plugin.credential))
+        )
+
+    found = await transact(session, address)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    source = RemoteMcpSource(*found)
+    try:
+        listed = await source.list_tools()
+    except ServerError as error:
+        listed = error
+    finally:
+        await source.close()
+
+    def record(s):
+        plugin = s.get_one(InstalledPlugin, plugin_id)
+        record_check(s, plugin, listed)
+        return read_plugin(s, plugin)
+
+    return await transact(session, record)
 
 
 @router.put(

@@ -219,3 +219,68 @@ async def test_a_tool_whose_description_changed_is_blocked_before_the_turn(
         "search": False,
         "count": True,
     }
+
+
+async def searched(api: AgentAPI, url: str, query: str) -> tuple[dict, dict]:
+    """A thread whose agent called the notes plugin's search once; the thread and the step."""
+    await connect_notes(api, url)
+    await api.http.put("/plugins/notes/tools/search", json={"approval": "always"})
+    api.model.replies = [call("notes_search", query=query), ("text", "Done.")]
+    thread = await open_thread(api)
+    frames = await send(api, thread["id"], "Search my notes")
+    return thread, of_type(frames, "agent-step")[-1]
+
+
+async def test_a_steps_whole_result_is_read_from_its_session(
+    agent_api: AgentAPI, notes_url: str
+) -> None:
+    """A step carries the start of what a tool returned; the rest is asked for when shown."""
+    long_query = "x" * 6000
+    thread, step = await searched(agent_api, notes_url, long_query)
+
+    result = await agent_api.http.get(
+        f"/chat/threads/{thread['id']}/steps/{step['id']}/result"
+    )
+
+    assert result.status_code == 200, result.text
+    assert len(step["output"]) < len(result.json()["output"])
+    assert result.json()["output"].endswith("x" * 100)
+
+
+async def test_saving_a_plugin_step_twice_keeps_one_note(
+    agent_api: AgentAPI, notes_url: str
+) -> None:
+    """The same tool with the same inputs updates its note rather than adding a copy."""
+    thread, step = await searched(agent_api, notes_url, "ship")
+    path = f"/chat/threads/{thread['id']}/plugin-steps/{step['id']}/save"
+
+    first = await agent_api.http.post(path)
+    second = await agent_api.http.post(path)
+
+    assert (first.status_code, second.status_code) == (201, 200), first.text
+    assert first.json()["document_id"] == second.json()["document_id"]
+    note = await agent_api.http.get(
+        f"/workspaces/{agent_api.workspace_id}/documents/{first.json()['document_id']}"
+    )
+    metadata = note.json()["document_metadata"]
+    assert (metadata["plugin_id"], metadata["tool"]) == ("notes", "search")
+    assert metadata["thread_id"] == thread["id"]
+    assert "found ship" in note.json()["content"]
+    assert note.json()["title"] == "Notes: search"
+
+
+async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> None:
+    """SurfSense's own steps are not results to keep; their outputs are written for the model."""
+    agent_api.model.replies = [
+        call("surfsense_search_sources", query="ship"),
+        ("text", "Done."),
+    ]
+    thread = await open_thread(agent_api)
+    frames = await send(agent_api, thread["id"], "Search")
+    step = of_type(frames, "agent-step")[-1]
+
+    saved = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/plugin-steps/{step['id']}/save"
+    )
+
+    assert saved.status_code == 409

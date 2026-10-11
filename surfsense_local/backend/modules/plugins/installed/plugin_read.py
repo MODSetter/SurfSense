@@ -16,6 +16,8 @@ class ToolRead(BaseModel):
     annotations: dict
     enabled: bool
     approval: str
+    # `added` or `changed` while it waits for the user to allow it; None otherwise.
+    change: str | None
 
 
 class PluginRead(BaseModel):
@@ -27,6 +29,9 @@ class PluginRead(BaseModel):
     hosts: list[str]
     enabled: bool
     connected_at: datetime
+    checked_at: datetime | None
+    # `unreachable` or `sign_in` when the last check failed; None when it answered.
+    check_failure: str | None
     tools: list[ToolRead]
 
 
@@ -45,6 +50,8 @@ def read_plugin(session: Session, plugin: InstalledPlugin) -> PluginRead:
         hosts=plugin.entry.get("hosts", []),
         enabled=plugin.enabled,
         connected_at=plugin.connected_at,
+        checked_at=plugin.checked_at,
+        check_failure=plugin.check_failure,
         tools=[
             ToolRead(
                 name=tool.tool,
@@ -53,6 +60,7 @@ def read_plugin(session: Session, plugin: InstalledPlugin) -> PluginRead:
                 annotations=tool.annotations,
                 enabled=tool.enabled,
                 approval=tool.approval,
+                change=tool.change,
             )
             for tool in tools
         ],

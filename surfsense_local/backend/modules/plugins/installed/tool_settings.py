@@ -19,6 +19,9 @@ def set_tool(
         return None
     if enabled is not None:
         row.enabled = enabled
+        if enabled:
+            # Allowed as it now reads, so it is no longer news.
+            row.change = None
     if approval is not None:
         row.approval = approval
     session.flush()

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.less_safe import became_less_safe
-from modules.plugins.installed.models import InstalledPlugin, PluginTool
+from modules.plugins.installed.models import InstalledPlugin, PluginTool, ToolChange
 
 
 def record_tools(
@@ -27,11 +27,14 @@ def record_tools(
         row = known.pop(tool.name, None)
         if row is None:
             row = PluginTool(plugin_id=plugin.id, tool=tool.name, enabled=first_listing)
+            if not first_listing:
+                row.change = ToolChange.ADDED
             session.add(row)
         elif tool.description != row.description or became_less_safe(
             row.annotations, tool.annotations
         ):
             row.enabled = False
+            row.change = ToolChange.CHANGED
         row.position = position
         row.title = tool.title
         row.description = tool.description

@@ -12,7 +12,7 @@ from modules.plugins.installed.models import (
     PluginKind,
     PluginSource,
 )
-from modules.plugins.installed.recorded_tools import record_tools
+from modules.plugins.installed.plugin_check import record_check
 
 PUBLISHER = "custom"
 # The agent's own tools are an MCP server by this name; a plugin under it would replace them.
@@ -62,5 +62,5 @@ def store_custom_plugin(
         plugin.credential = token
     session.add(plugin)
     session.flush()
-    record_tools(session, plugin, tools)
+    record_check(session, plugin, tools)
     return plugin
