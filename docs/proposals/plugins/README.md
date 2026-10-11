@@ -80,7 +80,7 @@ plugins/
 | Tools added later | A tool a server adds after the user connected starts off; the app asks before turning it on |
 | opencode | Calls plugin servers itself, through its own MCP client: before each turn SurfSense gives it each ready plugin's server, with its sign-in as headers, and an `allow`, `ask` or `deny` rule per tool, every unreviewed tool denied ([`core/03-engines.md`](core/03-engines.md#opencode)) |
 | Chat engine | Plugins reach agent threads first. The chat engine gets them later, through a router step: its model never calls tools; it chooses a tool and fills its inputs under JSON schemas, and SurfSense makes the call ([ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md), [`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)) |
-| `@` mentions | In agent threads: the user names the tool, the agent fills its inputs, and approval is as for any call |
+| `@` mentions | In agent threads: the user names a plugin, the agent picks its tools and fills their inputs, and approval is as for any call |
 | Results | Belong to the turn: the agent's are kept in its opencode session, and SurfSense keeps no copy. Nothing reaches Sources unless the user saves it |
 | Approval | Decided by the gateway from the tool's MCP annotations and the user's setting for it; in agent threads asked through opencode's own permission prompt, Allow once or Deny ([`core/04-trust.md`](core/04-trust.md#approval)) |
 | Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |

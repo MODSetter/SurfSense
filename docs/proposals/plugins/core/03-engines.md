@@ -31,12 +31,12 @@ A plugin connected, or a tool's setting changed, mid-thread takes effect at the 
 
 ## `@` mentions
 
-The user can name a tool rather than leave the choice to the agent.
+The user can name a plugin rather than leave the choice to the agent.
 
-- Typing `@` in the agent composer lists ready tools as "Notion: Search", through assistant-ui's composer trigger popover, and picking one writes `@notion_search`, opencode's own name for it, into the message.
-- The turn gives opencode the mentioned tool's plugin, even beyond the 24, and a note beside the user's words, as the scope note goes, says: "The user asked you to use Search from Notion (notion_search) for this." A mentioned tool that is not ready changes nothing.
-- The agent fills the inputs and makes the call, as with any tool, so a mention needs no form and no model call of its own.
-- Approval is unchanged: the agent chose the inputs, not the user, so the call asks as [`04-trust.md`](04-trust.md#approval) says.
+- Typing `@` in the agent composer lists ready plugins, through assistant-ui's composer trigger popover, and picking one writes `@notion`, the plugin's id, into the message. A plugin is named, not a tool: the user thinks in apps, and the agent picks among a plugin's tools from their descriptions.
+- The turn gives opencode every ready tool of the mentioned plugin, even beyond the 24, and a note beside the user's words, as the scope note goes, says: "The user asked you to use the Notion plugin for this." The turn's other tools stay offered, and a plugin that is not ready changes nothing.
+- The agent fills the inputs and makes the calls, as with any tool, so a mention needs no form and no model call of its own.
+- Approval is unchanged: the agent chose the inputs, not the user, so a call asks as [`04-trust.md`](04-trust.md#approval) says.
 
 ## Results
 
@@ -59,7 +59,7 @@ The user can name a tool rather than leave the choice to the agent.
 - Two calls to a stateful test server in one turn share one session.
 - A plugin on HTTPS is reached through SurfSense's proxy, and with the proxy refusing it, it is named unreachable.
 - A plugin whose server stops answering after it was listed is named in the thread as unreachable, and the turn goes on without its tools.
-- `@test search` in an agent thread gives the agent `test_search` that turn and the agent calls it; a call that must be approved still asks.
+- `@test` in an agent thread gives the agent every ready tool of the test plugin that turn, past the 24, and the agent calls one; a call that must be approved still asks.
 - A thread in Basic mode is given no plugin tools, and Settings → Plugins says plugins work in Agentic threads.
 - Save to Sources twice on the same call leaves one note, with the later `fetched_at`.
 
