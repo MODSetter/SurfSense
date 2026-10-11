@@ -439,7 +439,11 @@ export function SettingsDialog({
               <OfficeSupportSettings askConsent={askOfficeConsent} />
             ) : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
-            {activeSection.id === "plugins" ? <PluginsSettings /> : null}
+            {activeSection.id === "plugins" ? (
+              <PluginsSettings
+                onOpenLicense={() => onSectionChange("license")}
+              />
+            ) : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
             {activeSection.id === "about" ? <AboutSettings /> : null}
             {activeSection.id === "report-issue" ? (

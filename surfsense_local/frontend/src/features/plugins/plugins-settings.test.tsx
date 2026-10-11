@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
 
-import type { Plugin } from "./api"
+import type { FirstPartyEntry, Plugin } from "./api"
 import { PluginsSettings } from "./plugins-settings"
 
 function notes(extra: Partial<Plugin> = {}): Plugin {
@@ -43,6 +43,16 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
   }
 }
 
+const SCRAPERS: FirstPartyEntry = {
+  id: "scrapers",
+  name: "SurfSense Scrapers",
+  description: "Search Google and crawl sites.",
+  author: "SurfSense",
+  access: "license",
+  hosts: ["plugins.surfsense.com"],
+  connected: false,
+}
+
 type Call = { method: string; path: string; body: unknown }
 
 /** The plugin routes as the screen reaches them; `refuse` answers an add or a new key instead. */
@@ -66,6 +76,27 @@ function api({
       const body = init?.body ? JSON.parse(String(init.body)) : null
       calls.push({ method, path: url.pathname, body })
       const [, , id, , tool] = url.pathname.split("/")
+      if (url.pathname === "/plugins/first-party") {
+        return Response.json(
+          [SCRAPERS].map((entry) => ({
+            ...entry,
+            connected: connected.some((plugin) => plugin.id === entry.id),
+          }))
+        )
+      }
+      if (url.pathname === "/plugins/first-party/scrapers") {
+        const added = notes({
+          id: "scrapers",
+          name: "SurfSense Scrapers",
+          source: "first_party",
+          publisher: "surfsense",
+          hosts: ["plugins.surfsense.com"],
+          check_failure: "needs_license",
+          tools: [],
+        })
+        connected = [...connected, added]
+        return Response.json(added, { status: 201 })
+      }
       if (url.pathname === "/plugins/third-party") {
         if (method === "PUT") thirdParty = body.allowed
         return method === "PUT"
@@ -392,5 +423,49 @@ describe("plugins settings", () => {
         "Some tools are new or changed. They stay off until you allow them."
       )
     ).toBeTruthy()
+  })
+
+  it("lists SurfSense's plugins, which need a license, and connects one", async () => {
+    const calls = api({ plugins: [], allowed: false })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    expect(within(surfsense).getByText("SurfSense Scrapers")).toBeTruthy()
+    expect(within(surfsense).getByText("License required")).toBeTruthy()
+    await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
+
+    expect(
+      await screen.findByRole("region", { name: "SurfSense Scrapers" })
+    ).toBeTruthy()
+    expect(await within(surfsense).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/first-party/scrapers", body: null },
+    ])
+  })
+
+  it("says why the license was refused, and opens Settings › License", async () => {
+    api({
+      plugins: [
+        notes({ check_failure: "license_expired" }),
+        notes({ id: "wiki", name: "Wiki", check_failure: "needs_license" }),
+      ],
+      allowed: true,
+    })
+    const onOpenLicense = vi.fn()
+    const user = userEvent.setup()
+    render(<PluginsSettings onOpenLicense={onOpenLicense} />)
+
+    const expired = await screen.findByRole("region", { name: "Notes" })
+    expect(within(expired).getByText("License expired")).toBeTruthy()
+    const missing = screen.getByRole("region", { name: "Wiki" })
+    expect(within(missing).getByText("Needs a license")).toBeTruthy()
+    await user.click(
+      within(missing).getByRole("button", { name: "License settings" })
+    )
+
+    expect(onOpenLicense).toHaveBeenCalledOnce()
   })
 })

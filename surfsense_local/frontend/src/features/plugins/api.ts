@@ -24,19 +24,50 @@ export type Plugin = {
   connected_at: string
   /** When SurfSense last listed the server, and why that failed; null when it answered. */
   checked_at: string | null
-  check_failure: "unreachable" | "sign_in" | null
+  check_failure:
+    | "unreachable"
+    | "sign_in"
+    | "needs_license"
+    | "license_expired"
+    | "license_revoked"
+    | "license_invalid"
+    | null
   tools: PluginTool[]
 }
 
 export type CustomPluginWrite = { url: string; name: string; token?: string }
 
+/** One of SurfSense's own plugins, from the list packaged into the app. */
+export type FirstPartyEntry = {
+  id: string
+  name: string
+  description: string
+  author: string
+  /** `license` when it needs the SurfSense license. */
+  access: "free" | "license"
+  hosts: string[]
+  connected: boolean
+}
+
 export const pluginsQueryKey = ["plugins"] as const
 export const thirdPartyQueryKey = ["plugins", "third-party"] as const
+export const firstPartyQueryKey = ["plugins", "first-party"] as const
 
 const JSON_HEADERS = { "Content-Type": "application/json" }
 
 export function listPlugins(signal?: AbortSignal): Promise<Plugin[]> {
   return requestJson<Plugin[]>("/plugins", { signal })
+}
+
+export function listFirstParty(
+  signal?: AbortSignal
+): Promise<FirstPartyEntry[]> {
+  return requestJson<FirstPartyEntry[]>("/plugins/first-party", { signal })
+}
+
+/** Connects even when the license is refused; the plugin's status says why. */
+export function connectFirstParty(id: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/first-party/${id}`, { method: "POST" })
 }
 
 export function addCustomPlugin(write: CustomPluginWrite): Promise<Plugin> {

@@ -60,11 +60,42 @@ function checkLabel(plugin: Plugin) {
       defaultMessage: "Needs a new key",
     })
   }
+  if (plugin.check_failure === "needs_license") {
+    return intl.formatMessage({
+      id: "plugins_row_needs_license_status",
+      defaultMessage: "Needs a license",
+    })
+  }
+  if (plugin.check_failure === "license_expired") {
+    return intl.formatMessage({
+      id: "plugins_row_license_expired_status",
+      defaultMessage: "License expired",
+    })
+  }
+  if (plugin.check_failure === "license_revoked") {
+    return intl.formatMessage({
+      id: "plugins_row_license_revoked_status",
+      defaultMessage: "License revoked",
+    })
+  }
+  if (plugin.check_failure === "license_invalid") {
+    return intl.formatMessage({
+      id: "plugins_row_license_invalid_status",
+      defaultMessage: "License not recognized",
+    })
+  }
   return intl.formatMessage({
     id: "plugins_row_connected_status",
     defaultMessage: "Connected",
   })
 }
+
+const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
+  "needs_license",
+  "license_expired",
+  "license_revoked",
+  "license_invalid",
+])
 
 /** A connected plugin: its switch, its tools, and the way to disconnect it. */
 export function PluginRow({
@@ -76,6 +107,7 @@ export function PluginRow({
   onEnabled,
   onTool,
   onDisconnect,
+  onOpenLicense,
 }: {
   plugin: Plugin
   thirdPartyAllowed: boolean
@@ -88,6 +120,7 @@ export function PluginRow({
     change: { enabled: boolean } | { approval: ToolApproval }
   ) => void
   onDisconnect: () => void
+  onOpenLicense?: () => void
 }) {
   const nameId = useId()
   const host = plugin.hosts[0] ?? plugin.url
@@ -143,6 +176,19 @@ export function PluginRow({
         </span>
         {plugin.check_failure === "sign_in" ? (
           <ReplaceKeyButton plugin={plugin} />
+        ) : null}
+        {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            onClick={onOpenLicense}
+          >
+            {intl.formatMessage({
+              id: "plugins_row_license_settings_button",
+              defaultMessage: "License settings",
+            })}
+          </Button>
         ) : null}
         <Button
           type="button"

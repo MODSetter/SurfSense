@@ -14,11 +14,17 @@ import {
   thirdPartyQueryKey,
 } from "./api"
 import { AddPluginDialog } from "./add-plugin-dialog"
+import { FirstPartyPlugins } from "./first-party-plugins"
 import { PluginRow } from "./plugin-row"
 import { ThirdPartySwitch } from "./third-party-switch"
 import { usePluginChanges } from "./use-plugin-changes"
 
-export function PluginsSettings() {
+export function PluginsSettings({
+  onOpenLicense,
+}: {
+  /** Shown on a plugin whose license was refused. */
+  onOpenLicense?: () => void
+}) {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
   const plugins = useQuery({
@@ -47,6 +53,7 @@ export function PluginsSettings() {
         allowed={thirdParty.data ?? false}
         onChange={(allowed) => changes.thirdParty.mutate(allowed)}
       />
+      <FirstPartyPlugins />
       <div className="mt-8 mb-3 flex items-center justify-between gap-4">
         <h3 className="text-sm font-medium">
           {intl.formatMessage({
@@ -98,6 +105,7 @@ export function PluginsSettings() {
                 changes.tool.mutate({ plugin: plugin.id, tool, change })
               }
               onDisconnect={() => changes.disconnect.mutate(plugin.id)}
+              onOpenLicense={onOpenLicense}
             />
           ))}
         </div>
