@@ -87,6 +87,8 @@ plugins/
 | Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`core/05-paid.md`](core/05-paid.md)) |
 | License of SurfSense's plugin code | The folder decides it: `proprietary/` is Business Source License, everything else Apache-2.0. Only SurfSense's maintainers change `proprietary/`, so SurfSense holds all of its copyright. Price is the plugin's `access`, a separate question ([`core/05-paid.md`](core/05-paid.md#which-license-a-surfsense-plugin-is-under)) |
 | SurfSense's own plugin servers | In `plugins/remote/` (Apache-2.0) and `plugins/remote/proprietary/` (Business Source License 1.1), all run by one plugin host on Azure Container Apps at `plugins.surfsense.com`, which also serves the registry ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
+| Long calls to SurfSense's plugins | A call that can run past three minutes is a job: ordinary tools that queue it, report it and cancel it, run by workers apart from the host, since Azure ends a request after 240 seconds and opencode does not use MCP tasks ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#long-calls-run-as-jobs)) |
+| State on SurfSense's servers | Redis with persistence for jobs and shared state, Blob Storage for jobs' results, and no database: everything the plugin host keeps expires within a day and is read by its key ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#redis-and-blob-storage-not-a-database)) |
 | `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
 | Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`core/04-trust.md`](core/04-trust.md#organisation-policy)) |
 
@@ -100,7 +102,7 @@ plugins/
 | **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, allowing third-party plugins, permissions, activity | the gateway's routes; can start against their shapes |
 | **opencode** | `modules/agent/plugin_tools/`: the plugin servers and per-tool rules each turn gives opencode, and the listing check for changed tools | the gateway's readiness and approval rules, the MCP client |
 | **`@` mentions** | The agent composer's `@` list, and the mention in `modules/agent/plugin_tools/` | the opencode endpoint |
-| **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one container on Azure Container Apps, its image, its deployment, Redis and SearXNG | nothing |
+| **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one image on Azure Container Apps, run as the host and its workers, its deployment, Redis, Blob Storage and SearXNG | nothing |
 | **SurfSense scrapers** | `plugins/remote/proprietary/`: the scraping code copied out of `surfsense_backend`, its MCP tools, the license check | the plugin host; the root `LICENSE` line for `plugins/remote/proprietary/` |
 | **Contributor guide** | [`plugins/README.md`](../../../plugins/README.md), rewritten: building a remote MCP server, trying it with a custom plugin by URL, the registry pull request | the registry's rules |
 | **Bundles** | [`bundles/`](bundles/README.md) | deferred |
@@ -118,7 +120,7 @@ plugins/
 5. **`@` mentions** in agent threads.
 6. **The plugin lists and sign-in**: the first-party list, the registry, their check, signing and publishing the registry to SurfSense's host, the app's fetch and cache; OAuth; a connection kept open per plugin; progress on the screen.
 7. **The plugin host and SurfSense Scrapers** on it ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
-8. **Scale**: the 24 a thread lists ranked by use, finding tools beyond them, tools that run as jobs ([`core/06-later.md`](core/06-later.md)).
+8. **Scale**: the 24 a thread lists ranked by use, finding tools beyond them, third-party tools that run as jobs ([`core/06-later.md`](core/06-later.md)).
 9. **The chat engine's router step**, when plugins reach Basic threads, with the chat eval's router test ([`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)).
 10. **Bundles**, when something needs them.
 

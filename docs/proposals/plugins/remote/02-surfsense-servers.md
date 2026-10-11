@@ -16,7 +16,7 @@ The folder decides the license and the plugin's `access` decides the price ([`..
 
 ## The plugin host
 
-One container, deployed by SurfSense to Azure Container Apps at `plugins.surfsense.com`, serves the registry of third-party plugins and every SurfSense plugin. It runs apart from `surfsense_backend`, imports none of its code and uses none of its services.
+One image, deployed by SurfSense to Azure Container Apps, serves the registry of third-party plugins and every SurfSense plugin at `plugins.surfsense.com`, and runs their long calls as jobs. It runs apart from `surfsense_backend`, imports none of its code and uses none of its services.
 
 ```
 plugins.surfsense.com ──► the plugin host (one Container App, at least one replica: browsers start slowly)
@@ -24,10 +24,17 @@ plugins.surfsense.com ──► the plugin host (one Container App, at least one
                             /scrapers/mcp                                SurfSense Scrapers
                             /<id>/mcp                                    each other SurfSense plugin
                             /health
-                          beside it, internal only: Redis, SearXNG; secrets from Key Vault
+                                │ queues a long call            ▲ its status, progress and result
+                                ▼                               │
+                          Redis, with persistence: jobs, rate limits, license state, caches
+                          Blob Storage: jobs' results, deleted a day after
+                                │ takes a job
+                                ▼
+                          the workers (a second Container App, the same image, scaled on the queue)
+                          beside them, internal only: SearXNG; secrets from Key Vault
 ```
 
-- **One container, as the backend runs the scrapers today.** One image carries Python, Xvfb and the browsers once; one deploy ships every plugin. A container per plugin was rejected: it multiplies images, deployments and routing for plugins that are mostly small.
+- **One image, as the backend runs the scrapers today.** One image carries Python, Xvfb and the browsers once; one deploy ships every plugin, run as the host and as its workers. A container per plugin was rejected: it multiplies images, deployments and routing for plugins that are mostly small.
 - **A plugin is a folder** whose `server.py` returns its MCP server, built on the official MCP Python SDK, whose client the app uses too. The folder name is the plugin's `id` and its path: `plugins/remote/proprietary/scrapers/` is `id: scrapers` at `/scrapers/mcp`. Adding a plugin adds its entry to the first-party list in the same change, so it reaches users with the next app release.
 - **One project.** `host/pyproject.toml` and its `uv.lock` hold every plugin's dependencies. A plugin has no `pyproject.toml` or `Dockerfile` of its own. The import root is `plugins/remote/`, so code imports `mcp_server.progress` or `proprietary.scrapers.server`.
 - **Failures stay in their plugin.** A mounted plugin turns its own exceptions into MCP errors, every call runs under a deadline, and a replica failing `/health` is restarted. Each plugin reads only its own settings section, `<ID>_*`; that is a convention, not isolation, acceptable because every plugin here is SurfSense's own code.
@@ -42,17 +49,18 @@ plugins/
   registry/                    Apache-2.0   third-party plugins, every kind (../core/02-registry.md)
   remote/                      everything the plugin host runs
     host/                      Apache-2.0   the deployable
-      pyproject.toml  uv.lock  Dockerfile  compose.yaml (host, Redis, SearXNG, for local runs)
+      pyproject.toml  uv.lock  Dockerfile  compose.yaml (host, workers, Redis, Azurite, SearXNG, for local runs)
       __main__.py              python -m host
+      worker.py                python -m host.worker: takes jobs from Redis and runs them
       app.py                   mounts each plugin at /<id>/mcp, and /health
       mounted_plugins.py       the plugins it serves; skips proprietary/ when absent
       registry_files.py        serves the signed registry and its icons
       config.py                each plugin's settings section
-      azure/                   Bicep: the Container App, Redis, SearXNG, Key Vault references
+      azure/                   Bicep: the host and worker Container Apps, Redis, the results' Blob Storage, SearXNG, Key Vault references
     mcp_server/                Apache-2.0   what every plugin builds its server with
       tools.py                 declaring a tool and its MCP annotations
       progress.py              MCP progress notifications
-      result_store.py          a result too large to return whole, kept a day and paged
+      jobs.py                  long calls and large results as jobs, and get_job and cancel_job
       access.py                the hook a paid plugin's license check plugs into
     <id>/                      Apache-2.0   a free plugin: server.py, tools.py, tests/
     proprietary/               Business Source License 1.1
@@ -86,11 +94,49 @@ plugins/remote/proprietary/scrapers/
 
 A new platform is one folder in `platforms/`. Proxy, captcha and crawl stay private to this plugin until a second plugin needs them.
 
-- **Tools.** One per scraper verb: web crawl, Google Search, Reddit, YouTube and its comments, Instagram and its details, TikTok and its comments, user search and trending, Google Maps and its reviews, Indeed, Amazon, Walmart and its reviews. Each declares `readOnlyHint: true` and `openWorldHint: true`, returns a readable summary as text with the items as `structuredContent`, and reports progress with MCP progress notifications. A result too large to return whole is kept for a day and paged with a `get_scraper_result` tool. A cancelled call stops its scrape.
+- **Tools.** One per scraper verb: web crawl, Google Search, Reddit, YouTube and its comments, Instagram and its details, TikTok and its comments, user search and trending, Google Maps and its reviews, Indeed, Amazon, Walmart and its reviews. Each declares `readOnlyHint: true` and `openWorldHint: true`, returns a readable summary as text with the items as `structuredContent`, and reports progress with MCP progress notifications. A tool that can run past three minutes, such as a site crawl, is a job ([below](#long-calls-run-as-jobs)), and so is a result too large to return whole. A cancelled call stops its scrape.
 - **The license, on the server.** Every request needs `Authorization: License <key>`, checked by `proprietary/license_check/` as [`../core/05-paid.md`](../core/05-paid.md) says. The host counts requests per license and limits their rate.
 - **Its own secrets:** the proxy providers' credentials, the captcha solver's key, and Keygen access, from Key Vault. None of them reaches the app.
-- **Its own dependencies:** Redis for Google Search's IP pool and the result store, SearXNG as Google Search's fallback, and Scrapling's browsers in the host's image.
-- **No database.** The scraper API's `runs` table and async-run events are replaced by MCP progress and the short-lived result store in Redis.
+- **Its own dependencies:** Redis for its jobs and Google Search's IP pool, Blob Storage for its jobs' results, SearXNG as Google Search's fallback, and Scrapling's browsers in the host's image.
+- **No database.** The scraping code reads and writes none today; the database in `surfsense_backend` belongs to the scraper API around it. Each of its uses has a replacement here:
+
+  | The scraper API's database | On the plugin host |
+  |---|---|
+  | Users, workspaces and personal access tokens | The license key, checked with Keygen |
+  | Credits per workspace owner | None: a license unlocks the plugin, and contract 2 meters no credits for license callers |
+  | The `runs` table, async runs and their events | MCP progress on the call, or a job in Redis |
+  | `ToolOutputSpill`, large outputs paged by `read_run` | A finished job's result in Blob Storage, paged by `get_job` |
+  | Run history for the hosted logs screen | None: that screen goes with the hosted app ([sunset](../../../architecture/sunset.md)) |
+
+## Long calls run as jobs
+
+A call to a plugin is one HTTP request, and Azure Container Apps' ingress ends a request after 240 seconds. MCP progress resets the caller's own timeout, since opencode calls tools with `resetTimeoutOnProgress`, but it does not lift the ingress limit. A deploy or a replica restart also ends every call in flight. So a call that can run past three minutes is a job.
+
+- **Jobs are ordinary tools.** `crawl_site(...)` queues the job and answers at once with `{job_id, status: "running"}`; `get_job(job_id)` answers its status, progress, and its result or a page of it once done; `cancel_job(job_id)` stops it. The agent calls `get_job` again until it is done, so any MCP client can use them.
+- **Not MCP tasks.** Tasks, MCP's own start-now-collect-later calls, are experimental in protocol `2025-11-25` and an extension in `2026-07-28`, and opencode 1.18.34 does not use them: it calls every tool with the SDK's plain `callTool`, which refuses a tool whose `execution.taskSupport` is `required`. No SurfSense tool sets it. Tasks can be added over the same jobs once the clients that call SurfSense's plugins use them.
+- **Workers run them, apart from the host.** The host queues a job in Redis and a worker takes it, so a deploy of the host does not stop a scrape. A worker records a heartbeat as it runs; a job whose worker stopped is run once more by another, then fails with a reason.
+- **A job is its license's.** It keeps a hash of the license key that queued it, never the key, and `get_job` or `cancel_job` from any other license answers that no such job exists.
+- **A large result is a finished job.** A tool whose result is too large to return whole returns a summary and a `job_id`, and `get_job` pages the rest.
+- **Kept a day.** A job expires from Redis, and its result from Blob Storage, a day after it ends. After that SurfSense's servers hold nothing of it; the result lives on in the thread's opencode session on the user's computer, and in Sources if the user saved it.
+
+### Redis and Blob Storage, not a database
+
+A job's state is small and changes on every heartbeat; its result can be many megabytes, a site crawl's above all, and is written once. So each goes where it fits, and Redis, which holds everything in memory, stays small:
+
+| Kept | Where | For how long |
+|---|---|---|
+| Jobs: their queue, status, progress and heartbeat | Redis | A day after the job ends |
+| Jobs' results, one blob per job, written by the worker and paged by `get_job` | Blob Storage, a private container reached with the host's managed identity | A day after the job ends, by a lifecycle rule |
+| Requests and rate limits per license | Redis | The rate window |
+| License answers, and when each key was last valid | Redis | Five minutes, and the 24-hour grace while Keygen is down, shared so a deploy during a Keygen outage locks out no one |
+| Google Search's warm IP pool and its link cache | Redis | Until they go stale |
+
+Redis runs with persistence on, so a Redis restart loses no job. Everything here expires within a day, is read by its key and never queried, and costs at most a rerun when lost. A database would add migrations and backups for none of it. One would come only for usage kept for months and reported on, such as billing by the call, which nothing in this design does.
+| Requests and rate limits per license | The rate window |
+| License answers, and when each key was last valid | Five minutes, and the 24-hour grace while Keygen is down, shared so a deploy during a Keygen outage locks out no one |
+| Google Search's warm IP pool and its link cache | Until they go stale |
+
+Everything here expires within a day, is read by its key and never queried, and costs at most a rerun when lost. A database would add migrations and backups for none of it. One would come only for usage kept for months and reported on, such as billing by the call, which nothing in this design does.
 
 ### Moving the scraping code
 
@@ -110,3 +156,7 @@ Outside clients, `surfsense_mcp` and direct users of the scraper API, keep using
 - A plugin that raises during a call returns an MCP error, and the other plugins keep answering.
 - SurfSense Scrapers: a call with a valid trial license returns items; with no key, `401 missing_license`; with an expired one, `403 expired`, each reaching the user as the refusal.
 - A cancelled scraper call stops its scrape within ten seconds.
+- A site crawl answers a `job_id` at once; `get_job` reports its progress and then its result, through a deploy of the host during the crawl. `cancel_job` stops it within ten seconds.
+- A job whose worker is killed runs once more on another worker, and a second failure ends the job failed, with its reason.
+- `get_job` with another license's `job_id` answers that no such job exists.
+- No scraper tool declares `execution.taskSupport: required`, and each is called by opencode.

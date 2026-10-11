@@ -60,6 +60,6 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 
 - `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
 - No plugin exists: SurfSense Scrapers is still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#surfsense-scrapers)).
-- Requests are not counted or rate-limited per license, and the five-minute cache is per replica.
-- No deadline on a plugin's call, no MCP progress and no result store yet.
+- Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
+- No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there are no workers, Redis or Blob Storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
 - No registry files, Docker image or Azure deployment.
