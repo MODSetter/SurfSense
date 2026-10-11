@@ -43,7 +43,7 @@ Price and license are separate questions. A plugin's `access` decides the price;
 ```
 plugins/remote/proprietary/
   LICENSE      Business Source License 1.1, as surfsense_backend/app/proprietary/LICENSE
-  license/     the Keygen check every SurfSense paid plugin uses
+  license_check/  the Keygen check every SurfSense paid plugin uses
   scrapers/    the scrapers plugin and the scraping code it runs
 ```
 

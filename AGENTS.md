@@ -66,6 +66,10 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
+# plugin host: SurfSense's own plugins, from plugins/remote/
+cd plugins/remote/host && uv sync
+cd plugins/remote && uv run --project host python -m host
+
 # bundles (deferred): the manifest rules, the SDK, the surfsense-plugins command
 cd plugins/bundles/core/manifest && uv sync
 cd plugins/bundles/core/sdk && uv sync
@@ -88,6 +92,7 @@ pre-commit run --all-files
 | Web unit | `cd surfsense_web && pnpm test:unit` |
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
+| Plugin host | `cd plugins/remote/host && uv run pytest` |
 | Bundles: manifest rules | `cd plugins/bundles/core/manifest && uv run pytest -m unit` |
 | Bundles: SDK | `cd plugins/bundles/core/sdk && uv run pytest -m unit` |
 | Bundles: SDK against the app | `cd plugins/bundles/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |

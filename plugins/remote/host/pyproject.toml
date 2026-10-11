@@ -1,0 +1,27 @@
+[project]
+name = "surfsense-plugin-host"
+version = "0.0.0"
+description = "The one server that runs every SurfSense plugin, each at /<id>/mcp."
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+# Every plugin's dependencies too: the host is one project and one image.
+dependencies = [
+    # The minor version the app's client is pinned to.
+    "mcp>=2.3,<2.4",
+    "uvicorn[standard]>=0.34.0",
+    # What mcp itself speaks HTTP with; the license check calls Keygen with it.
+    "httpx2>=2.10.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+# The import root is plugins/remote/, so code imports host.app or mcp_server.access.
+pythonpath = [".."]
+testpaths = ["tests", "../proprietary"]
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+asyncio_mode = "auto"

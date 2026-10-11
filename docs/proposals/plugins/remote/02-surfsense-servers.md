@@ -57,14 +57,14 @@ plugins/
     <id>/                      Apache-2.0   a free plugin: server.py, tools.py, tests/
     proprietary/               Business Source License 1.1
       LICENSE
-      license/                 checks "License <key>" with Keygen
+      license_check/           checks "License <key>" with Keygen
       scrapers/                SurfSense Scrapers
   bundles/                     deferred (../bundles/README.md)
 ```
 
 SurfSense's plugins are listed in the app's first-party list, `surfsense_local/backend/modules/plugins/lists/first_party/`, not in `registry/` ([`../core/02-registry.md`](../core/02-registry.md#two-lists)).
 
-`host`, `mcp_server`, `proprietary` and `license` are never plugin ids. `mcp_server/` holds nothing about scraping or licensing: it is what a free plugin needs too. Code moves into it, or out of a plugin, only when a second plugin needs it.
+`host`, `mcp_server`, `proprietary` and `license_check` are never plugin ids. The check is not `license/`, which would be the same path as `LICENSE` on macOS and Windows. `mcp_server/` holds nothing about scraping or licensing: it is what a free plugin needs too. Code moves into it, or out of a plugin, only when a second plugin needs it.
 
 ## SurfSense Scrapers
 
@@ -87,7 +87,7 @@ plugins/remote/proprietary/scrapers/
 A new platform is one folder in `platforms/`. Proxy, captcha and crawl stay private to this plugin until a second plugin needs them.
 
 - **Tools.** One per scraper verb: web crawl, Google Search, Reddit, YouTube and its comments, Instagram and its details, TikTok and its comments, user search and trending, Google Maps and its reviews, Indeed, Amazon, Walmart and its reviews. Each declares `readOnlyHint: true` and `openWorldHint: true`, returns a readable summary as text with the items as `structuredContent`, and reports progress with MCP progress notifications. A result too large to return whole is kept for a day and paged with a `get_scraper_result` tool. A cancelled call stops its scrape.
-- **The license, on the server.** Every request needs `Authorization: License <key>`, checked by `proprietary/license/` as [`../core/05-paid.md`](../core/05-paid.md) says. The host counts requests per license and limits their rate.
+- **The license, on the server.** Every request needs `Authorization: License <key>`, checked by `proprietary/license_check/` as [`../core/05-paid.md`](../core/05-paid.md) says. The host counts requests per license and limits their rate.
 - **Its own secrets:** the proxy providers' credentials, the captcha solver's key, and Keygen access, from Key Vault. None of them reaches the app.
 - **Its own dependencies:** Redis for Google Search's IP pool and the result store, SearXNG as Google Search's fallback, and Scrapling's browsers in the host's image.
 - **No database.** The scraper API's `runs` table and async-run events are replaced by MCP progress and the short-lived result store in Redis.

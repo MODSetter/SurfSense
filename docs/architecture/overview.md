@@ -122,6 +122,7 @@ The rules that keep the processes out of each other's way:
 - [Embedding model](embedding.md): the model that embeds the library, chosen once at onboarding.
 - [Chat](chat.md): grounding, the stream, runs, citations.
 - [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
+- [Plugins](plugins.md): MCP servers whose tools the agent calls; the [plugin host](plugin-host.md) runs SurfSense's own.
 - [Model capabilities](model-capabilities.md): the measured level each chat model gets, and what follows from it.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
