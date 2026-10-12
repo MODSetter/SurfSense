@@ -44,7 +44,7 @@ function isAlive(pid: number): boolean {
 }
 
 test("a sidecar that does not inherit sees only its own variables", async () => {
-  process.env.SURFSENSE_LOCAL_SECRET = "leaked"
+  process.env.SURFSENSE_LOCAL_SECRET = "leaked" // pragma: allowlist secret
   const out = join(mkdtempSync(join(tmpdir(), "supervisor-")), "env.json")
   const sidecars: Sidecars = new Map()
   try {
