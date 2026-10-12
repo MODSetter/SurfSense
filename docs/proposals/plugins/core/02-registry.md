@@ -56,7 +56,7 @@ An illustrative registry entry, not a real listing:
 | `publisher` | `surfsense` in the first-party list; `partner` or `community` in the registry |
 | `name`, `description`, `author` | Display text, 1–80, 1–200 and 1–80 characters |
 | `url` | `remote` only. `https`, no credentials in it; the server's MCP endpoint |
-| `auth` | `{ "type": "oauth" }`, `{ "type": "token", "title", "description" }`, `{ "type": "none" }`, or `{ "type": "license" }` in the first-party list only |
+| `auth` | `{ "type": "oauth" }`, `{ "type": "token", "title", "description" }`, `{ "type": "none" }`, or `{ "type": "license" }` in the first-party list only. `oauth` may carry `client_id`, SurfSense's app as registered with a provider that registers clients only in advance, and `scopes`; never a client secret |
 | `hosts` | Every host the app contacts for this plugin: for a remote one, the URL's host and the authorization server's hosts. Exact hostnames, no loopback |
 | `access` | `free` or `external`, or `license` in the first-party list only ([`05-paid.md`](05-paid.md)) |
 | `access_note` | Required when `access` is `external`: what the user must buy or have, in a sentence |

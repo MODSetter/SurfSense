@@ -21,6 +21,7 @@ One container, deployed by SurfSense to Azure Container Apps, serves the registr
 ```
 plugins.surfsense.com ──► the plugin host: one container, one image, as many copies as the load needs
                             /plugins.json, /plugins.json.sig, /icons/*   the signed registry
+                            /oauth/client.json, /oauth/callback          SurfSense's OAuth client identity and redirect
                             /reddit/mcp, /youtube/mcp, …                 a scraper plugin each
                             /<id>/mcp                                    each other SurfSense plugin
                             /health

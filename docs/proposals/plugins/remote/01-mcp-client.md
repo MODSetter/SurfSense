@@ -30,10 +30,14 @@ The API uses the client of the official MCP Python SDK, [`mcp`](https://pypi.org
 OAuth follows MCP's authorization spec, through the SDK's OAuth client:
 
 1. The client reads the server's protected resource metadata ([RFC 9728](https://www.rfc-editor.org/rfc/rfc9728)) and the authorization server's metadata ([RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)), and checks the issuer.
-2. It identifies itself with a Client ID Metadata Document when the server supports one, otherwise registers dynamically ([RFC 7591](https://www.rfc-editor.org/rfc/rfc7591)), and keeps the client it registered.
+2. It identifies itself with a Client ID Metadata Document when the server supports one, otherwise registers dynamically ([RFC 7591](https://www.rfc-editor.org/rfc/rfc7591)) and keeps the client it registered on the plugin's row. The document is served by SurfSense's plugin host, `plugins.surfsense.com/oauth/client.json`, so every install signs in as the same SurfSense app, and names one redirect URI, below. A provider that registers clients only in advance, as GitHub and Google do, gets SurfSense's app registered with it once, and the plugin's entry carries its `client_id` ([`../core/02-registry.md`](../core/02-registry.md)). Every client is public: PKCE protects the sign-in, and no client secret ships in the app.
 3. It opens the authorization URL in the user's browser through Electron, with PKCE and the resource indicator ([RFC 8707](https://www.rfc-editor.org/rfc/rfc8707)).
-4. The redirect lands on the API's own loopback address, `http://127.0.0.1:<port>/plugins/oauth/callback`, which already listens there; no extra port.
+4. The redirect goes to `https://plugins.surfsense.com/oauth/callback`, one fixed HTTPS address for every provider, which forwards the browser to the API's own loopback address, `http://127.0.0.1:<port>/plugins/oauth/callback`, with the port carried in `state`. The API already listens there, so no extra port, and a port that differs between runs breaks nothing. The page only ever sees a one-time code, useless without the PKCE verifier the app keeps. A sign-in under way when the app restarts fails, and Connect starts it again.
 5. Tokens are stored encrypted on the plugin's row in `installed_plugins` through `shared/secrets.py`, refreshed before they expire or when a call gets `401`. A refresh that fails marks the plugin "Sign in again".
+
+Connect asks consent for the plugin's hosts and the authorization server's, then opens the sign-in page; the plugin's row shows "Waiting for sign-in" until the callback arrives, and Cancel abandons it.
+
+opencode can run MCP OAuth itself: on a `401` it discovers, registers, opens the browser and keeps the tokens in a plain file. SurfSense keeps that off (`oauth: false`) and signs in itself, because the user signs in at Connect rather than halfway through a reply, SurfSense's own client lists the tools with the same token, tokens stay encrypted with SurfSense's other credentials, and the authorization server's hosts get consent before any request. opencode only receives the result, as an `Authorization: Bearer` header ([`../core/03-engines.md`](../core/03-engines.md#opencode)).
 
 Credentials never reach a model, a log line, or a step.
 
@@ -52,5 +56,8 @@ Every host in the entry's `hosts` needs the user's consent before connecting, on
 - A `tools/list` that fails with a 503 is retried twice, and one that keeps failing is refused with its status.
 - A 2025 server that forgets the session gets the listing again on a new one.
 - OAuth against a test authorization server: discovery, dynamic registration, PKCE, the callback on the API's port, a stored token, a refresh on `401`, and "Sign in again" when the refresh fails.
+- A connect whose sign-in is abandoned leaves no plugin and no stored client.
+- The callback forwarded from the fixed HTTPS address reaches the loopback port carried in `state`, and a `state` the app did not issue is refused.
+- A token refreshed before a turn reaches opencode as the new header.
 - A plugin whose two hosts are not allowed raises one `403` naming both, and no connection opens.
 - No credential appears in a log line, a step, or an API response.
