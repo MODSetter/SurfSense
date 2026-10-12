@@ -60,6 +60,50 @@ async def test_without_a_staged_opencode_the_agent_is_unavailable(
         await ready_opencode(session, launch_key="new-key")
 
 
+async def test_an_opencode_electron_gave_up_on_fails_the_turn_at_once(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Electron says so after this turn's configuration, so nothing waits the full minute."""
+    agent_dir: Path = get_storage_settings().agent_dir
+    monkeypatch.setattr(
+        get_agent_settings(), "opencode_url", f"http://127.0.0.1:{free_port()}"
+    )
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", "password")
+    config = agent_dir / "opencode.json"
+    config.unlink(missing_ok=True)
+
+    async def electron_gives_up() -> None:
+        while not config.exists():
+            await asyncio.sleep(0.05)
+        (agent_dir / "opencode-failed.json").write_text(
+            '{"reason": "opencode exited with code 7"}', encoding="utf-8"
+        )
+
+    giving_up = asyncio.create_task(electron_gives_up())
+    with pytest.raises(AgentUnavailableError, match="opencode exited with code 7"):
+        await asyncio.wait_for(ready_opencode(session, launch_key="key"), 5)
+    await giving_up
+
+
+async def test_a_failure_from_before_this_turn_s_configuration_is_not_read(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Asking again earns opencode another start, so an earlier failure says nothing yet."""
+    agent_dir: Path = get_storage_settings().agent_dir
+    monkeypatch.setattr(
+        get_agent_settings(), "opencode_url", f"http://127.0.0.1:{free_port()}"
+    )
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", "password")
+    monkeypatch.setattr("modules.agent.opencode_runtime.READY_SECONDS", 0.5)
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    (agent_dir / "opencode-failed.json").write_text(
+        '{"reason": "opencode exited with code 7"}', encoding="utf-8"
+    )
+
+    with pytest.raises(AgentUnavailableError, match="did not start"):
+        await ready_opencode(session, launch_key="key")
+
+
 async def test_it_waits_for_the_configuration_it_just_wrote(
     session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
