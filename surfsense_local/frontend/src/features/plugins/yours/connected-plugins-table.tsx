@@ -27,7 +27,7 @@ const TONE = {
 
 // A table row cannot be rounded, so its cells carry the hover and the first and last round it.
 const CELL =
-  "py-2.5 transition-colors group-hover/row:bg-muted/50 first:rounded-l-lg last:rounded-r-lg"
+  "py-1.5 transition-colors group-hover/row:bg-muted/50 first:rounded-l-lg last:rounded-r-lg"
 export function ConnectedPluginsTable({
   plugins,
   thirdPartyAllowed,
@@ -96,6 +96,7 @@ export function ConnectedPluginsTable({
                     id={plugin.id}
                     name={plugin.name}
                     hasIcon={plugin.source === "registry"}
+                    className="size-7 text-xs"
                   />
                   <span className="truncate">{plugin.name}</span>
                 </button>
