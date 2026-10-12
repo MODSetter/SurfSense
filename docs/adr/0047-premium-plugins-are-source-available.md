@@ -27,5 +27,5 @@ Plugins became MCP servers, remote ones first, hosted by their publishers ([ADR 
 
 ## Where the code stands
 
-- No paid plugin, `plugins/proprietary/` folder or license line for it exists. The scrapers still live only in `surfsense_backend/app/proprietary/`.
+- No paid plugin exists. The root `LICENSE` names `plugins/remote/proprietary/`, the folder [ADR 0054](0054-surfsenses-plugins-run-on-one-plugin-host.md) gives paid plugins, which holds only its license. The scrapers still live only in `surfsense_backend/app/proprietary/`.
 - `surfsense_mcp` exposes the scrapers to outside clients with personal keys; it is not the app's plugin.

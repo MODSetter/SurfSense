@@ -66,6 +66,10 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
+# plugin host: SurfSense's own plugins, from plugins/remote/
+cd plugins/remote/host && uv sync
+cd plugins/remote && uv run --project host python -m host
+
 # bundles (deferred): the manifest rules, the SDK, the surfsense-plugins command
 cd plugins/bundles/core/manifest && uv sync
 cd plugins/bundles/core/sdk && uv sync
@@ -88,6 +92,7 @@ pre-commit run --all-files
 | Web unit | `cd surfsense_web && pnpm test:unit` |
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
+| Plugin host | `cd plugins/remote/host && uv run pytest` |
 | Bundles: manifest rules | `cd plugins/bundles/core/manifest && uv run pytest -m unit` |
 | Bundles: SDK | `cd plugins/bundles/core/sdk && uv run pytest -m unit` |
 | Bundles: SDK against the app | `cd plugins/bundles/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
@@ -103,7 +108,7 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md). The parts agents miss:
 - `gh pr create --body` skips the PR template. Keep its headings: What, Why, `Fixes #`, How to test.
 - Commit messages and PR titles are Conventional Commits, `type(scope): summary`. The commitizen hook runs only where it is installed; CI does not run it.
 - A new feature starts as a proposal PR in `docs/proposals/`, not as code.
-- `surfsense_backend/app/proprietary/` is Business Source License 1.1: ask a maintainer before changing it. A change to `docs/contracts/` needs the owners of both sides.
+- `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/` are Business Source License 1.1 and changed only by maintainers: ask one before changing them. A change to `docs/contracts/` needs the owners of both sides.
 
 ## Skills
 

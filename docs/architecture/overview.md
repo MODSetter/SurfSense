@@ -107,11 +107,11 @@ The rules that keep the processes out of each other's way:
 ## Codemap
 
 - [`backend/api/`](../../surfsense_local/backend/api/): `create_app()` and its lifespan (migrations, the default workspace, a background catalog warm-up), the per-request session and `transact()`.
-- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
+- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `plugins`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
-- [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0027`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
-- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration`, `updates` and `feedback`.
+- [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0028`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
+- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `plugins`, `license`, `migration`, `updates` and `feedback`.
 - [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (the window, IPC and the paths it hands to boot), `sidecars/` (boot, the supervisor, one spec per sidecar, and the image-model, preset, audio and agent watchers), `session-log/` (this run's output, for issue reports), `secret.ts`, `updater.ts` and `document-files.ts`.
 
 ## Where to read next
@@ -122,6 +122,7 @@ The rules that keep the processes out of each other's way:
 - [Embedding model](embedding.md): the model that embeds the library, chosen once at onboarding.
 - [Chat](chat.md): grounding, the stream, runs, citations.
 - [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
+- [Plugins](plugins.md): MCP servers whose tools the agent calls; the [plugin host](plugin-host.md) runs SurfSense's own, and the [plugin registry](plugin-registry.md) lists third-party ones.
 - [Model capabilities](model-capabilities.md): the measured level each chat model gets, and what follows from it.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.

@@ -94,6 +94,35 @@ describe("egress prompt", () => {
     expect(dialog.textContent).not.toContain("excerpts of your documents")
   })
 
+  it("says a plugin's server gets what its tools are sent, not every chat", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:mcp.notes.example",
+              host: "mcp.notes.example",
+              purpose: "plugin",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/plugins/custom", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow connecting to mcp.notes.example?",
+    })
+    expect(dialog.textContent).toContain("a plugin’s server")
+    expect(dialog.textContent).not.toContain("excerpts of your documents")
+  })
+
   it("cancelling leaves the call refused", async () => {
     const calls = stubApi()
     const user = userEvent.setup()

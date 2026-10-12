@@ -1115,11 +1115,12 @@ describe("dashboard chat", () => {
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
-    await user.click(
-      await screen.findByRole("menuitem", {
-        name: /^Start a new chat in Agentic mode/,
-      })
-    )
+    // The open chat's other mode is a row of its own, marked as a new chat.
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+    expect(within(agentic).getByText("New chat")).toBeTruthy()
+    await user.click(agentic)
 
     expect(
       await within(conversation).findByRole("button", {

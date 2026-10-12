@@ -36,6 +36,13 @@ from modules.agent.opencode_runtime import (
     ReadyAgent,
     ready_opencode,
 )
+from modules.agent.plugin_tools.changed_tools import check_changed_tools
+from modules.agent.plugin_tools.give_plugins import give_plugins
+from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
+from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
+from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
+from modules.agent.plugin_tools.thread_calls import thread_calls_token
+from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import register_thread_tools
@@ -167,6 +174,7 @@ async def _stream(
     # Approvals asked and not yet answered: the turn waits on the user meanwhile.
     waiting: set[str] = set()
     sent = False
+    plugins: list[TurnPlugin] = []
     live_instances.turn_began(folder)
     try:
         # A big scope's first sync takes about 30 s: the thread says why it waits.
@@ -189,6 +197,27 @@ async def _stream(
         # The turn's first call into its instance: one being disposed is finished first.
         await live_instances.wait_for_disposal(folder)
         await register_thread_tools(client, folder, workspace_id, thread_id, launch_key)
+        signed_out = await refresh_sign_ins(session)
+        await check_changed_tools(session)
+        mentions = await transact(session, mentioned_plugins, sending.text)
+        plugins = await transact(
+            session,
+            turn_plugins,
+            frozenset(m.plugin_id for m in mentions),
+            thread_calls_token(thread_id),
+        )
+        unavailable = signed_out + await give_plugins(
+            client, folder, session_id, plugins
+        )
+        if unavailable:
+            yield _frame(
+                {
+                    "type": "agent-plugins-unavailable",
+                    "plugins": [
+                        {"title": p.title, "reason": p.reason} for p in unavailable
+                    ],
+                }
+            )
         begin_turn(thread_id)
         if sending.sources.shown is not None:
             # First, so the turn shows what the server resolved, not what the client guessed.
@@ -206,7 +235,14 @@ async def _stream(
                                 session_id,
                                 sending.text,
                                 model=ready.model,
-                                note=sending.sources.note,
+                                notes=[
+                                    note
+                                    for note in (
+                                        sending.sources.note,
+                                        mention_note(mentions),
+                                    )
+                                    if note is not None
+                                ],
                             )
                             sent = True
                         elif await client.status(folder, session_id) == "idle":
@@ -277,6 +313,7 @@ async def _stream(
             if run.stop_requested and not turn.finished:
                 # opencode stores a Stop as it stores a quit: only this note tells them apart.
                 await _note_stop(client, folder, session_id, turn.user_message_id)
+                await stop_plugin_calls(plugins)
             if sent and not turn.finished:
                 try:
                     await client.abort(folder, session_id)

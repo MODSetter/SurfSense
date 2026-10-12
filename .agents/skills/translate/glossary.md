@@ -58,6 +58,9 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every 
 | provider | プロバイダー | 제공업체 | 提供商 | प्रोवाइडर | Anbieter | proveedor | fournisseur | provedor | провайдер |
 | this computer | このコンピューター | 이 컴퓨터 | 这台电脑 | यह कंप्यूटर | dieser Computer | este equipo | cet ordinateur | este computador | этот компьютер |
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
+| plugin (an MCP server whose tools the agent can use) | プラグイン | 플러그인 | 插件 | प्लगइन | Plugin | plugin | plugin | plugin | плагин |
+| third-party (a plugin SurfSense does not publish) | サードパーティ | 서드파티 | 第三方 | थर्ड-पार्टी | Drittanbieter- | de terceros | tiers | de terceiros | сторонний |
+| tool (one action a plugin offers the agent) | ツール | 도구 | 工具 | टूल | Tool | herramienta | outil | ferramenta | инструмент |
 | View (menu) | 表示 | 보기 | 视图 | देखें | Darstellung | Ver | Affichage | Exibir | Вид |
 | report an issue | 問題を報告 | 문제 신고 | 报告问题 | समस्या रिपोर्ट करें | Problem melden | informar de un problema | signaler un problème | relatar um problema | сообщить о проблеме |
 | session log | セッションログ | 세션 로그 | 会话日志 | सेशन लॉग | Sitzungsprotokoll | registro de la sesión | journal de session | log da sessão | журнал сеанса |
