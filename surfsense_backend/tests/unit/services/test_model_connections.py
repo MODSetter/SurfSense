@@ -18,6 +18,8 @@ from app.services.model_connection_service import (
 )
 from app.services.model_resolver import strip_version_suffix, to_litellm
 
+pytestmark = pytest.mark.unit
+
 
 def _facts(max_input_tokens: int | None) -> dict:
     return {
@@ -121,6 +123,33 @@ def test_derive_capabilities_seeds_a_small_window_verbatim() -> None:
     assert facts["max_input_tokens"] == 4_096
     assert facts["supports_tools"] is True
     assert facts["supports_image_input"] is True
+
+
+@pytest.mark.parametrize(
+    ("entry", "supports_chat", "supports_image_generation"),
+    [
+        ({"model_type": "image", "model_ability": ["text2image"]}, False, True),
+        ({"model_type": "LLM", "model_ability": ["generate", "chat"]}, True, False),
+        ({"model_type": ["image"]}, True, False),
+        ({}, True, False),
+    ],
+)
+def test_derive_capabilities_honours_server_reported_model_type(
+    entry: dict, supports_chat: bool, supports_image_generation: bool
+) -> None:
+    conn = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="http://host.docker.internal:9997/v1",
+        api_key=None,
+        extra={},
+    )
+
+    facts = derive_capabilities(
+        conn, "FLUX.2-klein-4B", {"id": "FLUX.2-klein-4B", **entry}
+    )
+
+    assert facts["supports_chat"] is supports_chat
+    assert facts["supports_image_generation"] is supports_image_generation
 
 
 @pytest.mark.asyncio
@@ -526,3 +555,54 @@ async def test_discover_models_allows_empty_static_provider(monkeypatch) -> None
     conn = SimpleNamespace(provider="azure", base_url=None)
 
     assert await discover_models(conn) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("model_fields", "probe"),
+    [
+        ({"supports_chat": False, "supports_image_generation": True}, "image"),
+        (
+            {
+                "supports_chat": True,
+                "supports_image_generation": False,
+                "capabilities_override": {
+                    "supports_chat": False,
+                    "supports_image_generation": True,
+                },
+            },
+            "image",
+        ),
+        ({"supports_chat": True, "supports_image_generation": True}, "chat"),
+    ],
+)
+async def test_model_probes_with_the_api_the_model_supports(
+    monkeypatch, model_fields: dict, probe: str
+) -> None:
+    calls: list[str] = []
+
+    async def fake_image_generation(**_kwargs) -> None:
+        calls.append("image")
+
+    async def fake_completion(**_kwargs) -> None:
+        calls.append("chat")
+
+    monkeypatch.setattr(
+        model_connection_service.litellm, "aimage_generation", fake_image_generation
+    )
+    monkeypatch.setattr(
+        model_connection_service.litellm, "acompletion", fake_completion
+    )
+    conn = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="http://host.docker.internal:9997/v1",
+        api_key=None,
+        extra={},
+    )
+    model = SimpleNamespace(model_id="FLUX.2-klein-4B", **model_fields)
+
+    result = await model_connection_service.test_model(conn, model)
+
+    assert result.ok is True
+    assert calls == [probe]
+    assert model.supports_chat is model_fields["supports_chat"]

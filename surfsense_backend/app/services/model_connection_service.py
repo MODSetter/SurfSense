@@ -15,6 +15,7 @@ import litellm
 
 from app.db import Connection, Model, ModelSource
 from app.services.context_admission import SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
+from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
@@ -398,6 +399,10 @@ def derive_capabilities(
                 or facts["max_input_tokens"],
             }
         )
+    elif spec.transport == Transport.OPENAI_COMPATIBLE:
+        if metadata.get("model_type") == "image":
+            facts["supports_chat"] = False
+            facts["supports_image_generation"] = True
     return facts
 
 
@@ -846,17 +851,29 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
 
 async def test_model(conn: Connection, model: Model) -> VerifyResult:
     model_string, kwargs = to_litellm(conn, model.model_id)
+    image_only = has_capability(model, "image_gen") and not has_capability(
+        model, "chat"
+    )
     try:
-        await litellm.acompletion(
-            model=model_string,
-            messages=[{"role": "user", "content": "Hello"}],
-            timeout=TEST_TIMEOUT_SECONDS,
-            **kwargs,
-        )
+        if image_only:
+            await litellm.aimage_generation(
+                model=model_string,
+                prompt="A red circle",
+                timeout=TEST_TIMEOUT_SECONDS,
+                **kwargs,
+            )
+        else:
+            await litellm.acompletion(
+                model=model_string,
+                messages=[{"role": "user", "content": "Hello"}],
+                timeout=TEST_TIMEOUT_SECONDS,
+                **kwargs,
+            )
     except Exception as exc:
         return _model_test_error(conn, model.model_id, exc)
 
-    model.supports_chat = True
+    if not image_only:
+        model.supports_chat = True
     return VerifyResult("OK", True, "Model test succeeded.")
 
 
