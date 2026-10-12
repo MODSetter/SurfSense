@@ -7,6 +7,7 @@ import { intl } from "@/i18n/intl"
 
 import type { Plugin, PluginTool, ToolApproval } from "./api"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
+import { PluginIcon } from "./plugin-icon"
 import { PluginToolRow } from "./plugin-tool-row"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "./sign-in-again-button"
@@ -29,7 +30,7 @@ function ToolGroup({
   const labelId = useId()
   if (tools.length === 0) return null
   return (
-    <div role="group" aria-labelledby={labelId} className="mt-3">
+    <div role="group" aria-labelledby={labelId} className="mt-5">
       <p id={labelId} className="text-xs font-medium text-muted-foreground">
         {label}
       </p>
@@ -97,6 +98,32 @@ function checkLabel(plugin: Plugin) {
   })
 }
 
+function typeAndHost(source: Plugin["source"], host: string) {
+  switch (source) {
+    case "first_party":
+      return intl.formatMessage(
+        {
+          id: "plugins_row_first_party_label",
+          defaultMessage: "By SurfSense · {host}",
+        },
+        { host }
+      )
+    case "registry":
+      return intl.formatMessage(
+        {
+          id: "plugins_row_third_party_label",
+          defaultMessage: "Third-party · {host}",
+        },
+        { host }
+      )
+    case "custom":
+      return intl.formatMessage(
+        { id: "plugins_row_custom_label", defaultMessage: "Custom · {host}" },
+        { host }
+      )
+  }
+}
+
 const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
   "needs_license",
   "license_expired",
@@ -104,7 +131,7 @@ const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
   "license_invalid",
 ])
 
-/** A connected plugin: its switch, its tools, and the way to disconnect it. */
+/** A connected plugin's details: its switch, its tools, and the way to disconnect it. */
 export function PluginRow({
   plugin,
   thirdPartyAllowed,
@@ -133,29 +160,22 @@ export function PluginRow({
   const host = plugin.hosts[0] ?? plugin.url
   const unused = plugin.source !== "first_party" && !thirdPartyAllowed
   return (
-    <section aria-labelledby={nameId} className="rounded-xl border px-4 py-3">
+    <section aria-labelledby={nameId}>
       <div className="flex items-center justify-between gap-6">
-        <div className="min-w-0">
-          <h3 id={nameId} className="truncate text-sm font-medium">
-            {plugin.name}
-          </h3>
-          <p className="truncate text-xs text-muted-foreground">
-            {plugin.source === "first_party"
-              ? intl.formatMessage(
-                  {
-                    id: "plugins_row_first_party_label",
-                    defaultMessage: "By SurfSense · {host}",
-                  },
-                  { host }
-                )
-              : intl.formatMessage(
-                  {
-                    id: "plugins_row_third_party_label",
-                    defaultMessage: "Third-party · {host}",
-                  },
-                  { host }
-                )}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <PluginIcon
+            id={plugin.id}
+            name={plugin.name}
+            hasIcon={plugin.source === "registry"}
+          />
+          <div className="min-w-0">
+            <h3 id={nameId} className="truncate text-base font-medium">
+              {plugin.name}
+            </h3>
+            <p className="truncate text-xs text-muted-foreground">
+              {typeAndHost(plugin.source, host)}
+            </p>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <DisconnectPluginButton
@@ -173,7 +193,7 @@ export function PluginRow({
           />
         </div>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-xs">
+      <div className="mt-4 flex items-center gap-2 text-xs">
         <span
           className={
             plugin.check_failure ? "text-destructive" : "text-muted-foreground"

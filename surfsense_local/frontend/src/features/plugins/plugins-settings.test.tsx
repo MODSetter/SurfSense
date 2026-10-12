@@ -301,6 +301,22 @@ function browser() {
 // A sign-in is polled each second; its end shows on the second poll.
 const AFTER_POLLS = { timeout: 4000 }
 
+type User = ReturnType<typeof userEvent.setup>
+
+/** Opens a connected plugin's details from the Yours list. */
+async function details(user: User, name: string) {
+  await user.click(await screen.findByRole("button", { name }))
+  return screen.getByRole("region", { name })
+}
+
+async function browse(user: User) {
+  await user.click(await screen.findByRole("tab", { name: "Browse" }))
+}
+
+async function yours(user: User) {
+  await user.click(screen.getByRole("tab", { name: "Yours" }))
+}
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -308,11 +324,185 @@ afterEach(() => {
 })
 
 describe("plugins settings", () => {
-  it("lists each plugin's tools, the read-only ones apart", async () => {
-    api({ allowed: true })
+  it("opens on Yours when a plugin is connected", async () => {
+    api()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(await screen.findByRole("row", { name: /Notes/ })).toBeTruthy()
+    expect(
+      screen.getByRole("tab", { name: "Yours" }).getAttribute("aria-selected")
+    ).toBe("true")
+  })
+
+  it("shows each connected plugin's type and status, failures first", async () => {
+    const base = notes()
+    api({
+      allowed: true,
+      plugins: [
+        notes(),
+        notes({
+          id: "reddit",
+          name: "Reddit",
+          source: "first_party",
+          check_failure: "needs_license",
+          enabled: false,
+        }),
+        notes({ id: "wiki", name: "Wiki", source: "registry", enabled: false }),
+        notes({
+          id: "acme",
+          name: "Acme",
+          source: "registry",
+          removed_reason: "Gone.",
+          check_failure: "unreachable",
+        }),
+        notes({
+          id: "docs",
+          name: "Docs",
+          tools: [{ ...base.tools[0], enabled: false, change: "added" }],
+        }),
+      ],
+    })
+    render(<PluginsSettings />)
+
+    const table = await screen.findByRole("table")
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent)
+    ).toEqual(["Plugin", "Type", "Status"])
+    for (const name of [
+      "Notes Custom On",
+      "Reddit By SurfSense Needs a license",
+      "Wiki Third-party Paused",
+      "Acme Third-party No longer listed",
+      "Docs Custom New tools",
+    ]) {
+      expect(within(table).getByRole("row", { name })).toBeTruthy()
+    }
+  })
+
+  it("opens a plugin's details in place of the list, and goes back", async () => {
+    api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await user.click(await screen.findByRole("button", { name: "Notes" }))
+    const plugin = screen.getByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Custom · notes.example")).toBeTruthy()
+    expect(screen.queryByRole("table")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Back" }))
+
+    expect(screen.getByRole("row", { name: "Notes Custom On" })).toBeTruthy()
+    expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
+  })
+
+  it("offers to browse or add a plugin when none is connected", async () => {
+    api({ plugins: [] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await screen.findByRole("region", { name: "By SurfSense" })
+    await user.click(screen.getByRole("tab", { name: "Yours" }))
+    expect(screen.getByText("No plugins connected")).toBeTruthy()
+    const panel = screen.getByRole("tabpanel", { name: "Yours" })
+    await user.click(
+      within(panel).getByRole("button", { name: "Add custom plugin" })
+    )
+    expect(await screen.findByRole("dialog")).toBeTruthy()
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+
+    await user.click(
+      within(panel).getByRole("button", { name: "Browse plugins" })
+    )
+    expect(
+      screen.getByRole("tab", { name: "Browse" }).getAttribute("aria-selected")
+    ).toBe("true")
+  })
+
+  it("has one Add custom plugin button, beside the tabs on both", async () => {
+    api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await user.click(await screen.findByRole("button", { name: "Notes" }))
+    expect(
+      screen.getAllByRole("button", { name: "Add custom plugin" })
+    ).toHaveLength(1)
+    await user.click(screen.getByRole("tab", { name: "Browse" }))
+    await screen.findByRole("region", { name: "By SurfSense" })
+    expect(
+      screen.getAllByRole("button", { name: "Add custom plugin" })
+    ).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: "Add MCP server" })).toBeNull()
+  })
+
+  it("browses SurfSense’s plugins first, then third-party ones under their switch", async () => {
+    api({ allowed: false, registry: [listed()] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await user.click(await screen.findByRole("tab", { name: "Browse" }))
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    const thirdParty = screen.getByRole("region", { name: "Third-party" })
+    expect(
+      surfsense.compareDocumentPosition(thirdParty) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      within(thirdParty).getByText(
+        "Plugins from other publishers, and servers you add by URL. Off until you allow them."
+      )
+    ).toBeTruthy()
+    expect(within(thirdParty).queryByRole("list")).toBeNull()
+
+    await user.click(
+      within(thirdParty).getByRole("switch", {
+        name: "Allow third-party plugins",
+      })
+    )
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Allow",
+      })
+    )
+    expect(
+      await within(thirdParty).findByRole("listitem", { name: "Wiki" })
+    ).toBeTruthy()
+  })
+
+  it("says a third-party plugin is unused while third-party plugins are off", async () => {
+    api({ plugins: [notes({ enabled: false })] })
+    render(<PluginsSettings />)
+
+    const row = await screen.findByRole("row", { name: /Notes/ })
+    expect(within(row).getByText("Third-party plugins are off")).toBeTruthy()
+  })
+
+  it("opens on Browse when nothing is connected", async () => {
+    api({ plugins: [] })
+    render(<PluginsSettings />)
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tab", { name: "Browse" })
+          .getAttribute("aria-selected")
+      ).toBe("true")
+    )
+    expect(
+      await screen.findByRole("region", { name: "By SurfSense" })
+    ).toBeTruthy()
+  })
+
+  it("lists each plugin's tools, the read-only ones apart", async () => {
+    api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
     const readOnly = within(plugin).getByRole("group", { name: "Read-only" })
     const others = within(plugin).getByRole("group", {
       name: "Can make changes",
@@ -328,7 +518,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     await user.click(
-      await screen.findByRole("button", { name: "Add MCP server" })
+      await screen.findByRole("button", { name: "Add custom plugin" })
     )
     const dialog = await screen.findByRole("dialog")
     await user.type(within(dialog).getByLabelText("Name"), "Notes")
@@ -339,7 +529,9 @@ describe("plugins settings", () => {
     await user.type(within(dialog).getByLabelText("Key"), "k-1")
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
-    expect(await screen.findByRole("region", { name: "Notes" })).toBeTruthy()
+    expect(
+      await screen.findByRole("row", { name: "Notes Custom On" })
+    ).toBeTruthy()
     expect(changes(calls)).toEqual([
       {
         method: "POST",
@@ -363,7 +555,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     await user.click(
-      await screen.findByRole("button", { name: "Add MCP server" })
+      await screen.findByRole("button", { name: "Add custom plugin" })
     )
     const dialog = await screen.findByRole("dialog")
     await user.type(within(dialog).getByLabelText("Name"), "Notes")
@@ -383,7 +575,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     await user.click(within(plugin).getByRole("switch", { name: "Use count" }))
     await user.click(
       within(plugin).getByRole("radio", { name: "Always allow Search notes" })
@@ -414,7 +606,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     await user.click(within(plugin).getByRole("switch", { name: "Use Notes" }))
 
     await waitFor(() =>
@@ -429,7 +621,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     await user.click(
       within(plugin).getByRole("button", { name: "Disconnect Notes" })
     )
@@ -439,9 +631,8 @@ describe("plugins settings", () => {
       within(confirm).getByRole("button", { name: "Disconnect" })
     )
 
-    await waitFor(() =>
-      expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
-    )
+    expect(await screen.findByText("No plugins connected")).toBeTruthy()
+    expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
     expect(changes(calls)).toEqual([
       { method: "DELETE", path: "/plugins/notes", body: null },
     ])
@@ -452,12 +643,13 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     expect(
       within(plugin).getByText("Not used until third-party plugins are allowed")
     ).toBeTruthy()
+    await browse(user)
     await user.click(
-      screen.getByRole("switch", { name: "Allow third-party plugins" })
+      await screen.findByRole("switch", { name: "Allow third-party plugins" })
     )
     const consent = await screen.findByRole("alertdialog")
     expect(changes(calls)).toEqual([])
@@ -472,13 +664,10 @@ describe("plugins settings", () => {
         },
       ])
     )
-    await waitFor(() =>
-      expect(
-        within(plugin).queryByText(
-          "Not used until third-party plugins are allowed"
-        )
-      ).toBeNull()
-    )
+    await yours(user)
+    expect(
+      await screen.findByRole("row", { name: "Notes Custom On" })
+    ).toBeTruthy()
   })
 
   it("says a server could not be reached, and checks it again on request", async () => {
@@ -489,7 +678,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Couldn’t connect")).toBeTruthy()
     await user.click(within(plugin).getByRole("button", { name: "Check now" }))
 
@@ -507,7 +696,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Needs a new key")).toBeTruthy()
     await user.click(
       within(plugin).getByRole("button", { name: "Replace key" })
@@ -536,7 +725,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     await user.click(
       within(plugin).getByRole("button", { name: "Replace key" })
     )
@@ -562,9 +751,10 @@ describe("plugins settings", () => {
       ],
       allowed: true,
     })
+    const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Changed")).toBeTruthy()
     expect(within(plugin).getByText("New")).toBeTruthy()
     expect(
@@ -586,8 +776,13 @@ describe("plugins settings", () => {
     expect(within(surfsense).getByText("License required")).toBeTruthy()
     await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
 
-    expect(await screen.findByRole("region", { name: "Reddit" })).toBeTruthy()
     expect(await within(surfsense).findByText("Connected")).toBeTruthy()
+    await yours(user)
+    expect(
+      await screen.findByRole("row", {
+        name: "Reddit By SurfSense Needs a license",
+      })
+    ).toBeTruthy()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/first-party/reddit", body: null },
     ])
@@ -605,9 +800,10 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings onOpenLicense={onOpenLicense} />)
 
-    const expired = await screen.findByRole("region", { name: "Notes" })
+    const expired = await details(user, "Notes")
     expect(within(expired).getByText("License expired")).toBeTruthy()
-    const missing = screen.getByRole("region", { name: "Wiki" })
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    const missing = await details(user, "Wiki")
     expect(within(missing).getByText("Needs a license")).toBeTruthy()
     await user.click(
       within(missing).getByRole("button", { name: "License settings" })
@@ -618,13 +814,16 @@ describe("plugins settings", () => {
 
   it("fetches nothing from the registry while third-party plugins are off", async () => {
     const calls = api({ registry: [listed()] })
+    const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    await screen.findByRole("region", { name: "Notes" })
+    await browse(user)
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    await screen.findByRole("region", { name: "By SurfSense" })
+    expect(within(section).queryByRole("listitem")).toBeNull()
     expect(
       calls.some((call) => call.path.startsWith("/plugins/registry"))
     ).toBe(false)
-    expect(screen.queryByRole("region", { name: "Third-party" })).toBeNull()
   })
 
   it("lists the registry's plugins, verified partners and community authors, dated", async () => {
@@ -696,7 +895,10 @@ describe("plugins settings", () => {
         body: { token: "k-1" },
       },
     ])
-    expect(await screen.findByRole("region", { name: "Acme" })).toBeTruthy()
+    await yours(user)
+    expect(
+      await screen.findByRole("row", { name: "Acme Third-party On" })
+    ).toBeTruthy()
   })
 
   it("connects a registry plugin once the user signs in in the browser", async () => {
@@ -717,7 +919,10 @@ describe("plugins settings", () => {
     expect(
       await within(wiki).findByText("Connected", {}, AFTER_POLLS)
     ).toBeTruthy()
-    expect(await screen.findByRole("region", { name: "Wiki" })).toBeTruthy()
+    await yours(user)
+    expect(
+      await screen.findByRole("row", { name: "Wiki Third-party On" })
+    ).toBeTruthy()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/registry/wiki", body: null },
     ])
@@ -781,7 +986,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     await user.click(
-      await screen.findByRole("button", { name: "Add MCP server" })
+      await screen.findByRole("button", { name: "Add custom plugin" })
     )
     const dialog = await screen.findByRole("dialog")
     await user.type(within(dialog).getByLabelText("Name"), "Notes")
@@ -794,7 +999,7 @@ describe("plugins settings", () => {
     expect(await within(dialog).findByText("Waiting for sign-in…")).toBeTruthy()
     expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
     expect(
-      await screen.findByRole("region", { name: "Notes" }, AFTER_POLLS)
+      await screen.findByRole("row", { name: "Notes Custom On" }, AFTER_POLLS)
     ).toBeTruthy()
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
   })
@@ -808,7 +1013,7 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Signed out")).toBeTruthy()
     expect(
       within(plugin).queryByRole("button", { name: "Replace key" })
@@ -824,26 +1029,6 @@ describe("plugins settings", () => {
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/notes/sign-in", body: null },
     ])
-  })
-
-  it("lists SurfSense’s plugins first, then third-party ones, then MCP servers", async () => {
-    api({ allowed: true, registry: [listed()] })
-    render(<PluginsSettings />)
-
-    const surfsense = await screen.findByRole("region", {
-      name: "By SurfSense",
-    })
-    const thirdParty = screen.getByRole("switch", {
-      name: "Allow third-party plugins",
-    })
-    const registry = await screen.findByRole("region", { name: "Third-party" })
-    const servers = screen.getByRole("heading", { name: "MCP servers" })
-
-    const follows = (a: Element, b: Element) =>
-      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(follows(surfsense, thirdParty)).toBe(true)
-    expect(follows(thirdParty, registry)).toBe(true)
-    expect(follows(registry, servers)).toBe(true)
   })
 
   it("asks for SurfSense’s plugin host before listing the registry", async () => {
@@ -889,9 +1074,10 @@ describe("plugins settings", () => {
       ],
       allowed: true,
     })
+    const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const plugin = await details(user, "Notes")
     expect(
       within(plugin).getByText("No longer listed: The service shut down.")
     ).toBeTruthy()

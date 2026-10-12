@@ -30,17 +30,7 @@ export function ThirdPartySwitch({
     defaultMessage: "Allow third-party plugins",
   })
   return (
-    <div className="flex items-center justify-between gap-8">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">{label}</h3>
-        <p className="text-sm text-pretty text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_third_party_body",
-            defaultMessage:
-              "Plugins from other publishers, and servers you add by URL. Off until you allow them.",
-          })}
-        </p>
-      </div>
+    <>
       <Switch
         checked={allowed}
         aria-label={label}
@@ -81,6 +71,6 @@ export function ThirdPartySwitch({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }

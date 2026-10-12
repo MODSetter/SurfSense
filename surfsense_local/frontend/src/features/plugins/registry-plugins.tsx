@@ -182,7 +182,6 @@ function AllowRegistryHost({
 
 /** Partners' and community plugins from the signed registry; nothing is fetched while third-party plugins are off. */
 export function RegistryPlugins({ allowed }: { allowed: boolean }) {
-  const titleId = useId()
   const registry = useQuery({
     queryKey: registryQueryKey,
     queryFn: ({ signal }) => listRegistry(signal),
@@ -197,26 +196,18 @@ export function RegistryPlugins({ allowed }: { allowed: boolean }) {
       : null
   const fetchedAt = registry.data?.fetched_at
   return (
-    <section aria-labelledby={titleId} className="mt-8">
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 id={titleId} className="text-sm font-medium">
-          {intl.formatMessage({
-            id: "plugins_registry_title",
-            defaultMessage: "Third-party",
-          })}
-        </h3>
-        {fetchedAt ? (
-          <p className="text-xs text-muted-foreground">
-            {intl.formatMessage(
-              {
-                id: "plugins_registry_updated_label",
-                defaultMessage: "Updated {date, date, ::yyyyMMMd}",
-              },
-              { date: new Date(fetchedAt) }
-            )}
-          </p>
-        ) : null}
-      </div>
+    <>
+      {fetchedAt ? (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {intl.formatMessage(
+            {
+              id: "plugins_registry_updated_label",
+              defaultMessage: "Updated {date, date, ::yyyyMMMd}",
+            },
+            { date: new Date(fetchedAt) }
+          )}
+        </p>
+      ) : null}
       {registry.isLoading ? (
         <Skeleton className="mt-3 h-16 w-full" />
       ) : refusal ? (
@@ -245,6 +236,6 @@ export function RegistryPlugins({ allowed }: { allowed: boolean }) {
           })}
         </p>
       )}
-    </section>
+    </>
   )
 }
