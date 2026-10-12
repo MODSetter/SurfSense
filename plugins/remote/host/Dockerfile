@@ -1,8 +1,7 @@
 # syntax=docker.io/docker/dockerfile:1
 # The plugin host: one image for every SurfSense plugin, wherever it is deployed.
 #
-# The build context is plugins/, so the image can carry the signed registry beside
-# remote/ once it exists:
+# The build context is plugins/; the registry has its own image (plugins/registry/).
 #   docker build -f plugins/remote/host/Dockerfile -t surfsense-plugins plugins
 #   docker run --env-file plugins/remote/host/.env -p 8000:8000 surfsense-plugins
 # Settings are environment variables; host/.env.example lists them.

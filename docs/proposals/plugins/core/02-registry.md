@@ -71,11 +71,8 @@ Unknown fields are ignored, so a newer field does not break an older app. `schem
 A partner or a community developer:
 
 1. Opens a pull request into `dev` adding one entry to the registry, and its icon. A submission site can replace the pull request later.
-2. CI runs the check:
-   - the entry matches the rules above;
-   - a remote server answers `initialize` and `tools/list` at `url`, or, for one that needs sign-in, its protected resource metadata names an authorization server on a declared host;
-   - every tool has a description of at most 2,000 characters, and the tool list, with names, descriptions and annotations, is posted on the pull request.
-3. A maintainer reviews the entry once: who runs the server, what its tools do, whether their descriptions carry instructions aimed at the model, whether the hosts are complete, whether the privacy policy is real. `partner` needs evidence the author speaks for the company.
+2. CI checks the entry against the rules above, and its icon. It does not contact the server: most need a key or a sign-in CI does not hold.
+3. A maintainer reviews the entry once, after connecting the plugin on `dev` and signing in if it needs it: who runs the server, what its tools do, whether their descriptions carry instructions aimed at the model, whether the hosts are complete, whether the privacy policy is real. `partner` needs evidence the author speaks for the company.
 4. Once merged and on `main`, the entry reaches every app that allows third-party plugins at its next refresh, without an app update ([below](#how-the-app-gets-the-registry)).
 
 A later change to an entry is the same pull request and the same review. A change to a remote server needs none: the publisher deploys when they like, which is why tools added later start off ([below](#tools-added-later)).
@@ -130,7 +127,7 @@ The plugin's row says what changed, such as "Notion added 1 tool: delete page", 
 
 The registry grows without app updates. It is served at `plugins.surfsense.com`, the hostname of SurfSense's own plugins, by a small registry container of its own beside the plugin host, so updating the list never restarts the plugins ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)).
 
-- On every merge to `main` that changes `plugins/registry/`, a CI job adds `generated_at` and each icon's SHA-256, signs the file with an Ed25519 key held in a CI secret, and commits the signed file and `plugins.json.sig` back to `main`. The registry container is built from that commit, serving them at `/plugins.json` and `/plugins.json.sig`, so the private key never reaches the server. Nobody edits the copy on the server.
+- On every merge to `dev` that changes `plugins/registry/`, a CI job adds `generated_at` and each icon's SHA-256, signs the file with an Ed25519 key held in a CI secret, and commits the signed file and `plugins.json.sig` back to `dev`. The release pull request carries them to `main`, so nothing pushes to `main`, and the registry container is built from `main`, serving them at `/plugins.json` and `/plugins.json.sig`, so the private key never reaches the server. Nobody edits the copy on the server.
 - The app compiles in the URL and the public key, as it compiles in the keys that verify licenses offline ([ADR 0019](../../../adr/0019-offline-licenses.md)). A copy whose signature does not verify is ignored and the cached copy kept, and so is one with an unknown `schema_version` or a `generated_at` older than the cached copy's, so an old list cannot bring back a removed plugin. An icon whose hash differs from its entry's is not shown.
 - Fetching needs consent for `plugins.surfsense.com`, which [`egress/service.py`](../../../../surfsense_local/backend/modules/egress/service.py) adds to `BUILT_IN`, off by default. It is the same host as SurfSense's plugins, so one consent covers both.
 - The app fetches the registry when the user allows third-party plugins, then whenever Settings → Plugins opens. The last verified copy is kept in the app's data folder, so the section stays listed offline, with the date it was fetched.

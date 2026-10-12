@@ -1,0 +1,70 @@
+# The registry container: the signed list, its icons and SurfSense's OAuth files.
+# Static and read-only; anything not named here is a 404.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:{$PORT:8080} {
+	root * {$REGISTRY_ROOT:/srv/registry}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	@not_read not method GET HEAD
+	handle @not_read {
+		respond 405
+	}
+
+	handle /health {
+		header Cache-Control no-store
+		respond "ok" 200
+	}
+
+	# Short, so a merged change or a delisting reaches apps within minutes.
+	# The signed copies CI writes; the source list beside them is never served.
+	handle /plugins.json {
+		rewrite * /published/plugins.json
+		header Content-Type application/json
+		header Cache-Control "public, max-age=300"
+		file_server
+	}
+
+	handle /plugins.json.sig {
+		rewrite * /published/plugins.json.sig
+		header Content-Type "text/plain; charset=utf-8"
+		header Cache-Control "public, max-age=300"
+		file_server
+	}
+
+	@icon path_regexp ^/icons/[a-z0-9][a-z0-9_-]*\.(svg|png)$
+	handle @icon {
+		header Cache-Control "public, max-age=300"
+		# An SVG opened on its own runs nothing.
+		header Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+		file_server
+	}
+
+	handle /oauth/client.json {
+		header Content-Type application/json
+		header Cache-Control "public, max-age=300"
+		file_server
+	}
+
+	# Every query carries a one-time code: never cached, never framed.
+	handle /oauth/callback {
+		rewrite * /oauth/callback.html
+		header Content-Type "text/html; charset=utf-8"
+		header Cache-Control no-store
+		header Content-Security-Policy "frame-ancestors 'none'"
+		file_server
+	}
+
+	handle {
+		respond 404
+	}
+}

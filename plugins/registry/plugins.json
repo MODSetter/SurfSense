@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "deepwiki",
+      "kind": "remote",
+      "publisher": "community",
+      "name": "DeepWiki",
+      "description": "Ask questions about public GitHub repositories and read their generated wikis.",
+      "author": "Cognition",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "auth": {
+        "type": "none"
+      },
+      "hosts": [
+        "mcp.deepwiki.com"
+      ],
+      "access": "free",
+      "privacy_policy": "https://cognition.com/legal/privacy-policy",
+      "homepage": "https://deepwiki.com",
+      "icon": "deepwiki.svg"
+    }
+  ],
+  "removed": []
+}

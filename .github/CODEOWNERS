@@ -32,6 +32,7 @@
 /surfsense_backend/app/capabilities/            @AnishSarkar22 @MODSetter
 /surfsense_backend/app/proprietary/             @AnishSarkar22 @MODSetter
 /plugins/remote/proprietary/                    @AnishSarkar22 @MODSetter
+/plugins/registry/                              @AnishSarkar22 @MODSetter
 
 /surfsense_web/                                 @AnishSarkar22
 /surfsense_mcp/                                 @CREDO23
