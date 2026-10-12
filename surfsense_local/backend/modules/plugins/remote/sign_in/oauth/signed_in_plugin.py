@@ -45,6 +45,7 @@ def store_signed_in(
         session.add(plugin)
     plugin.entry = draft.entry
     write_credential(plugin, credential)
+    plugin.disconnected_at = None
     session.flush()
     record_check(session, plugin, tools)
     return plugin

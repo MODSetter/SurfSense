@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
 
-/** Disconnecting drops the key and every tool setting, so it is confirmed first. */
+/** Disconnecting drops the key or sign-in, so it is confirmed first; the plugin stays to connect again. */
 export function DisconnectPluginButton({
   name,
   disconnecting,
@@ -60,7 +60,7 @@ export function DisconnectPluginButton({
             {intl.formatMessage({
               id: "plugins_disconnect_dialog_body",
               defaultMessage:
-                "The agent stops using it, and its tool settings are removed. To stop it for a while instead, switch it off.",
+                "The agent stops using it until you connect it again. Your tool settings are kept.",
             })}
           </AlertDialogDescription>
         </AlertDialogHeader>

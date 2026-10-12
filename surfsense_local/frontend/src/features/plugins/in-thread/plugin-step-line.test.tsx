@@ -17,6 +17,7 @@ const NOTES: Plugin = {
   hosts: ["notes.example"],
   auth_type: "none",
   enabled: true,
+  disconnected: false,
   connected_at: "2026-10-01T00:00:00Z",
   checked_at: "2026-10-01T00:00:00Z",
   check_failure: null,

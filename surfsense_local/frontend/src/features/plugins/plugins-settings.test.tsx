@@ -19,6 +19,7 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
     hosts: ["notes.example"],
     auth_type: "none",
     enabled: true,
+    disconnected: false,
     connected_at: "2026-10-01T00:00:00Z",
     checked_at: "2026-10-01T00:00:00Z",
     check_failure: null,
@@ -256,7 +257,24 @@ function api({
           return Response.json({ detail }, { status })
         }
         connected = connected.map((plugin) =>
-          plugin.id === id ? { ...plugin, check_failure: null } : plugin
+          plugin.id === id
+            ? { ...plugin, check_failure: null, disconnected: false }
+            : plugin
+        )
+        return Response.json(connected.find((plugin) => plugin.id === id))
+      }
+      if (
+        url.pathname.endsWith("/disconnect") ||
+        url.pathname.endsWith("/connect")
+      ) {
+        connected = connected.map((plugin) =>
+          plugin.id === id
+            ? {
+                ...plugin,
+                check_failure: null,
+                disconnected: url.pathname.endsWith("/disconnect"),
+              }
+            : plugin
         )
         return Response.json(connected.find((plugin) => plugin.id === id))
       }
@@ -617,7 +635,7 @@ describe("plugins settings", () => {
     )
   })
 
-  it("disconnects only once the user confirms", async () => {
+  it("disconnects only once the user confirms, keeping the plugin to connect again", async () => {
     const calls = api({ allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
@@ -631,6 +649,74 @@ describe("plugins settings", () => {
     await user.click(
       within(confirm).getByRole("button", { name: "Disconnect" })
     )
+
+    expect(await within(plugin).findByText("Disconnected")).toBeTruthy()
+    expect(
+      within(plugin).queryByRole("switch", { name: "Use Notes" })
+    ).toBeNull()
+    expect(
+      within(plugin).queryByRole("button", { name: "Check now" })
+    ).toBeNull()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/disconnect", body: null },
+    ])
+  })
+
+  it("connects a disconnected plugin again from its row in Yours", async () => {
+    const calls = api({
+      plugins: [notes({ disconnected: true })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const row = await screen.findByRole("row", { name: "Notes Custom Connect" })
+    await user.click(within(row).getByRole("button", { name: "Connect" }))
+
+    expect(
+      await screen.findByRole("row", { name: "Notes Custom On" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/connect", body: null },
+    ])
+  })
+
+  it("asks a disconnected plugin with a key for its key to connect again", async () => {
+    const calls = api({
+      plugins: [notes({ auth_type: "token", disconnected: true })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
+    const dialog = await screen.findByRole("dialog", { name: "Connect Notes" })
+    await user.type(within(dialog).getByLabelText("Key"), "k-2")
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    expect(await within(plugin).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "PUT", path: "/plugins/notes/key", body: { token: "k-2" } },
+    ])
+  })
+
+  it("removes a plugin from Yours only once the user confirms", async () => {
+    const calls = api({
+      plugins: [notes({ disconnected: true })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    await user.click(
+      within(plugin).getByRole("button", { name: "Remove Notes" })
+    )
+    const confirm = await screen.findByRole("alertdialog")
+    expect(changes(calls)).toEqual([])
+    await user.click(within(confirm).getByRole("button", { name: "Remove" }))
 
     expect(await screen.findByText("No plugins connected")).toBeTruthy()
     expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()

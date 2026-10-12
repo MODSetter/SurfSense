@@ -13,6 +13,7 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { Plugin } from "../api"
+import { ConnectPluginButton } from "../details/connect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
 import { pluginStatus } from "./plugin-status"
 import { pluginTypeLabel } from "./plugin-type-label"
@@ -106,7 +107,21 @@ export function ConnectedPluginsTable({
               </TableCell>
               <TableCell className={cn(CELL, TONE[status.tone])}>
                 <span className="flex items-center justify-between gap-2">
-                  {status.label}
+                  <span className="flex min-w-0 items-center gap-2">
+                    {plugin.disconnected ? (
+                      // Positioned, so it sits above the row's stretched link.
+                      <span className="relative flex items-center gap-2">
+                        <ConnectPluginButton
+                          plugin={plugin}
+                          size="sm"
+                          // As tall as the plugin's icon, so the row keeps its height; the row's text size.
+                          className="text-sm"
+                        />
+                      </span>
+                    ) : (
+                      status.label
+                    )}
+                  </span>
                   <ChevronRightIcon
                     aria-hidden
                     className="size-4 shrink-0 text-muted-foreground"

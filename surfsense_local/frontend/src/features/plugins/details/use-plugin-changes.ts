@@ -4,6 +4,7 @@ import {
   checkPlugin,
   disconnectPlugin,
   pluginsQueryKey,
+  removePlugin,
   setPluginEnabled,
   setThirdPartyAllowed,
   setTool,
@@ -41,6 +42,10 @@ export function usePluginChanges() {
     }),
     disconnect: useMutation({
       mutationFn: (plugin: string) => disconnectPlugin(plugin),
+      onSettled: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (plugin: string) => removePlugin(plugin),
       onSettled: refresh,
     }),
     thirdParty: useMutation({

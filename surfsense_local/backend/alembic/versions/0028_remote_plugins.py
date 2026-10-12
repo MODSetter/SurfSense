@@ -48,6 +48,7 @@ def upgrade() -> None:
         sa.Column("credential_kind", sa.String(), nullable=True),
         sa.Column("credential_ciphertext", sa.LargeBinary(), nullable=True),
         sa.Column("checked_at", sa.DateTime(), nullable=True),
+        sa.Column("disconnected_at", sa.DateTime(), nullable=True),
         # A license's four come from SurfSense's plugin host, as contract 2 words them.
         sa.Column(
             "check_failure",

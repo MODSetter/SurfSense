@@ -38,6 +38,7 @@ export function PluginDetails({
         plugin={plugin}
         thirdPartyAllowed={thirdPartyAllowed}
         disconnecting={changes.disconnect.isPending}
+        removing={changes.remove.isPending}
         checking={changes.check.isPending}
         onCheck={() => changes.check.mutate(plugin.id)}
         onEnabled={(enabled) =>
@@ -47,6 +48,7 @@ export function PluginDetails({
           changes.tool.mutate({ plugin: plugin.id, tool, change })
         }
         onDisconnect={() => changes.disconnect.mutate(plugin.id)}
+        onRemove={() => changes.remove.mutate(plugin.id)}
         onOpenLicense={onOpenLicense}
       />
     </div>

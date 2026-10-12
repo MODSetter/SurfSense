@@ -14,6 +14,15 @@ export function pluginStatus(
   thirdPartyAllowed: boolean
 ): PluginStatus {
   const failure = (label: string): PluginStatus => ({ label, tone: "failure" })
+  if (plugin.disconnected) {
+    return {
+      label: intl.formatMessage({
+        id: "plugins_list_disconnected_status",
+        defaultMessage: "Disconnected",
+      }),
+      tone: "idle",
+    }
+  }
   if (plugin.removed_reason) {
     return failure(
       intl.formatMessage({

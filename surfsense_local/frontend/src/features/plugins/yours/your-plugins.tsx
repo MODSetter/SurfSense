@@ -38,7 +38,7 @@ export function YourPlugins({
     )
   }
   const allowed = thirdParty.data ?? false
-  // A plugin disconnected while open is gone from the list, which shows again.
+  // A plugin removed while open is gone from the list, which shows again.
   const open = plugins.data?.find((plugin) => plugin.id === openId)
   if (openId !== null && plugins.data && !open) setOpenId(null)
   if (open) {

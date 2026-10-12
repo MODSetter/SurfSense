@@ -23,6 +23,8 @@ export type Plugin = {
   /** How it signs in; an `oauth` plugin signs in again rather than taking a new key. */
   auth_type: "none" | "token" | "license" | "oauth"
   enabled: boolean
+  /** Disconnected by the user: kept with its tool settings, signed out, never offered. */
+  disconnected: boolean
   connected_at: string
   /** When SurfSense last listed the server, and why that failed; null when it answered. */
   checked_at: string | null
@@ -226,7 +228,18 @@ export function savePluginStep(
   )
 }
 
-export function disconnectPlugin(id: string): Promise<void> {
+/** Drops the key or sign-in; the plugin stays, with its tool settings. */
+export function disconnectPlugin(id: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/${id}/disconnect`, { method: "POST" })
+}
+
+/** Connects a disconnected plugin that needs nothing entered; a key or a sign-in has its own call. */
+export function connectPlugin(id: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/${id}/connect`, { method: "POST" })
+}
+
+/** Deletes the plugin with its key and tool settings. */
+export function removePlugin(id: string): Promise<void> {
   return requestVoid(`/plugins/${id}`, { method: "DELETE" })
 }
 

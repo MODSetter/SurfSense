@@ -21,10 +21,12 @@ import { refusalMessage } from "../refusal-message"
 
 function ReplaceKeyForm({
   plugin,
+  connecting,
   onCancel,
   onReplaced,
 }: {
   plugin: Plugin
+  connecting: boolean
   onCancel: () => void
   onReplaced: () => void
 }) {
@@ -60,10 +62,15 @@ function ReplaceKeyForm({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor={fieldId}>
-            {intl.formatMessage({
-              id: "plugins_key_new_label",
-              defaultMessage: "New key",
-            })}
+            {connecting
+              ? intl.formatMessage({
+                  id: "plugins_key_connect_label",
+                  defaultMessage: "Key",
+                })
+              : intl.formatMessage({
+                  id: "plugins_key_new_label",
+                  defaultMessage: "New key",
+                })}
           </FieldLabel>
           <Input
             id={fieldId}
@@ -89,56 +96,97 @@ function ReplaceKeyForm({
         </Button>
         <Button type="submit" disabled={busy || !key}>
           {busy ? <Spinner data-icon="inline-start" /> : null}
-          {intl.formatMessage({
-            id: "plugins_key_save_button",
-            defaultMessage: "Save",
-          })}
+          {connecting
+            ? intl.formatMessage({
+                id: "plugins_key_connect_button",
+                defaultMessage: "Connect",
+              })
+            : intl.formatMessage({
+                id: "plugins_key_save_button",
+                defaultMessage: "Save",
+              })}
         </Button>
       </DialogFooter>
     </form>
   )
 }
 
-/** A refused key replaced in place, so the plugin keeps its choices per tool. */
-export function ReplaceKeyButton({ plugin }: { plugin: Plugin }) {
+/** A key replaced in place, refused or dropped at disconnect, so the plugin keeps its choices per tool. */
+export function ReplaceKeyButton({
+  plugin,
+  label,
+  size = "xs",
+  className,
+}: {
+  plugin: Plugin
+  /**
+   * The button's text when a key is how a disconnected plugin connects again: a
+   * secondary button, and a dialog that asks to connect rather than to replace.
+   */
+  label?: string
+  /** The button's size and extra classes, for a place whose text is larger than `xs`. */
+  size?: "xs" | "sm"
+  className?: string
+}) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const connecting = label !== undefined
   return (
     <>
       <Button
         type="button"
-        size="xs"
-        variant="ghost"
+        size={size}
+        variant={connecting ? "secondary" : "ghost"}
+        className={className}
         onClick={() => setOpen(true)}
       >
-        {intl.formatMessage({
-          id: "plugins_key_replace_button",
-          defaultMessage: "Replace key",
-        })}
+        {label ??
+          intl.formatMessage({
+            id: "plugins_key_replace_button",
+            defaultMessage: "Replace key",
+          })}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="select-none sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {intl.formatMessage(
-                {
-                  id: "plugins_key_title",
-                  defaultMessage: "Replace the key for {plugin}",
-                },
-                { plugin: plugin.name }
-              )}
+              {connecting
+                ? intl.formatMessage(
+                    {
+                      id: "plugins_key_connect_title",
+                      defaultMessage: "Connect {plugin}",
+                    },
+                    { plugin: plugin.name }
+                  )
+                : intl.formatMessage(
+                    {
+                      id: "plugins_key_title",
+                      defaultMessage: "Replace the key for {plugin}",
+                    },
+                    { plugin: plugin.name }
+                  )}
             </DialogTitle>
             <DialogDescription>
-              {intl.formatMessage({
-                id: "plugins_key_body",
-                defaultMessage:
-                  "SurfSense tries the new key before saving it. Your tool settings stay.",
-              })}
+              {connecting
+                ? intl.formatMessage(
+                    {
+                      id: "plugins_key_connect_body",
+                      defaultMessage:
+                        "Paste the key you use for {plugin}. Your tool settings are kept.",
+                    },
+                    { plugin: plugin.name }
+                  )
+                : intl.formatMessage({
+                    id: "plugins_key_body",
+                    defaultMessage:
+                      "SurfSense tries the new key before saving it. Your tool settings stay.",
+                  })}
             </DialogDescription>
           </DialogHeader>
           {/* The popup unmounts after closing, so each opening starts blank. */}
           <ReplaceKeyForm
             plugin={plugin}
+            connecting={connecting}
             onCancel={() => setOpen(false)}
             onReplaced={() => {
               setOpen(false)

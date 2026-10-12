@@ -363,6 +363,30 @@ async def test_signing_in_again_keeps_the_plugins_tool_settings(
     assert servers.protected.authorizations[-1] == "Bearer at-2"
 
 
+async def test_a_disconnected_oauth_plugin_connects_again_by_signing_in(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """Its token went at disconnect, so Connect alone is refused and a sign-in brings it back."""
+    await sign_in_custom(client, servers)
+    await client.put("/plugins/notes/tools/count", json={"enabled": False})
+    disconnected = await client.post("/plugins/notes/disconnect")
+    assert disconnected.json()["auth_type"] == "oauth"
+
+    refused = await client.post("/plugins/notes/connect")
+    again = await client.post("/plugins/notes/sign-in")
+    assert again.status_code == 202, again.text
+    page = await approve_in_browser(client, again.json()["authorization_url"])
+
+    assert refused.json()["detail"]["code"] == "plugin_needs_account"
+    assert page.status_code == 200
+    [plugin] = (await client.get("/plugins")).json()
+    assert plugin["disconnected"] is False
+    assert {t["name"]: t["enabled"] for t in plugin["tools"]} == {
+        "search": True,
+        "count": False,
+    }
+
+
 async def test_no_token_reaches_a_log_line_or_a_response(
     client: AsyncClient, servers: SignInServers, caplog: pytest.LogCaptureFixture
 ) -> None:

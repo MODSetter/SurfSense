@@ -51,7 +51,7 @@ const mentionFormatter: Unstable_DirectiveFormatter = {
 }
 
 /**
- * The plugins a turn may use, as the gateway decides: switched on, allowed, and
+ * The plugins a turn may use, as the gateway decides: switched on, connected, allowed, and
  * with a tool on. One the API finds not ready is ignored if named.
  */
 function readyMentions(
@@ -62,6 +62,7 @@ function readyMentions(
     .filter(
       (plugin) =>
         plugin.enabled &&
+        !plugin.disconnected &&
         (plugin.source === "first_party" || thirdPartyOn) &&
         plugin.tools.some((tool) => tool.enabled)
     )

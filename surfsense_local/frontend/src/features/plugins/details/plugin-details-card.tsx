@@ -6,10 +6,12 @@ import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
 import type { Plugin, PluginTool, ToolApproval } from "../api"
+import { ConnectPluginButton } from "./connect-plugin-button"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginToolRow } from "./plugin-tool-row"
+import { RemovePluginButton } from "./remove-plugin-button"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
@@ -106,21 +108,24 @@ const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
   "license_invalid",
 ])
 
-/** A connected plugin's details: its switch, its tools, and the way to disconnect it. */
+/** A plugin's details: its switch, its tools, and the ways to disconnect, connect again, or remove it. */
 export function PluginDetailsCard({
   plugin,
   thirdPartyAllowed,
   disconnecting,
+  removing,
   checking,
   onCheck,
   onEnabled,
   onTool,
   onDisconnect,
+  onRemove,
   onOpenLicense,
 }: {
   plugin: Plugin
   thirdPartyAllowed: boolean
   disconnecting: boolean
+  removing: boolean
   checking: boolean
   onCheck: () => void
   onEnabled: (enabled: boolean) => void
@@ -129,6 +134,7 @@ export function PluginDetailsCard({
     change: { enabled: boolean } | { approval: ToolApproval }
   ) => void
   onDisconnect: () => void
+  onRemove: () => void
   onOpenLicense?: () => void
 }) {
   const nameId = useId()
@@ -152,63 +158,89 @@ export function PluginDetailsCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <DisconnectPluginButton
+          <RemovePluginButton
             name={plugin.name}
-            disconnecting={disconnecting}
-            onDisconnect={onDisconnect}
+            removing={removing}
+            onRemove={onRemove}
           />
-          <Switch
-            checked={plugin.enabled}
-            onCheckedChange={onEnabled}
-            aria-label={intl.formatMessage(
-              { id: "plugins_row_use_aria", defaultMessage: "Use {plugin}" },
-              { plugin: plugin.name }
-            )}
-          />
+          {plugin.disconnected ? null : (
+            <>
+              <DisconnectPluginButton
+                name={plugin.name}
+                disconnecting={disconnecting}
+                onDisconnect={onDisconnect}
+              />
+              <Switch
+                checked={plugin.enabled}
+                onCheckedChange={onEnabled}
+                aria-label={intl.formatMessage(
+                  {
+                    id: "plugins_row_use_aria",
+                    defaultMessage: "Use {plugin}",
+                  },
+                  { plugin: plugin.name }
+                )}
+              />
+            </>
+          )}
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-2 text-xs">
-        <span
-          className={
-            plugin.check_failure ? "text-destructive" : "text-muted-foreground"
-          }
-        >
-          {checkLabel(plugin)}
-        </span>
-        {plugin.check_failure === "sign_in" ? (
-          plugin.auth_type === "oauth" ? (
-            <SignInAgainButton plugin={plugin} />
-          ) : (
-            <ReplaceKeyButton plugin={plugin} />
-          )
-        ) : null}
-        {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
+      {plugin.disconnected ? (
+        <div className="mt-4 flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">
+            {intl.formatMessage({
+              id: "plugins_row_disconnected_status",
+              defaultMessage: "Disconnected",
+            })}
+          </span>
+          <ConnectPluginButton plugin={plugin} />
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-2 text-xs">
+          <span
+            className={
+              plugin.check_failure
+                ? "text-destructive"
+                : "text-muted-foreground"
+            }
+          >
+            {checkLabel(plugin)}
+          </span>
+          {plugin.check_failure === "sign_in" ? (
+            plugin.auth_type === "oauth" ? (
+              <SignInAgainButton plugin={plugin} />
+            ) : (
+              <ReplaceKeyButton plugin={plugin} />
+            )
+          ) : null}
+          {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              onClick={onOpenLicense}
+            >
+              {intl.formatMessage({
+                id: "plugins_row_license_settings_button",
+                defaultMessage: "License settings",
+              })}
+            </Button>
+          ) : null}
           <Button
             type="button"
             size="xs"
             variant="ghost"
-            onClick={onOpenLicense}
+            disabled={checking}
+            onClick={onCheck}
           >
+            {checking ? <Spinner data-icon="inline-start" /> : null}
             {intl.formatMessage({
-              id: "plugins_row_license_settings_button",
-              defaultMessage: "License settings",
+              id: "plugins_row_check_button",
+              defaultMessage: "Check now",
             })}
           </Button>
-        ) : null}
-        <Button
-          type="button"
-          size="xs"
-          variant="ghost"
-          disabled={checking}
-          onClick={onCheck}
-        >
-          {checking ? <Spinner data-icon="inline-start" /> : null}
-          {intl.formatMessage({
-            id: "plugins_row_check_button",
-            defaultMessage: "Check now",
-          })}
-        </Button>
-      </div>
+        </div>
+      )}
       {plugin.tools.some((tool) => tool.change) ? (
         <p className="mt-2 text-xs text-muted-foreground">
           {intl.formatMessage({

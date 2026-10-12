@@ -32,7 +32,11 @@ def list_tools(session: Session) -> list[ReadyTool]:
     rows = session.execute(
         select(InstalledPlugin, PluginTool)
         .join(PluginTool, PluginTool.plugin_id == InstalledPlugin.id)
-        .where(InstalledPlugin.enabled, PluginTool.enabled)
+        .where(
+            InstalledPlugin.enabled,
+            InstalledPlugin.disconnected_at.is_(None),
+            PluginTool.enabled,
+        )
         .order_by(InstalledPlugin.connected_at, InstalledPlugin.id, PluginTool.position)
     )
     taken: set[str] = set()

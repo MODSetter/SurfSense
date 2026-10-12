@@ -73,6 +73,8 @@ class InstalledPlugin(Base):
     # When SurfSense last listed the server, and why that failed; None when it answered.
     checked_at: Mapped[datetime | None]
     check_failure: Mapped[CheckFailure | None] = mapped_column(text_enum(CheckFailure))
+    # Set while the user has disconnected it: no sign-in, no tools offered, still listed.
+    disconnected_at: Mapped[datetime | None]
 
     @property
     def credential(self) -> str | None:

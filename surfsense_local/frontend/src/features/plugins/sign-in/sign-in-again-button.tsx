@@ -9,8 +9,20 @@ import { refusalMessage } from "../refusal-message"
 import { SignInProgress } from "./sign-in-progress"
 import { usePluginSignIn } from "./use-plugin-sign-in"
 
-/** An OAuth plugin whose refresh was refused signs in again; its tool settings stay. */
-export function SignInAgainButton({ plugin }: { plugin: Plugin }) {
+/** An OAuth plugin signed out, or disconnected, signs in again; its tool settings stay. */
+export function SignInAgainButton({
+  plugin,
+  label,
+  size = "xs",
+  className,
+}: {
+  plugin: Plugin
+  /** The button's text when signing in is how the plugin connects again. Shown as a secondary button. */
+  label?: string
+  /** The button's size and extra classes, for a place whose text is larger than `xs`. */
+  size?: "xs" | "sm"
+  className?: string
+}) {
   const queryClient = useQueryClient()
   const signIn = usePluginSignIn(
     () => void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
@@ -32,16 +44,18 @@ export function SignInAgainButton({ plugin }: { plugin: Plugin }) {
     <>
       <Button
         type="button"
-        size="xs"
-        variant="ghost"
+        size={size}
+        variant={label ? "secondary" : "ghost"}
+        className={className}
         disabled={start.isPending}
         onClick={() => start.mutate()}
       >
         {start.isPending ? <Spinner data-icon="inline-start" /> : null}
-        {intl.formatMessage({
-          id: "plugins_row_sign_in_again_button",
-          defaultMessage: "Sign in again",
-        })}
+        {label ??
+          intl.formatMessage({
+            id: "plugins_row_sign_in_again_button",
+            defaultMessage: "Sign in again",
+          })}
       </Button>
       {start.error ? (
         <span role="alert" className="text-destructive">
