@@ -388,7 +388,8 @@ describe("plugins settings", () => {
 
     await user.click(await screen.findByRole("button", { name: "Notes" }))
     const plugin = screen.getByRole("region", { name: "Notes" })
-    expect(within(plugin).getByText("Custom · notes.example")).toBeTruthy()
+    expect(within(plugin).getByText("Custom")).toBeTruthy()
+    expect(within(plugin).queryByText(/notes\.example/)).toBeNull()
     expect(screen.queryByRole("table")).toBeNull()
     await user.click(screen.getByRole("button", { name: "Back" }))
 

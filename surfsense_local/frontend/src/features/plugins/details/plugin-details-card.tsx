@@ -8,6 +8,7 @@ import { intl } from "@/i18n/intl"
 import type { Plugin, PluginTool, ToolApproval } from "../api"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
+import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginToolRow } from "./plugin-tool-row"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
@@ -98,32 +99,6 @@ function checkLabel(plugin: Plugin) {
   })
 }
 
-function typeAndHost(source: Plugin["source"], host: string) {
-  switch (source) {
-    case "first_party":
-      return intl.formatMessage(
-        {
-          id: "plugins_row_first_party_label",
-          defaultMessage: "By SurfSense · {host}",
-        },
-        { host }
-      )
-    case "registry":
-      return intl.formatMessage(
-        {
-          id: "plugins_row_third_party_label",
-          defaultMessage: "Third-party · {host}",
-        },
-        { host }
-      )
-    case "custom":
-      return intl.formatMessage(
-        { id: "plugins_row_custom_label", defaultMessage: "Custom · {host}" },
-        { host }
-      )
-  }
-}
-
 const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
   "needs_license",
   "license_expired",
@@ -157,7 +132,6 @@ export function PluginDetailsCard({
   onOpenLicense?: () => void
 }) {
   const nameId = useId()
-  const host = plugin.hosts[0] ?? plugin.url
   const unused = plugin.source !== "first_party" && !thirdPartyAllowed
   return (
     <section aria-labelledby={nameId}>
@@ -173,7 +147,7 @@ export function PluginDetailsCard({
               {plugin.name}
             </h3>
             <p className="truncate text-xs text-muted-foreground">
-              {typeAndHost(plugin.source, host)}
+              {pluginTypeLabel(plugin.source)}
             </p>
           </div>
         </div>
