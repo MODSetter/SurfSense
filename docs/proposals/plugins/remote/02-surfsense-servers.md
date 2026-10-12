@@ -65,7 +65,7 @@ plugins/
       LICENSE
       license_check/           checks "License <key>" with Keygen
       scraping/                what every scraper plugin shares: proxies, captcha, browsers, crawl helpers
-      google_search/  web_crawler/  reddit/  youtube/  instagram/  tiktok/
+      google_search/  web_crawl/  reddit/  youtube/  instagram/  tiktok/
       google_maps/  amazon/  walmart/  indeed/      a scraper plugin each
   bundles/                     deferred (../bundles/README.md)
 ```
@@ -99,7 +99,7 @@ SurfSense's first paid plugins: one per platform, each its own MCP server and it
 | Plugin | `id` | Its tools |
 |---|---|---|
 | Google Search | `google-search` | Search results |
-| Web Crawler | `web-crawler` | A page; a site, as a job ([below](#long-calls-run-as-jobs)) |
+| Web Crawl | `web-crawl` | A page; a site, as a job ([below](#long-calls-run-as-jobs)) |
 | Reddit | `reddit` | Posts, comments, a subreddit |
 | YouTube | `youtube` | Videos, channels, comments |
 | Instagram | `instagram` | Profiles and their posts; a keyword search finds profiles through Google Search, so it follows that plugin |
@@ -126,7 +126,7 @@ plugins/remote/proprietary/
 
 A new platform is a new plugin folder and a new list entry. A helper moves into `scraping/` only when a second plugin needs it.
 
-The image starts with what Reddit needs: Chromium for its stealth browsers and the fonts that make them look like a desktop's. Each later plugin adds its own as it is written; from the backend's code, YouTube brings `youtube-transcript-api` and `fake-useragent`, the Web Crawler `trafilatura` and `markdownify`, Indeed Camoufox's Firefox for its Cloudflare-solving session, TikTok Xvfb for its headed browser, and Google Search the captcha solver's settings and SearXNG's address.
+The image starts with what Reddit needs: Chromium for its stealth browsers and the fonts that make them look like a desktop's. Each later plugin adds its own as it is written; from the backend's code, YouTube brings `youtube-transcript-api` and `fake-useragent`, Web Crawl `trafilatura` and `markdownify`, Indeed Camoufox's Firefox for its Cloudflare-solving session, TikTok Xvfb for its headed browser, and Google Search the captcha solver's settings and SearXNG's address.
 
 - **Tools.** Each declares `readOnlyHint: true` and `openWorldHint: true`, returns a readable summary as text with the items as `structuredContent`, and reports progress with MCP progress notifications. A tool that can run past three minutes, such as a site crawl, is a job ([below](#long-calls-run-as-jobs)), and so is a result too large to return whole. A cancelled call stops its scrape.
 - **The license, on the server.** Every request to each plugin needs `Authorization: License <key>`, checked by `proprietary/license_check/` as [`../core/05-paid.md`](../core/05-paid.md) says. The host counts requests per license and limits their rate. All of them are on `plugins.surfsense.com`, so one egress consent covers them, and the key reaches no other host.
@@ -182,7 +182,7 @@ No call waits for another to finish. In one copy of the host, calls to every plu
 
 The scraping code lives in `surfsense_backend` today: [`app/proprietary/platforms/`](../../../../surfsense_backend/app/proprietary/platforms/) and [`app/proprietary/web_crawler/`](../../../../surfsense_backend/app/proprietary/web_crawler/), about 19,000 lines, and the helpers it imports, [`app/utils/proxy/`](../../../../surfsense_backend/app/utils/proxy/), [`app/utils/captcha/`](../../../../surfsense_backend/app/utils/captcha/), [`app/utils/crawl/`](../../../../surfsense_backend/app/utils/crawl/) and `app/utils/browser_loop.py`, about 1,450 lines, with settings read from `app.config` and progress reported through `app.capabilities.core.progress`.
 
-1. **Copy now.** Each folder in `app/proprietary/platforms/` becomes the plugin of the same name, and `app/proprietary/web_crawler/` becomes `web_crawler/`. The helpers become `scraping/`: `proxy/`, `captcha/`, `crawl/` and `browser_loop.py`. `app.config` splits into `scraping/config.py` and each plugin's `config.py`, and `app.capabilities.core.progress` becomes `mcp_server/progress.py`. The captcha solver, synchronous today, becomes async on the way, since a solve can poll for a minute. The hosted backend keeps its copy, as AGENTS.md requires until the purge on 18 Oct 2026.
+1. **Copy now.** Each folder in `app/proprietary/platforms/` becomes the plugin of the same name, and `app/proprietary/web_crawler/` becomes `web_crawl/`. The helpers become `scraping/`: `proxy/`, `captcha/`, `crawl/` and `browser_loop.py`. `app.config` splits into `scraping/config.py` and each plugin's `config.py`, and `app.capabilities.core.progress` becomes `mcp_server/progress.py`. The captcha solver, synchronous today, becomes async on the way, since a solve can poll for a minute. The hosted backend keeps its copy, as AGENTS.md requires until the purge on 18 Oct 2026.
 2. **Delete the backend's copy when nothing uses it.** The backend's scraper API still serves outside clients, so its copy is deleted once those clients have moved to the plugin host or the scraper API is retired, and never before the purge. Until then a fix to a scraper goes to both copies.
 3. **One license for all of it.** Every scraper plugin and `scraping/` are under the Business Source License, including the copies of the helpers that are Apache-2.0 in the backend today ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)).
 

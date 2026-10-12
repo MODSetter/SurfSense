@@ -1,6 +1,6 @@
 # Plugin host
 
-The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. Of the scraper plugins, [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps) and [Google Search](#the-google-search-plugin) are written; the others are still in `surfsense_backend`, and the host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
+The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
 
 **Code:** [`plugins/remote/`](../../plugins/remote/)
 **Decisions:** [ADR 0054](../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [ADR 0047](../adr/0047-premium-plugins-are-source-available.md)
@@ -14,7 +14,7 @@ The plugin host is the one server that runs SurfSense's own plugins, free and pa
 | [`host/`](../../plugins/remote/host/) | Apache-2.0 | The server, its `pyproject.toml` and `uv.lock` for every plugin's dependencies, and the tests of the host |
 | [`mcp_server/`](../../plugins/remote/mcp_server/) | Apache-2.0 | What a plugin builds on: [`access.py`](../../plugins/remote/mcp_server/access.py), the hook a paid plugin's check plugs into |
 | `<id>/` | Apache-2.0 | A free plugin (none yet) |
-| [`proprietary/`](../../plugins/remote/proprietary/) | Business Source License 1.1 | Paid plugins: [`reddit/`](../../plugins/remote/proprietary/reddit/), [`youtube/`](../../plugins/remote/proprietary/youtube/), [`amazon/`](../../plugins/remote/proprietary/amazon/), [`walmart/`](../../plugins/remote/proprietary/walmart/), [`google_maps/`](../../plugins/remote/proprietary/google_maps/) and [`google_search/`](../../plugins/remote/proprietary/google_search/); [`license_check/`](../../plugins/remote/proprietary/license_check/); and [`scraping/`](../../plugins/remote/proprietary/scraping/), what the scraper plugins share: the residential proxy vendors' providers and their country rotation, the captcha solvers, and the loop that drives Scrapling's stealth browsers, with their settings from `SCRAPING_*` ([`config.py`](../../plugins/remote/proprietary/scraping/config.py)) |
+| [`proprietary/`](../../plugins/remote/proprietary/) | Business Source License 1.1 | Paid plugins: [`reddit/`](../../plugins/remote/proprietary/reddit/), [`youtube/`](../../plugins/remote/proprietary/youtube/), [`amazon/`](../../plugins/remote/proprietary/amazon/), [`walmart/`](../../plugins/remote/proprietary/walmart/), [`google_maps/`](../../plugins/remote/proprietary/google_maps/), [`google_search/`](../../plugins/remote/proprietary/google_search/), [`instagram/`](../../plugins/remote/proprietary/instagram/), [`tiktok/`](../../plugins/remote/proprietary/tiktok/), [`indeed/`](../../plugins/remote/proprietary/indeed/) and [`web_crawl/`](../../plugins/remote/proprietary/web_crawl/); [`license_check/`](../../plugins/remote/proprietary/license_check/); and [`scraping/`](../../plugins/remote/proprietary/scraping/), what the scraper plugins share: the residential proxy vendors' providers and their country rotation, the captcha solvers, and the loop that drives Scrapling's stealth browsers, with their settings from `SCRAPING_*` ([`config.py`](../../plugins/remote/proprietary/scraping/config.py)) |
 
 The license check is `license_check/`, not `license/`: a `license/` folder beside the `LICENSE` file is one path on macOS and Windows.
 
@@ -38,7 +38,8 @@ The license check is `license_check/`, not `license/`: a `license/` folder besid
 - **Python packages** are exported from `host/uv.lock` with no dev tools and installed as locked, so a rebuild never drifts.
 - **Browsers:** `scrapling install` adds Playwright's Chromium and the system libraries it needs, and `patchright install chromium` the build Scrapling's stealth fetchers launch, both under `/ms-playwright` (`PLAYWRIGHT_BROWSERS_PATH`) so an unprivileged user can start them.
 - **Fonts** for emoji and CJK, Thai and Latin text, so a stealth browser's fingerprints look like a desktop's.
-- **Only what Reddit needs.** A plugin adds its own Python packages, system packages and binaries in the change that adds it, so nothing for an unwritten plugin is in the image: not Xvfb, which TikTok's headed browser needs, nor Camoufox, which Indeed's does ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#adding-a-plugin)).
+- **Xvfb**, a virtual display. [`host/entrypoint.sh`](../../plugins/remote/host/entrypoint.sh) starts it on `:99` and sets `DISPLAY` when `CRAWL_HEADED_XVFB_ENABLED=true`, then `exec`s the host, so the host stays the process that gets the container's signals. TikTok's profile feeds need it: TikTok withholds them from a headless browser.
+- **One browser for every plugin.** Indeed's Cloudflare-solving session is Scrapling's stealth session, which in Scrapling 0.4 is the same patchright Chromium, so the image holds no Camoufox. A plugin adds its own packages and binaries in the change that adds it ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#adding-a-plugin)).
 - It runs `python -m host` as an unprivileged user, on `PORT`, with a health check on `/health`. Its settings are environment variables, as [`host/.env.example`](../../plugins/remote/host/.env.example) lists.
 - [`Dockerfile.dockerignore`](../../plugins/remote/host/Dockerfile.dockerignore) keeps out the bundles, every `tests/` folder, the host's sample plugins among them, and local state.
 
@@ -83,7 +84,22 @@ None needs a setting of its own, only the shared `SCRAPING_PROXY_*`, nor anythin
 - **Warm IPs across copies.** With `REDIS_URL`, a solved IP and its cookies are published to Redis for an hour, and another copy adopts it instead of paying for a solve ([`pool_store.py`](../../plugins/remote/proprietary/google_search/pool_store.py)). Without Redis each copy keeps its own pool.
 - **Result links.** Google's desktop links are `/goto` redirects whose target is encrypted, so each is followed one hop over the rotating proxy to read its destination; one that will not resolve keeps its redirect ([`goto.py`](../../plugins/remote/proprietary/google_search/goto.py)).
 - **The fallback.** When Google walls every IP for a page, `SEARXNG_URL`, if set, answers it with organic results only, marked `resultsProvider: "searxng"`, and the summary says it is not Google's ranking ([`searxng.py`](../../plugins/remote/proprietary/google_search/searxng.py)). The instance must serve JSON.
-- **Errors.** A call that got no page at all, every IP walled and no fallback, is the tool's error, not an empty result. A call with no queries is refused, and so is one naming another site's URL: an agent wanting a page's text would otherwise pay a render and a solve to search for the URL.
+- **Errors.** A call that got no page at all, every IP walled and no fallback, is the tool's error, not an empty result. A call with no queries is refused, and so is one naming another site's URL: an agent wanting a page's text would otherwise pay a render and a solve to search for the URL, so the error points it at Web Crawl.
+
+## Instagram, TikTok, Indeed and Web Crawl
+
+Each is the backend's scraper, copied as the others were, behind one tool per backend verb, with the backend's inputs and limits, a summary as text with the items as `structuredContent`, progress per item, and the license.
+
+| Plugin | Tools | How it reaches the site |
+|---|---|---|
+| [Instagram](../../plugins/remote/proprietary/instagram/server.py) `/instagram/mcp` | `scrape` (posts or reels of profiles, posts and reels) and `details` (profiles), each by `urls` or `search_queries`, not both | Plain HTTP on a warmed session holding one IP, Instagram's web API with its anonymous cookies. A keyword finds profiles through the Google Search plugin's scraper, so it costs a Google render |
+| [TikTok](../../plugins/remote/proprietary/tiktok/server.py) `/tiktok/mcp` | `scrape` (videos, profiles, hashtags), `comments`, `trending` and `user_search` | A video's page over plain HTTP; feeds, comments, trending and user search by a stealth browser that captures TikTok's own API responses, on country-pinned exits, retried on a fresh country when empty. Profile feeds run headed on Xvfb |
+| [Indeed](../../plugins/remote/proprietary/indeed/server.py) `/indeed/mcp` | `scrape` (jobs, by search or URL, in any Indeed country) | A stealth browser that solves Cloudflare and warms on the country's home page, on one sticky IP per session; a session still walled after three new sessions ends the call with the tool's error |
+| [Web Crawl](../../plugins/remote/proprietary/web_crawl/server.py) `/web-crawl/mcp` | `crawl` (read pages as markdown, and follow same-site links to a depth of 5 and 200 pages) | Plain HTTP first, then a browser, then a stealth browser that can solve a captcha with the shared solver. One page read puts its text's first 2,000 characters in the summary |
+
+- **Blocks.** Instagram and TikTok refusing every IP is the tool's error; TikTok's withheld feeds and comments are items with an `errorCode` (`no_items`, `no_comments`, `no_users`), as the backend returned them.
+- **Web Crawl refuses private addresses**: loopback, private ranges, link-local, carrier-grade NAT, the cloud metadata address and names that do not resolve, before any fetch ([`net_guard.py`](../../plugins/remote/proprietary/web_crawl/net_guard.py)). Its browser tiers run on the shared browser loop, as Google Search's do, so its captcha solve awaits the async solver. It needs `trafilatura`, `markdownify` and `validators`.
+- **Settings**, with the backend's names: `CRAWL_HEADED_XVFB_ENABLED` (headed TikTok feeds), `TIKTOK_LISTING_MAX_ATTEMPTS`, and the stealth browser's `CRAWL_GEOIP_MATCH_ENABLED`, `CRAWL_BLOCK_WEBRTC`, `CRAWL_HIDE_CANVAS`, `CRAWL_GOOGLE_SEARCH_REFERER` and `CRAWL_DNS_OVER_HTTPS`. Instagram and Indeed need none of their own.
 
 ## The license check
 
@@ -116,9 +132,11 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 ## Known gaps
 
 - `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
-- The Web Crawler, Instagram, TikTok and Indeed are still in `surfsense_backend` ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#the-scraper-plugins)).
+- Instagram's profile API answers `401` to an anonymous session on every IP and country, even with its web app's full headers, so both tools fail on public profiles; the profile page itself still loads with its counts (measured 2026-10-12).
+- TikTok returned no comments for a public video, headless or headed, on three exit countries (measured 2026-10-12).
+- Web Crawl runs a whole crawl in one call, so a deep crawl of many pages can pass Azure's 240-second request limit; it is to run as a job.
 - A block reads as an error item (Amazon, Walmart) or as no items (YouTube), not as the tool's error, so the agent may take it for an empty result.
-- 18 of the backend's tests stay skipped, as there, for want of captured responses: 15 of Google Maps', 2 of Reddit's and 1 of YouTube's.
+- 20 of the backend's tests stay skipped, as there, for want of captured responses: 15 of Google Maps', 2 of Reddit's, 2 of Instagram's and 1 of YouTube's.
 - YouTube's date cutoffs need `dateparser`, which the image lacks; neither tool offers a cutoff yet.
 - With `SURFSENSE_ACCOUNT_ID` empty, the host cannot start with Reddit, even locally.
 - No limit on threads or browsers per plugin, so Reddit's warm-up browsers are bounded only by its 16 sessions per call; and no per-IP limit for a free plugin, since none exists.
