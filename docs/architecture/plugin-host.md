@@ -1,6 +1,6 @@
 # Plugin host
 
-The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
+The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The [registry](plugin-registry.md#the-container) is served on the same hostname by a container of its own; the host does not serve it. The host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
 
 **Code:** [`plugins/remote/`](../../plugins/remote/)
 **Decisions:** [ADR 0054](../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [ADR 0047](../adr/0047-premium-plugins-are-source-available.md)
@@ -33,7 +33,7 @@ The license check is `license_check/`, not `license/`: a `license/` folder besid
 
 ## The image
 
-[`host/Dockerfile`](../../plugins/remote/host/Dockerfile) builds the one image every copy of the host runs, from `python:3.12-slim`, with `plugins/` as its build context so the signed registry can join `remote/` later: `docker build -f plugins/remote/host/Dockerfile -t surfsense-plugins plugins`.
+[`host/Dockerfile`](../../plugins/remote/host/Dockerfile) builds the one image every copy of the host runs, from `python:3.12-slim`, with `plugins/` as its build context: `docker build -f plugins/remote/host/Dockerfile -t surfsense-plugins plugins`.
 
 - **Python packages** are exported from `host/uv.lock` with no dev tools and installed as locked, so a rebuild never drifts.
 - **Browsers:** `scrapling install` adds Playwright's Chromium and the system libraries it needs, and `patchright install chromium` the build Scrapling's stealth fetchers launch, both under `/ms-playwright` (`PLAYWRIGHT_BROWSERS_PATH`) so an unprivileged user can start them.
@@ -144,4 +144,4 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 - Google Search runs its queries and pages one after another, each page up to 180 seconds, so a call of many queries or pages can pass the request limit of the proxies in front of the host.
 - No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there is no job runner or object storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
 - No scale rule, so copies are not yet added on load ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#scaling)).
-- No registry files or deployment, and no workflow builds the image.
+- No deployment, and no workflow builds the image.
