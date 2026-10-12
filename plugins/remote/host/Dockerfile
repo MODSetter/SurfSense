@@ -16,10 +16,11 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000
 
 # Real fonts, so a stealth browser's canvas and font fingerprints look like a
-# desktop's rather than a bare server's. Xvfb joins when a plugin needs a headed
-# browser, as TikTok's profile feed does.
+# desktop's rather than a bare server's; Xvfb, a virtual display for the headed
+# browser TikTok's profile feeds need.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
+        xvfb \
         fonts-noto-color-emoji \
         fonts-unifont \
         fonts-ipafont-gothic \
@@ -47,6 +48,7 @@ RUN scrapling install \
 
 # plugins/remote/ is the import root: `python -m host` runs from here.
 COPY remote/ .
+RUN chmod +x host/entrypoint.sh
 
 RUN useradd --create-home --uid 10001 plugins
 USER plugins
@@ -54,4 +56,4 @@ USER plugins
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD python -c "import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/health', timeout=4)"
-CMD ["python", "-m", "host"]
+CMD ["host/entrypoint.sh"]
