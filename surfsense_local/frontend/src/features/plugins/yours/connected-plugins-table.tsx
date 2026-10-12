@@ -47,19 +47,20 @@ export function ConnectedPluginsTable({
   const leave = (id: string) =>
     setHoveredId((current) => (current === id ? null : current))
 
+  // Widths come from the header, so a long status or a sign-in under way never moves the columns.
   return (
-    <Table>
+    <Table className="table-fixed">
       <TableHeader>
         <TableRow
           className={cn("hover:bg-transparent", line(undefined, plugins[0]))}
         >
-          <TableHead className="text-muted-foreground">
+          <TableHead className="w-2/5 text-muted-foreground">
             {intl.formatMessage({
               id: "plugins_list_plugin_label",
               defaultMessage: "Plugin",
             })}
           </TableHead>
-          <TableHead className="text-muted-foreground">
+          <TableHead className="w-1/5 text-muted-foreground">
             {intl.formatMessage({
               id: "plugins_list_type_label",
               defaultMessage: "Type",
@@ -102,7 +103,7 @@ export function ConnectedPluginsTable({
                   <span className="truncate">{plugin.name}</span>
                 </button>
               </TableCell>
-              <TableCell className={cn(CELL, "text-muted-foreground")}>
+              <TableCell className={cn(CELL, "truncate text-muted-foreground")}>
                 {pluginTypeLabel(plugin.source)}
               </TableCell>
               <TableCell className={cn(CELL, TONE[status.tone])}>
@@ -119,7 +120,7 @@ export function ConnectedPluginsTable({
                         />
                       </span>
                     ) : (
-                      status.label
+                      <span className="truncate">{status.label}</span>
                     )}
                   </span>
                   <ChevronRightIcon
