@@ -8,6 +8,7 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 
 import { ComposerImage } from "./attached-image"
 import { ComposerAddMenu } from "./composer-add-menu"
@@ -136,6 +137,7 @@ export function ChatComposer({
   isUploadingSources = false,
   threadMode = null,
   onNewChat,
+  onOpenPlugins,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -159,6 +161,8 @@ export function ChatComposer({
   threadMode?: ChatMode | null
   // Starts a new chat, for an open chat's offer of the other mode.
   onNewChat?: () => void
+  // Opens Settings › Plugins, from the add menu's plugins.
+  onOpenPlugins?: (start?: PluginsStart) => void
 }) {
   const newChatMode = useNewChatMode(model)
   // The agent reads no attached images yet: an Agentic chat takes none. Images
@@ -188,6 +192,7 @@ export function ChatComposer({
       }
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
+      onManagePlugins={onOpenPlugins}
       className={className}
     />
   )

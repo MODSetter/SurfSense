@@ -94,7 +94,7 @@ function emptyMessage(plugins: Plugin[], thirdPartyOn: boolean) {
   }
   return intl.formatMessage({
     id: "plugins_mentions_all_off_empty",
-    defaultMessage: "Your plugins are switched off in Settings › Plugins.",
+    defaultMessage: "Your plugins are off. Turn one on from + › Plugins.",
   })
 }
 

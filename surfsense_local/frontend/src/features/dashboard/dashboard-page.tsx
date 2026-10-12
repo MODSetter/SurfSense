@@ -62,6 +62,7 @@ import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import {
   readRightPanelOpen,
   readSourcePreview,
@@ -118,7 +119,7 @@ function WorkspaceDashboard({
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
   onOpenOfficeSupport: () => void
-  onOpenPlugins: () => void
+  onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
@@ -294,7 +295,7 @@ function WorkspaceDashboard({
         }),
         icon: PlugIcon,
         badge: <FeatureBadge stage="new" />,
-        onClick: onOpenPlugins,
+        onClick: () => onOpenPlugins(),
       },
     ],
     [onOpenPlugins]
@@ -488,6 +489,7 @@ function WorkspaceDashboard({
                 sourceCount={sources.includedDocumentIds.length}
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
+                onOpenPlugins={onOpenPlugins}
                 onTitleAnimationComplete={chat.finishTitleAnimation}
                 autoNamingThreadId={chat.autoNamingThreadId}
                 onRename={chat.rename}
@@ -677,7 +679,10 @@ export function DashboardPage({
     setSettingsSection("office-support")
     setSettingsOpen(true)
   }, [])
-  const openPlugins = useCallback(() => {
+  // Set while Settings opens on Plugins' Browse or Add custom plugin, from the composer.
+  const [pluginsStart, setPluginsStart] = useState<PluginsStart>()
+  const openPlugins = useCallback((start?: PluginsStart) => {
+    setPluginsStart(start)
     setSettingsSection("plugins")
     setSettingsOpen(true)
   }, [])
@@ -788,16 +793,19 @@ export function DashboardPage({
           open={settingsOpen}
           section={settingsSection}
           askOfficeConsent={askOfficeConsent}
+          pluginsStart={pluginsStart}
           onOpenChange={(open) => {
             setSettingsOpen(open)
             if (!open) {
               setModelsVisited((seen) => seen + 1)
               setAskOfficeConsent(false)
+              setPluginsStart(undefined)
             }
           }}
           onSectionChange={(next) => {
             setSettingsSection(next)
             setAskOfficeConsent(false)
+            setPluginsStart(undefined)
           }}
           onModelUnavailable={onModelUnavailable}
           onModelSelected={onModelSelected}

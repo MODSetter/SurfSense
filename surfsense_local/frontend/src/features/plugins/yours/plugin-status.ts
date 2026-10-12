@@ -95,7 +95,7 @@ export function pluginStatus(
     return {
       label: intl.formatMessage({
         id: "plugins_list_paused_status",
-        defaultMessage: "Paused",
+        defaultMessage: "Off",
       }),
       tone: "idle",
     }

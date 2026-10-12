@@ -98,7 +98,7 @@ function checkLabel(plugin: Plugin) {
   if (!plugin.enabled) {
     return intl.formatMessage({
       id: "plugins_row_paused_status",
-      defaultMessage: "Paused",
+      defaultMessage: "Off",
     })
   }
   return intl.formatMessage({
@@ -122,7 +122,6 @@ export function PluginDetailsCard({
   removing,
   checking,
   onCheck,
-  onEnabled,
   onTool,
   onDisconnect,
   onRemove,
@@ -134,7 +133,6 @@ export function PluginDetailsCard({
   removing: boolean
   checking: boolean
   onCheck: () => void
-  onEnabled: (enabled: boolean) => void
   onTool: (
     tool: string,
     change: { enabled: boolean } | { approval: ToolApproval }
@@ -178,7 +176,6 @@ export function PluginDetailsCard({
             plugin={plugin}
             checking={checking}
             onCheck={onCheck}
-            onEnabled={onEnabled}
             onRemove={() => setRemoveOpen(true)}
           />
           <RemovePluginDialog

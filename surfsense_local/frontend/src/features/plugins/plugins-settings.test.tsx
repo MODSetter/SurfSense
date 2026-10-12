@@ -399,7 +399,7 @@ describe("plugins settings", () => {
     for (const name of [
       "Notes Custom On",
       "Reddit By SurfSense Needs a license",
-      "Wiki Third-party Paused",
+      "Wiki Third-party Off",
       "Acme Third-party No longer listed",
       "Docs Custom New tools",
     ]) {
@@ -524,6 +524,26 @@ describe("plugins settings", () => {
     ).toBeTruthy()
   })
 
+  it("opens on Browse when asked, even with plugins connected", async () => {
+    api()
+    render(<PluginsSettings start="browse" />)
+
+    expect(
+      await screen.findByRole("region", { name: "By SurfSense" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("tab", { name: "Browse" }).getAttribute("aria-selected")
+    ).toBe("true")
+  })
+
+  it("opens with Add custom plugin when asked", async () => {
+    api()
+    render(<PluginsSettings start="add" />)
+
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByLabelText("Server URL")).toBeTruthy()
+  })
+
   it("lists each plugin's tools, the read-only ones apart", async () => {
     api({ allowed: true })
     const user = userEvent.setup()
@@ -628,21 +648,19 @@ describe("plugins settings", () => {
     expect(within(plugin).getByText("Always asks")).toBeTruthy()
   })
 
-  it("pauses a plugin without disconnecting it", async () => {
-    const calls = api({ allowed: true })
+  it("says a plugin switched off is off, and leaves on and off to the composer", async () => {
+    api({ plugins: [notes({ enabled: false })], allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
+    expect(within(plugin).getByText("Off")).toBeTruthy()
     const menu = await actions(user, plugin, "Notes")
-    await user.click(within(menu).getByRole("menuitem", { name: "Pause" }))
-
-    expect(await within(plugin).findByText("Paused")).toBeTruthy()
-    expect(changes(calls)).toEqual([
-      { method: "PUT", path: "/plugins/notes", body: { enabled: false } },
-    ])
-    const again = await actions(user, plugin, "Notes")
-    expect(within(again).getByRole("menuitem", { name: "Resume" })).toBeTruthy()
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent)
+    ).toEqual(["Check now", "Remove"])
   })
 
   it("disconnects only once the user confirms, keeping the plugin to connect again", async () => {

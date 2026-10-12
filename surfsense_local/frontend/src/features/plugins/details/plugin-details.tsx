@@ -41,9 +41,6 @@ export function PluginDetails({
         removing={changes.remove.isPending}
         checking={changes.check.isPending}
         onCheck={() => changes.check.mutate(plugin.id)}
-        onEnabled={(enabled) =>
-          changes.plugin.mutate({ plugin: plugin.id, enabled })
-        }
         onTool={(tool, change) =>
           changes.tool.mutate({ plugin: plugin.id, tool, change })
         }

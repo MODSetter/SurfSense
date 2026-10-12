@@ -32,7 +32,10 @@ import {
 import { AboutSettings } from "@/features/about/about-settings"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { OfficeSupportSettings } from "@/features/office-support/office-support-settings"
-import { PluginsSettings } from "@/features/plugins/plugins-settings"
+import {
+  PluginsSettings,
+  type PluginsStart,
+} from "@/features/plugins/plugins-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
@@ -322,6 +325,7 @@ export function SettingsDialog({
   open,
   section,
   askOfficeConsent = false,
+  pluginsStart,
   onOpenChange,
   onSectionChange,
   onModelUnavailable = () => undefined,
@@ -332,6 +336,8 @@ export function SettingsDialog({
   section: SettingsSectionId
   /** Opens Office support's download consent with the section. */
   askOfficeConsent?: boolean
+  /** Opens Plugins on Browse or on Add custom plugin. */
+  pluginsStart?: PluginsStart
   onOpenChange: (open: boolean) => void
   onSectionChange: (section: SettingsSectionId) => void
   onModelUnavailable?: () => void
@@ -441,6 +447,7 @@ export function SettingsDialog({
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "plugins" ? (
               <PluginsSettings
+                start={pluginsStart}
                 onOpenLicense={() => onSectionChange("license")}
               />
             ) : null}

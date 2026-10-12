@@ -14,20 +14,27 @@ import { YourPlugins } from "./yours/your-plugins"
 
 type Tab = "yours" | "browse"
 
+/** Where Plugins opens from elsewhere: Browse, or the Add custom plugin dialog. */
+export type PluginsStart = "browse" | "add"
+
 export function PluginsSettings({
+  start,
   onOpenLicense,
 }: {
+  start?: PluginsStart
   /** Shown on a plugin whose license was refused. */
   onOpenLicense?: () => void
 }) {
   const queryClient = useQueryClient()
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState(start === "add")
   const plugins = useQuery({
     queryKey: pluginsQueryKey,
     queryFn: ({ signal }) => listPlugins(signal),
   })
   // Chosen once the list first answers, so connecting from Browse keeps the user there.
-  const [tab, setTab] = useState<Tab | null>(null)
+  const [tab, setTab] = useState<Tab | null>(
+    start === "browse" ? "browse" : null
+  )
   if (tab === null && plugins.data) {
     setTab(plugins.data.length ? "yours" : "browse")
   } else if (tab === null && plugins.error) {

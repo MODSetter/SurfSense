@@ -7,29 +7,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  EllipsisIcon,
-  PauseIcon,
-  PlayIcon,
-  RefreshCwIcon,
-  Trash2Icon,
-} from "@/components/ui/icons"
+import { EllipsisIcon, RefreshCwIcon, Trash2Icon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import type { Plugin } from "../api"
 
-/** A plugin's less frequent actions; a disconnected plugin can only be removed. */
+/** A plugin's less frequent actions; a disconnected plugin can only be removed. On and off is the composer's "+ › Plugins". */
 export function PluginActionsMenu({
   plugin,
   checking,
   onCheck,
-  onEnabled,
   onRemove,
 }: {
   plugin: Plugin
   checking: boolean
   onCheck: () => void
-  onEnabled: (enabled: boolean) => void
   onRemove: () => void
 }) {
   return (
@@ -56,18 +48,6 @@ export function PluginActionsMenu({
         {plugin.disconnected ? null : (
           <>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => onEnabled(!plugin.enabled)}>
-                {plugin.enabled ? <PauseIcon /> : <PlayIcon />}
-                {plugin.enabled
-                  ? intl.formatMessage({
-                      id: "plugins_actions_pause_label",
-                      defaultMessage: "Pause",
-                    })
-                  : intl.formatMessage({
-                      id: "plugins_actions_resume_label",
-                      defaultMessage: "Resume",
-                    })}
-              </DropdownMenuItem>
               <DropdownMenuItem disabled={checking} onClick={onCheck}>
                 <RefreshCwIcon />
                 {intl.formatMessage({
