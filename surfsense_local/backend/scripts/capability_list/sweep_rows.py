@@ -1,6 +1,7 @@
 """The capability list's rows from the OpenRouter screening sweep."""
 
 from datetime import date
+from pathlib import Path
 
 from capability_list.sweep_input import AssumedModel, SweepResults, SweptModel
 from modules.llm.capability import model_key
@@ -12,6 +13,8 @@ from modules.llm.capability.measured.schema import (
     MeasuredModel,
     Passes,
 )
+
+COMMITTED_SCREEN = Path(__file__).with_name("sweep") / "openrouter-screen-v1.json"
 
 SUITE_VERSION = 1
 # Both cases must pass: a PDF brief and a board pack, after the smoke check.

@@ -10,8 +10,9 @@ from capability_list.ladder_input import LadderResults
 from capability_list.merge import merged
 from capability_list.rows import COMMITTED_INPUT, measured_rows, with_ladder_rows
 from capability_list.sweep_input import SweepResults
-from capability_list.sweep_rows import sweep_rows
+from capability_list.sweep_rows import COMMITTED_SCREEN, sweep_rows
 
+from modules.llm.capability.measured.loader import SHIPPED
 from modules.llm.capability.measured.schema import CapabilityList, MeasuredModel
 
 pytestmark = pytest.mark.unit
@@ -330,3 +331,22 @@ def test_the_script_says_which_variant_waits_and_which_row_it_replaced(
     replaced = "gpt-5-5 (assumed): replaced by this sweep's gpt-5-5 (openrouter-screen)"
     assert replaced in said
     assert "gpt-5-5: agent (2/2)" in said
+
+
+def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed_screen() -> (
+    None
+):
+    """Edited by the generator only, so a reviewer reads one diff: the results.
+
+    Regenerating the screen's rows from the committed input and merging them
+    back in changes nothing: the shipped list's sweep rows are the generator's.
+    """
+    committed = SweepResults.model_validate_json(
+        COMMITTED_SCREEN.read_text(encoding="utf-8")
+    )
+    shipped = CapabilityList.model_validate_json(SHIPPED.read_text(encoding="utf-8"))
+    measured_on = committed.measured_on
+    assert measured_on is not None
+    screen = sweep_rows(committed, measured_on)
+
+    assert merged(shipped, screen)[0] == shipped
