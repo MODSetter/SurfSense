@@ -136,5 +136,4 @@ The rules that keep the processes out of each other's way:
 
 - The sources list reloads itself on a workspace event rather than through TanStack Query: it is component state, so nothing else that shows a document is invalidated by the same event.
 - When the API does not start, because it exits or `/health` does not answer within 60 seconds, Electron writes the reason to the session log and quits: no window opens, nothing on screen says why, and the log, kept only in memory, goes with the app ([about](about.md#known-gaps)). A migration snapshot that cannot be written, such as on a full disk, ends this way ([data model](data-model.md#known-gaps)).
-- The supervisor listens for no `error` event on the children it spawns ([`supervisor.ts`](../../surfsense_local/electron/src/main/sidecars/supervisor.ts)), so an executable that cannot be spawned at all throws in the main process instead of being reported as a crash ([#2228](https://github.com/MODSetter/SurfSense/issues/2228)).
 

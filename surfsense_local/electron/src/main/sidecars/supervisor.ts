@@ -89,6 +89,13 @@ function spawnOne(
     note(`crashed (code=${code} signal=${signal})`)
     onCrash?.(spec.name, code)
   })
+  // An executable that cannot start emits `error` and never `exit`. A child
+  // that did start can still emit it for a failed kill, which is no crash.
+  child.on("error", (error) => {
+    if (child.pid !== undefined) return
+    note(`failed to start (${error.message})`)
+    onCrash?.(spec.name, null)
+  })
   return child
 }
 
