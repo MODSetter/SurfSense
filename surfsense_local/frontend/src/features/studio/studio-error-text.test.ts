@@ -12,6 +12,19 @@ describe("a refused Studio job", () => {
     ["no_sources", "Pick at least one source."],
     ["sources_indexing", "The chosen sources are still indexing."],
     ["sources_gone", "None of this artifact’s sources are left."],
+    // And from a refine, modules/artifacts/studio_documents/service.py.
+    [
+      "not_refinable",
+      "Only a Word document or PDF made in Studio can be refined.",
+    ],
+    [
+      "agent_made",
+      "The agent made this document: ask for changes in its chat.",
+    ],
+    [
+      "version_unfinished",
+      "This version did not finish: retry it, or refine another version.",
+    ],
   ])("has its own line for %s", (code, line) => {
     const refusal = new ApiError(409, "backend prose, never shown", code)
 
