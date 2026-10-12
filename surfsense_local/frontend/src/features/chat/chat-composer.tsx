@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp02Icon, CircleStopIcon } from "@/components/ui/icons"
 import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { PluginMentions } from "@/features/plugins/plugin-mentions"
+import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 

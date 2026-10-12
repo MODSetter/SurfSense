@@ -9,7 +9,7 @@ import {
   setTool,
   thirdPartyQueryKey,
   type ToolApproval,
-} from "./api"
+} from "../api"
 
 /** Every change the screen makes; each reads the plugins back once it lands. */
 export function usePluginChanges() {

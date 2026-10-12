@@ -18,12 +18,12 @@ import {
   pluginsQueryKey,
   registryQueryKey,
   type RegistryEntry,
-} from "./api"
-import { PluginIcon } from "./plugin-icon"
-import { refusalMessage } from "./refusal-message"
+} from "../api"
+import { PluginIcon } from "../plugin-icon"
+import { refusalMessage } from "../refusal-message"
 import { RegistryKeyDialog } from "./registry-key-dialog"
-import { SignInProgress } from "./sign-in-progress"
-import { usePluginSignIn } from "./use-plugin-sign-in"
+import { SignInProgress } from "../sign-in/sign-in-progress"
+import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 
 function Attribution({ entry }: { entry: RegistryEntry }) {
   if (entry.verified) {

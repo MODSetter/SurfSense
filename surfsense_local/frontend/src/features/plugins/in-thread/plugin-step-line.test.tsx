@@ -6,7 +6,7 @@ import { AgentSteps } from "@/features/agent/agent-steps"
 import type { AgentStep } from "@/features/agent/api"
 import { render } from "@/test-utils"
 
-import type { Plugin } from "./api"
+import type { Plugin } from "../api"
 
 const NOTES: Plugin = {
   id: "notes",

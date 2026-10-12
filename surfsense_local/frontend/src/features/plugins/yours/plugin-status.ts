@@ -1,6 +1,6 @@
 import { intl } from "@/i18n/intl"
 
-import type { Plugin } from "./api"
+import type { Plugin } from "../api"
 
 export type PluginStatus = {
   label: string

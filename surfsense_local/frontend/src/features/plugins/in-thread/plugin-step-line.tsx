@@ -9,7 +9,7 @@ import { readStepResult } from "@/features/agent/api"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import { savePluginStep } from "./api"
+import { savePluginStep } from "../api"
 import { usePluginOfStep } from "./plugin-of-step"
 
 function stepName(found: ReturnType<typeof usePluginOfStep>) {

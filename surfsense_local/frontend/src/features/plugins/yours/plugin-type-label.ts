@@ -1,6 +1,6 @@
 import { intl } from "@/i18n/intl"
 
-import type { Plugin } from "./api"
+import type { Plugin } from "../api"
 
 /** Who publishes the plugin, as the list of connected plugins names it. */
 export function pluginTypeLabel(source: Plugin["source"]): string {

@@ -12,8 +12,8 @@ import {
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-import type { Plugin } from "./api"
-import { PluginIcon } from "./plugin-icon"
+import type { Plugin } from "../api"
+import { PluginIcon } from "../plugin-icon"
 import { pluginStatus } from "./plugin-status"
 import { pluginTypeLabel } from "./plugin-type-label"
 

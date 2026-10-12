@@ -3,10 +3,10 @@ import { useId } from "react"
 
 import { intl } from "@/i18n/intl"
 
-import { thirdPartyAllowed, thirdPartyQueryKey } from "./api"
+import { thirdPartyAllowed, thirdPartyQueryKey } from "../api"
 import { RegistryPlugins } from "./registry-plugins"
 import { ThirdPartySwitch } from "./third-party-switch"
-import { usePluginChanges } from "./use-plugin-changes"
+import { usePluginChanges } from "../details/use-plugin-changes"
 
 /** The registry's plugins, behind the switch that allows third-party plugins at all. */
 export function ThirdPartyPlugins() {

@@ -14,10 +14,10 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
-import { addCustomPlugin, isSignInStarted } from "./api"
-import { refusalMessage } from "./refusal-message"
-import { SignInProgress } from "./sign-in-progress"
-import { usePluginSignIn } from "./use-plugin-sign-in"
+import { addCustomPlugin, isSignInStarted } from "../api"
+import { refusalMessage } from "../refusal-message"
+import { SignInProgress } from "../sign-in/sign-in-progress"
+import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 
 function AddPluginForm({
   onCancel,

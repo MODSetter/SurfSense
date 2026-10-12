@@ -11,8 +11,8 @@ import {
   listFirstParty,
   pluginsQueryKey,
   type FirstPartyEntry,
-} from "./api"
-import { refusalMessage } from "./refusal-message"
+} from "../api"
+import { refusalMessage } from "../refusal-message"
 
 function FirstPartyEntryRow({ entry }: { entry: FirstPartyEntry }) {
   const queryClient = useQueryClient()

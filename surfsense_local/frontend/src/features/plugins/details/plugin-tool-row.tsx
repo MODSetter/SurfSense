@@ -3,7 +3,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
-import type { Plugin, PluginTool, ToolApproval } from "./api"
+import type { Plugin, PluginTool, ToolApproval } from "../api"
 import { approvalOf } from "./tool-kind"
 
 const APPROVALS: ToolApproval[] = ["ask", "always"]

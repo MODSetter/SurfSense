@@ -1,4 +1,4 @@
-import type { Plugin, PluginTool } from "./api"
+import type { Plugin, PluginTool } from "../api"
 
 /** As the server says; a server is trusted only to describe its own tools. */
 export function isReadOnly(tool: PluginTool) {

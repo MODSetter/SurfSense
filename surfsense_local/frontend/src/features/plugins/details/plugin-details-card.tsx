@@ -5,12 +5,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
-import type { Plugin, PluginTool, ToolApproval } from "./api"
+import type { Plugin, PluginTool, ToolApproval } from "../api"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
-import { PluginIcon } from "./plugin-icon"
+import { PluginIcon } from "../plugin-icon"
 import { PluginToolRow } from "./plugin-tool-row"
 import { ReplaceKeyButton } from "./replace-key-button"
-import { SignInAgainButton } from "./sign-in-again-button"
+import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
 
 function ToolGroup({
@@ -132,7 +132,7 @@ const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
 ])
 
 /** A connected plugin's details: its switch, its tools, and the way to disconnect it. */
-export function PluginRow({
+export function PluginDetailsCard({
   plugin,
   thirdPartyAllowed,
   disconnecting,

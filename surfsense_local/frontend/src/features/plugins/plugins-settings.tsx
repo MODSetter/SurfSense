@@ -8,9 +8,9 @@ import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
 import { listPlugins, pluginsQueryKey } from "./api"
-import { AddPluginDialog } from "./add-plugin-dialog"
-import { BrowsePlugins } from "./browse-plugins"
-import { YourPlugins } from "./your-plugins"
+import { AddPluginDialog } from "./add-custom/add-plugin-dialog"
+import { BrowsePlugins } from "./browse/browse-plugins"
+import { YourPlugins } from "./yours/your-plugins"
 
 type Tab = "yours" | "browse"
 

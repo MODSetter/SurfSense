@@ -15,7 +15,7 @@ import {
   thirdPartyAllowed,
   thirdPartyQueryKey,
   type Plugin,
-} from "./api"
+} from "../api"
 
 // A plugin id: lowercase words joined by hyphens.
 const MENTION = /@([a-z0-9-]+)/g

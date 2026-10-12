@@ -5,7 +5,7 @@ import {
   pluginsQueryKey,
   type Plugin,
   type PluginTool,
-} from "./api"
+} from "../api"
 import { opencodeToolName } from "./tool-name"
 
 /** Whether opencode's name for a step could be a plugin's `<plugin>_<tool>`. */

@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeftIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
-import type { Plugin } from "./api"
-import { PluginRow } from "./plugin-row"
+import type { Plugin } from "../api"
+import { PluginDetailsCard } from "./plugin-details-card"
 import { usePluginChanges } from "./use-plugin-changes"
 
 /** One connected plugin, shown in place of the list until Back. */
@@ -34,7 +34,7 @@ export function PluginDetails({
           defaultMessage: "Back",
         })}
       </Button>
-      <PluginRow
+      <PluginDetailsCard
         plugin={plugin}
         thirdPartyAllowed={thirdPartyAllowed}
         disconnecting={changes.disconnect.isPending}

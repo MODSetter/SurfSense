@@ -4,10 +4,10 @@ import { useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { intl } from "@/i18n/intl"
 
-import { thirdPartyAllowed, thirdPartyQueryKey, type Plugin } from "./api"
+import { thirdPartyAllowed, thirdPartyQueryKey, type Plugin } from "../api"
 import { ConnectedPluginsTable } from "./connected-plugins-table"
 import { NoPluginsConnected } from "./no-plugins-connected"
-import { PluginDetails } from "./plugin-details"
+import { PluginDetails } from "../details/plugin-details"
 
 /** The plugins the user connected: a list, or one plugin's details. */
 export function YourPlugins({

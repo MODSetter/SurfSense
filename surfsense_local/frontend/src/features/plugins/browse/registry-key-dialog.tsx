@@ -15,8 +15,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import { ApiError } from "@/lib/api"
 
-import { connectRegistryPlugin, type RegistryEntry } from "./api"
-import { refusalMessage } from "./refusal-message"
+import { connectRegistryPlugin, type RegistryEntry } from "../api"
+import { refusalMessage } from "../refusal-message"
 
 function RegistryKeyForm({
   entry,

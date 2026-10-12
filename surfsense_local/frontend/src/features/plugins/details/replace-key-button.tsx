@@ -16,8 +16,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import { ApiError } from "@/lib/api"
 
-import { pluginsQueryKey, replacePluginKey, type Plugin } from "./api"
-import { refusalMessage } from "./refusal-message"
+import { pluginsQueryKey, replacePluginKey, type Plugin } from "../api"
+import { refusalMessage } from "../refusal-message"
 
 function ReplaceKeyForm({
   plugin,

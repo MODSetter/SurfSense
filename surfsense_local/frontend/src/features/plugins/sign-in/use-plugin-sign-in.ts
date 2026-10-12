@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { ApiError } from "@/lib/api"
 
-import { cancelPluginSignIn, getPluginSignIn, type SignInStarted } from "./api"
+import { cancelPluginSignIn, getPluginSignIn, type SignInStarted } from "../api"
 
 // The API answers from memory, so a short interval costs nothing.
 const POLL_MS = 1000
