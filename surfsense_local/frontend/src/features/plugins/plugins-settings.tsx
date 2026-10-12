@@ -52,14 +52,14 @@ export function PluginsSettings({
         className="gap-5"
       >
         <div className="flex items-center justify-between gap-4">
-          <TabsList activateOnFocus>
-            <TabsTrigger value="yours" className="px-3">
+          <TabsList variant="pill" activateOnFocus>
+            <TabsTrigger value="yours">
               {intl.formatMessage({
                 id: "plugins_settings_yours_label",
                 defaultMessage: "Yours",
               })}
             </TabsTrigger>
-            <TabsTrigger value="browse" className="px-3">
+            <TabsTrigger value="browse">
               {intl.formatMessage({
                 id: "plugins_settings_browse_label",
                 defaultMessage: "Browse",
@@ -70,6 +70,7 @@ export function PluginsSettings({
             type="button"
             size="sm"
             variant="outline"
+            className="h-8"
             onClick={() => setAdding(true)}
           >
             <PlusIcon data-icon="inline-start" />
