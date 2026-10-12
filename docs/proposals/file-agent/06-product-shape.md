@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/alembic/versions/<next>_thread_artifact.py
   - surfsense_local/backend/alembic/versions/<next>_workspace_settings_and_thread_jobs.py
@@ -33,6 +33,8 @@ code:
 # Product shape
 
 > SurfSense has one kind of workspace. The user never picks a mode. They pick a model, and what the app offers inside every workspace follows from that model's measured capability profile ([05](05-model-ladder-and-evals.md)): every model answers questions and makes Studio outputs, models that pass the job tests run jobs step by step or as a job thread, and models that pass the agent tests can also work on files freely. Jobs (study pack, contract redline, security questionnaire, RFP response) are listed on every model, and each one says how it will run on the selected model, or what it needs and the cheapest way to get it. Folders can carry job roles, a workspace can be marked local only, and a job's output can be marked reviewed. None of that is a workspace type. Job content is open source and ships in the app; a license adds premium plugins, support and Enterprise controls, and never changes what a model may do.
+
+**Status, 11 Oct 2026:** a cut of S3 shipped in 2.2.0 ([#2207](https://github.com/MODSetter/SurfSense/pull/2207)), and it departs from this page. The composer offers Basic (Q&A) and Agentic for each new chat, so the interface does say "mode". Every model may pick Agentic unless a technical gate keeps it out: a stated no on tool calls, a window under 32,768 tokens, or no opencode. A measured level sets only the default, a user's pick is remembered per model, and a chat keeps its mode. `ThreadCreate` takes `mode` and `remember`; a gated request is refused with `409` and its code, and one whose agent does not start with `503` ([model capabilities](../../architecture/model-capabilities.md#the-modes), [agent](../../architecture/agent.md#which-threads-get-it)). Verdict labels, jobs, workspace settings, handoff and review are not built.
 
 Stream 06 of the file-agent proposal. It turns [05](05-model-ladder-and-evals.md)'s `Capability` into what the user sees and owns the job catalogue that [02](02-skills-and-engines.md) and [03](03-editable-artifacts.md) wait on. Facts were checked against `dev_mod` at `0847e12f7` on 2026-10-03. Milestone numbers (M0 to M10) are the [README](README.md#milestones-in-order)'s. Both design-panel judges chose P1 (48) over workspace types (P2, 38–41) and user-picked modes (P3, 40); the grafts taken are under Options considered.
 
@@ -123,7 +125,7 @@ The 4B user's screen therefore never shows an agent control, and the frontier us
 ### Threads: Answer and Work on files
 
 - `frontend/src/features/chat/engine-switch.tsx` (new) is a two-state control in an empty thread's composer. It renders only when `"agent"` is in `capability.engines` or the agent verdict is `untested` with every live gate passing.
-- Release builds carry opencode since `ENABLED_BY_DEFAULT` turned true on 7 Oct 2026, ahead of 05's `agent_smoke` and `free_agent_tasks` rows and 03 phase 3. If macOS notarization is still blocked then, the agent ships on Windows and Linux first and the docs say so.
+- Release builds carry opencode since `ENABLED_BY_DEFAULT` turned true on 7 Oct 2026, ahead of 05's `agent_smoke` and `free_agent_tasks` rows and 03 phase 3. v2.2.0 (9 Oct 2026) is the first release that carries it, on all three platforms, notarized on macOS.
 - The default is `capability.default_engine`, which 05 sets to `agent` only on paths that cache prompts (`anthropic-native`, `llamacpp`) and to `chat` elsewhere. Whether a cached route should default to Work on files is the README's [maintainer question 7](README.md#open-questions-for-the-maintainer): new threads default to Answer until M4 measures first-answer latency and cost on Sonnet, and move to 05's rule only if Work on files is no slower for a one-line question. The last choice per workspace is remembered in `localStorage` (`surfsense:new-thread-engine:v1`, failures ignored), and only when the capability still allows it.
 - The first send carries `ThreadCreate.engine`. After that the control becomes the header label: a thread keeps its engine ([agent README](../agent/README.md), Locked decisions).
 - Choosing "Work on files" on an unconfirmed untested model shows an inline notice: "SurfSense has not measured working on files with {model}. Results may be wrong or incomplete, and on an API key each step costs tokens." Confirming calls `POST /llm/capability/confirmations` (05); Settings › Models can revoke it.

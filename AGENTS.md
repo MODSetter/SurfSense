@@ -146,7 +146,7 @@ its lock entry is valid.
 
 - Do not carve hosted code out of backend/web until the purge on 18 Oct 2026. The export window and the purge script run on that code until then.
 - Do not drop SearxNG, sandbox, OpenSandbox, or zero-cache from compose until a new compose is defined.
-- Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category.
+- Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category. Make the same change in every `README.<locale>.md`, section for section; [`06-repo-readme.md`](plans/community-local/seo/06-repo-readme.md#the-readme-since-9-oct-2026) has the rules, where each format-table cell is checked, and how to replace the demo video.
 - Do not commit, push or open a PR unless asked.
 
 ## Security

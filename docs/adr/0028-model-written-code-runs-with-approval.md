@@ -27,5 +27,5 @@ A command runs with the user's privileges, and a program it starts can open netw
 
 ## Where the code stands
 
-- No agent exists yet.
-- The Office runner's 120-second limit is a `thread.join`, which cannot stop a thread that ignores it ([studio](../architecture/studio.md)).
+- The agent exists, with no shell ([ADR 0039](0039-document-scripts-run-without-approval.md)).
+- Since [#2184](https://github.com/MODSetter/SurfSense/pull/2184) no Studio format runs `exec()` in the worker: every Office script runs in ADR 0039's runner, a process stopped at its time limit ([studio](../architecture/studio.md)).

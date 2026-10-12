@@ -1,11 +1,14 @@
 <!--
-  Rationale: plans/community-local/seo/06-repo-readme.md. Anything added replaces
-  something (AGENTS.md). Ship the agent copy only with the first release whose
-  installer carries the agent; v2.1.0 does not.
-  The format table is checked against origin/dev c5ff7938a; re-check each cell before a release.
+  Rationale and how to change it: plans/community-local/seo/06-repo-readme.md. Anything
+  added replaces something (AGENTS.md). The agent copy holds from v2.2.0, the first
+  release whose installers carry the agent.
+  The format table is checked against origin/dev c5ff7938a, which v2.2.0 contains; re-check
+  each cell against the release commit before a release.
   The demo video under the header is a GitHub upload, not a file in the repo. To replace it, drag an
   MP4 under 10 MB into any comment box in this repo, copy the user-attachments link and swap the URL.
-  Every README.<locale>.md follows this file section for section; change them together.
+  Every README.<locale>.md follows this file section for section and names the app's UI in
+  the words of surfsense_local/frontend/translations/<locale>.json (Arabic: the English in
+  parentheses); change them together.
   Time-boxed: delete the sunset callout on 18 October 2026, here and in every README.<locale>.md.
 -->
 

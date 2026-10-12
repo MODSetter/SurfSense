@@ -140,7 +140,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | Table | Columns | Notes |
 |---|---|---|
 | `provider_connections` | `id`, `label`, `provider`, `base_url`, `catalog_provider`, `api_key_ciphertext`, timestamps, and since `0023` `auth_kind`, `oauth_ciphertext` and `token_version` | `label` unique case-insensitively; `provider` must be `openai_compatible`; `catalog_provider` is a remote manifest provider id or `custom`, since `0014`; the key is Fernet ciphertext since `0007`; since `0023`, `auth_kind` is `api_key` or `chatgpt`, `oauth_ciphertext` the Fernet-encrypted token set of a `chatgpt` row (`NULL` when signed out), and `token_version` the counter that keeps refreshes from racing ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
-| `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `settings`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen`; `settings` is JSON for what the user set that no endpoint states, keyed by the slice that owns each entry, and cleared when the slot takes another model |
+| `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `settings`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen`; `settings` is JSON for what the user set that no endpoint states, keyed by the slice that owns each entry, and cleared when the slot takes another model, all but `chat_modes`: the mode last picked for each model, keyed `<provider>/<connection id>/<name>`, which stays so a model's pick comes back with it ([model capabilities](model-capabilities.md#the-modes)) |
 | `onboarding_completion` | `id`, `completed_at` | a singleton (`CHECK id = 1`) whose presence means onboarding is done |
 
 - A CHECK on `selected_models` allows `llamacpp`, `sdcpp` and `audiocpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and `video_gen`, and `audiocpp` only `audio_gen`. `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
@@ -388,3 +388,5 @@ erDiagram
 ## Known gaps
 
 - Deleting a folder is permanent: the Trash is designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)).
+- The snapshot needs free disk about the size of `surfsense.db`, and nothing checks for it first: when the copy fails, the API does not start and the app closes with no message ([overview](overview.md#known-gaps)).
+- A release cannot open a database a later release migrated, since its migrations do not know the newer revision, so its API does not start. Going back a version means restoring the snapshot by hand, as going from 2.2.0 to 2.1.0 takes `backups/0023-0027.db`.

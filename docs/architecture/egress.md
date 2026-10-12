@@ -80,5 +80,5 @@ Settings › Network lists the App updates row and every destination with its ho
 ## Known gaps
 
 - `EgressPrompt` reads only `destination`, so a plugin with several hosts, such as a registry entry whose authorization server is on another host, is asked about one host at a time, though the refusal names them all in `hosts` ([plugins](plugins.md)).
-- The Office Studio formats run model-written code in the worker, and that code can open connections of its own ([studio](studio.md)).
+- Document scripts, Studio's Office formats and the agent's, run model-written code in the script runner's process, and that code can open connections of its own ([studio](studio.md#script-documents)).
 - The Office pack's download is allowed by its host, `downloadarchive.documentfoundation.org`, which redirects to one of TDF's mirrors; the mirror sees the user's IP address and is not asked about ([office pack](office-pack.md)).

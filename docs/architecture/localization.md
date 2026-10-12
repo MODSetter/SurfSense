@@ -83,6 +83,8 @@ Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since 
 
 Developers write English only, inline in the `formatMessage` call; `pnpm translations` or the pre-commit hook updates `en.json`. The [`translate`](../../.agents/skills/translate/SKILL.md) skill drafts Japanese and German for every id that is new or whose English changed, with its glossary and tone (です/ます; German *du*). Anyone who reads a language can correct it in a pull request; no release waits on review. No machine-translation service is used ([ADR 0017](../adr/0017-egress-off-by-default.md)).
 
+The ten `README.<locale>.md` files at the repo root are not built from these catalogs, but they quote some of their strings, such as Settings or Office support; renaming one means changing them too ([06-repo-readme](../../plans/community-local/seo/06-repo-readme.md#the-readme-since-9-oct-2026)).
+
 ## Known gaps
 
-- Backend prose without a code stays English in every language: why a Hugging Face embedder repo cannot run, an embedder's failed check at install, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.
+- Backend prose without a code stays English in every language: the one refusal of a Hugging Face embedder repo that names a file ("Hugging Face lists no checksum for …"), an embedder's failed check at install, and Studio's refusals other than a missing model, such as "already generating" and "nothing is running", which the panel shows under its translated alert title.

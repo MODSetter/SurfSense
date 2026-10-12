@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - document_skills/
   - surfsense_local/backend/modules/agent/opencode_config.py
@@ -37,6 +37,8 @@ code:
 
 > SurfSense's document work runs on deterministic engines that the app ships and no model can rewrite: a model writes a plan as data, an engine applies it to a copy of the file, checks the result and reports every operation. Agent-capable models reach the engines through typed SurfSense tools and learn the jobs from shipped SKILL.md files; smaller models get fixed workflows that call the same engines, with a skill the harness picks and a plan held to a JSON schema. The engines are the skills project's own code (`docxkit`, `crlib`, plan schemas, playbooks and graders). They ship in SurfSense after a scoped clean-room fix replaces the parts derived from Anthropic's proprietary skills, behind a no-regression eval gate and a provenance record that CI keeps true.
 
+**Status, 11 Oct 2026:** the engines this page designs are not built: no `document_skills/`, no clean-room fix, no engines queue, no job threads, workflows or playbooks. What shipped in 2.2.0 covers part of its ground another way. Revised copies run SurfSense's own engines, written from ECMA-376, in the Studio worker ([03](03-editable-artifacts.md), [studio](../../architecture/studio.md#revised-copies)). Decision 9's loading is built: the agent loads four shipped SKILL.md files that name SurfSense tools and come with no script files, read-only through `skills.paths` and allowed by name, for every model rather than per model, with its shell denied ([agent](../../architecture/agent.md)). Since [#2184](https://github.com/MODSetter/SurfSense/pull/2184) no Studio format runs `exec()`: PowerPoint and Excel run their scripts in the document script runner and `runner.py` is deleted, so phase B's baseline can only be taken on that script path.
+
 Facts below were checked on 3 Oct 2026 in this repo (`dev_mod` at `0847e12f7`), in opencode `1.18.32` source under `references/opencode-dev` (two patches behind the pinned `1.18.34`; marked *likely* where that matters), and in the skills project at `references/skills_to_improve` (branch `contract-redline-m1`: code at `f0bb40d`, developer docs at `5780aec`). `references/` is git-ignored, so those paths are named, not linked. Sibling streams: [01 sources and folders](01-sources-and-folders.md), [03 editable artifacts](03-editable-artifacts.md), [04 runtime and packs](04-runtime-and-packs.md), [05 model ladder and evals](05-model-ladder-and-evals.md) and [06 product shape](06-product-shape.md). Milestone numbers (M0 to M10) are the [README](README.md)'s.
 
 ## Today
@@ -73,7 +75,7 @@ Facts below were checked on 3 Oct 2026 in this repo (`dev_mod` at `0847e12f7`), 
 
 ### Studio's Office path
 
-- DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` on a worker thread, unsandboxed, without approval, under a `thread.join(120)` that cannot stop it ([`office/runner.py`](../../../surfsense_local/backend/worker/studio/office/runner.py); [studio](../../architecture/studio.md#the-builder-rule-and-where-it-is-broken)). Tests pin that behaviour: `test_render_executes_generated_code_and_keeps_its_bytes` and `test_execute_times_out_a_hanging_script` in `tests/unit/worker/test_studio_office.py`, and four exec tests in `tests/integration/worker/test_studio.py`.
+- DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` on a worker thread, unsandboxed, without approval, under a `thread.join(120)` that cannot stop it ([`office/runner.py`](https://github.com/MODSetter/SurfSense/blob/0847e12f723394ff8343e586c074d6ebb3541fed/surfsense_local/backend/worker/studio/office/runner.py); [studio](../../architecture/studio.md#the-builder-rule-and-where-it-is-broken)). Tests pin that behaviour: `test_render_executes_generated_code_and_keeps_its_bytes` and `test_execute_times_out_a_hanging_script` in `tests/unit/worker/test_studio_office.py`, and four exec tests in `tests/integration/worker/test_studio.py`.
 - Each format folder ships a `SKILL.md` named `docx`, `xlsx`, `pptx` or `pdf`, read with `importlib.resources`, never by opencode ([`office/spec.py`](../../../surfsense_local/backend/worker/studio/office/spec.py)). A comparison by 8-word sequences finds none shared with Anthropic's skills.
 - `generate.run_model()` already takes `json_schema` and turns thinking off ([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)).
 - The worker's lock file holds lxml 6.1.3, openpyxl 3.1.5, pypdfium2 5.13.0, jsonschema 4.26.0, psutil, python-docx, python-pptx, xlsxwriter and reportlab, but no pypdf, langgraph or deepagents ([`uv.lock`](../../../surfsense_local/backend/uv.lock)).

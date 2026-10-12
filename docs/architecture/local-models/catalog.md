@@ -39,7 +39,7 @@ of them.
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
-([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
+([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
 an audio folder, which it does only when it staged audio.cpp's server.
 onnxruntime's are the curated embedders, then any Hugging Face embedder
@@ -354,7 +354,8 @@ otherwise
 ([`not-runnable-text.ts`](../../../surfsense_local/frontend/src/features/models/local/chat/not-runnable-text.ts), [localization](../localization.md#backend-text)).
 A row that no group refuses says "SurfSense cannot run this model." under the
 code `unsupported`. A Hugging Face embedder repo that fails its check words the
-refusal itself, and that row has no code.
+refusal itself and carries that check's own code, a `NotAnEmbedderCode`, never
+the embedding group's ([embedding](../embedding.md#hugging-face)).
 
 A diffusion GGUF from sd.cpp's converter carries no metadata at all, not even
 `general.architecture`, so the sd.cpp slice reads its architecture from tensor

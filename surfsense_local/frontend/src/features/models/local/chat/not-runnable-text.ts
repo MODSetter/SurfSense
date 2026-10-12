@@ -3,9 +3,10 @@ import { intl } from "@/i18n/intl"
 import type { LocalRow } from "./api"
 
 // The codes are `NotRunnableCode` in the backend's
-// modules/llm/catalog/local/classifier.py; keep the two in sync. English
-// mirrors that module's sentences, which stay the fallback for a code with no
-// line here.
+// modules/llm/catalog/local/classifier.py, and for an opened embedder repo
+// `NotAnEmbedderCode` in modules/embedding/huggingface/pick.py; keep the three
+// in sync. English mirrors those modules' sentences, which stay the fallback
+// for a code with no line here.
 const notRunnableText: Record<string, () => string> = {
   embedder: () =>
     intl.formatMessage({
@@ -83,6 +84,26 @@ const notRunnableText: Record<string, () => string> = {
     intl.formatMessage({
       id: "models_not_runnable_unsupported_body",
       defaultMessage: "SurfSense cannot run this model.",
+    }),
+  repo_gated: () =>
+    intl.formatMessage({
+      id: "models_not_runnable_repo_gated_body",
+      defaultMessage: "This repo needs an account to download.",
+    }),
+  repo_no_onnx: () =>
+    intl.formatMessage({
+      id: "models_not_runnable_repo_no_onnx_body",
+      defaultMessage: "This repo has no ONNX build SurfSense can run.",
+    }),
+  repo_no_tokenizer: () =>
+    intl.formatMessage({
+      id: "models_not_runnable_repo_no_tokenizer_body",
+      defaultMessage: "This repo has no tokenizer.json.",
+    }),
+  repo_scan_flagged: () =>
+    intl.formatMessage({
+      id: "models_not_runnable_repo_scan_flagged_body",
+      defaultMessage: "Hugging Face’s security scan flags this repo.",
     }),
 }
 
