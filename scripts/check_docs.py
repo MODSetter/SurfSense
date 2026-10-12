@@ -59,10 +59,6 @@ def check_links(path: Path) -> list[str]:
         for target in LINK.findall(line):
             if target.startswith(("http://", "https://", "#", "mailto:")):
                 continue
-            # Deliberate placeholders; 06-repo-readme.md wants them to fail
-            # visibly in a browser, which is not this check's job.
-            if "REPLACE-ME" in target:
-                continue
             plain = re.sub(r"\\(.)", r"\1", target.split("#", 1)[0])
             if not (base / plain).resolve().exists():
                 problems.append(f"{path.relative_to(ROOT)}:{lineno} dead link -> {target}")

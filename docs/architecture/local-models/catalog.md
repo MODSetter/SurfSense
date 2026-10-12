@@ -39,7 +39,7 @@ of them.
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
-([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
+([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
 an audio folder, which it does only when it staged audio.cpp's server.
 onnxruntime's are the curated embedders, then any Hugging Face embedder

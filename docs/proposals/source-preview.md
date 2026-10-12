@@ -13,6 +13,8 @@ code:
 
 > Clicking a source opens its original file in a panel that slides out beside the sidebar, when the app has a viewer for that file type. PDF is the first. Every other type opens in the operating system's app, as every type does today. Each viewer added later moves one more type into the panel.
 
+**Status, 11 Oct 2026:** step 1 is built, with PDF the only source viewer ([documents](../architecture/documents.md#the-original-file)). It departs from this page twice: the preview shows in place of the left sidebar, not in a second rail, opening at 560 px or at the sidebar's own width if that is wider, and since [#2195](https://github.com/MODSetter/SurfSense/pull/2195) its edge can be dragged, up to 800 px. Steps 2 and 3 are not built.
+
 Today a source's title and its **Open** item both hand the file to the operating system ([`documents.md`](../architecture/documents.md), The original file). The app already renders PDF, DOCX, XLSX, PPTX, HTML and images, but only for Studio artifacts ([`studio.md`](../architecture/studio.md), Viewers). The idea and its duplicate check are in [#2077](https://github.com/MODSetter/SurfSense/issues/2077).
 
 ## What changes
@@ -69,5 +71,4 @@ The change that completes the first step updates [`documents.md`](../architectur
 
 - Any change to citations: a citation keeps opening the citation panel on the right. Opening the preview at a cited page would also need a mapping, since chunks carry line ranges of the extracted markdown, not PDF pages.
 - Any change to the artifact panel, the Studio panel or Studio's viewers, including moving them onto the shared registry.
-- A preview wider than 400 px on a larger window, or a resizable rail. `SlideRail` takes one fixed width.
 - Previewing notes. A note has no file behind it.

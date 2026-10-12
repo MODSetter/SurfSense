@@ -396,7 +396,7 @@ No run failed the preview check. Every render that drew pages had them matched b
 
 ## Still to run
 
-The columns are those of 05's [eval matrix](05-model-ladder-and-evals.md#5-the-eval-matrix). Each runs the same eight cases with `SURFSENSE_LIVE_PROVIDER` and `SURFSENSE_LIVE_MODEL` ([07-dev-setup](07-dev-setup.md#live-tests)).
+The columns are those of 05's [eval matrix](05-model-ladder-and-evals.md#5-the-eval-matrix). Each runs the same eight cases with `SURFSENSE_LIVE_PROVIDER` and `SURFSENSE_LIVE_MODEL` ([07-dev-setup](07-dev-setup.md#live-tests)). A screening sweep over OpenRouter on 7 and 8 Oct 2026 ran 208 more models through a smoke check, the PDF brief and the board pack only, Qwen3.5-397B-A17B, gpt-oss-120b and models from OpenAI, Google and xAI among them; its results are rows of the capability list, not columns of this matrix ([model capabilities](../../architecture/model-capabilities.md#the-list)).
 
 | Rung | Models | How |
 |---|---|---|

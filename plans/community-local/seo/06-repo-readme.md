@@ -1,8 +1,13 @@
 # The repo: description, topics and README
 
-The paste-ready README draft is [`drafts/README.md`](drafts/README.md). This file
-is why it says what it says, the shorter strings that go around it, and what has
-to be checked before it ships.
+The root [README](../../../README.md) is edited directly. It was rewritten short
+on 8 and 9 Oct 2026 (#2212), and [The README since 9 Oct 2026](#the-readme-since-9-oct-2026)
+says what it holds, why, and how to change it. The rest of this file is the
+reasoning behind the 2.0.0 README of 18 Sep 2026, whose paste-ready draft,
+[`drafts/README.md`](drafts/README.md), is kept for history. Its research on the
+description, topics, competitors and length still applies, and so does the rule
+that anything added replaces something; its section notes and its checklist
+describe that older file.
 
 Why this is an SEO document at all: GitHub ranks **#1** for `open source
 notebooklm`, `local notebooklm`, `notebooklm mcp` and `notebooklm api`, and is in
@@ -11,6 +16,107 @@ the top ten for 11 of our 18 tracked keywords at an average position of 5.7
 The repo outranks anything the marketing site will achieve on those terms, so
 the description is a meta description and the README's first paragraph is what
 gets quoted into AI Overviews.
+
+## The README since 9 Oct 2026
+
+Rewritten short on 8 and 9 Oct 2026 (#2212), as 2.2.0 became the first release
+whose installers carry the agent. It is about 450 words under six H2s, at the
+short end of the [length table](#length-the-biggest-projects-have-the-shortest-readmes).
+In order:
+
+1. **The header.** Badges, the banner and the H1, then the bold line **"The
+   air-gapped, open-source NotebookLM alternative."**, which keeps the terms the
+   repo ranks for, and the sub-line "The AI agent that researches, transforms
+   and edits your documents, on your machine.", which leads with the edit, as
+   the [file agent strategy](../file-agent-strategy.md#the-headline) asks. Then
+   the link row, Trendshift and the language row.
+2. **The demo video** (below), one paragraph, the download table and the sunset
+   callout, which goes on 18 Oct 2026 here and in every translation.
+3. **Quick start** in three steps: install and onboard, drop files or folders in
+   the sources, ask the agent. A five-step version with screenshots was cut
+   before its images were recorded.
+4. **What it does with each format.** One row per format: what the app answers
+   from with citations, creates, edits as a copy and transforms, with three
+   footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
+   because what the agent does to the user's own files is now the pitch.
+5. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
+   use, whether documents leave the machine, editing files, licence and models.
+   "Everything stays on your machine", the comparisons with local chat apps and
+   study tools, and the concession on audio and video overviews went; the
+   privacy claims survive as the opening paragraph's last sentence and two rows.
+6. **Community**, **Star history** and **License**. License says Apache-2.0 and
+   links `LICENSE`, which names the BSL 1.1 exception for
+   `surfsense_backend/app/proprietary/`.
+
+The repo's About field, read on 11 Oct 2026, follows the header rather than the
+[project description](#project-description) below: "Air-gapped,
+privacy-focused, open-source NotebookLM alternative. AI agent that researches,
+transforms, and edits your documents." and a Discord link. It has nine topics,
+not the sixteen below.
+
+**Changing it.** Edit `README.md` first, then make the same change in every
+`README.<locale>.md`. Each follows the English section for section and keeps its
+own register and terms. In each one:
+
+- name what the app shows with that language's own string in
+  [`surfsense_local/frontend/translations/`](../../../surfsense_local/frontend/translations/)`<locale>.json`,
+  such as Settings or Office support, rather than translating it afresh;
+- in Arabic, which the app does not translate, follow the Arabic with the
+  English UI name in parentheses;
+- point the nav row at that file's own translated headings, such as
+  `#schnellstart` in German.
+
+The top comment of `README.md` says the same in brief.
+
+**The format table** was checked cell by cell against `c5ff7938a` on `dev`
+(9 Oct 2026). v2.2.0 contains it; between the two, only the composer's mode
+menus (#2211) and the version bump changed the app, and neither touches a cell.
+Before each release, re-check every cell against what it ships
+([`RELEASE.md`](../../../surfsense_local/RELEASE.md), step 4), and change the
+translations with any cell that moves:
+
+| Claim | Where it is true |
+|---|---|
+| Research: every listed format is read and cited; scanned pages and images through OCR, in Latin, Chinese and Japanese script | [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py) (the types accepted), [`parsing.py`](../../../surfsense_local/backend/worker/ingestion/parsing.py) (RapidOCR); the scripts OCR misreads are a [documents](../../../docs/architecture/documents.md#known-gaps) Known gap |
+| Excel: the agent reads formulas | [`read_workbook.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/read_workbook.py) |
+| Create Word, PDF, PowerPoint and Excel; Word and PowerPoint from the user's own file as a template; Excel with formulas and native charts | [`render_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/render_document.py) (`DOCUMENT_FORMATS`, `template_source_id`), the [`surfsense-documents`](../../../surfsense_local/backend/modules/agent/skills/surfsense-documents/SKILL.md) skill |
+| Create Markdown, a web page, images and infographics (with an image model), a podcast, mind maps, flashcards and quizzes | [`formats.py`](../../../surfsense_local/backend/modules/artifacts/formats.py); the podcast's default voice is in [studio](../../../docs/architecture/studio.md#formats) |
+| Edit Word body text as tracked changes and comments, Excel cell values and formulas, PowerPoint text on slides and notes, and delete or duplicate slides, always on a copy | [`revise_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/revise_document.py) and its [engines](../../../surfsense_local/backend/modules/artifacts/revised_copies/engines/) |
+| PDF: fill and flatten forms; stamp a watermark, page numbers, a header or a footer; merge, split, extract, rotate and reorder pages, each into a new PDF | [`pdf_form.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_form.py), [`pdf_stamp.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_stamp.py), [`pdf_pages.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/pdf_pages.py) |
+| Analyse CSV and Excel with pandas and chart the results | [`analyze_data.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/analyze_data.py) |
+| Place images in new documents | [`list_images.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/list_images.py) |
+| Word and PowerPoint to PDF with Office support, which is never in the installer | [`convert_document.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/convert_document.py), [office pack](../../../docs/architecture/office-pack.md) |
+
+**The demo video** is a GitHub upload, not a file in the repo: a
+`github.com/user-attachments/assets/...` URL alone on its line, which GitHub
+plays inline. All eleven READMEs use the same one. To replace it, drag an MP4
+under 10 MB into any comment box in this repo, copy the `user-attachments` link
+GitHub writes, and swap the URL in every README.
+
+The video, added on 9 Oct 2026, shows the agent redlining a city contract as a
+revised copy, with tracked changes and a comment on each change. It is step 4 of
+the Boston demo plan, `references/demo-data/Boston-demo-plan.md`, which git
+ignores along with its sources and the credits for them; the plan names Qwen3.8
+27B through OpenRouter for the recording.
+
+- **Source:** `Boston-Standard-Contract-General-Conditions-CM11.docx`, a Word
+  copy of the City of Boston's Standard Contract General Conditions (Form CM 11),
+  in the plan's `Contracts/` folder beside the City's PDF of Forms CM 10 and
+  CM 11 from content.boston.gov. Neither file is in the repo. To record again
+  elsewhere, take that PDF and make a Word copy of the General Conditions with
+  the same words; how the present copy was made is not written down.
+- **Query:** "We're a vendor about to sign Boston's standard contract. In
+  Boston-Standard-Contract-General-Conditions-CM11.docx, propose changes as
+  tracked changes: payment within 30 days of an approved invoice,
+  indemnification in 7.3 limited to claims caused by our negligence, and a
+  mutual right to terminate on 30 days' notice. Add a comment on each change
+  explaining why."
+- **Rehearsal:** three runs on Qwen3.8 27B through OpenRouter on 6 Oct 2026.
+  Each made one revised copy holding all three changes as tracked changes, with
+  a comment on each, in 7 to 10 minutes and for $0.06 to $0.17 as OpenRouter
+  billed. The rehearsal's own check, a scratch test never committed, failed one
+  run on how it worded the mutual right ("the City or the Contractor"), which
+  the copy does hold. The run folders are in `references/live-runs/rehearsal/`.
 
 ## Project description
 
@@ -116,7 +222,7 @@ The two shortest files in the set belong to projects with 77k and 37k stars;
 the longest belongs to the one with 39k. gpt4all says what it is in 610 words.
 
 The draft was **2,730 words across 14 H2s** when this was measured, longer than
-every repo in the category including the 152k-star one. It is now about 1,760
+every repo in the category including the 152k-star one. It shipped at about 1,760
 across 11, which sits between private-gpt and open-webui. Three cuts got it
 there, and they are the ones to repeat if it grows again:
 
@@ -340,6 +446,8 @@ wherever the claim lives.
   server stack` section was removed for length, the sentence was kept inside
   `## Docs, roadmap and community`. Losing the section is fine; losing the
   sentence is a cross-workstream breach.
+  The 9 Oct 2026 rewrite removed the self-hosting line that carried it
+  (#2212), so the README no longer says it.
 - **Chat.** The draft briefly said "there is no box here to paste it into",
   which reads as though the app has no chat. It has: `modules/chat/` streams a
   cited answer per turn, and the Quick start has always said so four lines
@@ -378,7 +486,10 @@ RBAC or connector feature from the hosted product, all of which are sunset.
 
 ## Before it ships
 
-- [ ] **Record a Studio demo GIF.** This is the highest-value missing asset,
+- [x] **Record a Studio demo GIF.** Done another way on 9 Oct 2026: a video of a
+      contract redline, not a podcast GIF
+      ([The README since 9 Oct 2026](#the-readme-since-9-oct-2026)). The 17 Sep
+      reasoning follows. This is the highest-value missing asset,
       because all three leaders put a visual above their feature list and we
       have none for the desktop app. `surfsense_local/` contains one image, an
       Electron icon. The hosted GIFs in `surfsense_web/public/homepage/` show
@@ -427,7 +538,7 @@ RBAC or connector feature from the hosted product, all of which are sunset.
 - [ ] **Fill the real links.** `/downloads`, `/docs`, `/pricing` and `/sunset`
       do not all exist yet (B5, B6); `/downloads` in particular must link a
       pinned tag, never `/releases/latest`, which stays on legacy v0.0.40.
-- [ ] **Rewrite the four localised READMEs before restoring the language
+- [x] **Rewrite the four localised READMEs before restoring the language
       switcher.** The switcher is commented out in the draft, not deleted, with
       the reason inline. `README.es.md`, `README.pt-BR.md`, `README.hi.md` and
       `README.zh-CN.md` all still open on the hosted positioning ("la
@@ -439,6 +550,9 @@ RBAC or connector feature from the hosted product, all of which are sunset.
       four markets, so either rewrite them cheaply from the English draft or
       leave the row commented; Japanese and German are the two localisations
       the research does fund, and neither has a README today.
+      Done: the four were rewritten and the row restored on 21 Sep 2026, Arabic,
+      German, French, Japanese, Korean and Russian followed on 22 Sep, and all
+      ten follow the 9 Oct README (#2212).
 - [x] **Fill `REPLACE-ME-DATE` in the sunset callout** — 18 October 2026
       (T+30 from 18 Sep 2026 launch). Still **delete the callout at T+30**
       along with the "Importing from the hosted app" link.

@@ -34,6 +34,8 @@ opencode came first, for a model known to call tools ([`01-which-engine.md`](01-
 
 ## Locked decisions
 
+The [file agent proposal](../file-agent/README.md#locked-decisions-of-the-agent-proposal-this-changes) changes several of these, and what shipped follows it: since 7 Oct 2026 the user picks Basic (Q&A) or Agentic for each new chat, and every model may pick Agentic unless a technical gate keeps it out ([`01-which-engine.md`](01-which-engine.md#decision)); the agent has no shell ([ADR 0039](../../adr/0039-document-scripts-run-without-approval.md)); and it edits the user's files only into new copies, never the file itself ([agent](../../architecture/agent.md#revised-copies-the-agent-makes)).
+
 | Decision | Choice |
 |---|---|
 | Engines | Two. opencode for a model on a tested list; fixed workflows for every other model. |
