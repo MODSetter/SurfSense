@@ -65,7 +65,8 @@ function PluginSwitchItem({
       <PluginIcon
         id={plugin.id}
         name={plugin.name}
-        hasIcon={plugin.source === "registry"}
+        hasIcon={plugin.source !== "custom"}
+        firstParty={plugin.source === "first_party"}
         className="size-5 text-xs"
       />
       {hint ? (

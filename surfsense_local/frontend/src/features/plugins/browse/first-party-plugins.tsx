@@ -12,6 +12,7 @@ import {
   pluginsQueryKey,
   type FirstPartyEntry,
 } from "../api"
+import { PluginIcon } from "../plugin-icon"
 import { refusalMessage } from "../refusal-message"
 
 function FirstPartyEntryRow({ entry }: { entry: FirstPartyEntry }) {
@@ -25,8 +26,14 @@ function FirstPartyEntryRow({ entry }: { entry: FirstPartyEntry }) {
       ]),
   })
   return (
-    <li className="flex items-start justify-between gap-6 py-3">
-      <div className="min-w-0">
+    <li className="flex items-start gap-3 py-3">
+      <PluginIcon
+        id={entry.id}
+        name={entry.name}
+        hasIcon={entry.has_icon}
+        firstParty
+      />
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{entry.name}</p>
         <p className="text-xs text-muted-foreground">{entry.description}</p>
         {entry.access === "license" ? (

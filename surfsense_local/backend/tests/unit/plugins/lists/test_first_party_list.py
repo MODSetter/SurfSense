@@ -103,3 +103,29 @@ def test_two_entries_with_one_id_fail(tmp_path: Path) -> None:
     """An id names one plugin across the app."""
     with pytest.raises(ValueError, match="scrapers"):
         checked_entries(listed(tmp_path, scrapers(), scrapers()))
+
+
+def test_every_packaged_entry_has_its_icon_beside_the_list() -> None:
+    """The screen shows each of SurfSense's plugins with its logo, from the app."""
+    entries = checked_entries(FIRST_PARTY_LIST)
+
+    assert all(entry.icon for entry in entries)
+    assert all(
+        (FIRST_PARTY_LIST.with_name("icons") / entry.icon).is_file()
+        for entry in entries
+        if entry.icon
+    )
+
+
+def test_an_icon_missing_beside_the_list_fails(tmp_path: Path) -> None:
+    """A typo in the file name fails CI rather than showing a letter."""
+    with pytest.raises(ValueError, match="scrapers: icon"):
+        checked_entries(listed(tmp_path, scrapers(icon="scrapers.svg")))
+
+
+def test_an_icon_name_reaching_outside_its_folder_fails(tmp_path: Path) -> None:
+    """Only a plain file name in icons/ is served."""
+    (tmp_path / "secret.svg").write_text("<svg/>")
+
+    with pytest.raises(ValueError, match="scrapers: icon"):
+        checked_entries(listed(tmp_path, scrapers(icon="../secret.svg")))

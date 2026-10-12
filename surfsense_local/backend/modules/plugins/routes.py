@@ -33,7 +33,9 @@ from modules.plugins.lists.first_party.entry_read import (
     FirstPartyEntryRead,
     read_first_party,
 )
+from modules.plugins.lists.first_party.first_party_icon import first_party_icon
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
+from modules.plugins.lists.icon_response import icon_response
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
@@ -175,6 +177,17 @@ async def add_custom_plugin(
 )
 def list_first_party(session: SessionDep) -> list[FirstPartyEntryRead]:
     return read_first_party(session)
+
+
+@router.get(
+    "/first-party/icons/{plugin_id}", summary="One of SurfSense's plugins' icon"
+)
+def first_party_icon_file(plugin_id: str) -> Response:
+    """Packaged beside the list, so served with no network."""
+    path = first_party_icon(plugin_id)
+    if path is None or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} has no icon")
+    return icon_response(path)
 
 
 @router.post(

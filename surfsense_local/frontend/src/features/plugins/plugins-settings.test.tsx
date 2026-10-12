@@ -79,6 +79,7 @@ const REDDIT: FirstPartyEntry = {
   author: "SurfSense",
   access: "license",
   hosts: ["plugins.surfsense.com"],
+  has_icon: true,
   connected: false,
 }
 
@@ -796,7 +797,9 @@ describe("plugins settings", () => {
     const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Couldn’t connect")).toBeTruthy()
     const menu = await actions(user, plugin, "Notes")
-    await user.click(within(menu).getByRole("menuitem", { name: "Refresh tools" }))
+    await user.click(
+      within(menu).getByRole("menuitem", { name: "Refresh tools" })
+    )
 
     expect(await within(plugin).findByText("Connected")).toBeTruthy()
     expect(changes(calls)).toEqual([
@@ -890,15 +893,20 @@ describe("plugins settings", () => {
     })
     expect(within(surfsense).getByText("Reddit")).toBeTruthy()
     expect(within(surfsense).getByText("License required")).toBeTruthy()
+    // Its icon comes from the list packaged into the app.
+    expect(surfsense.querySelector("img")?.getAttribute("src")).toMatch(
+      /\/plugins\/first-party\/icons\/reddit$/
+    )
     await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
 
     expect(await within(surfsense).findByText("Connected")).toBeTruthy()
     await yours(user)
-    expect(
-      await screen.findByRole("row", {
-        name: "Reddit By SurfSense Needs a license",
-      })
-    ).toBeTruthy()
+    const row = await screen.findByRole("row", {
+      name: "Reddit By SurfSense Needs a license",
+    })
+    expect(row.querySelector("img")?.getAttribute("src")).toMatch(
+      /\/plugins\/first-party\/icons\/reddit$/
+    )
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/first-party/reddit", body: null },
     ])

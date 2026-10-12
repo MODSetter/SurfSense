@@ -52,6 +52,14 @@ datas.append(
         "modules/plugins/lists/first_party",
     )
 )
+# Read by path too, and checked beside the list: without them a frozen build
+# lists none of SurfSense's plugins either.
+datas.append(
+    (
+        str(BACKEND / "modules" / "plugins" / "lists" / "first_party" / "icons"),
+        "modules/plugins/lists/first_party/icons",
+    )
+)
 
 # shared/app_version.py reads the release version from the package's metadata,
 # which a frozen build has only if copied. Without it no registry entry with a

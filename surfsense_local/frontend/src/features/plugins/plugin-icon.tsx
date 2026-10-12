@@ -2,25 +2,33 @@ import { useState } from "react"
 
 import { cn } from "@/lib/utils"
 
-import { registryIconUrl } from "./api"
+import { firstPartyIconUrl, registryIconUrl } from "./api"
 
-/** The registry's verified icon, or the name's first letter when there is none or it fails to load. */
+/** The icon beside the plugin's list, SurfSense's or the registry's, or the name's first letter when there is none or it fails to load. */
 export function PluginIcon({
   id,
   name,
   hasIcon,
+  firstParty = false,
   className,
 }: {
   id: string
   name: string
   hasIcon: boolean
+  /** One of SurfSense's own plugins, whose icon is served from its list. */
+  firstParty?: boolean
   className?: string
 }) {
   const [failed, setFailed] = useState(false)
-  if (hasIcon && !failed) {
+  const src = !hasIcon
+    ? undefined
+    : firstParty
+      ? firstPartyIconUrl(id)
+      : registryIconUrl(id)
+  if (src && !failed) {
     return (
       <img
-        src={registryIconUrl(id)}
+        src={src}
         alt=""
         // Registry marks are light or coloured, so they sit on a grey tile, never the bare page.
         className={cn(

@@ -73,6 +73,7 @@ export type FirstPartyEntry = {
   /** `license` when it needs the SurfSense license. */
   access: "free" | "license"
   hosts: string[]
+  has_icon: boolean
   connected: boolean
 }
 
@@ -152,6 +153,11 @@ export function connectRegistryPlugin(
 
 export function registryIconUrl(id: string): string {
   return apiUrl(`/plugins/registry/icons/${id}`)
+}
+
+/** Packaged with the app beside SurfSense's list, so it needs no network. */
+export function firstPartyIconUrl(id: string): string {
+  return apiUrl(`/plugins/first-party/icons/${id}`)
 }
 
 /** A server asking for OAuth answers with a sign-in to finish in the browser. */

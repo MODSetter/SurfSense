@@ -15,6 +15,8 @@ class FirstPartyEntryRead(BaseModel):
     # `license` when it needs the SurfSense license; `free` otherwise.
     access: str
     hosts: list[str]
+    # Its logo is served from `/plugins/first-party/icons/{id}`.
+    has_icon: bool
     connected: bool
 
 
@@ -27,6 +29,7 @@ def read_first_party(session: Session) -> list[FirstPartyEntryRead]:
             author=entry.author,
             access=entry.access,
             hosts=entry.hosts,
+            has_icon=entry.icon is not None,
             connected=session.get(InstalledPlugin, entry.id) is not None,
         )
         for entry in first_party_entries()

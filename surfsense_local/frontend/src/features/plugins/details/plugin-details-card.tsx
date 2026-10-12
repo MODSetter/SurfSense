@@ -151,7 +151,8 @@ export function PluginDetailsCard({
           <PluginIcon
             id={plugin.id}
             name={plugin.name}
-            hasIcon={plugin.source === "registry"}
+            hasIcon={plugin.source !== "custom"}
+            firstParty={plugin.source === "first_party"}
           />
           <div className="min-w-0">
             <h3 id={nameId} className="truncate text-base font-medium">

@@ -15,7 +15,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "google-search.svg"
     },
     {
       "id": "web-crawl",
@@ -31,7 +32,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "web-crawl.svg"
     },
     {
       "id": "reddit",
@@ -47,7 +49,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "reddit.svg"
     },
     {
       "id": "youtube",
@@ -63,7 +66,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "youtube.svg"
     },
     {
       "id": "instagram",
@@ -79,7 +83,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "instagram.svg"
     },
     {
       "id": "tiktok",
@@ -95,7 +100,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "tiktok.svg"
     },
     {
       "id": "google-maps",
@@ -111,7 +117,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "google-maps.svg"
     },
     {
       "id": "amazon",
@@ -127,7 +134,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "amazon.svg"
     },
     {
       "id": "walmart",
@@ -143,7 +151,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "walmart.svg"
     },
     {
       "id": "indeed",
@@ -159,7 +168,8 @@
       "hosts": [
         "plugins.surfsense.com"
       ],
-      "access": "license"
+      "access": "license",
+      "icon": "indeed.svg"
     }
   ]
 }
