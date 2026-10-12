@@ -7,44 +7,25 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
 
-/** Removing deletes the plugin with its key and tool settings, so it is confirmed first. */
-export function RemovePluginButton({
+/** Removing deletes the plugin with its key and tool settings, so it is confirmed first. Opened from the actions menu. */
+export function RemovePluginDialog({
   name,
+  open,
+  onOpenChange,
   removing,
   onRemove,
 }: {
   name: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
   removing: boolean
   onRemove: () => void
 }) {
   return (
-    <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            aria-label={intl.formatMessage(
-              {
-                id: "plugins_remove_trigger_aria",
-                defaultMessage: "Remove {plugin}",
-              },
-              { plugin: name }
-            )}
-          >
-            {intl.formatMessage({
-              id: "plugins_remove_trigger_button",
-              defaultMessage: "Remove",
-            })}
-          </Button>
-        }
-      />
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
           <AlertDialogTitle>

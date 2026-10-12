@@ -55,6 +55,7 @@ import {
   NetworkIcon as NetworkIconData,
   NoteAddIcon as NoteAddIconData,
   NotebookTextIcon as NotebookTextIconData,
+  PauseIcon as PauseIconData,
   PencilEdit02Icon as PencilEdit02IconData,
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
@@ -167,6 +168,7 @@ export const FolderUploadIcon = createIcon(FolderUploadIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)
+export const PauseIcon = createIcon(PauseIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)

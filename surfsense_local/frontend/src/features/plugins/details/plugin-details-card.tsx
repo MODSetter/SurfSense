@@ -1,8 +1,7 @@
-import { useId } from "react"
+import { useId, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
 import type { Plugin, PluginTool, ToolApproval } from "../api"
@@ -10,8 +9,9 @@ import { ConnectPluginButton } from "./connect-plugin-button"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
+import { PluginActionsMenu } from "./plugin-actions-menu"
 import { PluginToolRow } from "./plugin-tool-row"
-import { RemovePluginButton } from "./remove-plugin-button"
+import { RemovePluginDialog } from "./remove-plugin-dialog"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
@@ -95,6 +95,12 @@ function checkLabel(plugin: Plugin) {
       defaultMessage: "License not recognized",
     })
   }
+  if (!plugin.enabled) {
+    return intl.formatMessage({
+      id: "plugins_row_paused_status",
+      defaultMessage: "Paused",
+    })
+  }
   return intl.formatMessage({
     id: "plugins_row_connected_status",
     defaultMessage: "Connected",
@@ -108,7 +114,7 @@ const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
   "license_invalid",
 ])
 
-/** A plugin's details: its switch, its tools, and the ways to disconnect, connect again, or remove it. */
+/** A plugin's details: Disconnect or Connect, the rest in a menu, then its status and tools. */
 export function PluginDetailsCard({
   plugin,
   thirdPartyAllowed,
@@ -138,6 +144,7 @@ export function PluginDetailsCard({
   onOpenLicense?: () => void
 }) {
   const nameId = useId()
+  const [removeOpen, setRemoveOpen] = useState(false)
   const unused = plugin.source !== "first_party" && !thirdPartyAllowed
   return (
     <section aria-labelledby={nameId}>
@@ -157,44 +164,39 @@ export function PluginDetailsCard({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <RemovePluginButton
+        <div className="flex shrink-0 items-center gap-1">
+          {plugin.disconnected ? (
+            <ConnectPluginButton plugin={plugin} size="sm" />
+          ) : (
+            <DisconnectPluginButton
+              name={plugin.name}
+              disconnecting={disconnecting}
+              onDisconnect={onDisconnect}
+            />
+          )}
+          <PluginActionsMenu
+            plugin={plugin}
+            checking={checking}
+            onCheck={onCheck}
+            onEnabled={onEnabled}
+            onRemove={() => setRemoveOpen(true)}
+          />
+          <RemovePluginDialog
             name={plugin.name}
+            open={removeOpen}
+            onOpenChange={setRemoveOpen}
             removing={removing}
             onRemove={onRemove}
           />
-          {plugin.disconnected ? null : (
-            <>
-              <DisconnectPluginButton
-                name={plugin.name}
-                disconnecting={disconnecting}
-                onDisconnect={onDisconnect}
-              />
-              <Switch
-                checked={plugin.enabled}
-                onCheckedChange={onEnabled}
-                aria-label={intl.formatMessage(
-                  {
-                    id: "plugins_row_use_aria",
-                    defaultMessage: "Use {plugin}",
-                  },
-                  { plugin: plugin.name }
-                )}
-              />
-            </>
-          )}
         </div>
       </div>
       {plugin.disconnected ? (
-        <div className="mt-4 flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">
-            {intl.formatMessage({
-              id: "plugins_row_disconnected_status",
-              defaultMessage: "Disconnected",
-            })}
-          </span>
-          <ConnectPluginButton plugin={plugin} />
-        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "plugins_row_disconnected_status",
+            defaultMessage: "Disconnected",
+          })}
+        </p>
       ) : (
         <div className="mt-4 flex items-center gap-2 text-xs">
           <span
@@ -206,6 +208,9 @@ export function PluginDetailsCard({
           >
             {checkLabel(plugin)}
           </span>
+          {checking ? (
+            <Spinner className="size-3 text-muted-foreground" />
+          ) : null}
           {plugin.check_failure === "sign_in" ? (
             plugin.auth_type === "oauth" ? (
               <SignInAgainButton plugin={plugin} />
@@ -226,19 +231,6 @@ export function PluginDetailsCard({
               })}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            disabled={checking}
-            onClick={onCheck}
-          >
-            {checking ? <Spinner data-icon="inline-start" /> : null}
-            {intl.formatMessage({
-              id: "plugins_row_check_button",
-              defaultMessage: "Check now",
-            })}
-          </Button>
         </div>
       )}
       {plugin.tools.some((tool) => tool.change) ? (

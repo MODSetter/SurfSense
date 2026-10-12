@@ -327,6 +327,14 @@ async function details(user: User, name: string) {
   return screen.getByRole("region", { name })
 }
 
+/** Opens a plugin's actions menu from its details. */
+async function actions(user: User, plugin: HTMLElement, name: string) {
+  await user.click(
+    within(plugin).getByRole("button", { name: `More actions for ${name}` })
+  )
+  return screen.findByRole("menu")
+}
+
 async function browse(user: User) {
   await user.click(await screen.findByRole("tab", { name: "Browse" }))
 }
@@ -626,13 +634,15 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
-    await user.click(within(plugin).getByRole("switch", { name: "Use Notes" }))
+    const menu = await actions(user, plugin, "Notes")
+    await user.click(within(menu).getByRole("menuitem", { name: "Pause" }))
 
-    await waitFor(() =>
-      expect(changes(calls)).toEqual([
-        { method: "PUT", path: "/plugins/notes", body: { enabled: false } },
-      ])
-    )
+    expect(await within(plugin).findByText("Paused")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "PUT", path: "/plugins/notes", body: { enabled: false } },
+    ])
+    const again = await actions(user, plugin, "Notes")
+    expect(within(again).getByRole("menuitem", { name: "Resume" })).toBeTruthy()
   })
 
   it("disconnects only once the user confirms, keeping the plugin to connect again", async () => {
@@ -651,15 +661,16 @@ describe("plugins settings", () => {
     )
 
     expect(await within(plugin).findByText("Disconnected")).toBeTruthy()
-    expect(
-      within(plugin).queryByRole("switch", { name: "Use Notes" })
-    ).toBeNull()
-    expect(
-      within(plugin).queryByRole("button", { name: "Check now" })
-    ).toBeNull()
+    expect(within(plugin).getByRole("button", { name: "Connect" })).toBeTruthy()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/notes/disconnect", body: null },
     ])
+    const menu = await actions(user, plugin, "Notes")
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent)
+    ).toEqual(["Remove"])
   })
 
   it("connects a disconnected plugin again from its row in Yours", async () => {
@@ -711,9 +722,8 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
-    await user.click(
-      within(plugin).getByRole("button", { name: "Remove Notes" })
-    )
+    const menu = await actions(user, plugin, "Notes")
+    await user.click(within(menu).getByRole("menuitem", { name: "Remove" }))
     const confirm = await screen.findByRole("alertdialog")
     expect(changes(calls)).toEqual([])
     await user.click(within(confirm).getByRole("button", { name: "Remove" }))
@@ -767,7 +777,8 @@ describe("plugins settings", () => {
 
     const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Couldn’t connect")).toBeTruthy()
-    await user.click(within(plugin).getByRole("button", { name: "Check now" }))
+    const menu = await actions(user, plugin, "Notes")
+    await user.click(within(menu).getByRole("menuitem", { name: "Check now" }))
 
     expect(await within(plugin).findByText("Connected")).toBeTruthy()
     expect(changes(calls)).toEqual([
