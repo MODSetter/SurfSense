@@ -128,10 +128,10 @@ The plugin's row says what changed, such as "Notion added 1 tool: delete page", 
 
 ## How the app gets the registry
 
-The registry grows without app updates. It is served by SurfSense's plugin host, `plugins.surfsense.com`, which also serves SurfSense's own plugins ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)).
+The registry grows without app updates. It is served at `plugins.surfsense.com`, the hostname of SurfSense's own plugins, by a small registry container of its own beside the plugin host, so updating the list never restarts the plugins ([`../remote/02-surfsense-servers.md`](../remote/02-surfsense-servers.md#the-plugin-host)).
 
-- On every merge to `main` that changes `plugins/registry/`, a CI job adds `generated_at`, signs the file with an Ed25519 key held in a CI secret, and deploys the plugin host with the signed file in its image, at `/plugins.json` and `/plugins.json.sig`. Nobody edits the copy on the server.
-- The app compiles in the URL and the public key, as it compiles in the keys that verify licenses offline ([ADR 0019](../../../adr/0019-offline-licenses.md)). A copy whose signature does not verify is ignored and the cached copy kept. A copy with an unknown `schema_version` is ignored.
+- On every merge to `main` that changes `plugins/registry/`, a CI job adds `generated_at` and each icon's SHA-256, signs the file with an Ed25519 key held in a CI secret, and commits the signed file and `plugins.json.sig` back to `main`. The registry container is built from that commit, serving them at `/plugins.json` and `/plugins.json.sig`, so the private key never reaches the server. Nobody edits the copy on the server.
+- The app compiles in the URL and the public key, as it compiles in the keys that verify licenses offline ([ADR 0019](../../../adr/0019-offline-licenses.md)). A copy whose signature does not verify is ignored and the cached copy kept, and so is one with an unknown `schema_version` or a `generated_at` older than the cached copy's, so an old list cannot bring back a removed plugin. An icon whose hash differs from its entry's is not shown.
 - Fetching needs consent for `plugins.surfsense.com`, which [`egress/service.py`](../../../../surfsense_local/backend/modules/egress/service.py) adds to `BUILT_IN`, off by default. It is the same host as SurfSense's plugins, so one consent covers both.
 - The app fetches the registry when the user allows third-party plugins, then whenever Settings → Plugins opens. The last verified copy is kept in the app's data folder, so the section stays listed offline, with the date it was fetched.
 - In development the app reads `plugins/registry/plugins.json` from the repository.

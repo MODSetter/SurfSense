@@ -134,14 +134,14 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 - `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
 - Instagram's profile API answers `401` to an anonymous session on every IP and country, even with its web app's full headers, so both tools fail on public profiles; the profile page itself still loads with its counts (measured 2026-10-12).
 - TikTok returned no comments for a public video, headless or headed, on three exit countries (measured 2026-10-12).
-- Web Crawl runs a whole crawl in one call, so a deep crawl of many pages can pass Azure's 240-second request limit; it is to run as a job.
+- Web Crawl runs a whole crawl in one call, so a deep crawl of many pages can pass the request limit of the proxies in front of the host; it is to run as a job.
 - A block reads as an error item (Amazon, Walmart) or as no items (YouTube), not as the tool's error, so the agent may take it for an empty result.
 - 20 of the backend's tests stay skipped, as there, for want of captured responses: 15 of Google Maps', 2 of Reddit's, 2 of Instagram's and 1 of YouTube's.
 - YouTube's date cutoffs need `dateparser`, which the image lacks; neither tool offers a cutoff yet.
 - With `SURFSENSE_ACCOUNT_ID` empty, the host cannot start with Reddit, even locally.
 - No limit on threads or browsers per plugin, so Reddit's warm-up browsers are bounded only by its 16 sessions per call; and no per-IP limit for a free plugin, since none exists.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
-- Google Search runs its queries and pages one after another, each page up to 180 seconds, so a call of many queries or pages can pass Azure's 240-second request limit.
-- No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there is no job runner or Blob Storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
+- Google Search runs its queries and pages one after another, each page up to 180 seconds, so a call of many queries or pages can pass the request limit of the proxies in front of the host.
+- No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there is no job runner or object storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
 - No scale rule, so copies are not yet added on load ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#scaling)).
-- No registry files or Azure deployment, and no workflow builds or pushes the image.
+- No registry files or deployment, and no workflow builds the image.

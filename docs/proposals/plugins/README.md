@@ -43,7 +43,7 @@ plugins/
 |---|---|
 | [`README.md`](remote/README.md) | What a remote plugin is, how one works, who hosts what |
 | [`01-mcp-client.md`](remote/01-mcp-client.md) | The app's MCP client, signing in, credentials, egress |
-| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The plugin host that runs SurfSense's plugins and serves the registry, the code layout, the scraper plugins |
+| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The plugin host that runs SurfSense's plugins, the registry container beside it, the code layout, the scraper plugins |
 
 **[`bundles/`](bundles/README.md)**: deferred. Plugins that run on the user's machine, and the earlier design they build on.
 
@@ -86,10 +86,10 @@ plugins/
 | Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |
 | Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`core/05-paid.md`](core/05-paid.md)) |
 | License of SurfSense's plugin code | The folder decides it: `proprietary/` is Business Source License, everything else Apache-2.0. Only SurfSense's maintainers change `proprietary/`, so SurfSense holds all of its copyright. Price is the plugin's `access`, a separate question ([`core/05-paid.md`](core/05-paid.md#which-license-a-surfsense-plugin-is-under)) |
-| SurfSense's own plugin servers | In `plugins/remote/` (Apache-2.0) and `plugins/remote/proprietary/` (Business Source License 1.1), all run by one plugin host on Azure Container Apps at `plugins.surfsense.com`, which also serves the registry ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
-| Long calls to SurfSense's plugins | A call that can run past three minutes is a job: ordinary tools that queue it, report it and cancel it, run in the background in the same container, since Azure ends a request after 240 seconds and opencode does not use MCP tasks ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#long-calls-run-as-jobs)) |
+| SurfSense's own plugin servers | In `plugins/remote/` (Apache-2.0) and `plugins/remote/proprietary/` (Business Source License 1.1), all run by one plugin host at `plugins.surfsense.com`, beside a small container serving the registry on the same hostname ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
+| Long calls to SurfSense's plugins | A call that can run past three minutes is a job: ordinary tools that queue it, report it and cancel it, run in the background in the same container, since the proxies in front of a server end a request that runs for minutes and opencode does not use MCP tasks ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#long-calls-run-as-jobs)) |
 | Scaling SurfSense's plugins | One container for every plugin, scaled by copies of it on concurrent requests; MCP served without sessions, so any copy answers, and Stop sent by the app through the host's cancel route, since opencode's own cancel cannot reach a stateless copy ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#scaling)) |
-| State on SurfSense's servers | Redis with persistence for jobs and shared state, Blob Storage for jobs' results, and no database: everything the plugin host keeps expires within a day and is read by its key ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#redis-and-blob-storage-not-a-database)) |
+| State on SurfSense's servers | Redis with persistence for jobs and shared state, object storage for jobs' results, and no database: everything the plugin host keeps expires within a day and is read by its key ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#redis-and-object-storage-not-a-database)) |
 | `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
 | Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`core/04-trust.md`](core/04-trust.md#organisation-policy)) |
 
@@ -97,13 +97,13 @@ plugins/
 
 | Stream | Owns | Needs |
 |---|---|---|
-| **Plugin lists** | `modules/plugins/lists/`: the first-party list and the app's fetched, cached copy of the registry; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry | the plugin host, to serve the signed registry |
+| **Plugin lists** | `modules/plugins/lists/`: the first-party list and the app's fetched, cached copy of the registry; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry | the registry container, to serve the signed registry |
 | **MCP client** | `modules/plugins/remote/`: the MCP client over Streamable HTTP, sign-in, `RemoteMcpSource` | nothing |
 | **Gateway** | `modules/plugins/gateway/`, `installed/`, `routes.py`, the tables, readiness and approval rules, permissions | the MCP client |
 | **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, allowing third-party plugins, permissions, activity | the gateway's routes; can start against their shapes |
 | **opencode** | `modules/agent/plugin_tools/`: the plugin servers and per-tool rules each turn gives opencode, and the listing check for changed tools | the gateway's readiness and approval rules, the MCP client |
 | **`@` mentions** | The agent composer's `@` list, and the mention in `modules/agent/plugin_tools/` | the opencode endpoint |
-| **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one container on Azure Container Apps, its job runner, its deployment and scale rule, Redis, Blob Storage and SearXNG | nothing |
+| **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one container, its job runner, how it is deployed and scaled, Redis, the results' object storage and SearXNG | nothing |
 | **SurfSense scrapers** | `plugins/remote/proprietary/`: the scraping code copied out of `surfsense_backend` as one plugin per platform, their MCP tools, the code they share, the license check | the plugin host; the root `LICENSE` line for `plugins/remote/proprietary/` |
 | **Contributor guide** | [`plugins/README.md`](../../../plugins/README.md), rewritten: building a remote MCP server, trying it with a custom plugin by URL, the registry pull request | the registry's rules |
 | **Bundles** | [`bundles/`](bundles/README.md) | deferred |

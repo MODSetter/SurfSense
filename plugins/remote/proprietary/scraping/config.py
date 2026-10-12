@@ -1,6 +1,6 @@
 """Settings every scraper plugin shares, from SCRAPING_* environment variables.
 
-Secrets come from Key Vault into the environment; none reaches the app.
+Secrets come from the deployment's secret store into the environment; none reaches the app.
 """
 
 import os

@@ -1,5 +1,5 @@
 # syntax=docker.io/docker/dockerfile:1
-# The plugin host: one image for every SurfSense plugin, deployed to Azure Container Apps.
+# The plugin host: one image for every SurfSense plugin, wherever it is deployed.
 #
 # The build context is plugins/, so the image can carry the signed registry beside
 # remote/ once it exists:
