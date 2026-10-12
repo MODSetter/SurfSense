@@ -56,6 +56,18 @@ function disarmLinks(body: HTMLElement): void {
   }
 }
 
+/**
+ * The zoom that fits pages this wide to the frame's viewport, not its element:
+ * that leaves out the frame's own scrollbar, and the zoom on body does not
+ * scale it.
+ */
+function fittedZoom(pages: Document, width: number): number {
+  return Math.min(
+    1,
+    Math.max(MIN_ZOOM, pages.documentElement.clientWidth / width)
+  )
+}
+
 export function DocxViewer({
   artifact,
   actionsContainer,
@@ -70,6 +82,10 @@ export function DocxViewer({
   const [retryKey, setRetryKey] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [hasContent, setHasContent] = useState(false)
+  // What the page is fitted to, and whether it still is: a hand zoom stops the
+  // refit on resize, as in the PDF viewer.
+  const fitWidthRef = useRef<number | null>(null)
+  const fittedRef = useRef(true)
 
   useEffect(() => {
     void retryKey
@@ -81,6 +97,8 @@ export function DocxViewer({
     setLoading(true)
     setError(null)
     setHasContent(false)
+    fitWidthRef.current = null
+    fittedRef.current = true
     pages.body.replaceChildren()
 
     void (async () => {
@@ -177,13 +195,9 @@ export function DocxViewer({
         const page = rendered.querySelector<HTMLElement>(".docx")
         const pageWidth = page?.offsetWidth
         if (pageWidth) {
-          // The frame's viewport, not its element: that leaves out the
-          // frame's own scrollbar, and the zoom on body does not scale it.
           // Comments' balloons fit beside the page.
-          const fit =
-            pages.documentElement.clientWidth /
-            (pageWidth + (placeComments ? COMMENT_GUTTER : 0))
-          setZoom(Math.min(1, Math.max(MIN_ZOOM, fit)))
+          fitWidthRef.current = pageWidth + (placeComments ? COMMENT_GUTTER : 0)
+          setZoom(fittedZoom(pages, fitWidthRef.current))
         }
         setHasContent(true)
       } catch (cause) {
@@ -203,6 +217,21 @@ export function DocxViewer({
     body?.style.setProperty("zoom", String(zoom))
   }, [zoom])
 
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+
+    const observer = new ResizeObserver(() => {
+      const pages = frame.contentDocument
+      const width = fitWidthRef.current
+      if (fittedRef.current && pages && width) {
+        setZoom(fittedZoom(pages, width))
+      }
+    })
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [])
+
   // The pages fill the frame, so Ctrl+wheel lands in its document.
   useEffect(() => {
     const pages = frameRef.current?.contentDocument
@@ -211,6 +240,7 @@ export function DocxViewer({
     const handleWheel = (event: WheelEvent) => {
       if (!event.ctrlKey) return
       event.preventDefault()
+      fittedRef.current = false
       setZoom((current) =>
         Math.min(
           MAX_ZOOM,
@@ -227,10 +257,12 @@ export function DocxViewer({
   }, [])
 
   const zoomIn = useCallback(() => {
+    fittedRef.current = false
     setZoom((current) => Math.min(MAX_ZOOM, current * ZOOM_STEP))
   }, [])
 
   const zoomOut = useCallback(() => {
+    fittedRef.current = false
     setZoom((current) => Math.max(MIN_ZOOM, current / ZOOM_STEP))
   }, [])
 
