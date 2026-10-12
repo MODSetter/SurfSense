@@ -40,7 +40,7 @@ def test_the_packaged_list_passes_its_check() -> None:
     """A bad entry fails CI here, not on a user's machine."""
     assert [entry.id for entry in checked_entries(FIRST_PARTY_LIST)] == [
         "google-search",
-        "web-crawler",
+        "web-crawl",
         "reddit",
         "youtube",
         "instagram",

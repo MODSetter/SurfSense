@@ -19,6 +19,10 @@ dependencies = [
     "youtube-transcript-api>=1.0.3",
     "fake-useragent>=2.2.0",
     "requests>=2.33",
+    # Web Crawl's page text, its markdown and its URL checks.
+    "trafilatura>=2.0.0",
+    "markdownify>=0.14.1",
+    "validators>=0.34.0",
 ]
 
 [dependency-groups]

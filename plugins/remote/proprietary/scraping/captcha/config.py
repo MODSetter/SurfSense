@@ -7,7 +7,7 @@ from proprietary.scraping.config import Config
 # Google's Enterprise /sorry wall measured 27-39 s on capsolver and up to 100 s
 # on 2captcha; past this a solve is abandoned and the next IP tried.
 SOLVE_TIMEOUT_SECONDS = 120
-# What a reCAPTCHA v3 solve asks for; the web crawler's challenges, not Google Search's.
+# What a reCAPTCHA v3 solve asks for; Web Crawl's challenges, not Google Search's.
 V3_MIN_SCORE = 0.7
 V3_ACTION = "verify"
 

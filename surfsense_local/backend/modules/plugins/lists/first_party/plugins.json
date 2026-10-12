@@ -18,13 +18,13 @@
       "access": "license"
     },
     {
-      "id": "web-crawler",
+      "id": "web-crawl",
       "kind": "remote",
       "publisher": "surfsense",
-      "name": "Web Crawler",
+      "name": "Web Crawl",
       "description": "Read a web page, or crawl a whole site into clean text.",
       "author": "SurfSense",
-      "url": "https://plugins.surfsense.com/web-crawler/mcp",
+      "url": "https://plugins.surfsense.com/web-crawl/mcp",
       "auth": {
         "type": "license"
       },

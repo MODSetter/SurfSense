@@ -174,6 +174,7 @@ async def test_a_page_to_read_is_refused_rather_than_searched_for(
 
     assert result.is_error
     assert "gadgets360.com" in result.content[0].text
+    assert "Web Crawl" in result.content[0].text
     assert google == []
 
 

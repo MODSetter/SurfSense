@@ -71,8 +71,9 @@ def server() -> MCPServer:
             # Searched as a term, a page's URL costs a render and finds nothing useful.
             raise ToolError(
                 f"Google Search only searches; {', '.join(pages)} is a page to "
-                "read, not a search. Give search terms, or Google Search URLs "
-                "such as https://www.google.com/search?q=..."
+                "read, not a search. Read it with SurfSense's Web Crawl, if it "
+                "is connected, or give search terms or Google Search URLs such as "
+                "https://www.google.com/search?q=..."
             )
         total = len(queries) * max_pages_per_query
 
