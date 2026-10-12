@@ -56,7 +56,7 @@ function TabsList({
       {variant === "pill" && (
         <TabsPrimitive.Indicator
           data-slot="tabs-indicator"
-          className="absolute top-0 left-0 z-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) translate-y-(--active-tab-top) rounded-md bg-accent transition-[translate,width] duration-250 ease-out motion-reduce:transition-none"
+          className="absolute top-0 left-0 z-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) translate-y-(--active-tab-top) rounded-md bg-card transition-[translate,width] duration-250 ease-out motion-reduce:transition-none dark:bg-accent"
         />
       )}
     </TabsPrimitive.List>
