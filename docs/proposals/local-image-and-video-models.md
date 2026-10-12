@@ -152,7 +152,7 @@ A VAE comes from Comfy-Org's ungated copy when the vendor's repo is gated, as BF
 
 ### One model, for the job that needs it
 
-- **The runtime route answers from Studio's jobs.** `GET /llm/image/local/runtime` answers with the model set for the slot that the oldest running sd.cpp job needs, whether `image_gen`, `image_edit` or `video_gen`. With none running, it keeps the last one for 5 minutes after the last job ended, and then answers none. Electron's existing poll starts, restarts or stops `sd-server` to match ([`index.ts`](../../surfsense_local/electron/src/main/index.ts)).
+- **The runtime route answers from Studio's jobs.** `GET /llm/image/local/runtime` answers with the model set for the slot that the oldest running sd.cpp job needs, whether `image_gen`, `image_edit` or `video_gen`. With none running, it keeps the last one for 5 minutes after the last job ended, and then answers none. Electron's existing poll starts, restarts or stops `sd-server` to match ([`watch-image-model.ts`](../../surfsense_local/electron/src/main/sidecars/watch-image-model.ts)).
 - **Jobs that need the same model share it**; sd-server runs requests one at a time. A job that needs another model waits until it is the oldest. Studio runs four jobs at once ([ADR 0008](../adr/0008-two-job-queues.md)), so without this two jobs could each hold a model.
 - **A job checks the model before it posts.** `GET /sdapi/v1/sd-models` names the file sd-server was launched with, since `/v1/models` always answers `sd-cpp-local`. There is no health route; `GET /` answers once the server is listening.
 - **5 minutes** is the same backstop audio uses, and Ollama's default; SwarmUI clears VRAM after 10. It keeps a second image or an edit right after the first from reloading.

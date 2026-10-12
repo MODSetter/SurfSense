@@ -8,7 +8,7 @@ arguments each model gets, and every byte downloaded from Hugging Face. The
 shaping rule is to assume nothing worked until something says it did, because
 llama.cpp's common failures exit 0 and look like success.
 
-**Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/electron/src/main/sidecars/llamacpp.ts`](../../../surfsense_local/electron/src/main/sidecars/llamacpp.ts), [`surfsense_local/electron/src/main/index.ts`](../../../surfsense_local/electron/src/main/index.ts) (preset watcher), [`surfsense_local/electron/scripts/fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs)
+**Code:** [`surfsense_local/backend/modules/llm/providers/llamacpp/`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/), [`surfsense_local/electron/src/main/sidecars/llamacpp.ts`](../../../surfsense_local/electron/src/main/sidecars/llamacpp.ts), [`surfsense_local/electron/src/main/sidecars/watch-generation-preset.ts`](../../../surfsense_local/electron/src/main/sidecars/watch-generation-preset.ts) (preset watcher), [`surfsense_local/electron/scripts/fetch-llamacpp.mjs`](../../../surfsense_local/electron/scripts/fetch-llamacpp.mjs)
 **Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0012](../../adr/0012-vulkan-only-gpu-backend.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md), [ADR 0049](../../adr/0049-prompts-grow-at-the-end.md)
 
 How each model's window and cache precision are chosen is in
@@ -40,7 +40,7 @@ Router mode is what lets the sidecar boot on a clean machine. Measured at
 returns `{"data":[],"object":"list"}` against an empty directory. A router with
 three models discovered leaves VRAM unchanged from idle, in the plan's router
 lifecycle measurements, which do not record the platform. The directory itself
-must exist: a comment in `electron/src/main/index.ts` records that `llama-server`
+must exist: a comment in `electron/src/main/sidecars/boot.ts` records that `llama-server`
 exits 1 when `--models-dir` does not exist, so Electron creates it before the
 first start.
 
@@ -131,7 +131,7 @@ the app never ships. When the binary is not staged the sidecar does not start.
 Boot waits only on the API's health; the runtime's state shows through
 `GET /llm/providers`.
 
-`watchGenerationPreset()` in `electron/src/main/index.ts` polls the preset's size
+`watchGenerationPreset()` in `electron/src/main/sidecars/watch-generation-preset.ts` polls the preset's size
 and mtime every 5 s and restarts the sidecar on a change, the same shape as
 `watchImageModel()` for sd-server: the API is the authority, and a change is
 user-initiated and rare.
