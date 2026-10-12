@@ -2,9 +2,13 @@
 
 A script is not analysed when the worker is frozen, so whatever it imports, or
 a library imports for it by name, ships only if the spec says so.
+
+SURFSENSE_TEST_FROZEN_WORKER names a worker already frozen, as the release
+workflow's; without it the test freezes one from the spec.
 """
 
 import io
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -54,6 +58,8 @@ with PdfPages(os.environ["OUTPUT_PATH"]) as pages:
 @pytest.fixture(scope="module")
 def frozen_worker(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The worker frozen from bundling/worker.spec, as the installer ships it."""
+    if shipped := os.environ.get("SURFSENSE_TEST_FROZEN_WORKER"):
+        return Path(shipped).resolve()
     build = tmp_path_factory.mktemp("frozen-worker")
     subprocess.run(
         [
