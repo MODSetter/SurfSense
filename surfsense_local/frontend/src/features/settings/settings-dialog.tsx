@@ -208,6 +208,7 @@ function GeneralSettings({
 const SETTINGS_SECTIONS = [
   { id: "general", group: "settings", icon: Settings2Icon },
   { id: "license", group: "settings", icon: LicenseIcon },
+  { id: "plugins", group: "settings", icon: PlugIcon },
   { id: "chat-models", group: "models", icon: Chat01Icon },
   { id: "image-models", group: "models", icon: Image01Icon },
   { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
@@ -217,7 +218,6 @@ const SETTINGS_SECTIONS = [
   { id: "resources", group: "system", icon: CpuIcon },
   { id: "office-support", group: "system", icon: File02Icon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
-  { id: "plugins", group: "system", icon: PlugIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
