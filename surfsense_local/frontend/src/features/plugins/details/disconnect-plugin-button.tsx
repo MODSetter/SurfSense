@@ -29,7 +29,7 @@ export function DisconnectPluginButton({
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            variant="secondary"
             aria-label={intl.formatMessage(
               {
                 id: "plugins_disconnect_trigger_aria",

@@ -736,7 +736,7 @@
   "onboarding_welcome_body": "Un carnet de recherche privé qui fonctionne entièrement sur votre propre machine. Vos documents, vos clés de modèle, sans cloud, sans compte.",
   "onboarding_welcome_start_button": "Commencer la configuration",
   "onboarding_welcome_title": "L’<accent>alternative à NotebookLM</accent> air-gapped et open source",
-  "plugins_actions_check_label": "Vérifier",
+  "plugins_actions_check_label": "Actualiser les outils",
   "plugins_actions_remove_label": "Supprimer",
   "plugins_actions_trigger_aria": "Plus d’actions pour {plugin}",
   "plugins_add_body": "Un serveur MCP distant, joint par son URL. SurfSense liste ses outils avant de l’ajouter.",

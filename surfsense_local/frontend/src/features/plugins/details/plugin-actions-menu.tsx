@@ -52,7 +52,7 @@ export function PluginActionsMenu({
                 <RefreshCwIcon />
                 {intl.formatMessage({
                   id: "plugins_actions_check_label",
-                  defaultMessage: "Check now",
+                  defaultMessage: "Refresh tools",
                 })}
               </DropdownMenuItem>
             </DropdownMenuGroup>

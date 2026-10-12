@@ -660,7 +660,7 @@ describe("plugins settings", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent)
-    ).toEqual(["Check now", "Remove"])
+    ).toEqual(["Refresh tools", "Remove"])
   })
 
   it("disconnects only once the user confirms, keeping the plugin to connect again", async () => {
@@ -796,7 +796,7 @@ describe("plugins settings", () => {
     const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Couldn’t connect")).toBeTruthy()
     const menu = await actions(user, plugin, "Notes")
-    await user.click(within(menu).getByRole("menuitem", { name: "Check now" }))
+    await user.click(within(menu).getByRole("menuitem", { name: "Refresh tools" }))
 
     expect(await within(plugin).findByText("Connected")).toBeTruthy()
     expect(changes(calls)).toEqual([

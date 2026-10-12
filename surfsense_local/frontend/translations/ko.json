@@ -736,7 +736,7 @@
   "onboarding_welcome_body": "전적으로 내 컴퓨터에서 실행되는 비공개 리서치 노트북입니다. 문서도 모델 키도 내 것이며, 클라우드도 계정도 없습니다.",
   "onboarding_welcome_start_button": "설정 시작",
   "onboarding_welcome_title": "에어갭 지원 오픈소스 <accent>NotebookLM 대안</accent>",
-  "plugins_actions_check_label": "지금 확인",
+  "plugins_actions_check_label": "도구 새로 고침",
   "plugins_actions_remove_label": "제거",
   "plugins_actions_trigger_aria": "{plugin} 추가 작업",
   "plugins_add_body": "URL로 연결하는 원격 MCP 서버입니다. SurfSense는 추가하기 전에 도구 목록을 확인합니다.",

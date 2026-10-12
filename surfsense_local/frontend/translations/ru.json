@@ -736,7 +736,7 @@
   "onboarding_welcome_body": "Личный исследовательский блокнот, который работает целиком на вашей машине. Ваши документы, ваши ключи моделей, без облака и без аккаунта.",
   "onboarding_welcome_start_button": "Начать настройку",
   "onboarding_welcome_title": "<accent>Аналог NotebookLM</accent> с открытым исходным кодом, изолированный от сети",
-  "plugins_actions_check_label": "Проверить",
+  "plugins_actions_check_label": "Обновить инструменты",
   "plugins_actions_remove_label": "Удалить",
   "plugins_actions_trigger_aria": "Другие действия для {plugin}",
   "plugins_add_body": "Удалённый MCP-сервер, доступный по URL. SurfSense получает список его инструментов перед добавлением.",

@@ -736,7 +736,7 @@
   "onboarding_welcome_body": "एक निजी रिसर्च नोटबुक जो पूरी तरह आपकी अपनी मशीन पर चलती है। आपके दस्तावेज़, आपकी मॉडल कुंजियां, न कोई क्लाउड, न कोई खाता।",
   "onboarding_welcome_start_button": "सेटअप शुरू करें",
   "onboarding_welcome_title": "एयर-गैप्ड, ओपन सोर्स <accent>NotebookLM विकल्प</accent>",
-  "plugins_actions_check_label": "अभी जाँचें",
+  "plugins_actions_check_label": "टूल रीफ़्रेश करें",
   "plugins_actions_remove_label": "हटाएं",
   "plugins_actions_trigger_aria": "{plugin} के लिए और कार्रवाइयां",
   "plugins_add_body": "URL से पहुँचने वाला रिमोट MCP सर्वर। जोड़ने से पहले SurfSense उसके टूल की सूची देखता है।",

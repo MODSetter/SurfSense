@@ -736,7 +736,7 @@
   "onboarding_welcome_body": "完全に自分のマシン上で動作するプライベートなリサーチノートブックです。ドキュメントもモデルのキーも手元に。クラウドもアカウントも不要です。",
   "onboarding_welcome_start_button": "セットアップを始める",
   "onboarding_welcome_title": "エアギャップ対応、オープンソースの<accent>NotebookLMの代替</accent>",
-  "plugins_actions_check_label": "今すぐ確認",
+  "plugins_actions_check_label": "ツールを更新",
   "plugins_actions_remove_label": "削除",
   "plugins_actions_trigger_aria": "{plugin}のその他の操作",
   "plugins_add_body": "URLで接続するリモートのMCPサーバーです。SurfSenseは追加する前にツールを一覧表示します。",
