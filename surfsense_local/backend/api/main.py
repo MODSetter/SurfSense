@@ -17,6 +17,8 @@ from modules.agent.model_endpoint.responses_relay.router import (
     router as agent_responses_router,
 )
 from modules.agent.model_endpoint.router import router as agent_model_router
+from modules.agent.plugin_proxy.server import serving_plugin_proxy
+from modules.agent.plugin_tools.router import router as plugin_steps_router
 from modules.agent.previews.router import file_router as agent_preview_files_router
 from modules.agent.previews.router import router as agent_previews_router
 from modules.agent.tool_endpoint.router import router as agent_tools_router
@@ -50,6 +52,9 @@ from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
+from modules.plugins.lists.registry.routes import router as plugin_registry_router
+from modules.plugins.remote.sign_in.oauth.routes import router as plugin_oauth_router
+from modules.plugins.routes import router as plugins_router
 from modules.resource_usage.router import router as resource_usage_router
 from modules.runtime_packs.office.router import router as office_pack_router
 from modules.source_scope.router import router as source_scope_router
@@ -123,9 +128,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
-        yield
+        async with _plugin_proxy(session_factory):
+            yield
     finally:
         engine.dispose()
+
+
+@asynccontextmanager
+async def _plugin_proxy(session_factory: sessionmaker[Session]) -> AsyncIterator[None]:
+    """opencode's way out, beside an opencode only: without it, opencode reaches no plugin."""
+    agent = get_agent_settings()
+    if not agent.has_opencode() or agent.plugin_proxy_port is None:
+        yield
+        return
+    host = get_settings().host
+    async with serving_plugin_proxy(session_factory, host, agent.plugin_proxy_port):
+        yield
 
 
 def _finish_folder_deletes(session_factory: sessionmaker[Session]) -> None:
@@ -211,12 +229,17 @@ def create_app() -> FastAPI:
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
     app.include_router(office_pack_router)
+    # Before `/plugins/{id}/...`, which would otherwise take `registry` for an id.
+    app.include_router(plugin_registry_router)
+    app.include_router(plugin_oauth_router)
+    app.include_router(plugins_router)
     # Routes only opencode calls, or that answer it, exist only beside one.
     if get_agent_settings().has_opencode():
         app.include_router(agent_model_router)
         app.include_router(agent_responses_router)
         app.include_router(agent_tools_router)
         app.include_router(agent_threads_router)
+        app.include_router(plugin_steps_router)
         app.include_router(agent_previews_router)
         app.include_router(agent_preview_files_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
@@ -256,6 +279,8 @@ def egress_denied(_request: Request, error: EgressDeniedError) -> JSONResponse:
                 "message": str(error),
                 "destination": error.destination,
                 "host": error.host,
+                "hosts": error.hosts,
+                "purpose": error.purpose,
             }
         },
         status.HTTP_403_FORBIDDEN,

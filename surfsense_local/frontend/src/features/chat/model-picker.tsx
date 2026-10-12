@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -231,10 +232,14 @@ export function ModelPicker({
                             </span>
                           ) : null}
                         </span>
-                        {candidate.capability_level ? (
-                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {/* Dev builds only; production never shows this badge. */}
+                        {import.meta.env.DEV && candidate.capability_level ? (
+                          <Badge
+                            variant="secondary"
+                            className="h-4 px-1.5 text-[10px]"
+                          >
                             {capabilityLabel(candidate.capability_level)}
-                          </span>
+                          </Badge>
                         ) : null}
                       </DropdownMenuRadioItem>
                     )

@@ -1,33 +1,29 @@
-import type { ReactNode } from "react"
+import { Fragment } from "react"
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  BotIcon,
-  Chat01Icon,
-  ChevronDownIcon,
-  PlusIcon,
-} from "@/components/ui/icons"
+import { BotIcon, Chat01Icon, ChevronDownIcon } from "@/components/ui/icons"
+import { Badge } from "@/components/ui/badge"
 import type { ChatMode, ChatModes } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
-import { HINTED_ROW_CLASS } from "../menu-item-hint"
+import { HINTED_ROW_CLASS, MenuItemHint } from "../menu-item-hint"
 import { modelControlButtonClassName } from "../model-picker"
 import {
   agenticBlockedText,
+  agenticReasonTag,
   agenticReasonText,
-  modeDescription,
   modeLabel,
+  modeShortDescription,
 } from "./mode-text"
 import {
   useChatModes,
@@ -81,35 +77,17 @@ export function ModePicker({
                 defaultMessage: "Mode for this chat",
               })}
             </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
+            <ModeList
+              modes={modes}
               value={newChatMode}
-              onValueChange={(next) => pick(model, next as ChatMode)}
-            >
-              {(["basic", "agentic"] as const).map((mode) => (
-                <DropdownMenuRadioItem
-                  key={mode}
-                  value={mode}
-                  closeOnClick
-                  disabled={mode === "agentic" && !modes.agentic_allowed}
-                  className={cn("items-start", HINTED_ROW_CLASS)}
-                >
-                  <ModeRow
-                    mode={mode}
-                    label={modeLabel(mode)}
-                    detail={modeDescription(mode)}
-                    note={mode === "agentic" ? agenticNote(modes) : null}
-                  />
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
+              onPick={(mode) => pick(model, mode)}
+            />
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     )
   }
 
-  const other: ChatMode = threadMode === "agentic" ? "basic" : "agentic"
-  const otherBlocked = other === "agentic" && !modes.agentic_allowed
   return (
     <DropdownMenu>
       <ModeTrigger
@@ -127,41 +105,91 @@ export function ModePicker({
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
-            {intl.formatMessage(
-              {
-                id: "chat_mode_picker_kept_label",
-                defaultMessage:
-                  "{mode, select, agentic {This chat runs in Agentic mode} other {This chat runs in Basic (Q&A) mode}}",
-              },
-              { mode: threadMode }
-            )}
+            {intl.formatMessage({
+              id: "chat_mode_picker_open_chat_label",
+              defaultMessage: "This chat’s mode",
+            })}
           </DropdownMenuLabel>
-          <DropdownMenuItem
-            disabled={otherBlocked}
-            className={cn("items-start", HINTED_ROW_CLASS)}
-            onClick={() => {
-              pick(model, other)
+          <ModeList
+            modes={modes}
+            value={threadMode}
+            // A chat keeps its mode, so the other one opens a new chat.
+            onPick={(mode) => {
+              if (mode === threadMode) return
+              pick(model, mode)
               onNewChat?.()
             }}
-          >
-            <ModeRow
-              mode={other}
-              icon={<PlusIcon className="mt-0.5" />}
-              label={intl.formatMessage(
-                {
-                  id: "chat_mode_picker_start_new_label",
-                  defaultMessage:
-                    "{mode, select, agentic {Start a new chat in Agentic mode} other {Start a new chat in Basic (Q&A) mode}}",
-                },
-                { mode: other }
-              )}
-              detail={modeDescription(other)}
-              note={other === "agentic" ? agenticNote(modes) : null}
-            />
-          </DropdownMenuItem>
+            otherOpensNewChat
+          />
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/** Basic and Agentic as radio rows, the same in a new chat and an open one. */
+function ModeList({
+  modes,
+  value,
+  onPick,
+  otherOpensNewChat = false,
+}: {
+  modes: ChatModes
+  value: ChatMode
+  onPick: (mode: ChatMode) => void
+  otherOpensNewChat?: boolean
+}) {
+  return (
+    <DropdownMenuRadioGroup
+      value={value}
+      onValueChange={(next) => onPick(next as ChatMode)}
+    >
+      {(["basic", "agentic"] as const).map((mode) => {
+        // Agentic's score or gate, said beside the menu as the add menu says
+        // why a row is held.
+        const hint = mode === "agentic" ? agenticNote(modes) : null
+        const opensNewChat = otherOpensNewChat && mode !== value
+        const item = (
+          <DropdownMenuRadioItem
+            value={mode}
+            closeOnClick
+            disabled={mode === "agentic" && !modes.agentic_allowed}
+            className={cn(
+              "items-start",
+              HINTED_ROW_CLASS,
+              opensNewChat && "pr-2"
+            )}
+          >
+            <ModeRow
+              mode={mode}
+              label={modeLabel(mode)}
+              detail={modeShortDescription(mode)}
+              tag={
+                mode === "agentic" && modes.agentic_allowed
+                  ? agenticReasonTag(modes.reason)
+                  : null
+              }
+              hint={hint}
+            />
+            {opensNewChat ? (
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {intl.formatMessage({
+                  id: "chat_mode_picker_opens_new_chat_label",
+                  defaultMessage: "New chat",
+                })}
+              </span>
+            ) : null}
+          </DropdownMenuRadioItem>
+        )
+        return hint ? (
+          <MenuItemHint key={mode} hint={hint}>
+            {item}
+          </MenuItemHint>
+        ) : (
+          <Fragment key={mode}>{item}</Fragment>
+        )
+      })}
+    </DropdownMenuRadioGroup>
   )
 }
 
@@ -205,27 +233,33 @@ function ModeTrigger({
 
 function ModeRow({
   mode,
-  icon,
   label,
   detail,
-  note,
+  tag,
+  hint,
 }: {
   mode: ChatMode
-  icon?: ReactNode
   label: string
   detail: string
-  note: string | null
+  tag?: string | null
+  // The row's tooltip, which screen readers cannot see.
+  hint?: string | null
 }) {
   const Icon = MODE_ICON[mode]
   return (
     <>
-      {icon ?? <Icon className="mt-0.5" />}
+      <Icon className="mt-0.5" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span>{label}</span>
+        <span className="flex items-center gap-1.5">
+          <span>{label}</span>
+          {tag ? (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+              {tag}
+            </Badge>
+          ) : null}
+        </span>
         <span className="text-xs text-muted-foreground">{detail}</span>
-        {note ? (
-          <span className="text-xs text-muted-foreground">{note}</span>
-        ) : null}
+        {hint ? <span className="sr-only">{hint}</span> : null}
       </span>
     </>
   )

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ApprovalDialog } from "@/features/agent/approval-dialog"
+import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
 import { toast } from "sonner"
 import {
   CircleAlertIcon,
@@ -470,46 +470,48 @@ function WorkspaceDashboard({
             controls={LEFT_COLUMN_ID}
           />
           <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
-            <ApprovalDialog
-              request={chat.approvals[0] ?? null}
-              othersWaiting={Math.max(0, chat.approvals.length - 1)}
-              onAnswer={chat.answerApproval}
-            />
-            <ThreadPanel
-              live={chat.liveThread}
-              thread={chat.activeThread}
-              view={chat.conversationView}
-              model={selection}
-              isLoading={chat.isLoadingMessages}
-              isRunning={chat.isRunning}
-              animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
-              providerAvailable={providerAvailable}
-              notice={
-                modelIssue ? (
-                  <ModelIssueNotice
-                    issue={modelIssue}
-                    onAllow={needsConsent ? onAllowModelIssue : undefined}
-                    onOpenSettings={onModelIssueSettings}
-                  />
-                ) : null
-              }
-              blockedPlaceholder={composerHold}
-              onCitation={onCitation}
-              onModelSetup={onModelRequired}
-              onModelSelected={onModelSelected}
-              onRetry={chat.retry}
-              onNewChat={startNewChat}
-              sourceCount={sources.includedDocumentIds.length}
-              onUploadSources={(files) => void sources.upload(files)}
-              isUploadingSources={sources.isUploading}
-              onTitleAnimationComplete={chat.finishTitleAnimation}
-              autoNamingThreadId={chat.autoNamingThreadId}
-              onRename={chat.rename}
-              onDelete={async (threadId) => {
-                if (threadId === chat.activeThreadId) closeInspect()
-                await chat.removeThread(threadId)
-              }}
-            />
+            <AgentApprovalsProvider
+              approvals={chat.approvals}
+              answer={chat.answerApproval}
+            >
+              <ThreadPanel
+                live={chat.liveThread}
+                thread={chat.activeThread}
+                view={chat.conversationView}
+                model={selection}
+                isLoading={chat.isLoadingMessages}
+                isRunning={chat.isRunning}
+                animateTitle={
+                  chat.activeThreadId === chat.animatingTitleThreadId
+                }
+                providerAvailable={providerAvailable}
+                notice={
+                  modelIssue ? (
+                    <ModelIssueNotice
+                      issue={modelIssue}
+                      onAllow={needsConsent ? onAllowModelIssue : undefined}
+                      onOpenSettings={onModelIssueSettings}
+                    />
+                  ) : null
+                }
+                blockedPlaceholder={composerHold}
+                onCitation={onCitation}
+                onModelSetup={onModelRequired}
+                onModelSelected={onModelSelected}
+                onRetry={chat.retry}
+                onNewChat={startNewChat}
+                sourceCount={sources.includedDocumentIds.length}
+                onUploadSources={(files) => void sources.upload(files)}
+                isUploadingSources={sources.isUploading}
+                onTitleAnimationComplete={chat.finishTitleAnimation}
+                autoNamingThreadId={chat.autoNamingThreadId}
+                onRename={chat.rename}
+                onDelete={async (threadId) => {
+                  if (threadId === chat.activeThreadId) closeInspect()
+                  await chat.removeThread(threadId)
+                }}
+              />
+            </AgentApprovalsProvider>
           </div>
           {/* Collapsed, the rail has no edge to drag. */}
           {rightPanelOpen ? (

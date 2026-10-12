@@ -2,7 +2,7 @@
 
 Hugging Face allows 500 requests per 5 minutes; a burst of typing must not
 spend them. In memory and forgetful: a cached answer is a convenience, never
-a record. Shaped like the install TicketStore, keyed on query and limit.
+a record. Shaped like the install TicketStore.
 """
 
 import time
@@ -13,11 +13,20 @@ from modules.llm.catalog.local.engines.llamacpp.search.hits import SearchHit
 # The same window the renderer's search cache uses.
 TTL_SECONDS = 300.0
 
+# The API caps limit at 50, so the key does too: a larger limit asks for the
+# same answer.
+MAX_LIMIT = 50
+
 
 @dataclass(frozen=True)
 class _Entry:
-    hits: list[SearchHit]
+    hits: tuple[SearchHit, ...]
     stored_at: float
+
+
+def _key(query: str, limit: int) -> tuple[str, int]:
+    # Hugging Face search ignores case, so the key does as well.
+    return (query.strip().casefold(), min(limit, MAX_LIMIT))
 
 
 class SearchCache:
@@ -29,8 +38,9 @@ class SearchCache:
         self, query: str, limit: int, *, now: float | None = None
     ) -> list[SearchHit] | None:
         self._expire(now)
-        entry = self._entries.get((query, limit))
-        return entry.hits if entry is not None else None
+        entry = self._entries.get(_key(query, limit))
+        # A fresh list per caller: nobody mutates another caller's answer.
+        return list(entry.hits) if entry is not None else None
 
     def put(
         self,
@@ -41,8 +51,8 @@ class SearchCache:
         now: float | None = None,
     ) -> None:
         self._expire(now)
-        self._entries[(query, limit)] = _Entry(
-            hits, now if now is not None else time.monotonic()
+        self._entries[_key(query, limit)] = _Entry(
+            tuple(hits), now if now is not None else time.monotonic()
         )
 
     def _expire(self, now: float | None) -> None:

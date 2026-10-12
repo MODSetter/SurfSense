@@ -8,7 +8,8 @@ model declares `mistral3`, a voice model `qwen3`.
 
 import pytest
 
-from modules.llm.catalog.local.classifier import GROUPS, classify
+from modules.llm.catalog.local.classifier import GROUPS, NotRunnableCode, classify
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.model_type import ModelType
 
 pytestmark = pytest.mark.unit
@@ -140,3 +141,32 @@ def test_a_bare_audio_cpp_file_is_not_offered_from_search() -> None:
     assert classification.reason == (
         "This model runs on audio.cpp. SurfSense runs only the voices in its list."
     )
+
+
+def test_every_refusal_has_a_code_and_a_chat_model_has_none() -> None:
+    """The interface words a refusal by its code; a model that runs has neither."""
+    for name in GROUPS:
+        found = classify(name)
+        assert found.code in set(NotRunnableCode), name
+        assert found.code is not NotRunnableCode.UNSUPPORTED, name
+    assert classify("qwen3", "text-generation").code is None
+    assert classify("qwen3", readable=False).code is None
+
+
+def test_a_code_names_one_sentence_and_a_sentence_one_code() -> None:
+    """A translation is keyed by the code, so two sentences under one code
+    would show the wrong one in every language but English."""
+    pairs = {(group.code, group.reason) for group in GROUPS.values()}
+
+    assert len({code for code, _ in pairs}) == len(pairs)
+    assert len({reason for _, reason in pairs}) == len(pairs)
+    # Every code but the fallback, which no group uses.
+    assert {code for code, _ in pairs} == set(NotRunnableCode) - {
+        NotRunnableCode.UNSUPPORTED
+    }
+
+
+def test_a_refusal_code_is_never_an_install_code() -> None:
+    """An install refused for what the file is carries the classifier's code
+    where its own would go, so the interface must be able to tell them apart."""
+    assert not {c.value for c in NotRunnableCode} & {c.value for c in InstallCode}

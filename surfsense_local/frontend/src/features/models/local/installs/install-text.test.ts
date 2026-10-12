@@ -78,6 +78,19 @@ describe("what an install event says", () => {
     ).toBe(message)
   })
 
+  it("words a refusal for what the file is as the catalog's rows do", () => {
+    // The refusal carries the classifier's code where an install's own goes.
+    expect(
+      installMessage({
+        type: "error",
+        message: "backend prose",
+        code: "embedder",
+      })
+    ).toBe(
+      "This model turns text into numbers for search. It cannot answer questions, and SurfSense already has its own."
+    )
+  })
+
   it("says nothing for an event with neither a code nor a message", () => {
     expect(installMessage({ type: "verifying" })).toBe("")
   })

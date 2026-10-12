@@ -167,6 +167,7 @@ def row_read(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
         },
         "runnable": row.runnable,
         "not_runnable_reason": row.not_runnable_reason,
+        "not_runnable_code": row.not_runnable_code,
         "builds": [_build(build, in_use) for build in row.builds],
         "default_quantization": row.default_quantization,
         "recommended": row.recommended,

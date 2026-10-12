@@ -12,7 +12,7 @@ Desktop app plus scraper API. Five trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
-| `plugins` | Plugins, ours and contributed, and in `core/` what maintainers own: the SDK and the plugin tooling. Being built from the [proposal](docs/proposals/plugins/README.md) |
+| `plugins` | SurfSense's own plugin servers and the registry, being built from the [proposal](docs/proposals/plugins/README.md). `bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
 The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
@@ -66,11 +66,15 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
-# plugins: the manifest rules, the SDK, the surfsense-plugins command
-cd plugins/core/manifest && uv sync
-cd plugins/core/sdk && uv sync
-cd plugins/core/sdk && uv run pyright
-cd plugins/core/cli && uv sync
+# plugin host: SurfSense's own plugins, from plugins/remote/
+cd plugins/remote/host && uv sync
+cd plugins/remote && uv run --project host python -m host
+
+# bundles (deferred): the manifest rules, the SDK, the surfsense-plugins command
+cd plugins/bundles/core/manifest && uv sync
+cd plugins/bundles/core/sdk && uv sync
+cd plugins/bundles/core/sdk && uv run pyright
+cd plugins/bundles/core/cli && uv sync
 
 # compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
@@ -88,10 +92,11 @@ pre-commit run --all-files
 | Web unit | `cd surfsense_web && pnpm test:unit` |
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
-| Plugins: manifest rules | `cd plugins/core/manifest && uv run pytest -m unit` |
-| Plugins: SDK | `cd plugins/core/sdk && uv run pytest -m unit` |
-| Plugins: SDK against the app | `cd plugins/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
-| Plugins: CLI | `cd plugins/core/cli && uv run pytest` (starts the backend; `uv sync` it first) |
+| Plugin host | `cd plugins/remote/host && uv run pytest` |
+| Bundles: manifest rules | `cd plugins/bundles/core/manifest && uv run pytest -m unit` |
+| Bundles: SDK | `cd plugins/bundles/core/sdk && uv run pytest -m unit` |
+| Bundles: SDK against the app | `cd plugins/bundles/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
+| Bundles: CLI | `cd plugins/bundles/core/cli && uv run pytest` (starts the backend; `uv sync` it first) |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 
@@ -103,7 +108,7 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md). The parts agents miss:
 - `gh pr create --body` skips the PR template. Keep its headings: What, Why, `Fixes #`, How to test.
 - Commit messages and PR titles are Conventional Commits, `type(scope): summary`. The commitizen hook runs only where it is installed; CI does not run it.
 - A new feature starts as a proposal PR in `docs/proposals/`, not as code.
-- `surfsense_backend/app/proprietary/` is Business Source License 1.1: ask a maintainer before changing it. A change to `docs/contracts/` needs the owners of both sides.
+- `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/` are Business Source License 1.1 and changed only by maintainers: ask one before changing them. A change to `docs/contracts/` needs the owners of both sides.
 
 ## Skills
 
@@ -141,7 +146,7 @@ its lock entry is valid.
 
 - Do not carve hosted code out of backend/web until the purge on 18 Oct 2026. The export window and the purge script run on that code until then.
 - Do not drop SearxNG, sandbox, OpenSandbox, or zero-cache from compose until a new compose is defined.
-- Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category.
+- Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category. Make the same change in every `README.<locale>.md`, section for section; [`06-repo-readme.md`](plans/community-local/seo/06-repo-readme.md#the-readme-since-9-oct-2026) has the rules, where each format-table cell is checked, and how to replace the demo video.
 - Do not commit, push or open a PR unless asked.
 
 ## Security

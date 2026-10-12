@@ -126,6 +126,8 @@ export function toRuntimeMessage(
         queue: message.content.queue ?? null,
         preparing: message.content.preparing ?? null,
         scope: message.content.scope ?? null,
+        unavailablePlugins: message.content.unavailable_plugins ?? null,
+        threadId,
       },
     },
   }

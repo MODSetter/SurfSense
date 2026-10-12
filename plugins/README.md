@@ -1,110 +1,88 @@
 # Plugins
 
-A plugin adds something to SurfSense: a sidebar action that fetches, converts or writes documents into the user's workspace. Each plugin is a folder here, `plugins/<id>/`, and you add one with a pull request. It ships with the next SurfSense release, and users install it from the app.
+A plugin is a remote [MCP](https://modelcontextprotocol.io) server that gives SurfSense's agent tools. You host the server; SurfSense lists it, asks the user before connecting, and calls it. Any MCP server that works in other MCP clients works here unchanged. The design is the [plugins proposal](../docs/proposals/plugins/README.md).
 
-Thank you for writing one. This guide takes you from nothing to a plugin running in your own SurfSense, then covers what to know before opening the pull request. [`example/`](example/) is a complete plugin to read alongside it: it counts the words in a text, uses a library, and remembers how many notes it has added.
-
-## Your first plugin
-
-Once, from the repository root, install the command every step uses:
-
-```
-uv tool install --editable plugins/core/cli
-```
-
-If your shell cannot find `surfsense-plugins` afterwards, uv printed the folder it installed into: add that folder to your `PATH`. This happens in the terminal of an editor installed as a snap. You can also skip the install and put `uv run --project plugins/core/cli` in front of every command.
-
-Then:
-
-| Step | Command |
+| Folder | What it holds |
 |---|---|
-| Start a plugin | `surfsense-plugins new hn-search` |
-| Add a library it needs | `surfsense-plugins add hn-search requests` |
-| Drop one it no longer needs | `surfsense-plugins remove hn-search requests` |
-| Try it in your SurfSense | `surfsense-plugins invoke hn-search add-note --input text="Hello"` |
+| [`registry/`](registry/) | The list of third-party plugins, their icons, the check every entry passes, and the container that serves them |
+| [`remote/`](remote/) | SurfSense's own plugins and the plugin host that runs them. Maintainers only for `remote/proprietary/` |
+| [`bundles/`](bundles/README.md) | Deferred. The earlier, local design's SDK and tooling, kept for plugins that run on the user's machine |
 
-`new` lays out a plugin that runs as it is, so you can `invoke` it before changing a line. `invoke` needs SurfSense running: start it with `pnpm dev` in `surfsense_local/electron`, and `invoke` finds it on its own. The note it adds appears in your Sources.
+The rest of this page is for publishers: companies and developers listing their own MCP server.
 
-Every command explains itself with `--help`.
+## 1. Build a server
 
-## What a plugin folder holds
+- **Remote, over Streamable HTTP, on HTTPS.** SurfSense does not run servers started by a command (`npx`, `uvx`), and does not speak the legacy SSE transport. Any official MCP SDK serves Streamable HTTP.
+- **Protocol `2025-11-25` or newer.** SurfSense also speaks `2026-07-28`.
+- **Stateless if you can.** A server that keeps no session between requests survives restarts and scaling, and loses nothing when SurfSense reconnects it, as it does when a sign-in token is refreshed.
+- **Annotate every tool.** `readOnlyHint` and `destructiveHint` decide whether SurfSense asks the user before a call. A tool that says neither may destroy, as MCP's defaults say, so it asks before every call; a read-only one, or one marked `destructiveHint: false`, asks until the user chooses to always allow it.
+- **Describe tools for a model.** Say what the tool does and when to use it, as briefly as that allows: every description reaches the model on every turn. Instructions aimed at the model, such as "always call this first", are rejected in review.
+- **Sign-in**, one of:
 
+  | `auth` | The user | Your server receives |
+  |---|---|---|
+  | `none` | Does nothing | No credentials |
+  | `token` | Pastes a key you give them | `Authorization: Bearer <key>` |
+  | `oauth` | Signs in on your page in their browser | `Authorization: Bearer <access token>` |
+
+  OAuth follows [MCP's authorization spec](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization): serve protected resource metadata, and support Client ID Metadata Documents or dynamic client registration. SurfSense signs in as `https://plugins.surfsense.com/oauth/client.json` and redirects to `https://plugins.surfsense.com/oauth/callback`. If you only accept clients registered in advance, register SurfSense with those values and put the client id in your entry's `auth.client_id`. SurfSense is a public client: it never holds a client secret.
+
+## 2. Try it in SurfSense
+
+You need no listing to try your server:
+
+1. Settings → Plugins → turn on **Allow third-party plugins**.
+2. **Add MCP server**, with its URL and, if it needs one, a key.
+3. Allow the tools you want, then ask the agent to use them in an Agentic thread.
+
+A server added this way is marked third-party, not reviewed by SurfSense, and stays on that one computer.
+
+## 3. List it
+
+Open a pull request into `dev` that adds your entry to [`registry/plugins.json`](registry/plugins.json) and your icon to [`registry/icons/`](registry/icons/).
+
+```json
+{
+  "id": "acme-docs",
+  "kind": "remote",
+  "publisher": "community",
+  "name": "Acme Docs",
+  "description": "Search and read Acme's public documentation.",
+  "author": "Acme Inc.",
+  "url": "https://mcp.acme.example/mcp",
+  "auth": { "type": "none" },
+  "hosts": ["mcp.acme.example"],
+  "access": "free",
+  "privacy_policy": "https://acme.example/privacy",
+  "homepage": "https://acme.example",
+  "icon": "acme-docs.svg"
+}
 ```
-plugins/hn-search/
-  manifest.json       what the app must know before it runs the plugin
-  main.py             where SurfSense starts it; it imports your actions
-  hn_search/          your code, in a package named after the plugin
-  requirements.in     the libraries you asked for, written by add and remove
-  requirements.txt    every version and file hash, never edited by hand
+
+- **`id`**: lowercase letters, digits and hyphens, unique, never reused once listed.
+- **`publisher`**: `community`. `partner` (shown as "Verified") needs evidence in the pull request that you speak for the company that runs the server.
+- **`hosts`**: every host SurfSense contacts for your plugin: your server's, and for OAuth your authorization server's. The user consents to each.
+- **`access`**: `free`, or `external` with an `access_note` saying what the user must buy or have.
+- **`privacy_policy`**: required. The user's requests and credentials reach your server, so this is yours, not your API provider's.
+- **`icon`**: SVG or PNG, square, at most 32 KB; PNG at least 64×64; SVG with no scripts, event handlers or external references. Without one, SurfSense shows your name's first letter.
+
+The full rules are in the [registry proposal](../docs/proposals/plugins/core/02-registry.md#two-lists).
+
+### What happens to your pull request
+
+1. **CI checks the entry** against the rules above, and your icon.
+2. **A maintainer reviews it once**: they connect your plugin, signing in if it needs it, and check who runs the server, what its tools do, that no description carries instructions aimed at the model, that `hosts` is complete, and that the privacy policy is real.
+3. **Once merged into `dev`**, CI signs the list. It is published at `plugins.surfsense.com/plugins.json` with SurfSense's next release from `dev` to `main`, and reaches every app that allows third-party plugins with no app update.
+
+To run the same check yourself, from `plugins/registry/check/`:
+
+```bash
+uv sync
+uv run python -m registry_check static   # the entry rules and your icon
 ```
 
-Put your code in a package named after the plugin, as `new` does. A module of your own named like a standard-library module or a library, such as `json.py`, would clash with it.
+## 4. After it is listed
 
-`manifest.json`:
-
-| Field | What it is |
-|---|---|
-| `id` | The folder's name: lowercase letters, digits and `-` |
-| `name`, `description` | What the app and the plugin directory show: up to 80 and 200 characters |
-| `author` | Your name, as you want it shown |
-| `access` | `free` |
-| `hosts` | Every host the plugin reaches, such as `hn.algolia.com`. The user allows them before its first run. |
-| `secrets` | What the user enters once in Settings, such as an API token: `name`, `title`, and an optional `description` saying where to get it |
-| `actions` | What the user can run: `name`, `title`, `inputs`, and an optional `timeout_seconds`, 1800 when left out |
-| `platforms` | Optional: only when the plugin cannot run on every system SurfSense supports |
-
-An input is `{ "name", "title", "kind", "required" }`, with `kind` one of `string`, `number` or `boolean`. You never write a version: the release sets it.
-
-## Writing the code
-
-```python
-from surfsense_plugin_sdk import action, data, document, http, secret
-
-
-@action("search")
-def search(query: str) -> None:
-    response = http.get(
-        "https://hn.algolia.com/api/v1/search",
-        params={"query": query},
-        headers={"Authorization": f"Bearer {secret('token')}"},
-    )
-    for hit in response.json()["hits"]:
-        document.add(title=hit["title"], content=hit.get("story_text") or hit["title"])
-```
-
-- `@action("search")` marks the function the app runs for the action `manifest.json` names `search`.
-- Inputs arrive as keyword arguments named after the declared inputs. A `string` arrives as `str`, a `number` as `int` or `float`, so annotate it `float`, and a `boolean` as `bool`. An optional input the user left empty arrives as `None`, so annotate it `str | None` or the like.
-- `secret("token")` returns a secret the manifest declares, as the user entered it.
-- `data()` is your plugin's own folder (see below).
-- `document.add`, `list` and `update` work on the workspace the user ran the plugin in.
-- When something goes wrong, say why on stderr, or with `sys.exit("Hacker News refused your token. Update it in Settings.")`. The user reads it in the run's log. Use `sys.exit`, not `exit`: the plugin's Python starts without the shortcuts meant for its interactive shell.
-
-## Asking the user for things
-
-Ask with an input for anything that changes from one run to the next, such as a search term. Ask with a secret for anything that must not be shown again, such as a token or a password. Never ask for a secret as an input: inputs are kept on the run's record.
-
-## Network
-
-Send every request through `http`, and list every host it reaches in `hosts`, redirects included. `http` refuses a host you did not list, and the user sees each host before the plugin's first run. A library that makes its own requests, such as a site's API client, is not checked: list every host it reaches, and say so in your pull request.
-
-## Dependencies
-
-Add a library with `surfsense-plugins add`, and never edit `requirements.txt` by hand: it pins every version and file hash for every system SurfSense runs on. Prefer pure-Python libraries, which ship as one small download for every system. A library with compiled code is fine if it publishes wheels for every platform in [`core/build-targets.json`](core/build-targets.json).
-
-`invoke` installs your dependencies for your own system only, so a library missing a wheel for another system shows up in the pull request's checks, not in `invoke`.
-
-## Your data folder
-
-`data()` is a folder only your plugin writes to. It survives updates and goes when the plugin is uninstalled, so it is the place for what your plugin remembers between runs, such as a cache or the time it last fetched. `invoke` gives your plugin `dev-data/` beside it, which git ignores.
-
-It is shared by every workspace. To know what is already in the workspace the user ran the plugin in, call `document.list()`.
-
-An app can move your plugin back to an older version when a newer one is blocked, so read data a newer version wrote with care, or start over.
-
-## Releasing
-
-You never write a version. Once your pull request is merged, the plugin ships with the next SurfSense release, stamped with its version, and appears in the app's plugin list.
-
-## When the SDK is missing something
-
-You are welcome to propose it. Open the pull request beside the plugin that needs it, or an issue first; a maintainer reviews every change to the SDK, since every plugin relies on it.
+- **Changing your server needs no pull request.** Deploy when you like. A tool you add, or one whose description or annotations change, starts off in every app until the user turns it on.
+- **Changing your entry** is another pull request and another review.
+- **Removing a plugin** moves its entry to `removed` with a reason. Apps stop offering its tools and show the reason; users keep their connection in case it returns.

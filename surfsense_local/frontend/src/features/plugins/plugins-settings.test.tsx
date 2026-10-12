@@ -1,0 +1,899 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+
+import { render } from "@/test-utils"
+
+import { EgressPrompt } from "@/features/egress/egress-prompt"
+
+import type { FirstPartyEntry, Plugin, RegistryEntry } from "./api"
+import { PluginsSettings } from "./plugins-settings"
+
+function notes(extra: Partial<Plugin> = {}): Plugin {
+  return {
+    id: "notes",
+    name: "Notes",
+    source: "custom",
+    publisher: "custom",
+    url: "https://notes.example/mcp",
+    hosts: ["notes.example"],
+    auth_type: "none",
+    enabled: true,
+    connected_at: "2026-10-01T00:00:00Z",
+    checked_at: "2026-10-01T00:00:00Z",
+    check_failure: null,
+    tools: [
+      {
+        name: "search",
+        title: "Search notes",
+        description: "Search the notes.",
+        annotations: { readOnlyHint: true },
+        enabled: true,
+        approval: "ask",
+        change: null,
+      },
+      {
+        name: "count",
+        title: null,
+        description: "Count the words in a text.",
+        annotations: {},
+        enabled: true,
+        approval: "ask",
+        change: null,
+      },
+    ],
+    removed_reason: null,
+    ...extra,
+  }
+}
+
+function listed(extra: Partial<RegistryEntry> = {}): RegistryEntry {
+  return {
+    id: "wiki",
+    name: "Wiki",
+    description: "Search the team wiki.",
+    author: "Jane Doe",
+    publisher: "community",
+    verified: false,
+    access: "free",
+    access_note: null,
+    auth_type: "none",
+    auth_title: null,
+    auth_description: null,
+    hosts: ["wiki.example"],
+    homepage: null,
+    privacy_policy: "https://wiki.example/privacy",
+    has_icon: false,
+    connected: false,
+    ...extra,
+  }
+}
+
+const REGISTRY_FETCHED_AT = "2026-10-10T12:00:00Z"
+
+const REDDIT: FirstPartyEntry = {
+  id: "reddit",
+  name: "Reddit",
+  description: "Read Reddit posts, their comments and whole subreddits.",
+  author: "SurfSense",
+  access: "license",
+  hosts: ["plugins.surfsense.com"],
+  connected: false,
+}
+
+type Call = { method: string; path: string; body: unknown }
+
+const SIGN_IN_PAGE = "https://auth.example/authorize?state=8000.nonce"
+
+/** The plugin routes as the screen reaches them; `refuse` answers an add or a new key instead. */
+function api({
+  plugins = [notes()],
+  allowed = false,
+  refuse,
+  registry = [],
+  registryHostAllowed = true,
+  customSignsIn = false,
+  signInEnds = "connected",
+}: {
+  plugins?: Plugin[]
+  allowed?: boolean
+  refuse?: { status: number; code: string; message: string; name?: string }
+  registry?: RegistryEntry[]
+  registryHostAllowed?: boolean
+  /** Adding by URL reaches a server that asks for OAuth. */
+  customSignsIn?: boolean
+  /** What the second poll of a sign-in says; `waiting` never ends. */
+  signInEnds?: "connected" | "failed" | "waiting"
+} = {}): Call[] {
+  const calls: Call[] = []
+  let connected = plugins
+  // The plugin a sign-in stores once it ends connected, and how often it was polled.
+  let signingIn: Plugin | null = null
+  let polls = 0
+  const startSignIn = (plugin: Plugin) => {
+    signingIn = plugin
+    polls = 0
+    return Response.json(
+      {
+        id: "s-1",
+        plugin_id: plugin.id,
+        authorization_url: SIGN_IN_PAGE,
+      },
+      { status: 202 }
+    )
+  }
+  let thirdParty = allowed
+  let hostAllowed = registryHostAllowed
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://api.test")
+      const method = (init?.method ?? "GET").toUpperCase()
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      calls.push({ method, path: url.pathname, body })
+      const [, , id, , tool] = url.pathname.split("/")
+      if (url.pathname === "/egress/host:plugins.surfsense.com") {
+        hostAllowed = true
+        return Response.json({})
+      }
+      if (url.pathname === "/plugins/registry") {
+        if (!thirdParty) {
+          return Response.json({
+            third_party_off: true,
+            fetched_at: null,
+            plugins: [],
+            removed: [],
+          })
+        }
+        if (!hostAllowed) {
+          return Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: "host:plugins.surfsense.com",
+                host: "plugins.surfsense.com",
+                hosts: ["plugins.surfsense.com"],
+                purpose: "plugin_registry",
+              },
+            },
+            { status: 403 }
+          )
+        }
+        return Response.json({
+          third_party_off: false,
+          fetched_at: REGISTRY_FETCHED_AT,
+          plugins: registry.map((entry) => ({
+            ...entry,
+            connected: connected.some((plugin) => plugin.id === entry.id),
+          })),
+          removed: [],
+        })
+      }
+      if (url.pathname === "/plugins/sign-ins/s-1") {
+        if (method === "DELETE") {
+          signingIn = null
+          return new Response(null, { status: 204 })
+        }
+        polls += 1
+        const status = polls < 2 ? "waiting" : signInEnds
+        if (status === "connected" && signingIn) {
+          const signedIn: Plugin = signingIn
+          connected = [
+            ...connected.filter((plugin) => plugin.id !== signedIn.id),
+            signedIn,
+          ]
+          signingIn = null
+        }
+        return Response.json({
+          id: "s-1",
+          plugin_id: "notes",
+          status,
+          message: status === "failed" ? "The sign-in was declined." : null,
+        })
+      }
+      if (url.pathname === "/plugins/notes/sign-in") {
+        return startSignIn({
+          ...connected.find((plugin) => plugin.id === "notes")!,
+          check_failure: null,
+        })
+      }
+      if (url.pathname.startsWith("/plugins/registry/")) {
+        const registryId = url.pathname.split("/")[3]
+        const entry = registry.find((row) => row.id === registryId)!
+        const added = notes({
+          id: entry.id,
+          name: entry.name,
+          source: "registry",
+          publisher: entry.publisher,
+          hosts: entry.hosts,
+          auth_type: entry.auth_type,
+        })
+        if (entry.auth_type === "oauth") return startSignIn(added)
+        connected = [...connected, added]
+        return Response.json(added, { status: 201 })
+      }
+      if (url.pathname === "/plugins/first-party") {
+        return Response.json(
+          [REDDIT].map((entry) => ({
+            ...entry,
+            connected: connected.some((plugin) => plugin.id === entry.id),
+          }))
+        )
+      }
+      if (url.pathname === "/plugins/first-party/reddit") {
+        const added = notes({
+          id: "reddit",
+          name: "Reddit",
+          source: "first_party",
+          publisher: "surfsense",
+          hosts: ["plugins.surfsense.com"],
+          check_failure: "needs_license",
+          tools: [],
+        })
+        connected = [...connected, added]
+        return Response.json(added, { status: 201 })
+      }
+      if (url.pathname === "/plugins/third-party") {
+        if (method === "PUT") thirdParty = body.allowed
+        return method === "PUT"
+          ? new Response(null, { status: 204 })
+          : Response.json({ allowed: thirdParty })
+      }
+      if (url.pathname === "/plugins/custom") {
+        if (refuse) {
+          const { status, ...detail } = refuse
+          return Response.json({ detail }, { status })
+        }
+        const added = notes({ name: body.name, url: body.url })
+        if (customSignsIn) return startSignIn({ ...added, auth_type: "oauth" })
+        connected = [...connected, added]
+        return Response.json(added, { status: 201 })
+      }
+      if (url.pathname.endsWith("/key")) {
+        if (refuse) {
+          const { status, ...detail } = refuse
+          return Response.json({ detail }, { status })
+        }
+        connected = connected.map((plugin) =>
+          plugin.id === id ? { ...plugin, check_failure: null } : plugin
+        )
+        return Response.json(connected.find((plugin) => plugin.id === id))
+      }
+      if (url.pathname.endsWith("/check")) {
+        connected = connected.map((plugin) =>
+          plugin.id === id ? { ...plugin, check_failure: null } : plugin
+        )
+        return Response.json(connected.find((plugin) => plugin.id === id))
+      }
+      if (method === "GET") return Response.json(connected)
+      if (method === "DELETE") {
+        connected = connected.filter((plugin) => plugin.id !== id)
+        return new Response(null, { status: 204 })
+      }
+      connected = connected.map((plugin) =>
+        plugin.id !== id
+          ? plugin
+          : tool
+            ? {
+                ...plugin,
+                tools: plugin.tools.map((row) =>
+                  row.name === tool ? { ...row, ...body } : row
+                ),
+              }
+            : { ...plugin, ...body }
+      )
+      return Response.json(connected.find((plugin) => plugin.id === id))
+    })
+  )
+  return calls
+}
+
+const changes = (calls: Call[]) => calls.filter((call) => call.method !== "GET")
+
+/** The Electron bridge's way to the user's browser. */
+function browser() {
+  const openExternal = vi.fn(async () => {})
+  window.surfsense = { openExternal } as unknown as typeof window.surfsense
+  return openExternal
+}
+
+// A sign-in is polled each second; its end shows on the second poll.
+const AFTER_POLLS = { timeout: 4000 }
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+  delete window.surfsense
+})
+
+describe("plugins settings", () => {
+  it("lists each plugin's tools, the read-only ones apart", async () => {
+    api({ allowed: true })
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const readOnly = within(plugin).getByRole("group", { name: "Read-only" })
+    const others = within(plugin).getByRole("group", {
+      name: "Can make changes",
+    })
+    expect(within(readOnly).getByText("Search notes")).toBeTruthy()
+    expect(within(others).getByText("count")).toBeTruthy()
+    expect(screen.getByText(/Plugins work in Agentic threads/)).toBeTruthy()
+  })
+
+  it("adds a server by its URL, with a key", async () => {
+    const calls = api({ plugins: [], allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add MCP server" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("Name"), "Notes")
+    await user.type(
+      within(dialog).getByLabelText("Server URL"),
+      "https://notes.example/mcp"
+    )
+    await user.type(within(dialog).getByLabelText("Key"), "k-1")
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    expect(await screen.findByRole("region", { name: "Notes" })).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      {
+        method: "POST",
+        path: "/plugins/custom",
+        body: { url: "https://notes.example/mcp", name: "Notes", token: "k-1" },
+      },
+    ])
+  })
+
+  it("says why a server was refused, in the app's words", async () => {
+    api({
+      plugins: [],
+      refuse: {
+        status: 422,
+        code: "plugin_needs_sign_in",
+        message:
+          "This server needs a key or a sign-in before it lists its tools.",
+      },
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add MCP server" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("Name"), "Notes")
+    await user.type(
+      within(dialog).getByLabelText("Server URL"),
+      "https://notes.example/mcp"
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(
+      "This server needs a key. Add one and try again."
+    )
+  })
+
+  it("switches a tool off, and lets only a read-only one skip asking", async () => {
+    const calls = api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    await user.click(within(plugin).getByRole("switch", { name: "Use count" }))
+    await user.click(
+      within(plugin).getByRole("radio", { name: "Always allow Search notes" })
+    )
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/count",
+          body: { enabled: false },
+        },
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/search",
+          body: { approval: "always" },
+        },
+      ])
+    )
+    expect(
+      within(plugin).queryByRole("radio", { name: "Always allow count" })
+    ).toBeNull()
+    expect(within(plugin).getByText("Always asks")).toBeTruthy()
+  })
+
+  it("pauses a plugin without disconnecting it", async () => {
+    const calls = api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    await user.click(within(plugin).getByRole("switch", { name: "Use Notes" }))
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        { method: "PUT", path: "/plugins/notes", body: { enabled: false } },
+      ])
+    )
+  })
+
+  it("disconnects only once the user confirms", async () => {
+    const calls = api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    await user.click(
+      within(plugin).getByRole("button", { name: "Disconnect Notes" })
+    )
+    const confirm = await screen.findByRole("alertdialog")
+    expect(changes(calls)).toEqual([])
+    await user.click(
+      within(confirm).getByRole("button", { name: "Disconnect" })
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
+    )
+    expect(changes(calls)).toEqual([
+      { method: "DELETE", path: "/plugins/notes", body: null },
+    ])
+  })
+
+  it("keeps third-party plugins off until the user allows them", async () => {
+    const calls = api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(
+      within(plugin).getByText("Not used until third-party plugins are allowed")
+    ).toBeTruthy()
+    await user.click(
+      screen.getByRole("switch", { name: "Allow third-party plugins" })
+    )
+    const consent = await screen.findByRole("alertdialog")
+    expect(changes(calls)).toEqual([])
+    await user.click(within(consent).getByRole("button", { name: "Allow" }))
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/third-party",
+          body: { allowed: true },
+        },
+      ])
+    )
+    await waitFor(() =>
+      expect(
+        within(plugin).queryByText(
+          "Not used until third-party plugins are allowed"
+        )
+      ).toBeNull()
+    )
+  })
+
+  it("says a server could not be reached, and checks it again on request", async () => {
+    const calls = api({
+      plugins: [notes({ check_failure: "unreachable" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Couldn’t connect")).toBeTruthy()
+    await user.click(within(plugin).getByRole("button", { name: "Check now" }))
+
+    expect(await within(plugin).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/check", body: null },
+    ])
+  })
+
+  it("asks for a new key when the server refused the last one, and saves it", async () => {
+    const calls = api({
+      plugins: [notes({ check_failure: "sign_in" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Needs a new key")).toBeTruthy()
+    await user.click(
+      within(plugin).getByRole("button", { name: "Replace key" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("New key"), "k-2")
+    await user.click(within(dialog).getByRole("button", { name: "Save" }))
+
+    expect(await within(plugin).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "PUT", path: "/plugins/notes/key", body: { token: "k-2" } },
+    ])
+  })
+
+  it("keeps the old key when the server refuses the new one", async () => {
+    api({
+      plugins: [notes({ check_failure: "sign_in" })],
+      allowed: true,
+      refuse: {
+        status: 422,
+        code: "plugin_needs_sign_in",
+        message:
+          "This server needs a key or a sign-in before it lists its tools.",
+      },
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    await user.click(
+      within(plugin).getByRole("button", { name: "Replace key" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("New key"), "wrong")
+    await user.click(within(dialog).getByRole("button", { name: "Save" }))
+
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(
+      "The server refused this key. Check it and try again."
+    )
+  })
+
+  it("marks the tools that are new or changed, which wait to be allowed", async () => {
+    const base = notes()
+    api({
+      plugins: [
+        notes({
+          tools: [
+            { ...base.tools[0], enabled: false, change: "changed" },
+            { ...base.tools[1], enabled: false, change: "added" },
+          ],
+        }),
+      ],
+      allowed: true,
+    })
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Changed")).toBeTruthy()
+    expect(within(plugin).getByText("New")).toBeTruthy()
+    expect(
+      within(plugin).getByText(
+        "Some tools are new or changed. They stay off until you allow them."
+      )
+    ).toBeTruthy()
+  })
+
+  it("lists SurfSense's plugins, which need a license, and connects one", async () => {
+    const calls = api({ plugins: [], allowed: false })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    expect(within(surfsense).getByText("Reddit")).toBeTruthy()
+    expect(within(surfsense).getByText("License required")).toBeTruthy()
+    await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
+
+    expect(await screen.findByRole("region", { name: "Reddit" })).toBeTruthy()
+    expect(await within(surfsense).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/first-party/reddit", body: null },
+    ])
+  })
+
+  it("says why the license was refused, and opens Settings › License", async () => {
+    api({
+      plugins: [
+        notes({ check_failure: "license_expired" }),
+        notes({ id: "wiki", name: "Wiki", check_failure: "needs_license" }),
+      ],
+      allowed: true,
+    })
+    const onOpenLicense = vi.fn()
+    const user = userEvent.setup()
+    render(<PluginsSettings onOpenLicense={onOpenLicense} />)
+
+    const expired = await screen.findByRole("region", { name: "Notes" })
+    expect(within(expired).getByText("License expired")).toBeTruthy()
+    const missing = screen.getByRole("region", { name: "Wiki" })
+    expect(within(missing).getByText("Needs a license")).toBeTruthy()
+    await user.click(
+      within(missing).getByRole("button", { name: "License settings" })
+    )
+
+    expect(onOpenLicense).toHaveBeenCalledOnce()
+  })
+
+  it("fetches nothing from the registry while third-party plugins are off", async () => {
+    const calls = api({ registry: [listed()] })
+    render(<PluginsSettings />)
+
+    await screen.findByRole("region", { name: "Notes" })
+    expect(
+      calls.some((call) => call.path.startsWith("/plugins/registry"))
+    ).toBe(false)
+    expect(screen.queryByRole("region", { name: "Third-party" })).toBeNull()
+  })
+
+  it("lists the registry's plugins, verified partners and community authors, dated", async () => {
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [
+        listed(),
+        listed({
+          id: "acme",
+          name: "Acme",
+          author: "Acme Inc.",
+          publisher: "partner",
+          verified: true,
+          access: "external",
+          access_note: "Requires an Acme account.",
+        }),
+      ],
+    })
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    const wiki = await within(section).findByRole("listitem", { name: "Wiki" })
+    const acme = within(section).getByRole("listitem", { name: "Acme" })
+    expect(within(wiki).getByText("By Jane Doe")).toBeTruthy()
+    expect(within(acme).getByText("Verified")).toBeTruthy()
+    expect(within(acme).getByText("Requires an Acme account.")).toBeTruthy()
+    expect(within(section).getByText("Updated Oct 10, 2026")).toBeTruthy()
+  })
+
+  it("connects a registry plugin, asking for its key when it needs one", async () => {
+    const calls = api({
+      plugins: [],
+      allowed: true,
+      registry: [
+        listed(),
+        listed({
+          id: "acme",
+          name: "Acme",
+          auth_type: "token",
+          auth_title: "Acme API key",
+          auth_description: "Create one under Account › API.",
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    const wiki = await within(section).findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    expect(await within(wiki).findByText("Connected")).toBeTruthy()
+
+    const acme = within(section).getByRole("listitem", { name: "Acme" })
+    await user.click(within(acme).getByRole("button", { name: "Connect" }))
+    const dialog = await screen.findByRole("dialog")
+    expect(
+      within(dialog).getByText("Create one under Account › API.")
+    ).toBeTruthy()
+    await user.type(within(dialog).getByLabelText("Acme API key"), "k-1")
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    expect(await within(acme).findByText("Connected")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/registry/wiki", body: null },
+      {
+        method: "POST",
+        path: "/plugins/registry/acme",
+        body: { token: "k-1" },
+      },
+    ])
+    expect(await screen.findByRole("region", { name: "Acme" })).toBeTruthy()
+  })
+
+  it("connects a registry plugin once the user signs in in the browser", async () => {
+    const openExternal = browser()
+    const calls = api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+
+    expect(await within(wiki).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
+    expect(
+      await within(wiki).findByText("Connected", {}, AFTER_POLLS)
+    ).toBeTruthy()
+    expect(await screen.findByRole("region", { name: "Wiki" })).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/registry/wiki", body: null },
+    ])
+  })
+
+  it("abandons a sign-in on Cancel", async () => {
+    browser()
+    const calls = api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+      signInEnds: "waiting",
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await user.click(
+      await within(wiki).findByRole("button", { name: "Cancel" })
+    )
+
+    expect(within(wiki).queryByText("Waiting for sign-in…")).toBeNull()
+    expect(
+      (
+        within(wiki).getByRole("button", {
+          name: "Connect",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(false)
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/registry/wiki", body: null },
+      { method: "DELETE", path: "/plugins/sign-ins/s-1", body: null },
+    ])
+  })
+
+  it("says a sign-in did not finish", async () => {
+    browser()
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+      signInEnds: "failed",
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+
+    expect(
+      await within(wiki).findByRole("alert", {}, AFTER_POLLS)
+    ).toHaveProperty("textContent", "The sign-in didn’t finish. Try again.")
+    expect(within(wiki).getByRole("button", { name: "Connect" })).toBeTruthy()
+  })
+
+  it("adds a server by URL that asks to sign in, once the user has", async () => {
+    const openExternal = browser()
+    api({ plugins: [], allowed: true, customSignsIn: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add MCP server" })
+    )
+    const dialog = await screen.findByRole("dialog")
+    await user.type(within(dialog).getByLabelText("Name"), "Notes")
+    await user.type(
+      within(dialog).getByLabelText("Server URL"),
+      "https://notes.example/mcp"
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    expect(await within(dialog).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
+    expect(
+      await screen.findByRole("region", { name: "Notes" }, AFTER_POLLS)
+    ).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+  })
+
+  it("asks an account's plugin to sign in again, not for a new key", async () => {
+    browser()
+    const calls = api({
+      plugins: [notes({ auth_type: "oauth", check_failure: "sign_in" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(within(plugin).getByText("Signed out")).toBeTruthy()
+    expect(
+      within(plugin).queryByRole("button", { name: "Replace key" })
+    ).toBeNull()
+    await user.click(
+      within(plugin).getByRole("button", { name: "Sign in again" })
+    )
+
+    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(
+      await within(plugin).findByText("Connected", {}, AFTER_POLLS)
+    ).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/sign-in", body: null },
+    ])
+  })
+
+  it("lists SurfSense’s plugins first, then third-party ones, then MCP servers", async () => {
+    api({ allowed: true, registry: [listed()] })
+    render(<PluginsSettings />)
+
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    const thirdParty = screen.getByRole("switch", {
+      name: "Allow third-party plugins",
+    })
+    const registry = await screen.findByRole("region", { name: "Third-party" })
+    const servers = screen.getByRole("heading", { name: "MCP servers" })
+
+    const follows = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(surfsense, thirdParty)).toBe(true)
+    expect(follows(thirdParty, registry)).toBe(true)
+    expect(follows(registry, servers)).toBe(true)
+  })
+
+  it("asks for SurfSense’s plugin host before listing the registry", async () => {
+    const calls = api({
+      plugins: [],
+      allowed: true,
+      registry: [listed()],
+      registryHostAllowed: false,
+    })
+    const user = userEvent.setup()
+    render(
+      <>
+        <PluginsSettings />
+        <EgressPrompt />
+      </>
+    )
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    await user.click(
+      await within(section).findByRole("button", { name: "Allow" })
+    )
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow fetching the list of plugins?",
+    })
+    await user.click(within(prompt).getByRole("button", { name: "Allow" }))
+
+    expect(
+      await within(section).findByRole("listitem", { name: "Wiki" })
+    ).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      {
+        method: "PUT",
+        path: "/egress/host:plugins.surfsense.com",
+        body: { enabled: true },
+      },
+    ])
+  })
+
+  it("says why a delisted plugin no longer offers its tools", async () => {
+    api({
+      plugins: [
+        notes({ source: "registry", removed_reason: "The service shut down." }),
+      ],
+      allowed: true,
+    })
+    render(<PluginsSettings />)
+
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(
+      within(plugin).getByText("No longer listed: The service shut down.")
+    ).toBeTruthy()
+  })
+})

@@ -98,13 +98,6 @@ def _model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[dict[str, Any
     return calls
 
 
-def _no_exec(monkeypatch: pytest.MonkeyPatch) -> None:
-    def refuse(_code: str) -> dict:
-        raise AssertionError("Word and PDF must not run code with exec()")
-
-    monkeypatch.setattr("worker.studio.office.runner.execute", refuse)
-
-
 def _job(
     session: Session, workspace: Workspace, source: Document, fmt: str
 ) -> Artifact:
@@ -136,7 +129,6 @@ def test_a_small_model_writes_markdown_that_becomes_a_word_file_and_its_spec(
 ) -> None:
     """Markdown with a source figure becomes a Word file, its spec and v1."""
     _choose(session, monkeypatch, "llamacpp")
-    _no_exec(monkeypatch)
     markdown = MARKDOWN.format(figure=source_figure)
     calls = _model(monkeypatch, markdown)
     artifact = _job(session, workspace, logo_source, "docx")
@@ -176,7 +168,6 @@ def test_a_small_model_writes_markdown_that_becomes_a_pdf(
 ) -> None:
     """The PDF builder renders the same kind of spec."""
     _choose(session, monkeypatch, "llamacpp")
-    _no_exec(monkeypatch)
     _model(monkeypatch, "# Pricing\n\nThe pilot costs 12,000.\n")
     artifact = _job(session, workspace, logo_source, "pdf")
 
@@ -198,7 +189,6 @@ def test_a_strong_model_writes_a_script_that_runs_in_the_runner_and_is_kept(
 ) -> None:
     """The script runs in its own process with the figure it names, and is kept."""
     _choose(session, monkeypatch, "openai_compatible")
-    _no_exec(monkeypatch)
     script = SCRIPT.format(figure=source_figure)
     calls = _model(monkeypatch, f"```python\n{script}```")
     artifact = _job(session, workspace, logo_source, "docx")
@@ -230,7 +220,6 @@ def test_a_strong_models_pdf_script_runs_in_the_runner(
 ) -> None:
     """A ReportLab script is titled by its first comment and indexed by its text."""
     _choose(session, monkeypatch, "openai_compatible")
-    _no_exec(monkeypatch)
     _model(monkeypatch, PDF_SCRIPT)
     artifact = _job(session, workspace, logo_source, "pdf")
 
@@ -284,6 +273,30 @@ def test_a_script_that_keeps_failing_fails_with_a_reason_studio_can_retry(
     assert "still broken" in reason
     assert not reason.startswith("Script error: ")
     assert "spec" not in artifact.artifact_metadata
+
+
+@pytest.mark.parametrize("format_key", ["pptx", "xlsx"])
+def test_a_deck_or_workbook_script_that_keeps_failing_fails_with_a_reason(
+    session: Session,
+    workspace: Workspace,
+    logo_source: Document,
+    monkeypatch: pytest.MonkeyPatch,
+    format_key: str,
+) -> None:
+    """Three attempts in the runner, then a reason Retry can act on, as for Word."""
+    _choose(session, monkeypatch, "openai_compatible")
+    calls = _model(monkeypatch, "raise ValueError('still broken')")
+    artifact = _job(session, workspace, logo_source, format_key)
+
+    with pytest.raises(RuntimeError):
+        run(artifact.id)
+
+    session.expire_all()
+    assert len(calls) == 3
+    assert artifact.document.status is DocumentStatus.FAILED
+    reason = artifact.document.error_message or ""
+    assert "still broken" in reason
+    assert not reason.startswith("Script error: ")
 
 
 def test_regenerate_drafts_a_studio_document_again(

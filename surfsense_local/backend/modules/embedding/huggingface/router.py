@@ -38,7 +38,7 @@ async def open_repo(repo: str, service: LocalCatalogDep, session: SessionDep) ->
     await transact(session, egress.require, egress.HUGGINGFACE)
     resolved = await resolve(repo)
     if resolved.picked is None or resolved.spec is None:
-        row = searched_row(repo, None, resolved.reason)
+        row = searched_row(repo, None, resolved.reason, resolved.code)
         return {"repo": repo, "gated": resolved.gated, "row": row_read(row, {})}
     build = Build(
         "ONNX",

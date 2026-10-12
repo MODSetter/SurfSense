@@ -13,6 +13,7 @@ from PyInstaller.utils.hooks import (
     collect_data_files,
     collect_dynamic_libs,
     collect_submodules,
+    copy_metadata,
 )
 
 sys.path.insert(0, SPECPATH)
@@ -43,6 +44,19 @@ datas.append(
         "modules/llm/capability/measured",
     )
 )
+# Read by path, so the analyser cannot see it. Without it a frozen build lists
+# none of SurfSense's own plugins.
+datas.append(
+    (
+        str(BACKEND / "modules" / "plugins" / "lists" / "first_party" / "plugins.json"),
+        "modules/plugins/lists/first_party",
+    )
+)
+
+# shared/app_version.py reads the release version from the package's metadata,
+# which a frozen build has only if copied. Without it no registry entry with a
+# minimum app version is listed.
+datas += copy_metadata("surfsense-local-backend")
 
 # Chat's three prompts are read through importlib.resources, not imported.
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])

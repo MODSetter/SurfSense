@@ -1,0 +1,52 @@
+"""SurfSense's own plugins, packaged into the API and shown with no network or consent."""
+
+import json
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from pydantic import ValidationError
+
+from modules.plugins.lists.list_entry import ListEntry
+from modules.plugins.lists.plugin_host import PLUGIN_HOST, as_served
+
+FIRST_PARTY_LIST = Path(__file__).with_name("plugins.json")
+
+
+def checked_entries(path: Path) -> list[ListEntry]:
+    """Every entry, or a ValueError naming the entry and the field that is wrong."""
+    entries: list[ListEntry] = []
+    for raw in json.loads(path.read_text())["plugins"]:
+        name = raw.get("id", "?")
+        try:
+            entry = ListEntry.model_validate(raw)
+        except ValidationError as error:
+            raise ValueError(f"{name}: {error}") from error
+        if entry.publisher != "surfsense":
+            raise ValueError(
+                f"{name}: publisher must be surfsense in the first-party list"
+            )
+        if entry.auth.type == "license" and not entry.url.startswith(f"{PLUGIN_HOST}/"):
+            raise ValueError(
+                f"{name}: url must be on {PLUGIN_HOST} to carry the license key"
+            )
+        if any(entry.id == seen.id for seen in entries):
+            raise ValueError(f"{name}: listed twice")
+        entries.append(entry)
+    return entries
+
+
+def first_party_entries() -> list[ListEntry]:
+    """As this build reaches them: a developer's local plugin host stands in for SurfSense's."""
+    return [
+        entry.model_copy(
+            update={
+                "url": as_served(entry.url),
+                "hosts": [_host(as_served(f"https://{host}")) for host in entry.hosts],
+            }
+        )
+        for entry in checked_entries(FIRST_PARTY_LIST)
+    ]
+
+
+def _host(url: str) -> str:
+    return urlsplit(url).hostname or ""

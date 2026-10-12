@@ -33,6 +33,36 @@ def test_a_different_query_is_not_served_from_the_cache() -> None:
     assert cache.get("qwen", 30, now=1.0) is None
 
 
+def test_the_cache_key_ignores_case_and_surrounding_whitespace() -> None:
+    """Hugging Face search ignores case, so the cache does too."""
+    cache = SearchCache(ttl_seconds=300)
+    cache.put("qwen", 30, [hit()], now=0.0)
+
+    assert cache.get("QWEN", 30, now=1.0) == [hit()]
+    assert cache.get("  qwen  ", 30, now=1.0) == [hit()]
+
+
+def test_the_cache_key_clamps_the_limit_like_the_api() -> None:
+    """The API caps limit at 50, so a larger limit shares that entry."""
+    cache = SearchCache(ttl_seconds=300)
+    cache.put("qwen", 100, [hit()], now=0.0)
+
+    assert cache.get("qwen", 50, now=1.0) == [hit()]
+    assert cache.get("qwen", 30, now=1.0) is None
+
+
+def test_a_caller_cannot_mutate_another_callers_cached_list() -> None:
+    """The cache stores an immutable copy; each get returns a fresh list."""
+    cache = SearchCache(ttl_seconds=300)
+    cache.put("qwen", 30, [hit()], now=0.0)
+
+    first = cache.get("qwen", 30, now=1.0)
+    assert first is not None
+    first.clear()
+
+    assert cache.get("qwen", 30, now=2.0) == [hit()]
+
+
 def test_a_different_limit_is_not_served_from_the_cache() -> None:
     """The cache is keyed on the query and the limit."""
     cache = SearchCache(ttl_seconds=300)

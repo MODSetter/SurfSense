@@ -30,6 +30,8 @@ code:
 
 > A workspace's sources sit in folders. Every workspace has one library root whose folders the user makes in the app. It may also link folders on disk as further roots. SurfSense indexes a linked folder in place, watches it, and never writes to it. A delete in the library goes to a Trash first, and a linked folder that seems to lose most of its files asks before anything is removed. What the user ticks in the tree is a source scope of folder and document ids. The scope is stored on the chat thread, recorded on each turn and artifact version, and resolved by the server, so chat, Studio and the agent read the same sources however many there are. The agent sees the scope as a per-thread folder of text files that mirrors the tree. Engines reach an original only by its source id. The first phase needs no folders: it fixes the bug that hides every source after the 50th from chat and Studio, and it snapshots the database before any migration runs.
 
+**Status, 11 Oct 2026:** Library folders, adding a whole folder, the server-side scope with tri-state ticks, and per-chat agent folders (phases 3a and 3b) are built, and 2.2.0 is the first release with them ([documents](../../architecture/documents.md#folders), [agent](../../architecture/agent.md#folders)). The Trash and linking a folder on disk (phases 4a and 4b) are designed, not built.
+
 This is one stream of the [file agent proposal](README.md). It answers the open questions of [`../agent/05-sources-folder.md`](../agent/05-sources-folder.md) and keeps its decisions: link, don't copy; watch, then reconcile; re-read only on change; read in place; no writes. Facts were checked against the repo on 3 Oct 2026. Estimates are marked as such.
 
 ## Today
@@ -68,7 +70,7 @@ This is one stream of the [file agent proposal](README.md). It answers the open 
 
 **Electron and packaging**
 - There is no `dialog.showOpenDialog`. A dropped folder is reported as unsupported ([documents](../../architecture/documents.md#upload)).
-- The main process already calls the API: `watchImageModel` polls `/llm/image/local/runtime` on the loopback port every 5 s ([`main/index.ts`](../../../surfsense_local/electron/src/main/index.ts)). The sentence in [documents](../../architecture/documents.md#the-original-file) saying it never calls the backend is stale.
+- The main process already calls the API: `watchImageModel` polls `/llm/image/local/runtime` on the loopback port every 5 s ([`sidecars/watch-image-model.ts`](../../../surfsense_local/electron/src/main/sidecars/watch-image-model.ts)). The sentence in [documents](../../architecture/documents.md#the-original-file) saying it never calls the backend is stale.
 - Electron 44 has no `File.path`; `webUtils.getPathForFile` replaced it in Electron 32 ([breaking changes](https://www.electronjs.org/docs/latest/breaking-changes#removed-filepath)).
 - [`electron-builder.yml`](../../../surfsense_local/electron/electron-builder.yml) gives macOS an entitlements file and no `extendInfo`, so the app declares no `NS*UsageDescription` strings.
 - watchfiles 1.2.0 is locked only because `uvicorn[standard]` pulls it in ([`uv.lock`](../../../surfsense_local/backend/uv.lock), [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml)). [`api.spec`](../../../surfsense_local/backend/bundling/api.spec) collects uvicorn's submodules and nothing of watchfiles by name.
@@ -522,7 +524,7 @@ Nothing else branches.
 **Per-thread working folders.** `StorageSettings` gains `thread_working_dir(workspace_id, thread_id)` = `data/workspaces/<ws>/agent/threads/<thread>/`, holding `sources/` and `outputs/`.
 - `open_agent_session` creates the session there. `agent_turn` syncs, registers and streams there.
 - Thread delete nulls `output_path` on the thread's artifacts in its transaction, and removes the folder after the commit, beside `store.remove_thread`. `forget_sessions` gets the thread's folder.
-- Installers carry the agent since 7 Oct 2026, and any model may open an Agentic chat; M5 ships phases 3a and 3b.
+- Installers carry the agent since 7 Oct 2026, first released in 2.2.0, and any model may open an Agentic chat; phases 3a and 3b are built (below).
 - opencode's edit rule today, `*/agent/outputs/*`, matches no per-thread path. It becomes, last match winning:
 
   ```python
@@ -650,7 +652,7 @@ Milestones are the README's; durations there are rough.
 - Phase 0 ships first, in M0, as a 2.1.x point release that starts now. It does not wait for 02's clean-room work. It is a correctness fix with one plain column, and everything after it builds on it.
 - Phases 1 and 2 are M2. They need only M0 and run in parallel with M1 and M3.
 - Phase 5 is in M3, which also runs in parallel with M2; it lands once phase 1 is in.
-- Phases 3a and 3b are M5, after M2, M3 and M4.
+- Phases 3a and 3b were built ahead of M5, in 2c, and shipped in 2.2.0.
 - Phases 4a and 4b are M8, beside 04's RT3a, RT3b (Office support) and RT6, in parallel with M5 to M7.
 - The workspace and folder bundle (Export, import and sharing) is M6.
 
@@ -781,6 +783,6 @@ These are integration tests under `tests/integration/` unless noted. Each lands 
 4. Should instruction files inside a linked root be ignored by default, or offered later as an opt-in "folder rules" feature?
 5. Docling throughput on the reference laptops would set the first-scan threshold and the estimate shown when linking.
 6. Do Docling and opencode's Bun-based `read`, `grep` and `glob` handle `\\?\` paths and paths over 260 characters on Windows? The 259-character mirror cap assumes they do not.
-7. Does macOS attribute the API sidecar's file access to SurfSense's bundle, so its usage strings show? The packaged-app test in phase 4a answers it, and it needs a notarized build, which failed on 3 Oct 2026 for an expired Apple agreement. If not, the scan would have to start from a process macOS attributes correctly.
+7. Does macOS attribute the API sidecar's file access to SurfSense's bundle, so its usage strings show? The packaged-app test in phase 4a answers it, on a notarized build, as v2.1.0's and v2.2.0's are. If not, the scan would have to start from a process macOS attributes correctly.
 8. What share of a real Documents folder under OneDrive Known Folder Move is online-only? Measured in phase 4a on at least one business laptop, it sets the 20% threshold for the root's online-only line and the link dialog.
 9. Are 30 days of Trash and the 10-minute grant window right? Both are estimates, and trashed bytes keep using disk until purged.

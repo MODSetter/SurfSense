@@ -1,4 +1,8 @@
-import type { AgentStep, TurnSources } from "@/features/agent/api"
+import type {
+  AgentStep,
+  TurnSources,
+  UnavailablePlugin,
+} from "@/features/agent/api"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
@@ -73,6 +77,8 @@ export type MessageContent = {
   queue?: { position: number }
   // Client only: the sources an agent turn is preparing, until its next frame.
   preparing?: number
+  // Client only: connected plugins an agent turn could not use.
+  unavailable_plugins?: UnavailablePlugin[]
 }
 
 export type ChatMessage = {

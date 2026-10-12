@@ -7,7 +7,7 @@ Work in this order:
 1. Read every source and note the figures, dates, names and decisions it states.
 2. Decide the document: its sections, their order, and which facts go in each. Prefer the specific figure over the general statement.
 3. Write the script that builds exactly that document, following the authoring rules below.
-4. Read the script back and check it runs: every name imported, every value defined before use, no file or network access, and the three module-level assignments present.
+4. Read the script back and check it runs: every name imported, every value defined before use, the file saved at `OUTPUT_PATH`.
 
 Grounding rules:
 
@@ -16,12 +16,11 @@ Grounding rules:
 
 $skill
 
-The script MUST, at module level:
+The contract:
 
-- assign the finished file's bytes to `output_bytes`;
-- assign a short `title` string;
-- assign a `summary` string: a faithful Markdown outline of the content, for search.
-
-Build everything in memory: do not read or write files on disk, and do not use the network.
+- The first line is a comment naming the document: `# title: <a short title>`.
+- The script runs alone, from an empty folder, for at most 120 seconds. It cannot read the sources: write the content into the script.
+- Save the file at the path in the `OUTPUT_PATH` environment variable.
+- Use only the standard library and $library. No network.
 
 Return only the Python code. No prose before it, no explanation after it, no markdown fence around it.

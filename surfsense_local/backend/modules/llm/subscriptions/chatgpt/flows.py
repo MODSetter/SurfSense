@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy.orm import Session
 
-from modules.llm.subscriptions.chatgpt import account
+from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import (
     AGENT_NAME,
     DYNAMIC_CLIENT,
@@ -122,10 +122,13 @@ class SignInFlows:
             async with asyncio.timeout(SIGN_IN_SECONDS):
                 query = await loopback.callback()
             tokens = await _tokens(query, pkce, redirect_uri, returning)
-            flow.connection_id = await asyncio.to_thread(
+            flow.connection_id, stale = await asyncio.to_thread(
                 _save, session_factory, tokens, label, connection_id
             )
             flow.status = "signed_in"
+            # After signed_in: the saved sign-in stands whatever OpenAI answers.
+            if stale is not None:
+                await asyncio.to_thread(revocation.revoke, stale)
         except TimeoutError:
             _fail(flow, "The sign-in was not finished in time.")
         except (
@@ -210,13 +213,31 @@ def _save(
     tokens: TokenSet,
     label: str | None,
     connection_id: int | None,
-) -> int:
+) -> tuple[int, TokenSet | None]:
+    """The connection's id, and the replaced tokens when they are another
+    client's grant to end once this commits."""
     with session_factory() as session:
+        replaced = (
+            None
+            if connection_id is None
+            else revocation.tokens_to_revoke(
+                account.chatgpt_connection(session, connection_id)
+            )
+        )
         saved = account.save_sign_in(
             session, tokens, label=label, connection_id=connection_id
         )
+        # The returning path keeps the client, and revoking its old refresh
+        # token may end the whole grant, the new session's with it (RFC 7009 §2.1).
+        stale = (
+            replaced
+            if replaced is not None
+            and replaced.client_id != tokens.client_id
+            and revocation.may_revoke(session)
+            else None
+        )
         session.commit()
-        return saved
+    return saved, stale
 
 
 def _fail(flow: Flow, message: str) -> None:

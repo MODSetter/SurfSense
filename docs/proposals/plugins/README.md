@@ -1,143 +1,161 @@
 ---
-status: in-progress
+status: proposed
 code:
-  - plugins/
+  - plugins/registry/
+  - plugins/remote/
+  - surfsense_local/backend/modules/plugins/lists/
+  - plugins/bundles/core/
   - surfsense_local/backend/modules/plugins/
+  - surfsense_local/backend/modules/agent/plugin_tools/
   - surfsense_local/frontend/src/features/plugins/
-  - surfsense_local/electron/scripts/fetch-plugin-python.mjs
-  - surfsense_local/electron/scripts/fetch-plugin-catalog.mjs
-  - .github/workflows/release-local.yml
-  - .github/workflows/plugins-pull-request-checks.yml
-  - .github/workflows/plugins-weekly-security-audit.yml
-  - .github/workflows/plugins-release-plan.yml
-  - .github/workflows/plugins-go-live.yml
-  - .github/workflows/plugins-withdraw-version.yml
-  - .github/workflows/plugins-directory-site.yml
 ---
 
 # Plugins
 
-> A plugin is a folder in this repo. A third party adds one by pull request. Plugins ship with the app's releases, the desktop app installs one on demand, and runs it as its own process for one job.
+> A plugin is an MCP server that gives SurfSense's models tools. SurfSense decides which tools each caller gets and which must be approved: the agent's opencode calls the plugin servers it is given each turn directly, the chat engine will reach them through one Tool Gateway, and results come back into the turn. Remote plugins, hosted by their publishers, come first; plugins on the user's machine come later, as [bundles](bundles/README.md).
 
-Shared contract: [`01-protocol.md`](01-protocol.md). Every stream below implements against that file. Do not invent a second wire format.
+This replaces the earlier design, where a plugin was a sidebar action with a form whose output went into Sources and reached the models only through search. That design is kept in [`bundles/`](bundles/README.md), where its local-runtime parts wait for bundles ([ADR 0051](../../adr/0051-plugins-are-mcp-servers-behind-one-tool-gateway.md)).
 
-Adding a capability later: [`02-extending.md`](02-extending.md). A capability is a verb or it is context, and that file says which, what it costs, who reviews it, and how to keep the facade from leaking.
+## Files
 
-One plugin from pull request to uninstall, and who owns each step: [`03-lifecycle.md`](03-lifecycle.md).
+```
+plugins/
+  README.md     this page: what plugins are, the locked decisions, the order of work
+  core/         what every kind of plugin shares
+  remote/       plugins hosted by their publishers, built first
+  bundles/      plugins that run on the user's machine, deferred
+```
 
-How versions work, why only the app's version is written by hand, and how a bad version is stopped: [`04-versioning.md`](04-versioning.md).
+**[`core/`](core/01-architecture.md)**: the same for every kind of plugin.
 
-## Workstreams
+| File | Covers |
+|---|---|
+| [`01-architecture.md`](core/01-architecture.md) | The Tool Gateway, tool sources, naming, the tables, the routes |
+| [`02-registry.md`](core/02-registry.md) | The two plugin lists, first-party and registry, who publishes, review, allowing third-party plugins, tools added later, delisting, how the app gets each list |
+| [`03-engines.md`](core/03-engines.md) | opencode, `@` mentions, results, Save to Sources; the chat engine's router step, later |
+| [`04-trust.md`](core/04-trust.md) | Approval, permissions, what a plugin can and cannot do, prompt injection |
+| [`05-paid.md`](core/05-paid.md) | SurfSense's paid plugins on the license key, checked on the server, and third parties billing on their own |
+| [`06-later.md`](core/06-later.md) | What comes after, and the extension points that keep it additive |
 
-Same letter can be picked up at the same time. A stream's own files are in order.
+**[`remote/`](remote/README.md)**: the first kind of plugin.
 
-| Stream | Files | Owns | Starts from |
-|---|---|---|---|
-| **SDK** | [`sdk/01-library.md`](sdk/01-library.md) | `plugins/core/sdk/` and its contract tests | the protocol |
-| **CLI** | [`cli/01-author-commands.md`](cli/01-author-commands.md) | `plugins/core/cli/` and its author commands, `plugins/example/`, `plugins/README.md` | the SDK and the manifest rules |
-| **Runtime** | [`runtime/01-process.md`](runtime/01-process.md) | `surfsense_local/backend/modules/plugins/` runner, the `plugins` queue and its worker | the protocol. There is no result import: the plugin wrote through the API while it ran |
-| **Release** | [`release/01-packaging.md`](release/01-packaging.md), then [`release/02-pull-request-checks.md`](release/02-pull-request-checks.md), then [`release/03-publishing.md`](release/03-publishing.md), then [`release/04-plugin-directory-site.md`](release/04-plugin-directory-site.md) | the release jobs of `surfsense-plugins` in `plugins/core/cli/`, `build-targets.json`, the policy lists, the plugin workflows, the plugins repository | the protocol. Each file builds on the one before |
-| **Install** | [`install/01-install-update-uninstall.md`](install/01-install-update-uninstall.md) | choosing a version, install, update, uninstall, the two download hosts | the protocol and the manifest rules. It can test against a fixture catalog before a release publishes a real one |
-| **App** | [`app/01-api.md`](app/01-api.md) and [`app/02-screen.md`](app/02-screen.md) | plugin routes, the plugin screen | the route list in `01`. The screen can be built against that list before the routes exist |
-| **Python** | [`python/01-interpreter.md`](python/01-interpreter.md) | the interpreter the packaged app spawns, `system_key()` | `plugins/core/build-targets.json`, which whichever stream lands first adds. Other streams use `uv`'s Python until this lands |
+| File | Covers |
+|---|---|
+| [`README.md`](remote/README.md) | What a remote plugin is, how one works, who hosts what |
+| [`01-mcp-client.md`](remote/01-mcp-client.md) | The app's MCP client, signing in, credentials, egress |
+| [`02-surfsense-servers.md`](remote/02-surfsense-servers.md) | The plugin host that runs SurfSense's plugins, the registry container beside it, the code layout, the scraper plugins |
 
-**Demo:** `surfsense-plugins invoke` runs `plugins/example` against a running app, and the API runs the same plugin as a subprocess and its `document.add()` shows up as a note. Nothing published is required for that demo.
+**[`bundles/`](bundles/README.md)**: deferred. Plugins that run on the user's machine, and the earlier design they build on.
 
-**Ship:** an app release publishes real plugin files to `surfsense-plugin-releases`, the app installs from the catalog it bundled on all three platforms, including a plugin with a compiled dependency, a paid plugin stays locked without a license, and the directory site lists them.
+## What it looks like
+
+- **A user** opens Settings → Plugins and sees first-party plugins, SurfSense's own, at once, with no network; third-party plugins appear once they allow them. They press **Connect**, sign in or paste a key, allow the plugin's host, and its tools are ready.
+- **In an agent thread**, opencode sees the plugin's tools beside SurfSense's own and calls one when it needs it.
+- **In an agent thread**, the user can also type `@notion search` to ask for a tool by name; the agent fills its inputs.
+- **In a chat thread**, plugins come later. Settings → Plugins says plugins work in Agentic threads.
+- **A result** shows as a step in the thread. "Save to Sources" keeps it as a note.
+
+## Prior art
+
+| Product | What it does | What this design takes |
+|---|---|---|
+| [Pi](https://github.com/earendil-works/pi) | Its own tool pipeline, with MCP as a built-in extension adapting servers into it through Pi's own client; exposure modes and a tool search; MCP annotations driving permission checks; results trimmed at 20 KB | The structure: one gateway of SurfSense's own, MCP as a source behind it, exposure, annotations, trimming. Not its in-process extensions, its installs from npm and git, or its lack of review |
+| Claude's connectors | A reviewed directory of remote MCP servers, custom connectors by URL, local servers packaged as [MCP Bundles](https://github.com/modelcontextprotocol/mcpb) | Remote plugins listed and reviewed; custom plugins by URL; MCPB as the format of later bundles |
+| [Obsidian](https://github.com/obsidianmd/obsidian-releases) | One list of community plugins on its own server, each pointing at the author's repository and its GitHub releases; every version scanned; community plugins off until turned on | One list served from SurfSense's host; code and files staying with their authors; third-party plugins off until allowed; scanning every bundle version |
 
 ## Locked decisions
 
 | Decision | Choice |
 |---|---|
-| Where source lives | `plugins/<id>/` in this repo. A third party contributes by pull request into `dev`. Everything maintainers own, the SDK, the tooling and the lifecycle files, sits in one folder beside the plugins, `plugins/core/`. |
-| Id | Folder name. `^[a-z][a-z0-9-]{0,63}$`. Unique. Immutable once published. `plugins/core/policy/reserved-plugin-ids.txt` plus the prefix `surfsense-` are ours, and a pull request may use one only when its author is the repo's owner or a collaborator. `author` is a field, not part of the id. |
-| Versioning | People write one version, the app's. The SDK and the protocol have none of their own. A release stamps each plugin that changed with the app's version; plugin version X runs on SurfSense X or newer ([`04-versioning.md`](04-versioning.md)). |
-| Publishing | Plugins are published with the app's releases, never from `dev`: uploaded when the release is tagged, live when it is published. A published version never changes. |
-| Hosting | GitHub Releases in a second public repository, `SurfSense-Inc/surfsense-plugin-releases`, written by a GitHub App with write access to that repository alone. Never this repository's releases: installed apps take its newest release as an app update. |
-| Process | One subprocess per run, on its own `plugins` queue. Not loaded into the API or the worker. Never detached, so it stops when the app quits. |
-| Talks to the app | Arguments and environment variables in, the app's own API over loopback while it runs, an exit code out. No socket of ours, no message protocol, no results file. Stdout is logs. |
-| Network | The plugin makes its own HTTP calls through `http` in the SDK, which refuses a host not in `hosts`. `hosts` is shown in the app and on the directory site. Before a plugin's first run, one egress consent prompt asks for every host in `hosts` not yet allowed, and the grants are listed and revocable in Settings → Network. This is a check, not enforcement: the app does not intercept connections, and a plugin that skips `http` is not checked. Loopback is not egress and does not belong in `hosts`. |
-| Dependencies | The author adds a library with `surfsense-plugins add`, which writes `requirements.in` and generates `requirements.txt` from it with every version and file hash. Packaging installs it for each platform on one Linux runner, from prebuilt wheels only: one `any` file when every platform gets the same files, one per platform otherwise. The user's machine never runs `pip` and never compiles. |
-| Platforms | `plugins/core/build-targets.json` lists the platforms and the Python version. A plugin works on all of them unless its optional `platforms` names fewer. The app lists only plugin versions it can run. |
-| SDK | `plugins/core/sdk/` in this repo. Not published to PyPI. The app ships that folder next to the plugin interpreter. A plugin's files do not contain it. Strictly typed. |
-| Code license | Every plugin is Apache-2.0 under the repository's `LICENSE`, ours and contributed alike. A plugin folder carries no license of its own, and a dependency must be one the Apache Software Foundation lets an Apache-2.0 work include. |
-| Access | `free` or `paid`. Community plugins are `free`. `paid` means one of ours, and it installs and runs only with an unexpired SurfSense license file: `individual`, `team`, or a `trial` for its term. No price field. |
-| Catalog | `plugin-catalog.json` keeps every published version of every plugin, and each app runs the newest one it can. The app bundles its own release's catalog, so the list is visible with no network. Refreshing it needs the same two hosts as installing, off by default. The plugins themselves are not bundled. |
-| Blocking | A version can be blocked, everywhere or from an app version: by a maintainer in `withdrawn-versions.txt`, or by the release's checks when a new app breaks it. The app says why and offers the version to use instead. |
-| Versions on disk | One. An update replaces the installed version and deletes the old one. |
-| Limits | 100 MB per plugin file unless a maintainer grants more in `plugins/core/policy/size-limit-exceptions.txt`. A run stops at its action's timeout: 30 minutes unless the action sets its own, up to 6 hours. |
-| What a plugin can do | A facade in the SDK wraps the app's API, so a plugin calls `document.add()` and never a route. The SDK is the public contract; routes stay ours to rename. Complete within `workspace`, `document`, `artifact`, `model`, of which v1 ships `document`; the other three wait for their app routes. Never `license`, `egress`, `migration`. |
-| Declared or coded | Whatever the app must know before running a plugin, to show it, check it or ask the user for it, is declared in `manifest.json`. Whatever happens during a run is the plugin's code, through the SDK. The app never runs plugin code to find something out. |
-| What the user provides | Two kinds: an input, asked every run, of kind `string`, `number` or `boolean`; and a secret, set once in Settings and never shown again. The app draws both forms from the declarations. |
-| Secrets | Declared with a title and help text. Values go through `shared/secrets.py`. The app puts each one in an environment variable before spawn and never in a file. |
-| Environment | Built from scratch for each run: the plugin's context, its secrets, an operating-system allowlist, and the Python variables. Nothing of the app's own. |
-| Checks | Every plugin is type-checked with pyright against the SDK, and every SDK change type-checks all of them. Contract tests run each SDK function against the real app. |
-| Growing the SDK | Contributions to the SDK are welcome, starting from a plugin that needs the change. SDK and lifecycle changes get a maintainer's review, enforced by `CODEOWNERS` ([`02-extending.md`](02-extending.md#growing-the-sdk-together)). |
-| Directory | A generated site lists every plugin, its versions, the hosts it contacts, its blocks and its downloads ([`release/04-plugin-directory-site.md`](release/04-plugin-directory-site.md)). |
-| What we do not build | A sandbox, a network proxy or firewall for plugins, a process-count cap beyond the queue's threads, WASM, a socket or message protocol of our own, hot reload, pip or npm on the user's machine, inferring hosts from imports, plugin-authored HTML, payments. The host places an action in the existing sidebar and draws its form. |
+| Protocol | MCP, unmodified, protocol `2025-11-25`. No protocol of SurfSense's own: its controls sit around MCP, in the plugin lists and the app. A plugin server sees only standard MCP and ordinary HTTP sign-in headers, so any MCP server works as a plugin unchanged, and SurfSense's own servers work in any MCP client |
+| The core | SurfSense decides, in one place, which plugin tools each caller gets and which must be approved. The agent's opencode calls plugin servers itself under the rules SurfSense gives each turn, so SurfSense is in no call's path; SurfSense's own callers go through one Tool Gateway |
+| Sources of tools | Remote MCP servers over HTTPS first. Bundles (`kind: bundle`) later, through the same gateway |
+| Who hosts a remote plugin | Its publisher: SurfSense, a company, or a community developer |
+| Name | "Plugins", in the app and in the docs |
+| The lists | SurfSense's plugins are in a first-party list packaged into the app, shown with no network or consent. Every third-party plugin is in one file, `plugins/registry/plugins.json` in this repository, added to by pull request and reviewed once per entry, signed and served from SurfSense's plugin host, and fetched once the user allows third-party plugins, so it grows without app updates ([`core/02-registry.md`](core/02-registry.md)). "The registry" always means this file. No list holds plugin code |
+| Where a plugin's code lives | With its publisher: a remote server on its host, a bundle in its author's repository and releases. The list only points at it |
+| Publishers | `surfsense`, `partner` (a verified company) or `community`, set by the list, never by the plugin. Only the first-party list says `surfsense` |
+| Third-party plugins | Every plugin not published by SurfSense is off until the user allows third-party plugins once, which is also when the app fetches the registry. The switch plays the part of Obsidian's Restricted mode, named for what it does ([ADR 0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)) |
+| Custom plugins | A user can add any remote MCP server by URL, labelled "Not reviewed by SurfSense", off until third-party plugins are allowed |
+| Tools added later | A tool a server adds after the user connected starts off; the app asks before turning it on |
+| opencode | Calls plugin servers itself, through its own MCP client: before each turn SurfSense gives it each ready plugin's server, with its sign-in as headers, and an `allow`, `ask` or `deny` rule per tool, every unreviewed tool denied ([`core/03-engines.md`](core/03-engines.md#opencode)) |
+| Chat engine | Plugins reach agent threads first. The chat engine gets them later, through a router step: its model never calls tools; it chooses a tool and fills its inputs under JSON schemas, and SurfSense makes the call ([ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md), [`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)) |
+| `@` mentions | In agent threads: the user names a plugin, the agent picks its tools and fills their inputs, and approval is as for any call |
+| Results | Belong to the turn: the agent's are kept in its opencode session, and SurfSense keeps no copy. Nothing reaches Sources unless the user saves it |
+| Approval | Decided by the gateway from the tool's MCP annotations and the user's setting for it; in agent threads opencode's own request, asked on its step in the reply, Allow once or Deny ([`core/04-trust.md`](core/04-trust.md#approval)) |
+| Egress | A plugin's hosts need consent before it connects, and appear in Settings → Network with its name |
+| Paid | SurfSense's paid plugins are unlocked by the SurfSense license key, which reaches only SurfSense's servers and is checked there on every call, never in the app. A third party bills on its own side and never sees the key ([`core/05-paid.md`](core/05-paid.md)) |
+| License of SurfSense's plugin code | The folder decides it: `proprietary/` is Business Source License, everything else Apache-2.0. Only SurfSense's maintainers change `proprietary/`, so SurfSense holds all of its copyright. Price is the plugin's `access`, a separate question ([`core/05-paid.md`](core/05-paid.md#which-license-a-surfsense-plugin-is-under)) |
+| SurfSense's own plugin servers | In `plugins/remote/` (Apache-2.0) and `plugins/remote/proprietary/` (Business Source License 1.1), all run by one plugin host at `plugins.surfsense.com`, beside a small container serving the registry on the same hostname ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)) |
+| Long calls to SurfSense's plugins | A call that can run past three minutes is a job: ordinary tools that queue it, report it and cancel it, run in the background in the same container, since the proxies in front of a server end a request that runs for minutes and opencode does not use MCP tasks ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#long-calls-run-as-jobs)) |
+| Scaling SurfSense's plugins | One container for every plugin, scaled by copies of it on concurrent requests; MCP served without sessions, so any copy answers, and Stop sent by the app through the host's cancel route, since opencode's own cancel cannot reach a stateless copy ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#scaling)) |
+| State on SurfSense's servers | Redis with persistence for jobs and shared state, object storage for jobs' results, and no database: everything the plugin host keeps expires within a day and is read by its key ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md#redis-and-object-storage-not-a-database)) |
+| `surfsense_mcp` | Stays the MCP server for outside clients. The app does not use it; SurfSense's plugins are their own servers |
+| Offline | The app works with no plugin. Plugins are the one optional layer that connects out, and the interface says so: "SurfSense works offline. Plugins are optional and connect to the services you choose." Organisation policy can turn them off ([`core/04-trust.md`](core/04-trust.md#organisation-policy)) |
 
-## Caught while specifying
+## Workstreams
 
-These were not in the design conversation. They are decided here so a developer is not blocked on them.
+| Stream | Owns | Needs |
+|---|---|---|
+| **Plugin lists** | `modules/plugins/lists/`: the first-party list and the app's fetched, cached copy of the registry; `plugins/registry/plugins.json`, the entry schema and the CI check for both, signing the registry | the registry container, to serve the signed registry |
+| **MCP client** | `modules/plugins/remote/`: the MCP client over Streamable HTTP, sign-in, `RemoteMcpSource` | nothing |
+| **Gateway** | `modules/plugins/gateway/`, `installed/`, `routes.py`, the tables, readiness and approval rules, permissions | the MCP client |
+| **Screen** | `frontend/src/features/plugins/`: Settings → Plugins, Connect, allowing third-party plugins, permissions, activity | the gateway's routes; can start against their shapes |
+| **opencode** | `modules/agent/plugin_tools/`: the plugin servers and per-tool rules each turn gives opencode, and the listing check for changed tools | the gateway's readiness and approval rules, the MCP client |
+| **`@` mentions** | The agent composer's `@` list, and the mention in `modules/agent/plugin_tools/` | the opencode endpoint |
+| **Plugin host** | `plugins/remote/host/` and `plugins/remote/mcp_server/`: the one container, its job runner, how it is deployed and scaled, Redis, the results' object storage and SearXNG | nothing |
+| **SurfSense scrapers** | `plugins/remote/proprietary/`: the scraping code copied out of `surfsense_backend` as one plugin per platform, their MCP tools, the code they share, the license check | the plugin host; the root `LICENSE` line for `plugins/remote/proprietary/` |
+| **Contributor guide** | [`plugins/README.md`](../../../plugins/README.md), rewritten: building a remote MCP server, trying it with a custom plugin by URL, the registry pull request | the registry's rules |
+| **Bundles** | [`bundles/`](bundles/README.md) | deferred |
 
-| Gap | Decision |
-|---|---|
-| The packaged app has no general Python. API and worker are PyInstaller binaries. | [`python/01-interpreter.md`](python/01-interpreter.md) ships a real interpreter. Plugins run on that, never inside the frozen binaries. |
-| A document has to belong to a workspace. | A run is started in a workspace, and its id is in the plugin's environment. Verbs default to it. |
-| A note has no way to say which plugin wrote it. `POST /workspaces/{id}/documents` takes `{title, content}` and nothing else, so `document.add()` cannot stamp which plugin, action and run wrote the note. | `NoteCreate` takes an optional `document_metadata` object, stored as given in the column of the same name, and the SDK fills it; the keys are in [`app/01-api.md`](app/01-api.md). A plugin could lie about it — loopback has no auth — so it is provenance for the user's benefit, not an audit trail. Without it, nothing in the library says where it came from. |
-| The API port is chosen at boot, so nothing outside the app knows it. | Electron writes the URL to `api-url` in its data folder, `~/.surfsense` or `~/.surfsense-dev`, when it picks the port. The runner passes it to plugins as `SURFSENSE_PLUGIN_API_URL`; `surfsense-plugins invoke` reads the file so an author does not have to find it. |
-| A plugin can ignore the facade and call any route, because loopback has no auth. | Accepted. The facade is what we sanction, not what we prevent, and review is the mechanism — the same position we took on not sandboxing. |
-| A GitHub release on this repo is read by every installed app as an app update. | Plugins publish to a second repository's releases. The app downloads from `github.com`, which redirects to `release-assets.githubusercontent.com`; those are the two hosts install and refresh need. The plugin's own HTTP is not this path. |
-| A fetched catalog is the trust anchor for every sha256 in it. | The refresh URL is compiled into the app, and a version whose `url` is outside `https://github.com/SurfSense-Inc/surfsense-plugin-releases/releases/download/` is dropped. |
-| A plugin published from `dev` could reach users before the app code that runs it. | Plugins publish only with an app release, stamped with its version, and no app runs a plugin version newer than itself. |
-| An SDK change could break a plugin nobody touched. | Every SDK change type-checks every plugin and fails until the broken ones are updated in the same pull request; at release, the version older apps run is re-checked and blocked from the new app when it fails. |
-| Compiled code runs only on the platform and the Python it was built for. | A download key names both, such as `cp312-linux-x64`. A release that changes the Python version republishes the plugins with compiled code, under the new key. |
-| A draft app release that is never published must not change what users see. | Plugin files upload to a draft when the tag is pushed; the catalog goes live only when the app release is published. |
-| A block recorded on one version would be lost when the next version is published. | The catalog keeps every version with its `blocked` list; `checks` entries stay for good, and `maintainer` entries follow `withdrawn-versions.txt`. |
-| A withdrawal published while a release is a draft is written later than that release's bundled catalog, but from the release before. | An app prefers the catalog with the higher `released_with`, then the later `generated_at`, and `upload`, `go-live` and `withdraw` never run at the same time. |
-| A removed plugin's id taken by a new folder would update its installed copies to someone else's code. | A published id is never reused. |
-| Installed apps accept prereleases as updates, and a prerelease's plugins would never go live. | A prerelease bundles the live catalog unchanged; changed plugins wait for the full release. |
-| The frozen backend never reads the version `bump-version.sh` writes. | Electron passes `app.getVersion()` to the backend as `SURFSENSE_LOCAL_APP_VERSION`. |
-| A dependency installed into a plain directory skips its `.pth` files, and pywin32 needs one. | The SDK adds `site-packages` with `site.addsitedir()`. |
-| A plugin started as its own process group would outlive the app. | The runner never detaches it, so the supervisor's group and tree kill reaches it. Runs left `queued` or `running` become `failed` with `interrupted` at the next start, so nothing starts by itself. |
-| A child process inherits its parent's environment, and the worker's holds `SURFSENSE_LOCAL_SECRET`, the key that decrypts every stored API key. | The runner builds each plugin's environment from an allowlist, and a test fails on any `SURFSENSE_LOCAL_` variable reaching a plugin. |
-| `python -m` puts the plugin's folder ahead of the standard library. | `PYTHONSAFEPATH=1` in the plugin's environment. |
-| A secret listed only by name gave the user no idea what to paste or where to get it. | A secret is declared with a title and help text. |
-| `documents.dedup_key` already exists. | Plugins do not set it. A plugin that wants to skip work it already did calls `document.list()`, or keeps its own record in its data directory. The platform does not define resume or dedup. |
+**Demo:** a thread on a tool-calling model connects a test remote server added as a custom plugin by URL, the agent calls one of its tools, and the result shows as a step.
+
+**Ship:** Settings → Plugins lists SurfSense's plugins with no network and the registry once third-party plugins are allowed, a user connects SurfSense's scraper plugins with a trial license and a partner plugin with OAuth, the agent and `@` mentions use them, and the third-party switch, approval and Save to Sources work.
+
+## Order of work
+
+1. **License mode on the scraper API** ([contract 2](../../contracts/02-scraper-api-auth.md)), in `surfsense_backend`, for outside clients such as `surfsense_mcp`, whose personal keys are purged on 18 Oct 2026. It starts at once and in parallel; the plugins do not depend on it.
+2. **The agent calls plugins**: the MCP client, the gateway, the tables, the `/plugins` routes, and each turn giving opencode the ready plugin servers and their rules, shown with a test server added as a custom plugin by URL.
+3. **Steps tied to their calls**: each plugin step names its plugin and tool, shows the whole result, and offers Save to Sources.
+4. **Settings → Plugins**: Connect, egress consent for every host at once, allowing third-party plugins, tool switches, activity.
+5. **`@` mentions** in agent threads.
+6. **The plugin lists and sign-in**: the first-party list, the registry, their check, signing and publishing the registry to SurfSense's host, the app's fetch and cache; OAuth; a connection kept open per plugin; progress on the screen.
+7. **The plugin host and SurfSense's scraper plugins** on it, one per platform ([`remote/02-surfsense-servers.md`](remote/02-surfsense-servers.md)). Then partners' entries.
+8. **Scale**: the 24 a thread lists ranked by use, finding tools beyond them, third-party tools that run as jobs ([`core/06-later.md`](core/06-later.md)).
+9. **The chat engine's router step**, when plugins reach Basic threads, with the chat eval's router test ([`core/03-engines.md`](core/03-engines.md#the-chat-engine-later)).
+10. **Bundles**, when something needs them.
+
+## What this design gives up
+
+Against the earlier design, where plugins ran locally from reviewed code:
+
+- **Offline use of plugins.** A remote plugin needs the network. The app itself still works offline, and bundles bring offline plugins back later.
+- **Data staying on the machine.** Each call's arguments go to the plugin's publisher. Consent per host, the privacy policy shown before Connect, and approval with the exact arguments make that visible.
+- **Seeing the code.** SurfSense reviews a listing, not the server behind it, which can change at any time. Tools added or changed later start off, and a plugin can be delisted.
+- **Availability.** A plugin stops working if its publisher's server does.
+- **Some checks, for the agent's speed.** The agent's opencode calls plugin servers itself, so SurfSense checks the host on each connection, through the proxy opencode's traffic leaves by, rather than on each call, and descriptions reach the model uncut once a tool is reviewed.
+- **Plugins in Basic threads, for now.** Only Agentic threads have plugins, and Agentic mode is offered only for models tested with opencode, so a user on a chat-only model waits for the chat engine's router step.
+
+In return, the agent calls plugins and gets live results, existing MCP servers become plugins with one pull request, publishers update without app releases, and there is far less for SurfSense to build before the first plugin ships.
+
+## What happens to the code already built
+
+The local runner, the SDK, the CLI and the manifest rules in [`plugins/bundles/core/`](../../../plugins/bundles/core/) and [`modules/plugins/bundles/`](../../../surfsense_local/backend/modules/plugins/bundles/) were built for the earlier design. They sit in those `bundles/` folders, unwired, as the base for bundles: the runner becomes the bundle host, the SDK's `@action` becomes `@tool`. `document_metadata` on notes and the `api-url` file stay in use. [`bundles/README.md`](bundles/README.md) lists what changes when bundles are picked up. The earlier design's contributor guide moved with them to [`plugins/bundles/README.md`](../../../plugins/bundles/README.md); [`plugins/README.md`](../../../plugins/README.md) is rewritten by the contributor guide stream.
 
 ## Out of scope
 
-Sandboxes, network proxies, memory and process caps, charging by a community author, bundling plugin code in the installer, running a plugin inside the API process, code that runs at install, update or uninstall, Amazon or Reddit themselves. Those are plugins someone writes after this lands. The example plugin in the SDK stream is the one this work has to ship.
-
-## Later, on demand
-
-Ideas that came up while designing, kept here so they are not lost. None is built until a plugin needs it, and each then arrives as [`02-extending.md`](02-extending.md#growing-the-sdk-together) describes, with a maintainer's review.
-
-| Idea | The need it would meet |
-|---|---|
-| Settings that are not secret, kept and editable in Settings | A plugin configured once, such as the subreddits to follow |
-| More input kinds: several lines of text, a choice from a list, a number range, defaults | A run dialog richer than text, number and checkbox |
-| Files and folders as inputs, which needs an Electron bridge to the system dialog since Electron 32 removed `File.path` | A plugin that imports a file or a folder |
-| `progress()` | A long run showing "120 of 800" rather than a spinner |
-| `fail(message)` | A failure shown as a sentence rather than an exit code and a log |
-| The interface language, as context | A plugin that writes in the user's language |
-| The plugin's own version, as context | A plugin identifying itself to the sites it calls |
-| A description per action | A subtitle in the run dialog |
-| An affected-plugin report on SDK pull requests, with griffe's `griffe check` | Seeing which plugins a compatible SDK change touches; the type check already names every plugin a change breaks |
-| Schedules that run an action by themselves, settings per workspace, icons and categories, a "Test connection" action | Syncing plugins, and a richer plugin list |
-| Signing in with OAuth (Google, Reddit, Notion) | The largest gap: until it is designed, a plugin asks for a token as a secret |
-
-Next after v1: the SDK's `http` asks the operating system to verify certificates, through a vendored `truststore`. Until then `http` checks against the system's certificate file. That covers every public site, but not a root a company or the user added to the macOS Keychain, so behind a proxy that inspects HTTPS, a site the browser opens can fail in a plugin. Adding it changes no manifest or protocol field: plugins only start trusting more.
-
-## First paid plugin: the hosted scraper API
-
-The client for the hosted scraper API ships as a `paid` plugin on this system, not as code inside the app ([ADR 0025](../../adr/0025-scraper-client-as-paid-plugin.md)). It is follow-on work: it needs everything above, plus license mode on the scraper API ([contract 2](../../contracts/02-scraper-api-auth.md)), which is not built.
-
-- Its source lives in `plugins/` under a reserved id and is Apache-2.0. The scraper API enforces the license, so there is nothing to hide in the client.
-- It declares the scraper API's host in `hosts`, so the user consents before its first run.
-- A trial license unlocks it, like any other `paid` plugin.
+Plugins that change SurfSense itself (providers, interface, prompts); a sandbox; payments for third parties; plugin-authored interface. Local MCP servers are an [open question](#open-questions).
 
 ## Open questions
 
-- How a `paid` plugin gets the license key it sends as `Authorization: License <key>`. The protocol only passes secrets the user sets. The leading answer is one more context variable, passed only to reserved ids, when the scraper plugin is built.
-- Whether CI runs a plugin's own `tests/`, and against what. They would need a stub of the app that plugins can import, which the SDK builds for its own tests but does not publish yet.
+- **Whether to run local MCP servers**, those started by a command such as `npx -y @modelcontextprotocol/server-filesystem` or `uvx mcp-server-git`, which most of the MCP ecosystem is today. opencode runs them already (`type: "local"`, a command and its environment), so calling one is the small part. The rest is a decision about what SurfSense promises:
+  - **Trust.** The command downloads code and runs it with the user's permissions; approving each tool call does not limit a program already running. Claude Desktop and Cursor accept this for users who ask for it.
+  - **The network fence.** The program inherits opencode's proxy variables, so `npx` and `uvx` cannot download and most such servers fail to start. Making them work means giving them their own environment, which leaves the program outside egress consent altogether, since the proxy only holds what respects it.
+  - **Listing.** The rules for tools added later need SurfSense's own listing, with annotations, so SurfSense would start the command itself to list it; opencode's tool list carries none, which would leave every tool asking.
+  - **One copy per thread.** Each thread's opencode instance starts its own process, so six open threads run six copies; a shared copy reached over HTTP would need a small bridge.
+  - **What is installed.** `npx` needs Node and `uvx` needs uv, neither shipped, so a missing one has to read as that rather than as a broken plugin.
+
+  The smallest version that keeps the promise honest is an advanced **Run a command** kind, off by default: the exact command and its environment variables, encrypted as keys are, shown and confirmed before it first runs, with a warning that it can reach anything the user can and that Settings › Network does not cover it. The alternative is to leave local plugins to [bundles](bundles/README.md), which run pinned code without `npx` at runtime.
+- The citation a chat answer gives a tool result, beside today's chunk citations.
+- How long tool results are kept and how large a stored one may be.
+- Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.
