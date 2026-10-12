@@ -108,7 +108,12 @@ async def install_steps(
             continue
         # The model is on disk and the engine refused it: say why, and stop.
         if step.kind == "error":
-            yield {"type": "error", "message": step.message, "code": step.code}
+            yield {
+                "type": "error",
+                "message": step.message,
+                "code": step.code,
+                **step.values,
+            }
             return
         yield {
             "type": step.kind,

@@ -448,6 +448,7 @@
   "models_error_install_no_engine": "Эта сборка SurfSense не может запустить эту модель.",
   "models_error_install_not_a_model": "Этот файл не является моделью, которую может запустить SurfSense.",
   "models_error_install_not_enough_disk": "Для этого скачивания нужно {needed, number, ::unit/gigabyte .#} свободного места; на этом компьютере {free, number, ::unit/gigabyte .#}.",
+  "models_error_install_retrieval_check_failed": "Она нашла первыми {found, number} из {asked, plural, one {# ответа} few {# ответов} many {# ответов} other {# ответа}}; модель для поиска должна находить все {asked, number}.",
   "models_error_install_too_big": "Эта сборка слишком велика для этого компьютера. Выберите сборку поменьше.",
   "models_error_unverified_connection": "Не удалось проверить список моделей этой конечной точки.",
   "models_family_group_aria": "Модели {family}",

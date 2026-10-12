@@ -12,6 +12,7 @@ import pytest
 from httpx import AsyncClient
 
 from modules.embedding.huggingface import hub
+from modules.embedding.verify import Refusal
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from tests.integration.llm.installs import wait_for_end
 
@@ -311,7 +312,7 @@ async def test_a_pick_that_fails_its_checks_is_removed(
     client: AsyncClient, huggingface, downloads, data_dir
 ) -> None:
     """A chat model served as an embedder ranks decoys first."""
-    downloads["refusal"] = "It found 6 of 10 answers first."
+    downloads["refusal"] = Refusal("It found 6 of 10 answers first.", found=6, asked=10)
     resolved = (await client.get(f"/embedding/huggingface/repo/{REPO}")).json()
 
     started = await client.post(
@@ -320,8 +321,12 @@ async def test_a_pick_that_fails_its_checks_is_removed(
     )
     job = await wait_for_end(client, started.json()["id"])
 
-    assert job["event"]["type"] == "error"
-    # Its counts are in the sentence, which has no code yet.
-    assert job["event"]["code"] is None
-    assert "6 of 10" in json.dumps(job["event"])
+    # The counts are in the sentence and beside it, raw, under the check's code.
+    assert job["event"] == {
+        "type": "error",
+        "message": "It found 6 of 10 answers first.",
+        "code": "retrieval_check_failed",
+        "found": 6,
+        "asked": 10,
+    }
     assert not (data_dir / "embeddings" / INSTALLED_AS).exists()

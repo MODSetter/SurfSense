@@ -448,6 +448,7 @@
   "models_error_install_no_engine": "This build of SurfSense cannot run this model.",
   "models_error_install_not_a_model": "This file is not a model SurfSense can run.",
   "models_error_install_not_enough_disk": "This download needs {needed, number, ::unit/gigabyte .#} free; this computer has {free, number, ::unit/gigabyte .#}.",
+  "models_error_install_retrieval_check_failed": "It found {found, number} of {asked, plural, one {# answer} other {# answers}} first; a search model has to find all {asked, number}.",
   "models_error_install_too_big": "This build is too big for this computer. Pick a smaller one.",
   "models_error_unverified_connection": "The endpoint’s model list could not be verified.",
   "models_family_group_aria": "{family} models",

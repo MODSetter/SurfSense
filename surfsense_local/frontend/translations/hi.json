@@ -448,6 +448,7 @@
   "models_error_install_no_engine": "SurfSense का यह वर्शन इस मॉडल को नहीं चला सकता।",
   "models_error_install_not_a_model": "यह फ़ाइल ऐसा मॉडल नहीं है जिसे SurfSense चला सके।",
   "models_error_install_not_enough_disk": "इस डाउनलोड के लिए {needed, number, ::unit/gigabyte .#} खाली जगह चाहिए; इस कंप्यूटर में {free, number, ::unit/gigabyte .#} है।",
+  "models_error_install_retrieval_check_failed": "इसने {asked, plural, one {# जवाब} other {# जवाबों}} में से {found, number} सबसे पहले ढूंढे; खोज मॉडल को सभी {asked, number} ढूंढने होते हैं।",
   "models_error_install_too_big": "यह बिल्ड इस कंप्यूटर के लिए बहुत बड़ा है। कोई छोटा बिल्ड चुनें।",
   "models_error_unverified_connection": "एंडपॉइंट की मॉडल सूची की पुष्टि नहीं हो सकी।",
   "models_family_group_aria": "{family} मॉडल",
