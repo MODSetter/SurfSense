@@ -16,6 +16,7 @@ import {
 import { AddPluginDialog } from "./add-plugin-dialog"
 import { FirstPartyPlugins } from "./first-party-plugins"
 import { PluginRow } from "./plugin-row"
+import { RegistryPlugins } from "./registry-plugins"
 import { ThirdPartySwitch } from "./third-party-switch"
 import { usePluginChanges } from "./use-plugin-changes"
 
@@ -49,11 +50,12 @@ export function PluginsSettings({
           "Tools from MCP servers that the agent can use. Plugins work in Agentic threads.",
       })}
     >
+      <FirstPartyPlugins />
       <ThirdPartySwitch
         allowed={thirdParty.data ?? false}
         onChange={(allowed) => changes.thirdParty.mutate(allowed)}
       />
-      <FirstPartyPlugins />
+      <RegistryPlugins allowed={thirdParty.data ?? false} />
       <div className="mt-8 mb-3 flex items-center justify-between gap-4">
         <h3 className="text-sm font-medium">
           {intl.formatMessage({

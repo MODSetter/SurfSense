@@ -17,6 +17,9 @@ from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
+    listed_after_refresh,
+)
 from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
 from modules.plugins.remote.source import RemoteMcpSource
 
@@ -28,7 +31,9 @@ logger = logging.getLogger(__name__)
 async def check_changed_tools(session: Session) -> None:
     due = await transact(session, _due)
     listings = await asyncio.gather(*(_listed(*plugin) for _, *plugin in due))
-    for (plugin_id, *_), listed in zip(due, listings, strict=True):
+    for (plugin_id, _, headers), listed in zip(due, listings, strict=True):
+        # An OAuth plugin's 401: one refresh, and the listing again.
+        listed = await listed_after_refresh(session, plugin_id, headers, listed)
         await transact(session, _record, plugin_id, listed)
 
 

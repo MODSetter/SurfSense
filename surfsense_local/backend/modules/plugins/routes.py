@@ -1,10 +1,11 @@
 """The `/plugins` routes: connecting, listing and switching plugins, the same for every kind."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
 from modules.plugins.installed.custom_plugin import (
+    PUBLISHER,
     connected_name,
     custom_plugin_id,
     store_custom_plugin,
@@ -16,6 +17,7 @@ from modules.plugins.installed.https_required import needs_https
 from modules.plugins.installed.models import (
     CheckFailure,
     InstalledPlugin,
+    PluginSource,
     ToolApproval,
 )
 from modules.plugins.installed.plugin_check import check_failure, record_check
@@ -33,6 +35,13 @@ from modules.plugins.lists.first_party.entry_read import (
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
+    list_once,
+    listed_after_refresh,
+)
+from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
+from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
+from modules.plugins.remote.sign_in.oauth.start_sign_in import start_sign_in
 from modules.plugins.remote.sign_in.plugin_headers import (
     LICENSE,
     license_headers,
@@ -74,13 +83,17 @@ def list_plugins(session: SessionDep) -> list[PluginRead]:
 
 @router.post(
     "/custom",
-    response_model=PluginRead,
+    response_model=PluginRead | SignInStarted,
     status_code=status.HTTP_201_CREATED,
     summary="Add a remote server by URL",
 )
 async def add_custom_plugin(
-    payload: CustomPluginWrite, session: SessionDep
-) -> PluginRead:
+    payload: CustomPluginWrite,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+) -> PluginRead | SignInStarted:
+    """A server whose refusal asks for OAuth starts a sign-in instead: `202` with its page."""
     url = server_url(payload.url)
     plugin_id = custom_plugin_id(payload.name)
     if await transact(session, lambda s: s.get(InstalledPlugin, plugin_id)) is not None:
@@ -119,7 +132,30 @@ async def add_custom_plugin(
     try:
         tools = await source.list_tools()
     except ServerError as error:
-        raise connect_refusal(error) from error
+        sign_in = (
+            await start_sign_in(
+                session,
+                request,
+                PluginDraft(
+                    plugin_id=plugin_id,
+                    name=payload.name,
+                    url=url,
+                    source=PluginSource.CUSTOM,
+                    publisher=PUBLISHER,
+                    entry={
+                        "name": payload.name,
+                        "hosts": [url_host(url)],
+                        "auth": {"type": "oauth"},
+                    },
+                ),
+            )
+            if error.status == 401 and not payload.token
+            else None
+        )
+        if sign_in is None:
+            raise connect_refusal(error) from error
+        response.status_code = status.HTTP_202_ACCEPTED
+        return sign_in
 
     def store(s):
         plugin = store_custom_plugin(
@@ -206,13 +242,8 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
     found = await transact(session, address)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
-    source = RemoteMcpSource(*found)
-    try:
-        listed = await source.list_tools()
-    except ServerError as error:
-        listed = error
-    finally:
-        await source.close()
+    listed = await list_once(*found)
+    listed = await listed_after_refresh(session, plugin_id, found[1], listed)
 
     def record(s):
         plugin = s.get_one(InstalledPlugin, plugin_id)

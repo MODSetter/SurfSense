@@ -14,9 +14,12 @@ HOST_PREFIX = "host:"
 # downloading an image model all reach this one, and the panel asks about the
 # host rather than about each errand sent to it.
 HUGGINGFACE = f"{HOST_PREFIX}huggingface.co"
+# SurfSense's plugin host (`modules/plugins/lists/plugin_host.py`): the
+# third-party registry and SurfSense's own plugins, under one consent.
+PLUGIN_HOST = f"{HOST_PREFIX}plugins.surfsense.com"
 # Contacted whether or not a connection points at them, so they are listed with
 # no connection to discover them from.
-BUILT_IN = (HUGGINGFACE,)
+BUILT_IN = (HUGGINGFACE, PLUGIN_HOST)
 
 
 class EgressDeniedError(Exception):

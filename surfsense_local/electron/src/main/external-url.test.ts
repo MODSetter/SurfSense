@@ -83,3 +83,46 @@ test("opens OpenAI's sign-in page only when it redirects back to this machine", 
   assert.equal(allowedExternalUrl(`${authorize}`), null)
   assert.equal(allowedExternalUrl("https://auth.openai.com/log-in"), null)
 })
+
+test("opens a plugin's sign-in page only when it comes back to SurfSense with PKCE", () => {
+  const signIn = (redirect: string, extra: Record<string, string> = {}) =>
+    `https://auth.notes.example/authorize?${new URLSearchParams({
+      response_type: "code",
+      client_id: "client-1",
+      redirect_uri: redirect,
+      state: "53111.Abc_def-0123456789xyz",
+      code_challenge: "x".repeat(43),
+      code_challenge_method: "S256",
+      ...extra,
+    })}`
+  const hosted = signIn("https://plugins.surfsense.com/oauth/callback")
+  const loopback = signIn("http://127.0.0.1:53111/plugins/oauth/callback")
+  assert.equal(allowedExternalUrl(hosted), hosted)
+  assert.equal(allowedExternalUrl(loopback), loopback)
+
+  assert.equal(allowedExternalUrl(signIn("https://evil.example/oauth/callback")), null)
+  assert.equal(
+    allowedExternalUrl(signIn("http://127.0.0.1:53111/callback")),
+    null
+  )
+  assert.equal(
+    allowedExternalUrl(
+      signIn("https://plugins.surfsense.com/oauth/callback", { state: "nonce" })
+    ),
+    null
+  )
+  assert.equal(
+    allowedExternalUrl(
+      signIn("https://plugins.surfsense.com/oauth/callback", {
+        code_challenge_method: "plain",
+      })
+    ),
+    null
+  )
+  assert.equal(
+    allowedExternalUrl(
+      hosted.replace("https://auth.notes.example", "http://auth.notes.example")
+    ),
+    null
+  )
+})

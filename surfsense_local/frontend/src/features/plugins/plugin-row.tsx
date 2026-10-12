@@ -9,6 +9,7 @@ import type { Plugin, PluginTool, ToolApproval } from "./api"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginToolRow } from "./plugin-tool-row"
 import { ReplaceKeyButton } from "./replace-key-button"
+import { SignInAgainButton } from "./sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
 
 function ToolGroup({
@@ -52,6 +53,12 @@ function checkLabel(plugin: Plugin) {
     return intl.formatMessage({
       id: "plugins_row_unreachable_status",
       defaultMessage: "Couldn’t connect",
+    })
+  }
+  if (plugin.check_failure === "sign_in" && plugin.auth_type === "oauth") {
+    return intl.formatMessage({
+      id: "plugins_row_signed_out_status",
+      defaultMessage: "Signed out",
     })
   }
   if (plugin.check_failure === "sign_in") {
@@ -175,7 +182,11 @@ export function PluginRow({
           {checkLabel(plugin)}
         </span>
         {plugin.check_failure === "sign_in" ? (
-          <ReplaceKeyButton plugin={plugin} />
+          plugin.auth_type === "oauth" ? (
+            <SignInAgainButton plugin={plugin} />
+          ) : (
+            <ReplaceKeyButton plugin={plugin} />
+          )
         ) : null}
         {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
           <Button
@@ -211,6 +222,17 @@ export function PluginRow({
             defaultMessage:
               "Some tools are new or changed. They stay off until you allow them.",
           })}
+        </p>
+      ) : null}
+      {plugin.removed_reason ? (
+        <p className="mt-2 text-xs text-destructive">
+          {intl.formatMessage(
+            {
+              id: "plugins_row_removed_body",
+              defaultMessage: "No longer listed: {reason}",
+            },
+            { reason: plugin.removed_reason }
+          )}
         </p>
       ) : null}
       {unused ? (

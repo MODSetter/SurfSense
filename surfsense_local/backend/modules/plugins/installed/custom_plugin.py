@@ -14,6 +14,7 @@ from modules.plugins.installed.models import (
 )
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
+from modules.plugins.lists.registry.listed_ids import registry_ids
 
 PUBLISHER = "custom"
 # The agent's own tools are an MCP server by this name; a plugin under it would replace them.
@@ -23,8 +24,10 @@ RESERVED_IDS = {"surfsense"}
 def custom_plugin_id(name: str) -> str:
     """The name as an id: lowercase words joined by hyphens, as list entries' ids are."""
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "plugin"
-    # SurfSense's own plugins keep their ids, so each can still be connected under its own.
-    taken = RESERVED_IDS | {entry.id for entry in first_party_entries()}
+    # Listed plugins keep their ids, so each can still be connected under its own.
+    taken = (
+        RESERVED_IDS | {entry.id for entry in first_party_entries()} | registry_ids()
+    )
     return f"{slug}-plugin" if slug in taken else slug
 
 

@@ -14,15 +14,17 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
-import { addCustomPlugin, type Plugin } from "./api"
+import { addCustomPlugin, isSignInStarted } from "./api"
 import { refusalMessage } from "./refusal-message"
+import { SignInProgress } from "./sign-in-progress"
+import { usePluginSignIn } from "./use-plugin-sign-in"
 
 function AddPluginForm({
   onCancel,
   onAdded,
 }: {
   onCancel: () => void
-  onAdded: (plugin: Plugin) => void
+  onAdded: () => void
 }) {
   const fieldId = useId()
   const [name, setName] = useState("")
@@ -30,19 +32,23 @@ function AddPluginForm({
   const [key, setKey] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A server asking for OAuth is added once the user signs in in the browser.
+  const signIn = usePluginSignIn(onAdded)
+  const waiting = signIn.state.phase === "waiting"
+  const locked = busy || waiting
 
   const connect = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      onAdded(
-        await addCustomPlugin({
-          url: url.trim(),
-          name: name.trim(),
-          ...(key ? { token: key } : {}),
-        })
-      )
+      const answer = await addCustomPlugin({
+        url: url.trim(),
+        name: name.trim(),
+        ...(key ? { token: key } : {}),
+      })
+      if (isSignInStarted(answer)) signIn.follow(answer)
+      else onAdded()
     } catch (refused) {
       setError(refusalMessage(refused))
     } finally {
@@ -68,7 +74,7 @@ function AddPluginForm({
               id: "plugins_add_name_placeholder",
               defaultMessage: "Team wiki",
             })}
-            disabled={busy}
+            disabled={locked}
           />
         </Field>
         <Field>
@@ -84,7 +90,7 @@ function AddPluginForm({
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="https://example.com/mcp"
-            disabled={busy}
+            disabled={locked}
           />
         </Field>
         <Field>
@@ -104,7 +110,7 @@ function AddPluginForm({
               id: "plugins_add_key_placeholder",
               defaultMessage: "Optional, if the server asks for one",
             })}
-            disabled={busy}
+            disabled={locked}
           />
         </Field>
         {error ? (
@@ -112,6 +118,7 @@ function AddPluginForm({
             {error}
           </p>
         ) : null}
+        <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
       </FieldGroup>
       <DialogFooter className="mt-6">
         <Button type="button" variant="outline" onClick={onCancel}>
@@ -120,7 +127,7 @@ function AddPluginForm({
             defaultMessage: "Cancel",
           })}
         </Button>
-        <Button type="submit" disabled={busy || !name.trim() || !url.trim()}>
+        <Button type="submit" disabled={locked || !name.trim() || !url.trim()}>
           {busy ? <Spinner data-icon="inline-start" /> : null}
           {intl.formatMessage({
             id: "plugins_add_connect_button",
@@ -140,7 +147,7 @@ export function AddPluginDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdded: (plugin: Plugin) => void
+  onAdded: () => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

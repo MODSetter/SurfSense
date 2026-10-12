@@ -79,7 +79,7 @@ export function FirstPartyPlugins() {
   })
   if (!entries.data?.length) return null
   return (
-    <section aria-labelledby={titleId} className="mt-8">
+    <section aria-labelledby={titleId} className="mb-8">
       <h3 id={titleId} className="text-sm font-medium">
         {intl.formatMessage({
           id: "plugins_first_party_title",

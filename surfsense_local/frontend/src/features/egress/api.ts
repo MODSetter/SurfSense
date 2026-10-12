@@ -100,6 +100,24 @@ export function describeDestination(
       ),
     }
   }
+  // The registry's host is also SurfSense's own plugins', so one answer covers both.
+  if (purpose === "plugin_registry") {
+    return {
+      label: host,
+      title: intl.formatMessage({
+        id: "egress_plugin_registry_prompt_title",
+        defaultMessage: "Allow fetching the list of plugins?",
+      }),
+      body: intl.formatMessage(
+        {
+          id: "egress_plugin_registry_prompt_body",
+          defaultMessage:
+            "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. You can turn this off any time in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
   // A plugin's server gets what its tools are sent, never every chat.
   if (purpose === "plugin") {
     return {

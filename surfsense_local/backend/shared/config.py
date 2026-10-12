@@ -78,6 +78,14 @@ class StorageSettings(BaseSettings):
         """Electron watches here for opencode's configuration and keeps opencode's home."""
         return self.data_dir / "agent"
 
+    @property
+    def plugin_registry_dir(self) -> Path:
+        """The last verified copy of the third-party registry, and its icons.
+
+        Beside `plugins/`, not in it, where a plugin with the id `registry` would collide.
+        """
+        return self.data_dir / "plugin-registry"
+
     def plugin_dir(self, plugin_id: str, version: str) -> Path:
         """Where one installed version of a plugin lives."""
         return self.data_dir / "plugins" / plugin_id / version

@@ -10,6 +10,12 @@ export function refusalMessage(error: unknown) {
           id: "plugins_error_plugin_needs_sign_in",
           defaultMessage: "This server needs a key. Add one and try again.",
         })
+      case "plugin_sign_in_failed":
+        return intl.formatMessage({
+          id: "plugins_error_plugin_sign_in_failed",
+          defaultMessage:
+            "Couldn’t start signing in to this server. Try again later.",
+        })
       case "plugin_unreachable":
         return intl.formatMessage({
           id: "plugins_error_plugin_unreachable",

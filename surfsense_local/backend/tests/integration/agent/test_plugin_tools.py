@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Iterator
+from contextlib import contextmanager
 
 import pytest
 from mcp_types import ToolAnnotations
@@ -16,6 +17,7 @@ from tests.integration.agent.test_agent_threads import (
     send,
     thread_folder,
 )
+from tests.integration.plugins.routes.test_oauth_sign_in import approve_in_browser
 from tests.license_samples import (
     INDIVIDUAL_KEY,
     import_license,
@@ -31,6 +33,7 @@ from tests.mcp_test_server import (
     reddit_server,
     serving,
 )
+from tests.oauth_stand_in import ProtectedByStandIn, StandInAuthorizationServer
 
 pytestmark = pytest.mark.integration
 
@@ -416,3 +419,90 @@ async def test_a_mention_of_a_plugin_that_is_not_ready_changes_nothing(
     assert "The user asked you to use" not in json.dumps(
         agent_api.model.requests[0]["messages"]
     )
+
+
+@contextmanager
+def signed_in_notes(
+    expires_in: int,
+) -> Iterator[
+    tuple[StandInAuthorizationServer, ProtectedByStandIn, RecordingMethods, str]
+]:
+    """The notes server behind a stand-in authorization server whose tokens last `expires_in` seconds."""
+    authorization = StandInAuthorizationServer(expires_in=expires_in)
+    recording = RecordingMethods(notes_server().streamable_http_app())
+    protected = ProtectedByStandIn(recording, authorization)
+    with serving(authorization.app()) as issuer, serving(protected) as base:
+        authorization.issuer = issuer
+        yield authorization, protected, recording, f"{base}/mcp"
+
+
+async def sign_in_to_notes(api: AgentAPI, url: str) -> None:
+    """Connect the notes server through its sign-in, and let its search run without asking."""
+    started = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
+    assert started.status_code == 202, started.text
+    page = await approve_in_browser(api.http, started.json()["authorization_url"])
+    assert page.status_code == 200, page.text
+    await api.http.put("/plugins/third-party", json={"allowed": True})
+    await api.http.put("/plugins/notes/tools/search", json={"approval": "always"})
+
+
+async def test_a_token_expiring_within_half_an_hour_is_refreshed_before_the_turn(
+    agent_api: AgentAPI,
+) -> None:
+    """opencode is given the plugin again with the new token, before the model is asked."""
+    with signed_in_notes(expires_in=600) as (authorization, protected, _, url):
+        await sign_in_to_notes(agent_api, url)
+        agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+        before = len(protected.authorizations)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
+    grants = [r["grant_type"] for r in authorization.token_requests]
+    assert grants == ["authorization_code", "refresh_token"]
+    assert set(protected.authorizations[before:]) == {"Bearer at-2"}
+
+
+async def test_an_unchanged_token_is_not_refreshed_nor_given_again(
+    agent_api: AgentAPI,
+) -> None:
+    """Two turns keep one MCP session with the plugin."""
+    with signed_in_notes(expires_in=3600) as (authorization, _, recording, url):
+        await sign_in_to_notes(agent_api, url)
+        agent_api.model.replies = [
+            call("notes_search", query="one"),
+            ("text", "One."),
+            call("notes_search", query="two"),
+            ("text", "Two."),
+        ]
+        thread = await open_thread(agent_api)
+        connected = recording.methods.count("initialize")
+
+        await send(agent_api, thread["id"], "First")
+        await send(agent_api, thread["id"], "Second")
+
+    assert recording.methods.count("tools/call") == 2
+    assert recording.methods.count("initialize") - connected == 1
+    assert [r["grant_type"] for r in authorization.token_requests] == [
+        "authorization_code"
+    ]
+
+
+async def test_a_refused_refresh_leaves_the_plugin_out_of_the_turn_and_says_so(
+    agent_api: AgentAPI,
+) -> None:
+    """Its tools are not offered, the thread names it, and the plugin says to sign in again."""
+    with signed_in_notes(expires_in=600) as (authorization, _, _, url):
+        await sign_in_to_notes(agent_api, url)
+        authorization.refuse_refresh = True
+        agent_api.model.replies = [("text", "Hi.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Hello")
+
+    assert offered(agent_api) == []
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "sign_in"}]
+    plugins = (await agent_api.http.get("/plugins")).json()
+    assert plugins[0]["check_failure"] == "sign_in"

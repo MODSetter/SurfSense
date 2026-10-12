@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.plugins.installed.models import InstalledPlugin, PluginTool
+from modules.plugins.lists.registry.delisted import delisted_reason, delisted_reasons
 
 
 class ToolRead(BaseModel):
@@ -27,15 +28,23 @@ class PluginRead(BaseModel):
     publisher: str
     url: str
     hosts: list[str]
+    # How it signs in: `none`, `token`, `license` or `oauth`.
+    auth_type: str
     enabled: bool
     connected_at: datetime
     checked_at: datetime | None
     # `unreachable` or `sign_in` when the last check failed; None when it answered.
     check_failure: str | None
+    # Why the registry delisted it; its tools are no longer offered. None otherwise.
+    removed_reason: str | None = None
     tools: list[ToolRead]
 
 
-def read_plugin(session: Session, plugin: InstalledPlugin) -> PluginRead:
+def read_plugin(
+    session: Session,
+    plugin: InstalledPlugin,
+    delisted: dict[str, str] | None = None,
+) -> PluginRead:
     tools = session.scalars(
         select(PluginTool)
         .where(PluginTool.plugin_id == plugin.id)
@@ -48,10 +57,14 @@ def read_plugin(session: Session, plugin: InstalledPlugin) -> PluginRead:
         publisher=plugin.publisher,
         url=plugin.url,
         hosts=plugin.entry.get("hosts", []),
+        auth_type=plugin.credential_kind or "none",
         enabled=plugin.enabled,
         connected_at=plugin.connected_at,
         checked_at=plugin.checked_at,
         check_failure=plugin.check_failure,
+        removed_reason=delisted_reason(
+            plugin, delisted_reasons() if delisted is None else delisted
+        ),
         tools=[
             ToolRead(
                 name=tool.tool,
@@ -73,4 +86,5 @@ def read_plugins(session: Session) -> list[PluginRead]:
             InstalledPlugin.connected_at, InstalledPlugin.id
         )
     )
-    return [read_plugin(session, plugin) for plugin in plugins]
+    delisted = delisted_reasons()
+    return [read_plugin(session, plugin, delisted) for plugin in plugins]

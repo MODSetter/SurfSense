@@ -13,6 +13,9 @@ class EntryAuth(BaseModel):
     type: Literal["none", "token", "oauth", "license"]
     title: str | None = None
     description: str | None = None
+    # OAuth only: SurfSense's app where a provider registers clients in advance. Never a secret.
+    client_id: str | None = None
+    scopes: list[str] | None = None
 
 
 class ListEntry(BaseModel):
