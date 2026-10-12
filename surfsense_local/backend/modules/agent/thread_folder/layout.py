@@ -5,6 +5,7 @@ import shutil
 import threading
 from pathlib import Path
 
+from modules.agent.thread_folder.repo_fence import fence_repository
 from shared.config import get_storage_settings
 
 SOURCES = "sources"
@@ -19,7 +20,9 @@ _locks: dict[Path, threading.Lock] = {}
 
 def ensure_thread_folder(workspace_id: int, thread_id: int) -> Path:
     """The thread's folder, with `sources/` and `outputs/` in it."""
-    folder = get_storage_settings().thread_working_dir(workspace_id, thread_id)
+    storage = get_storage_settings()
+    fence_repository(storage.agent_working_dir(workspace_id))
+    folder = storage.thread_working_dir(workspace_id, thread_id)
     (folder / SOURCES).mkdir(parents=True, exist_ok=True)
     (folder / OUTPUTS).mkdir(exist_ok=True)
     return folder
