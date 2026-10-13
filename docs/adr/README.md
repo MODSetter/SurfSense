@@ -82,3 +82,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed, deferred |
 | 0053 | [First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Proposed |
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Proposed |
+| 0055 | [A chat's mode is chosen per chat and kept, and only a technical gate, never a measured score, keeps a model out of Agentic](0055-a-chat-keeps-its-mode-and-only-technical-gates-keep-a-model-out-of-agentic.md) | Accepted |
