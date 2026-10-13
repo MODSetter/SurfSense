@@ -13,7 +13,11 @@ from capability_list.sweep_input import SweepResults
 from capability_list.sweep_rows import COMMITTED_SCREEN, sweep_rows
 
 from modules.llm.capability.measured.loader import SHIPPED
-from modules.llm.capability.measured.schema import CapabilityList, MeasuredModel
+from modules.llm.capability.measured.schema import (
+    SCREEN_SUITE,
+    CapabilityList,
+    MeasuredModel,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -340,9 +344,10 @@ def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed
 
     Rebuilding the whole list from the generators — the ladder's rows from
     its committed input, the sweep's from the committed screen — reproduces
-    the shipped list exactly. The strict form: merging into the shipped list
-    cannot see a shipped row's content drift, because a listed row always
-    beats an added one of the same key.
+    the shipped list exactly. The merge alone cannot pin a screening row
+    whose name a listed (ladder) row also holds, because a listed row always
+    beats an added one of the same name, so the generated screening rows
+    are pinned directly against the shipped list too.
     """
     ladder_committed = LadderResults.model_validate_json(
         COMMITTED_INPUT.read_text(encoding="utf-8")
@@ -356,3 +361,11 @@ def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed
     screen = sweep_rows(sweep_committed, measured_on)
 
     assert merged(measured_rows(ladder_committed), screen)[0] == shipped
+    screening = sorted(
+        (row for row in screen if row.suite == SCREEN_SUITE), key=lambda row: row.key
+    )
+    shipped_screening = sorted(
+        (row for row in shipped.models if row.suite == SCREEN_SUITE),
+        key=lambda row: row.key,
+    )
+    assert screening == shipped_screening
