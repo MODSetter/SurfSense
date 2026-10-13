@@ -34,10 +34,17 @@ def folded(base: SweepResults, rerun: SweepResults) -> SweepResults:
                         id=model.id, key=model.key, reads_images=model.reads_images
                     ),
                 )
+    # The sweep writes a capped model to `assumed` (level agent, status
+    # done): its key is the re-run's verdict — out of models and
+    # unfinished, into assumed.
+    for model in rerun.assumed:
+        models.pop(model.key, None)
+        assumed[model.key] = model
+    assumed_keys = {model.key for model in rerun.assumed}
     finished = {key for key, model in models.items() if model.finished}
     unfinished: dict[str, SweptModel] = {}
     for model in [*base.unfinished, *rerun.unfinished]:
-        if model.key not in finished:
+        if model.key not in finished and model.key not in assumed_keys:
             unfinished.setdefault(model.key, model)
     return base.model_copy(
         update={

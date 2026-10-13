@@ -77,6 +77,38 @@ def test_a_model_the_rerun_capped_joins_assumed() -> None:
     assert [model.key for model in result.assumed] == ["aion-3-5"]
 
 
+def test_a_capped_model_in_the_reruns_assumed_list_is_the_reruns_verdict() -> None:
+    """The sweep writes a capped model to `assumed`, not `unfinished`.
+
+    The fixture uses the sweep's own `_capped_row` shape (status done,
+    level agent, assumed True) — the shape `results.write()` produces.
+    """
+    from capability_list.sweep_input import AssumedModel
+
+    base = _screen(_swept("gpt-6-luna"))
+    rerun = SweepResults(
+        assumed=[
+            AssumedModel(id="openai/gpt-6-luna", key="gpt-6-luna", reads_images=False)
+        ],
+        unfinished=[
+            _swept(
+                "gpt-6-luna",
+                status="running",
+                level=None,
+                passed=None,
+                counted=None,
+                run=None,
+            )
+        ],
+    )
+
+    result = folded(base, rerun)
+
+    assert [model.key for model in result.models] == []
+    assert [model.key for model in result.assumed] == ["gpt-6-luna"]
+    assert [model.key for model in result.unfinished] == []
+
+
 def test_a_model_the_rerun_measured_leaves_the_unfinished_list() -> None:
     """The folded screen's unfinished list names only models still unmeasured."""
     base = SweepResults(

@@ -338,15 +338,21 @@ def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed
 ):
     """Edited by the generator only, so a reviewer reads one diff: the results.
 
-    Regenerating the screen's rows from the committed input and merging them
-    back in changes nothing: the shipped list's sweep rows are the generator's.
+    Rebuilding the whole list from the generators — the ladder's rows from
+    its committed input, the sweep's from the committed screen — reproduces
+    the shipped list exactly. The strict form: merging into the shipped list
+    cannot see a shipped row's content drift, because a listed row always
+    beats an added one of the same key.
     """
-    committed = SweepResults.model_validate_json(
+    ladder_committed = LadderResults.model_validate_json(
+        COMMITTED_INPUT.read_text(encoding="utf-8")
+    )
+    sweep_committed = SweepResults.model_validate_json(
         COMMITTED_SCREEN.read_text(encoding="utf-8")
     )
     shipped = CapabilityList.model_validate_json(SHIPPED.read_text(encoding="utf-8"))
-    measured_on = committed.measured_on
+    measured_on = sweep_committed.measured_on
     assert measured_on is not None
-    screen = sweep_rows(committed, measured_on)
+    screen = sweep_rows(sweep_committed, measured_on)
 
-    assert merged(shipped, screen)[0] == shipped
+    assert merged(measured_rows(ladder_committed), screen)[0] == shipped
