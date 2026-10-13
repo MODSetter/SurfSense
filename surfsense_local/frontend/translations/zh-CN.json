@@ -1269,6 +1269,7 @@
   "studio_error_no_sources": "请至少选择一个来源。",
   "studio_error_not_refinable": "只能完善在 Studio 中创建的 Word 文档或 PDF。",
   "studio_error_nothing_running": "没有正在运行的任务。",
+  "studio_error_rewrite_too_long": "此文档太长，{model} 无法一次重写完：它约有 {specTokens, number} 个 token，读取并重写大约需要 {neededTokens, number} 个，而模型的上下文窗口只有 {windowTokens, number} 个 token。",
   "studio_error_sources_gone": "这个产物的来源已全部不存在。",
   "studio_error_sources_indexing": "所选的来源仍在索引中。",
   "studio_error_version_unfinished": "此版本未完成：请重试，或完善其他版本。",

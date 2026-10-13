@@ -1269,6 +1269,7 @@
   "studio_error_no_sources": "Pick at least one source.",
   "studio_error_not_refinable": "Only a Word document or PDF made in Studio can be refined.",
   "studio_error_nothing_running": "Nothing is running.",
+  "studio_error_rewrite_too_long": "This document is too long for {model} to rewrite in one go: it is about {specTokens, number} tokens, and reading it and writing it again needs about {neededTokens, number} of the model’s {windowTokens, number}-token window.",
   "studio_error_sources_gone": "None of this artifact’s sources are left.",
   "studio_error_sources_indexing": "The chosen sources are still indexing.",
   "studio_error_version_unfinished": "This version did not finish: retry it, or refine another version.",
