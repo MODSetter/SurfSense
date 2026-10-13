@@ -11,6 +11,7 @@ from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin
 from modules.plugins.installed.registry_plugin import store_registry_plugin
 from modules.plugins.installed.third_party import third_party_on
+from modules.plugins.lists.icon_response import icon_response
 from modules.plugins.lists.registry import registry_origin
 from modules.plugins.lists.registry.current_registry import (
     CurrentRegistry,
@@ -19,7 +20,7 @@ from modules.plugins.lists.registry.current_registry import (
 )
 from modules.plugins.lists.registry.registry_consent import registry_refusal
 from modules.plugins.lists.registry.registry_entry import RegistryEntry
-from modules.plugins.lists.registry.registry_icons import content_type, icon_file
+from modules.plugins.lists.registry.registry_icons import icon_file
 from modules.plugins.lists.registry.registry_read import RegistryRead, read_registry
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
@@ -129,7 +130,6 @@ def _draft(entry: RegistryEntry) -> PluginDraft:
         name=entry.name,
         url=entry.url,
         source=PluginSource.REGISTRY,
-        publisher=entry.publisher,
         entry=entry.model_dump(exclude_none=True),
         scopes=entry.auth.scopes,
         client_id=entry.auth.client_id,
@@ -137,13 +137,6 @@ def _draft(entry: RegistryEntry) -> PluginDraft:
 
 
 # An SVG opened on its own runs nothing and loads nothing from the API's origin.
-_ICON_HEADERS = {
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
-    "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "no-cache",
-}
-
-
 @router.get("/icons/{plugin_id}", summary="A third-party plugin's icon")
 def registry_icon(plugin_id: str, session: SessionDep) -> Response:
     """From the copy already held: never fetched here."""
@@ -152,9 +145,7 @@ def registry_icon(plugin_id: str, session: SessionDep) -> Response:
     path = icon_file(entry) if entry else None
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} has no icon")
-    return Response(
-        path.read_bytes(), media_type=content_type(path), headers=_ICON_HEADERS
-    )
+    return icon_response(path)
 
 
 async def _registry(session: SessionDep) -> CurrentRegistry:

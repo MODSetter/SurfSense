@@ -2,6 +2,7 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { FeatureBadge } from "@/components/feature-badge"
 import { render } from "@/test-utils"
 
 import { LeftSidebar, type SidebarNavAction } from "./left-sidebar"
@@ -102,7 +103,7 @@ describe("LeftSidebar", () => {
         key: "plugins",
         label: "Plugins",
         icon: UnplugIcon,
-        badge: "Coming soon",
+        badge: <FeatureBadge stage="coming-soon" />,
         onClick: noop,
       },
     ]

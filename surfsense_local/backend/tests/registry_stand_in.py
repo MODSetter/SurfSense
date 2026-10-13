@@ -24,10 +24,10 @@ def entry(plugin_id: str = "notes", **changed: Any) -> dict[str, Any]:
     listed = {
         "id": plugin_id,
         "kind": "remote",
-        "publisher": "community",
+        "verification": "community",
         "name": plugin_id.title(),
         "description": f"Search the {plugin_id}.",
-        "author": "Jane Doe",
+        "author": "Notes Project",
         "url": f"https://plugins.surfsense.com/{plugin_id}/mcp",
         "auth": {"type": "none"},
         "hosts": ["plugins.surfsense.com"],

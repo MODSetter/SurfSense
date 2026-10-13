@@ -8,6 +8,7 @@ dependencies = [
     "cryptography>=44.0",
     # Icons are submitted by strangers: no entity expansion while reading an SVG.
     "defusedxml>=0.7.1",
+    "publicsuffixlist>=1.1.0.20261010",
 ]
 
 [dependency-groups]

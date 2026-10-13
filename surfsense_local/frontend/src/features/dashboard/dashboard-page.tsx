@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AgentApprovalsProvider } from "@/features/agent/agent-approvals"
-import { toast } from "sonner"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
   SidebarRightIcon,
-  UnplugIcon,
+  PlugIcon,
   XIcon,
 } from "@/components/ui/icons"
 
+import { FeatureBadge } from "@/components/feature-badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -62,6 +62,7 @@ import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import {
   readRightPanelOpen,
   readSourcePreview,
@@ -103,6 +104,7 @@ function WorkspaceDashboard({
   onOpenLicense,
   onOpenAudioSettings,
   onOpenOfficeSupport,
+  onOpenPlugins,
   modelsVisited,
 }: {
   workspace: Workspace
@@ -117,6 +119,7 @@ function WorkspaceDashboard({
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
   onOpenOfficeSupport: () => void
+  onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
@@ -290,29 +293,12 @@ function WorkspaceDashboard({
           id: "dashboard_sidebar_plugins_button",
           defaultMessage: "Plugins",
         }),
-        icon: UnplugIcon,
-        badge: intl.formatMessage({
-          id: "dashboard_sidebar_plugins_soon_label",
-          defaultMessage: "Coming soon",
-        }),
-        // TODO: open the plugins panel once it exists.
-        onClick: () =>
-          toast.info(
-            intl.formatMessage({
-              id: "dashboard_plugins_soon_toast",
-              defaultMessage: "Plugins are coming soon",
-            }),
-            {
-              description: intl.formatMessage({
-                id: "dashboard_plugins_soon_body",
-                defaultMessage:
-                  "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
-              }),
-            }
-          ),
+        icon: PlugIcon,
+        badge: <FeatureBadge stage="new" />,
+        onClick: () => onOpenPlugins(),
       },
     ],
-    []
+    [onOpenPlugins]
   )
   // The sidebar's callbacks keep one identity and call the latest chat.
   const sidebarNewChat = useStableCallback(() => startNewChat())
@@ -503,6 +489,7 @@ function WorkspaceDashboard({
                 sourceCount={sources.includedDocumentIds.length}
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
+                onOpenPlugins={onOpenPlugins}
                 onTitleAnimationComplete={chat.finishTitleAnimation}
                 autoNamingThreadId={chat.autoNamingThreadId}
                 onRename={chat.rename}
@@ -692,6 +679,13 @@ export function DashboardPage({
     setSettingsSection("office-support")
     setSettingsOpen(true)
   }, [])
+  // Set while Settings opens on Plugins' Browse or Add custom plugin, from the composer.
+  const [pluginsStart, setPluginsStart] = useState<PluginsStart>()
+  const openPlugins = useCallback((start?: PluginsStart) => {
+    setPluginsStart(start)
+    setSettingsSection("plugins")
+    setSettingsOpen(true)
+  }, [])
   // The menu has Settings to go to here, once a workspace renders it;
   // otherwise it opens the dialog.
   useHelpMenuReport(
@@ -792,22 +786,26 @@ export function DashboardPage({
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}
           onOpenOfficeSupport={openOfficeSupport}
+          onOpenPlugins={openPlugins}
           modelsVisited={modelsVisited}
         />
         <SettingsDialog
           open={settingsOpen}
           section={settingsSection}
           askOfficeConsent={askOfficeConsent}
+          pluginsStart={pluginsStart}
           onOpenChange={(open) => {
             setSettingsOpen(open)
             if (!open) {
               setModelsVisited((seen) => seen + 1)
               setAskOfficeConsent(false)
+              setPluginsStart(undefined)
             }
           }}
           onSectionChange={(next) => {
             setSettingsSection(next)
             setAskOfficeConsent(false)
+            setPluginsStart(undefined)
           }}
           onModelUnavailable={onModelUnavailable}
           onModelSelected={onModelSelected}

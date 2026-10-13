@@ -63,6 +63,15 @@ contextBridge.exposeInMainWorld("surfsense", {
   }): Promise<void> => ipcRenderer.invoke("shell:titlebar-overlay", overlay),
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("shell:open-external", url),
+  // A content link the user confirmed in the link popup: any https page.
+  openConfirmedLink: (url: string): Promise<void> =>
+    ipcRenderer.invoke("shell:open-confirmed-link", url),
+  // A listed plugin's homepage or privacy policy, named by its id.
+  openPluginPage: (
+    pluginId: string,
+    page: "homepage" | "privacy_policy"
+  ): Promise<void> =>
+    ipcRenderer.invoke("shell:open-plugin-page", pluginId, page),
   about: {
     details: () => ipcRenderer.invoke("about:details"),
   },

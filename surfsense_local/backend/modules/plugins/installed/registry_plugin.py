@@ -1,4 +1,4 @@
-"""Connecting a partner's or community plugin from the registry."""
+"""Connecting a verified or community plugin from the registry."""
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,6 @@ def store_registry_plugin(
         kind=PluginKind.REMOTE,
         source=PluginSource.REGISTRY,
         url=entry.url,
-        publisher=entry.publisher,
         entry=entry.model_dump(exclude_none=True),
     )
     if token:

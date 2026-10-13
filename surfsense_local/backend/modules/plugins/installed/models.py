@@ -60,7 +60,6 @@ class InstalledPlugin(Base):
     source: Mapped[PluginSource] = mapped_column(text_enum(PluginSource))
     # One plugin per server, so a server's tools and key are never split across two.
     url: Mapped[str] = mapped_column(unique=True)
-    publisher: Mapped[str]
     # The entry as listed at connect: name, auth, hosts, access. Kept so a plugin whose
     # entry later leaves its list still shows what it was.
     entry: Mapped[dict[str, Any]] = mapped_column(JSON)
@@ -73,6 +72,8 @@ class InstalledPlugin(Base):
     # When SurfSense last listed the server, and why that failed; None when it answered.
     checked_at: Mapped[datetime | None]
     check_failure: Mapped[CheckFailure | None] = mapped_column(text_enum(CheckFailure))
+    # Set while the user has disconnected it: no sign-in, no tools offered, still listed.
+    disconnected_at: Mapped[datetime | None]
 
     @property
     def credential(self) -> str | None:

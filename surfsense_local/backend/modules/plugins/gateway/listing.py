@@ -5,13 +5,16 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.gateway.qualified_name import qualified_name
 from modules.plugins.gateway.ready_tool import ReadyTool
-from modules.plugins.installed.models import CheckFailure, InstalledPlugin, PluginTool
+from modules.plugins.installed.models import (
+    CheckFailure,
+    InstalledPlugin,
+    PluginSource,
+    PluginTool,
+)
 from modules.plugins.installed.plugin_hosts import hosts_not_allowed
 from modules.plugins.installed.third_party import third_party_on
 from modules.plugins.lists.registry.delisted import delisted_reason, delisted_reasons
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH
-
-FIRST_PARTY_PUBLISHER = "surfsense"
 
 
 def list_tools(session: Session) -> list[ReadyTool]:
@@ -22,7 +25,7 @@ def list_tools(session: Session) -> list[ReadyTool]:
     def is_ready(plugin: InstalledPlugin) -> bool:
         if plugin.id not in ready:
             ready[plugin.id] = (
-                (third_party_allowed or plugin.publisher == FIRST_PARTY_PUBLISHER)
+                (third_party_allowed or plugin.source == PluginSource.FIRST_PARTY)
                 and delisted_reason(plugin, delisted) is None
                 and not hosts_not_allowed(session, plugin)
                 and not _signed_out(plugin)
@@ -32,7 +35,11 @@ def list_tools(session: Session) -> list[ReadyTool]:
     rows = session.execute(
         select(InstalledPlugin, PluginTool)
         .join(PluginTool, PluginTool.plugin_id == InstalledPlugin.id)
-        .where(InstalledPlugin.enabled, PluginTool.enabled)
+        .where(
+            InstalledPlugin.enabled,
+            InstalledPlugin.disconnected_at.is_(None),
+            PluginTool.enabled,
+        )
         .order_by(InstalledPlugin.connected_at, InstalledPlugin.id, PluginTool.position)
     )
     taken: set[str] = set()

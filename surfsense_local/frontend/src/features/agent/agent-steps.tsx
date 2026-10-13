@@ -7,8 +7,8 @@ import {
   CircleAlertIcon,
 } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
-import { mayBePluginStep } from "@/features/plugins/plugin-of-step"
-import { PluginStepLine } from "@/features/plugins/plugin-step-line"
+import { mayBePluginStep } from "@/features/plugins/in-thread/plugin-of-step"
+import { PluginStepLine } from "@/features/plugins/in-thread/plugin-step-line"
 import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"

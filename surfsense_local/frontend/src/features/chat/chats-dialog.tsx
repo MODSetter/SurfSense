@@ -44,6 +44,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
+import { Separator } from "@/components/ui/separator"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
 import { TypewriterText } from "@/components/typewriter-text"
@@ -433,10 +434,11 @@ function ChatList({
             className="group relative w-full min-w-0 overflow-hidden"
           >
             {index > 0 ? (
-              <div
+              <Separator
                 className={cn(
-                  "mx-1.5 border-t",
-                  showSeparator ? "border-border/60" : "border-transparent"
+                  // Inset on both sides: full width plus margins would overflow.
+                  "mx-1.5 data-horizontal:w-auto",
+                  showSeparator ? "bg-border/60" : "bg-transparent"
                 )}
               />
             ) : null}
