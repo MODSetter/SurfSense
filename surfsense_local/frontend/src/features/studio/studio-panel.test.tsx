@@ -596,6 +596,49 @@ describe("studio panel", () => {
     expect(screen.queryByText("backend prose, never shown")).toBeNull()
   })
 
+  it("shows its own text when a regenerate is refused because the sources are gone", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") return Response.json([])
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([{ ...pendingArtifact, status: "failed" }])
+        }
+        if (path === "/artifacts/9/regenerate" && init?.method === "POST") {
+          return Response.json(
+            {
+              detail: {
+                message: "None of this artifact's sources are left.",
+                code: "sources_gone",
+              },
+            },
+            { status: 409 }
+          )
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    renderStudio()
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Generation failed. Retry Summary",
+      })
+    )
+    const alert = await screen.findByRole("alert")
+    // The interface's line says the same as the backend's. Only the
+    // apostrophe tells them apart: the catalog's is typographic.
+    expect(
+      within(alert).getByText("None of this artifact’s sources are left.")
+    ).toBeTruthy()
+    expect(
+      screen.queryByText("None of this artifact's sources are left.")
+    ).toBeNull()
+  })
+
   it("shows the backend's message for a refusal code it has no text for", async () => {
     vi.stubGlobal(
       "fetch",
