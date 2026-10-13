@@ -1,5 +1,5 @@
 """The joined episode as MP3, about a sixth of its WAV, through LAME (lameenc).
-WAV where lameenc is not installed, so a checkout without it still plays."""
+WAV where lameenc is not installed or fails, so the episode is never lost."""
 
 import io
 import logging
@@ -34,11 +34,16 @@ def encoded_episode(wav: bytes) -> SynthesizedAudio:
     # LAME takes 16-bit samples only.
     if width != 2:
         return SynthesizedAudio(wav, "audio/wav")
-    encoder = lameenc.Encoder()
-    encoder.set_channels(channels)
-    encoder.set_in_sample_rate(rate)
-    encoder.set_bit_rate(KBPS_PER_CHANNEL * channels)
-    encoder.set_quality(QUALITY)
-    return SynthesizedAudio(
-        bytes(encoder.encode(frames) + encoder.flush()), "audio/mpeg"
-    )
+    try:
+        encoder = lameenc.Encoder()
+        encoder.set_channels(channels)
+        encoder.set_in_sample_rate(rate)
+        encoder.set_bit_rate(KBPS_PER_CHANNEL * channels)
+        encoder.set_quality(QUALITY)
+        mp3 = bytes(encoder.encode(frames) + encoder.flush())
+    except RuntimeError:
+        # The voices are paid for: keep the episode rather than fail a job
+        # whose retry would voice, and bill, it again.
+        logger.warning("MP3 encoding failed; the episode stays WAV", exc_info=True)
+        return SynthesizedAudio(wav, "audio/wav")
+    return SynthesizedAudio(mp3, "audio/mpeg")
