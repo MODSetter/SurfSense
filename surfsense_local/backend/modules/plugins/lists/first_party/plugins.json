@@ -20,7 +20,8 @@
       "tools": [
         "scrape"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Google Search to SurfSense to bring live web results into your chats, so answers can draw on what the web says today, not only on your sources. Search Google and read the results as you would see them, with ads, People Also Ask, the AI Overview and related searches. Useful for checking current facts, comparing options, or finding the pages worth reading on a topic."
     },
     {
       "id": "web-crawl",
@@ -41,7 +42,8 @@
       "tools": [
         "crawl"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Web Crawl to SurfSense to read the web as clean, readable text. Open any public page, or follow a site’s links to read many of its pages at once, then summarize, compare or ask questions about what you found. Useful for summarizing articles, comparing products across sites, or answering questions from a product’s documentation. Pages behind a login or a paywall stay out of reach."
     },
     {
       "id": "reddit",
@@ -62,7 +64,8 @@
       "tools": [
         "scrape"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Reddit to SurfSense to see what people are really saying about a topic, a product or a question. Read public posts with their full comment threads, or go through a whole community to find what it discusses most, all anonymously and without your Reddit account. Useful for gauging opinion before a purchase, researching a market, or finding answers buried in long threads."
     },
     {
       "id": "youtube",
@@ -84,7 +87,8 @@
         "scrape",
         "comments"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect YouTube to SurfSense to work with videos without watching every one. Read public videos, channels and playlists with their subtitles, and the comments and replies under a video. Useful for summarizing a talk or tutorial, pulling quotes from an interview, or seeing how viewers reacted to a launch."
     },
     {
       "id": "instagram",
@@ -106,7 +110,8 @@
         "scrape",
         "details"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Instagram to SurfSense to look into public accounts from your chats. Read public posts and reels from a profile or a link, find profiles by search, and see a profile’s bio, follower and post counts and latest posts, without your own Instagram account. Useful for researching creators and brands, tracking a campaign, or comparing accounts in a niche."
     },
     {
       "id": "tiktok",
@@ -130,7 +135,8 @@
         "trending",
         "user_search"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect TikTok to SurfSense to follow what is happening on the platform from your chats. Read public videos from links, profiles or hashtags with their comments, see what is trending right now, and find accounts by keyword, without your own TikTok account. Useful for spotting trends early, researching creators, or seeing how people respond to a product or topic."
     },
     {
       "id": "google-maps",
@@ -152,7 +158,8 @@
         "scrape",
         "reviews"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Google Maps to SurfSense to research places from your chats. Find businesses and locations with their address, hours, rating and photos, and read their reviews along with the owners’ replies. Useful for comparing places before you visit, checking up on a business, or learning what customers praise and complain about."
     },
     {
       "id": "amazon",
@@ -173,7 +180,8 @@
       "tools": [
         "scrape"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Amazon to SurfSense to research products from your chats. Read product pages and search results with prices, offers from other sellers, best-seller rankings and the reviews on the page, without your Amazon account, so nothing is ever bought. Useful for comparing products, watching prices, or summarizing what buyers say before you choose."
     },
     {
       "id": "walmart",
@@ -195,7 +203,8 @@
         "scrape",
         "reviews"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Walmart to SurfSense to research products from your chats. Read product pages, search and category listings, prices, sellers, variants and availability, and page through a product’s reviews, without your Walmart account, so nothing is ever bought. Useful for comparing products, checking stock and prices, or summarizing what buyers report."
     },
     {
       "id": "indeed",
@@ -216,7 +225,8 @@
       "tools": [
         "scrape"
       ],
-      "added": "2026-10"
+      "added": "2026-10",
+      "about": "Connect Indeed to SurfSense to research jobs from your chats. Read public job postings with their title, company, location, salary and full description, without your Indeed account, so nothing is ever applied for. Useful for comparing roles, gauging pay for a position, or tracking which companies are hiring."
     }
   ]
 }

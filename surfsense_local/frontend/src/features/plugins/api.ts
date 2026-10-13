@@ -73,8 +73,8 @@ export type FirstPartyEntry = {
   /** `license` when it needs the SurfSense license. */
   access: "free" | "license"
   hosts: string[]
-  /** What its page shows before it is connected. */
-  about: string | null
+  /** What its public page says of it; its card shows `description`. */
+  about: string
   tools: string[]
   /** `YYYY-MM`, the month it joined the list. */
   added: string

@@ -84,7 +84,7 @@ const REDDIT: FirstPartyEntry = {
   author: "SurfSense",
   access: "license",
   hosts: ["plugins.surfsense.com"],
-  about: null,
+  about: "Read whole subreddits, their posts and every comment.",
   tools: ["scrape"],
   added: "2026-10",
   has_icon: true,
@@ -1019,7 +1019,8 @@ describe("plugins settings", () => {
     await user.click(within(surfsense).getByRole("button", { name: "Reddit" }))
 
     const page = await screen.findByRole("region", { name: "Reddit" })
-    expect(within(page).getByText(REDDIT.description)).toBeTruthy()
+    expect(within(page).getByText(REDDIT.about)).toBeTruthy()
+    expect(within(page).queryByText(REDDIT.description)).toBeNull()
     const tools = within(page).getByRole("region", { name: "Tools" })
     expect(within(tools).getByText("scrape")).toBeTruthy()
     expect(within(page).getByText("Authentication")).toBeTruthy()
@@ -1114,7 +1115,8 @@ describe("plugins settings", () => {
 
     const page = await screen.findByRole("region", { name: "Reddit" })
     expect(within(page).getByText("Connected")).toBeTruthy()
-    expect(within(page).getByText(REDDIT.description)).toBeTruthy()
+    expect(within(page).getByText(REDDIT.about)).toBeTruthy()
+    expect(within(page).queryByText(REDDIT.description)).toBeNull()
     expect(within(page).getByText("scrape")).toBeTruthy()
     expect(within(page).queryByRole("switch")).toBeNull()
     expect(within(page).queryByRole("button", { name: "Connect" })).toBeNull()

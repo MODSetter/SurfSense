@@ -64,7 +64,7 @@ An illustrative registry entry, not a real listing:
 | `access` | `free` or `external`, or `license` in the first-party list only ([`05-paid.md`](05-paid.md)) |
 | `access_note` | Required when `access` is `external`: what the user must buy or have, in a sentence |
 | `privacy_policy` | Required in the registry |
-| `about` | Optional. What the plugin does, for its page, in 1–600 characters. Without it the page shows `description` |
+| `about` | Required in both lists. What the plugin does, in more detail than `description`, in 1–600 characters: `description` is the line on its card in Browse, `about` the text on its public page. Neither is ever given to a model |
 | `tools` | Required in both lists, at least one: a plugin's tools are all SurfSense uses of it. The names of the tools the server offers, each an MCP tool name, listed once. Shown on the plugin's public page; never given to a model ([below](#a-plugins-page)) |
 | `added` | Required in both lists. The month the plugin joined its list, as `YYYY-MM`: set by the publisher in its pull request and checked in review, or by SurfSense with its own plugin. Shown on the plugin's public page |
 | `homepage`, `icon` | Optional. Icons live beside their list: `plugins/registry/icons/`, or `lists/first_party/icons/` in the app |
@@ -154,7 +154,7 @@ The first-party list needs none of this: `bundling/api.spec` packages it into th
 Every listed plugin has a public page, as each of Claude's connectors does, opened only from its entry in Browse and shown in place of the list with **Back**. It is built from the list entry alone, so it is the same for every user and the same whether the plugin is connected or not; one page serves first-party and registry plugins alike. A custom plugin has no entry, so no public page.
 
 - **Header:** its icon, name and publisher ("By SurfSense", its author marked "Verified" for a partner, or "By" its author), and **Connect**, or "Connected" once it is.
-- **About:** `about`, or `description` when there is none.
+- **About:** `about`. The card's `description` is never shown in its place.
 - **Tools:** the entry's `tools`, each name as a chip in two columns, as Claude's connectors show them, with no description, no switch and no approval. Those are settings of a connected plugin, in Yours.
 - **Details:** its authentication (none, the SurfSense license, an API key, or the user's account on its service, named), the hosts it connects to, the month it was added, and its homepage and privacy policy.
 
@@ -209,6 +209,6 @@ How versions are built, scanned, verified and blocked is in [`bundles/`](../bund
 - An entry in a fetched registry with `publisher: surfsense` or `auth: license` is dropped by the app, and no request carries the license key to it.
 - A third-party plugin cannot be connected until third-party plugins are allowed, and its tools never reach a caller.
 - A tool a fake server adds after connecting is listed off and never reaches a caller until switched on.
-- The check fails an entry whose `about` is too long, a tool name MCP does not allow or one listed twice, or an `added` that is not a `YYYY-MM` month, and a first-party entry with no `tools` or no `added`.
+- The check fails an entry whose `about` is too long, a tool name MCP does not allow or one listed twice, or an `added` that is not a `YYYY-MM` month, and a first-party entry with no `about`, `tools` or `added`.
 - A plugin's public page shows its `about`, its listed tools and its details with no request leaving the machine, the same before and after it is connected, and no switch; Yours shows a connected plugin's live tools with their switches and nothing from its entry.
 - A first-party entry whose `tools` differ from its server's tools fails the plugin host's tests.

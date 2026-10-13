@@ -35,6 +35,8 @@ def checked_entries(path: Path) -> list[ListEntry]:
             raise ValueError(
                 f"{name}: url must be on {PLUGIN_HOST} to carry the license key"
             )
+        if entry.about is None:
+            raise ValueError(f"{name}: about must say what the plugin does")
         if not entry.tools:
             raise ValueError(f"{name}: tools must list what the server offers")
         if entry.added is None:

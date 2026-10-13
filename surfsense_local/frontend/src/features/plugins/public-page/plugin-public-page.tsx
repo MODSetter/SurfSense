@@ -59,16 +59,17 @@ export function PluginPublicPage({
           </div>
           <ConnectListedPlugin entry={entry} />
         </div>
-        <PageSection
-          title={intl.formatMessage({
-            id: "plugins_page_about_title",
-            defaultMessage: "About",
-          })}
-        >
-          <p className="text-sm text-muted-foreground">
-            {entry.about ?? entry.description}
-          </p>
-        </PageSection>
+        {/* Never the card's description in its place; only an older cached registry lacks it. */}
+        {entry.about ? (
+          <PageSection
+            title={intl.formatMessage({
+              id: "plugins_page_about_title",
+              defaultMessage: "About",
+            })}
+          >
+            <p className="text-sm text-muted-foreground">{entry.about}</p>
+          </PageSection>
+        ) : null}
         <PageSection
           title={intl.formatMessage({
             id: "plugins_page_tools_title",

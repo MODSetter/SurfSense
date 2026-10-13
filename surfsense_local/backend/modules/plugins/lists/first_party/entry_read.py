@@ -15,7 +15,7 @@ class FirstPartyEntryRead(BaseModel):
     # `license` when it needs the SurfSense license; `free` otherwise.
     access: str
     hosts: list[str]
-    about: str | None
+    about: str
     tools: list[str]
     # `YYYY-MM`, the month it joined the list.
     added: str
@@ -33,7 +33,7 @@ def read_first_party(session: Session) -> list[FirstPartyEntryRead]:
             author=entry.author,
             access=entry.access,
             hosts=entry.hosts,
-            about=entry.about,
+            about=entry.about or "",
             tools=entry.tools or [],
             added=entry.added or "",
             has_icon=entry.icon is not None,

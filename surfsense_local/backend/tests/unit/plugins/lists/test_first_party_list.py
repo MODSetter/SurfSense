@@ -27,6 +27,7 @@ def scrapers(**changed: Any) -> dict[str, Any]:
         "access": "license",
         "tools": ["scrape"],
         "added": "2026-10",
+        "about": "Scrape sites and search the web, read as clean text.",
     }
     return {**entry, **changed}
 
@@ -153,3 +154,9 @@ def test_a_first_party_entry_must_say_when_it_was_added(tmp_path: Path) -> None:
     """Its public page says which month it joined the list."""
     with pytest.raises(ValueError, match="scrapers: added"):
         checked_entries(listed(tmp_path, scrapers(added=None)))
+
+
+def test_a_first_party_entry_must_say_more_about_itself(tmp_path: Path) -> None:
+    """Its public page shows `about`, never its card's description in its place."""
+    with pytest.raises(ValueError, match="scrapers: about"):
+        checked_entries(listed(tmp_path, scrapers(about=None)))

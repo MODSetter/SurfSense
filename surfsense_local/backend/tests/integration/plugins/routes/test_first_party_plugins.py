@@ -54,6 +54,7 @@ async def test_surfsense_s_plugins_are_listed_before_any_is_connected(
     assert reddit["has_icon"] is True
     assert reddit["tools"] == ["scrape"]
     assert reddit["added"] == "2026-10"
+    assert reddit["about"] and reddit["about"] != reddit["description"]
 
 
 async def test_a_first_party_icon_is_served_from_the_app(client: AsyncClient) -> None:

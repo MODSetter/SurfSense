@@ -28,7 +28,7 @@ The registry is the list of partners' and community plugins the app offers once 
 - **Sign-in.** `auth.type` is `none`, `token` (with a `title` and `description` saying what to paste) or `oauth` (with an optional `client_id` and `scopes`). No `auth` field may carry a secret.
 - **Access.** `free`, or `external` with an `access_note`.
 - **Pages.** `privacy_policy` is required, and it and `homepage` are `https`. `min_app_version`, when given, is a version like `2.3.0`.
-- **The plugin's page.** `about`, when given, is up to 600 characters; `tools`, when given, is a list of MCP tool names, each once; `added`, when given, is a month like `2026-10`. Review, not the check, makes sure every entry lists its tools and the month it was added.
+- **The plugin's page.** `about`, when given, is up to 600 characters; `tools`, when given, is a list of MCP tool names, each once; `added`, when given, is a month like `2026-10`. Review, not the check, makes sure every entry has an `about`, lists its tools and says the month it was added.
 - **Ids.** Unique in the registry and across the first-party list, which the check reads too; an id in `removed` is never listed again, and each removed entry gives a `reason`. Unknown fields are allowed, so a newer app can add them.
 - **Icons** ([`icon_rules.py`](../../plugins/registry/check/registry_check/static/icon_rules.py)). A plain file name in `icons/`, `.svg` or `.png`, at most 32 KB, square; a PNG at least 64×64; an SVG read with `defusedxml`, with no script, `foreignObject`, frame or embed, no event attribute and no reference outside itself. An icon no entry uses fails.
 
