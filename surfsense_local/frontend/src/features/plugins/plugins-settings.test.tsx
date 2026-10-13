@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { Toaster, toast } from "sonner"
+
 import { render } from "@/test-utils"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
@@ -230,6 +232,10 @@ function api({
         )
       }
       if (url.pathname === "/plugins/first-party/reddit") {
+        if (refuse) {
+          const { status, ...detail } = refuse
+          return Response.json({ detail }, { status })
+        }
         const added = notes({
           id: "reddit",
           name: "Reddit",
@@ -351,6 +357,8 @@ async function yours(user: User) {
 }
 
 afterEach(() => {
+  // Sonner keeps its toasts across tests; one left over would show in the next Toaster.
+  toast.dismiss()
   cleanup()
   vi.unstubAllGlobals()
   delete window.surfsense
@@ -918,6 +926,50 @@ describe("plugins settings", () => {
     ])
   })
 
+  it("says in a toast that a plugin connected", async () => {
+    api({ plugins: [] })
+    const user = userEvent.setup()
+    render(
+      <>
+        <Toaster />
+        <PluginsSettings />
+      </>
+    )
+
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
+
+    expect(await screen.findByText("Reddit connected")).toBeTruthy()
+  })
+
+  it("says in a toast why a plugin couldn't connect, not beside its button", async () => {
+    api({
+      plugins: [],
+      refuse: {
+        status: 502,
+        code: "plugin_unreachable",
+        message: "unreachable",
+      },
+    })
+    const user = userEvent.setup()
+    render(
+      <>
+        <Toaster />
+        <PluginsSettings />
+      </>
+    )
+
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
+
+    expect(await screen.findByText("Couldn’t connect Reddit")).toBeTruthy()
+    expect(within(surfsense).queryByRole("alert")).toBeNull()
+  })
+
   it("says why the license was refused, and opens Settings › License", async () => {
     api({
       plugins: [
@@ -1164,7 +1216,12 @@ describe("plugins settings", () => {
       registry: [listed({ auth_type: "oauth" })],
     })
     const user = userEvent.setup()
-    render(<PluginsSettings />)
+    render(
+      <>
+        <Toaster />
+        <PluginsSettings />
+      </>
+    )
 
     const wiki = await screen.findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
@@ -1174,6 +1231,8 @@ describe("plugins settings", () => {
     expect(
       await within(wiki).findByText("Connected", {}, AFTER_POLLS)
     ).toBeTruthy()
+    // The sign-in ends in the browser, so a toast says it worked.
+    expect(await screen.findByText("Wiki connected")).toBeTruthy()
     await yours(user)
     expect(
       await screen.findByRole("row", { name: "Wiki Third-party On" })

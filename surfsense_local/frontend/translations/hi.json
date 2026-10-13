@@ -757,6 +757,8 @@
   "plugins_add_title": "MCP सर्वर जोड़ें",
   "plugins_add_url_label": "सर्वर URL",
   "plugins_connect_button": "कनेक्ट करें",
+  "plugins_connect_failed_toast": "{plugin} कनेक्ट नहीं हो सका",
+  "plugins_connected_toast": "{plugin} कनेक्ट हो गया",
   "plugins_details_back_button": "वापस",
   "plugins_disconnect_dialog_body": "जब तक आप इसे फिर से कनेक्ट नहीं करते, एजेंट इसका इस्तेमाल नहीं करेगा। आपकी टूल सेटिंग्स बनी रहेंगी।",
   "plugins_disconnect_dialog_cancel_button": "रद्द करें",

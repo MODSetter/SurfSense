@@ -757,6 +757,8 @@
   "plugins_add_title": "Добавить MCP-сервер",
   "plugins_add_url_label": "URL сервера",
   "plugins_connect_button": "Подключить",
+  "plugins_connect_failed_toast": "Не удалось подключить {plugin}",
+  "plugins_connected_toast": "{plugin} подключён",
   "plugins_details_back_button": "Назад",
   "plugins_disconnect_dialog_body": "Агент не будет его использовать, пока вы не подключите его снова. Настройки инструментов сохранятся.",
   "plugins_disconnect_dialog_cancel_button": "Отмена",

@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import { connectPlugin, pluginsQueryKey, type Plugin } from "../api"
-import { refusalMessage } from "../refusal-message"
+import { connectedToast, connectFailedToast } from "../connect-toasts"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { ReplaceKeyButton } from "./replace-key-button"
 
@@ -23,6 +23,8 @@ export function ConnectPluginButton({
   const queryClient = useQueryClient()
   const connect = useMutation({
     mutationFn: () => connectPlugin(plugin.id),
+    onSuccess: () => connectedToast(plugin.name),
+    onError: (error) => connectFailedToast(plugin.name, error),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: pluginsQueryKey }),
   })
@@ -63,11 +65,6 @@ export function ConnectPluginButton({
         {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
         {label}
       </Button>
-      {connect.error ? (
-        <span role="alert" className="text-destructive">
-          {refusalMessage(connect.error)}
-        </span>
-      ) : null}
     </>
   )
 }

@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import { addCustomPlugin, isSignInStarted } from "../api"
+import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 import { SignInProgress } from "../sign-in/sign-in-progress"
 import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
@@ -32,8 +33,12 @@ function AddPluginForm({
   const [key, setKey] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const added = () => {
+    connectedToast(name.trim())
+    onAdded()
+  }
   // A server asking for OAuth is added once the user signs in in the browser.
-  const signIn = usePluginSignIn(onAdded)
+  const signIn = usePluginSignIn(added)
   const waiting = signIn.state.phase === "waiting"
   const locked = busy || waiting
 
@@ -48,7 +53,7 @@ function AddPluginForm({
         ...(key ? { token: key } : {}),
       })
       if (isSignInStarted(answer)) signIn.follow(answer)
-      else onAdded()
+      else added()
     } catch (refused) {
       setError(refusalMessage(refused))
     } finally {

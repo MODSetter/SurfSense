@@ -17,6 +17,7 @@ import { intl } from "@/i18n/intl"
 import { ApiError } from "@/lib/api"
 
 import { pluginsQueryKey, replacePluginKey, type Plugin } from "../api"
+import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 
 function ReplaceKeyForm({
@@ -41,6 +42,7 @@ function ReplaceKeyForm({
     setError(null)
     try {
       await replacePluginKey(plugin.id, key)
+      connectedToast(plugin.name)
       onReplaced()
     } catch (refused) {
       setError(

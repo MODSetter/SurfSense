@@ -757,6 +757,8 @@
   "plugins_add_title": "MCPサーバーを追加",
   "plugins_add_url_label": "サーバーURL",
   "plugins_connect_button": "接続",
+  "plugins_connect_failed_toast": "{plugin} に接続できませんでした",
+  "plugins_connected_toast": "{plugin} に接続しました",
   "plugins_details_back_button": "戻る",
   "plugins_disconnect_dialog_body": "再接続するまで、エージェントはこのプラグインを使いません。ツールの設定はそのまま残ります。",
   "plugins_disconnect_dialog_cancel_button": "キャンセル",

@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import { pluginsQueryKey, signInAgain, type Plugin } from "../api"
+import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 import { SignInProgress } from "./sign-in-progress"
 import { usePluginSignIn } from "./use-plugin-sign-in"
@@ -24,9 +25,10 @@ export function SignInAgainButton({
   className?: string
 }) {
   const queryClient = useQueryClient()
-  const signIn = usePluginSignIn(
-    () => void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
-  )
+  const signIn = usePluginSignIn(() => {
+    connectedToast(plugin.name)
+    void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+  })
   const start = useMutation({
     mutationFn: () => signInAgain(plugin.id),
     onSuccess: signIn.follow,
