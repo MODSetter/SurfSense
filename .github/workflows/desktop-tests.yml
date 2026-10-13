@@ -23,6 +23,7 @@ jobs:
   changes:
     name: Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event.pull_request.draft == false
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
@@ -63,6 +64,7 @@ jobs:
   backend:
     name: Backend (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true'
     # Hard links, file locks, long paths and the staging rename differ by OS.
@@ -70,6 +72,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+
+    env:
+      # The runner's macOS Python cannot load SQLite extensions, which sqlite_vec
+      # needs; the release freezes with uv's own Python (release-local.yml).
+      UV_PYTHON_PREFERENCE: only-managed
 
     steps:
       - name: Checkout code
@@ -106,6 +113,7 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
 
@@ -161,6 +169,7 @@ jobs:
   electron:
     name: Electron (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true'
     strategy:
@@ -203,6 +212,7 @@ jobs:
   gate:
     name: Desktop Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [changes, backend, frontend, electron]
     if: always()
 

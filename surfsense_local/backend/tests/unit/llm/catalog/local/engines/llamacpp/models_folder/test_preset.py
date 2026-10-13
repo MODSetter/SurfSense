@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from modules.llm.catalog.local import service as service_module
 from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
     write_preset,
 )
@@ -180,9 +181,11 @@ def test_repricing_an_empty_directory_writes_an_empty_preset(
 
 
 def test_repricing_unchanged_models_does_not_rewrite_the_preset(
-    service, tmp_path: Path
+    service, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Electron treats a new mtime as a reason to restart the warmed router."""
+    # With no staged runtime the budget is live free memory, which moves between reprices.
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 16 * 1024**3)
     a_model(tmp_path / "models" / "Qwen3-1.7B-Q4_K_M.gguf")
     service.llamacpp.reprice()
     preset = tmp_path / "models" / PRESET_FILE

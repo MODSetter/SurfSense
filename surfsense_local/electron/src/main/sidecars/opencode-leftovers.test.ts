@@ -7,6 +7,7 @@ import test from "node:test"
 
 import { getFreePort } from "../net.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./opencode-leftovers.ts"
+import { isWindows } from "./platform.ts"
 
 const HOST = "127.0.0.1"
 
@@ -67,6 +68,7 @@ test("leaves a process alone when the record no longer opens it", async () => {
     assert.equal(isAlive(pid), true)
     assert.equal(existsSync(join(agentDir, "opencode-process.json")), false)
   } finally {
-    process.kill(-pid, "SIGKILL")
+    // Windows has no process groups, and the fake has no children to reach.
+    process.kill(isWindows ? pid : -pid, "SIGKILL")
   }
 })
