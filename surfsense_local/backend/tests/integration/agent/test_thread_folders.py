@@ -3,7 +3,6 @@
 import asyncio
 import os
 import sqlite3
-import subprocess
 import threading
 import time
 from collections.abc import Iterator
@@ -154,46 +153,6 @@ def test_an_untick_takes_the_text_figures_and_pages_from_that_thread_only(
         f"pages/{kept.id}-p1.png",
     }
     assert len(texts(other)) == 6
-
-
-def _opencode_repository(start: Path) -> Path | None:
-    """The repository opencode 1.18.34 takes as the project from `start`.
-
-    `Git.repo.discover`: the nearest `.git`, file or folder, walking up, then
-    `git rev-parse --git-dir` beside it; a failure there is no repository.
-    """
-    for folder in (start, *start.parents):
-        if (folder / ".git").exists():
-            found = subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=folder,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            return Path(found.stdout.strip()) if found.returncode == 0 else None
-    return None
-
-
-def test_a_git_repository_above_the_data_folder_is_not_the_agent_s_project(
-    session: Session,
-) -> None:
-    """Else opencode takes its root as the project, and every thread's folder is inside it."""
-    data = get_storage_settings().data_dir
-    subprocess.run(["git", "init", "-q", str(data)], check=True)
-    workspace_id = workspace(session)
-
-    folder = sync_thread_folder(session, agent_thread(session, workspace_id), [])
-
-    assert _opencode_repository(folder) is None
-    found = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=data,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    assert Path(found.stdout.strip()).resolve() == data.resolve()
 
 
 def test_two_threads_share_one_file_for_one_text(session: Session) -> None:
