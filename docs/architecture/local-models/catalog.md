@@ -39,7 +39,7 @@ of them.
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
-([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
+([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
 an audio folder, which it does only when it staged audio.cpp's server.
 onnxruntime's are the curated embedders, then any Hugging Face embedder
@@ -69,7 +69,7 @@ catalog/local/
     audiocpp/               engine.py, manifest_fields.py, evidence.py,
                             builds/, rows/, audio_folder/
     onnxruntime/            engine.py, manifest_fields.py, rows.py, spec.py
-  service.py  router.py  schemas.py  dependencies.py
+  service.py  router.py  schemas.py  dependencies.py  search_cache.py
 ```
 
 [`engine.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/engine.py) is the one seam the service and the routes
@@ -347,6 +347,16 @@ not running here. A row is runnable when the engine that offered it is the one
 the registry gives its type: sd.cpp's image rows run, while the same image model
 found through llama.cpp's search does not, and keeps its sentence.
 
+Each group also has a code, a `NotRunnableCode`, which the row carries as
+`not_runnable_code` beside `not_runnable_reason`. The renderer shows its own
+line for a code it knows, in the interface language, and the English sentence
+otherwise
+([`not-runnable-text.ts`](../../../surfsense_local/frontend/src/features/models/local/chat/not-runnable-text.ts), [localization](../localization.md#backend-text)).
+A row that no group refuses says "SurfSense cannot run this model." under the
+code `unsupported`. A Hugging Face embedder repo that fails its check words the
+refusal itself and carries that check's own code, a `NotAnEmbedderCode`, never
+the embedding group's ([embedding](../embedding.md#hugging-face)).
+
 A diffusion GGUF from sd.cpp's converter carries no metadata at all, not even
 `general.architecture`, so the sd.cpp slice reads its architecture from tensor
 names, as sd.cpp does
@@ -419,7 +429,8 @@ is gated, and **Vision** when its file names include a projector, by the same ru
 `builds/in_repo.py` uses. `full=true` returns every repo's file names, so this costs no
 request of its own. Each hit also carries `quantized_from`, from its
 `base_model:quantized:` tag, which the API returns and the row does not show. The
-screen searches once a query has two characters and keeps results for 300 s.
+screen searches 300 ms after a query has two characters, and the API keeps each
+answer for 300 s.
 
 **Opening a repo reads its listing and no file**, about a second: the summary and
 the file tree, fetched together. Every build is listed smallest first with its
@@ -508,10 +519,11 @@ the renderer shows its own line for a code it knows, in the interface language,
 and the frame's English `message` for one it does not
 ([`install-text.ts`](../../../surfsense_local/frontend/src/features/models/local/installs/install-text.ts), [localization](../localization.md#backend-text)).
 A refusal for disk space is `not_enough_disk` with `needed_bytes` and
-`free_bytes` raw, so each language formats the sizes itself. Two refusals have a
-`null` code and stay English: a searched file of a type the runtime cannot run,
-whose sentence is the row's `not_runnable_reason`, and a Hugging Face embedder
-that fails its check.
+`free_bytes` raw, so each language formats the sizes itself. A searched file of
+a type the runtime cannot run is refused with the classifier's sentence and its
+`NotRunnableCode`, as a row is, so the toast is worded like a row's reason. A
+Hugging Face embedder that fails its search check is `retrieval_check_failed`
+with `found` and `asked`, the answers it ranked first and how many it was asked.
 
 The API fetches each file of the build from
 `https://huggingface.co/{repo}/resolve/{revision}/{path}` into the models folder

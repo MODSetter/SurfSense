@@ -1,9 +1,10 @@
-import { cleanup, render } from "@testing-library/react"
+import { act, cleanup, render } from "@testing-library/react"
 import { renderAsync } from "docx-preview"
 import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -70,10 +71,11 @@ function serve(files: Record<number, Uint8Array<ArrayBuffer>>): void {
 }
 
 /**
- * The zoom the viewer fits a Word file at: jsdom lays nothing out, so this is
- * a 600 px frame whose scrollbar leaves 585 px, holding pages 816 px wide.
+ * A Word file opened at the zoom the viewer fits it at: jsdom lays nothing
+ * out, so this is a 600 px frame whose scrollbar leaves 585 px, holding pages
+ * 816 px wide.
  */
-async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
+async function openFitted(file: Uint8Array<ArrayBuffer>): Promise<Document> {
   serve({ 12: file })
   const { container } = render(
     <DocxViewer artifact={wordArtifact(12, file)} actionsContainer={null} />
@@ -81,7 +83,10 @@ async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
   const frame = container.querySelector("iframe")!
   Object.defineProperty(frame, "clientWidth", { value: 600 })
   const pages = pagesOf(container)
-  Object.defineProperty(pages.documentElement, "clientWidth", { value: 585 })
+  Object.defineProperty(pages.documentElement, "clientWidth", {
+    configurable: true,
+    value: 585,
+  })
   // docx-preview may make the page in either window's realm.
   const frameWindow = pages.defaultView as unknown as typeof globalThis
   const realms = [HTMLElement.prototype, frameWindow.HTMLElement.prototype]
@@ -98,10 +103,8 @@ async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
   }
 
   try {
-    await vi.waitFor(() =>
-      expect(pages.body.style.getPropertyValue("zoom")).not.toMatch(/^1?$/)
-    )
-    return pages.body.style.getPropertyValue("zoom")
+    await vi.waitFor(() => expect(zoomOf(pages)).not.toMatch(/^1?$/))
+    return pages
   } finally {
     realms.forEach((prototype, index) => {
       const descriptor = own[index]
@@ -110,6 +113,29 @@ async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
       else Reflect.deleteProperty(prototype, "offsetWidth")
     })
   }
+}
+
+async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
+  return zoomOf(await openFitted(file))
+}
+
+function zoomOf(pages: Document): string {
+  return pages.body.style.getPropertyValue("zoom")
+}
+
+/** The observers watching for a resize, as the browser would call them. */
+const resizeObservers = new Set<{ callback: ResizeObserverCallback }>()
+
+/** Narrows or widens the frame's viewport, as dragging the panel's edge does. */
+function resize(pages: Document, viewportWidth: number): void {
+  Object.defineProperty(pages.documentElement, "clientWidth", {
+    configurable: true,
+    value: viewportWidth,
+  })
+  act(() => {
+    for (const { callback } of resizeObservers)
+      callback([], {} as ResizeObserver)
+  })
 }
 
 /** The document the viewer lays the Word file's pages out in. */
@@ -158,6 +184,26 @@ beforeAll(() => {
 
 afterAll(() => {
   Reflect.deleteProperty(SVGElement.prototype, "getBBox")
+})
+
+beforeEach(() => {
+  resizeObservers.clear()
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      readonly callback: ResizeObserverCallback
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback
+      }
+      observe() {
+        resizeObservers.add(this)
+      }
+      unobserve() {}
+      disconnect() {
+        resizeObservers.delete(this)
+      }
+    }
+  )
 })
 
 afterEach(() => {
@@ -264,6 +310,34 @@ describe("Word viewer", () => {
     expect(await fitZoom(CLAUSES_WITH_COMMENTS)).toBe(
       String(585 / (816 + COMMENT_GUTTER))
     )
+  })
+
+  it("refits the page when the frame is resized", async () => {
+    const pages = await openFitted(LINKS_OF_EVERY_KIND)
+
+    resize(pages, 400)
+
+    expect(zoomOf(pages)).toBe(String(400 / 816))
+  })
+
+  it("keeps a zoom set by hand when the frame is resized", async () => {
+    const pages = await openFitted(LINKS_OF_EVERY_KIND)
+    const frameWindow = pages.defaultView!
+    act(() => {
+      pages.dispatchEvent(
+        new frameWindow.WheelEvent("wheel", {
+          ctrlKey: true,
+          deltaY: -1,
+          cancelable: true,
+        })
+      )
+    })
+    const byHand = zoomOf(pages)
+    expect(byHand).toBe(String((585 / 816) * 1.1))
+
+    resize(pages, 400)
+
+    expect(zoomOf(pages)).toBe(byHand)
   })
 
   it("shows each comment numbered in a balloon, its passage shaded", async () => {

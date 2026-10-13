@@ -244,6 +244,39 @@ describe("chat model settings", () => {
     })
   })
 
+  it("says why a model on disk cannot run in the interface's own words", async () => {
+    // The API's sentence is English in every language; its code is what the
+    // interface has words for.
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [
+          row(
+            {
+              id: "an-embedder",
+              origin: "downloaded",
+              name: "an-embedder",
+              family: "",
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "embedder",
+            },
+            [build({ catalog_id: "", installed_as: "an-embedder" })]
+          ),
+        ],
+      })
+    )
+
+    renderSettings()
+
+    expect(
+      await screen.findByText(
+        "This model turns text into numbers for search. It cannot answer questions, and SurfSense already has its own."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
   it("explains how to pair a hand-copied projector without guessing", async () => {
     vi.stubGlobal(
       "fetch",

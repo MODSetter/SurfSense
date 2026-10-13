@@ -104,6 +104,27 @@ function serving(
 }
 
 describe("image model settings", () => {
+  it("says why a model on disk cannot run in the interface's own words", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving([
+        {
+          ...imageRow({ installed_as: "sdxl-turbo-Q4_0" }),
+          runnable: false,
+          not_runnable_reason: "backend reason",
+          not_runnable_code: "unsupported",
+        },
+      ])
+    )
+
+    render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+
+    expect(
+      await screen.findByText("SurfSense cannot run this model.")
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
   it("keeps the chat layout where no local image runtime shipped", async () => {
     // No sd-server staged: the catalog carries chat rows and no image rows.
     vi.stubGlobal("fetch", serving([chatRow]))

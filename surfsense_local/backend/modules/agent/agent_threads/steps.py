@@ -30,6 +30,8 @@ def step_of(part: dict[str, Any]) -> dict[str, Any]:
     state = part.get("state") or {}
     step: dict[str, Any] = {
         "id": part["id"],
+        # What an approval names, to be asked on this step.
+        "call_id": part.get("callID"),
         "tool": part.get("tool"),
         "status": state.get("status"),
         "title": state.get("title"),

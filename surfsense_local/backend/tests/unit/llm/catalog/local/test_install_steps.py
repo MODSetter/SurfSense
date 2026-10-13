@@ -78,7 +78,12 @@ class RefusingEngine:
 
     async def after_install(self, model_id: str):
         yield InstallStep("verifying", "Checking that it finds answers")
-        yield InstallStep("error", "It found 6 of 10 answers first.")
+        yield InstallStep(
+            "error",
+            "It found 6 of 10 answers first.",
+            code=InstallCode.RETRIEVAL_CHECK_FAILED,
+            values={"found": 6, "asked": 10},
+        )
         raise AssertionError("nothing runs after the engine's refusal")
 
 
@@ -208,7 +213,13 @@ async def test_an_engine_refusing_the_model_ends_the_job_in_its_words() -> None:
             "code": None,
             "progress": None,
         },
-        {"type": "error", "message": "It found 6 of 10 answers first.", "code": None},
+        {
+            "type": "error",
+            "message": "It found 6 of 10 answers first.",
+            "code": "retrieval_check_failed",
+            "found": 6,
+            "asked": 10,
+        },
     ]
 
 

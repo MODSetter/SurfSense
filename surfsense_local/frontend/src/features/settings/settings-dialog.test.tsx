@@ -87,7 +87,7 @@ describe("SettingsDialog", () => {
     render(<SettingsHarness />)
 
     const groups = {
-      Settings: ["General", "License"],
+      Settings: ["General", "License", "Plugins"],
       Models: [
         "Text gen",
         "Image gen",

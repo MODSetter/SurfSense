@@ -1,5 +1,6 @@
 ---
-status: proposed
+status: in-progress
+tracking: https://github.com/MODSetter/SurfSense/issues/2100
 code:
   - docker/local/
   - surfsense_local/electron/src/main/sidecars/
@@ -15,6 +16,8 @@ code:
 # Running SurfSense in Docker
 
 > The desktop app's stack, minus Electron, as one container: a supervisor shared with Electron runs the API, the workers and the model servers on loopback, and Caddy is the only thing listening. It replaces the legacy self-host compose. The decision is [ADR 0035](../../adr/0035-docker-compose-runs-the-desktop-stack.md); GPU images are in [`gpu.md`](gpu.md).
+
+**Status, 11 Oct 2026:** [steps](#steps) 1 to 3 are built: the CORS origins setting ([#2122](https://github.com/MODSetter/SurfSense/pull/2122)), the `VITE_API_BASE` fallback ([#2134](https://github.com/MODSetter/SurfSense/pull/2134)), and boot and the watchers in `sidecars/` with no Electron import ([#2215](https://github.com/MODSetter/SurfSense/pull/2215)).
 
 ## What changes
 
@@ -50,7 +53,7 @@ One container, because the stack assumes one machine: SQLite and the Huey queue 
 
 ## The supervisor, shared with Electron
 
-The sidecar specs and the process supervisor in [`electron/src/main/sidecars/`](../../../surfsense_local/electron/src/main/sidecars/) already import only Node. What ties boot to Electron is in [`index.ts`](../../../surfsense_local/electron/src/main/index.ts): `bootSidecars()` reads `app.isPackaged` and `process.resourcesPath`, and the three watchers live beside it.
+The sidecar specs and the process supervisor in [`electron/src/main/sidecars/`](../../../surfsense_local/electron/src/main/sidecars/) already import only Node. Since [#2215](https://github.com/MODSetter/SurfSense/pull/2215), boot ([`boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts)) and the watchers live in `sidecars/` and take their paths as a context, which [`index.ts`](../../../surfsense_local/electron/src/main/index.ts) builds from `app.isPackaged` and `process.resourcesPath`.
 
 - Boot and the watchers move into `sidecars/`, taking their paths as a context instead of reading Electron. The watchers restart llama-server when `models/models.ini` changes, restart audiocpp when `audio/server.json` changes, and start or stop sd-server from `/llm/image/local/runtime`.
 - `electron/src/headless/` is the container's entry. It builds that context from the environment, runs the start-up checks, boots, waits for `/health`, then starts Caddy as one more sidecar. It forwards SIGTERM to every child. Node 24 runs it as TypeScript, as the package's tests already run, so it has no build step.

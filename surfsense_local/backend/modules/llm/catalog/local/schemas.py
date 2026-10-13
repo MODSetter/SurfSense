@@ -126,6 +126,9 @@ class LocalRowRead(BaseModel):
     support: SupportRead
     runnable: bool
     not_runnable_reason: str | None
+    # The reason as a `NotRunnableCode`, where it has one, so the interface can
+    # say it in its own language.
+    not_runnable_code: str | None = None
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool

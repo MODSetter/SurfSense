@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 
@@ -130,7 +130,7 @@ describe("the composer's mode switch", () => {
     expect(composerNote()).toEqual([])
   })
 
-  it("starts an untested model in Basic, and warns once Agentic is picked", async () => {
+  it("starts an untested model in Basic, and warns only in the menu", async () => {
     const user = userEvent.setup()
     renderComposer({ model: SONNET_99 })
 
@@ -145,9 +145,41 @@ describe("the composer's mode switch", () => {
 
     expect(trigger().textContent).toContain("Agentic")
     expect(nextChat()).toBe("agentic")
-    expect(composerNote()).toEqual([
-      "Not tested with this model yet, so it may stop early or make mistakes.",
-    ])
+    expect(composerNote()).toEqual([])
+  })
+
+  it("tags an untested Agentic, and says the full warning beside the row", async () => {
+    const user = userEvent.setup()
+    renderComposer({ model: SONNET_99 })
+
+    await user.click(trigger())
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+    await user.hover(agentic)
+
+    expect(within(agentic).getByText("Not tested")).toBeTruthy()
+    expect(agentic.textContent).toContain("Does tasks across your files")
+    // Once read with the row, once in the tooltip.
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(
+          "Not tested with this model yet, so it may stop early or make mistakes."
+        )
+      ).toHaveLength(2)
+    )
+  })
+
+  it("leaves a passing model's Agentic untagged", async () => {
+    const user = userEvent.setup()
+    renderComposer({ model: KIMI })
+
+    await user.click(trigger())
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+
+    expect(within(agentic).queryByText("Not tested")).toBeNull()
   })
 
   it("offers a low scorer Agentic with its score", async () => {
@@ -178,13 +210,15 @@ describe("the composer's mode switch", () => {
     })
 
     await user.click(trigger())
-    await user.click(
-      await screen.findByRole("menuitemradio", { name: /^Agentic/ })
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+    expect(agentic.textContent).toContain(
+      "Passed on its full-size version. A local copy may do worse."
     )
+    await user.click(agentic)
 
-    expect(composerNote()).toEqual([
-      "Passed on its full-size version. A local copy may do worse.",
-    ])
+    expect(composerNote()).toEqual([])
   })
 
   it("holds Agentic out with the reason when a gate blocks it", async () => {
@@ -245,28 +279,39 @@ describe("the composer's mode switch", () => {
     expect(nextChat()).toBe("agentic")
   })
 
-  it("shows an open chat's mode and offers the other only as a new chat", async () => {
+  it("lists both modes for an open chat, and opens a new chat for the other", async () => {
     const user = userEvent.setup()
     const onNewChat = vi.fn()
     renderComposer({ model: KIMI, threadMode: "agentic", onNewChat })
 
     expect(trigger().textContent).toContain("Agentic")
     await user.click(trigger())
-    expect(
-      await screen.findByText("This chat runs in Agentic mode")
-    ).toBeTruthy()
-    expect(screen.queryByRole("menuitemradio")).toBeNull()
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: /^Start a new chat in Basic \(Q&A\) mode/,
-      })
-    )
+    expect(await screen.findByText("This chat’s mode")).toBeTruthy()
+    const agentic = screen.getByRole("menuitemradio", { name: /^Agentic/ })
+    const basic = screen.getByRole("menuitemradio", { name: /^Basic/ })
+    expect(agentic.getAttribute("aria-checked")).toBe("true")
+    expect(within(basic).getByText("New chat")).toBeTruthy()
+    expect(within(agentic).queryByText("New chat")).toBeNull()
+    await user.click(basic)
 
     expect(onNewChat).toHaveBeenCalledOnce()
     expect(nextChat()).toBe("basic")
   })
 
-  it("does not offer an open chat's other mode when a gate blocks Agentic", async () => {
+  it("keeps an open chat when its own mode is picked again", async () => {
+    const user = userEvent.setup()
+    const onNewChat = vi.fn()
+    renderComposer({ model: KIMI, threadMode: "agentic", onNewChat })
+
+    await user.click(trigger())
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: /^Agentic/ })
+    )
+
+    expect(onNewChat).not.toHaveBeenCalled()
+  })
+
+  it("holds an open chat's other mode when a gate blocks Agentic", async () => {
     const user = userEvent.setup()
     const onNewChat = vi.fn()
     renderComposer({
@@ -280,13 +325,14 @@ describe("the composer's mode switch", () => {
     })
 
     await user.click(trigger())
-    const offer = await screen.findByRole("menuitem", {
-      name: /^Start a new chat in Agentic mode/,
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
     })
-    expect(offer.textContent).toContain(
+    expect(agentic.getAttribute("aria-disabled")).toBe("true")
+    expect(agentic.textContent).toContain(
       "This install doesn’t include the agent."
     )
-    await user.click(offer)
+    await user.click(agentic)
 
     expect(onNewChat).not.toHaveBeenCalled()
   })

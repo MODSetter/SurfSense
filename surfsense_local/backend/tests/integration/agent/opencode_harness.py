@@ -11,6 +11,7 @@ import socket
 import subprocess
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
@@ -283,8 +284,16 @@ class RunningOpencode:
         self.process.wait(timeout=10)
 
 
-def start_opencode(agent_dir: Path, port: int, password: str) -> RunningOpencode:
-    """Start the staged opencode on the configuration in `agent_dir`, as Electron would."""
+def start_opencode(
+    agent_dir: Path,
+    port: int,
+    password: str,
+    extra_env: Mapping[str, str] | None = None,
+) -> RunningOpencode:
+    """Start the staged opencode on the configuration in `agent_dir`, as Electron would.
+
+    `extra_env` replaces any of it, such as the proxy a test points it at.
+    """
     home = agent_dir / "opencode"
     config_folder = home / "config" / "opencode"
     (config_folder / "node_modules").mkdir(parents=True, exist_ok=True)
@@ -327,6 +336,7 @@ def start_opencode(agent_dir: Path, port: int, password: str) -> RunningOpencode
             "1",
         ),
     }
+    env.update(extra_env or {})
     for folder in ("data", "cache", "state"):
         (home / folder).mkdir(parents=True, exist_ok=True)
     process = subprocess.Popen(
@@ -369,9 +379,16 @@ class StandInForElectron:
     A rewrite is the API's to apply, through opencode's own reload.
     """
 
-    def __init__(self, agent_dir: Path, port: int, password: str) -> None:
+    def __init__(
+        self,
+        agent_dir: Path,
+        port: int,
+        password: str,
+        extra_env: Mapping[str, str] | None = None,
+    ) -> None:
         self._config = agent_dir / "opencode.json"
         self._agent_dir, self._port, self._password = agent_dir, port, password
+        self._extra_env = extra_env
         self._stopping = threading.Event()
         self._thread = threading.Thread(target=self._watch, daemon=True)
         self.running: RunningOpencode | None = None
@@ -396,5 +413,7 @@ class StandInForElectron:
     def _follow(self) -> None:
         """Start opencode the first time the file is there."""
         if self.running is None and self._config.is_file():
-            self.running = start_opencode(self._agent_dir, self._port, self._password)
+            self.running = start_opencode(
+                self._agent_dir, self._port, self._password, self._extra_env
+            )
             self.starts += 1

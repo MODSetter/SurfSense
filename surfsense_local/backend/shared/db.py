@@ -74,7 +74,8 @@ def import_models() -> None:
     import modules.folders.models
     import modules.license.models
     import modules.llm.models
-    import modules.plugins.models
+    import modules.plugins.bundles.models
+    import modules.plugins.installed.models
     import modules.source_roots.models
     import modules.workspaces.models
 

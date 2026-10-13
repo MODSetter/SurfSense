@@ -5,6 +5,8 @@ import { app } from "electron"
 
 import { isLocale, PSEUDO_LOCALE } from "./locales.ts"
 import type { LocalePreference } from "./resolve-locale.ts"
+import { warnMain } from "../session-log/main-warn.ts"
+import { sessionLog } from "../session-log/session-log.ts"
 
 function prefsPath(): string {
   return join(app.getPath("userData"), "locale-prefs.json")
@@ -36,8 +38,6 @@ export function saveLocalePreference(locale: LocalePreference): void {
     renameSync(temporary, path)
   } catch (error) {
     // Best-effort, as theme-prefs.ts: a lost write falls back to "system".
-    process.stderr.write(
-      `[main] failed to save locale preference: ${String(error)}\n`
-    )
+    warnMain(sessionLog, `failed to save locale preference: ${String(error)}`)
   }
 }

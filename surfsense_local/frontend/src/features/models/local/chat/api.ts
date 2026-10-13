@@ -108,6 +108,11 @@ export type LocalRow = {
   support: LocalSupport
   runnable: boolean
   not_runnable_reason: string | null
+  /**
+   * The reason as a code, which `notRunnableReason()` has a line for in the
+   * interface's language; absent for a reason that has none.
+   */
+  not_runnable_code?: string | null
   builds: LocalBuild[]
   /** Curated models only. */
   default_quantization: string | null
@@ -246,6 +251,10 @@ export type InstallEvent =
       // Sent raw with `not_enough_disk`, for the message to format.
       needed_bytes?: number
       free_bytes?: number
+      // Sent raw with `retrieval_check_failed`: the answers it ranked first,
+      // and how many it was asked for.
+      found?: number
+      asked?: number
     }
 
 export type DeleteModelResult = {

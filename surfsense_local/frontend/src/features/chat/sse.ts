@@ -2,6 +2,7 @@ import type {
   AgentStep,
   PermissionRequest,
   TurnSources,
+  UnavailablePlugin,
 } from "@/features/agent/api"
 
 export type Citation = {
@@ -40,6 +41,8 @@ export type ChatStreamEvent =
   | { type: "agent-preparing"; count: number }
   // The sources an agent turn works from, as the server resolved its ticks.
   | { type: "agent-scope"; scope: TurnSources }
+  // Connected plugins the turn goes on without.
+  | { type: "agent-plugins-unavailable"; plugins: UnavailablePlugin[] }
   | ({ type: "agent-step" } & AgentStep)
   | ({ type: "permission-request" } & PermissionRequest)
   | { type: "permission-replied"; id: string; reply: string }

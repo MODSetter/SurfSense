@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Et1j7EOMTYi/908sp37UvfHBOPA08Hr+UWCQ5/KWKfY='; style-src 'sha256-DQiqnfN0qLNpJNn0j4aKUngFX2MhDQKL54vLGGYx7oQ='; base-uri 'none'; form-action 'none'"> <!-- pragma: allowlist secret -->
+<title>SurfSense sign-in</title>
+<style>
+body { font: 16px/1.5 system-ui, sans-serif; margin: 0; padding: 48px 16px; text-align: center; color: #1f2937; background: #fff; }
+@media (prefers-color-scheme: dark) { body { color: #e5e7eb; background: #111827; } }
+</style>
+</head>
+<body>
+<p id="invalid" hidden>This sign-in link isn't valid. Start again from SurfSense.</p>
+<script>
+// state is "<port>.<nonce>": the port of the app's loopback API, set by the app.
+function loopbackCallback(search) {
+  var states = new URLSearchParams(search).getAll("state");
+  if (states.length !== 1) return null;
+  var match = /^([1-9][0-9]{3,4})\.[A-Za-z0-9_-]{16,256}$/.exec(states[0]);
+  if (!match) return null;
+  var port = Number(match[1]);
+  if (port < 1024 || port > 65535) return null;
+  return "http://127.0.0.1:" + port + "/plugins/oauth/callback" + search;
+}
+var target = loopbackCallback(location.search);
+if (target) {
+  location.replace(target);
+} else {
+  document.getElementById("invalid").hidden = false;
+}
+</script>
+</body>
+</html>

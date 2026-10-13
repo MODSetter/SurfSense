@@ -3,10 +3,15 @@ model, and its size is what the screen shows."""
 
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import replace
+from enum import StrEnum
 
 from modules.embedding.spec import EmbedderSpec
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
-from modules.llm.catalog.local.classifier import classify
+from modules.llm.catalog.local.classifier import (
+    UNSUPPORTED_REASON,
+    NotRunnableCode,
+    classify,
+)
 from modules.llm.catalog.local.engines.onnxruntime import ENGINE
 from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.catalog.local.installs import InstalledBuild
@@ -124,16 +129,24 @@ def downloaded_rows(specs: Sequence[EmbedderSpec]) -> list[LocalRow]:
     return rows
 
 
-def searched_row(repo: str, build: BuildRow | None, reason: str | None) -> LocalRow:
+def searched_row(
+    repo: str,
+    build: BuildRow | None,
+    reason: str | None,
+    code: StrEnum | None = None,
+) -> LocalRow:
     """One opened Hugging Face repo, in the shape the GGUF search answers: its
-    one build, or none and why."""
+    one build, or none and why. `code` names `reason`, when the embedder check
+    gave it one."""
     classification = classify("", "feature-extraction")
     if build is None:
-        # No build to offer: classified as nothing, so the row says why.
+        # No build to offer: classified as nothing, so the row says why, in the
+        # embedder check's own sentence and code. Never the embedding group's.
         classification = replace(
             classification,
             types=(),
-            reason=reason or "SurfSense cannot run this model.",
+            reason=reason or UNSUPPORTED_REASON,
+            code=code if reason else NotRunnableCode.UNSUPPORTED,
         )
     return LocalRow(
         id=repo,

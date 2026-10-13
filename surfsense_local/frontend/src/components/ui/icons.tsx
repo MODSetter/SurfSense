@@ -19,6 +19,7 @@ import {
   ChartHistogramIcon as ChartHistogramIconData,
   Chat01Icon as Chat01IconData,
   CheckIcon as CheckIconData,
+  CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
@@ -46,6 +47,7 @@ import {
   FolderUploadIcon as FolderUploadIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
+  GridViewIcon as GridViewIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
   LinkSquare02Icon as LinkSquare02IconData,
@@ -59,6 +61,7 @@ import {
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
   PlayIcon as PlayIconData,
+  Plug01Icon as Plug01IconData,
   PlusIcon as PlusIconData,
   PodcastIcon as PodcastIconData,
   Presentation02Icon as Presentation02IconData,
@@ -137,6 +140,7 @@ export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
 export const Chat01Icon = createIcon(Chat01IconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
+export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
@@ -168,6 +172,7 @@ export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
+export const GridViewIcon = createIcon(GridViewIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
 export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
@@ -179,6 +184,7 @@ export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const Pdf01Icon = createIcon(Pdf01IconData)
 export const PencilIcon = createIcon(PencilIconData)
+export const PlugIcon = createIcon(Plug01IconData)
 export const PlusIcon = createIcon(PlusIconData)
 export const PodcastIcon = createIcon(PodcastIconData)
 export const Presentation02Icon = createIcon(Presentation02IconData)

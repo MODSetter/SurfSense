@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp02Icon, CircleStopIcon } from "@/components/ui/icons"
 import type { ChatMode } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { PluginMentions } from "@/features/plugins/in-thread/plugin-mentions"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 
 import { ComposerImage } from "./attached-image"
 import { ComposerAddMenu } from "./composer-add-menu"
-import { AgenticNote } from "./modes/agentic-note"
 import { ModePicker } from "./modes/mode-picker"
 import { useNewChatMode } from "./modes/new-chat-mode"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
@@ -136,6 +137,7 @@ export function ChatComposer({
   isUploadingSources = false,
   threadMode = null,
   onNewChat,
+  onOpenPlugins,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -159,6 +161,8 @@ export function ChatComposer({
   threadMode?: ChatMode | null
   // Starts a new chat, for an open chat's offer of the other mode.
   onNewChat?: () => void
+  // Opens Settings › Plugins, from the add menu's plugins.
+  onOpenPlugins?: (start?: PluginsStart) => void
 }) {
   const newChatMode = useNewChatMode(model)
   // The agent reads no attached images yet: an Agentic chat takes none. Images
@@ -188,6 +192,7 @@ export function ChatComposer({
       }
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
+      onManagePlugins={onOpenPlugins}
       className={className}
     />
   )
@@ -214,71 +219,75 @@ export function ChatComposer({
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
-        {placement === "bottom" ? addMenu("-mr-1.5 mb-0.5") : null}
-        <ComposerPrimitive.Input
-          autoFocus
-          unstable_focusOnThreadSwitched
-          aria-describedby={describedBy}
-          // Held whenever a send could not go anywhere: no model, a model that
-          // can't be used, or egress to it still off.
-          disabled={
-            !model || !providerAvailable || blockedPlaceholder !== undefined
-          }
-          className={cn(
-            "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
-            placement === "center"
-              ? "block min-h-20 w-full pb-12"
-              : "min-h-10 flex-1"
-          )}
-          placeholder={
-            blockedPlaceholder !== undefined
-              ? blockedPlaceholder
-              : !model || providerAvailable
-                ? placement === "center"
-                  ? intl.formatMessage({
-                      id: "chat_composer_start_placeholder",
-                      defaultMessage: "Turn your sources into answers",
-                    })
+        <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+          {/* Plugins reach Agentic threads only, so only their composer names tools. */}
+          {agentic ? <PluginMentions /> : null}
+          {placement === "bottom" ? addMenu("-mr-1.5 mb-0.5") : null}
+          <ComposerPrimitive.Input
+            autoFocus
+            unstable_focusOnThreadSwitched
+            aria-describedby={describedBy}
+            // Held whenever a send could not go anywhere: no model, a model that
+            // can't be used, or egress to it still off.
+            disabled={
+              !model || !providerAvailable || blockedPlaceholder !== undefined
+            }
+            className={cn(
+              "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
+              placement === "center"
+                ? "block min-h-20 w-full pb-12"
+                : "min-h-10 flex-1"
+            )}
+            placeholder={
+              blockedPlaceholder !== undefined
+                ? blockedPlaceholder
+                : !model || providerAvailable
+                  ? placement === "center"
+                    ? intl.formatMessage({
+                        id: "chat_composer_start_placeholder",
+                        defaultMessage: "Turn your sources into answers",
+                      })
+                    : intl.formatMessage({
+                        id: "chat_composer_follow_up_placeholder",
+                        defaultMessage: "Follow up on this answer",
+                      })
                   : intl.formatMessage({
-                      id: "chat_composer_follow_up_placeholder",
-                      defaultMessage: "Follow up on this answer",
+                      id: "chat_composer_provider_offline_placeholder",
+                      defaultMessage: "Reconnect your model provider to send",
                     })
-                : intl.formatMessage({
-                    id: "chat_composer_provider_offline_placeholder",
-                    defaultMessage: "Reconnect your model provider to send",
-                  })
-          }
-          submitMode="enter"
-          addAttachmentOnPaste={readsImages && !agentic}
-          rows={1}
-          maxLength={QUESTION_MAX_CHARS}
-          aria-label={intl.formatMessage({
-            id: "chat_composer_message_aria",
-            defaultMessage: "Message",
-          })}
-        />
-        {placement === "center" ? (
-          <>
-            <div className="absolute bottom-2 left-1.5 flex items-center gap-1">
-              {addMenu("")}
-              {model ? <ModePicker model={model} threadMode={null} /> : null}
-            </div>
-            <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
-              <SourceCount count={sourceCount} />
-              <ModelControl
-                model={model}
-                onModelSetup={onModelSetup}
-                onModelSelected={onModelSelected}
-              />
-              <ComposerAction isRunning={isRunning} />
-            </div>
-          </>
-        ) : (
-          <>
-            <SourceCount count={sourceCount} className="mb-2" />
-            <ComposerAction isRunning={isRunning} className="mb-0.5" />
-          </>
-        )}
+            }
+            submitMode="enter"
+            addAttachmentOnPaste={readsImages && !agentic}
+            rows={1}
+            maxLength={QUESTION_MAX_CHARS}
+            aria-label={intl.formatMessage({
+              id: "chat_composer_message_aria",
+              defaultMessage: "Message",
+            })}
+          />
+          {placement === "center" ? (
+            <>
+              <div className="absolute bottom-2 left-1.5 flex items-center gap-1">
+                {addMenu("")}
+                {model ? <ModePicker model={model} threadMode={null} /> : null}
+              </div>
+              <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
+                <SourceCount count={sourceCount} />
+                <ModelControl
+                  model={model}
+                  onModelSetup={onModelSetup}
+                  onModelSelected={onModelSelected}
+                />
+                <ComposerAction isRunning={isRunning} />
+              </div>
+            </>
+          ) : (
+            <>
+              <SourceCount count={sourceCount} className="mb-2" />
+              <ComposerAction isRunning={isRunning} className="mb-0.5" />
+            </>
+          )}
+        </ComposerPrimitive.Unstable_TriggerPopoverRoot>
       </ComposerPrimitive.Root>
       {placement === "center" && limitNotice ? (
         <p
@@ -287,9 +296,6 @@ export function ChatComposer({
         >
           {limitNotice}
         </p>
-      ) : null}
-      {placement === "center" ? (
-        <AgenticNote model={model} mode={newChatMode} />
       ) : null}
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
