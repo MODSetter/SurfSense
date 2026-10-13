@@ -25,6 +25,9 @@ def folded(base: SweepResults, rerun: SweepResults) -> SweepResults:
     for model in [*rerun.models, *rerun.unfinished]:
         if model.finished:
             models[model.key] = model
+            # A measured verdict replaces the assumption: no stale row
+            # beside the measured result.
+            assumed.pop(model.key, None)
         else:
             models.pop(model.key, None)
             if _capped(model):

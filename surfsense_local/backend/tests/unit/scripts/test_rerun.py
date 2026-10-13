@@ -109,6 +109,27 @@ def test_a_capped_model_in_the_reruns_assumed_list_is_the_reruns_verdict() -> No
     assert [model.key for model in result.unfinished] == []
 
 
+def test_a_measured_rerun_verdict_clears_a_stale_base_assumption() -> None:
+    """A re-run that measures a model the base assumed leaves no stale row.
+
+    The base's assumed entry must go: the folded screen holds the measured
+    verdict, not the assumption beside it.
+    """
+    from capability_list.sweep_input import AssumedModel
+
+    base = SweepResults(
+        assumed=[
+            AssumedModel(id="openai/gpt-6-luna", key="gpt-6-luna", reads_images=False)
+        ]
+    )
+    rerun = _screen(_swept("gpt-6-luna", passed=2, counted=2, level="agent"))
+
+    result = folded(base, rerun)
+
+    assert [model.key for model in result.models] == ["gpt-6-luna"]
+    assert [model.key for model in result.assumed] == []
+
+
 def test_a_model_the_rerun_measured_leaves_the_unfinished_list() -> None:
     """The folded screen's unfinished list names only models still unmeasured."""
     base = SweepResults(
