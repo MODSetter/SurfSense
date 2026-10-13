@@ -100,7 +100,9 @@ Import stores each message as `{"text": text, "citations": []}`, appending `\n\n
 - Re-importing the same bundle is a no-op per document via `dedup_key`. A re-export after edits lands as a second copy, not an update; acceptable for a one-shot migration.
 - Re-importing skips each chat thread already present by its hosted `id` and
   creates any missing thread. Threads imported by app versions that did not
-  retain this id are left untouched rather than guessed from mutable content.
+  retain this id claim the one unkeyed row with the same creation time, writing
+  its hosted id while keeping the local title and messages. Ambiguous or
+  unmatched rows stay untouched.
 
 ## Fixture
 

@@ -26,7 +26,8 @@ Moving the hosted service's current users onto the desktop app is the point of t
   edits lands as a second copy, not an update; a locally edited thread is
   retained.
 - A workspace with threads imported before hosted ids were retained is marked
-  during upgrade. Re-import leaves those threads untouched because titles and
-  messages are mutable and cannot safely recover their identity.
+  during upgrade. Re-import matches an exported thread by its preserved creation
+  time, writes its hosted id into the one matching unkeyed row, and keeps that
+  row's local title and messages. Ambiguous or unmatched rows stay untouched.
 - A large account is embed-bound on a laptop: minutes to an hour for thousands of documents, in the background.
 - Migrating original files would be a `format` bump on contract 3, if users ask for it.
