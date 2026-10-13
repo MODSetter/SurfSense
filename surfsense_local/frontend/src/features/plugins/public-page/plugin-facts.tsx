@@ -63,6 +63,15 @@ export function PluginFacts({ entry }: { entry: ListedEntry }) {
     <dl>
       <Fact
         term={intl.formatMessage({
+          id: "plugins_page_publisher_label",
+          defaultMessage: "Publisher",
+        })}
+      >
+        {/* A product name, never translated. */}
+        {isRegistryEntry(entry) ? entry.author : "SurfSense"}
+      </Fact>
+      <Fact
+        term={intl.formatMessage({
           id: "plugins_page_authentication_label",
           defaultMessage: "Authentication",
         })}
@@ -78,8 +87,19 @@ export function PluginFacts({ entry }: { entry: ListedEntry }) {
           defaultMessage: "Connects to",
         })}
       >
-        {entry.hosts.join(", ")}
+        {registry ? registry.server_host : entry.hosts.join(", ")}
       </Fact>
+      {/* An OAuth plugin's other hosts see the sign-in, never a call. */}
+      {registry?.sign_in_hosts.length ? (
+        <Fact
+          term={intl.formatMessage({
+            id: "plugins_page_sign_in_hosts_label",
+            defaultMessage: "Signs in with",
+          })}
+        >
+          {registry.sign_in_hosts.join(", ")}
+        </Fact>
+      ) : null}
       {entry.added ? (
         <Fact
           term={intl.formatMessage({

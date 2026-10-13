@@ -8,6 +8,8 @@ import re
 from typing import Any
 from urllib.parse import urlsplit
 
+from publicsuffixlist import PublicSuffixList
+
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 HOSTNAME_PATTERN = re.compile(
     r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
@@ -18,7 +20,10 @@ SEMVER_PATTERN = re.compile(
 )
 DISPLAY_LENGTHS = {"name": 80, "description": 200, "author": 80}
 # license is the first-party list's alone: a fetched file never receives the key.
-REGISTRY_PUBLISHERS = {"partner", "community"}
+# `verified`: a maintainer proved the author runs the server, by its domain.
+VERIFICATIONS = {"verified", "community"}
+# The list ships with the package, so the check stays offline.
+_SUFFIXES = PublicSuffixList()
 REGISTRY_ACCESS = {"free", "external"}
 TOKEN_LABEL_LENGTHS = {"title": 80, "description": 200}
 # MCP's own rule for a tool name.
@@ -35,6 +40,7 @@ def entry_problems(entry: dict[str, Any]) -> list[str]:
     problems += _url_problems(entry)
     problems += _auth_problems(entry.get("auth"))
     problems += _host_problems(entry)
+    problems += _domain_problems(entry)
     problems += _access_problems(entry)
     problems += _page_problems(entry)
     problems += _listing_problems(entry)
@@ -53,8 +59,8 @@ def _identity_problems(entry: dict[str, Any]) -> list[str]:
         problems.append(f"id: must match {ID_PATTERN.pattern}")
     if entry.get("kind") != "remote":
         problems.append("kind: must be remote")
-    if entry.get("publisher") not in REGISTRY_PUBLISHERS:
-        problems.append("publisher: must be partner or community")
+    if entry.get("verification") not in VERIFICATIONS:
+        problems.append("verification: must be verified or community")
     return problems
 
 
@@ -123,6 +129,34 @@ def _host_problems(entry: dict[str, Any]) -> list[str]:
     if url_host and url_host not in hosts:
         return [f"hosts: must include the url's host, {url_host}"]
     return []
+
+
+def _domain_problems(entry: dict[str, Any]) -> list[str]:
+    """A verified entry's server is on the registered domain whose ownership was proven."""
+    if entry.get("verification") != "verified":
+        return []
+    domain = entry.get("domain")
+    if not isinstance(domain, str) or not domain:
+        return ["domain: required for a verified entry, the domain that was proven"]
+    # A bare shared suffix (`vercel.app`) or a subdomain proves nothing on its own.
+    if _SUFFIXES.privatesuffix(domain) != domain:
+        return [f"domain: {domain} is not a registered domain"]
+    url = entry.get("url")
+    url_host = urlsplit(url).hostname if isinstance(url, str) else None
+    hosts = entry.get("hosts") if isinstance(entry.get("hosts"), list) else []
+    # Only the server receives calls; an OAuth sign-in host sees the sign-in alone.
+    signs_in = (
+        isinstance(entry.get("auth"), dict) and entry["auth"].get("type") == "oauth"
+    )
+    on_domain = [url_host] if signs_in else [url_host, *hosts]
+    off = [h for h in on_domain if isinstance(h, str) and not _on(h, domain)]
+    if url_host is None or off:
+        return [f"domain: {', '.join(off) or 'the url'} is not on {domain}"]
+    return []
+
+
+def _on(host: str, domain: str) -> bool:
+    return host == domain or host.endswith(f".{domain}")
 
 
 def _access_problems(entry: dict[str, Any]) -> list[str]:

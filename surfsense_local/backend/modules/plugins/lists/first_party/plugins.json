@@ -4,7 +4,6 @@
     {
       "id": "google-search",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Google Search",
       "description": "Search Google and read its results, ads and related questions.",
       "author": "SurfSense",
@@ -26,7 +25,6 @@
     {
       "id": "web-crawl",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Web Crawl",
       "description": "Read a web page, or crawl a whole site into clean text.",
       "author": "SurfSense",
@@ -48,7 +46,6 @@
     {
       "id": "reddit",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Reddit",
       "description": "Read Reddit posts, their comments and whole subreddits.",
       "author": "SurfSense",
@@ -70,7 +67,6 @@
     {
       "id": "youtube",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "YouTube",
       "description": "Read YouTube videos, channels and their comments.",
       "author": "SurfSense",
@@ -93,7 +89,6 @@
     {
       "id": "instagram",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Instagram",
       "description": "Read Instagram profiles and their posts.",
       "author": "SurfSense",
@@ -116,7 +111,6 @@
     {
       "id": "tiktok",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "TikTok",
       "description": "Read TikTok videos and their comments, search users, and see what is trending.",
       "author": "SurfSense",
@@ -141,7 +135,6 @@
     {
       "id": "google-maps",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Google Maps",
       "description": "Find places on Google Maps and read their reviews.",
       "author": "SurfSense",
@@ -164,7 +157,6 @@
     {
       "id": "amazon",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Amazon",
       "description": "Read Amazon products and search results.",
       "author": "SurfSense",
@@ -186,7 +178,6 @@
     {
       "id": "walmart",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Walmart",
       "description": "Read Walmart products, search results and reviews.",
       "author": "SurfSense",
@@ -209,7 +200,6 @@
     {
       "id": "indeed",
       "kind": "remote",
-      "publisher": "surfsense",
       "name": "Indeed",
       "description": "Read job listings on Indeed.",
       "author": "SurfSense",

@@ -11,6 +11,7 @@ import { ListedTools } from "./listed-tools"
 import { PageSection } from "./page-section"
 import { PluginFacts } from "./plugin-facts"
 import { PublisherByline } from "./publisher-byline"
+import { PublisherMark } from "./publisher-mark"
 
 /**
  * A listed plugin's public page, opened from Browse: built from its list entry alone,
@@ -49,9 +50,12 @@ export function PluginPublicPage({
               firstParty={!isRegistryEntry(entry)}
             />
             <div className="min-w-0">
-              <h3 id={nameId} className="truncate text-base font-medium">
-                {entry.name}
-              </h3>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h3 id={nameId} className="truncate text-base font-medium">
+                  {entry.name}
+                </h3>
+                <PublisherMark entry={entry} />
+              </div>
               <p className="flex text-xs text-muted-foreground">
                 <PublisherByline entry={entry} />
               </p>

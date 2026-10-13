@@ -19,6 +19,7 @@ import {
   ChartHistogramIcon as ChartHistogramIconData,
   Chat01Icon as Chat01IconData,
   CheckIcon as CheckIconData,
+  CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
@@ -139,6 +140,7 @@ export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
 export const Chat01Icon = createIcon(Chat01IconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
+export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)

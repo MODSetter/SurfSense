@@ -11,6 +11,7 @@ import { ApiError } from "@/lib/api"
 import { listRegistry, registryQueryKey, type RegistryEntry } from "../api"
 import { PluginIcon } from "../plugin-icon"
 import { PublisherByline } from "../public-page/publisher-byline"
+import { PublisherMark } from "../public-page/publisher-mark"
 import { ConnectListedPlugin } from "./connect-listed-plugin"
 
 function RegistryEntryRow({
@@ -28,15 +29,18 @@ function RegistryEntryRow({
     >
       <PluginIcon id={entry.id} name={entry.name} hasIcon={entry.has_icon} />
       <div className="min-w-0 flex-1">
-        {/* Stretched over the row, so the whole entry opens its page. */}
-        <button
-          id={nameId}
-          type="button"
-          className="text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
-          onClick={onOpen}
-        >
-          {entry.name}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Stretched over the row, so the whole entry opens its page. */}
+          <button
+            id={nameId}
+            type="button"
+            className="text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            onClick={onOpen}
+          >
+            {entry.name}
+          </button>
+          <PublisherMark entry={entry} />
+        </div>
         <p className="text-xs text-muted-foreground">{entry.description}</p>
         <p className="mt-1 flex text-xs text-muted-foreground">
           <PublisherByline entry={entry} />
@@ -102,7 +106,7 @@ function AllowRegistryHost({
   )
 }
 
-/** Partners' and community plugins from the signed registry; nothing is fetched while third-party plugins are off. */
+/** Verified and community plugins from the signed registry; nothing is fetched while third-party plugins are off. */
 export function RegistryPlugins({
   allowed,
   onOpen,

@@ -130,7 +130,6 @@ def _draft(entry: RegistryEntry) -> PluginDraft:
         name=entry.name,
         url=entry.url,
         source=PluginSource.REGISTRY,
-        publisher=entry.publisher,
         entry=entry.model_dump(exclude_none=True),
         scopes=entry.auth.scopes,
         client_id=entry.auth.client_id,

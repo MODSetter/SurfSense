@@ -40,7 +40,6 @@ def store_signed_in(
             kind=PluginKind.REMOTE,
             source=draft.source,
             url=draft.url,
-            publisher=draft.publisher,
         )
         session.add(plugin)
     plugin.entry = draft.entry

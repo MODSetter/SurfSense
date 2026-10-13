@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
 from modules.plugins.installed.custom_plugin import (
-    PUBLISHER,
     connected_name,
     custom_plugin_id,
     store_custom_plugin,
@@ -145,7 +144,6 @@ async def add_custom_plugin(
                     name=payload.name,
                     url=url,
                     source=PluginSource.CUSTOM,
-                    publisher=PUBLISHER,
                     entry={
                         "name": payload.name,
                         "hosts": [url_host(url)],

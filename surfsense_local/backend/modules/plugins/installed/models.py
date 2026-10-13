@@ -60,7 +60,6 @@ class InstalledPlugin(Base):
     source: Mapped[PluginSource] = mapped_column(text_enum(PluginSource))
     # One plugin per server, so a server's tools and key are never split across two.
     url: Mapped[str] = mapped_column(unique=True)
-    publisher: Mapped[str]
     # The entry as listed at connect: name, auth, hosts, access. Kept so a plugin whose
     # entry later leaves its list still shows what it was.
     entry: Mapped[dict[str, Any]] = mapped_column(JSON)

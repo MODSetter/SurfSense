@@ -79,7 +79,7 @@ async def test_connecting_with_a_license_sends_its_key(
 
     assert connected.status_code == 201, connected.text
     plugin = connected.json()
-    assert (plugin["source"], plugin["publisher"]) == ("first_party", "surfsense")
+    assert plugin["source"] == "first_party"
     assert plugin["check_failure"] is None
     assert [tool["name"] for tool in plugin["tools"]] == ["search_posts"]
     assert set(host.authorizations) == {f"License {INDIVIDUAL_KEY}"}

@@ -8,13 +8,13 @@ Who publishes a plugin and whether it costs money are separate questions.
 | | Free | Paid |
 |---|---|---|
 | **SurfSense** | `access: free`. Code in `plugins/remote/<id>/`, Apache-2.0 | `access: license`, unlocked by the SurfSense license key, checked by SurfSense's server. Code in `plugins/remote/proprietary/<id>/`, Business Source License 1.1 |
-| **Partner or community** | `access: free` | `access: external`: the publisher prices, sells and checks access on its own service. SurfSense takes no payment and never sees what the user bought |
+| **Third-party** (verified or community) | `access: free` | `access: external`: the publisher prices, sells and checks access on its own service. SurfSense takes no payment and never sees what the user bought |
 
 ## The license is checked on the server, never in the app
 
 Whether a user may use a paid plugin is decided by the plugin's server on every call. The app holds no rule about plans, trials or expiry; it carries the key and shows the server's answer. A check in the open-source app could be removed by anyone, so it would add nothing.
 
-- The plugin's entry in the first-party list has `publisher: surfsense`, `access: license` and `auth: { "type": "license" }`. Only the first-party list can carry them: the registry check refuses them, and the app drops them from a fetched registry ([`02-registry.md`](02-registry.md#two-lists)).
+- The plugin's entry is in the first-party list, with `access: license` and `auth: { "type": "license" }`. Only the first-party list can carry them: the registry check refuses them, and the app drops them from a fetched registry ([`02-registry.md`](02-registry.md#two-lists)).
 - When the user has imported a license file, the gateway sends `Authorization: License <key>`, the key from the file as contract 2 defines it, on every request to the plugin's server. It is an ordinary HTTP header, which MCP's HTTP transport carries like any other, not a change to MCP. With no license file, it sends the request without the header.
 - The server validates the key with Keygen on every call, as contract 2's producer rules say: a result cached for five minutes, a key validated in the last 24 hours still accepted while Keygen is unreachable, and a key never seen refused with `503 license_service_unavailable` then.
 - A refusal comes back as contract 2 defines it: `401 missing_license`, or `403` with `expired`, `invalid` or `revoked`. The gateway turns it into the tool's refusal, the sentence the user reads, with a link to Settings → License; `503` is shown as temporary and retried on the next call.
@@ -66,6 +66,6 @@ plugins/remote/proprietary/
 - The app contains no expiry or plan check for plugins: a license file edited to look valid gets the server's refusal.
 - A first-party entry with `auth: license` on a host other than the compiled one fails the check, and no request carries the key.
 - A registry entry with `access: license` or `auth: license` fails the registry check.
-- A partner plugin with `access: external` shows its note before Connect, and its requests carry the user's partner credentials and never the license key.
+- A third-party plugin with `access: external` shows its note before Connect, and its requests carry the user's credentials for that service and never the license key.
 - A file outside `plugins/remote/proprietary/` that imports from it fails the plugin pull-request check.
 - A pull request from anyone but a maintainer that touches `plugins/remote/proprietary/` fails its Proprietary Code check.

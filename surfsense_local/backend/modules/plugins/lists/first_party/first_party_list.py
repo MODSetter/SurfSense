@@ -27,9 +27,9 @@ def checked_entries(path: Path) -> list[ListEntry]:
             entry = ListEntry.model_validate(raw)
         except ValidationError as error:
             raise ValueError(f"{name}: {error}") from error
-        if entry.publisher != "surfsense":
+        if entry.verification is not None:
             raise ValueError(
-                f"{name}: publisher must be surfsense in the first-party list"
+                f"{name}: verification is the registry's; the first-party list has none"
             )
         if entry.auth.type == "license" and not entry.url.startswith(f"{PLUGIN_HOST}/"):
             raise ValueError(

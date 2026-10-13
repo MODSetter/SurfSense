@@ -4,7 +4,7 @@
     {
       "id": "deepwiki",
       "kind": "remote",
-      "publisher": "community",
+      "verification": "verified",
       "name": "DeepWiki",
       "description": "Ask questions about public GitHub repositories and read their generated wikis.",
       "author": "Cognition",

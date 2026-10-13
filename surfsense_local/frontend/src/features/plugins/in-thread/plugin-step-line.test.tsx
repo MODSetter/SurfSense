@@ -12,7 +12,6 @@ const NOTES: Plugin = {
   id: "notes",
   name: "Notes",
   source: "custom",
-  publisher: "custom",
   url: "https://notes.example/mcp",
   hosts: ["notes.example"],
   auth_type: "none",

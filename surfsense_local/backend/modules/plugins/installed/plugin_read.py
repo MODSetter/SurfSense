@@ -25,7 +25,6 @@ class PluginRead(BaseModel):
     id: str
     name: str
     source: str
-    publisher: str
     url: str
     hosts: list[str]
     # How it signs in: `none`, `token`, `license` or `oauth`.
@@ -56,7 +55,6 @@ def read_plugin(
         id=plugin.id,
         name=plugin.entry.get("name", plugin.id),
         source=plugin.source,
-        publisher=plugin.publisher,
         url=plugin.url,
         hosts=plugin.entry.get("hosts", []),
         auth_type=plugin.credential_kind or "none",

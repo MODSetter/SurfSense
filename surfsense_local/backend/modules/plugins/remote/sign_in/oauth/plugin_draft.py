@@ -14,7 +14,6 @@ class PluginDraft:
     name: str
     url: str
     source: PluginSource
-    publisher: str
     # As stored on the row; its `hosts` gain the authorization server's once discovered.
     entry: dict[str, Any]
     scopes: list[str] | None = None

@@ -16,7 +16,6 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
     id: "notes",
     name: "Notes",
     source: "custom",
-    publisher: "custom",
     url: "https://notes.example/mcp",
     hosts: ["notes.example"],
     auth_type: "none",
@@ -55,8 +54,8 @@ function listed(extra: Partial<RegistryEntry> = {}): RegistryEntry {
     id: "wiki",
     name: "Wiki",
     description: "Search the team wiki.",
-    author: "Jane Doe",
-    publisher: "community",
+    author: "Wiki Project",
+    verification: "community",
     verified: false,
     access: "free",
     access_note: null,
@@ -64,6 +63,8 @@ function listed(extra: Partial<RegistryEntry> = {}): RegistryEntry {
     auth_title: null,
     auth_description: null,
     hosts: ["wiki.example"],
+    server_host: "wiki.example",
+    sign_in_hosts: [],
     homepage: null,
     privacy_policy: "https://wiki.example/privacy",
     about: null,
@@ -215,7 +216,6 @@ function api({
           id: entry.id,
           name: entry.name,
           source: "registry",
-          publisher: entry.publisher,
           hosts: entry.hosts,
           auth_type: entry.auth_type,
         })
@@ -240,7 +240,6 @@ function api({
           id: "reddit",
           name: "Reddit",
           source: "first_party",
-          publisher: "surfsense",
           hosts: ["plugins.surfsense.com"],
           check_failure: "needs_license",
           tools: [],
@@ -346,6 +345,12 @@ async function actions(user: User, plugin: HTMLElement, name: string) {
     within(plugin).getByRole("button", { name: `More actions for ${name}` })
   )
   return screen.findByRole("menu")
+}
+
+/** Confirms the reminder a community plugin's Connect asks first. */
+async function trustCommunity(user: User) {
+  const reminder = await screen.findByRole("alertdialog")
+  await user.click(within(reminder).getByRole("button", { name: "Connect" }))
 }
 
 async function browse(user: User) {
@@ -1025,6 +1030,8 @@ describe("plugins settings", () => {
     expect(within(tools).getByText("scrape")).toBeTruthy()
     expect(within(page).getByText("Authentication")).toBeTruthy()
     expect(within(page).getByText("SurfSense license")).toBeTruthy()
+    expect(within(page).getByText("Publisher")).toBeTruthy()
+    expect(within(page).getByText("SurfSense")).toBeTruthy()
     expect(within(page).getByText("Connects to")).toBeTruthy()
     expect(within(page).getByText("October 2026")).toBeTruthy()
     expect(within(page).getByRole("button", { name: "Connect" })).toBeTruthy()
@@ -1082,6 +1089,75 @@ describe("plugins settings", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
+  it("asks before a community plugin connects, and not before a verified one", async () => {
+    const calls = api({
+      plugins: [],
+      allowed: true,
+      registry: [
+        listed(),
+        listed({
+          id: "acme",
+          name: "Acme",
+          author: "Acme Inc.",
+          verification: "verified",
+          verified: true,
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    const wiki = await within(section).findByRole("listitem", { name: "Wiki" })
+    expect(within(wiki).getByText("Community")).toBeTruthy()
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    const reminder = await screen.findByRole("alertdialog")
+    expect(reminder.textContent).toContain(
+      "Wiki isn’t verified by SurfSense. Your requests and sign-in go to Wiki Project’s server"
+    )
+    await user.click(within(reminder).getByRole("button", { name: "Cancel" }))
+    expect(changes(calls)).toEqual([])
+
+    const acme = within(section).getByRole("listitem", { name: "Acme" })
+    expect(within(acme).getByRole("img", { name: "Verified" })).toBeTruthy()
+    await user.click(within(acme).getByRole("button", { name: "Connect" }))
+    expect(await within(acme).findByText("Connected")).toBeTruthy()
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/registry/acme", body: null },
+    ])
+  })
+
+  it("says who runs a plugin, and where an account plugin signs in", async () => {
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [
+        listed({
+          auth_type: "oauth",
+          hosts: ["wiki.example", "accounts.example.com"],
+          sign_in_hosts: ["accounts.example.com"],
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    await user.click(
+      await within(section).findByRole("button", { name: "Wiki" })
+    )
+
+    const page = await screen.findByRole("region", { name: "Wiki" })
+    expect(within(page).getByText("Wiki Project")).toBeTruthy()
+    await user.hover(within(page).getByText("Community"))
+    expect(
+      await screen.findByText("Community plugin. Not verified by SurfSense.")
+    ).toBeTruthy()
+    expect(within(page).getByText("Signs in with")).toBeTruthy()
+    expect(within(page).getByText("accounts.example.com")).toBeTruthy()
+  })
+
   it("names the service whose account a plugin signs in with", async () => {
     api({
       plugins: [],
@@ -1135,7 +1211,7 @@ describe("plugins settings", () => {
     expect(screen.queryByRole("region", { name: "Details" })).toBeNull()
   })
 
-  it("lists the registry's plugins, verified partners and community authors, dated", async () => {
+  it("lists the registry's plugins, verified and community ones by their authors, dated", async () => {
     api({
       plugins: [],
       allowed: true,
@@ -1145,7 +1221,7 @@ describe("plugins settings", () => {
           id: "acme",
           name: "Acme",
           author: "Acme Inc.",
-          publisher: "partner",
+          verification: "verified",
           verified: true,
           access: "external",
           access_note: "Requires an Acme account.",
@@ -1157,8 +1233,8 @@ describe("plugins settings", () => {
     const section = await screen.findByRole("region", { name: "Third-party" })
     const wiki = await within(section).findByRole("listitem", { name: "Wiki" })
     const acme = within(section).getByRole("listitem", { name: "Acme" })
-    expect(within(wiki).getByText("By Jane Doe")).toBeTruthy()
-    expect(within(acme).getByText("Verified")).toBeTruthy()
+    expect(within(wiki).getByText("By Wiki Project")).toBeTruthy()
+    expect(within(acme).getByRole("img", { name: "Verified" })).toBeTruthy()
     expect(within(acme).getByText("Requires an Acme account.")).toBeTruthy()
     expect(within(section).getByText("Updated Oct 10, 2026")).toBeTruthy()
   })
@@ -1184,10 +1260,12 @@ describe("plugins settings", () => {
     const section = await screen.findByRole("region", { name: "Third-party" })
     const wiki = await within(section).findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
     expect(await within(wiki).findByText("Connected")).toBeTruthy()
 
     const acme = within(section).getByRole("listitem", { name: "Acme" })
     await user.click(within(acme).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
     const dialog = await screen.findByRole("dialog")
     expect(
       within(dialog).getByText("Create one under Account › API.")
@@ -1227,6 +1305,7 @@ describe("plugins settings", () => {
 
     const wiki = await screen.findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
 
     expect(await within(wiki).findByText("Waiting for sign-in…")).toBeTruthy()
     expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
@@ -1257,6 +1336,7 @@ describe("plugins settings", () => {
 
     const wiki = await screen.findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
     await user.click(
       await within(wiki).findByRole("button", { name: "Cancel" })
     )
@@ -1288,6 +1368,7 @@ describe("plugins settings", () => {
 
     const wiki = await screen.findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
 
     expect(
       await within(wiki).findByRole("alert", {}, AFTER_POLLS)

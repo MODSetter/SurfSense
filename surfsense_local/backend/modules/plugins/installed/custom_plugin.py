@@ -16,7 +16,6 @@ from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
 from modules.plugins.lists.registry.listed_ids import registry_ids
 
-PUBLISHER = "custom"
 # The agent's own tools are an MCP server by this name; a plugin under it would replace them.
 RESERVED_IDS = {"surfsense"}
 
@@ -56,7 +55,6 @@ def store_custom_plugin(
         kind=PluginKind.REMOTE,
         source=PluginSource.CUSTOM,
         url=url,
-        publisher=PUBLISHER,
         entry={
             "name": name,
             "hosts": [url_host(url)],

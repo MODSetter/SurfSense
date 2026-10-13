@@ -17,7 +17,6 @@ def scrapers(**changed: Any) -> dict[str, Any]:
     entry = {
         "id": "scrapers",
         "kind": "remote",
-        "publisher": "surfsense",
         "name": "SurfSense Scrapers",
         "description": "Search the web and scrape sites.",
         "author": "SurfSense",
@@ -81,7 +80,7 @@ def test_a_newer_field_is_ignored(tmp_path: Path) -> None:
         ({"url": "https://key@plugins.surfsense.com/scrapers/mcp"}, "url"),
         ({"hosts": ["other.example"]}, "hosts"),
         ({"hosts": ["plugins.surfsense.com", "127.0.0.1"]}, "hosts"),
-        ({"publisher": "partner"}, "publisher"),
+        ({"verification": "verified"}, "verification"),
         ({"access": "external"}, "access_note"),
         ({"name": ""}, "name"),
         ({"about": "a" * 601}, "about"),

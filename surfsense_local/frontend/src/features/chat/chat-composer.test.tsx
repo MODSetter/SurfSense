@@ -25,7 +25,6 @@ function plugin(extra: Partial<Plugin>): Plugin {
     id: "notes",
     name: "Notes",
     source: "first_party",
-    publisher: "surfsense",
     url: "https://notes.example/mcp",
     hosts: ["notes.example"],
     auth_type: "none",

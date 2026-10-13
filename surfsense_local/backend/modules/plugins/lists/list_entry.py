@@ -28,7 +28,9 @@ class ListEntry(BaseModel):
 
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     kind: Literal["remote"]
-    publisher: Literal["surfsense", "partner", "community"]
+    # Registry only: `verified` when a maintainer proved, by `domain`, that its author
+    # runs the server. A first-party entry has none: it is SurfSense's by its list.
+    verification: Literal["verified", "community"] | None = None
     name: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1, max_length=200)
     author: str = Field(min_length=1, max_length=80)
@@ -39,6 +41,8 @@ class ListEntry(BaseModel):
     access_note: str | None = None
     privacy_policy: str | None = None
     homepage: str | None = None
+    # The registered domain whose ownership was proven, for a verified entry.
+    domain: str | None = None
     icon: str | None = None
     # What the plugin's page shows before it is connected.
     about: str | None = Field(default=None, min_length=1, max_length=600)

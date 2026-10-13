@@ -17,6 +17,7 @@ import { isRegistryEntry, type ListedEntry } from "../public-page/listed-entry"
 import { connectedToast, connectFailedToast } from "../connect-toasts"
 import { SignInProgress } from "../sign-in/sign-in-progress"
 import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
+import { CommunityReminderDialog } from "./community-reminder-dialog"
 import { RegistryKeyDialog } from "./registry-key-dialog"
 
 /**
@@ -26,6 +27,7 @@ import { RegistryKeyDialog } from "./registry-key-dialog"
 export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
   const queryClient = useQueryClient()
   const [askingKey, setAskingKey] = useState(false)
+  const [reminding, setReminding] = useState(false)
   const registry = isRegistryEntry(entry) ? entry : null
   const refresh = () =>
     Promise.all([
@@ -53,6 +55,8 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
     },
   })
   const waiting = signIn.state.phase === "waiting"
+  const start = () =>
+    registry?.auth_type === "token" ? setAskingKey(true) : connect.mutate()
   return (
     <div className="flex shrink-0 flex-col items-end gap-1">
       {entry.connected ? (
@@ -68,10 +72,9 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
           size="sm"
           variant="outline"
           disabled={waiting || connect.isPending}
+          // A community plugin's author is not proven: say so before anything is sent.
           onClick={() =>
-            registry?.auth_type === "token"
-              ? setAskingKey(true)
-              : connect.mutate()
+            registry && !registry.verified ? setReminding(true) : start()
           }
         >
           {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
@@ -82,6 +85,15 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
         </Button>
       )}
       <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
+      {registry && !registry.verified ? (
+        <CommunityReminderDialog
+          plugin={entry.name}
+          author={registry.author}
+          open={reminding}
+          onOpenChange={setReminding}
+          onConnect={start}
+        />
+      ) : null}
       {registry?.auth_type === "token" ? (
         <RegistryKeyDialog
           entry={registry}

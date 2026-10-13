@@ -17,7 +17,6 @@ export type Plugin = {
   id: string
   name: string
   source: "first_party" | "registry" | "custom"
-  publisher: string
   url: string
   hosts: string[]
   /** How it signs in; an `oauth` plugin signs in again rather than taking a new key. */
@@ -82,14 +81,14 @@ export type FirstPartyEntry = {
   connected: boolean
 }
 
-/** A partner's or community plugin, from the signed registry. */
+/** A third-party plugin from the signed registry, verified or community. */
 export type RegistryEntry = {
   id: string
   name: string
   description: string
   author: string
-  publisher: "partner" | "community"
-  /** A partner's listing, reviewed as speaking for the company. */
+  verification: "verified" | "community"
+  /** Its author was proven, by its domain, to run the server that receives its calls. */
   verified: boolean
   access: "free" | "external"
   /** What the user must have, when `access` is `external`. */
@@ -99,6 +98,9 @@ export type RegistryEntry = {
   auth_title: string | null
   auth_description: string | null
   hosts: string[]
+  /** The host every call goes to; an OAuth plugin's other hosts see only the sign-in. */
+  server_host: string
+  sign_in_hosts: string[]
   homepage: string | null
   privacy_policy: string | null
   /** What its page shows before it is connected; `tools` is null when the entry lists none. */

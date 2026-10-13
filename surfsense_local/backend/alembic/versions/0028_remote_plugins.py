@@ -36,7 +36,6 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("url", sa.String(), nullable=False),
-        sa.Column("publisher", sa.String(), nullable=False),
         sa.Column("entry", sa.JSON(), nullable=False),
         sa.Column("enabled", sa.Boolean(), nullable=False),
         sa.Column(
