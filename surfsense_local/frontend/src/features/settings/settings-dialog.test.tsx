@@ -87,7 +87,7 @@ describe("SettingsDialog", () => {
     render(<SettingsHarness />)
 
     const groups = {
-      Settings: ["General", "License"],
+      Settings: ["General", "License", "Plugins"],
       Models: [
         "Text gen",
         "Image gen",
@@ -96,7 +96,7 @@ describe("SettingsDialog", () => {
         "Video",
         "Embedding",
       ],
-      System: ["Resources", "Office support", "Network", "Plugins"],
+      System: ["Resources", "Office support", "Network"],
       App: ["Report issue", "About"],
     }
     for (const [group, sections] of Object.entries(groups)) {

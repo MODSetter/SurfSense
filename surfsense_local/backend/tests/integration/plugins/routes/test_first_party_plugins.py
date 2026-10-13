@@ -51,6 +51,22 @@ async def test_surfsense_s_plugins_are_listed_before_any_is_connected(
     assert reddit["name"] == "Reddit"
     assert reddit["access"] == "license"
     assert reddit["connected"] is False
+    assert reddit["has_icon"] is True
+    assert reddit["tools"] == ["scrape"]
+    assert reddit["added"] == "2026-10"
+    assert reddit["about"] and reddit["about"] != reddit["description"]
+
+
+async def test_a_first_party_icon_is_served_from_the_app(client: AsyncClient) -> None:
+    """Packaged beside the list, so no network; sandboxed, as the registry's are."""
+    icon = await client.get("/plugins/first-party/icons/reddit")
+    unknown = await client.get("/plugins/first-party/icons/nope")
+
+    assert icon.status_code == 200
+    assert icon.headers["content-type"] == "image/svg+xml"
+    assert "sandbox" in icon.headers["content-security-policy"]
+    assert icon.content.lstrip().startswith(b"<svg")
+    assert unknown.status_code == 404
 
 
 async def test_connecting_with_a_license_sends_its_key(
@@ -63,7 +79,7 @@ async def test_connecting_with_a_license_sends_its_key(
 
     assert connected.status_code == 201, connected.text
     plugin = connected.json()
-    assert (plugin["source"], plugin["publisher"]) == ("first_party", "surfsense")
+    assert plugin["source"] == "first_party"
     assert plugin["check_failure"] is None
     assert [tool["name"] for tool in plugin["tools"]] == ["search_posts"]
     assert set(host.authorizations) == {f"License {INDIVIDUAL_KEY}"}

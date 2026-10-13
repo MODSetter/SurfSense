@@ -25,6 +25,7 @@ class InstallCode(StrEnum):
     FAILED = "failed"
     FILE_GONE = "file_gone"
     CHECKSUM_MISMATCH = "checksum_mismatch"
+    RETRIEVAL_CHECK_FAILED = "retrieval_check_failed"
     # Why one is refused before any byte moves.
     NOT_ENOUGH_DISK = "not_enough_disk"
     TOO_BIG = "too_big"

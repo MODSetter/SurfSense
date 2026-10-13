@@ -17,7 +17,6 @@ def scrapers(**changed: Any) -> dict[str, Any]:
     entry = {
         "id": "scrapers",
         "kind": "remote",
-        "publisher": "surfsense",
         "name": "SurfSense Scrapers",
         "description": "Search the web and scrape sites.",
         "author": "SurfSense",
@@ -25,6 +24,9 @@ def scrapers(**changed: Any) -> dict[str, Any]:
         "auth": {"type": "license"},
         "hosts": ["plugins.surfsense.com"],
         "access": "license",
+        "tools": ["scrape"],
+        "added": "2026-10",
+        "about": "Scrape sites and search the web, read as clean text.",
     }
     return {**entry, **changed}
 
@@ -78,9 +80,14 @@ def test_a_newer_field_is_ignored(tmp_path: Path) -> None:
         ({"url": "https://key@plugins.surfsense.com/scrapers/mcp"}, "url"),
         ({"hosts": ["other.example"]}, "hosts"),
         ({"hosts": ["plugins.surfsense.com", "127.0.0.1"]}, "hosts"),
-        ({"publisher": "partner"}, "publisher"),
+        ({"verification": "verified"}, "verification"),
         ({"access": "external"}, "access_note"),
         ({"name": ""}, "name"),
+        ({"about": "a" * 601}, "about"),
+        ({"tools": ["has space"]}, "tools"),
+        ({"tools": ["scrape", "scrape"]}, "tools"),
+        ({"added": "2026-13"}, "added"),
+        ({"added": "October 2026"}, "added"),
     ],
 )
 def test_a_bad_entry_fails_naming_its_field(
@@ -103,3 +110,52 @@ def test_two_entries_with_one_id_fail(tmp_path: Path) -> None:
     """An id names one plugin across the app."""
     with pytest.raises(ValueError, match="scrapers"):
         checked_entries(listed(tmp_path, scrapers(), scrapers()))
+
+
+def test_every_packaged_entry_has_its_icon_beside_the_list() -> None:
+    """The screen shows each of SurfSense's plugins with its logo, from the app."""
+    entries = checked_entries(FIRST_PARTY_LIST)
+
+    assert all(entry.icon for entry in entries)
+    assert all(
+        (FIRST_PARTY_LIST.with_name("icons") / entry.icon).is_file()
+        for entry in entries
+        if entry.icon
+    )
+
+
+def test_an_icon_missing_beside_the_list_fails(tmp_path: Path) -> None:
+    """A typo in the file name fails CI rather than showing a letter."""
+    with pytest.raises(ValueError, match="scrapers: icon"):
+        checked_entries(listed(tmp_path, scrapers(icon="scrapers.svg")))
+
+
+def test_an_icon_name_reaching_outside_its_folder_fails(tmp_path: Path) -> None:
+    """Only a plain file name in icons/ is served."""
+    (tmp_path / "secret.svg").write_text("<svg/>")
+
+    with pytest.raises(ValueError, match="scrapers: icon"):
+        checked_entries(listed(tmp_path, scrapers(icon="../secret.svg")))
+
+
+def test_a_first_party_entry_must_list_its_tools(tmp_path: Path) -> None:
+    """Its page shows them before it is connected; the plugin host checks them."""
+    with pytest.raises(ValueError, match="scrapers: tools"):
+        checked_entries(listed(tmp_path, scrapers(tools=None)))
+
+
+def test_every_packaged_entry_lists_its_tools() -> None:
+    """The real list passes the rule above."""
+    assert all(entry.tools for entry in checked_entries(FIRST_PARTY_LIST))
+
+
+def test_a_first_party_entry_must_say_when_it_was_added(tmp_path: Path) -> None:
+    """Its public page says which month it joined the list."""
+    with pytest.raises(ValueError, match="scrapers: added"):
+        checked_entries(listed(tmp_path, scrapers(added=None)))
+
+
+def test_a_first_party_entry_must_say_more_about_itself(tmp_path: Path) -> None:
+    """Its public page shows `about`, never its card's description in its place."""
+    with pytest.raises(ValueError, match="scrapers: about"):
+        checked_entries(listed(tmp_path, scrapers(about=None)))

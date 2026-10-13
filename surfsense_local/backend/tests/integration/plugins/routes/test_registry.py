@@ -65,13 +65,19 @@ async def test_nothing_is_fetched_while_third_party_plugins_are_off(
 async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """Partners are verified; community plugins are shown by their author."""
+    """A plugin proven to be its author's is verified; the rest are community, both by their author."""
     registry.publish(
         [
-            entry("notes"),
+            entry(
+                "notes",
+                about="Search and count your notes.",
+                tools=["search", "count"],
+                added="2026-10",
+            ),
             entry(
                 "keyed",
-                publisher="partner",
+                verification="verified",
+                domain="surfsense.com",
                 author="Keyed Inc.",
                 auth={
                     "type": "token",
@@ -90,21 +96,50 @@ async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
     assert listed["third_party_off"] is False
     assert listed["fetched_at"] is not None
     notes, keyed = listed["plugins"]
-    assert (notes["id"], notes["publisher"], notes["verified"]) == (
+    assert (notes["id"], notes["verification"], notes["verified"]) == (
         "notes",
         "community",
         False,
     )
-    assert notes["author"] == "Jane Doe"
+    assert notes["author"] == "Notes Project"
+    assert notes["about"] == "Search and count your notes."
+    assert notes["tools"] == ["search", "count"]
+    assert notes["added"] == "2026-10"
+    assert keyed["added"] is None
+    assert keyed["about"] is None
+    assert keyed["tools"] is None
     assert notes["connected"] is False
-    assert (keyed["publisher"], keyed["verified"], keyed["author"]) == (
-        "partner",
+    assert (keyed["verification"], keyed["verified"], keyed["author"]) == (
+        "verified",
         True,
         "Keyed Inc.",
     )
+    # As this build reaches it: a developer's plugin host stands in for SurfSense's.
+    assert (notes["server_host"], notes["sign_in_hosts"]) == (notes["hosts"][0], [])
     assert (keyed["auth_type"], keyed["auth_title"]) == ("token", "API key")
     assert keyed["access_note"] == "Requires a Keyed account."
     assert registry.requests == ["/plugins.json", "/plugins.json.sig"]
+
+
+async def test_an_oauth_plugin_lists_its_sign_in_hosts_apart_from_its_server(
+    client: AsyncClient, registry: StandInRegistry
+) -> None:
+    """The server receives every call; a sign-in host only the sign-in."""
+    registry.publish(
+        [
+            entry(
+                "notes",
+                auth={"type": "oauth"},
+                hosts=["plugins.surfsense.com", "accounts.example.com"],
+            )
+        ]
+    )
+    await allow_third_party(client)
+
+    [notes] = (await client.get("/plugins/registry")).json()["plugins"]
+
+    assert notes["server_host"] == notes["hosts"][0]
+    assert notes["sign_in_hosts"] == ["accounts.example.com"]
 
 
 def refresh_every_time(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -219,10 +254,9 @@ async def test_with_no_verified_copy_the_list_is_unavailable(
 async def test_entries_only_the_first_party_list_may_hold_are_dropped(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """No fetched file can claim to be SurfSense, take its ids, or outrun this app."""
+    """No fetched file can take the license, take SurfSense's ids, or outrun this app."""
     registry.publish(
         [
-            entry("claims-surfsense", publisher="surfsense"),
             entry("wants-license", auth={"type": "license"}),
             entry("sells-license", access="license"),
             entry("reddit"),
@@ -314,7 +348,7 @@ async def test_in_development_the_checkout_s_list_is_read_unsigned(
 async def test_a_plugin_with_no_sign_in_connects_from_the_registry(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """Stored as the registry's, its publisher the list's."""
+    """Stored as the registry's."""
     registry.publish([entry("notes")])
     await allow_third_party(client)
 
@@ -322,7 +356,7 @@ async def test_a_plugin_with_no_sign_in_connects_from_the_registry(
 
     assert connected.status_code == 201, connected.text
     plugin = connected.json()
-    assert (plugin["source"], plugin["publisher"]) == ("registry", "community")
+    assert plugin["source"] == "registry"
     assert [tool["name"] for tool in plugin["tools"]] == ["search", "count"]
     listed = (await client.get("/plugins/registry")).json()["plugins"]
     assert [p["id"] for p in listed if p["connected"]] == ["notes"]

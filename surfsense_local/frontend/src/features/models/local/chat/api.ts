@@ -251,6 +251,10 @@ export type InstallEvent =
       // Sent raw with `not_enough_disk`, for the message to format.
       needed_bytes?: number
       free_bytes?: number
+      // Sent raw with `retrieval_check_failed`: the answers it ranked first,
+      // and how many it was asked for.
+      found?: number
+      asked?: number
     }
 
 export type DeleteModelResult = {

@@ -74,7 +74,7 @@ plugins/
 | Name | "Plugins", in the app and in the docs |
 | The lists | SurfSense's plugins are in a first-party list packaged into the app, shown with no network or consent. Every third-party plugin is in one file, `plugins/registry/plugins.json` in this repository, added to by pull request and reviewed once per entry, signed and served from SurfSense's plugin host, and fetched once the user allows third-party plugins, so it grows without app updates ([`core/02-registry.md`](core/02-registry.md)). "The registry" always means this file. No list holds plugin code |
 | Where a plugin's code lives | With its publisher: a remote server on its host, a bundle in its author's repository and releases. The list only points at it |
-| Publishers | `surfsense`, `partner` (a verified company) or `community`, set by the list, never by the plugin. Only the first-party list says `surfsense` |
+| Publishers | SurfSense's own, by being in the first-party list; in the registry, `verification`: `verified` (proven by its domain to be run by its author) or `community`, set by the list, never by the plugin |
 | Third-party plugins | Every plugin not published by SurfSense is off until the user allows third-party plugins once, which is also when the app fetches the registry. The switch plays the part of Obsidian's Restricted mode, named for what it does ([ADR 0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)) |
 | Custom plugins | A user can add any remote MCP server by URL, labelled "Not reviewed by SurfSense", off until third-party plugins are allowed |
 | Tools added later | A tool a server adds after the user connected starts off; the app asks before turning it on |

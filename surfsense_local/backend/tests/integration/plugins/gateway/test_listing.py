@@ -35,7 +35,7 @@ async def test_third_party_plugins_wait_until_the_user_allows_them(
     session: Session,
 ) -> None:
     """Only first-party plugins are offered until the user allows third-party ones."""
-    await connect(session, "notion", FakeSource([tool("search")]), publisher="partner")
+    await connect(session, "notion", FakeSource([tool("search")]), first_party=False)
 
     assert list_tools(session) == []
 

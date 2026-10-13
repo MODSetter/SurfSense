@@ -5,7 +5,7 @@
 
 ## SurfSense's own servers
 
-SurfSense publishes plugins as remote MCP servers, like anyone, and lists them in the app's first-party list with `publisher: surfsense` ([`../core/02-registry.md`](../core/02-registry.md#two-lists)). It hosts all of them, free and paid, on one plugin host.
+SurfSense publishes plugins as remote MCP servers, like anyone, and lists them in the app's first-party list, which alone makes a plugin SurfSense's ([`../core/02-registry.md`](../core/02-registry.md#two-lists)). It hosts all of them, free and paid, on one plugin host.
 
 | Where the code lives | License | Example |
 |---|---|---|

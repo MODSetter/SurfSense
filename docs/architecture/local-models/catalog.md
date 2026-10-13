@@ -521,9 +521,9 @@ and the frame's English `message` for one it does not
 A refusal for disk space is `not_enough_disk` with `needed_bytes` and
 `free_bytes` raw, so each language formats the sizes itself. A searched file of
 a type the runtime cannot run is refused with the classifier's sentence and its
-`NotRunnableCode`, as a row is, so the toast is worded like a row's reason. One
-refusal has a `null` code and stays English: a Hugging Face embedder that fails
-its check.
+`NotRunnableCode`, as a row is, so the toast is worded like a row's reason. A
+Hugging Face embedder that fails its search check is `retrieval_check_failed`
+with `found` and `asked`, the answers it ranked first and how many it was asked.
 
 The API fetches each file of the build from
 `https://huggingface.co/{repo}/resolve/{revision}/{path}` into the models folder

@@ -79,7 +79,7 @@ Hand-written migrations, as [ADR 0005](../../../adr/0005-hand-written-migrations
 
 | Table | Holds |
 |---|---|
-| `installed_plugins` | `id`, `kind` (`remote`), `source` (`first_party`, `registry` or `custom`), `url` (unique: one plugin per server, stored in one spelling, with scheme and host lowercased and no default port, trailing slash or fragment), `publisher`, `enabled`, `connected_at`, the list entry it was connected from, and its sign-in: `credential_kind` and `credential_ciphertext`, encrypted through `shared/secrets.py`, as `provider_connections` keeps a connection's key |
+| `installed_plugins` | `id`, `kind` (`remote`), `source` (`first_party`, `registry` or `custom`), `url` (unique: one plugin per server, stored in one spelling, with scheme and host lowercased and no default port, trailing slash or fragment), `enabled`, `connected_at`, the list entry it was connected from, and its sign-in: `credential_kind` and `credential_ciphertext`, encrypted through `shared/secrets.py`, as `provider_connections` keeps a connection's key |
 | `plugin_tools` | `plugin_id`, `tool`, `position` (the server's order), `first_seen_at`, `enabled`, `approval` (`ask` or `always`, [`04-trust.md`](04-trust.md#approval)), `exposure`, and the description, annotations and schema last seen, which [`02-registry.md`](02-registry.md#tools-added-later) compares on each listing |
 | `plugin_settings` | One row: `third_party_on`, whether the user allowed third-party plugins ([`02-registry.md`](02-registry.md#third-party-plugins)) |
 
