@@ -31,7 +31,7 @@ const studioErrorText: Record<string, () => string> = {
   sources_gone: () =>
     intl.formatMessage({
       id: "studio_error_sources_gone",
-      defaultMessage: "None of its sources are left.",
+      defaultMessage: "None of this artifact’s sources are left.",
     }),
   needs_chat: () =>
     intl.formatMessage({

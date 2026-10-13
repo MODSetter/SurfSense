@@ -1102,7 +1102,7 @@
   "studio_error_needs_image": "Un modèle d’image est requis.",
   "studio_error_no_sources": "Choisissez au moins une source.",
   "studio_error_nothing_running": "Rien n’est en cours.",
-  "studio_error_sources_gone": "Il ne reste aucune de ses sources.",
+  "studio_error_sources_gone": "Il ne reste aucune des sources de cet artefact.",
   "studio_error_sources_indexing": "Les sources choisies sont encore en cours d’indexation.",
   "studio_flashcard_surface_reveal_answer_aria": "Afficher la réponse",
   "studio_flashcard_surface_show_question_aria": "Afficher la question",

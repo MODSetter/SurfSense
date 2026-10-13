@@ -11,7 +11,7 @@ describe("a refused Studio job", () => {
     ["nothing_running", "Nothing is running."],
     ["no_sources", "Pick at least one source."],
     ["sources_indexing", "The chosen sources are still indexing."],
-    ["sources_gone", "None of its sources are left."],
+    ["sources_gone", "None of this artifact’s sources are left."],
   ])("has its own line for %s", (code, line) => {
     const refusal = new ApiError(409, "backend prose, never shown", code)
 

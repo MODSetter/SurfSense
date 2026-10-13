@@ -1102,7 +1102,7 @@
   "studio_error_needs_image": "Ein Bildmodell ist erforderlich.",
   "studio_error_no_sources": "Wähle mindestens eine Quelle aus.",
   "studio_error_nothing_running": "Es läuft nichts.",
-  "studio_error_sources_gone": "Keine seiner Quellen ist mehr vorhanden.",
+  "studio_error_sources_gone": "Keine der Quellen dieses Artefakts ist mehr vorhanden.",
   "studio_error_sources_indexing": "Die ausgewählten Quellen werden noch indexiert.",
   "studio_flashcard_surface_reveal_answer_aria": "Antwort aufdecken",
   "studio_flashcard_surface_show_question_aria": "Frage anzeigen",

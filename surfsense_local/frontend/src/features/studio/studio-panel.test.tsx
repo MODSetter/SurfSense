@@ -629,8 +629,10 @@ describe("studio panel", () => {
       })
     )
     const alert = await screen.findByRole("alert")
+    // The interface's line says the same as the backend's. Only the
+    // apostrophe tells them apart: the catalog's is typographic.
     expect(
-      within(alert).getByText("None of its sources are left.")
+      within(alert).getByText("None of this artifact’s sources are left.")
     ).toBeTruthy()
     expect(
       screen.queryByText("None of this artifact's sources are left.")
