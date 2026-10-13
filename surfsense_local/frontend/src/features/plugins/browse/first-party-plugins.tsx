@@ -22,7 +22,7 @@ function FirstPartyEntryRow({
   return (
     <li
       aria-labelledby={nameId}
-      className="relative flex items-start gap-3 py-3"
+      className="relative flex items-start gap-3 rounded-lg bg-secondary p-3 transition-colors hover:bg-muted"
     >
       <PluginIcon
         id={entry.id}
@@ -78,7 +78,7 @@ export function FirstPartyPlugins({
           defaultMessage: "By SurfSense",
         })}
       </h3>
-      <ul className="grid gap-x-8 sm:grid-cols-2">
+      <ul className="mt-3 grid gap-3 sm:grid-cols-2">
         {entries.data.map((entry) => (
           <FirstPartyEntryRow
             key={entry.id}

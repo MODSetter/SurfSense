@@ -24,7 +24,7 @@ function RegistryEntryRow({
   return (
     <li
       aria-labelledby={nameId}
-      className="relative flex items-start gap-3 py-3"
+      className="relative flex items-start gap-3 rounded-lg bg-secondary p-3 transition-colors hover:bg-muted"
     >
       <PluginIcon id={entry.id} name={entry.name} hasIcon={entry.has_icon} />
       <div className="min-w-0 flex-1">
@@ -151,7 +151,7 @@ export function RegistryPlugins({
           })}
         </p>
       ) : registry.data?.plugins.length ? (
-        <ul className="grid gap-x-8 sm:grid-cols-2">
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2">
           {registry.data.plugins.map((entry) => (
             <RegistryEntryRow
               key={entry.id}

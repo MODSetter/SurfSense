@@ -32,7 +32,7 @@ export function PluginIcon({
         alt=""
         // Registry marks are light or coloured, so they sit on a grey tile, never the bare page.
         className={cn(
-          "size-8 shrink-0 rounded-md bg-muted-foreground/35 object-contain p-1 outline -outline-offset-1 outline-black/10 dark:bg-muted dark:outline-white/10",
+          "size-8 shrink-0 rounded-md bg-muted-foreground/20 object-contain p-1 outline -outline-offset-1 outline-black/10 dark:bg-muted dark:outline-white/10",
           className
         )}
         onError={() => setFailed(true)}
