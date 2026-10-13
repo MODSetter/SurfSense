@@ -19,5 +19,5 @@ Outside the desktop app there is no bridge: the version and release notes rows a
 
 ## Known gaps
 
-- The app does not show its third-party license notices. They are generated at build time and ship as `resources/notices/THIRD_PARTY_NOTICES.json` and `.txt` ([packaging](packaging.md#third-party-notices)), but nothing in Settings › About opens them yet.
+- The app does not show its third-party license notices. They are generated at build time and ship as `resources/licenses/THIRD_PARTY_NOTICES.json` and `.txt` ([packaging](packaging.md#third-party-notices)), but nothing in Settings › About opens them yet.
 - The app writes no log files, so there is no logs folder to open. This run's output is kept in memory and shown in Report issue ([issue reports](issue-reports.md)), and is gone once the app quits.

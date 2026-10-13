@@ -373,7 +373,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
-          DIR=./surfsense_local/electron/release/linux-unpacked/resources/notices
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/licenses
           test -s "$DIR/THIRD_PARTY_NOTICES.json"
           test -s "$DIR/THIRD_PARTY_NOTICES.txt"
           test ! -e "$DIR/fragments"

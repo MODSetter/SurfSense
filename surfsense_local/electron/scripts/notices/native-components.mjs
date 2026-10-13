@@ -21,6 +21,9 @@ export const NATIVE_COMPONENTS = [
     note: "Chromium's notices ship with Electron as LICENSES.chromium.html beside the app." },
   // The llama.cpp licence covers the ggml it vendors: same authors, same text.
   { name: "llama.cpp", version: LLAMACPP_BUILD, license: "MIT", folder: "llamacpp", files: ["LICENSE"] },
+  // fetch-llamacpp.mjs stages it beside the libomp.dll only Windows' archive carries.
+  { name: "LLVM OpenMP (in llama.cpp)", version: LLAMACPP_BUILD, license: "Apache-2.0 WITH LLVM-exception", folder: "llamacpp",
+    files: ["LICENSE-LLVM-OpenMP"], platforms: ["win32"] },
   { name: "stable-diffusion.cpp", version: SDCPP_TAG, license: "MIT", folder: "sdcpp", files: ["stable-diffusion.cpp.txt"] },
   { name: "ggml (in stable-diffusion.cpp)", version: SDCPP_TAG, license: "MIT", folder: "sdcpp", files: ["ggml.txt"] },
   { name: "audio.cpp", version: AUDIOCPP_TAG, license: "Apache-2.0", folder: "audiocpp", files: ["LICENSE"] },

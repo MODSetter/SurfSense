@@ -49,8 +49,8 @@ extraResources:
     to: opencode
   # Third-party licence notices for everything above (build:notices,
   # scripts/notices/). The generators' fragments stay behind.
-  - from: notices
-    to: notices
+  - from: licenses
+    to: licenses
     filter:
       - THIRD_PARTY_NOTICES.*
 

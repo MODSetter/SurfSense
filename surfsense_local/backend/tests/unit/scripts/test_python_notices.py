@@ -192,3 +192,50 @@ def test_a_notice_alone_leaves_no_text_for_the_gate(tmp_path):
     [entry] = python_notices(["attrib"], {"attrib": dist}.__getitem__)
     assert entry["text"] == ""
     assert entry["notice"] == "Attribution only"
+
+
+def test_licence_files_in_the_package_folder_ship_beside_the_dist_infos(tmp_path):
+    """A vendored licence in the package folder ships after the dist-info's own."""
+    dist = FakeDistribution(
+        tmp_path,
+        "bundler",
+        "Name: bundler\nVersion: 1\nLicense-Expression: MIT\n",
+        {
+            "bundler-1.0.dist-info/LICENSE": "Own MIT",
+            "bundler/LICENSE": "Own MIT",
+            "bundler/_vendor/LICENSE.txt": "Vendored BSD",
+            "bundler/x.py": "",
+        },
+    )
+    [entry] = python_notices(["bundler"], {"bundler": dist}.__getitem__)
+    assert entry["text"] == "Own MIT\n\nVendored BSD"
+
+
+def test_a_third_party_notices_file_in_the_package_ships_as_its_notice(tmp_path):
+    """onnxruntime keeps ThirdPartyNotices.txt in its own folder, beside its code."""
+    dist = FakeDistribution(
+        tmp_path,
+        "onnxruntime",
+        "Name: onnxruntime\nVersion: 1\nLicense: MIT License\n",
+        {
+            "onnxruntime-1.0.dist-info/LICENSE": "MIT onnxruntime",
+            "onnxruntime/ThirdPartyNotices.txt": "Third party licences",
+            "onnxruntime/__init__.py": "",
+        },
+    )
+    [entry] = python_notices(["onnxruntime"], {"onnxruntime": dist}.__getitem__)
+    assert entry["text"] == "MIT onnxruntime"
+    assert entry["notice"] == "Third party licences"
+
+
+def test_a_third_party_notices_file_alone_leaves_no_text_for_the_gate(tmp_path):
+    """Other projects' licences are not this package's own terms."""
+    dist = FakeDistribution(
+        tmp_path,
+        "bundled",
+        "Name: bundled\nVersion: 1\nLicense: MIT\n",
+        {"bundled/THIRD_PARTY_NOTICES": "Others' licences", "bundled/x.py": ""},
+    )
+    [entry] = python_notices(["bundled"], {"bundled": dist}.__getitem__)
+    assert entry["text"] == ""
+    assert entry["notice"] == "Others' licences"

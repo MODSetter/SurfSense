@@ -20,11 +20,17 @@ function allowance(allowlist, entry) {
   )
 }
 
+// Code units, not localeCompare, so every machine writes the same file.
+function byCodeUnit(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 function byTreeThenName(a, b) {
   return (
     TREE_ORDER.indexOf(a.tree) - TREE_ORDER.indexOf(b.tree) ||
-    a.name.toLowerCase().localeCompare(b.name.toLowerCase()) ||
-    a.version.localeCompare(b.version)
+    byCodeUnit(a.name.toLowerCase(), b.name.toLowerCase()) ||
+    byCodeUnit(a.name, b.name) ||
+    byCodeUnit(a.version, b.version)
   )
 }
 

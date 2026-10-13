@@ -5,9 +5,10 @@ from collections.abc import Callable, Iterable
 from importlib.metadata import Distribution, PackageNotFoundError, PackagePath
 from pathlib import PurePath
 
-_LICENCE_FILE = re.compile(r"^(licen[cs]e|copying|unlicense)([-_.].*)?$", re.I)
-# A NOTICE carries attribution, not licence terms, so it never passes the gate alone.
-_NOTICE_FILE = re.compile(r"^notice([-_.].*)?$", re.I)
+_LICENCE_FILE = re.compile(r"^(licen[cs]es?|copying|unlicense)([-_.].*)?$", re.I)
+# A NOTICE, or a third-party notices file such as onnxruntime's, carries others'
+# attribution, not this package's terms, so it never passes the gate alone.
+_NOTICE_FILE = re.compile(r"^(third[-_ ]?party[-_ ]?notices?|notice)([-_.].*)?$", re.I)
 # A `License` field longer than this, or over several lines, is the text itself.
 _ID_LENGTH = 80
 
@@ -37,18 +38,19 @@ def _decoded(path: PackagePath) -> str:
         return data.decode("latin-1").strip()
 
 
+def _dist_info_first(path: PackagePath) -> tuple[bool, int, str]:
+    return (not path.parts[0].endswith(".dist-info"), len(path.parts), str(path))
+
+
 def _texts(
     dist: Distribution, wanted: Callable[[PackagePath, set[str]], bool]
 ) -> list[str]:
-    """Matching files in the dist-info, which PEP 639 names, else anywhere installed."""
+    """Matching installed files: the dist-info's, which PEP 639 names, then the package's own."""
     files = [p for p in dist.files or [] if not p.name.endswith(".py")]
     declared = {PurePath(n).name for n in dist.metadata.get_all("License-File") or []}
-    in_info = [
-        p for p in files if p.parts[0].endswith(".dist-info") and wanted(p, declared)
-    ]
-    chosen = in_info or [p for p in files if wanted(p, declared)]
+    chosen = [p for p in files if wanted(p, declared)]
     texts: list[str] = []
-    for path in sorted(chosen, key=lambda p: (len(p.parts), str(p))):
+    for path in sorted(chosen, key=_dist_info_first):
         try:
             text = _decoded(path)
         except OSError:

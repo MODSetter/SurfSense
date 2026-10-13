@@ -21,11 +21,13 @@ function readText(path) {
 
 // Every listed file must hold text: COPYING alone names ripgrep's licences
 // without their terms, so a partial stage fails rather than ships.
-export function nativeNotices(root, components) {
+// A component listing `platforms` ships only there, so elsewhere it is skipped.
+export function nativeNotices(root, components, platform = process.platform) {
   const entries = []
   const unstaged = []
   const missing = []
-  for (const { folder, files, ...entry } of components) {
+  for (const { folder, files, platforms, ...entry } of components) {
+    if (platforms && !platforms.includes(platform)) continue
     const dir = join(root, folder)
     if (!staged(dir)) {
       unstaged.push(entry.name)

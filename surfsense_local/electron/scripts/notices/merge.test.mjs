@@ -1,10 +1,10 @@
 import assert from "node:assert/strict"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import test from "node:test"
 
-import { FRAGMENTS } from "./fragments.mjs"
+import { FRAGMENTS, NOTICES_DIR } from "./fragments.mjs"
 import { mergeNotices, writeNotices } from "./merge.mjs"
 
 const MIT = "MIT License\n\nCopyright (c) someone"
@@ -110,4 +110,17 @@ test("writes the merged notices as JSON and as plain text", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test("the notices land in electron/licenses, which ships as resources/licenses", () => {
+  assert.equal(basename(NOTICES_DIR), "licenses")
+})
+
+test("orders names by code unit, not by the machine's locale", () => {
+  const npm = {
+    entries: ["b", "a-b", "a_b", "ä", "z"].map((name) => ({ name, version: "1", tree: "frontend", license: "MIT", text: MIT })),
+  }
+  const merged = mergeNotices(fragments({ "npm-frontend": npm }), [])
+  const names = merged.entries.filter((e) => e.tree === "frontend").map((e) => e.name)
+  assert.deepEqual(names, ["a-b", "a_b", "b", "z", "ä"])
 })
