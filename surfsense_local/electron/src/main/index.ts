@@ -370,8 +370,14 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     // A repository above the data folder makes it opencode's project, and every
     // thread's agent reads every other's folder (agent.md, Known gaps). Nothing
     // in opencode closes this, so the app says it: once per boot, before the
-    // agent can run at all.
-    const repository = gitAboveDataFolder(dataDir)
+    // agent can run at all. A walk that cannot stat its way up is a boot-stopping
+    // error otherwise, so it is a warning too, and startup continues.
+    let repository: string | null = null
+    try {
+      repository = gitAboveDataFolder(dataDir)
+    } catch (error) {
+      warnMain(sessionLog, `could not check for a git repository above the data folder: ${String(error)}`)
+    }
     if (repository !== null) {
       warnMain(
         sessionLog,

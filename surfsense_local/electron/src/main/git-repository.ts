@@ -6,8 +6,25 @@
  * every thread's agent can read every other thread's and workspace's folder.
  * Nothing in opencode's flags closes this, so the app says it instead.
  */
-import { existsSync } from "node:fs"
+import { statSync } from "node:fs"
 import { dirname, join, parse } from "node:path"
+
+/**
+ * Whether anything stands at `path`. `existsSync` would read every error as
+ * absence — a `.git` the walk cannot stat, a permission denied or a loop,
+ * would silence the warning. Only the codes that mean "nothing there" count
+ * as absent; the rest propagate to the caller.
+ */
+function exists(path: string): boolean {
+  try {
+    statSync(path)
+    return true
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === "ENOENT" || code === "ENOTDIR") return false
+    throw error
+  }
+}
 
 /**
  * The folder of the nearest `.git` at or above `folder`, or null when none
@@ -20,7 +37,7 @@ export function gitRootAbove(folder: string, stop?: string): string | null {
   let current = folder
   while (true) {
     if (stop !== undefined && current === stop) return null
-    if (existsSync(join(current, ".git"))) return current
+    if (exists(join(current, ".git"))) return current
     const parent = dirname(current)
     if (parent === current) return null
     current = parent
