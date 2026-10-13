@@ -1,6 +1,7 @@
 """An opencode running SurfSense's current configuration, ready for a turn."""
 
 import asyncio
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -66,6 +67,9 @@ async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
     agent_dir = get_storage_settings().agent_dir
     config = agent_dir / CONFIG_FILE
     await run_in_threadpool(write_opencode_config, config, setup)
+    if opencode_failure(agent_dir, config.stat().st_mtime) is not None:
+        # Electron starts opencode again only for a newer file, and an unchanged one is not rewritten.
+        os.utime(config)
     written = config.stat().st_mtime
 
     client = OpencodeClient(settings.opencode_url, settings.opencode_password)

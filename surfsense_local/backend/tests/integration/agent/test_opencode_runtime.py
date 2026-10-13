@@ -85,6 +85,44 @@ async def test_an_opencode_electron_gave_up_on_fails_the_turn_at_once(
     await giving_up
 
 
+async def test_asking_again_after_electron_gave_up_earns_another_start(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same setup writes the same file, and Electron starts a given-up opencode only for a newer one."""
+    agent_dir: Path = get_storage_settings().agent_dir
+    monkeypatch.setattr(
+        get_agent_settings(), "opencode_url", f"http://127.0.0.1:{free_port()}"
+    )
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", "password")
+    config = agent_dir / "opencode.json"
+    failure = agent_dir / "opencode-failed.json"
+    config.unlink(missing_ok=True)
+    failure.unlink(missing_ok=True)
+    starts = 0
+
+    async def electron_gives_up_after_each_start() -> None:
+        nonlocal starts
+        gave_up_at = 0.0
+        while True:
+            if config.exists() and config.stat().st_mtime > gave_up_at:
+                starts += 1
+                await asyncio.sleep(0.3)  # three quick exits take a while
+                failure.write_text(
+                    '{"reason": "opencode exited with code 7"}', encoding="utf-8"
+                )
+                gave_up_at = failure.stat().st_mtime
+            await asyncio.sleep(0.05)
+
+    electron = asyncio.create_task(electron_gives_up_after_each_start())
+    try:
+        for expected in (1, 2, 3):
+            with pytest.raises(AgentUnavailableError, match="code 7"):
+                await asyncio.wait_for(ready_opencode(session, launch_key="key"), 5)
+            assert starts == expected
+    finally:
+        electron.cancel()
+
+
 async def test_a_failure_from_before_this_turn_s_configuration_is_not_read(
     session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
