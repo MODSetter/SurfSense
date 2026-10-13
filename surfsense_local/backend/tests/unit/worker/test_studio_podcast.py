@@ -1,5 +1,7 @@
 """The podcast pipeline: a reviewed brief becomes an outline, then segments."""
 
+import io
+import wave
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 
@@ -301,6 +303,36 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
     assert built.primary_filename == "saturn-rings.wav"
     assert "**Sam:** Welcome." in built.markdown
     assert "**Lee:** Goodbye." in built.markdown
+
+
+def _real_wav(seconds: float = 1.0, rate: int = 24000) -> bytes:
+    """A voice's joined episode: 16-bit mono PCM."""
+    out = io.BytesIO()
+    with wave.open(out, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(b"\x01\x00" * int(rate * seconds))
+    return out.getvalue()
+
+
+def test_a_wav_episode_is_stored_as_mp3(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The podcast is encoded here, whichever voice made it: synthesize stays
+    WAV for every other caller, such as Settings' voice check."""
+    voice, _ = _episode(
+        monkeypatch,
+        '{"title": "Saturn Rings", "segments": [{"title": "Open"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Bye."}]}',
+        voice=FakeVoice(_real_wav(), "audio/wav"),
+    )
+
+    built = pipeline.render(MODEL, voice, [], None, BRIEF.model_dump(mode="json"))
+
+    assert (built.primary_mime, built.primary_filename) == (
+        "audio/mpeg",
+        "saturn-rings.mp3",
+    )
+    assert built.primary[0] == 0xFF and built.primary[1] & 0xE0 == 0xE0
 
 
 def test_an_mp3_episode_is_named_mp3(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -24,13 +24,17 @@ def encoded_episode(wav: bytes) -> SynthesizedAudio:
     except ImportError:
         logger.warning("lameenc is not installed; the episode stays WAV")
         return SynthesizedAudio(wav, "audio/wav")
-    with wave.open(io.BytesIO(wav)) as pcm:
-        channels, width, rate = (
-            pcm.getnchannels(),
-            pcm.getsampwidth(),
-            pcm.getframerate(),
-        )
-        frames = pcm.readframes(pcm.getnframes())
+    try:
+        with wave.open(io.BytesIO(wav)) as pcm:
+            channels, width, rate = (
+                pcm.getnchannels(),
+                pcm.getsampwidth(),
+                pcm.getframerate(),
+            )
+            frames = pcm.readframes(pcm.getnframes())
+    except (wave.Error, EOFError):
+        logger.warning("the episode is not a WAV LAME can read; it stays as it is")
+        return SynthesizedAudio(wav, "audio/wav")
     # LAME takes 16-bit samples only.
     if width != 2:
         return SynthesizedAudio(wav, "audio/wav")
@@ -41,7 +45,7 @@ def encoded_episode(wav: bytes) -> SynthesizedAudio:
         encoder.set_bit_rate(KBPS_PER_CHANNEL * channels)
         encoder.set_quality(QUALITY)
         mp3 = bytes(encoder.encode(frames) + encoder.flush())
-    except RuntimeError:
+    except (RuntimeError, MemoryError):
         # The voices are paid for: keep the episode rather than fail a job
         # whose retry would voice, and bill, it again.
         logger.warning("MP3 encoding failed; the episode stays WAV", exc_info=True)

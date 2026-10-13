@@ -170,27 +170,11 @@ def test_each_turn_is_one_request_and_the_turns_join_with_a_pause(monkeypatch) -
         assert joined.getnframes() == 10_400
 
 
-def test_the_episode_is_mp3_at_the_models_rate() -> None:
-    """About a sixth of the WAV, and the browser plays it as it did the WAV."""
+def test_the_voice_returns_its_joined_wav() -> None:
+    """MP3 is the podcast's own step; Settings' voice check plays this WAV."""
     turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
 
     audio = speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), StubServer(24000), turns)
-
-    assert audio.media_type == "audio/mpeg"
-    header = audio.content[:4]
-    assert header[0] == 0xFF and header[1] & 0xE0 == 0xE0, "an MPEG frame first"
-    # MPEG-2's rate index 1 is 24 kHz, mono is channel mode 3.
-    assert (header[1] >> 3 & 0b11, header[2] >> 2 & 0b11) == (0b10, 1)
-    assert header[3] >> 6 == 0b11
-    assert len(audio.content) < len(wav(2 * 24000)) / 4
-
-
-def test_the_episode_stays_wav_without_an_encoder(monkeypatch) -> None:
-    """A checkout that skipped the dependency still gets an episode it can play."""
-    monkeypatch.setitem(sys.modules, "lameenc", None)
-    turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
-
-    audio = speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), StubServer(), turns)
 
     assert audio.media_type == "audio/wav"
     assert audio.content[:4] == b"RIFF"

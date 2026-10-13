@@ -16,7 +16,6 @@ from modules.llm.providers.audiocpp.memory import (
     OtherModel,
     check_voicing_memory,
 )
-from modules.llm.providers.episode_audio.encoded_episode import encoded_episode
 from modules.llm.providers.episode_audio.joined_wav import joined_wav
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
 from shared import cancellation
@@ -109,8 +108,7 @@ class AudioCppSpeech:
                     voiced = await self._voice_each(client, turns, language, speaks)
                 finally:
                     await _unload(client)
-        # Off the event loop: encoding a long episode takes seconds of CPU.
-        return await asyncio.to_thread(lambda: encoded_episode(joined_wav(voiced)))
+        return SynthesizedAudio(joined_wav(voiced), "audio/wav")
 
     async def _wait_for_memory(self, seconds: float) -> None:
         deadline = time.monotonic() + seconds

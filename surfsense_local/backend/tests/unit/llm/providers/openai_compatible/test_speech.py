@@ -138,36 +138,14 @@ def test_a_reply_of_several_wavs_back_to_back_joins_as_all_of_them(
         assert joined.getnframes() == 1000
 
 
-def test_a_wav_episode_is_encoded_as_mp3() -> None:
-    """A podcast is MP3 whichever voice made it, as the local one's is."""
-    audio = speak(
-        StubServer(), [SpokenTurn("coral", "Hi."), SpokenTurn("onyx", "Hello.")]
-    )
-
-    assert audio.media_type == "audio/mpeg"
-    assert audio.content[0] == 0xFF and audio.content[1] & 0xE0 == 0xE0
-
-
-def test_an_episode_the_encoder_fails_on_is_kept_as_wav(monkeypatch) -> None:
-    """The voices are paid for by then: the episode stays, as WAV, rather than a
-    failure the job would retry and bill twice."""
-    import lameenc
-
-    class Broken:
-        def __getattr__(self, name: str):
-            def fail(*args: object) -> None:
-                raise RuntimeError("lame_encode_buffer failed")
-
-            return fail
-
-    monkeypatch.setattr(lameenc, "Encoder", Broken)
+def test_a_wav_episode_is_returned_as_wav() -> None:
+    """MP3 is the podcast's own step; Settings' voice check plays this WAV."""
     audio = speak(
         StubServer(), [SpokenTurn("coral", "Hi."), SpokenTurn("onyx", "Hello.")]
     )
 
     assert audio.media_type == "audio/wav"
-    with wave.open(io.BytesIO(audio.content)) as joined:
-        assert joined.getnframes() > 0
+    assert audio.content[:4] == b"RIFF"
 
 
 # MPEG-1 Layer III, 128 kbit/s, 44.1 kHz, no padding: 417 bytes a frame.
