@@ -46,6 +46,7 @@ import {
 } from "./sidecars/opencode.ts"
 import { prepareOpencodeHome } from "./sidecars/opencode-home.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./sidecars/opencode-leftovers.ts"
+import { gitAboveDataFolder } from "./git-repository.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import {
   binaryPath as sdcppBinaryPath,
@@ -366,6 +367,19 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     await stopLeftoverOpencode(ctx.agentDir, host)
     // Each run's API writes its own; the last run's names a key this one never made.
     rmSync(opencodeConfigPath(ctx.agentDir), { force: true })
+    // A repository above the data folder makes it opencode's project, and every
+    // thread's agent reads every other's folder (agent.md, Known gaps). Nothing
+    // in opencode closes this, so the app says it: once per boot, before the
+    // agent can run at all.
+    const repository = gitAboveDataFolder(dataDir)
+    if (repository !== null) {
+      warnMain(
+        sessionLog,
+        `the data folder sits inside the git repository at ${repository}; ` +
+          `every agent thread can read every other thread's and workspace's files. ` +
+          `Move the data folder out of the repository, or stop keeping the repository in it.`,
+      )
+    }
   }
 
   // llamacppSpec is null in dev, where no binary is staged. sd-server is absent
