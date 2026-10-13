@@ -78,3 +78,21 @@ export function allowedExternalUrl(url: string): string | null {
   if (isPluginSignIn(parsed)) return parsed.href
   return null
 }
+
+/**
+ * A link from content (a chat reply, a Studio document, a tool's result) that the
+ * user confirmed in the app's link popup, which showed its host first. Any https
+ * page; never another scheme, or an address carrying a user name or password.
+ */
+export function confirmedExternalUrl(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    return null
+  }
+  return parsed.href
+}

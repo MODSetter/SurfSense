@@ -1008,6 +1008,27 @@ describe("plugins settings", () => {
     expect(within(page).getByText("https://wiki.example/privacy")).toBeTruthy()
   })
 
+  it("opens a registry plugin's privacy policy at once, by its id", async () => {
+    const openPluginPage = vi.fn(async () => {})
+    window.surfsense = {
+      openPluginPage,
+    } as unknown as typeof window.surfsense
+    api({ plugins: [], allowed: true, registry: [listed()] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    await user.click(
+      await within(section).findByRole("button", { name: "Wiki" })
+    )
+    await user.click(
+      await screen.findByRole("link", { name: "https://wiki.example/privacy" })
+    )
+
+    expect(openPluginPage).toHaveBeenCalledWith("wiki", "privacy_policy")
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
   it("names the service whose account a plugin signs in with", async () => {
     api({
       plugins: [],

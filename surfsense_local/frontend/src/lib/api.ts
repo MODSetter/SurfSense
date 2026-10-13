@@ -29,6 +29,13 @@ declare global {
         symbolColor: string
       }) => Promise<void>
       openExternal?: (url: string) => Promise<void>
+      // A content link the user confirmed in the link popup: any https page.
+      openConfirmedLink?: (url: string) => Promise<void>
+      // A listed plugin's homepage or privacy policy, found by its id.
+      openPluginPage?: (
+        pluginId: string,
+        page: "homepage" | "privacy_policy"
+      ) => Promise<void>
       about?: {
         details: () => Promise<AppDetails>
       }

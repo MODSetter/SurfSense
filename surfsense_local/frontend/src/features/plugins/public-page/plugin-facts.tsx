@@ -4,6 +4,7 @@ import { intl } from "@/i18n/intl"
 
 import type { Plugin } from "../api"
 import { entryNeeds, isRegistryEntry, type ListedEntry } from "./listed-entry"
+import { PluginPageLink } from "./plugin-page-link"
 
 type SignIn = Plugin["auth_type"]
 
@@ -92,7 +93,6 @@ export function PluginFacts({ entry }: { entry: ListedEntry }) {
           })}
         </Fact>
       ) : null}
-      {/* Plain text: the desktop app opens only its own allowlisted links. */}
       {homepage ? (
         <Fact
           term={intl.formatMessage({
@@ -100,7 +100,7 @@ export function PluginFacts({ entry }: { entry: ListedEntry }) {
             defaultMessage: "Homepage",
           })}
         >
-          <span className="select-text">{homepage}</span>
+          <PluginPageLink pluginId={entry.id} page="homepage" url={homepage} />
         </Fact>
       ) : null}
       {privacyPolicy ? (
@@ -110,7 +110,11 @@ export function PluginFacts({ entry }: { entry: ListedEntry }) {
             defaultMessage: "Privacy policy",
           })}
         >
-          <span className="select-text">{privacyPolicy}</span>
+          <PluginPageLink
+            pluginId={entry.id}
+            page="privacy_policy"
+            url={privacyPolicy}
+          />
         </Fact>
       ) : null}
     </dl>
