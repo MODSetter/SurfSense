@@ -18,11 +18,11 @@ QUALITY = 2
 
 
 def encoded_episode(wav: bytes) -> SynthesizedAudio:
-    """`wav` is joined_wav's output: one format, 16-bit PCM from audio.cpp."""
+    """`wav` is joined_wav's output; LAME takes 16-bit PCM only."""
     try:
         import lameenc
     except ImportError:
-        logger.warning("audiocpp: lameenc is not installed; the episode stays WAV")
+        logger.warning("lameenc is not installed; the episode stays WAV")
         return SynthesizedAudio(wav, "audio/wav")
     with wave.open(io.BytesIO(wav)) as pcm:
         channels, width, rate = (

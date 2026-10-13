@@ -1,11 +1,13 @@
 """Podcast voices from a server's /audio/speech, one request per turn."""
 
+import asyncio
 import logging
 import wave
 
 import httpx
 
 from modules.llm.connections.key_headers import key_headers
+from modules.llm.providers.episode_audio.encoded_episode import encoded_episode
 from modules.llm.providers.openai_compatible.joined_replies import joined_replies
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio
 from shared import cancellation
@@ -65,11 +67,15 @@ class RemoteSpeech:
                     )
                 voiced.append(reply.content)
         try:
-            return joined_replies(voiced)
+            joined = joined_replies(voiced)
         except (wave.Error, EOFError, ValueError) as error:
             raise NonRetryableSpeechError(
                 f"the server answered, but not as WAV or MP3: {error}"
             ) from error
+        if joined.media_type != "audio/wav":
+            return joined
+        # Off the event loop: encoding a long episode takes seconds of CPU.
+        return await asyncio.to_thread(encoded_episode, joined.content)
 
     async def _voice(
         self,

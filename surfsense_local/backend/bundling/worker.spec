@@ -85,9 +85,14 @@ binaries += collect_dynamic_libs("tokenizers")
 datas += collect_data_files("worker.studio", includes=["**/*.md"])
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 
-# lameenc, which encodes a podcast as MP3, is found by its import; the wheel
-# carries LAME's LGPL text only in its dist-info, which ships only when named.
+# lameenc, which encodes a podcast as MP3, is found by its import. Its
+# dist-info holds lameenc's LGPL-3.0 and ships only when named; the GPL-3.0 that
+# LGPL-3 §4(b) also asks for, LAME's licence and notice, and where both sources
+# are, ship from bundling/licenses/lameenc beside the module.
 datas += copy_metadata("lameenc")
+datas.append(
+    (str(BACKEND / "bundling" / "licenses" / "lameenc"), "lameenc-licenses")
+)
 
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += [
