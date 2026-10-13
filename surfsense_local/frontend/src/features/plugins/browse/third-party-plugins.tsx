@@ -3,13 +3,21 @@ import { useId } from "react"
 
 import { intl } from "@/i18n/intl"
 
-import { thirdPartyAllowed, thirdPartyQueryKey } from "../api"
+import {
+  thirdPartyAllowed,
+  thirdPartyQueryKey,
+  type RegistryEntry,
+} from "../api"
 import { RegistryPlugins } from "./registry-plugins"
 import { ThirdPartySwitch } from "./third-party-switch"
 import { usePluginChanges } from "../details/use-plugin-changes"
 
 /** The registry's plugins, behind the switch that allows third-party plugins at all. */
-export function ThirdPartyPlugins() {
+export function ThirdPartyPlugins({
+  onOpen,
+}: {
+  onOpen: (entry: RegistryEntry) => void
+}) {
   const titleId = useId()
   const thirdParty = useQuery({
     queryKey: thirdPartyQueryKey,
@@ -42,7 +50,7 @@ export function ThirdPartyPlugins() {
           onChange={(next) => changes.thirdParty.mutate(next)}
         />
       </div>
-      <RegistryPlugins allowed={allowed} />
+      <RegistryPlugins allowed={allowed} onOpen={onOpen} />
     </section>
   )
 }

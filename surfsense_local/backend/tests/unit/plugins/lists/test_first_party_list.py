@@ -25,6 +25,8 @@ def scrapers(**changed: Any) -> dict[str, Any]:
         "auth": {"type": "license"},
         "hosts": ["plugins.surfsense.com"],
         "access": "license",
+        "tools": ["scrape"],
+        "added": "2026-10",
     }
     return {**entry, **changed}
 
@@ -81,6 +83,11 @@ def test_a_newer_field_is_ignored(tmp_path: Path) -> None:
         ({"publisher": "partner"}, "publisher"),
         ({"access": "external"}, "access_note"),
         ({"name": ""}, "name"),
+        ({"about": "a" * 601}, "about"),
+        ({"tools": ["has space"]}, "tools"),
+        ({"tools": ["scrape", "scrape"]}, "tools"),
+        ({"added": "2026-13"}, "added"),
+        ({"added": "October 2026"}, "added"),
     ],
 )
 def test_a_bad_entry_fails_naming_its_field(
@@ -129,3 +136,20 @@ def test_an_icon_name_reaching_outside_its_folder_fails(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="scrapers: icon"):
         checked_entries(listed(tmp_path, scrapers(icon="../secret.svg")))
+
+
+def test_a_first_party_entry_must_list_its_tools(tmp_path: Path) -> None:
+    """Its page shows them before it is connected; the plugin host checks them."""
+    with pytest.raises(ValueError, match="scrapers: tools"):
+        checked_entries(listed(tmp_path, scrapers(tools=None)))
+
+
+def test_every_packaged_entry_lists_its_tools() -> None:
+    """The real list passes the rule above."""
+    assert all(entry.tools for entry in checked_entries(FIRST_PARTY_LIST))
+
+
+def test_a_first_party_entry_must_say_when_it_was_added(tmp_path: Path) -> None:
+    """Its public page says which month it joined the list."""
+    with pytest.raises(ValueError, match="scrapers: added"):
+        checked_entries(listed(tmp_path, scrapers(added=None)))

@@ -18,7 +18,13 @@
       "access": "free",
       "privacy_policy": "https://cognition.com/legal/privacy-policy",
       "homepage": "https://deepwiki.com",
-      "icon": "deepwiki.svg"
+      "icon": "deepwiki.svg",
+      "tools": [
+        "ask_wiki_question",
+        "read_wiki_contents",
+        "read_wiki_structure"
+      ],
+      "added": "2026-10"
     }
   ],
   "removed": []

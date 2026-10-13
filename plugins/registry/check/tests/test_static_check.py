@@ -44,6 +44,16 @@ def test_a_valid_entry_has_no_problems(tmp_path):
         ({"author": "a" * 81}, "author"),
         ({"min_app_version": "2.3"}, "min_app_version"),
         ({"homepage": "javascript:alert(1)"}, "homepage"),
+        ({"about": ""}, "about"),
+        ({"about": "a" * 601}, "about"),
+        ({"tools": "search"}, "tools"),
+        ({"tools": [{"name": "search"}]}, "tools"),
+        ({"tools": ["has space"]}, "tools"),
+        ({"tools": [""]}, "tools"),
+        ({"tools": ["search", "search"]}, "tools"),
+        ({"added": "2026-13"}, "added"),
+        ({"added": "October 2026"}, "added"),
+        ({"added": "2026-10-12"}, "added"),
     ],
 )
 def test_a_broken_field_is_named(tmp_path, overrides, field):
@@ -57,6 +67,9 @@ def test_optional_and_unknown_fields_are_allowed(tmp_path):
     entry = valid_entry(
         min_app_version="2.3.0",
         homepage="https://acme.example",
+        about="Search everything Acme holds, and read it whole.",
+        tools=["search", "fetch"],
+        added="2026-10",
         future_field={"anything": True},
         auth={"type": "oauth", "client_id": "abc", "scopes": ["read"]},
     )

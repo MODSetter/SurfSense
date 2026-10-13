@@ -35,6 +35,10 @@ def checked_entries(path: Path) -> list[ListEntry]:
             raise ValueError(
                 f"{name}: url must be on {PLUGIN_HOST} to carry the license key"
             )
+        if not entry.tools:
+            raise ValueError(f"{name}: tools must list what the server offers")
+        if entry.added is None:
+            raise ValueError(f"{name}: added must give the month it joined the list")
         if entry.icon is not None and not (
             ICON_NAME.match(entry.icon) and (icons_beside(path) / entry.icon).is_file()
         ):

@@ -21,6 +21,11 @@ DISPLAY_LENGTHS = {"name": 80, "description": 200, "author": 80}
 REGISTRY_PUBLISHERS = {"partner", "community"}
 REGISTRY_ACCESS = {"free", "external"}
 TOKEN_LABEL_LENGTHS = {"title": 80, "description": 200}
+# MCP's own rule for a tool name.
+TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+ABOUT_LENGTH = 600
+# The month the plugin joined the list.
+ADDED_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def entry_problems(entry: dict[str, Any]) -> list[str]:
@@ -32,6 +37,7 @@ def entry_problems(entry: dict[str, Any]) -> list[str]:
     problems += _host_problems(entry)
     problems += _access_problems(entry)
     problems += _page_problems(entry)
+    problems += _listing_problems(entry)
     version = entry.get("min_app_version")
     if version is not None and not (
         isinstance(version, str) and SEMVER_PATTERN.match(version)
@@ -137,6 +143,34 @@ def _page_problems(entry: dict[str, Any]) -> list[str]:
         if page is not None and not _is_https_page(page):
             problems.append(f"{field}: must be an https URL")
     return problems
+
+
+def _listing_problems(entry: dict[str, Any]) -> list[str]:
+    """`about`, `tools` and `added`, what the plugin's public page shows."""
+    problems = []
+    about = entry.get("about")
+    if about is not None and not _is_text(about, ABOUT_LENGTH):
+        problems.append(f"about: must be 1 to {ABOUT_LENGTH} characters")
+    tools = entry.get("tools")
+    if tools is not None:
+        problems += _tool_list_problems(tools)
+    added = entry.get("added")
+    if added is not None and not (
+        isinstance(added, str) and ADDED_PATTERN.match(added)
+    ):
+        problems.append("added: must be a month like 2026-10")
+    return problems
+
+
+def _tool_list_problems(tools: Any) -> list[str]:
+    if not isinstance(tools, list):
+        return ["tools: must be a list of tool names"]
+    for tool in tools:
+        if not (isinstance(tool, str) and TOOL_NAME_PATTERN.match(tool)):
+            return [f"tools: {tool!r} is not an MCP tool name"]
+    if len(set(tools)) != len(tools):
+        return ["tools: lists a tool twice"]
+    return []
 
 
 def _is_text(value: Any, longest: int) -> bool:

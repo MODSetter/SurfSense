@@ -1,32 +1,29 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { useId } from "react"
 
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import {
-  connectFirstParty,
   firstPartyQueryKey,
   listFirstParty,
-  pluginsQueryKey,
   type FirstPartyEntry,
 } from "../api"
 import { PluginIcon } from "../plugin-icon"
-import { refusalMessage } from "../refusal-message"
+import { ConnectListedPlugin } from "./connect-listed-plugin"
 
-function FirstPartyEntryRow({ entry }: { entry: FirstPartyEntry }) {
-  const queryClient = useQueryClient()
-  const connect = useMutation({
-    mutationFn: () => connectFirstParty(entry.id),
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: pluginsQueryKey }),
-        queryClient.invalidateQueries({ queryKey: firstPartyQueryKey }),
-      ]),
-  })
+function FirstPartyEntryRow({
+  entry,
+  onOpen,
+}: {
+  entry: FirstPartyEntry
+  onOpen: () => void
+}) {
+  const nameId = useId()
   return (
-    <li className="flex items-start gap-3 py-3">
+    <li
+      aria-labelledby={nameId}
+      className="relative flex items-start gap-3 py-3"
+    >
       <PluginIcon
         id={entry.id}
         name={entry.name}
@@ -34,7 +31,15 @@ function FirstPartyEntryRow({ entry }: { entry: FirstPartyEntry }) {
         firstParty
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{entry.name}</p>
+        {/* Stretched over the row, so the whole entry opens its page. */}
+        <button
+          id={nameId}
+          type="button"
+          className="text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+          onClick={onOpen}
+        >
+          {entry.name}
+        </button>
         <p className="text-xs text-muted-foreground">{entry.description}</p>
         {entry.access === "license" ? (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -44,41 +49,21 @@ function FirstPartyEntryRow({ entry }: { entry: FirstPartyEntry }) {
             })}
           </p>
         ) : null}
-        {connect.error ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            {refusalMessage(connect.error)}
-          </p>
-        ) : null}
       </div>
-      {entry.connected ? (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_first_party_connected_status",
-            defaultMessage: "Connected",
-          })}
-        </span>
-      ) : (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          disabled={connect.isPending}
-          onClick={() => connect.mutate()}
-        >
-          {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
-          {intl.formatMessage({
-            id: "plugins_first_party_connect_button",
-            defaultMessage: "Connect",
-          })}
-        </Button>
-      )}
+      {/* Positioned, so it sits above the row's stretched button. */}
+      <div className="relative">
+        <ConnectListedPlugin entry={entry} />
+      </div>
     </li>
   )
 }
 
 /** SurfSense's own plugins, listed from the app with no network or consent until Connect. */
-export function FirstPartyPlugins() {
+export function FirstPartyPlugins({
+  onOpen,
+}: {
+  onOpen: (entry: FirstPartyEntry) => void
+}) {
   const titleId = useId()
   const entries = useQuery({
     queryKey: firstPartyQueryKey,
@@ -93,9 +78,13 @@ export function FirstPartyPlugins() {
           defaultMessage: "By SurfSense",
         })}
       </h3>
-      <ul className="divide-y">
+      <ul className="grid gap-x-8 sm:grid-cols-2">
         {entries.data.map((entry) => (
-          <FirstPartyEntryRow key={entry.id} entry={entry} />
+          <FirstPartyEntryRow
+            key={entry.id}
+            entry={entry}
+            onOpen={() => onOpen(entry)}
+          />
         ))}
       </ul>
     </section>

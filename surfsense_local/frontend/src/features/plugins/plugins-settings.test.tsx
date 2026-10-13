@@ -64,6 +64,9 @@ function listed(extra: Partial<RegistryEntry> = {}): RegistryEntry {
     hosts: ["wiki.example"],
     homepage: null,
     privacy_policy: "https://wiki.example/privacy",
+    about: null,
+    tools: null,
+    added: null,
     has_icon: false,
     connected: false,
     ...extra,
@@ -79,6 +82,9 @@ const REDDIT: FirstPartyEntry = {
   author: "SurfSense",
   access: "license",
   hosts: ["plugins.surfsense.com"],
+  about: null,
+  tools: ["scrape"],
+  added: "2026-10",
   has_icon: true,
   connected: false,
 }
@@ -948,6 +954,110 @@ describe("plugins settings", () => {
     expect(
       calls.some((call) => call.path.startsWith("/plugins/registry"))
     ).toBe(false)
+  })
+
+  it("opens a plugin's page from Browse, with its listed tools, before it is connected", async () => {
+    api({ plugins: [], allowed: false })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    await user.click(within(surfsense).getByRole("button", { name: "Reddit" }))
+
+    const page = await screen.findByRole("region", { name: "Reddit" })
+    expect(within(page).getByText(REDDIT.description)).toBeTruthy()
+    const tools = within(page).getByRole("region", { name: "Tools" })
+    expect(within(tools).getByText("scrape")).toBeTruthy()
+    expect(within(page).getByText("Authentication")).toBeTruthy()
+    expect(within(page).getByText("SurfSense license")).toBeTruthy()
+    expect(within(page).getByText("Connects to")).toBeTruthy()
+    expect(within(page).getByText("October 2026")).toBeTruthy()
+    expect(within(page).getByRole("button", { name: "Connect" })).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("region", { name: "By SurfSense" })
+    ).toBeTruthy()
+  })
+
+  it("says a registry plugin's tools show once connected when its entry lists none", async () => {
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [
+        listed({ about: "Search and read the team wiki.", auth_type: "token" }),
+      ],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    await user.click(
+      await within(section).findByRole("button", { name: "Wiki" })
+    )
+
+    const page = await screen.findByRole("region", { name: "Wiki" })
+    expect(
+      within(page).getByText("Search and read the team wiki.")
+    ).toBeTruthy()
+    expect(
+      within(page).getByText("Tools aren’t listed for this plugin.")
+    ).toBeTruthy()
+    expect(within(page).getByText("API key")).toBeTruthy()
+    expect(within(page).getByText("https://wiki.example/privacy")).toBeTruthy()
+  })
+
+  it("names the service whose account a plugin signs in with", async () => {
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const section = await screen.findByRole("region", { name: "Third-party" })
+    await user.click(
+      await within(section).findByRole("button", { name: "Wiki" })
+    )
+
+    const page = await screen.findByRole("region", { name: "Wiki" })
+    expect(within(page).getByText("Your Wiki account")).toBeTruthy()
+  })
+
+  it("shows a connected plugin's public page from Browse, the same but Connected", async () => {
+    api({
+      plugins: [notes({ id: "reddit", name: "Reddit", source: "first_party" })],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await browse(user)
+    const surfsense = await screen.findByRole("region", {
+      name: "By SurfSense",
+    })
+    await user.click(within(surfsense).getByRole("button", { name: "Reddit" }))
+
+    const page = await screen.findByRole("region", { name: "Reddit" })
+    expect(within(page).getByText("Connected")).toBeTruthy()
+    expect(within(page).getByText(REDDIT.description)).toBeTruthy()
+    expect(within(page).getByText("scrape")).toBeTruthy()
+    expect(within(page).queryByRole("switch")).toBeNull()
+    expect(within(page).queryByRole("button", { name: "Connect" })).toBeNull()
+  })
+
+  it("shows a plugin's settings in Yours, with no public details", async () => {
+    api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    expect(
+      within(plugin).getByRole("switch", { name: /Search notes/ })
+    ).toBeTruthy()
+    expect(screen.queryByRole("region", { name: "About" })).toBeNull()
+    expect(screen.queryByRole("region", { name: "Details" })).toBeNull()
   })
 
   it("lists the registry's plugins, verified partners and community authors, dated", async () => {

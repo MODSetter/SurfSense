@@ -73,6 +73,11 @@ export type FirstPartyEntry = {
   /** `license` when it needs the SurfSense license. */
   access: "free" | "license"
   hosts: string[]
+  /** What its page shows before it is connected. */
+  about: string | null
+  tools: string[]
+  /** `YYYY-MM`, the month it joined the list. */
+  added: string
   has_icon: boolean
   connected: boolean
 }
@@ -96,6 +101,11 @@ export type RegistryEntry = {
   hosts: string[]
   homepage: string | null
   privacy_policy: string | null
+  /** What its page shows before it is connected; `tools` is null when the entry lists none. */
+  about: string | null
+  tools: string[] | null
+  /** `YYYY-MM`, the month it joined the registry; null in an older entry. */
+  added: string | null
   has_icon: boolean
   connected: boolean
 }

@@ -32,10 +32,8 @@ An illustrative registry entry, not a real listing:
       "name": "Notion",
       "description": "Search and read your Notion pages and databases.",
       "about": "Find pages and databases across your workspace, read them whole, and answer from them. Notion signs you in; SurfSense keeps only the sign-in.",
-      "tools": [
-        { "name": "search", "description": "Search pages and databases by title and content." },
-        { "name": "fetch", "description": "Read a page or a database whole." }
-      ],
+      "tools": ["search", "fetch"],
+      "added": "2026-10",
       "author": "Notion Labs",
       "url": "https://mcp.notion.com/mcp",
       "auth": { "type": "oauth" },
@@ -67,7 +65,8 @@ An illustrative registry entry, not a real listing:
 | `access_note` | Required when `access` is `external`: what the user must buy or have, in a sentence |
 | `privacy_policy` | Required in the registry |
 | `about` | Optional. What the plugin does, for its page, in 1–600 characters. Without it the page shows `description` |
-| `tools` | Optional in the registry, required in the first-party list. Each tool the server offers, as `{name, description}`: its MCP tool name, and what it does in 1–200 characters. Shown on the plugin's page before it is connected; never given to a model ([below](#a-plugins-page)) |
+| `tools` | Required in both lists, at least one: a plugin's tools are all SurfSense uses of it. The names of the tools the server offers, each an MCP tool name, listed once. Shown on the plugin's public page; never given to a model ([below](#a-plugins-page)) |
+| `added` | Required in both lists. The month the plugin joined its list, as `YYYY-MM`: set by the publisher in its pull request and checked in review, or by SurfSense with its own plugin. Shown on the plugin's public page |
 | `homepage`, `icon` | Optional. Icons live beside their list: `plugins/registry/icons/`, or `lists/first_party/icons/` in the app |
 | `min_app_version` | Registry only, optional. Older apps do not list the entry |
 
@@ -79,7 +78,7 @@ A partner or a community developer:
 
 1. Opens a pull request into `dev` adding one entry to the registry, and its icon. A submission site can replace the pull request later.
 2. CI checks the entry against the rules above, and its icon. It does not contact the server: most need a key or a sign-in CI does not hold.
-3. A maintainer reviews the entry once, after connecting the plugin on `dev` and signing in if it needs it: who runs the server, what its tools do and whether `tools` lists them truly, whether their descriptions carry instructions aimed at the model, whether the hosts are complete, whether the privacy policy is real. `partner` needs evidence the author speaks for the company.
+3. A maintainer reviews the entry once, after connecting the plugin on `dev` and signing in if it needs it: who runs the server, what its tools do and whether `tools` lists every one of them, whether their descriptions carry instructions aimed at the model, whether the hosts are complete, whether the privacy policy is real. `partner` needs evidence the author speaks for the company.
 4. Once merged and on `main`, the entry reaches every app that allows third-party plugins at its next refresh, without an app update ([below](#how-the-app-gets-the-registry)).
 
 A later change to an entry is the same pull request and the same review. A change to a remote server needs none: the publisher deploys when they like, which is why tools added later start off ([below](#tools-added-later)).
@@ -148,18 +147,18 @@ The first-party list needs none of this: `bundling/api.spec` packages it into th
 - **Third-party** follows. Until third-party plugins are allowed, the section is one sentence and a button, **Allow third-party plugins**. Once allowed, it lists the registry's plugins, partners marked "Verified" and community plugins by their author, with the date of the list.
 - **Add a plugin by URL** is last.
 - **Connect** asks for every host the plugin needs in one prompt, then for its sign-in.
-- **Each plugin opens its page** ([below](#a-plugins-page)), from By SurfSense, Third-party, and a connected plugin's row in Yours.
+- **Each plugin opens its public page** ([below](#a-plugins-page)), from By SurfSense and Third-party only. A connected plugin's row in Yours opens its settings instead: its status, its controls and the server's live tools with their switches, nothing more.
 
 ### A plugin's page
 
-Every listed plugin has a page, as each of Claude's connectors does, opened from its entry and shown in place of the list with **Back**. A custom plugin has no entry, so its page is the connected plugin's details alone.
+Every listed plugin has a public page, as each of Claude's connectors does, opened only from its entry in Browse and shown in place of the list with **Back**. It is built from the list entry alone, so it is the same for every user and the same whether the plugin is connected or not; one page serves first-party and registry plugins alike. A custom plugin has no entry, so no public page.
 
-- **Header:** its icon, name and publisher ("By SurfSense", "Verified" for a partner, or its author), and **Connect**; once connected, **Disconnect** and its menu.
+- **Header:** its icon, name and publisher ("By SurfSense", its author marked "Verified" for a partner, or "By" its author), and **Connect**, or "Connected" once it is.
 - **About:** `about`, or `description` when there is none.
-- **Tools:** before it is connected, the entry's `tools`, named and described, marked "As listed". Once connected, the server's own listing replaces them, with each tool's switch and approval as a connected plugin's details have today, and a tool the entry lists but the server does not is simply absent. An entry with no `tools` says the tools are shown once it is connected.
-- **Details:** what it needs ("License required", a key, or an account), the hosts it contacts, and its homepage and privacy policy.
+- **Tools:** the entry's `tools`, each name as a chip in two columns, as Claude's connectors show them, with no description, no switch and no approval. Those are settings of a connected plugin, in Yours.
+- **Details:** its authentication (none, the SurfSense license, an API key, or the user's account on its service, named), the hosts it connects to, the month it was added, and its homepage and privacy policy.
 
-The list's `tools` describe a plugin to the user and nothing else. A server's tools are known for certain only by listing it, which needs its sign-in and, for a third-party host, consent the page cannot ask for just to describe it, so the list carries them, reviewed once like the rest of the entry. They never reach a model: the agent is given only what the server lists, under the rules for [tools added later](#tools-added-later). A first-party entry must list them, and SurfSense's plugin host checks them against each server's `tools/list` in CI, so a first-party page never disagrees with what connecting gives.
+The list's `tools` describe a plugin to the user and nothing else. A server's tools are known for certain only by listing it, which needs its sign-in and, for a third-party host, consent the page cannot ask for just to describe it, so the list carries them. They never reach a model: the agent is given only what the server lists, under the rules for [tools added later](#tools-added-later). A registry entry's tools are checked in its pull request's review, like the rest of the entry; a first-party entry's are checked against each server by SurfSense's plugin host's tests. A server that changes its tools after review shows the old list on its page until its entry is updated.
 
 ## Bundle entries (later)
 
@@ -210,6 +209,6 @@ How versions are built, scanned, verified and blocked is in [`bundles/`](../bund
 - An entry in a fetched registry with `publisher: surfsense` or `auth: license` is dropped by the app, and no request carries the license key to it.
 - A third-party plugin cannot be connected until third-party plugins are allowed, and its tools never reach a caller.
 - A tool a fake server adds after connecting is listed off and never reaches a caller until switched on.
-- The check fails an entry whose `about` or a tool's `description` is too long, a tool with no name or a name listed twice, and a first-party entry with no `tools`.
-- A plugin's page, before it is connected, shows its `about` and its listed tools with no request leaving the machine; once connected, it shows the server's listing with each tool's switch.
-- A first-party entry whose `tools` differ from its server's listing fails the plugin host's CI.
+- The check fails an entry whose `about` is too long, a tool name MCP does not allow or one listed twice, or an `added` that is not a `YYYY-MM` month, and a first-party entry with no `tools` or no `added`.
+- A plugin's public page shows its `about`, its listed tools and its details with no request leaving the machine, the same before and after it is connected, and no switch; Yours shows a connected plugin's live tools with their switches and nothing from its entry.
+- A first-party entry whose `tools` differ from its server's tools fails the plugin host's tests.

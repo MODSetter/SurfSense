@@ -68,7 +68,12 @@ async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
     """Partners are verified; community plugins are shown by their author."""
     registry.publish(
         [
-            entry("notes"),
+            entry(
+                "notes",
+                about="Search and count your notes.",
+                tools=["search", "count"],
+                added="2026-10",
+            ),
             entry(
                 "keyed",
                 publisher="partner",
@@ -96,6 +101,12 @@ async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
         False,
     )
     assert notes["author"] == "Jane Doe"
+    assert notes["about"] == "Search and count your notes."
+    assert notes["tools"] == ["search", "count"]
+    assert notes["added"] == "2026-10"
+    assert keyed["added"] is None
+    assert keyed["about"] is None
+    assert keyed["tools"] is None
     assert notes["connected"] is False
     assert (keyed["publisher"], keyed["verified"], keyed["author"]) == (
         "partner",

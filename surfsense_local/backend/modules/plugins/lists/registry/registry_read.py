@@ -29,6 +29,11 @@ class RegistryEntryRead(BaseModel):
     hosts: list[str]
     homepage: str | None
     privacy_policy: str | None
+    # What its page shows before it is connected; `tools` is None when the entry lists none.
+    about: str | None
+    tools: list[str] | None
+    # `YYYY-MM`, the month it joined the registry; None in an older entry.
+    added: str | None
     has_icon: bool
     connected: bool
 
@@ -67,6 +72,9 @@ def read_registry(session: Session, current: CurrentRegistry) -> RegistryRead:
                 hosts=entry.hosts,
                 homepage=entry.homepage,
                 privacy_policy=entry.privacy_policy,
+                about=entry.about,
+                tools=entry.tools,
+                added=entry.added,
                 has_icon=icon_file(entry) is not None,
                 connected=session.get(InstalledPlugin, entry.id) is not None,
             )

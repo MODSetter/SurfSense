@@ -16,7 +16,11 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "google-search.svg"
+      "icon": "google-search.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "web-crawl",
@@ -33,7 +37,11 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "web-crawl.svg"
+      "icon": "web-crawl.svg",
+      "tools": [
+        "crawl"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "reddit",
@@ -50,7 +58,11 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "reddit.svg"
+      "icon": "reddit.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "youtube",
@@ -67,7 +79,12 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "youtube.svg"
+      "icon": "youtube.svg",
+      "tools": [
+        "scrape",
+        "comments"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "instagram",
@@ -84,7 +101,12 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "instagram.svg"
+      "icon": "instagram.svg",
+      "tools": [
+        "scrape",
+        "details"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "tiktok",
@@ -101,7 +123,14 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "tiktok.svg"
+      "icon": "tiktok.svg",
+      "tools": [
+        "scrape",
+        "comments",
+        "trending",
+        "user_search"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "google-maps",
@@ -118,7 +147,12 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "google-maps.svg"
+      "icon": "google-maps.svg",
+      "tools": [
+        "scrape",
+        "reviews"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "amazon",
@@ -135,7 +169,11 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "amazon.svg"
+      "icon": "amazon.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "walmart",
@@ -152,7 +190,12 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "walmart.svg"
+      "icon": "walmart.svg",
+      "tools": [
+        "scrape",
+        "reviews"
+      ],
+      "added": "2026-10"
     },
     {
       "id": "indeed",
@@ -169,7 +212,11 @@
         "plugins.surfsense.com"
       ],
       "access": "license",
-      "icon": "indeed.svg"
+      "icon": "indeed.svg",
+      "tools": [
+        "scrape"
+      ],
+      "added": "2026-10"
     }
   ]
 }

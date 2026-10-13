@@ -1,134 +1,56 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useId, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useId } from "react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CheckIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Spinner } from "@/components/ui/spinner"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
 import { ApiError } from "@/lib/api"
 
-import {
-  connectRegistryPlugin,
-  isSignInStarted,
-  listRegistry,
-  pluginsQueryKey,
-  registryQueryKey,
-  type RegistryEntry,
-} from "../api"
+import { listRegistry, registryQueryKey, type RegistryEntry } from "../api"
 import { PluginIcon } from "../plugin-icon"
-import { refusalMessage } from "../refusal-message"
-import { RegistryKeyDialog } from "./registry-key-dialog"
-import { SignInProgress } from "../sign-in/sign-in-progress"
-import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
+import { PublisherByline } from "../public-page/publisher-byline"
+import { ConnectListedPlugin } from "./connect-listed-plugin"
 
-function Attribution({ entry }: { entry: RegistryEntry }) {
-  if (entry.verified) {
-    return (
-      <span className="flex items-center gap-1.5">
-        <span className="truncate">{entry.author}</span>
-        <Badge variant="secondary">
-          <CheckIcon data-icon="inline-start" />
-          {intl.formatMessage({
-            id: "plugins_registry_verified_label",
-            defaultMessage: "Verified",
-          })}
-        </Badge>
-      </span>
-    )
-  }
-  return (
-    <span className="truncate">
-      {intl.formatMessage(
-        { id: "plugins_registry_author_label", defaultMessage: "By {author}" },
-        { author: entry.author }
-      )}
-    </span>
-  )
-}
-
-function RegistryEntryRow({ entry }: { entry: RegistryEntry }) {
+function RegistryEntryRow({
+  entry,
+  onOpen,
+}: {
+  entry: RegistryEntry
+  onOpen: () => void
+}) {
   const nameId = useId()
-  const queryClient = useQueryClient()
-  const [askingKey, setAskingKey] = useState(false)
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: pluginsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: registryQueryKey }),
-    ])
-  const signIn = usePluginSignIn(() => void refresh())
-  const connect = useMutation({
-    mutationFn: () => connectRegistryPlugin(entry.id),
-    onSuccess: (answer) => {
-      // An account's sign-in finishes in the browser; the plugin exists only then.
-      if (isSignInStarted(answer)) signIn.follow(answer)
-      else void refresh()
-    },
-    onError: () => void refresh(),
-  })
-  const waiting = signIn.state.phase === "waiting"
   return (
-    <li aria-labelledby={nameId} className="flex items-start gap-3 py-3">
+    <li
+      aria-labelledby={nameId}
+      className="relative flex items-start gap-3 py-3"
+    >
       <PluginIcon id={entry.id} name={entry.name} hasIcon={entry.has_icon} />
       <div className="min-w-0 flex-1">
-        <p id={nameId} className="text-sm font-medium">
+        {/* Stretched over the row, so the whole entry opens its page. */}
+        <button
+          id={nameId}
+          type="button"
+          className="text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+          onClick={onOpen}
+        >
           {entry.name}
-        </p>
+        </button>
         <p className="text-xs text-muted-foreground">{entry.description}</p>
         <p className="mt-1 flex text-xs text-muted-foreground">
-          <Attribution entry={entry} />
+          <PublisherByline entry={entry} />
         </p>
         {entry.access === "external" && entry.access_note ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {entry.access_note}
           </p>
         ) : null}
-        <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
-        {connect.error ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            {refusalMessage(connect.error)}
-          </p>
-        ) : null}
       </div>
-      {entry.connected ? (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_registry_connected_status",
-            defaultMessage: "Connected",
-          })}
-        </span>
-      ) : (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          disabled={waiting || connect.isPending}
-          onClick={() =>
-            entry.auth_type === "token" ? setAskingKey(true) : connect.mutate()
-          }
-        >
-          {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
-          {intl.formatMessage({
-            id: "plugins_registry_connect_button",
-            defaultMessage: "Connect",
-          })}
-        </Button>
-      )}
-      {entry.auth_type === "token" ? (
-        <RegistryKeyDialog
-          entry={entry}
-          open={askingKey}
-          onOpenChange={setAskingKey}
-          onConnected={() => {
-            setAskingKey(false)
-            void refresh()
-          }}
-        />
-      ) : null}
+      {/* Positioned, so it sits above the row's stretched button. */}
+      <div className="relative">
+        <ConnectListedPlugin entry={entry} />
+      </div>
     </li>
   )
 }
@@ -181,7 +103,13 @@ function AllowRegistryHost({
 }
 
 /** Partners' and community plugins from the signed registry; nothing is fetched while third-party plugins are off. */
-export function RegistryPlugins({ allowed }: { allowed: boolean }) {
+export function RegistryPlugins({
+  allowed,
+  onOpen,
+}: {
+  allowed: boolean
+  onOpen: (entry: RegistryEntry) => void
+}) {
   const registry = useQuery({
     queryKey: registryQueryKey,
     queryFn: ({ signal }) => listRegistry(signal),
@@ -223,9 +151,13 @@ export function RegistryPlugins({ allowed }: { allowed: boolean }) {
           })}
         </p>
       ) : registry.data?.plugins.length ? (
-        <ul className="divide-y">
+        <ul className="grid gap-x-8 sm:grid-cols-2">
           {registry.data.plugins.map((entry) => (
-            <RegistryEntryRow key={entry.id} entry={entry} />
+            <RegistryEntryRow
+              key={entry.id}
+              entry={entry}
+              onOpen={() => onOpen(entry)}
+            />
           ))}
         </ul>
       ) : (
