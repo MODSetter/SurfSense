@@ -209,8 +209,9 @@ async def test_a_provider_refusal_ends_the_sign_in_with_no_plugin(
     assert page.status_code == 400
     assert "Couldn't sign in to Notes" in page.text
     status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
-    assert (status["status"], status["message"]) == (
+    assert (status["status"], status["code"], status["message"]) == (
         "failed",
+        "sign_in_declined",
         "The sign-in was declined.",
     )
     assert (await client.get("/plugins")).json() == []
@@ -227,8 +228,9 @@ async def test_an_abandoned_sign_in_expires_leaving_no_plugin(
     status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
     late = await approve_in_browser(client, sign_in["authorization_url"])
 
-    assert (status["status"], status["message"]) == (
+    assert (status["status"], status["code"], status["message"]) == (
         "failed",
+        "sign_in_timed_out",
         "The sign-in was not finished in time.",
     )
     assert late.status_code == 400

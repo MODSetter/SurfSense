@@ -11,10 +11,15 @@ from modules.plugins.remote.sign_in.oauth.oauth_credential import (
     write_credential,
 )
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
+from modules.plugins.remote.sign_in.oauth.sign_in_failure import SignInFailure
 
 
 class NotStoredError(Exception):
     """The row changed while the user was signing in; the message says how."""
+
+    def __init__(self, code: SignInFailure, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def store_signed_in(
@@ -26,7 +31,10 @@ def store_signed_in(
     if draft.existing:
         plugin = session.get(InstalledPlugin, draft.plugin_id)
         if plugin is None:
-            raise NotStoredError(f"{draft.name} was disconnected meanwhile.")
+            raise NotStoredError(
+                SignInFailure.PLUGIN_DISCONNECTED,
+                f"{draft.name} was disconnected meanwhile.",
+            )
     else:
         taken = (
             draft.name
@@ -34,7 +42,10 @@ def store_signed_in(
             else connected_name(session, draft.url)
         )
         if taken is not None:
-            raise NotStoredError(f"This server is already connected as {taken}.")
+            raise NotStoredError(
+                SignInFailure.PLUGIN_ALREADY_CONNECTED,
+                f"This server is already connected as {taken}.",
+            )
         plugin = InstalledPlugin(
             id=draft.plugin_id,
             kind=PluginKind.REMOTE,

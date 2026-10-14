@@ -27,6 +27,7 @@ from modules.plugins.remote.sign_in.oauth.sign_in_client import (
     SignInClient,
     sign_in_client,
 )
+from modules.plugins.remote.sign_in.oauth.sign_in_failure import SignInFailure
 from modules.plugins.remote.sign_in.oauth.sign_in_flow import sign_in
 from modules.plugins.remote.sign_in.oauth.sign_in_state import nonce_of, state_for
 from modules.plugins.remote.sign_in.oauth.signed_in_plugin import (
@@ -54,6 +55,10 @@ logger = logging.getLogger(__name__)
 class SignInEndedError(Exception):
     """The provider refused, the user took too long, or the sign-in was cancelled."""
 
+    def __init__(self, code: SignInFailure, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
 
 @dataclass
 class PendingSignIn:
@@ -61,6 +66,8 @@ class PendingSignIn:
     draft: PluginDraft
     expires_at: float
     status: SignInStatus = "waiting"
+    # Why it failed, once it has
+    failure: SignInFailure | None = None
     message: str | None = None
     authorization_url: str = ""
     nonce: str | None = None
@@ -87,7 +94,9 @@ class PluginSignIns:
             return False
         if not pending.started.done():
             pending.started.set_exception(
-                SignInEndedError("The sign-in was cancelled.")
+                SignInEndedError(
+                    SignInFailure.NOT_FINISHED, "The sign-in was cancelled."
+                )
             )
         if pending.task is not None:
             pending.task.cancel()
@@ -138,10 +147,14 @@ class PluginSignIns:
             return None
         if "error" in query:
             pending.code.set_exception(
-                SignInEndedError(_provider_refusal(query["error"]))
+                SignInEndedError(*_provider_refusal(query["error"]))
             )
         elif not query.get("code"):
-            pending.code.set_exception(SignInEndedError("The sign-in carried no code."))
+            pending.code.set_exception(
+                SignInEndedError(
+                    SignInFailure.NOT_FINISHED, "The sign-in carried no code."
+                )
+            )
         else:
             pending.code.set_result(
                 AuthorizationCodeResult(
@@ -189,7 +202,7 @@ class PluginSignIns:
                 return await asyncio.wait_for(pending.code, max(remaining, 0))
             except TimeoutError:
                 raise SignInEndedError(
-                    "The sign-in was not finished in time."
+                    SignInFailure.TIMED_OUT, "The sign-in was not finished in time."
                 ) from None
 
         try:
@@ -212,7 +225,7 @@ class PluginSignIns:
                 pending.started.set_exception(error)
                 return
             pending.status = "failed"
-            pending.message = _failure(error)
+            pending.failure, pending.message = _failure(error)
             # The type alone: an SDK message can quote a provider's response.
             logger.warning(
                 "signing in to %s failed: %s", draft.plugin_id, type(error).__name__
@@ -248,21 +261,30 @@ def _store(
         session.commit()
 
 
-def _provider_refusal(error: str) -> str:
+def _provider_refusal(error: str) -> tuple[SignInFailure, str]:
     if error == "access_denied":
-        return "The sign-in was declined."
-    return f"The sign-in was refused ({error})."
+        return SignInFailure.DECLINED, "The sign-in was declined."
+    return SignInFailure.REFUSED, f"The sign-in was refused ({error})."
 
 
-def _failure(error: Exception) -> str:
+def _failure(error: Exception) -> tuple[SignInFailure, str]:
     if isinstance(error, (SignInEndedError, NotStoredError)):
-        return str(error)
+        return error.code, str(error)
     if isinstance(error, HostNotAllowedError):
-        return f"SurfSense isn't allowed to contact {error.host}."
+        return (
+            SignInFailure.HOST_NOT_ALLOWED,
+            f"SurfSense isn't allowed to contact {error.host}.",
+        )
     if isinstance(error, ServerError):
-        return f"Signed in, but the server could not list its tools: {error}."
+        return (
+            SignInFailure.TOOLS_NOT_LISTED,
+            f"Signed in, but the server could not list its tools: {error}.",
+        )
     if isinstance(error, httpx2.HTTPError):
-        return "The sign-in server could not be reached."
+        return (
+            SignInFailure.SERVER_UNREACHABLE,
+            "The sign-in server could not be reached.",
+        )
     if isinstance(error, OAuthFlowError):
-        return "The sign-in could not be finished."
-    return "The sign-in failed."
+        return SignInFailure.NOT_FINISHED, "The sign-in could not be finished."
+    return SignInFailure.FAILED, "The sign-in failed."
