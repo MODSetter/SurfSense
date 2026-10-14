@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-registry-check"
-version = "0.0.2"
+version = "0.1.0"
 description = "Checks and signs the third-party plugin registry, plugins/registry/plugins.json."
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
