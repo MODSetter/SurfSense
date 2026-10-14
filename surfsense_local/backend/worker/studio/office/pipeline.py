@@ -1,23 +1,24 @@
-"""Code-generated document formats: the model writes the builder, the worker runs it.
+"""Studio's PowerPoint and Excel: the model writes a script, the script runner runs it.
 
 One folder per format (docx/pptx/xlsx/pdf) carries its `Office` spec and a
-`SKILL.md` of authoring craft. `prompt.py` frames the request, `runner.py`
-executes the returned code, and `render` below shapes the Built.
+`SKILL.md` of authoring craft. `prompt.py` frames the request; the script saves
+to OUTPUT_PATH in its own process (ADR 0039), never in the worker's.
 """
 
 import logging
 
+from modules.artifacts.script_documents.spec import DocumentScript
 from modules.llm.resolution import ResolvedGeneration
-from shared import cancellation
-from worker.studio.office import prompt, runner
+from worker.studio.office import prompt
+from worker.studio.office.document.reply import script_reply, script_title
+from worker.studio.office.script_attempts import drafted
+from worker.studio.office.script_failed import REPAIR_CHARS, StudioScriptFailedError
 from worker.studio.office.spec import Office
-from worker.studio.shared import generate
+from worker.studio.script_document import pipeline as script_document
+from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared.artifact import Built, Source, fallback_title
-from worker.studio.shared.text import as_text, slug
 
 logger = logging.getLogger(__name__)
-
-CODE_ATTEMPTS = 3
 
 
 def render(
@@ -26,58 +27,23 @@ def render(
     sources: list[Source],
     user_prompt: str | None,
 ) -> Built:
-    """Generate and run the code for one spec's format, then store its bytes."""
-    fmt = spec.key
+    """Ask for the format's script and run it, showing a failure back to the model."""
     system = prompt.build(model.tier, spec, user_prompt)
-    repair: generate.Repair | None = None
+    fallback = fallback_title(user_prompt, sources, spec.label)
+    logger.info("studio: office %s asking the model for its script", spec.key)
+    return drafted(
+        model, system, sources, lambda raw: _run(spec, script_reply(raw), fallback)
+    )
 
-    for attempt in range(CODE_ATTEMPTS):
-        # Outside the try below: a cancel must not be mistaken for broken code.
-        cancellation.raise_if_cancelled()
-        logger.info(
-            "studio: office %s attempt %s/%s asking the model",
-            fmt,
-            attempt + 1,
-            CODE_ATTEMPTS,
-        )
-        raw = generate.run_model(model, system, sources, repair=repair)
-        try:
-            logger.info(
-                "studio: office %s attempt %s running %s chars of code",
-                fmt,
-                attempt + 1,
-                len(raw),
-            )
-            namespace = runner.execute(runner.extract_code(raw))
-            data = namespace.get("output_bytes")
-            if not isinstance(data, bytes | bytearray):
-                raise RuntimeError("generated code did not set `output_bytes` to bytes")
-        except Exception as error:
-            logger.info(
-                "studio: office %s attempt %s failed: %s",
-                fmt,
-                attempt + 1,
-                error,
-            )
-            if attempt == CODE_ATTEMPTS - 1:
-                raise
-            repair = generate.Repair(
-                reply=raw,
-                instruction=(
-                    f"That script failed: {error}. Return the whole script "
-                    "corrected, changing only what the error points to."
-                ),
-            )
-            continue
 
-        title = as_text(namespace.get("title")) or fallback_title(
-            user_prompt, sources, spec.label
-        )
-        summary = as_text(namespace.get("summary")) or f"# {title}"
-        return Built(
-            title=title,
-            markdown=summary,
-            primary=bytes(data),
-            primary_mime=spec.mime,
-            primary_filename=f"{slug(title, spec.stem)}.{spec.ext}",
-        )
+def _run(spec: Office, script: str, fallback: str) -> Built:
+    """No spec is kept: a deck or workbook Studio drafts has no versions to edit."""
+    if not script:
+        raise StudioScriptFailedError("the model returned no script")
+    stored = DocumentScript(text=script, format=spec.key, images=())
+    try:
+        return script_document.render(script_title(script) or fallback, stored, {})
+    except ScriptRunFailedError as error:
+        raise StudioScriptFailedError(
+            error.error, error.reason(REPAIR_CHARS)
+        ) from error

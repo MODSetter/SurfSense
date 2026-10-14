@@ -1,19 +1,24 @@
-import { cleanup, render } from "@testing-library/react"
+import { act, cleanup, render } from "@testing-library/react"
 import { renderAsync } from "docx-preview"
 import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
   vi,
 } from "vitest"
 
+import { CLAUSE_WITH_TRACKED_CHANGES } from "@/features/docx-snapshot/fixtures/clause-with-tracked-changes"
+import { CLAUSES_WITH_COMMENTS } from "@/features/docx-snapshot/fixtures/clauses-with-comments"
 import { LINKS_OF_EVERY_KIND } from "@/features/docx-snapshot/fixtures/links-of-every-kind"
+import { REPLY_AND_UNSIGNED_COMMENT } from "@/features/docx-snapshot/fixtures/reply-and-unsigned-comment"
 import { REPORT_WITH_ALT_CHUNK } from "@/features/docx-snapshot/fixtures/report-with-alt-chunk"
 import { STYLES_THAT_LOAD_REMOTE_IMAGES } from "@/features/docx-snapshot/fixtures/styles-that-load-remote-images"
 import type { ArtifactDetail } from "../api"
+import { COMMENT_GUTTER } from "./docx-comments"
 import { DocxViewer } from "./docx-viewer"
 
 // The real library, watched so a test can hold one render back.
@@ -65,6 +70,74 @@ function serve(files: Record<number, Uint8Array<ArrayBuffer>>): void {
   )
 }
 
+/**
+ * A Word file opened at the zoom the viewer fits it at: jsdom lays nothing
+ * out, so this is a 600 px frame whose scrollbar leaves 585 px, holding pages
+ * 816 px wide.
+ */
+async function openFitted(file: Uint8Array<ArrayBuffer>): Promise<Document> {
+  serve({ 12: file })
+  const { container } = render(
+    <DocxViewer artifact={wordArtifact(12, file)} actionsContainer={null} />
+  )
+  const frame = container.querySelector("iframe")!
+  Object.defineProperty(frame, "clientWidth", { value: 600 })
+  const pages = pagesOf(container)
+  Object.defineProperty(pages.documentElement, "clientWidth", {
+    configurable: true,
+    value: 585,
+  })
+  // docx-preview may make the page in either window's realm.
+  const frameWindow = pages.defaultView as unknown as typeof globalThis
+  const realms = [HTMLElement.prototype, frameWindow.HTMLElement.prototype]
+  const own = realms.map((prototype) =>
+    Object.getOwnPropertyDescriptor(prototype, "offsetWidth")
+  )
+  for (const prototype of realms) {
+    Object.defineProperty(prototype, "offsetWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains("docx") ? 816 : 0
+      },
+    })
+  }
+
+  try {
+    await vi.waitFor(() => expect(zoomOf(pages)).not.toMatch(/^1?$/))
+    return pages
+  } finally {
+    realms.forEach((prototype, index) => {
+      const descriptor = own[index]
+      if (descriptor)
+        Object.defineProperty(prototype, "offsetWidth", descriptor)
+      else Reflect.deleteProperty(prototype, "offsetWidth")
+    })
+  }
+}
+
+async function fitZoom(file: Uint8Array<ArrayBuffer>): Promise<string> {
+  return zoomOf(await openFitted(file))
+}
+
+function zoomOf(pages: Document): string {
+  return pages.body.style.getPropertyValue("zoom")
+}
+
+/** The observers watching for a resize, as the browser would call them. */
+const resizeObservers = new Set<{ callback: ResizeObserverCallback }>()
+
+/** Narrows or widens the frame's viewport, as dragging the panel's edge does. */
+function resize(pages: Document, viewportWidth: number): void {
+  Object.defineProperty(pages.documentElement, "clientWidth", {
+    configurable: true,
+    value: viewportWidth,
+  })
+  act(() => {
+    for (const { callback } of resizeObservers)
+      callback([], {} as ResizeObserver)
+  })
+}
+
 /** The document the viewer lays the Word file's pages out in. */
 function pagesOf(viewer: HTMLElement): Document {
   const frame = viewer.querySelector("iframe")
@@ -111,6 +184,26 @@ beforeAll(() => {
 
 afterAll(() => {
   Reflect.deleteProperty(SVGElement.prototype, "getBBox")
+})
+
+beforeEach(() => {
+  resizeObservers.clear()
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      readonly callback: ResizeObserverCallback
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback
+      }
+      observe() {
+        resizeObservers.add(this)
+      }
+      unobserve() {}
+      disconnect() {
+        resizeObservers.delete(this)
+      }
+    }
+  )
 })
 
 afterEach(() => {
@@ -167,6 +260,22 @@ describe("Word viewer", () => {
     )
   })
 
+  it("shows tracked changes: insertions underlined, deletions struck through", async () => {
+    const pages = await open(CLAUSE_WITH_TRACKED_CHANGES)
+
+    const inserted = pages.querySelector("ins")
+    const deleted = pages.querySelector("del")
+    expect(inserted?.textContent).toBe("45")
+    expect(deleted?.textContent).toBe("30")
+    const view = pages.defaultView!
+    expect(view.getComputedStyle(inserted!).textDecorationLine).toContain(
+      "underline"
+    )
+    expect(view.getComputedStyle(deleted!).textDecorationLine).toContain(
+      "line-through"
+    )
+  })
+
   it("keeps no link that would run script when clicked", async () => {
     const pages = await open(LINKS_OF_EVERY_KIND)
 
@@ -194,48 +303,126 @@ describe("Word viewer", () => {
   })
 
   it("fits the page to the frame's viewport, leaving out its scrollbar", async () => {
-    serve({ 12: LINKS_OF_EVERY_KIND })
-    const { container } = render(
-      <DocxViewer
-        artifact={wordArtifact(12, LINKS_OF_EVERY_KIND)}
-        actionsContainer={null}
-      />
-    )
-    // jsdom lays nothing out: a 600 px frame whose scrollbar leaves 585 px,
-    // holding a page 816 px wide.
-    const frame = container.querySelector("iframe")!
-    Object.defineProperty(frame, "clientWidth", { value: 600 })
-    const pages = pagesOf(container)
-    Object.defineProperty(pages.documentElement, "clientWidth", { value: 585 })
-    // docx-preview may make the page in either window's realm.
-    const frameWindow = pages.defaultView as unknown as typeof globalThis
-    const realms = [HTMLElement.prototype, frameWindow.HTMLElement.prototype]
-    const own = realms.map((prototype) =>
-      Object.getOwnPropertyDescriptor(prototype, "offsetWidth")
-    )
-    for (const prototype of realms) {
-      Object.defineProperty(prototype, "offsetWidth", {
-        configurable: true,
-        get(this: HTMLElement) {
-          return this.classList.contains("docx") ? 816 : 0
-        },
-      })
-    }
+    expect(await fitZoom(LINKS_OF_EVERY_KIND)).toBe(String(585 / 816))
+  })
 
-    try {
-      await vi.waitFor(() =>
-        expect(pages.body.style.getPropertyValue("zoom")).toBe(
-          String(585 / 816)
-        )
+  it("fits the comments' balloons beside the page", async () => {
+    expect(await fitZoom(CLAUSES_WITH_COMMENTS)).toBe(
+      String(585 / (816 + COMMENT_GUTTER))
+    )
+  })
+
+  it("refits the page when the frame is resized", async () => {
+    const pages = await openFitted(LINKS_OF_EVERY_KIND)
+
+    resize(pages, 400)
+
+    expect(zoomOf(pages)).toBe(String(400 / 816))
+  })
+
+  it("keeps a zoom set by hand when the frame is resized", async () => {
+    const pages = await openFitted(LINKS_OF_EVERY_KIND)
+    const frameWindow = pages.defaultView!
+    act(() => {
+      pages.dispatchEvent(
+        new frameWindow.WheelEvent("wheel", {
+          ctrlKey: true,
+          deltaY: -1,
+          cancelable: true,
+        })
       )
-    } finally {
-      realms.forEach((prototype, index) => {
-        const descriptor = own[index]
-        if (descriptor)
-          Object.defineProperty(prototype, "offsetWidth", descriptor)
-        else Reflect.deleteProperty(prototype, "offsetWidth")
-      })
-    }
+    })
+    const byHand = zoomOf(pages)
+    expect(byHand).toBe(String((585 / 816) * 1.1))
+
+    resize(pages, 400)
+
+    expect(zoomOf(pages)).toBe(byHand)
+  })
+
+  it("shows each comment numbered in a balloon, its passage shaded", async () => {
+    const pages = await open(CLAUSES_WITH_COMMENTS)
+
+    const balloons = [...pages.querySelectorAll(".surfsense-comment")]
+    expect(balloons.map((balloon) => balloon.textContent)).toEqual([
+      expect.stringMatching(
+        /^1SurfSense.*2026.*Cash flow: the request asks for payment within 30 days\.$/
+      ),
+      // Saved without a date, so it shows none rather than 1970.
+      "2SurfSenseTermination should be mutual.",
+    ])
+    const refs = [...pages.querySelectorAll(".surfsense-comment-ref")]
+    expect(refs.map((ref) => ref.textContent)).toEqual(["1", "2"])
+    const shaded = (note: string) =>
+      [
+        ...pages.querySelectorAll(
+          `.surfsense-comment-anchor[data-notes~="${note}"]`
+        ),
+      ]
+        .map((shade) => shade.textContent)
+        .join("")
+    // The first comment covers the change: "60" struck through, "30" put in.
+    expect(shaded("1")).toBe("6030")
+    expect(shaded("2")).toBe("terminate on notice")
+    // Not hidden behind a hover, as docx-preview leaves them.
+    expect(pages.querySelector(".docx-comment-popover")).toBeNull()
+    expect(pages.body.textContent).not.toContain("💬")
+  })
+
+  it("shows a comment's time as Word does, without moving it by the reader's offset", async () => {
+    const pages = await open(CLAUSES_WITH_COMMENTS)
+
+    // Written 2026-10-06T12:00:00Z: Word shows 12:00 wherever it is opened.
+    expect(pages.querySelector(".surfsense-comment")?.textContent).toMatch(
+      /Oct 6, 2026.*12:00/
+    )
+  })
+
+  it("opens a file whose comment has no author, and shows that comment", async () => {
+    const pages = await open(REPLY_AND_UNSIGNED_COMMENT)
+
+    expect(pages.body.textContent).toContain("Notices go")
+    const balloons = [...pages.querySelectorAll(".surfsense-comment")]
+    expect(balloons.at(-1)?.textContent).toBe("3Email too.")
+  })
+
+  it("keeps a reply's marker legible and shades shared text once", async () => {
+    const pages = await open(REPLY_AND_UNSIGNED_COMMENT)
+
+    const shades = [
+      ...pages.querySelectorAll<HTMLElement>(".surfsense-comment-anchor"),
+    ]
+    // "fixed" carries Dana's comment and SurfSense's reply in one shade.
+    expect(shades[0]?.textContent).toBe("fixed")
+    expect(shades[0]?.dataset.notes).toBe("1 2")
+    expect(shades[0]?.querySelector(".surfsense-comment-anchor")).toBeNull()
+    // Dana's marker sits inside the reply's passage, unshaded.
+    const marker = pages.querySelector(".surfsense-comment-ref")
+    expect(marker?.textContent).toBe("1")
+    expect(marker?.querySelector(".surfsense-comment-anchor")).toBeNull()
+  })
+
+  it("keeps the balloons in the margin beside the pages", async () => {
+    const pages = await open(CLAUSES_WITH_COMMENTS)
+
+    const wrapper = pages.querySelector<HTMLElement>(".docx-wrapper")!
+    expect(wrapper.style.paddingRight).toBe(`${30 + COMMENT_GUTTER}px`)
+    const balloon = pages.querySelector<HTMLElement>(".surfsense-comment")!
+    expect(balloon.parentElement).toBe(wrapper)
+    // From the middle, as the pages are centred: jsdom gives them no width.
+    expect(balloon.style.left).toMatch(/^calc\(50% [+-] \d+px\)$/)
+    expect(balloon.style.top).toMatch(/px$/)
+    // A link in a comment is disarmed as one in the text is.
+    expect(pages.querySelector('a[href]:not([href^="#"])')).toBeNull()
+  })
+
+  it("leaves a file without comments as it was, with no margin", async () => {
+    const pages = await open(CLAUSE_WITH_TRACKED_CHANGES)
+
+    expect(pages.querySelector(".surfsense-comment")).toBeNull()
+    expect(
+      pages.querySelector<HTMLElement>(".docx-wrapper")!.style.paddingRight
+    ).toBe("")
   })
 
   it("shows the version picked last when an earlier one finishes after it", async () => {

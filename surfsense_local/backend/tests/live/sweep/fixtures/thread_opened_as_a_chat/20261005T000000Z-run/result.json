@@ -1,0 +1,15 @@
+{
+ "case": "memo-restructure",
+ "model": "xiaomi/mimo-v2.6-pro",
+ "provider": "openrouter",
+ "reads_images": true,
+ "outcome": "failed",
+ "detail": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests\\live\\turn_renders.py:130: in last_version\n    assert made, f\"{turn}: no version was rendered\"\n           ^^^^\nE   AssertionError: turn 1: no version was rendered",
+ "word_previews": {
+  "unavailable": null,
+  "printed": 0,
+  "failures": []
+ },
+ "ingest": "cache:c9d42b298268242ad9e361d512afaad1",
+ "kind": "no-document"
+}

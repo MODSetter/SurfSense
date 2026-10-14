@@ -11,13 +11,18 @@ from pathlib import Path
 import httpx
 import pytest
 import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from api.config import get_settings
+from api.main import create_app
 from modules.agent.agent_threads import live_instances
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
+from modules.agent.plugin_tools import changed_tools
 from modules.agent.tool_endpoint import failed_renders
+from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
@@ -35,6 +40,9 @@ from tests.integration.agent.opencode_harness import (
     wait_until_healthy,
 )
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint, endpoint_over
+
+# OpenAI's sign-in and plan endpoints, faked, for a ChatGPT plan the relay reaches.
+from tests.integration.llm.chatgpt.conftest import fake_openai  # noqa: F401
 
 # The catalog records it as calling tools for the provider the connection names,
 # so a thread opened with it is the agent's; the scripted model answers in its place.
@@ -110,7 +118,7 @@ def beside_an_opencode(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def no_failed_renders(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each test's database gives out thread ids from 1 again; a turn's count must not carry over."""
-    monkeypatch.setattr(failed_renders, "_failed", {})
+    monkeypatch.setattr(failed_renders, "_turns", {})
 
 
 @pytest.fixture(autouse=True)
@@ -118,6 +126,12 @@ def no_live_instances(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each test starts its own opencode: another test's instances are not in it to free."""
     monkeypatch.setattr(live_instances, "_used", OrderedDict())
     monkeypatch.setattr(live_instances, "_turns", Counter())
+
+
+@pytest.fixture(autouse=True)
+def plugins_checked_every_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test's server changes within seconds of connecting, not minutes."""
+    monkeypatch.setattr(changed_tools, "CHECK_SECONDS", 0)
 
 
 # MAX_PATH less its terminator: the most a path may hold where long paths are off.
@@ -188,6 +202,7 @@ def opencode(
         reads_images=False,
         endpoint_url=f"{scripted_model.url}/v1",
         launch_key="launch-key",
+        route="chat_completions",
     )
     write_opencode_config(agent_dir / "opencode.json", setup)
     running = start_opencode(agent_dir, free_port(), secrets.token_urlsafe(16))
@@ -214,9 +229,18 @@ class AgentAPI:
         return OpencodeClient(self.opencode_url, self.password)
 
 
+@pytest.fixture
+def opencode_env() -> dict[str, str]:
+    """What a test changes in opencode's environment; a test file overrides it."""
+    return {}
+
+
 @pytest_asyncio.fixture(loop_scope="function")
 async def agent_api(
-    base_url: str, scripted_model: ScriptedModel, monkeypatch: pytest.MonkeyPatch
+    base_url: str,
+    scripted_model: ScriptedModel,
+    opencode_env: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[AgentAPI]:
     """Every part of an agent turn but Electron, which a stand-in plays."""
     needs_staged_opencode()
@@ -254,7 +278,7 @@ async def agent_api(
         workspace = await http.post("/workspaces", json={"name": "Research"})
         workspace.raise_for_status()
         with StandInForElectron(
-            get_storage_settings().agent_dir, port, password
+            get_storage_settings().agent_dir, port, password, opencode_env
         ) as electron:
             yield AgentAPI(
                 http,
@@ -281,6 +305,7 @@ def declare_image_input(reads_images: bool) -> None:
         reads_images=reads_images,
         endpoint_url="http://127.0.0.1:9/v1",
         launch_key="launch-key",
+        route="chat_completions",
     )
     write_opencode_config(get_storage_settings().agent_dir / "opencode.json", setup)
 
@@ -309,3 +334,56 @@ def studio_worker() -> Iterator[None]:
     yield
     stopping.set()
     thread.join(timeout=30)
+
+
+@dataclass
+class Endpoint:
+    """The app as opencode reaches it, with the key it was launched with."""
+
+    client: AsyncClient
+    launch_key: str
+    sessions: sessionmaker[Session]
+    admission: LocalAdmission
+
+    async def chat(self, body: dict, key: str | None = None) -> tuple[int, str]:
+        """Send one request as opencode's provider does; the reply's status and text."""
+        headers = {"Authorization": f"Bearer {self.launch_key if key is None else key}"}
+        reply = await self.client.post(
+            "/agent/model/v1/chat/completions", json=body, headers=headers
+        )
+        return reply.status_code, reply.text
+
+
+@pytest.fixture
+async def endpoint(engine: Engine) -> AsyncIterator[Endpoint]:
+    """A fresh app on this test's database, driven in-process."""
+    app = create_app()
+    app.state.session_factory = create_session_factory(engine)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield Endpoint(
+            client,
+            app.state.agent_launch_key,
+            app.state.session_factory,
+            app.state.local_admission,
+        )
+
+
+def select_remote(sessions: sessionmaker[Session], base_url: str, api_key: str) -> None:
+    """Choose a model behind a remote OpenAI-compatible connection."""
+    with sessions() as session:
+        connection = ProviderConnection(
+            label="Remote", provider="openai_compatible", base_url=base_url
+        )
+        connection.api_key = api_key
+        session.add(connection)
+        session.flush()
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="openai_compatible",
+                connection_id=connection.id,
+                name="remote-model",
+            )
+        )
+        session.commit()

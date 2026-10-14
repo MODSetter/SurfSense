@@ -1,10 +1,12 @@
-"""The read tool: the script behind a document the agent rendered, as its newest version has it."""
+"""The read tool: the script behind a document the agent rendered, a revised copy as it reads now, or a workbook's cells."""
 
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from modules.agent.tool_endpoint.read_revised_copy import read_revised_copy
+from modules.agent.tool_endpoint.read_workbook import read_source_workbook
 from modules.agent.tool_endpoint.script_page import (
     OffsetOutOfRangeError,
     ScriptPage,
@@ -13,6 +15,7 @@ from modules.agent.tool_endpoint.script_page import (
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.agent.tool_endpoint.turn_scope import TurnScope
 from modules.artifacts.models import Artifact
+from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.service import MADE_IN_STUDIO
 from modules.artifacts.script_documents.spec import FORMAT_NAMES, document_script
 from modules.artifacts.script_documents.version import version_of
@@ -26,24 +29,43 @@ LISTING: dict[str, Any] = {
         "surfsense_render_document, as its newest version has it, with that "
         "version's number and artifact id. Read it before changing the document. "
         "A long script comes a page of lines at a time: each result says which "
-        "lines it holds, and the offset to call again with for the rest."
+        "lines it holds, and the offset to call again with for the rest. Given "
+        "the document_id of a selected .xlsx or .xlsm source, it returns the "
+        "workbook's cells instead: each sheet's name and used range, then every "
+        "non-empty cell as its address and value or formula. Read them before "
+        "revising a workbook. Given the artifact_id of a revised copy, it returns "
+        "the copy as it reads now: a Word copy's text with every author's tracked "
+        "changes marked and its comments, a workbook's cells, or each slide's text."
     ),
     "inputSchema": {
         "type": "object",
         "properties": {
             "artifact_id": {
                 "type": "integer",
-                "description": "The artifact id of any version of the document.",
+                "description": (
+                    "The artifact id of any version of the document, or of a "
+                    "revised copy."
+                ),
+            },
+            "document_id": {
+                "type": "integer",
+                "description": (
+                    "A selected .xlsx or .xlsm source, by the number at the end "
+                    "of its file name. Give artifact_id or document_id, not both."
+                ),
+            },
+            "sheet": {
+                "type": "string",
+                "description": "A workbook's sheet to read alone. Leave out for all.",
             },
             "offset": {
                 "type": "integer",
                 "description": (
-                    "The line to start reading from, 1 for the first. Leave out "
-                    "to start at the top."
+                    "The line to start reading from, 1 for the first; for a "
+                    "workbook, the row. Leave out to start at the top."
                 ),
             },
         },
-        "required": ["artifact_id"],
     },
 }
 
@@ -51,10 +73,21 @@ LISTING: dict[str, Any] = {
 def read(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     """The newest version's number, title, format and script, whichever version was named.
 
-    An artifact is the agent's output, not a source, so any turn may read it.
+    An artifact is the agent's output, not a source, so any turn may read it;
+    a workbook source keeps to the turn's ticks.
     """
     workspace_id = scope.workspace_id
     artifact_id = arguments.get("artifact_id")
+    document_id = arguments.get("document_id")
+    if artifact_id is not None and document_id is not None:
+        raise ToolCallError(
+            "Give artifact_id to read a document you made, or document_id to read "
+            "a workbook source; one of them, not both."
+        )
+    if document_id is not None:
+        if not isinstance(document_id, int) or isinstance(document_id, bool):
+            raise ToolCallError("document_id must be a number, or left out.")
+        return read_source_workbook(session, scope, document_id, arguments)
     if not isinstance(artifact_id, int) or isinstance(artifact_id, bool):
         raise ToolCallError("Give the artifact_id of a document you rendered.")
     # Null is how many models leave an optional field out.
@@ -63,6 +96,8 @@ def read(session: Session, scope: TurnScope, arguments: dict[str, Any]) -> str:
     named = session.get(Artifact, artifact_id)
     if named is None or named.workspace_id != workspace_id:
         raise ToolCallError(f"There is no artifact {artifact_id} in this workspace.")
+    if revision_of(named.artifact_metadata) is not None:
+        return read_revised_copy(session, scope, named, arguments)
     if studio_made(named.artifact_metadata):
         raise ToolCallError(MADE_IN_STUDIO)
     version = version_of(named.artifact_metadata)

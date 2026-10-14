@@ -17,7 +17,6 @@ from modules.llm.activity import (
 )
 from modules.llm.capability import capability_of
 from modules.llm.capability.read import capability_read
-from modules.llm.capability.router import router as capability_router
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
@@ -61,7 +60,6 @@ router.include_router(remote_catalog_router)
 router.include_router(chatgpt_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
-router.include_router(capability_router)
 
 
 @router.get(

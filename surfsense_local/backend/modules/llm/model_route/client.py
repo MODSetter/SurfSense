@@ -9,6 +9,7 @@ from modules.llm.model_route.failures import raise_from_frame
 from modules.llm.model_route.schemas import ModelRef
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
+from modules.llm.providers.sse_lines import sse_lines
 from modules.llm.providers.types import Delta, Message, Model
 from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
 
@@ -91,7 +92,7 @@ class RoutedGenerator:
             if reply.status_code == 409:
                 raise ModelResolutionError(_detail(await reply.aread()))
             reply.raise_for_status()
-            async for line in reply.aiter_lines():
+            async for line in sse_lines(reply):
                 if not line.startswith("data: "):
                     continue
                 payload = line[len("data: ") :]

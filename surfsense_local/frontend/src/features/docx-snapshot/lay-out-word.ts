@@ -1,6 +1,7 @@
 import { renderAsync } from "docx-preview"
 
 import { printLayout } from "./print-layout"
+import { markTrackedChanges } from "./tracked-changes"
 
 /** Lay a Word file out in `page` with the in-app viewer's library and set the
  *  print CSS that pages it as the document's own pages. */
@@ -11,14 +12,17 @@ export async function layOutWord(file: ArrayBuffer, page: Document) {
   // object URLs: the window is thrown away after printing, and the page then
   // also runs under jsdom, which has no URL.createObjectURL. No altChunks:
   // docx-preview puts their HTML in an unsandboxed iframe, where a script
-  // the document carries would run as this page.
+  // the document carries would run as this page. Tracked changes show, so
+  // the agent sees a revised copy's edits as the user reviews them.
   await renderAsync(file, page.body, page.head, {
     inWrapper: false,
     renderHeaders: false,
     renderFooters: false,
     renderAltChunks: false,
+    renderChanges: true,
     useBase64URL: true,
   })
+  markTrackedChanges(page.head)
 
   const style = page.createElement("style")
   style.textContent = printLayout(

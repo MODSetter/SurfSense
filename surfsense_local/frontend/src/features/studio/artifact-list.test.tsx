@@ -112,6 +112,29 @@ describe("artifact list", () => {
     expect(onOpen).toHaveBeenCalledWith(12)
   })
 
+  it("shows a cut-off title in full on hover and still opens it", async () => {
+    const title = "Board meeting summary with every action item and owner"
+    const onOpen = vi.fn()
+    const user = userEvent.setup()
+    renderList({ artifacts: [{ ...artifact, title }], onOpen })
+
+    const row = screen.getByRole("button", { name: title })
+    // jsdom lays nothing out: the widths of a title its row cuts off.
+    Object.defineProperty(row, "scrollWidth", {
+      configurable: true,
+      value: 320,
+    })
+    Object.defineProperty(row, "clientWidth", {
+      configurable: true,
+      value: 120,
+    })
+    await user.hover(row)
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(title)
+    await user.click(row)
+    expect(onOpen).toHaveBeenCalledWith(12)
+  })
+
   it("shows a spinner while an artifact is generating", () => {
     renderList({
       artifacts: [{ ...artifact, status: "pending" }],
@@ -273,6 +296,76 @@ describe("artifact list", () => {
     await waitFor(() => expect(screen.queryByText("boom")).toBeNull())
   })
 
+  it("reveals the real error when Ctrl/Cmd was held before the row was hovered", async () => {
+    const user = userEvent.setup()
+    renderList({
+      artifacts: [{ ...artifact, status: "failed", error_message: "boom" }],
+    })
+
+    await user.keyboard("{Control>}")
+    await user.hover(screen.getByRole("button", { name: "Weekly summary" }))
+    const real = await screen.findByText("boom")
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    await user.keyboard("{/Control}")
+    await waitFor(() => expect(screen.queryByText("boom")).toBeNull())
+  })
+
+  it("keeps the real error closed for a press that ended before the row failed", async () => {
+    const generating = { ...artifact, status: "processing" as const }
+    const failed = {
+      ...artifact,
+      status: "failed" as const,
+      error_message: "boom",
+    }
+    const user = userEvent.setup()
+    const { rerender } = render(list({ artifacts: [generating] }))
+
+    await user.keyboard("{Control>}")
+    await user.hover(screen.getByRole("button", { name: "Weekly summary" }))
+    await user.keyboard("{/Control}")
+    rerender(list({ artifacts: [failed] }))
+    expect(screen.queryByText("boom")).toBeNull()
+
+    // The row still answers a fresh press.
+    await user.keyboard("{Control>}")
+    expect(await screen.findByText("boom")).toBeTruthy()
+    await user.keyboard("{/Control}")
+  })
+
+  it("listens for Ctrl/Cmd only while a failed row is hovered", async () => {
+    const added = vi.spyOn(window, "addEventListener")
+    const removed = vi.spyOn(window, "removeEventListener")
+    const keydownListeners = () =>
+      added.mock.calls.filter(([type]) => type === "keydown").length -
+      removed.mock.calls.filter(([type]) => type === "keydown").length
+    const user = userEvent.setup()
+    renderList({
+      artifacts: [
+        artifact,
+        {
+          ...artifact,
+          id: 13,
+          document_id: 5,
+          title: "Failed summary",
+          status: "failed",
+          error_message: "boom",
+        },
+      ],
+    })
+    const before = keydownListeners()
+
+    await user.hover(screen.getByRole("button", { name: "Weekly summary" }))
+    expect(keydownListeners()).toBe(before)
+    await user.hover(screen.getByRole("button", { name: "Failed summary" }))
+    expect(keydownListeners()).toBe(before + 1)
+    await user.unhover(screen.getByRole("button", { name: "Failed summary" }))
+    expect(keydownListeners()).toBe(before)
+
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
   describe("type filter", () => {
     const podcast: Artifact = {
       ...artifact,
@@ -338,7 +431,7 @@ describe("artifact list", () => {
       expect(screen.getByLabelText("Filter artifacts (1 active)")).toBeTruthy()
 
       await user.click(
-        await screen.findByRole("menuitemcheckbox", { name: /summary/i })
+        await screen.findByRole("menuitemcheckbox", { name: /markdown/i })
       )
       expect(
         screen.getByRole("button", { name: "Weekly summary" })

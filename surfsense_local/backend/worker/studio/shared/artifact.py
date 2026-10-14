@@ -53,3 +53,5 @@ class Built:
     preview_filename: str | None = None
     # The source the next version is made from, for a format that keeps one.
     spec: dict[str, Any] | None = None
+    # Kept in the version's metadata, such as how its workbook was recalculated.
+    metadata: dict[str, Any] | None = None

@@ -27,7 +27,7 @@ function staged({ configured = true } = {}): SidecarContext {
     secret: "s",
     opencodeBinariesDir: runtime,
     opencodePort: 4321,
-    opencodePassword: "launch-password",
+    opencodePassword: "launch-password", // pragma: allowlist secret
     agentDir,
   }
 }
@@ -52,7 +52,7 @@ test("serves on loopback, on the port the API was told", () => {
 test("gets an environment of its own, never Electron's", () => {
   // An inherited OPENCODE_PERMISSION is merged over our rules, and the secret
   // decrypts every stored API key; shell commands inherit whatever opencode has.
-  process.env.SURFSENSE_LOCAL_SECRET = "leaked"
+  process.env.SURFSENSE_LOCAL_SECRET = "leaked" // pragma: allowlist secret
   process.env.OPENCODE_PERMISSION = '{"bash":"allow"}'
   try {
     const spec = opencodeSpec(staged())
@@ -104,6 +104,16 @@ test("switches off every fetch and sends anything missed nowhere", () => {
   }
   for (const proxy of ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"]) {
     assert.match(spec.env[proxy], /^http:\/\/127\.0\.0\.1:\d+$/, proxy)
+  }
+  assert.equal(spec.env.NO_PROXY, "127.0.0.1,localhost,::1")
+})
+
+test("reaches the network only through the API's plugin proxy", () => {
+  // The API tunnels a ready plugin's host there and refuses every other.
+  const spec = opencodeSpec({ ...staged(), pluginProxyPort: 5555 })
+  assert.ok(spec)
+  for (const proxy of ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "https_proxy"]) {
+    assert.equal(spec.env[proxy], "http://127.0.0.1:5555", proxy)
   }
   assert.equal(spec.env.NO_PROXY, "127.0.0.1,localhost,::1")
 })

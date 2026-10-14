@@ -78,6 +78,56 @@ describe("what an install event says", () => {
     ).toBe(message)
   })
 
+  it("words a failed search check from its raw counts", () => {
+    expect(
+      installMessage({
+        type: "error",
+        message: "backend prose",
+        code: "retrieval_check_failed",
+        found: 7,
+        asked: 10,
+      })
+    ).toBe("It found 7 of 10 answers first; a search model has to find all 10.")
+  })
+
+  it("keeps the backend's sentence when the failed check lacks a count", () => {
+    const message =
+      "It found 7 of 10 answers first; a search model has to find all 10."
+
+    expect(
+      installMessage({ type: "error", message, code: "retrieval_check_failed" })
+    ).toBe(message)
+    expect(
+      installMessage({
+        type: "error",
+        message,
+        code: "retrieval_check_failed",
+        found: 7,
+      })
+    ).toBe(message)
+    expect(
+      installMessage({
+        type: "error",
+        message,
+        code: "retrieval_check_failed",
+        asked: 10,
+      })
+    ).toBe(message)
+  })
+
+  it("words a refusal for what the file is as the catalog's rows do", () => {
+    // The refusal carries the classifier's code where an install's own goes.
+    expect(
+      installMessage({
+        type: "error",
+        message: "backend prose",
+        code: "embedder",
+      })
+    ).toBe(
+      "This model turns text into numbers for search. It cannot answer questions, and SurfSense already has its own."
+    )
+  })
+
   it("says nothing for an event with neither a code nor a message", () => {
     expect(installMessage({ type: "verifying" })).toBe("")
   })

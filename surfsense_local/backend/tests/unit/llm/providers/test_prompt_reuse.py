@@ -12,6 +12,7 @@ import httpx
 import pytest
 
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
+from modules.llm.providers.openai_responses import PlanToken
 from modules.llm.providers.openai_responses.chat import ResponsesChatProvider
 from modules.llm.providers.types import Message
 
@@ -83,7 +84,7 @@ async def test_a_chatgpt_plan_logs_the_reuse_its_completed_reply_reports(
 
     plan = ResponsesChatProvider(
         "http://plan/codex",
-        token,
+        PlanToken(token),
         transport=httpx.MockTransport(
             lambda _: httpx.Response(200, text=text + completed)
         ),

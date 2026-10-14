@@ -2,12 +2,14 @@ import * as React from "react"
 import {
   Alert02Icon as Alert02IconData,
   AlertCircleIcon,
+  AiEditingIcon as AiEditingIconData,
   AiImageEditIcon as AiImageEditIconData,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
+  ArrowUpRight01Icon as ArrowUpRight01IconData,
   ArrowUp02Icon as ArrowUp02IconData,
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
@@ -17,7 +19,9 @@ import {
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
   Chat01Icon as Chat01IconData,
+  ChatGptIcon as ChatGptIconData,
   CheckIcon as CheckIconData,
+  CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
@@ -45,9 +49,9 @@ import {
   FolderUploadIcon as FolderUploadIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
+  GridViewIcon as GridViewIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
-  LinkSquare02Icon as LinkSquare02IconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
   Moon02Icon as Moon02IconData,
@@ -58,6 +62,7 @@ import {
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
   PlayIcon as PlayIconData,
+  Plug01Icon as Plug01IconData,
   PlusIcon as PlusIconData,
   PodcastIcon as PodcastIconData,
   Presentation02Icon as Presentation02IconData,
@@ -120,6 +125,7 @@ function createIcon(icon: IconData, defaultClassName?: string) {
 }
 
 export const Alert02Icon = createIcon(Alert02IconData)
+export const AiEditingIcon = createIcon(AiEditingIconData)
 export const AiImageEditIcon = createIcon(AiImageEditIconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
@@ -133,8 +139,10 @@ export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
 export const Chat01Icon = createIcon(Chat01IconData)
+export const ChatGptIcon = createIcon(ChatGptIconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
+export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
@@ -166,8 +174,9 @@ export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
+export const GridViewIcon = createIcon(GridViewIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
-export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
+export const ExternalLinkIcon = createIcon(ArrowUpRight01IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MoonIcon = createIcon(Moon02IconData)
@@ -177,6 +186,7 @@ export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const Pdf01Icon = createIcon(Pdf01IconData)
 export const PencilIcon = createIcon(PencilIconData)
+export const PlugIcon = createIcon(Plug01IconData)
 export const PlusIcon = createIcon(PlusIconData)
 export const PodcastIcon = createIcon(PodcastIconData)
 export const Presentation02Icon = createIcon(Presentation02IconData)

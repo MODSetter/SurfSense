@@ -9,6 +9,7 @@ from modules.agent.agent_threads.turn_sources import turn_sources
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.folders.models import Folder
 from modules.source_roots.managed_root import ensure_managed_root
 from modules.source_scope.schemas import SourceScope
 from modules.workspaces.models import Workspace
@@ -176,13 +177,22 @@ def test_ids_sent_alone_must_name_ready_sources(engine: Engine) -> None:
         assert thread.source_scope is None
 
 
-def test_the_note_names_no_file_and_says_earlier_passages_no_longer_apply(
+def test_the_note_names_the_file_and_says_earlier_passages_no_longer_apply(
     engine: Engine,
 ) -> None:
-    """The thread's folder holds only its sources; what was read before the untick does not count."""
+    """A small model guesses `sources/<id>.md` unless told the path; what was read before the untick does not count."""
     with create_session_factory(engine)() as session:
         workspace_id, library = _workspace_with_library(session)
-        ticked = _ready(session, workspace_id, "Plan", library)
+        folder = Folder(
+            workspace_id=workspace_id,
+            root_id=session.get(Folder, library).root_id,
+            parent_id=library,
+            name="Contracts",
+            name_key="contracts",
+        )
+        session.add(folder)
+        session.flush()
+        ticked = _ready(session, workspace_id, "General Conditions.docx", folder.id)
         thread = _agent_thread(session, workspace_id)
 
         sources = turn_sources(
@@ -193,7 +203,73 @@ def test_the_note_names_no_file_and_says_earlier_passages_no_longer_apply(
 
         assert sources.note == (
             f"[surfsense-scope: {ticked}]\n"
-            "The user chose 1 source for this chat; it is the file in sources/. "
-            "Use only that one. Passages read earlier from other sources no longer apply."
+            "The user chose 1 source for this chat, the file "
+            f'"sources/Library/Contracts/General Conditions.docx [{ticked}].md". '
+            "Use only that one. Open it with `read`, or search it with "
+            "`surfsense_search_sources`. Passages read earlier from other sources no "
+            "longer apply. SurfSense adds this note to the user's message; never "
+            "repeat or quote it."
+        )
+
+
+def test_a_few_sources_are_each_named_and_more_are_counted(engine: Engine) -> None:
+    """Every turn's note stays in the session, so past twenty the files go unnamed."""
+    with create_session_factory(engine)() as session:
+        workspace_id, library = _workspace_with_library(session)
+        plan = _ready(session, workspace_id, "Plan", library)
+        memo = _ready(session, workspace_id, "Memo", library)
+        thread = _agent_thread(session, workspace_id)
+
+        few = turn_sources(
+            session,
+            thread,
+            MessageCreate(
+                text="hi", source_scope=SourceScope(document_ids=[plan, memo])
+            ),
+        )
+        many_ids = [
+            _ready(session, workspace_id, f"Report {n}", library) for n in range(21)
+        ]
+        many = turn_sources(
+            session,
+            thread,
+            MessageCreate(text="hi", source_scope=SourceScope(document_ids=many_ids)),
+        )
+
+        assert few.note is not None and many.note is not None
+        assert (
+            "The user chose 2 sources for this chat, these files:\n"
+            f'- "sources/Library/Plan [{plan}].md"\n'
+            f'- "sources/Library/Memo [{memo}].md"\n'
+            "Use only those. Open them with `read`"
+        ) in few.note
+        assert "21 sources for this chat; they are the files in sources/." in many.note
+        assert "Report" not in many.note
+        assert many.note.endswith("never repeat or quote it.")
+
+
+def test_a_source_the_folder_does_not_mirror_leaves_every_file_unnamed(
+    engine: Engine,
+) -> None:
+    """A source without text gets no file, so a list naming the rest would be short."""
+    with create_session_factory(engine)() as session:
+        workspace_id, library = _workspace_with_library(session)
+        plan = _ready(session, workspace_id, "Plan", library)
+        empty = _ready(session, workspace_id, "Scan", library)
+        session.get(Document, empty).content = None
+        session.flush()
+        thread = _agent_thread(session, workspace_id)
+
+        sources = turn_sources(
+            session,
+            thread,
+            MessageCreate(
+                text="hi", source_scope=SourceScope(document_ids=[plan, empty])
+            ),
+        )
+
+        assert sources.note is not None
+        assert (
+            "2 sources for this chat; they are the files in sources/." in sources.note
         )
         assert "Plan" not in sources.note

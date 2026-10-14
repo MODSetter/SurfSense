@@ -17,14 +17,22 @@ INLINE_LONG_SIDE = 1568
 # About half a PNG's bytes; JPEG decodes everywhere SurfSense sends images, WebP
 # not on llama-server. Deterministic, which the live harness relies on.
 JPEG_QUALITY = 80
+# Past this, an image is refused unread: a PNG of a few KB a script saved can
+# decode to gigabytes. A page or a chart drawn for reading is far smaller.
+SOURCE_PIXELS = 40_000_000
 
 
 def inline_image(path: Path) -> InlineImage:
     """The PNG at `path` on white, scaled down to both limits, as a JPEG.
 
-    Raises OSError or ValueError when the file is not an image Pillow reads.
+    Raises OSError or ValueError when the file is not an image Pillow reads,
+    or is past SOURCE_PIXELS.
     """
     with Image.open(path) as image:
+        if image.width * image.height > SOURCE_PIXELS:
+            raise ValueError(
+                f"{path.name} is too large to show: {image.width} x {image.height}"
+            )
         flat = _on_white(image)
     scale = min(
         1.0,

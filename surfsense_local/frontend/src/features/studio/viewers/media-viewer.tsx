@@ -8,7 +8,9 @@ import { fileUrl, type ArtifactDetail } from "../api"
 // panel edges rather than taking the flowing-content padding.
 export function MediaViewer({ artifact }: { artifact: ArtifactDetail }) {
   const primary = artifact.files.find((file) => file.role === "primary")
-  const src = primary ? fileUrl(artifact.id, primary.role) : null
+  const src = primary
+    ? fileUrl(artifact.id, primary.role, artifact.generation)
+    : null
 
   return src ? <img className="w-full" alt={artifact.title} src={src} /> : null
 }

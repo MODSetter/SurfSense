@@ -97,7 +97,7 @@ describe("composer model picker", () => {
     ).toBeNull()
   })
 
-  it("labels each chat model with its measured level", async () => {
+  it("labels each chat model with how it did in the Agentic tests", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -161,18 +161,20 @@ describe("composer model picker", () => {
     )
 
     expect(
-      await screen.findByRole("menuitemradio", { name: /kimi-k3.*Agent$/ })
+      await screen.findByRole("menuitemradio", { name: /kimi-k3.*Agentic$/ })
     ).toBeTruthy()
     expect(
       screen.getByRole("menuitemradio", {
-        name: /claude-haiku-4\.5.*Agent, may need nudges/,
+        name: /claude-haiku-4\.5.*Agentic, may need nudges/,
       })
     ).toBeTruthy()
     expect(
-      screen.getByRole("menuitemradio", { name: /gemma-4-31b-it.*Studio only/ })
+      screen.getByRole("menuitemradio", {
+        name: /gemma-4-31b-it.*Low Agentic score/,
+      })
     ).toBeTruthy()
     expect(
-      screen.getByRole("menuitemradio", { name: /gpt-9.*Not measured/ })
+      screen.getByRole("menuitemradio", { name: /gpt-9.*Not tested/ })
     ).toBeTruthy()
   })
 

@@ -1,4 +1,4 @@
-import { useRef, useState, type HTMLAttributes } from "react"
+import { memo, useCallback, useRef, useState } from "react"
 import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -36,46 +37,45 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { WorkspaceDocument } from "../api"
-import { useRowDrag, type RowDrag } from "./use-row-drag"
+import type { MoveTarget } from "./move-to-dialog"
+import type { FolderKey } from "./source-index"
+import type { DocumentRowActions } from "./source-tree"
+import { treeItemProps, type TreePlace, type TreeRowEvents } from "./tree-item"
+import { useRowDrag } from "./use-row-drag"
 
-export function DocumentRow({
+// Memoized on plain values and the tree's stable callbacks, so a render of
+// the tree renders only the rows whose values changed.
+export const DocumentRow = memo(function DocumentRow({
+  rowKey,
+  level,
+  setSize,
+  posInSet,
+  tabbable,
   document,
+  parent,
   selected,
   highlighted,
-  rowRef,
-  onOpen,
-  onPreview,
-  onReveal,
-  onRetry,
-  onCancel,
-  onDelete,
-  onRename,
-  onEditNote,
   isDeleting,
-  onSelectedChange,
-  onMove,
-  itemProps,
-  drag,
-}: {
+  movable,
+  takesFiles,
+  events,
+  actions,
+  onMoveRequest,
+}: TreePlace & {
   document: WorkspaceDocument
+  // The folder the row sits in, where a drop on it files.
+  parent: FolderKey
   selected: boolean
   highlighted: boolean
-  rowRef: (node: HTMLLIElement | null) => void
-  onOpen: () => void
-  onPreview: () => void
-  onReveal: () => void
-  onRetry: () => void
-  onCancel: () => void
-  onDelete: () => void
-  onRename?: () => void
-  onEditNote?: () => void
   isDeleting: boolean
-  onSelectedChange: (selected: boolean) => void
+  // Absent folders to move into, the row neither drags nor takes rows.
+  movable: boolean
+  // False while an upload runs, as the panel refuses files then.
+  takesFiles: boolean
+  events: TreeRowEvents
+  actions: DocumentRowActions
   // Absent with no folders to move to.
-  onMove?: () => void
-  // The tree's own attributes for this row: role, level and focus.
-  itemProps: HTMLAttributes<HTMLLIElement>
-  drag: RowDrag
+  onMoveRequest?: (target: MoveTarget) => void
 }) {
   const ready = document.status === "ready"
   const failed = document.status === "failed"
@@ -91,32 +91,70 @@ export function DocumentRow({
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
   // row (not just the retry icon) surfaces the actual error above the row.
-  const modifierHeld = useModifierHeld()
-  const element = useRef<HTMLLIElement>(null)
+  const [modifierHeld, seedModifier] = useModifierHeld(retryable && rowHovered)
+  const element = useRef<HTMLLIElement | null>(null)
+  const { register } = events
+  // Stable, so React never detaches and attaches the row again on a render.
+  const ref = useCallback(
+    (node: HTMLLIElement) => {
+      element.current = node
+      const release = register(rowKey, node)
+      return () => {
+        element.current = null
+        release()
+      }
+    },
+    [register, rowKey]
+  )
   useRowDrag({
     rowRef: element,
     source: { kind: "document", id: document.id },
     name: document.title,
-    drag,
+    drag: { into: parent, movable, takesFiles },
   })
 
+  const onOpen = () => actions.onOpen(document.id)
+  const onPreview = () => actions.onPreview?.(document.id)
+  const onReveal = () => actions.onReveal(document.id)
+  const onRetry = () => actions.onRetry(document.id)
+  const onCancel = () => actions.onCancel(document.id)
+  const onDelete = () => actions.onDelete(document)
+  const onSelectedChange = (next: boolean) =>
+    actions.onSelectionChange(document.id, next)
+  const { onRename: rename, onEditNote: editNote } = actions
+  const onRename = rename ? () => rename(document) : undefined
+  const onEditNote = editNote ? () => editNote(document.id) : undefined
+  const onMove = onMoveRequest
+    ? () =>
+        onMoveRequest({
+          kind: "document",
+          id: document.id,
+          name: document.title,
+          from: parent,
+        })
+    : undefined
+
   return (
-    <Tooltip open={retryable && modifierHeld && rowHovered}>
+    <Tooltip open={modifierHeld}>
       <TooltipTrigger
         render={
           <li
-            {...itemProps}
-            ref={(node) => {
-              element.current = node
-              rowRef(node)
-            }}
+            {...treeItemProps(
+              { rowKey, level, setSize, posInSet, tabbable },
+              { label: document.title, checked: ready ? selected : undefined },
+              events
+            )}
+            ref={ref}
             aria-current={highlighted ? "true" : undefined}
             className={cn(
               "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
               highlighted && "border-ring",
               dropdownOpen && "bg-muted dark:bg-muted/50"
             )}
-            onMouseEnter={() => setRowHovered(true)}
+            onMouseEnter={(event) => {
+              setRowHovered(true)
+              seedModifier(event)
+            }}
             onMouseLeave={() => setRowHovered(false)}
           >
             <span className="relative flex size-7 shrink-0 items-center justify-center">
@@ -204,19 +242,29 @@ export function DocumentRow({
                 </Tooltip>
               ) : null}
             </span>
-            <button
-              type="button"
-              disabled={!titleActionable}
-              className={cn(
-                "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
-                dropdownOpen && "sidebar-row-title-fade-actions"
-              )}
-              onClick={
-                titleActionable ? (previewable ? onPreview : onOpen) : undefined
+            <OverflowTooltip
+              label={document.title}
+              focusOwner='[role="treeitem"]'
+              render={
+                <button
+                  type="button"
+                  disabled={!titleActionable}
+                  className={cn(
+                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+                    dropdownOpen && "sidebar-row-title-fade-actions"
+                  )}
+                  onClick={
+                    titleActionable
+                      ? previewable
+                        ? onPreview
+                        : onOpen
+                      : undefined
+                  }
+                >
+                  {document.title}
+                </button>
               }
-            >
-              {document.title}
-            </button>
+            />
             <div className="absolute inset-y-0 right-0 flex items-center pr-1">
               <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                 <DropdownMenuTrigger
@@ -370,4 +418,4 @@ export function DocumentRow({
       </TooltipContent>
     </Tooltip>
   )
-}
+})

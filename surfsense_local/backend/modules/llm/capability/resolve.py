@@ -45,18 +45,23 @@ def capability_of(model: str, connection: ProviderConnection | None) -> Capabili
 
     Synchronous and offline: reads only the list shipped with the app.
     """
-    key = model_key(model)
-    if key is None:
+    if model_key(model) is None:
         code = "alias" if model.strip() else "no_row"
         return Capability(Level.NOT_MEASURED, Reason(code))
-    row = find_row(key)
+    row = find_row(model)
     if row is None:
         return Capability(Level.NOT_MEASURED, Reason("no_row"))
     if _served(connection) not in row.match.served:
-        return Capability(
-            Level.NOT_MEASURED, Reason("measured_elsewhere", {"host": row.host}), row
+        # An assumed row was measured nowhere, so not elsewhere either.
+        elsewhere = (
+            Reason("assumed")
+            if row.assumed
+            else Reason("measured_elsewhere", {"host": row.host})
         )
+        return Capability(Level.NOT_MEASURED, elsewhere, row)
     level = Level(row.level)
+    if row.assumed:
+        return Capability(level, Reason("assumed"), row)
     values: dict[str, str | int] = {
         "passed": row.passes.passed,
         "counted": row.passes.counted,

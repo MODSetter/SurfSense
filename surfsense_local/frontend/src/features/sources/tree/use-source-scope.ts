@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react"
 
+import { useStableCallback } from "@/hooks/use-stable-callback"
+
 import type { WorkspaceDocument } from "../api"
 import {
   everySource,
@@ -33,9 +35,9 @@ export function useSourceScope(
     return { ticks, includedDocumentIds, scope: scopeOf(marks, index) }
   }, [documents, index, marks])
 
-  return {
-    ...derived,
-    setDocumentIncluded: (documentId: number, included: boolean) =>
+  // Stable: they reach every row of the memoized tree.
+  const setDocumentIncluded = useStableCallback(
+    (documentId: number, included: boolean) =>
       setMarks((current) =>
         markIncluded(
           current,
@@ -43,12 +45,22 @@ export function useSourceScope(
           { kind: "document", id: documentId },
           included
         )
-      ),
-    setFolderIncluded: (folderId: number, included: boolean) =>
+      )
+  )
+  const setFolderIncluded = useStableCallback(
+    (folderId: number, included: boolean) =>
       setMarks((current) =>
         markIncluded(current, index, { kind: "folder", id: folderId }, included)
-      ),
-    toggleAllIncluded: () =>
-      setMarks(everySource(derived.ticks.get(TOP_TICK) !== "checked")),
+      )
+  )
+  const toggleAllIncluded = useStableCallback(() =>
+    setMarks(everySource(derived.ticks.get(TOP_TICK) !== "checked"))
+  )
+
+  return {
+    ...derived,
+    setDocumentIncluded,
+    setFolderIncluded,
+    toggleAllIncluded,
   }
 }

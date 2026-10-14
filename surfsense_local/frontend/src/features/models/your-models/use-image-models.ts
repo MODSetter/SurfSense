@@ -1,5 +1,6 @@
 import { intl } from "@/i18n/intl"
 
+import { notRunnableReason } from "../local/chat/not-runnable-text"
 import type { ImageServerState, SdCppSlot } from "../local/image/api"
 import { useLocalImageCatalog } from "../local/image/use-local-image-catalog"
 import { useLocalImageState } from "../local/image/use-local-image-state"
@@ -52,7 +53,7 @@ export function useImageModels(slot: SdCppSlot = "image_gen"): YourModels {
               badges: [],
               // sd-server starts lazily, so the one in use says whether it is up.
               note: !row.runnable
-                ? row.not_runnable_reason
+                ? notRunnableReason(row)
                 : build.selected && server.data
                   ? (SERVER_NOTE[server.data]?.() ?? null)
                   : null,

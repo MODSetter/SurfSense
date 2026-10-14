@@ -26,6 +26,7 @@ from shared.db import create_session_factory
 from tests.integration.agent.test_document_tools import _artifact_id
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
 from tests.integration.worker.conftest import stub_model  # noqa: F401
+from worker.ingestion import run as run_ingest
 
 pytestmark = [
     pytest.mark.integration,
@@ -330,6 +331,44 @@ async def test_a_deck_made_from_a_template_and_its_next_version_both_start_from_
         workspace_id, "read_document", {"artifact_id": _artifact_id(second)}
     )
     assert f"Template source it starts from: {source_id}" in script
+
+
+async def test_a_deck_starts_from_an_uploaded_template_with_no_slides(
+    tools: ToolEndpoint, engine: Engine, studio_worker: None
+) -> None:
+    """A template ingests as a ready source, so a deck can start from it."""
+    workspace_id = await tools.workspace()
+    template = pptx.Presentation()
+    template.slide_width, template.slide_height = Inches(13.333), Inches(7.5)
+    template.slide_layouts[5]._element.cSld.set("name", "Brand Title Only")
+    buffer = BytesIO()
+    template.save(buffer)
+    with create_session_factory(engine)() as session:
+        source = Document(
+            workspace_id=workspace_id,
+            title="Brand.pptx",
+            document_type=DocumentType.FILE,
+            document_metadata={"suffix": ".pptx"},
+        )
+        session.add(source)
+        session.commit()
+        source_id = source.id
+    folder = get_storage_settings().document_dir(workspace_id, source_id)
+    folder.mkdir(parents=True)
+    (folder / "Brand.pptx").write_bytes(buffer.getvalue())
+    run_ingest(source_id)
+
+    text, is_error = await tools.call(
+        workspace_id,
+        "render_document",
+        render(script=DECK_FROM_TEMPLATE, template_source_id=source_id),
+    )
+
+    assert is_error is False, text
+    made = pptx.Presentation(BytesIO(_primary(engine, _artifact_id(text))))
+    assert round(made.slide_width / made.slide_height, 2) == 1.78
+    assert [s.shapes.title.text for s in made.slides] == ["Quarterly review"]
+    assert made.slides[0].slide_layout.name == "Brand Title Only"
 
 
 @pytest.mark.parametrize(

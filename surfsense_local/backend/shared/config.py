@@ -78,6 +78,14 @@ class StorageSettings(BaseSettings):
         """Electron watches here for opencode's configuration and keeps opencode's home."""
         return self.data_dir / "agent"
 
+    @property
+    def plugin_registry_dir(self) -> Path:
+        """The last verified copy of the third-party registry, and its icons.
+
+        Beside `plugins/`, not in it, where a plugin with the id `registry` would collide.
+        """
+        return self.data_dir / "plugin-registry"
+
     def plugin_dir(self, plugin_id: str, version: str) -> Path:
         """Where one installed version of a plugin lives."""
         return self.data_dir / "plugins" / plugin_id / version
@@ -127,13 +135,30 @@ class AgentSettings(BaseSettings):
 
     opencode_url: str | None = None
     opencode_password: str | None = None
-    # The tested list starts empty; while it is, this lets any model run the agent.
-    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1.
+    # Where opencode's proxy variables point: the API tunnels a ready plugin's host there.
+    plugin_proxy_port: int | None = None
+    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1 makes Agentic the
+    # default for every model the user has not picked a mode for, and lifts the
+    # window floor; a stated no on tool calls, or no opencode, still keeps it out.
     agent_untested_models: bool = False
 
     def has_opencode(self) -> bool:
         """Whether Electron runs an opencode beside this API: it passes both only then."""
         return bool(self.opencode_url and self.opencode_password)
+
+
+class PluginHostSettings(BaseSettings):
+    """A developer's switch: SURFSENSE_LOCAL_PLUGIN_HOST_URL points SurfSense's own
+    plugins, and the license key, at a plugin host run locally instead."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    plugin_host_url: str | None = None
+
+
+@lru_cache
+def get_plugin_host_settings() -> PluginHostSettings:
+    return PluginHostSettings()
 
 
 @lru_cache

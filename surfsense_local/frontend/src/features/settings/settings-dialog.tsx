@@ -18,8 +18,10 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  PlugIcon,
   Settings2Icon,
   EmbeddingIcon,
+  File02Icon,
   Video01Icon,
 } from "@/components/ui/icons"
 import {
@@ -29,6 +31,11 @@ import {
 } from "@/components/ui/tooltip"
 import { AboutSettings } from "@/features/about/about-settings"
 import { NetworkSettings } from "@/features/egress/network-settings"
+import { OfficeSupportSettings } from "@/features/office-support/office-support-settings"
+import {
+  PluginsSettings,
+  type PluginsStart,
+} from "@/features/plugins/plugins-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
@@ -63,7 +70,9 @@ export type SettingsSectionId =
   | "video-models"
   | "embedding-model"
   | "resources"
+  | "office-support"
   | "network"
+  | "plugins"
   | "license"
   | "about"
   | "report-issue"
@@ -202,6 +211,7 @@ function GeneralSettings({
 const SETTINGS_SECTIONS = [
   { id: "general", group: "settings", icon: Settings2Icon },
   { id: "license", group: "settings", icon: LicenseIcon },
+  { id: "plugins", group: "settings", icon: PlugIcon },
   { id: "chat-models", group: "models", icon: Chat01Icon },
   { id: "image-models", group: "models", icon: Image01Icon },
   { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
@@ -209,6 +219,7 @@ const SETTINGS_SECTIONS = [
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
+  { id: "office-support", group: "system", icon: File02Icon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
@@ -278,10 +289,20 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
       id: "settings_nav_resources_label",
       defaultMessage: "Resources",
     }),
+  "office-support": () =>
+    intl.formatMessage({
+      id: "settings_nav_office_support_label",
+      defaultMessage: "Office support",
+    }),
   network: () =>
     intl.formatMessage({
       id: "settings_nav_network_label",
       defaultMessage: "Network",
+    }),
+  plugins: () =>
+    intl.formatMessage({
+      id: "settings_nav_plugins_label",
+      defaultMessage: "Plugins",
     }),
   license: () =>
     intl.formatMessage({
@@ -303,6 +324,8 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
 export function SettingsDialog({
   open,
   section,
+  askOfficeConsent = false,
+  pluginsStart,
   onOpenChange,
   onSectionChange,
   onModelUnavailable = () => undefined,
@@ -311,6 +334,10 @@ export function SettingsDialog({
 }: {
   open: boolean
   section: SettingsSectionId
+  /** Opens Office support's download consent with the section. */
+  askOfficeConsent?: boolean
+  /** Opens Plugins on Browse or on Add custom plugin. */
+  pluginsStart?: PluginsStart
   onOpenChange: (open: boolean) => void
   onSectionChange: (section: SettingsSectionId) => void
   onModelUnavailable?: () => void
@@ -414,7 +441,16 @@ export function SettingsDialog({
               <EmbeddingSettings />
             ) : null}
             {activeSection.id === "resources" ? <ResourceSettings /> : null}
+            {activeSection.id === "office-support" ? (
+              <OfficeSupportSettings askConsent={askOfficeConsent} />
+            ) : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
+            {activeSection.id === "plugins" ? (
+              <PluginsSettings
+                start={pluginsStart}
+                onOpenLicense={() => onSectionChange("license")}
+              />
+            ) : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
             {activeSection.id === "about" ? <AboutSettings /> : null}
             {activeSection.id === "report-issue" ? (

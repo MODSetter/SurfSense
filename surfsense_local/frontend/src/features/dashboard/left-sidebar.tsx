@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type ReactNode } from "react"
+import { memo, useState, type ComponentType, type ReactNode } from "react"
 
 import {
   Chat01Icon,
@@ -7,7 +7,6 @@ import {
   PencilEdit02Icon,
 } from "@/components/ui/icons"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChatsDialog } from "@/features/chat/chats-dialog"
 import type { ChatThread } from "@/features/chat/api"
@@ -21,7 +20,8 @@ export type SidebarNavAction = {
   label: string
   icon: ComponentType<{ className?: string }>
   onClick: () => void
-  badge?: string
+  // Beside the label, such as <FeatureBadge stage="new" />.
+  badge?: ReactNode
   // Something happening behind the row, at its end; `ariaLabel` says it.
   indicator?: ReactNode
   ariaLabel?: string
@@ -44,11 +44,7 @@ function SidebarNavButton({
     >
       <Icon />
       <span className="text-left">{label}</span>
-      {badge ? (
-        <Badge variant="secondary" className="ml-2 rounded-md">
-          {badge}
-        </Badge>
-      ) : null}
+      {badge ? <span className="ml-2 flex">{badge}</span> : null}
       {indicator ? (
         <span
           aria-hidden
@@ -122,10 +118,16 @@ function chatsActivity(
   return null
 }
 
+const NO_RUNS: Record<number, RunState> = {}
+const NO_UNREAD: number[] = []
+const NO_ACTIONS: SidebarNavAction[] = []
+
 // The always-visible left column: brand, "New chat", the "Chats" row that
 // opens every thread in a dialog, then the workspace's sources. Its own
 // shell (header, footer) never moves — only what a click surfaces changes.
-export function LeftSidebar({
+// Memoized: the dashboard also re-renders for Settings, the model check and
+// the other columns, none of which the sidebar shows.
+export const LeftSidebar = memo(function LeftSidebar({
   threads,
   activeThreadId,
   autoNamingThreadId,
@@ -136,9 +138,9 @@ export function LeftSidebar({
   onRenameThread,
   onDeleteThread,
   onTitleAnimationComplete,
-  runStates = {},
-  unreadThreadIds = [],
-  actions = [],
+  runStates = NO_RUNS,
+  unreadThreadIds = NO_UNREAD,
+  actions = NO_ACTIONS,
   sources,
   footer,
 }: {
@@ -216,4 +218,4 @@ export function LeftSidebar({
       />
     </aside>
   )
-}
+})

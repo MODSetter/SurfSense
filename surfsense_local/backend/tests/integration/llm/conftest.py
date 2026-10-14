@@ -260,6 +260,13 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
             ]
             frames.append("data: [DONE]\n\n")
             self._send("".join(frames).encode())
+        elif self.path == "/responses":
+            events = [
+                {"type": "response.output_text.delta", "delta": text}
+                for text in CHAT_DELTAS
+            ] + [{"type": "response.completed", "response": {"status": "completed"}}]
+            frames = [f"data: {json.dumps(event)}\n\n" for event in events]
+            self._send("".join(frames).encode())
         elif self.path == "/images/generations" and IMAGE_URL is not None:
             self._json({"data": [{"url": IMAGE_URL}]})
         elif (

@@ -38,6 +38,8 @@ class FakeOpenAI:
         self.refresh_delay = 0.0
         self.scope = PLAN_SCOPE
         self.authorized: list[dict[str, str]] = []
+        # The client the callback names; another one plays a mixed-up registration.
+        self.callback_client = ISSUED_CLIENT
         self.revoked_refresh: set[str] = set()
         self.issued_refresh: list[str] = []
         # Each revocation request's form, as RFC 7009 sends it.
@@ -50,6 +52,8 @@ class FakeOpenAI:
             {"slug": "gpt-hidden", "display_name": "Hidden", "visibility": "hide"},
         ]
         self.answers: list[dict] = []
+        # Set, every answer is refused as the plan's used-up limit.
+        self.limit_reached = False
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.url = f"http://127.0.0.1:{self._server.server_address[1]}"
 
@@ -157,7 +161,7 @@ class FakeOpenAI:
                         {
                             "code": code,
                             "state": params["state"],
-                            "client_id": ISSUED_CLIENT,
+                            "client_id": fake.callback_client,
                         }
                     )
                     self.send_response(302)
@@ -191,6 +195,10 @@ class FakeOpenAI:
                     if not self._authorized():
                         return
                     fake.answers.append(json.loads(raw))
+                    if fake.limit_reached:
+                        code = "subscription_sharing_usage_limit_exceeded"
+                        self._json(429, {"error": {"code": code, "message": "Limit."}})
+                        return
                     events = [
                         {"type": "response.output_text.delta", "delta": "Hi"},
                         {

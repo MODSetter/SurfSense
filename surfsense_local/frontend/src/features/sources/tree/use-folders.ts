@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
 import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -23,6 +24,19 @@ function messageOf(cause: unknown) {
         id: "sources_folder_unexpected_error",
         defaultMessage: "An unexpected error occurred",
       })
+}
+
+async function attempt(
+  failure: string,
+  action: () => Promise<unknown>
+): Promise<boolean> {
+  try {
+    await action()
+    return true
+  } catch (cause) {
+    errorToast(failure, { description: messageOf(cause) })
+    return false
+  }
 }
 
 /** What the tree asks of its folders; each answers whether it went through. */
@@ -64,111 +78,107 @@ export function useFolders(workspaceId: number, onSourcesMoved: () => void) {
 
   useWorkspaceChanges(workspaceId, "folders", reload)
 
-  const attempt = async (
-    failure: string,
-    action: () => Promise<unknown>
-  ): Promise<boolean> => {
-    try {
-      await action()
-      return true
-    } catch (cause) {
-      errorToast(failure, { description: messageOf(cause) })
-      return false
-    }
-  }
+  const sourcesMoved = useStableCallback(onSourcesMoved)
 
-  const actions: FolderActions = {
-    create: (parentId, name) =>
-      attempt(
-        intl.formatMessage({
-          id: "sources_folder_create_toast",
-          defaultMessage: "Couldn’t create the folder",
-        }),
-        async () => {
-          const created = await createFolder(workspaceId, {
-            parent_id: parentId,
-            name,
-          })
-          setFolders((current) => [
-            ...current.filter((folder) => folder.id !== created.id),
-            created,
-          ])
-        }
-      ),
-    rename: (folderId, name) =>
-      attempt(
-        intl.formatMessage({
-          id: "sources_folder_rename_toast",
-          defaultMessage: "Couldn’t rename the folder",
-        }),
-        async () => {
-          const renamed = await updateFolder(workspaceId, folderId, { name })
-          setFolders((current) =>
-            current.map((folder) => (folder.id === folderId ? renamed : folder))
-          )
-        }
-      ),
-    move: (folderId, parentId) =>
-      attempt(
-        intl.formatMessage({
-          id: "sources_folder_move_toast",
-          defaultMessage: "Couldn’t move the folder",
-        }),
-        async () => {
-          const moved = await updateFolder(workspaceId, folderId, {
-            parent_id: parentId,
-          })
-          setFolders((current) =>
-            current.map((folder) => (folder.id === folderId ? moved : folder))
-          )
-        }
-      ),
-    remove: (folderId) =>
-      attempt(
-        intl.formatMessage({
-          id: "sources_folder_delete_toast",
-          defaultMessage: "Couldn’t delete the folder",
-        }),
-        async () => {
-          await deleteFolder(workspaceId, folderId)
-          reload()
-          onSourcesMoved()
-        }
-      ),
-    summarize: (folderId) =>
-      getFolderSummary(workspaceId, folderId).catch(() => null),
-    moveDocuments: (documentIds, folderId) =>
-      attempt(
-        intl.formatMessage(
-          {
-            id: "sources_documents_move_toast",
-            defaultMessage:
-              "{count, plural, one {Couldn’t move the source} other {Couldn’t move the sources}}",
-          },
-          { count: documentIds.length }
+  // One object for the workspace: it reaches every folder row of the
+  // memoized tree.
+  const actions = useMemo<FolderActions>(
+    () => ({
+      create: (parentId, name) =>
+        attempt(
+          intl.formatMessage({
+            id: "sources_folder_create_toast",
+            defaultMessage: "Couldn’t create the folder",
+          }),
+          async () => {
+            const created = await createFolder(workspaceId, {
+              parent_id: parentId,
+              name,
+            })
+            setFolders((current) => [
+              ...current.filter((folder) => folder.id !== created.id),
+              created,
+            ])
+          }
         ),
-        async () => {
-          const outcome = await moveDocuments(
-            workspaceId,
-            documentIds,
-            folderId
-          )
-          onSourcesMoved()
-          if (outcome.skipped.length > 0) {
-            toast.info(
-              intl.formatMessage(
-                {
-                  id: "sources_documents_move_skipped_toast",
-                  defaultMessage:
-                    "{count, plural, one {# source was already in that folder} other {# sources were already in that folder}}",
-                },
-                { count: outcome.skipped.length }
+      rename: (folderId, name) =>
+        attempt(
+          intl.formatMessage({
+            id: "sources_folder_rename_toast",
+            defaultMessage: "Couldn’t rename the folder",
+          }),
+          async () => {
+            const renamed = await updateFolder(workspaceId, folderId, { name })
+            setFolders((current) =>
+              current.map((folder) =>
+                folder.id === folderId ? renamed : folder
               )
             )
           }
-        }
-      ),
-  }
+        ),
+      move: (folderId, parentId) =>
+        attempt(
+          intl.formatMessage({
+            id: "sources_folder_move_toast",
+            defaultMessage: "Couldn’t move the folder",
+          }),
+          async () => {
+            const moved = await updateFolder(workspaceId, folderId, {
+              parent_id: parentId,
+            })
+            setFolders((current) =>
+              current.map((folder) => (folder.id === folderId ? moved : folder))
+            )
+          }
+        ),
+      remove: (folderId) =>
+        attempt(
+          intl.formatMessage({
+            id: "sources_folder_delete_toast",
+            defaultMessage: "Couldn’t delete the folder",
+          }),
+          async () => {
+            await deleteFolder(workspaceId, folderId)
+            reload()
+            sourcesMoved()
+          }
+        ),
+      summarize: (folderId) =>
+        getFolderSummary(workspaceId, folderId).catch(() => null),
+      moveDocuments: (documentIds, folderId) =>
+        attempt(
+          intl.formatMessage(
+            {
+              id: "sources_documents_move_toast",
+              defaultMessage:
+                "{count, plural, one {Couldn’t move the source} other {Couldn’t move the sources}}",
+            },
+            { count: documentIds.length }
+          ),
+          async () => {
+            const outcome = await moveDocuments(
+              workspaceId,
+              documentIds,
+              folderId
+            )
+            sourcesMoved()
+            if (outcome.skipped.length > 0) {
+              toast.info(
+                intl.formatMessage(
+                  {
+                    id: "sources_documents_move_skipped_toast",
+                    defaultMessage:
+                      "{count, plural, one {# source was already in that folder} other {# sources were already in that folder}}",
+                  },
+                  { count: outcome.skipped.length }
+                )
+              )
+            }
+          }
+        ),
+    }),
+    [workspaceId, reload, sourcesMoved]
+  )
 
   return { folders, reload, actions }
 }

@@ -9,6 +9,8 @@ import httpx
 from sqlalchemy import Engine
 
 from modules.artifacts.models import Artifact
+from modules.documents.models import Document
+from modules.documents.original_file import original_path
 from shared.db import create_session_factory
 from tests.integration.agent.test_agent_threads import open_thread, send
 from tests.live.recording_proxy import RecordingProxy
@@ -66,7 +68,8 @@ class LiveAgent:
             await asyncio.sleep(1)
 
     async def thread(self) -> int:
-        return (await open_thread(self, "Live run"))["id"]  # type: ignore[arg-type]
+        """An Agentic chat, as the cases measure the agent: an untested model's default is Basic."""
+        return (await open_thread(self, "Live run", mode="agentic"))["id"]  # type: ignore[arg-type]
 
     async def turn(self, thread_id: int, text: str) -> list[dict[str, Any]]:
         """One message and the agent's whole reply, kept for the transcript."""
@@ -90,6 +93,15 @@ class LiveAgent:
         primary = await self.http.get(f"/artifacts/{artifact_id}/files/primary")
         primary.raise_for_status()
         return primary.content
+
+    def original(self, document_id: int) -> bytes:
+        """The user's own file as it is on disk now."""
+        with create_session_factory(self.engine)() as session:
+            document = session.get(Document, document_id)
+            assert document is not None
+            path = original_path(document)
+            assert path is not None, f"source {document_id}'s file is gone"
+            return path.read_bytes()
 
     def spec(self, artifact_id: int) -> dict[str, Any]:
         """The script and images a version was rendered from."""

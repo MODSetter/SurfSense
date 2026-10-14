@@ -245,7 +245,10 @@ async def test_three_failed_renders_stop_the_turn_and_the_next_turn_may_render_a
     made = await agent_api.http.get(f"/workspaces/{agent_api.workspace_id}/artifacts")
     await send(agent_api, thread["id"], "Try once more")
 
-    assert "no more renders run until the user's next message" in stopped
+    assert (
+        "3 renders failed in this request, so no more renders or revisions run until "
+        "the user's next message" in stopped
+    )
     assert len(made.json()) == 3
     assert "ValueError: the pricing table is empty" in _last_tool_result(
         agent_api.model.requests[6]

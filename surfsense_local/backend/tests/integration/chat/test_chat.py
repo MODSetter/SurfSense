@@ -555,7 +555,8 @@ async def _hang_up_mid_reply(client: AsyncClient, thread_id: int) -> None:
                 event = json.loads(line[len("data: ") :])
                 if event["type"] == "delta":
                     deltas.append(event["text"])
-            if len(deltas) == len(REPLY_DELTAS):
+            # By text, not by frame: deltas already waiting arrive as one.
+            if "".join(deltas) == "".join(REPLY_DELTAS):
                 return
 
 
@@ -901,13 +902,13 @@ async def test_stopping_before_any_text_leaves_no_trace(
     assert stored == []
 
 
-async def test_a_curated_model_answers_at_its_publishers_temperature(
+async def test_a_curated_model_answers_at_its_publishers_sampling(
     client: AsyncClient,
     engine: Engine,
     real_model: object,
     llamacpp_server: list[dict],
 ) -> None:
-    """Qwen3's entry commits 0.6 for thinking; the title keeps its own zero."""
+    """Qwen3's entry commits its thinking set; the title keeps its own zero."""
     workspace_id, _ids = _seed(engine)
     thread_id = await _open_thread(client, workspace_id)
 
@@ -916,6 +917,7 @@ async def test_a_curated_model_answers_at_its_publishers_temperature(
     title, answer = sorted(llamacpp_server, key=lambda r: r.get("max_tokens") != 12)
     assert title["temperature"] == 0
     assert answer["temperature"] == 0.6
+    assert (answer["top_p"], answer["top_k"], answer["min_p"]) == (0.95, 20, 0.0)
 
 
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:

@@ -23,6 +23,16 @@ function pagedSourceTitle(step: AgentStep, documentId: number): string | null {
   return found && Number(found[1]) === documentId ? found[2] : null
 }
 
+/** The source a read of a revised workbook's cells names, from its result;
+ *  null when the read was of a rendered document's script. */
+function revisedWorkbookTitle(step: AgentStep): string | null {
+  const first = step.output?.split("\n", 1)[0] ?? ""
+  const found = first.match(
+    /^Artifact \d+, version \d+ of the revised copy of "(.*)", is a workbook\./
+  )
+  return found ? found[1] : null
+}
+
 /** A document's title inside a sentence. */
 const documentTitle = (chunks: ReactNode[]) => (
   <em className="text-foreground">{chunks}</em>
@@ -139,11 +149,64 @@ export function stepLabel(
       }
       break
     }
-    case "surfsense_read_document":
+    case "surfsense_convert_document": {
+      const made = step.artifact
+      return made
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_convert_label",
+              defaultMessage: "Converted <doc>{title}</doc> to PDF",
+            },
+            { title: made.title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_convert_untitled_label",
+            defaultMessage: "Converted a document to PDF",
+          })
+    }
+    case "surfsense_revise_document": {
+      const made = step.artifact
+      if (made) {
+        return intl.formatMessage(
+          {
+            id: "agent_steps_revise_label",
+            defaultMessage: "Revised <doc>{title}</doc> v{version, number}",
+          },
+          { title: made.title, version: made.version, doc: documentTitle }
+        )
+      }
+      // Running, refused or failed: no version to name yet.
       return intl.formatMessage({
-        id: "agent_steps_read_document_label",
-        defaultMessage: "Read the script behind a document",
+        id: "agent_steps_revise_pending_label",
+        defaultMessage: "Edited a copy of a source file",
       })
+    }
+    case "surfsense_read_document": {
+      const workbook =
+        typeof input.document_id === "number"
+          ? (sourceTitle(input.document_id) ??
+            pagedSourceTitle(step, input.document_id) ??
+            "")
+          : revisedWorkbookTitle(step)
+      if (workbook === null) {
+        return intl.formatMessage({
+          id: "agent_steps_read_document_label",
+          defaultMessage: "Read the script behind a document",
+        })
+      }
+      return workbook
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_read_workbook_label",
+              defaultMessage: "Read the cells of <doc>{title}</doc>",
+            },
+            { title: workbook, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_read_workbook_untitled_label",
+            defaultMessage: "Read the cells of a workbook",
+          })
+    }
     case "surfsense_list_images":
       if (Array.isArray(input.source_ids)) {
         return intl.formatMessage(
@@ -175,6 +238,48 @@ export function stepLabel(
             defaultMessage: "Looked at pages of a source",
           })
     }
+    case "surfsense_analyze_data": {
+      const title = text(input.title)
+      return title
+        ? intl.formatMessage(
+            {
+              id: "agent_steps_analyze_data_label",
+              defaultMessage: "Ran the analysis <doc>{title}</doc>",
+            },
+            { title, doc: documentTitle }
+          )
+        : intl.formatMessage({
+            id: "agent_steps_analyze_data_untitled_label",
+            defaultMessage: "Analysed data",
+          })
+    }
+    case "surfsense_pdf_pages":
+      return intl.formatMessage(
+        {
+          id: "agent_steps_pdf_pages_label",
+          defaultMessage:
+            "{operation, select, merge {Merged PDFs} extract {Took pages out of a PDF} split {Split a PDF} rotate {Rotated PDF pages} reorder {Reordered PDF pages} other {Worked on PDF pages}}",
+        },
+        { operation: text(input.operation) ?? "other" }
+      )
+    case "surfsense_pdf_stamp":
+      return intl.formatMessage(
+        {
+          id: "agent_steps_pdf_stamp_label",
+          defaultMessage:
+            "{kind, select, watermark {Added a watermark to a PDF} page_numbers {Numbered a PDF’s pages} header {Added a header to a PDF} footer {Added a footer to a PDF} other {Stamped a PDF}}",
+        },
+        { kind: text(input.kind) ?? "other" }
+      )
+    case "surfsense_pdf_form":
+      return intl.formatMessage(
+        {
+          id: "agent_steps_pdf_form_label",
+          defaultMessage:
+            "{action, select, list {Read a PDF form’s fields} fill {Filled in a PDF form} other {Worked on a PDF form}}",
+        },
+        { action: text(input.action) ?? "other" }
+      )
     case "glob":
       if (pattern) {
         return intl.formatMessage(

@@ -1,10 +1,12 @@
 """A document script's run becomes a Built: its file, its text, its download name."""
 
 import threading
+import zipfile
 from io import BytesIO
 from pathlib import Path
 
 import docx
+import openpyxl
 import pptx
 import pypdfium2
 import pytest
@@ -15,6 +17,7 @@ from reportlab.pdfgen import canvas
 
 from modules.artifacts.script_documents.spec import DocumentScript
 from shared import pdfium
+from tests.office_stand_in import office_on
 from worker.document_script.run import ScriptResult
 from worker.studio.office.docx import docx as word
 from worker.studio.office.pdf import pdf
@@ -460,3 +463,145 @@ def test_a_template_reaches_the_runner(monkeypatch: pytest.MonkeyPatch) -> None:
     pipeline.render("Review", script, {}, template=template)
 
     assert calls[0]["template"] == template
+
+
+def _cached(data: bytes) -> dict[str, object]:
+    """Each cell's cached value, as a viewer that shows cached values reads it."""
+    book = openpyxl.load_workbook(BytesIO(data), data_only=True)
+    return {
+        f"{sheet.title}!{cell.coordinate}": cell.value
+        for sheet in book.worksheets
+        for row in sheet.iter_rows()
+        for cell in row
+        if cell.value is not None
+    }
+
+
+def test_with_office_support_a_workbook_is_delivered_with_recalculated_totals(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Studio's viewer and the summary show the real total, and Excel still recalculates on open."""
+    _runner(monkeypatch, _ran(_workbook_file()))
+    office = office_on(monkeypatch, values={"Costs": {"B5": 306}})
+    script = DocumentScript(text="build()", format="xlsx", images=())
+
+    built = pipeline.render("Costs", script, {})
+
+    assert built.primary is not None
+    assert _cached(built.primary)["Costs!B5"] == 306
+    formulas = openpyxl.load_workbook(BytesIO(built.primary))
+    assert formulas["Costs"]["B5"].value == "=SUM(B2:B4)"
+    with zipfile.ZipFile(BytesIO(built.primary)) as package:
+        assert b'fullCalcOnLoad="1"' in package.read("xl/workbook.xml")
+    assert "Total | 306" in built.markdown
+    assert "- Costs!B5: =SUM(B2:B4)" in built.markdown
+    assert built.metadata == {
+        "recalculation": {
+            "by": "LibreOffice 26.8.1",
+            "formulas": 1,
+            "left_blank": 0,
+            "reason": None,
+        }
+    }
+    (handed,) = office.read
+    assert handed == (".xlsx", _workbook_file())
+
+
+def test_a_formula_libreoffice_could_not_compute_is_left_blank_not_stale(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """xlsxwriter caches 0; a cell with an error has no value from LibreOffice, and 0 would look like a total."""
+    _runner(monkeypatch, _ran(_workbook_file()))
+    office_on(monkeypatch, values={})
+    script = DocumentScript(text="build()", format="xlsx", images=())
+
+    built = pipeline.render("Costs", script, {})
+
+    assert built.primary is not None
+    assert "Costs!B5" not in _cached(built.primary)
+    assert "Total | =SUM(B2:B4)" in built.markdown
+    assert built.metadata is not None
+    assert built.metadata["recalculation"]["left_blank"] == 1
+
+
+@pytest.mark.parametrize(
+    ("failure", "reason"),
+    [
+        (None, "Office support is off."),
+        (
+            "LibreOffice was busy with another file.",
+            "LibreOffice was busy with another file.",
+        ),
+    ],
+)
+def test_a_workbook_not_recalculated_keeps_what_the_script_wrote_and_says_why(
+    monkeypatch: pytest.MonkeyPatch, failure: str | None, reason: str
+) -> None:
+    """Today's behaviour, with the reason the render result passes on."""
+    data = _workbook_file()
+    _runner(monkeypatch, _ran(data))
+    if failure is not None:
+        office_on(monkeypatch, failure=failure)
+    script = DocumentScript(text="build()", format="xlsx", images=())
+
+    built = pipeline.render("Costs", script, {})
+
+    assert built.primary == data
+    assert "Total | =SUM(B2:B4)" in built.markdown
+    assert built.metadata == {
+        "recalculation": {
+            "by": None,
+            "formulas": 1,
+            "left_blank": 0,
+            "reason": reason,
+        }
+    }
+
+
+def test_a_workbook_without_formulas_is_not_sent_to_libreoffice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nothing to recalculate, so nothing to report."""
+    buffer = BytesIO()
+    book = xlsxwriter.Workbook(buffer, {"in_memory": True})
+    book.add_worksheet("Notes").write(0, 0, "Figures in thousand EUR")
+    book.close()
+    _runner(monkeypatch, _ran(buffer.getvalue()))
+    office = office_on(monkeypatch)
+    script = DocumentScript(text="build()", format="xlsx", images=())
+
+    built = pipeline.render("Notes", script, {})
+
+    assert office.read == []
+    assert built.metadata == {"recalculation": None}
+
+
+def test_recalculated_values_of_every_kind_are_cached_on_the_right_sheet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Text, booleans and numbers each keep their type; a sheet name with spaces finds its part."""
+    buffer = BytesIO()
+    book = xlsxwriter.Workbook(buffer, {"in_memory": True})
+    sheet = book.add_worksheet("Q1 results")
+    sheet.write_row(0, 0, [2, 3])
+    sheet.write_formula("C1", "=A1*B1")
+    sheet.write_formula("D1", '=IF(C1>5,"high","low")')
+    sheet.write_formula("E1", "=C1>5")
+    book.close()
+    _runner(monkeypatch, _ran(buffer.getvalue()))
+    office_on(
+        monkeypatch,
+        values={"Q1 results": {"C1": 6, "D1": "high", "E1": True}},
+    )
+    script = DocumentScript(text="build()", format="xlsx", images=())
+
+    built = pipeline.render("Q1", script, {})
+
+    assert built.primary is not None
+    cached = _cached(built.primary)
+    assert (
+        cached["Q1 results!C1"],
+        cached["Q1 results!D1"],
+        cached["Q1 results!E1"],
+    ) == (6, "high", True)
+    assert "2 | 3 | 6 | high | True" in built.markdown

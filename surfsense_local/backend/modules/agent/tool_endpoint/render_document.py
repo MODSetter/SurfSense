@@ -5,24 +5,21 @@ The tool waits for the run, since the model fixes its script from the error
 """
 
 import logging
-import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
-from modules.agent.previews import previews_for
-from modules.agent.previews.inline_images import inline_image
 from modules.agent.tool_endpoint.document_size import document_size
 from modules.agent.tool_endpoint.failed_renders import (
+    RENDERS,
     FailedRunError,
     stop_after_three_failures,
 )
 from modules.agent.tool_endpoint.job_outcome import JobOutcome, wait_for_outcome
+from modules.agent.tool_endpoint.ready_version import read_ready
 from modules.agent.tool_endpoint.registration import TOOL_CALL_SECONDS
 from modules.agent.tool_endpoint.rendered_label import (
     TOOL_NAME,
@@ -38,7 +35,8 @@ from modules.agent.tool_endpoint.tool import (
     ToolResult,
 )
 from modules.agent.tool_endpoint.turn_scope import TurnScope
-from modules.artifacts.models import Artifact, ArtifactFileRole
+from modules.agent.tool_endpoint.version_pages import version_pages
+from modules.artifacts.models import Artifact
 from modules.artifacts.script_documents.script_error import is_script_error
 from modules.artifacts.script_documents.service import (
     ScriptDocumentRefusedError,
@@ -50,8 +48,6 @@ from modules.artifacts.script_documents.version import version_of
 from modules.documents.models import DocumentStatus
 from modules.documents.source_figures import parse_figure_name
 from modules.workspaces.models import Workspace
-from shared.config import get_storage_settings
-from shared.db import is_locked
 
 logger = logging.getLogger(__name__)
 
@@ -64,26 +60,10 @@ WAIT_SECONDS = 150
 CALL_SECONDS = TOOL_CALL_SECONDS - 10
 # Enough of the text for the model to see the document took the shape it meant.
 TEXT_CHARS = 1500
-# The snapshot page lays Word out with docx-preview, told to skip both
-# (frontend/src/features/docx-snapshot/snapshot-page.ts).
-WORD_PREVIEWS_LEAVE_OUT = (
-    "Word previews leave out headers and footers: a logo or page number placed "
-    "there is in the document even though no preview shows it."
-)
-# The snapshot page lays a deck out with pptx-renderer, the Studio viewer's library.
-SLIDE_PREVIEWS_DIFFER = (
-    "Slide previews show the deck as SurfSense's slide viewer draws it, which can "
-    "differ a little from PowerPoint in fonts and charts."
-)
 WORKBOOK_HAS_NO_PAGES = (
     "No page previews: a workbook has no pages. Check the summary above against "
     "what the user asked: each sheet, its header row, its values and its formulas."
 )
-LOOK_AT_EVERY_PAGE = (
-    "Look at every one before you answer; if one is wrong, fix the script, render "
-    "again and look at the new version's pages too."
-)
-_PAGE_FILE = re.compile(r"page-(\d+)\.png")
 STOP_RULE = (
     "If this is your third failed run for this request, stop and tell the user "
     "what failed."
@@ -131,8 +111,9 @@ LISTING: dict[str, Any] = {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": (
-                    "Names from surfsense_list_images of the source images the "
-                    "script places; each is at IMAGES_DIR/<name>.png."
+                    "Names of the images the script places: source images from "
+                    "surfsense_list_images, or charts from surfsense_analyze_data; "
+                    "each is at IMAGES_DIR/<name>.png."
                 ),
             },
             "template_source_id": {
@@ -315,7 +296,7 @@ def _made(
 ) -> str | ToolResult:
     """What the ready version holds, and the pages drawn by the deadline, as images."""
     rendered = RenderedArtifact(started.artifact_id, started.title, started.version)
-    read = _read_ready(session, started, deadline)
+    read = read_ready(session, started.artifact_id, deadline)
     if read is None:
         return (
             f"{first_line(rendered)}\nIt is ready in Studio. Its text and page "
@@ -329,10 +310,13 @@ def _made(
     # A workbook has no pages to look at, so its whole summary is the check.
     images: tuple[InlineImage, ...] = ()
     if artifact.format == "xlsx":
-        heading, body, check = "Its summary:", text, WORKBOOK_HAS_NO_PAGES
+        heading, body = "Its summary:", text
+        check = "\n".join(
+            [*_recalculation(artifact.artifact_metadata), WORKBOOK_HAS_NO_PAGES]
+        )
     else:
         heading, body = "Its text begins:", _opening(text)
-        check, images = _previews(artifact, started, folder, deadline)
+        check, images = version_pages(artifact, started.version, folder, deadline)
     made = "\n".join(
         [
             first_line(rendered),
@@ -346,117 +330,41 @@ def _made(
     return ToolResult(made, images) if images else made
 
 
-def _read_ready(
-    session: Session, started: _Started, deadline: float
-) -> tuple[Artifact, str, bytes] | None:
-    """The ready version, its text and its file; None if the database stayed busy to the deadline.
-
-    Studio may hold the write lock past SQLite's busy wait while it saves another
-    document; the version is made, so the read is tried again, not failed.
-    """
-    while True:
-        try:
-            session.expire_all()
-            artifact = session.get(Artifact, started.artifact_id)
-            if artifact is None:
-                session.commit()
-                raise ToolCallError(
-                    f"Artifact {started.artifact_id} was deleted once ready."
-                )
-            primary = next(
-                f for f in artifact.files if f.role is ArtifactFileRole.PRIMARY
-            )
-            text = artifact.document.content or ""
-            # A Word preview waits on Electron; no transaction may be open meanwhile.
-            session.commit()
-        except OperationalError as error:
-            session.rollback()
-            if not is_locked(error):
-                raise
-            if time.monotonic() >= deadline:
-                return None
-            continue
-        data = (get_storage_settings().data_dir / primary.storage_key).read_bytes()
-        return artifact, text, data
-
-
 def _opening(text: str) -> str:
     if len(text) <= TEXT_CHARS:
         return text
     return f"{text[:TEXT_CHARS]}… ({len(text) - TEXT_CHARS:,} more characters)"
 
 
-def _previews(
-    artifact: Artifact, started: _Started, folder: Path, deadline: float
-) -> tuple[str, tuple[InlineImage, ...]]:
-    """The preview pages as images, what to do with them, and why any are missing.
-
-    The paths are not listed one by one, so the model is not invited to open
-    each page again with `read`, which would send every page twice.
-    """
-    if not declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE):
-        return (
-            "No page previews: the selected model cannot read images. Check the "
-            "script and the text above instead."
-        ), ()
-    try:
-        previews = previews_for(artifact, folder, time_left=deadline - time.monotonic())
-    # The version is made; a preview that breaks must not send the model to make it again.
-    except Exception:
-        logger.exception("previews of artifact %s failed", artifact.id)
-        return "No page previews: drawing them failed.", ()
-    if not previews.pages:
-        return f"No page previews: {previews.reason or 'none were drawn.'}", ()
-    kept_in = _relative(previews.pages[0].parent, folder)
-    shown: list[int] = []
-    images: list[InlineImage] = []
-    unattached: list[str] = []
-    for number, page in sorted((_page_number(p), p) for p in previews.pages):
-        try:
-            images.append(inline_image(page))
-        # A page that will not encode costs that page, never the made version.
-        except Exception:
-            logger.exception("page %s of artifact %s not attached", number, artifact.id)
-            unattached.append(
-                f"Page {number} could not be attached; open "
-                f"{_relative(page, folder)} with read."
-            )
-            continue
-        shown.append(number)
-    if not images:
-        return (
-            "No page previews: they were drawn but could not be attached; open "
-            f"them in {kept_in}/ with read."
-        ), ()
-    unit = "slide" if artifact.format == "pptx" else "page"
-    caveat = {"docx": [WORD_PREVIEWS_LEAVE_OUT], "pptx": [SLIDE_PREVIEWS_DIFFER]}
-    text = "\n".join(
-        [
-            f"The {unit} previews of version {started.version} of artifact "
-            f"{started.artifact_id} come with this result as images, in order: "
-            f"{', '.join(f'{unit} {n}' for n in shown)}.",
-            LOOK_AT_EVERY_PAGE,
-            *([previews.reason] if previews.reason else []),
-            *unattached,
-            *caveat.get(artifact.format, []),
-            f"Larger copies are in {kept_in}/ as page-<n>.png; open one with read "
-            "only for a closer look.",
+def _recalculation(metadata: dict[str, Any] | None) -> list[str]:
+    """Whether the formula values the summary and Studio show are real, from what the job recorded."""
+    record = (metadata or {}).get("recalculation")
+    if not isinstance(record, dict):
+        return []
+    if record.get("by"):
+        blank = record.get("left_blank") or 0
+        lines = [
+            f"{record['by']} recalculated the workbook: the summary and Studio show "
+            f"the values of {_count(record['formulas'], 'formula')}, saved in the "
+            "file, and Excel recalculates again on open."
         ]
-    )
-    return text, tuple(images)
+        if blank:
+            lines.append(
+                f"{_count(blank, 'formula')} had no value (an error or an "
+                "unsupported function) and are left blank: check them."
+            )
+        return lines
+    return [
+        f"Values not recalculated: {record.get('reason') or 'no reason given'} "
+        "Studio and the summary show what the script saved for "
+        f"{_count(record['formulas'], 'formula')} (often blank or 0) until the "
+        "file is opened in Excel, so check each formula itself, not a total shown "
+        "for it."
+    ]
 
 
-def _page_number(page: Path) -> int:
-    """The number in the file's name: a page too thin to draw leaves a gap."""
-    match = _PAGE_FILE.fullmatch(page.name)
-    if match is None:
-        raise ValueError(f"not a page preview: {page.name}")
-    return int(match[1])
-
-
-def _relative(page: Path, folder: Path) -> str:
-    """As the agent names files: from its own folder, with forward slashes."""
-    return page.relative_to(folder).as_posix()
+def _count(n: int, unit: str) -> str:
+    return f"{n} {unit}" if n == 1 else f"{n} {unit}s"
 
 
 def _version_of(started: _Started) -> str:
@@ -491,5 +399,5 @@ def _failed(started: _Started, outcome: JobOutcome) -> str:
 
 
 RENDER_DOCUMENT = Tool(
-    listing=LISTING, run=stop_after_three_failures(render), waits=True
+    listing=LISTING, run=stop_after_three_failures(render, RENDERS), waits=True
 )

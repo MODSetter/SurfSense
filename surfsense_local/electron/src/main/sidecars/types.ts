@@ -68,6 +68,11 @@ export interface SidecarContext {
   opencodePort?: number
   opencodePassword?: string
   opencodeUrl?: string
+  /**
+   * Where the API runs the proxy opencode's connections go through: a tunnel
+   * to a ready plugin's host, and nothing else.
+   */
+  pluginProxyPort?: number
   /** `<dataDir>/agent`: the config the API writes, and opencode's own home. */
   agentDir?: string
   /**

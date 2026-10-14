@@ -8,7 +8,7 @@ from api.dependencies import SessionDep
 from modules.agent.agent_threads.forget_sessions import forget_workspace_sessions
 from modules.chat.runs.dependencies import ChatRunsDep
 from modules.chat.stop_workspace_replies import stop_workspace_replies
-from modules.plugins.stop_workspace_runs import stop_workspace_runs
+from modules.plugins.bundles.stop_workspace_runs import stop_workspace_runs
 from modules.source_roots.managed_root import ensure_managed_root
 from modules.workspaces.dependencies import WorkspaceDep
 from modules.workspaces.models import Workspace

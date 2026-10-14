@@ -15,6 +15,7 @@ from typing import Any
 from tests.live.live_runs_dir import live_runs_dir
 from tests.live.model_prices import Prices
 from tests.live.usage import Usage
+from tests.live.whole_file import write_whole
 
 __all__ = ["STOP_DOLLARS", "SpendLedger", "Usage"]
 
@@ -73,10 +74,7 @@ class SpendLedger:
         return stored if "by_model" in stored else _from_first_night(stored)
 
     def _write(self, data: dict) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        partial = self.path.with_name(f".{self.path.name}.partial")
-        partial.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-        partial.replace(self.path)
+        write_whole(self.path, json.dumps(data, indent=2) + "\n")
 
 
 def _charge(entry: dict[str, Any], usage: Usage, dollars: float) -> None:

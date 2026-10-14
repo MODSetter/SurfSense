@@ -4,8 +4,10 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { FileIcon, ZoomInIcon, ZoomOutIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { markTrackedChanges } from "@/features/docx-snapshot/tracked-changes"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
+import { COMMENT_GUTTER, gatherComments, mendedMaker } from "./docx-comments"
 
 /** Reject before docx-preview allocates — keep below the server file limit. */
 const MAX_VIEWER_BYTES = 15 * 1024 * 1024
@@ -54,6 +56,18 @@ function disarmLinks(body: HTMLElement): void {
   }
 }
 
+/**
+ * The zoom that fits pages this wide to the frame's viewport, not its element:
+ * that leaves out the frame's own scrollbar, and the zoom on body does not
+ * scale it.
+ */
+function fittedZoom(pages: Document, width: number): number {
+  return Math.min(
+    1,
+    Math.max(MIN_ZOOM, pages.documentElement.clientWidth / width)
+  )
+}
+
 export function DocxViewer({
   artifact,
   actionsContainer,
@@ -68,6 +82,10 @@ export function DocxViewer({
   const [retryKey, setRetryKey] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [hasContent, setHasContent] = useState(false)
+  // What the page is fitted to, and whether it still is: a hand zoom stops the
+  // refit on resize, as in the PDF viewer.
+  const fitWidthRef = useRef<number | null>(null)
+  const fittedRef = useRef(true)
 
   useEffect(() => {
     void retryKey
@@ -79,6 +97,8 @@ export function DocxViewer({
     setLoading(true)
     setError(null)
     setHasContent(false)
+    fitWidthRef.current = null
+    fittedRef.current = true
     pages.body.replaceChildren()
 
     void (async () => {
@@ -97,7 +117,9 @@ export function DocxViewer({
             )
           )
         }
-        const response = await fetch(fileUrl(artifact.id, "primary"))
+        const response = await fetch(
+          fileUrl(artifact.id, "primary", artifact.generation)
+        )
         if (!response.ok) {
           throw new Error(
             intl.formatMessage(
@@ -114,7 +136,7 @@ export function DocxViewer({
         const buffer = await response.arrayBuffer()
         // docx-preview has no top-level import cost worth paying eagerly —
         // load it the same way the other heavy viewers (xlsx, pdf) do.
-        const { renderAsync } = await import("docx-preview")
+        const { renderAsync, defaultOptions } = await import("docx-preview")
         if (cancelled) return
         // docx-preview always renders the page at its physical size (e.g.
         // ~816px for 8.5x11in) — it has no fit-to-width or zoom option of
@@ -127,18 +149,42 @@ export function DocxViewer({
         // cancelled mid-render still finishes, and must not replace a later
         // version's pages. No altChunks: docx-preview puts their HTML in an
         // unsandboxed iframe, where a script the file carries would run. Data
-        // URLs, the only images and fonts the frame's policy lets in.
+        // URLs, the only images and fonts the frame's policy lets in. Tracked
+        // changes and comments show, as a revised copy is reviewed by them.
         const rendered = pages.createElement("div")
-        await renderAsync(buffer, rendered, rendered, {
+        const options = {
           inWrapper: true,
           ignoreWidth: false,
           ignoreHeight: false,
           renderAltChunks: false,
+          renderChanges: true,
           useBase64URL: true,
-        })
+        }
+        try {
+          await renderAsync(buffer, rendered, rendered, {
+            ...options,
+            renderComments: true,
+            h: mendedMaker(defaultOptions.h),
+          })
+        } catch {
+          // docx-preview's comments are experimental: a comment it cannot
+          // lay out must not cost the reader the document.
+          await renderAsync(buffer, rendered, rendered, options)
+        }
+        // docx-preview shades commented text through the app window's
+        // highlight registry, which never paints in the frame; drop its
+        // ranges rather than keep the old pages alive.
+        globalThis.CSS?.highlights?.delete("docx-comments")
         if (cancelled) return
+        markTrackedChanges(rendered)
+        const placeComments = gatherComments(rendered)
         disarmLinks(rendered)
         pages.body.replaceChildren(rendered)
+        placeComments?.()
+        // A file's own fonts can move its lines once they load.
+        void pages.fonts?.ready.then(() => {
+          if (!cancelled) placeComments?.()
+        })
 
         // docx-preview's own injected styles set `.docx-wrapper`'s
         // background to gray (the padding around each white page) — an
@@ -149,10 +195,9 @@ export function DocxViewer({
         const page = rendered.querySelector<HTMLElement>(".docx")
         const pageWidth = page?.offsetWidth
         if (pageWidth) {
-          // The frame's viewport, not its element: that leaves out the
-          // frame's own scrollbar, and the zoom on body does not scale it.
-          const fit = pages.documentElement.clientWidth / pageWidth
-          setZoom(Math.min(1, Math.max(MIN_ZOOM, fit)))
+          // Comments' balloons fit beside the page.
+          fitWidthRef.current = pageWidth + (placeComments ? COMMENT_GUTTER : 0)
+          setZoom(fittedZoom(pages, fitWidthRef.current))
         }
         setHasContent(true)
       } catch (cause) {
@@ -165,12 +210,27 @@ export function DocxViewer({
     return () => {
       cancelled = true
     }
-  }, [artifact.id, primary, retryKey])
+  }, [artifact.id, artifact.generation, primary, retryKey])
 
   useEffect(() => {
     const body = frameRef.current?.contentDocument?.body
     body?.style.setProperty("zoom", String(zoom))
   }, [zoom])
+
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+
+    const observer = new ResizeObserver(() => {
+      const pages = frame.contentDocument
+      const width = fitWidthRef.current
+      if (fittedRef.current && pages && width) {
+        setZoom(fittedZoom(pages, width))
+      }
+    })
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [])
 
   // The pages fill the frame, so Ctrl+wheel lands in its document.
   useEffect(() => {
@@ -180,6 +240,7 @@ export function DocxViewer({
     const handleWheel = (event: WheelEvent) => {
       if (!event.ctrlKey) return
       event.preventDefault()
+      fittedRef.current = false
       setZoom((current) =>
         Math.min(
           MAX_ZOOM,
@@ -196,10 +257,12 @@ export function DocxViewer({
   }, [])
 
   const zoomIn = useCallback(() => {
+    fittedRef.current = false
     setZoom((current) => Math.min(MAX_ZOOM, current * ZOOM_STEP))
   }, [])
 
   const zoomOut = useCallback(() => {
+    fittedRef.current = false
     setZoom((current) => Math.max(MIN_ZOOM, current / ZOOM_STEP))
   }, [])
 

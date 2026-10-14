@@ -4,11 +4,13 @@ import logging
 from functools import lru_cache
 from pathlib import Path
 
+from modules.llm.capability.match_key import match_key
 from modules.llm.capability.measured.schema import (
     SCHEMA_VERSION,
     CapabilityList,
     MeasuredModel,
 )
+from modules.llm.capability.model_key import model_key
 
 __all__ = ["SHIPPED", "find_row", "measured_list"]
 
@@ -33,5 +35,20 @@ def _by_key() -> dict[str, MeasuredModel]:
     return {key: row for row in measured_list().models for key in row.match.keys}
 
 
-def find_row(key: str) -> MeasuredModel | None:
-    return _by_key().get(key)
+@lru_cache
+def _by_match_key() -> dict[str, MeasuredModel]:
+    return {
+        loose: row
+        for row in measured_list().models
+        for key in row.match.keys
+        if (loose := match_key(key)) is not None
+    }
+
+
+def find_row(model_id: str) -> MeasuredModel | None:
+    """The row for a model id: its own key first, then how another server spells it."""
+    key = model_key(model_id)
+    if key is None:
+        return None
+    loose = match_key(model_id)
+    return _by_key().get(key) or (_by_match_key().get(loose) if loose else None)

@@ -42,10 +42,15 @@ extraResources:
     to: audiocpp
   # opencode's server for the agent, and the ripgrep it greps with
   # (scripts/opencode/). Pinned by version and SHA-256; it starts only once the
-  # API writes its configuration. While opencode is off nothing is staged, and
-  # electron-builder warns that the folder is missing and skips it.
+  # API writes its configuration. Staged for every build; one made with
+  # SURFSENSE_LOCAL_OPENCODE_ENABLED=0 stages nothing, and electron-builder
+  # warns that the folder is missing and skips it.
   - from: opencode
     to: opencode
+
+# Runs the packaged opencode once it is signed, before any installer is made and
+# so before a tag's build uploads one (scripts/opencode/after-sign.mjs).
+afterSign: ./scripts/opencode/after-sign.mjs
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
@@ -104,4 +109,10 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # opencode arrives Developer ID signed by its vendor, with the hardened
+  # runtime, a timestamp and the five entitlements Bun needs. Re-signing it would
+  # swap those for ours, which lack disable-executable-page-protection. rg
+  # arrives only ad-hoc signed, so it is signed with the app.
+  signIgnore:
+    - "/Contents/Resources/opencode/opencode$"
   notarize: true

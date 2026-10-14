@@ -123,6 +123,8 @@ function backend({
   holdInstalls = false,
   /** Whether huggingface.co is already allowed; unset lists no destinations. */
   huggingface = undefined as boolean | undefined,
+  /** Whether a ChatGPT plan can be signed in to here, for chat only. */
+  chatgpt = false,
 } = {}) {
   // Every catalog lists the search models, whatever chat rows a test asks for.
   rows = [...rows, ...embedders()]
@@ -309,6 +311,8 @@ function backend({
     if (/^\/llm\/connections\/\d+\/models$/.test(path)) {
       return Response.json([])
     }
+    if (path === "/llm/connections/chatgpt" && chatgpt)
+      return Response.json({ serves: ["text_gen"], hosts: [] })
     if (path === "/llm/connections") return Response.json(connections)
     if (path === "/llm/catalog/remote") return Response.json([])
     if (path.startsWith("/llm/catalog/local/search?")) {
@@ -804,6 +808,24 @@ describe("onboarding", () => {
       name: "Choose a video generation model",
     })
     expect(search()).toBeNull()
+  })
+
+  it("offers a ChatGPT plan below Use a server on the chat step", async () => {
+    vi.stubGlobal("fetch", backend({ chatgpt: true }))
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    const plan = await screen.findByRole("region", {
+      name: "Use your ChatGPT plan",
+    })
+    const server = screen.getByRole("region", { name: "Use a server" })
+    expect(
+      within(plan).getByRole("button", { name: "Sign in with ChatGPT" })
+    ).toBeTruthy()
+    expect(
+      server.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
   })
 
   it("connects a server when there is none", async () => {

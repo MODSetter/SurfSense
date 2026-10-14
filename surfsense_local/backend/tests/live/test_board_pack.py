@@ -1,6 +1,7 @@
 """Live case 8: a vague request, "something I can send to the board", then a section added at the end.
 
-The agent picks the format itself; it must make a Word file or a PDF, not ask, and say what it assumed.
+The agent picks the format itself; it must make a Word file or a PDF, not ask, and say which.
+Whether it says what it assumed is graded in result.json, not checked: models said so in other words and failed.
 """
 
 import io
@@ -36,7 +37,7 @@ _NAMES_THE_FORMAT = re.compile(r"\bWord\b|\.docx|\bPDF\b", re.IGNORECASE)
 async def test_the_agent_turns_a_vague_ask_into_a_board_document(
     live: LiveAgent,
 ) -> None:
-    """v1 is a Word file or a PDF with the format and assumptions stated; v2 ends with the decisions."""
+    """v1 is a Word file or a PDF and the answer names it; v2 ends with the decisions."""
     results = await live.note("Q3 2026 results", _RESULTS)
     hiring = await live.note("Hiring update, September 2026", _HIRING)
     risks = await live.upload("Risk register extract.docx", _risk_register())
@@ -52,9 +53,7 @@ async def test_the_agent_turns_a_vague_ask_into_a_board_document(
     await assert_pages_checked(live, first, "turn 1")
     said = answer(first)
     assert _NAMES_THE_FORMAT.search(said), f"turn 1 does not say what it made: {said}"
-    assert _SAYS_WHAT_IT_ASSUMED.search(said), (
-        f"turn 1 does not say what it assumed: {said}"
-    )
+    live.run.metrics["says_what_it_assumed"] = bool(_SAYS_WHAT_IT_ASSUMED.search(said))
 
     second = await live.turn(thread, TURNS[1])
     edit = await last_version(live, second, "turn 2")

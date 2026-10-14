@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from capability_list.ladder_input import LadderResults, ModelResults
+from capability_list.merge import merged
 from capability_list.verdict import verdict
 from modules.llm.capability import AGENT_LEVELS, model_key
 from modules.llm.capability.measured.schema import (
@@ -23,6 +24,16 @@ def measured_rows(results: LadderResults) -> CapabilityList:
         source=results.source,
         models=[_row(results, model) for model in results.models],
     )
+
+
+def with_ladder_rows(shipped: CapabilityList, ladder: CapabilityList) -> CapabilityList:
+    """The ladder's rows in place of its suite's, then every other row they do not name.
+
+    Rewriting from ladder results keeps the screening and assumed rows.
+    """
+    suites = {row.suite for row in ladder.models}
+    others = [row for row in shipped.models if row.suite not in suites]
+    return merged(ladder, others)[0]
 
 
 def _row(results: LadderResults, model: ModelResults) -> MeasuredModel:

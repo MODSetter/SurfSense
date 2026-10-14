@@ -9,6 +9,8 @@ import { useEffect, useSyncExternalStore } from "react"
 export type Pending = {
   destination: string
   host: string
+  // What the call is for, when the host alone does not say: "plugin".
+  purpose?: string
   // What Allow does. A refused request enables the destination and is retried;
   // the updater talks to GitHub from Electron, so its consent is a pref there.
   allow: () => Promise<unknown>

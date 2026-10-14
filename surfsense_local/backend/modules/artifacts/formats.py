@@ -36,7 +36,7 @@ class Format:
 # worker/studio/job_router.py must name every key here and nothing else
 # (asserted in tests/unit/worker).
 FORMATS: tuple[Format, ...] = (
-    Format("summary", "Summary", grounding=Grounding.WHOLE),
+    Format("summary", "Markdown", grounding=Grounding.WHOLE),
     Format("docx", "Word"),
     Format("pptx", "Slides"),
     Format("xlsx", "Spreadsheet"),

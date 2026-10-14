@@ -1,6 +1,7 @@
 """Adding a whole folder: its tree arrives as folders, and copying it again adds nothing."""
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -20,8 +21,9 @@ async def workspace_id(client: AsyncClient) -> int:
 
 
 def _files(names_and_bytes: list[tuple[str, bytes]]) -> list:
+    """Each file under its own name, as a browser sends it: the path travels apart."""
     return [
-        ("files", (name.rsplit("/", 1)[-1], content, "application/pdf"))
+        ("files", (re.split(r"[/\\]", name)[-1], content, "application/pdf"))
         for name, content in names_and_bytes
     ]
 

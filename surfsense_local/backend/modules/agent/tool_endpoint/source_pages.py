@@ -23,6 +23,7 @@ from modules.agent.tool_endpoint.tool import (
     ToolResult,
 )
 from modules.agent.tool_endpoint.turn_scope import TurnScope
+from modules.agent.tool_endpoint.version_pages import drawn_by_office
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 
@@ -31,8 +32,9 @@ logger = logging.getLogger(__name__)
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 # The snapshot page lays Word out with docx-preview, told to skip both.
 _WORD_PAGES = (
-    "Word pages are laid out as SurfSense's viewer lays them out, without headers "
-    "and footers, which can differ a little from Word."
+    "Drawn by SurfSense's Word viewer: Word pages are laid out as SurfSense's "
+    "viewer lays them out, without headers and footers, which can differ a little "
+    "from Word."
 )
 
 LISTING: dict[str, Any] = {
@@ -180,7 +182,9 @@ def _shown(
             f"Larger copies are in {SOURCES}/{PAGES}/ as {document_id}-p<n>.png; "
             "open one with read only for a closer look."
         )
-    if original.suffix.lower() == ".docx":
+    if drawn.drawn_by_office is not None:
+        lines.append(drawn_by_office(drawn.drawn_by_office))
+    elif original.suffix.lower() == ".docx":
         lines.append(_WORD_PAGES)
     text = "\n".join(lines)
     return ToolResult(text, tuple(images)) if images else text

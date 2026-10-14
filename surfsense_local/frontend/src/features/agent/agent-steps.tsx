@@ -1,3 +1,5 @@
+import { memo, useCallback, type ReactNode } from "react"
+
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -5,11 +7,15 @@ import {
   CircleAlertIcon,
 } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { mayBePluginStep } from "@/features/plugins/in-thread/plugin-of-step"
+import { PluginStepLine } from "@/features/plugins/in-thread/plugin-step-line"
 import { useOpenArtifact } from "@/features/studio/open-artifact"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
+import { useAgentApprovals } from "./approvals-context"
 import type { AgentStep, TurnSources } from "./api"
+import { InlineApproval } from "./inline-approval"
 import { stepLabel } from "./step-label"
 
 function StepStatus({ status }: { status: AgentStep["status"] }) {
@@ -40,15 +46,32 @@ function StepStatus({ status }: { status: AgentStep["status"] }) {
 
 /** One step: what it did, and what it returned, folded until asked for. A
  *  step that made a document opens it instead of folding what it returned,
- *  which was written for the model. */
-function StepLine({
+ *  which was written for the model. Memoized: a streamed token re-renders the
+ *  reply, and a step keeps its object until it changes. `ask` is a request
+ *  the step waits on, shown under it. */
+const StepLine = memo(function StepLine({
   step,
+  threadId,
   sourceTitle,
+  ask,
 }: {
   step: AgentStep
+  threadId: number | null
   sourceTitle: (documentId: number) => string | null
+  ask?: ReactNode
 }) {
   const openArtifact = useOpenArtifact()
+  if (threadId !== null && mayBePluginStep(step.tool)) {
+    return (
+      <PluginStepLine
+        step={step}
+        threadId={threadId}
+        status={<StepStatus status={step.status} />}
+        fallback={stepLabel(step, sourceTitle)}
+        ask={ask}
+      />
+    )
+  }
   const detail = step.error ?? step.output
   const line = (
     <span className="flex min-w-0 items-center gap-2">
@@ -68,11 +91,17 @@ function StepLine({
           {line}
           <ArrowRightIcon className="size-3.5 shrink-0" />
         </button>
+        {ask}
       </li>
     )
   }
   if (!detail || made) {
-    return <li className="py-0.5">{line}</li>
+    return (
+      <li className="py-0.5">
+        {line}
+        {ask}
+      </li>
+    )
   }
   return (
     <li className="py-0.5">
@@ -90,25 +119,53 @@ function StepLine({
           {detail}
         </pre>
       </details>
+      {ask}
     </li>
   )
-}
+})
 
 /** The steps the agent took for one reply, above the answer they led to.
  *  `scope` is the turn's sources, which name a source a step used. */
 export function AgentSteps({
   steps,
   scope = null,
+  threadId = null,
+  latest = false,
 }: {
   steps: AgentStep[]
   scope?: TurnSources | null
+  /** Where a plugin step reads its whole result and saves it; none while a turn is unsaved. */
+  threadId?: number | null
+  /** The thread's latest reply, which also asks for requests naming no step. */
+  latest?: boolean
 }) {
-  if (steps.length === 0) {
+  const { approvals, answer } = useAgentApprovals()
+  const sourceTitle = useCallback(
+    (documentId: number) => {
+      const index = scope?.document_ids.indexOf(documentId) ?? -1
+      return index >= 0 ? (scope?.titles[index] ?? null) : null
+    },
+    [scope]
+  )
+  const othersWaiting = Math.max(0, approvals.length - 1)
+  const askFor = (request: (typeof approvals)[number], step?: AgentStep) => (
+    <InlineApproval
+      request={request}
+      step={step}
+      othersWaiting={othersWaiting}
+      onAnswer={answer}
+    />
+  )
+  const unnamed = latest
+    ? approvals.filter(
+        (request) =>
+          !steps.some(
+            (step) => step.call_id && step.call_id === request.call_id
+          )
+      )
+    : []
+  if (steps.length === 0 && unnamed.length === 0) {
     return null
-  }
-  const sourceTitle = (documentId: number) => {
-    const index = scope?.document_ids.indexOf(documentId) ?? -1
-    return index >= 0 ? (scope?.titles[index] ?? null) : null
   }
   return (
     <ol
@@ -118,8 +175,24 @@ export function AgentSteps({
       })}
       className="mb-3 flex flex-col text-sm text-muted-foreground"
     >
-      {steps.map((step) => (
-        <StepLine key={step.id} step={step} sourceTitle={sourceTitle} />
+      {steps.map((step) => {
+        const request = step.call_id
+          ? approvals.find((waiting) => waiting.call_id === step.call_id)
+          : undefined
+        return (
+          <StepLine
+            key={step.id}
+            step={step}
+            threadId={threadId}
+            sourceTitle={sourceTitle}
+            ask={request ? askFor(request, step) : undefined}
+          />
+        )
+      })}
+      {unnamed.map((request) => (
+        <li key={request.id} className="py-0.5">
+          {askFor(request)}
+        </li>
       ))}
     </ol>
   )

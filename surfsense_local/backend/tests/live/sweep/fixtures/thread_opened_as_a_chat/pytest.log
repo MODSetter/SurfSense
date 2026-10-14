@@ -1,0 +1,6 @@
+E   AssertionError: turn 1: no version was rendered
+WARNING  modules.agent.agent_threads.open_session:open_session.py:35 thread 1 opens as a chat: the agent is not ready
+    raise AgentUnavailableError(
+modules.agent.opencode_runtime.AgentUnavailableError: opencode did not start with SurfSense's configuration
+FAILED tests/live/test_memo_restructure.py::test_the_agent_restructures_a_memo_it_wrote
+======================== 1 failed in 95.76s (0:01:35) =========================

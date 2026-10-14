@@ -42,6 +42,28 @@ CONTRACT = {
 
 BACKEND = Path(__file__).resolve().parents[4]
 
+
+def _names_a_process_gives_itself() -> set[str]:
+    """What a Python started with only the allowed names has besides them.
+
+    macOS and the interpreter add `__CF_USER_TEXT_ENCODING` and `LC_CTYPE` to
+    every process; the parent has them for the same reason, not as their source.
+    """
+    allowed = {
+        name: value
+        for name, value in os.environ.items()
+        if name.upper() in ALLOWED_FROM_PARENT
+    }
+    listed = subprocess.run(
+        [sys.executable, "-c", "import json, os; print(json.dumps(list(os.environ)))"],
+        env=allowed,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return {name.upper() for name in json.loads(listed.stdout)} - ALLOWED_FROM_PARENT
+
+
 # A worker that runs one script, for a test to kill midway.
 WORKER_RUNNING_A_SCRIPT = """
 import sys
@@ -262,10 +284,11 @@ def test_the_child_sees_none_of_the_parents_secrets(
 
     assert result.ok and result.output is not None
     seen = {name.upper(): value for name, value in json.loads(result.output).items()}
+    passed_on = ALLOWED_FROM_PARENT | CONTRACT | _names_a_process_gives_itself()
     leaked = {
         name
         for name in os.environ
-        if name.upper() not in ALLOWED_FROM_PARENT | CONTRACT and name.upper() in seen
+        if name.upper() not in passed_on and name.upper() in seen
     }
     assert leaked == set()
     folder = Path(seen["OUTPUT_PATH"]).parent

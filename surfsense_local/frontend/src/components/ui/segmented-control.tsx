@@ -15,13 +15,14 @@ export function SegmentedControl({
   return (
     <div
       className={cn(
-        "relative inline-flex items-center overflow-hidden rounded-md border bg-muted/80 text-muted-foreground",
+        // The pill tabs' look (components/ui/tabs.tsx), as a choice of values rather than tabs.
+        "relative inline-flex items-center overflow-hidden rounded-lg bg-muted p-0.5 text-muted-foreground",
         "[&_svg]:text-current",
         "[&_label]:text-muted-foreground [&_label]:transition-colors",
         "[&_label:hover:not(:has(:checked))]:text-foreground",
         "[&_label:has(:checked)]:text-accent-foreground",
         "[&_label:has(:checked)_svg]:text-accent-foreground",
-        "[&_[aria-selected=true]]:text-accent-foreground",
+        "**:aria-selected:text-accent-foreground",
         "[&_[aria-selected=true]_svg]:text-accent-foreground",
         "[&_[aria-selected=false]:hover]:text-foreground",
         "[&_[aria-selected=false]:hover_svg]:text-foreground",
@@ -32,9 +33,12 @@ export function SegmentedControl({
       <span
         aria-hidden="true"
         data-slot="segmented-control-indicator"
-        className="pointer-events-none absolute inset-y-0 left-0 rounded-md border border-input bg-accent shadow-sm transition-transform duration-300 ease-out motion-reduce:transition-none"
+        // Still slides while choosing a theme pauses every other transition.
+        data-keep-transition
+        className="pointer-events-none absolute inset-y-0.5 left-0.5 rounded-md bg-card transition-transform duration-250 ease-out motion-reduce:transition-none dark:bg-accent"
         style={{
-          width: `calc(100% / ${count})`,
+          // Inside the bar's 2px padding on each side.
+          width: `calc((100% - 4px) / ${count})`,
           translate: `${selectedIndex * 100}%`,
         }}
       />

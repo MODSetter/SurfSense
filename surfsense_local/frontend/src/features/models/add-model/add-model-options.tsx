@@ -6,12 +6,13 @@ import { intl } from "@/i18n/intl"
 
 import type { ModelType } from "../model-type"
 import type { Connection } from "../remote/connections/api"
+import { ChatGPTOption } from "../remote/connections/chatgpt/chatgpt-option"
 import { ServerCard } from "./server-card"
 
 /**
  * Both ways a model arrives, on one page and in the same shape for every slot:
- * the server card first because it is short, then this computer's catalog,
- * which says so itself when nothing can run here.
+ * the server card, then a ChatGPT plan where one fills the slot, both short,
+ * then this computer's catalog, which says so itself when nothing can run here.
  */
 export function AddModelOptions({
   download,
@@ -29,7 +30,8 @@ export function AddModelOptions({
     <div className="flex flex-col gap-6">
       {onConnected ? (
         <>
-          <ServerCard modelType={modelType} onConnected={onConnected} />
+          <ServerCard onConnected={onConnected} />
+          <ChatGPTOption modelType={modelType} onConnected={onConnected} />
           <Separator />
         </>
       ) : null}

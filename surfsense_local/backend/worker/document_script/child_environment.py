@@ -2,8 +2,6 @@ import os
 import sys
 from pathlib import Path
 
-from worker.document_script.run_folder import IMAGES_FOLDER
-
 # What a script may see of the worker's environment: enough for Python and the
 # OS to start. Never the rest, which holds SURFSENSE_LOCAL_SECRET and model keys.
 _FROM_THE_SYSTEM = (
@@ -13,23 +11,16 @@ _FROM_THE_SYSTEM = (
 )
 
 
-def child_environment(
-    folder: Path, output_name: str, template_name: str | None = None
-) -> dict[str, str]:
-    """Everything a script's process gets, built from scratch: the OS basics and
-    the script contract. TEMPLATE_PATH only when the run has a template."""
+def child_environment(folder: Path, contract: dict[str, str]) -> dict[str, str]:
+    """Everything a script's process gets, built from scratch: the OS basics, the
+    settings every script runs with, and the paths of its own kind of run."""
     allowed = {
         name: os.environ[name] for name in _FROM_THE_SYSTEM if name in os.environ
     }
-    template = (
-        {} if template_name is None else {"TEMPLATE_PATH": str(folder / template_name)}
-    )
     return (
         allowed
-        | template
+        | contract
         | {
-            "OUTPUT_PATH": str(folder / output_name),
-            "IMAGES_DIR": str(folder / IMAGES_FOLDER),
             # No display exists for a script, and its font cache goes with the folder.
             "MPLBACKEND": "Agg",
             "MPLCONFIGDIR": str(folder / ".mpl"),

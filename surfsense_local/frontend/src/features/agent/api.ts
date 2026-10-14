@@ -1,7 +1,8 @@
-import { requestVoid } from "@/lib/api"
+import { requestJson, requestVoid } from "@/lib/api"
 
-/** The Studio artifact a `surfsense_render_document` call made, once that
- *  version is ready. */
+/** The Studio artifact a `surfsense_render_document`,
+ *  `surfsense_revise_document` or `surfsense_convert_document` call made,
+ *  once that version is ready. */
 export type RenderedArtifact = {
   id: number
   title: string
@@ -15,6 +16,8 @@ export type RenderedArtifact = {
 /** One tool call the agent made, as `agent-step` frames and `content.steps` carry it. */
 export type AgentStep = {
   id: string
+  /** The tool call's id, which an approval names to be asked on this step. */
+  call_id?: string | null
   tool: string | null
   status: "pending" | "running" | "completed" | "error"
   title: string | null
@@ -38,12 +41,21 @@ export type TurnSources = {
   count?: number
 }
 
+/** A connected plugin a turn could not use: its server did not answer, or
+ *  refused its sign-in. */
+export type UnavailablePlugin = {
+  title: string
+  reason: "unreachable" | "sign_in" | "license"
+}
+
 /** Something the agent wants to do that waits for the user's answer. */
 export type PermissionRequest = {
   id: string
   permission: string
   patterns: string[]
   command: string | null
+  /** The tool call it holds back; null when it names none. */
+  call_id: string | null
 }
 
 /** The user's answer; there is no "always" (ADR 0028). */
@@ -62,4 +74,15 @@ export function answerPermission(
       body: JSON.stringify({ reply }),
     }
   )
+}
+
+/** What a step returned, whole: its frames carry only the start. */
+export function readStepResult(
+  threadId: number,
+  stepId: string,
+  signal?: AbortSignal
+): Promise<{ output: string | null; error: string | null }> {
+  return requestJson(`/chat/threads/${threadId}/steps/${stepId}/result`, {
+    signal,
+  })
 }

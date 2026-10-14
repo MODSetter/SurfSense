@@ -1,0 +1,14 @@
+[
+ {
+  "user": "Write an internal memo as a Word document from these notes, with three sections:",
+  "frames": [
+   {
+    "type": "accepted"
+   },
+   {
+    "type": "completed",
+    "text": "Below is the memo content plus a one-line command to turn it into a `.docx`."
+   }
+  ]
+ }
+]

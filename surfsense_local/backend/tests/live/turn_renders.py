@@ -17,6 +17,8 @@ from tests.live.recording_proxy import Exchange, image_parts
 _PREVIEW = re.compile(r"previews[/\\](\d+)-v(\d+)[/\\]page-(\d+)\.png")
 _PAGE = re.compile(r"page-(\d+)\.png")
 RENDER = "surfsense_render_document"
+# How a PDF tool's result names each new artifact it kept.
+_MADE = re.compile(r"^(?:Made artifact|- artifact) (\d+):", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,16 @@ def rendered_ids(frames: list[dict[str, Any]]) -> list[int]:
         s["artifact"]["id"]
         for s in steps(frames, RENDER)
         if s["status"] == "completed" and s.get("artifact")
+    ]
+
+
+def made_ids(frames: list[dict[str, Any]], tool: str) -> list[int]:
+    """The artifacts each completed call to a file-making tool kept, in order."""
+    return [
+        int(found)
+        for s in steps(frames, tool)
+        if s["status"] == "completed"
+        for found in _MADE.findall(str(s.get("output") or ""))
     ]
 
 

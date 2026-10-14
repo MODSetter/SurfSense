@@ -9,6 +9,7 @@ from modules.artifacts.flashcard_progress import (
 )
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
+from modules.artifacts.revised_copies.revision import revision_of
 from modules.artifacts.script_documents.spec import SpecKind, spec_kind
 from modules.artifacts.script_documents.version import version_of
 from modules.artifacts.studio_documents.recipe import shown_spec_kind, studio_made
@@ -127,6 +128,21 @@ class ArtifactVersionRead(BaseModel):
     parent_id: int | None
 
 
+class RevisionCountsRead(BaseModel):
+    changes: int
+    comments: int
+
+
+class RevisionRead(BaseModel):
+    """What a revised copy's version came from and holds; counts are a Word version's."""
+
+    derived_from_document_id: int | None
+    source_name: str
+    counts: RevisionCountsRead | None
+    # Operations this version applied; None when it accepted or rejected all.
+    applied: int | None
+
+
 class ArtifactRead(BaseModel):
     """An artifact and the state of its underlying ARTIFACT document."""
 
@@ -171,6 +187,7 @@ class ArtifactDetail(ArtifactRead):
     files: list[ArtifactFileRead]
     quiz_state: QuizStateRead | None = None
     flashcard_state: FlashcardStateRead | None = None
+    revision: RevisionRead | None = None
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactDetail":
@@ -189,6 +206,7 @@ class ArtifactDetail(ArtifactRead):
             ],
             quiz_state=_quiz_state(artifact),
             flashcard_state=_flashcard_state(artifact),
+            revision=_revision(artifact),
         )
 
 
@@ -208,6 +226,19 @@ def _version(artifact: Artifact) -> ArtifactVersionRead | None:
         return None
     return ArtifactVersionRead(
         root_id=version.root, number=version.number, parent_id=version.parent
+    )
+
+
+def _revision(artifact: Artifact) -> RevisionRead | None:
+    revision = revision_of(artifact.artifact_metadata)
+    if revision is None:
+        return None
+    report = revision.get("report")
+    return RevisionRead(
+        derived_from_document_id=revision.get("derived_from_document_id"),
+        source_name=revision["source_name"],
+        counts=revision.get("counts"),
+        applied=report["applied"] if report else None,
     )
 
 

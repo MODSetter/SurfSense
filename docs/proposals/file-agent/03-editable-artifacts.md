@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/alembic/versions/
   - surfsense_local/backend/modules/artifacts/
@@ -28,6 +28,8 @@ code:
 # Editable artifacts
 
 > An artifact becomes a list of versions that only grows. A regenerate, a refine prompt, an edit to a selected passage, an accepted tracked change, a restore, a workflow run and a file the agent wrote each make a new version, and every version is created by one function and run by a named job on the Studio or the engines queue. The version shown and indexed, the head, moves only when a run succeeds, so a failed or cancelled run never hides the last good output. Every edit names the version it was made against and is refused when the head has moved. A filled questionnaire or a redlined contract is an artifact derived from the user's file: its first version is that file with the edits applied as tracked changes, the user's file is never written, and the copy downloads without internal comments unless the user asks for them. Every edit returns a per-operation report built by the engine that applied it, not by the model, and an edit the user did not ask to be partial either applies whole or saves nothing.
+
+**Status, 11 Oct 2026:** a cut of the revised copies is built, merged into `dev` with [#2194](https://github.com/MODSetter/SurfSense/pull/2194) and shipped in 2.2.0: `surfsense_revise_document` makes v1 of a revised copy from a ticked `.docx`, `.xlsx`, `.xlsm` or `.pptx` source and its next versions, with all-or-nothing reports, Word edits always tracked, internal comments, Accept all and Reject all as versions, and the "With changes" and "Clean" downloads under localized names. Versions stay artifacts with `version` in metadata, not `artifact_versions` rows; the engines run in the Studio worker, not an engines queue; quotes replace `inspect_document` ids. What is true now, and what was cut, is in [studio](../../architecture/studio.md#revised-copies) and its Known gaps.
 
 Stream 03 of the file-agent proposal. Facts were checked against `dev_mod` at `0847e12f7` on 2026-10-03; "verified" means read in the linked file, "estimate" means not measured. Milestones (M0 to M10) are the [README](README.md)'s.
 
@@ -343,7 +345,7 @@ The workspace export and import bundle (README, M6) carries each artifact's vers
 
 ### Agent outputs
 
-This matters once a model has `agent` in `capability_of(session).engines` (05). Agent threads stay behind the developer switch until M5 turns the agent on in installers, which waits for this phase. The working folder is the thread's, from 01: `thread_working_dir(ws, thread)/outputs/`.
+This matters once a model has `agent` in `capability_of(session).engines` (05). Installers carry the agent since 7 Oct 2026, ahead of this phase. The working folder is the thread's, from 01: `thread_working_dir(ws, thread)/outputs/`.
 
 **What counts as a deliverable.** A file in `outputs/` or a subfolder, not under `_work/` or a dot-folder, not an Office lock file `~$*`, with suffix `.docx .xlsx .pptx .pdf .html .md .txt .csv .png .jpg .jpeg`, passing [`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py)`::validate_upload`, non-empty and at most 100 MB. The agent prompt gains one line: finished files in `outputs/`, working files in `outputs/_work/` (the skills project's convention, I5).
 
@@ -459,7 +461,7 @@ They live in `modules/artifacts/version_router.py`. Quiz and flashcard routes pa
 | **6. Artifacts as sources** | M3 | Self-exclusion through 01's resolver; `inputs.sources[].version`; the newer-source hint. | 1; 01's scope resolver and filing (its phases 0 and 5) | S. |
 | **7. Keeping and forking** | M10 | Pin and configurable retention; Save as copy (`artifacts.derived_from_version`, kind `copy`); `markdown` and `csv` viewers with `allowedImagePrefixes: []`; PDF export through `export_job` with Office support; a filter on head title and body in Studio's list; cross-artifact dedup if measured disk use asks for it. | 1; 04's RT3b for PDF | M. |
 
-Phases 2, 3 and 6 can run in parallel after 1. Phase 3 ships in M5 with 06's Answer / Work on files switch, and M5 turns the agent on in installers only once it has shipped, so files the agent writes are never invisible to the user. Phase 4 carries the B2B value; it waits on 02's clean-room engine work in M1 and ships with `docx.external` in M6.
+Phases 2, 3 and 6 can run in parallel after 1. Phase 3 ships in M5 with 06's Answer / Work on files switch, and M5 turns the agent on in installers only once it has shipped, so files the agent writes are never invisible to the user. The agent reached installers in 2.2.0 (9 Oct 2026) without phase 3, so a file it writes with its own tools stays in `outputs/`, outside Studio ([agent](../../architecture/agent.md#known-gaps)). Phase 4 carries the B2B value; it waits on 02's clean-room engine work in M1 and ships with `docx.external` in M6.
 
 ## Tests
 
@@ -505,7 +507,7 @@ New:
 - **[Export bundle contract](../../contracts/03-export-bundle.md):** the workspace bundle carries artifact versions, as under Export.
 - **[Agent README](../agent/README.md):** drop "Editing sources or artifacts, undo, git history" from Out of scope; "nothing edits the user's files" becomes a tested rule. **[`02-tools.md`](../agent/02-tools.md):** `create_artifact` returns id and version; `revise_artifact` joins 02's engine tools.
 - **[studio](../../architecture/studio.md), [data model](../../architecture/data-model.md), [agent](../../architecture/agent.md):** rewrite Regenerate, routes, viewers, tables and the `artifacts/<id>/` layout at phase 1; agent Known gaps lose "outputs do not become artifacts" and "no thread or step" at phase 3.
-- **[Plugins protocol](../plugins/01-protocol.md):** it notes that the only artifact route generates from documents. The version routes here are what a later `artifact` domain would wrap.
+- **[Plugins protocol](../plugins/bundles/01-protocol.md):** it notes that the only artifact route generates from documents. The version routes here are what a later `artifact` domain would wrap.
 - **Asks of [02](02-skills-and-engines.md):** `engine_job` ends a successful run by handing the version to `index_version` (files, report, plan, changes and views recorded; `queue` set to `studio`; status back to `pending`) instead of calling `commit_version`, so `queue` is set at creation and changed only by that hand-over; ops stay in the `plan` role; `EngineResult.checks` carries pass or fail per check id; reports carry `{code, values}` per operation and per `must_tell_user` line; `docx.external` and accept-all write the `external` and `clean` files in the job that makes the version; `revise_artifact` sits after `edit_document` in `TOOL_ORDER`, which has no `publish_output` or `checkout_artifact`; the provenance bullet points to `attach_steps`.
 - **Asks of [01](01-sources-and-folders.md):** `output_path` is relative to the thread's `outputs/` and unique on `(chat_thread_id, output_path)`; thread delete nulls `output_path` on the thread's artifacts; folder delete goes through `versions.guard_delete`.
 - **Asks of [04](04-runtime-and-packs.md):** the engines sidecar loads no embedding encoder, since chunks and vectors are computed in the Studio worker; the font mapping in `docx-viewer.tsx` is taken here, using RT2's WOFF2 files; phase 7's PDF export is a fourth caller of `convert()`, in an export job outside `transact()`; the interface says "Office support".

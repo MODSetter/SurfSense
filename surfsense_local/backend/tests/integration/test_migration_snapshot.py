@@ -134,3 +134,31 @@ def test_a_copy_that_cannot_be_written_stops_the_upgrade(tmp_path: Path) -> None
         upgrade_to_head(engine, backups_dir=blocked)
 
     assert _revision(engine) == previous
+
+
+def test_a_cleanup_that_fails_too_still_reports_the_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Start is told the copy failed and why, whatever removing its partial file says.
+
+    Beneath a file, macOS and Linux refuse the removal itself; Windows calls the
+    partial file missing. This refusal is raised on all three.
+    """
+    engine = _populated_behind_head(tmp_path / "surfsense.db")
+    _, previous = _head_and_previous()
+    blocked = tmp_path / "backups"
+    blocked.write_bytes(b"not a folder")
+    unlink = Path.unlink
+
+    def refuse_the_partial(path: Path, missing_ok: bool = False) -> None:
+        if path.name.endswith(".partial"):
+            raise NotADirectoryError(20, "Not a directory", str(path))
+        unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", refuse_the_partial)
+
+    with pytest.raises(RuntimeError, match="snapshot") as raised:
+        upgrade_to_head(engine, backups_dir=blocked)
+
+    assert isinstance(raised.value.__cause__, FileExistsError)
+    assert _revision(engine) == previous

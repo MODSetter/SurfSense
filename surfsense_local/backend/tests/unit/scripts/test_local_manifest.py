@@ -200,7 +200,7 @@ def test_the_list_is_most_preferred_first() -> None:
         if not isinstance(entry, (ImageEntry, AudioEntry, EmbeddingEntry))
     ]
 
-    assert names[0] == "Qwen3 32B"
+    assert names[0] == "Qwen3.8 27B"
     assert names[-1] == "Qwen3 0.6B"
     # bge first: it ships with the app and is the default.
     assert [e.id for e in ENTRIES if isinstance(e, EmbeddingEntry)] == [

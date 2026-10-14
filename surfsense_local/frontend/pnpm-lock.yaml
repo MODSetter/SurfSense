@@ -98,6 +98,9 @@ importers:
       shadcn:
         specifier: ^4.20.1
         version: 4.20.1(typescript@6.0.3)
+      shiki:
+        specifier: 3.23.0
+        version: 3.23.0
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

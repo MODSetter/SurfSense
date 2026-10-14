@@ -1,7 +1,7 @@
 """Unit tests for proxy provider selection.
 
-``PROXY_PROVIDER`` selects the single app-wide provider; ``custom`` (the default)
-and ``dataimpulse`` are registered, and unknown values still warn and fall back
+``PROXY_PROVIDER`` selects the single app-wide provider; ``custom`` (the default),
+``dataimpulse`` and ``nodemaven`` are registered, and unknown values still warn and fall back
 to the default.
 """
 
@@ -11,6 +11,7 @@ from app.config import Config
 from app.utils.proxy import registry
 from app.utils.proxy.providers.custom import CustomProxyProvider
 from app.utils.proxy.providers.dataimpulse import DataImpulseProvider
+from app.utils.proxy.providers.nodemaven import NodeMavenProvider
 
 pytestmark = pytest.mark.unit
 
@@ -29,6 +30,11 @@ def test_resolves_custom(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_resolves_dataimpulse(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Config, "PROXY_PROVIDER", "dataimpulse")
     assert isinstance(registry.get_active_provider(), DataImpulseProvider)
+
+
+def test_resolves_nodemaven(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Config, "PROXY_PROVIDER", "nodemaven")
+    assert isinstance(registry.get_active_provider(), NodeMavenProvider)
 
 
 def test_unknown_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:

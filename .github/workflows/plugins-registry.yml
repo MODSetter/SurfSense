@@ -1,0 +1,209 @@
+name: Plugins Registry
+
+# plugins/registry/: the third-party plugin list, its icons, its check and the
+# OAuth files the registry container serves.
+# - Pull requests: check the entry rules and icons, then connect to each plugin
+#   the pull request adds or changes. A maintainer connects each new listing on
+#   dev, signing in where it needs it, and reviews its tools before it reaches main.
+# - Dev: write plugins/registry/published/, a copy of plugins.json stamped with
+#   generated_at and each icon's SHA-256, and plugins.json.sig, its signature.
+#   The release pull request from dev carries it to main, which the registry
+#   container is built from, so nothing pushes to main. The source list is never
+#   rewritten, and the private key never leaves this secret.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [dev]
+    paths:
+      - 'plugins/registry/plugins.json'
+      - 'plugins/registry/icons/**'
+  # Checks the list on any branch; on dev, also signs it again.
+  workflow_dispatch:
+
+# A newer push to a pull request replaces its run; a signing is never cut short.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # The app compiles in the same key.
+  REGISTRY_PUBLIC_KEY: 9498a1606105a625feeaa655648df03885410421a387478a72ec763188f10395
+  SIGN_MESSAGE: 'chore(registry): sign the plugin list'
+
+jobs:
+  # Filtered per job, not per workflow: a workflow skipped by its paths leaves
+  # its checks pending, while a skipped job reports success.
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    outputs:
+      registry_changed: ${{ steps.changed_paths.outputs.registry_changed }}
+      published_changed: ${{ steps.changed_paths.outputs.published_changed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Filter changed paths
+        id: changed_paths
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            registry_changed:
+              - 'plugins/registry/**'
+              - 'surfsense_local/backend/modules/plugins/lists/first_party/plugins.json'
+              - '.github/workflows/plugins-registry.yml'
+            published_changed:
+              - 'plugins/registry/published/plugins.json*'
+
+  # Only the sign job writes the signed copy. The release pull request from dev
+  # into main carries that job's commits, so it is let through.
+  refuse-hand-signed-list:
+    name: Refuse hand edits to the signed list
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.published_changed == 'true' &&
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      !(github.head_ref == 'dev' && github.base_ref == 'main')
+
+    steps:
+      - name: Fail
+        run: |
+          echo "::error::plugins/registry/published/ is written by the sign job on dev only. Edit plugins/registry/plugins.json instead."
+          exit 1
+
+  check-registry:
+    name: Check registry
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    # Runs on a manual run too, when detect-changes is skipped.
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+      needs.detect-changes.outputs.registry_changed == 'true')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          # The merge's first parent is the list this pull request is based on.
+          fetch-depth: 2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: plugins/registry/check
+        run: uv sync
+
+      - name: Lint
+        working-directory: plugins/registry/check
+        run: uv run ruff check .
+
+      - name: Check formatting
+        working-directory: plugins/registry/check
+        run: uv run ruff format --check .
+
+      - name: Run tests
+        working-directory: plugins/registry/check
+        run: uv run pytest
+
+      # Ids are unique across both lists, so it reads the first-party list too.
+      - name: Check the entry rules and icons
+        working-directory: plugins/registry/check
+        run: uv run python -m registry_check static
+
+      # Connects to each plugin the pull request adds or changes, after the entry
+      # rules refused loopback and credentials. Pull requests only: a third-party
+      # server down for a minute must never hold up signing the list.
+      - name: Connect to each new or changed plugin
+        if: github.event_name == 'pull_request'
+        working-directory: plugins/registry/check
+        run: |
+          base="$RUNNER_TEMP/base-plugins.json"
+          git show HEAD^1:plugins/registry/plugins.json > "$base" 2>/dev/null \
+            || echo '{"schema_version": 1, "plugins": []}' > "$base"
+          uv run python -m registry_check live --base "$base"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Test the OAuth callback page
+        run: node --test 'plugins/registry/oauth/tests/*.test.mjs'
+
+  sign:
+    name: Sign the registry
+    runs-on: ubuntu-latest
+    # Its commit touches only published/, outside the push paths above; the
+    # message check guards a manual run or a future path change.
+    if: >-
+      github.ref == 'refs/heads/dev' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+      !startsWith(github.event.head_commit.message, 'chore(registry): sign the plugin list')))
+    permissions:
+      contents: write
+    # Two signings at once would race to push.
+    concurrency:
+      group: plugins-registry-sign
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: plugins/registry/check
+        run: uv sync
+
+      # Never sign a list that would not pass review.
+      - name: Check the entry rules and icons
+        working-directory: plugins/registry/check
+        run: uv run python -m registry_check static
+
+      - name: Sign
+        working-directory: plugins/registry/check
+        env:
+          REGISTRY_SIGNING_KEY: ${{ secrets.REGISTRY_SIGNING_KEY }}
+        run: uv run python -m registry_check sign
+
+      - name: Verify with the public key
+        working-directory: plugins/registry/check
+        env:
+          REGISTRY_VERIFY_COMMITTED: '1'
+        run: |
+          uv run python -m registry_check verify --public-key "$REGISTRY_PUBLIC_KEY"
+          uv run pytest tests/test_signing.py -k committed
+
+      - name: Commit the signed list
+        run: |
+          git add plugins/registry/published/plugins.json plugins/registry/published/plugins.json.sig
+          if git diff --cached --quiet; then
+            echo "Nothing to sign."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "$SIGN_MESSAGE"
+          git push origin HEAD:dev

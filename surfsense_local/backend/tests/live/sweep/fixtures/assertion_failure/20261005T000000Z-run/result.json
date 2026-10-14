@@ -1,0 +1,13 @@
+{
+ "case": "pdf-brief",
+ "model": "google/gemma-4-31b-it",
+ "provider": "openrouter",
+ "reads_images": true,
+ "outcome": "failed",
+ "detail": "ief.py:58: in test_the_agent_drafts_a_pdf_brief_then_fits_it_to_one_page\n    await assert_pages_checked(live, first, \"turn 1\")\ntests\\live\\turn_renders.py:129: in assert_pages_checked\n    assert not unread, f\"{turn}: the agent never opened page(s) {unread} of {made}\"\n           ^^^^^^^^^^\nE   AssertionError: turn 1: the agent never opened page(s) [1] of Version(id=1, format='pdf', root=1, number=1)",
+ "word_previews": {
+  "unavailable": null,
+  "printed": 0,
+  "failures": []
+ }
+}

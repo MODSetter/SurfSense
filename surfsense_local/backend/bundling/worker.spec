@@ -85,7 +85,11 @@ datas += collect_data_files("worker.studio", includes=["**/*.md"])
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 
 # Huey resolves a task by its name, so the module that registers it must be in.
-hiddenimports += ["modules.documents.tasks", "modules.artifacts.tasks"]
+hiddenimports += [
+    "modules.documents.tasks",
+    "modules.artifacts.tasks",
+    "modules.agent.data_analysis.task",
+]
 
 # Document scripts (worker/document_script/) draw charts, and nothing imports
 # matplotlib statically. Naming pyplot runs PyInstaller's own hooks, which add
@@ -95,6 +99,9 @@ hiddenimports += [
     "matplotlib.pyplot",
     "matplotlib.backends.backend_pdf",
     "matplotlib.backends.backend_svg",
+    # Analysis scripts read spreadsheets with it (modules/agent/data_analysis);
+    # only Docling reaches it statically, so it is named in case that changes.
+    "pandas",
 ]
 
 a = Analysis(

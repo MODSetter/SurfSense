@@ -180,9 +180,15 @@ def test_repricing_an_empty_directory_writes_an_empty_preset(
 
 
 def test_repricing_unchanged_models_does_not_rewrite_the_preset(
-    service, tmp_path: Path
+    service, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Electron treats a new mtime as a reason to restart the warmed router."""
+    # No runtime is staged here, so nothing states physical RAM and the budget
+    # is the live reading, which sizes `cache-ram`. Hold it still: the models
+    # are what this test leaves unchanged, not the host's free memory.
+    monkeypatch.setattr(
+        "modules.llm.catalog.local.service.available_bytes", lambda: 8 * 1024**3
+    )
     a_model(tmp_path / "models" / "Qwen3-1.7B-Q4_K_M.gguf")
     service.llamacpp.reprice()
     preset = tmp_path / "models" / PRESET_FILE

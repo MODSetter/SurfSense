@@ -77,6 +77,7 @@ async def test_it_waits_for_the_configuration_it_just_wrote(
         reads_images=False,
         endpoint_url="http://127.0.0.1:1/v1",
         launch_key="old-key",
+        route="chat_completions",
     )
     write_opencode_config(agent_dir / "opencode.json", old)
 
@@ -124,6 +125,7 @@ async def test_a_model_that_comes_to_read_images_is_reloaded_with_image_input(
         reads_images=False,
         endpoint_url="http://127.0.0.1:1/v1",
         launch_key="same-key",
+        route="chat_completions",
     )
     write_opencode_config(agent_dir / "opencode.json", without_images)
 

@@ -15,6 +15,7 @@ import {
   type SheetView,
 } from "./parse-workbook"
 import { VIEWER_PADDING } from "./viewer-layout"
+import { studioKeys } from "../query-keys"
 
 function columnLabel(index: number): string {
   let n = index
@@ -99,7 +100,11 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["artifact-workbook", artifact.id],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "workbook",
+      artifact.generation,
+    ],
     queryFn: async () => {
       if (!primary) throw new Error("This artifact has no file to preview")
       if (primary.size_bytes > MAX_VIEWER_BYTES) {
@@ -108,7 +113,9 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
           `Workbook is too large to preview (${primary.size_bytes} bytes)`
         )
       }
-      const response = await fetch(fileUrl(artifact.id, "primary"))
+      const response = await fetch(
+        fileUrl(artifact.id, "primary", artifact.generation)
+      )
       if (!response.ok) {
         throw new Error(`Could not load workbook (${response.status})`)
       }

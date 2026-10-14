@@ -57,9 +57,9 @@ async def test_a_turn_works_only_from_the_ticked_source(
 
     asked, answered = agent_api.model.requests[:2]
     told = _user_text(asked)
-    # The thread's folder holds only the ticked source, so the note names no file.
+    # The note names the ticked source's file, and only that one.
     assert f"[surfsense-scope: {ticked}]" in told
-    assert "Plan [" not in told and f"Memo [{unticked}]" not in told
+    assert f"Plan [{ticked}].md" in told and "Memo [" not in told
     folder = thread_folder(agent_api.workspace_id, thread["id"])
     assert sorted(p.name for p in (folder / "sources").rglob("*.md")) == [
         f"Plan [{ticked}].md"

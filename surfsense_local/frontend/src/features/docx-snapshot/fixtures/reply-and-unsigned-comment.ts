@@ -1,0 +1,44 @@
+// "The fee is fixed for a year." with a comment by Dana on "fixed" and a
+// reply by SurfSense whose range holds hers and her marker, as Word nests
+// replies; and "Notices go by post." with a comment saved with no author or
+// date. Zipped by hand, kept as base64 because Vite reads no .docx as an
+// asset.
+const BASE64 = [
+  "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",
+  "dHMueG1sUEsFBgAAAAAFAAUAQgEAAKsFAAAAAA==",
+].join("")
+
+export const REPLY_AND_UNSIGNED_COMMENT = Uint8Array.from(
+  atob(BASE64),
+  (char) => char.charCodeAt(0)
+)

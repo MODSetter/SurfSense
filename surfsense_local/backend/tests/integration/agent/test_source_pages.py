@@ -6,6 +6,7 @@ from Electron, which a thread plays here on the snapshot queue itself.
 
 import base64
 import threading
+import zipfile
 from collections.abc import Callable, Iterator
 from io import BytesIO
 from pathlib import Path
@@ -28,6 +29,7 @@ from shared.config import get_storage_settings
 from tests.integration.agent.conftest import MAX_PATH, declare_image_input
 from tests.integration.agent.test_office_documents import _uploaded
 from tests.integration.agent.tool_endpoint_client import ToolEndpoint
+from tests.office_stand_in import office_on
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("model_reads_images")]
 
@@ -264,6 +266,50 @@ async def test_a_word_sources_pages_are_printed_by_electron_from_its_original(
     assert "headers and footers" in text
 
 
+async def test_a_word_page_past_what_word_last_saved_says_its_count_is_unknown(
+    tools: ToolEndpoint, engine: Engine, electron
+) -> None:
+    """A rehearsal answered "has 1 page" beside page 4: the saved count was python-docx's template's."""
+    workspace_id = await tools.workspace()
+    original = _docx()
+    assert b"<Pages>1</Pages>" in zipfile.ZipFile(BytesIO(original)).read(
+        "docProps/app.xml"
+    )
+    source_id = _uploaded(engine, workspace_id, "Conditions.docx", original)
+    electron(lambda request: _pdf(A4))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id, pages=[4])
+    )
+
+    assert is_error is False, text
+    assert len(images) == 1
+    assert "Page 4 comes with this result as an image." in text
+    assert "has 1 page" not in text
+    assert "Word last counted" not in text
+    assert (
+        f'Source {source_id} ("Conditions.docx") has at least 4 pages; how many in '
+        "all is not known"
+    ) in text
+
+
+async def test_a_word_source_the_desktop_app_cannot_print_has_an_unknown_count(
+    tools: ToolEndpoint, engine: Engine, electron
+) -> None:
+    """With nothing printed, no count is guessed from the file's saved properties."""
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Conditions.docx", _docx())
+    electron(lambda request: _pdf(A4, A4, A4))
+
+    text, _images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id, pages=[2, 4])
+    )
+
+    assert is_error is False, text
+    assert "has an unknown number of pages" in text
+    assert "has 1 page" not in text
+
+
 async def test_a_decks_slides_are_counted_and_printed_as_asked(
     tools: ToolEndpoint, engine: Engine, electron
 ) -> None:
@@ -462,3 +508,71 @@ async def test_a_deck_with_no_slides_says_so(
     assert is_error is True
     assert "has no slides to draw" in text
     assert served == []
+
+
+async def test_with_office_support_a_word_source_is_laid_out_by_libreoffice(
+    tools: ToolEndpoint, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The whole file is laid out, so the count is exact and no desktop app is needed."""
+    office = office_on(monkeypatch, pages=7)
+    workspace_id = await tools.workspace()
+    original = _docx()
+    source_id = _uploaded(engine, workspace_id, "Letter.docx", original)
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id, pages=[2, 6])
+    )
+
+    assert is_error is False, text
+    assert f'Source {source_id} ("Letter.docx") has 7 pages.' in text
+    assert "Pages 2 and 6 come with this result as images, in order." in text
+    assert "Drawn by LibreOffice 26.8.1" in text
+    assert "SurfSense's Word viewer" not in text
+    assert len(images) == 2
+    assert office.read == [(".docx", original)]
+
+
+async def test_a_deck_libreoffice_lays_out_with_fewer_slides_is_printed_by_electron(
+    tools: ToolEndpoint,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    electron: Callable[[Callable[[SnapshotRequest], bytes]], list[SnapshotRequest]],
+) -> None:
+    """LibreOffice leaves hidden slides out; slide numbers must stay the deck's own."""
+    office_on(monkeypatch, pages=2)
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Review.pptx", _pptx(3))
+    served = electron(lambda request: _pdf(*[landscape(A4)] * 3))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
+
+    assert is_error is False, text
+    assert len(served) == 1
+    assert len(images) == 3
+    assert "LibreOffice" not in text
+
+
+async def test_when_libreoffice_fails_on_a_source_electron_prints_it_and_says_so(
+    tools: ToolEndpoint,
+    engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    electron: Callable[[Callable[[SnapshotRequest], bytes]], list[SnapshotRequest]],
+) -> None:
+    """Today's path is the fallback, and the model learns why it was taken."""
+    office_on(monkeypatch, failure="LibreOffice did not finish in time.")
+    workspace_id = await tools.workspace()
+    source_id = _uploaded(engine, workspace_id, "Review.pptx", _pptx(2))
+    electron(lambda request: _pdf(*[landscape(A4)] * 2))
+
+    text, images, is_error = await tools.call_content(
+        workspace_id, "source_pages", _call(source_id)
+    )
+
+    assert is_error is False, text
+    assert len(images) == 2
+    assert (
+        "LibreOffice did not finish in time. The desktop app printed these pages "
+        "instead."
+    ) in text

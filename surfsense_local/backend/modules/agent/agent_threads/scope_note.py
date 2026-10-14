@@ -3,11 +3,13 @@
 It goes to opencode as a synthetic part beside the user's words, so it lives in
 the session and survives compaction; its first line is SurfSense's own tag, so
 reading the thread back can take it out of the user's text and show the scope.
-The thread's folder holds only its sources, so the note names no files.
+The thread's folder holds only its sources; a few are named by path anyway, as a
+small model guesses a file's name rather than looking for it.
 """
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import PurePosixPath
 from typing import Any
 
 from sqlalchemy import select
@@ -21,8 +23,13 @@ _TAG = re.compile(r"\[surfsense-scope: (none|count=\d+|\d+(?:,\d+)*)\]")
 # Past this many, the tag counts the sources: every turn's note stays in the
 # session, and 5,000 ids are about 30 KB.
 TAGGED_IDS = 200
+# Up to this many, the note names each source's file.
+NAMED_PATHS = 20
 
 _EARLIER = "Passages read earlier from other sources no longer apply."
+# A small model repeats the note as the start of its answer.
+_UNSAID = "SurfSense adds this note to the user's message; never repeat or quote it."
+_HOW = "Open {them} with `read`, or search {them} with `surfsense_search_sources`."
 _NONE_SELECTED = (
     "No sources are selected for this request. Do not search, open or cite any "
     f"file in {SOURCES}/. Answer from the conversation, or ask the user to select "
@@ -35,11 +42,16 @@ _STILL_READING = (
 )
 
 
-def scope_note(ids: Sequence[int], indexing: int = 0) -> str:
+def scope_note(
+    ids: Sequence[int],
+    indexing: int = 0,
+    paths: Mapping[int, PurePosixPath] | None = None,
+) -> str:
     """The note for a turn's sources, already checked or resolved as a chat's are.
 
     `indexing` counts ticked sources not ready yet, so a ticked folder still
-    being read is not called "no sources".
+    being read is not called "no sources". `paths` places sources under
+    `sources/`; up to NAMED_PATHS are named when each has one.
     """
     if not ids:
         selected = (
@@ -48,19 +60,33 @@ def scope_note(ids: Sequence[int], indexing: int = 0) -> str:
             else f"{indexing} selected sources are"
         )
         why = _STILL_READING.format(selected=selected) if indexing else _NONE_SELECTED
-        return f"[surfsense-scope: none]\n{why} {_EARLIER}"
+        return f"[surfsense-scope: none]\n{why} {_EARLIER} {_UNSAID}"
     tag = (
         f"[surfsense-scope: {','.join(map(str, ids))}]"
         if len(ids) <= TAGGED_IDS
         else f"[surfsense-scope: count={len(ids)}]"
     )
-    chose = (
-        f"1 source for this chat; it is the file in {SOURCES}/. Use only that one."
-        if len(ids) == 1
-        else f"{len(ids)} sources for this chat; they are the files in {SOURCES}/. "
-        "Use only those."
-    )
-    return f"{tag}\nThe user chose {chose} {_EARLIER}"
+    named = paths or {}
+    if len(ids) <= NAMED_PATHS and all(i in named for i in ids):
+        # Quoted, as a mirrored name never holds a double quote; it can hold a backtick.
+        files = [f'"{SOURCES}/{named[i]}"' for i in ids]
+        chose = (
+            f"1 source for this chat, the file {files[0]}. Use only that one. "
+            + _HOW.format(them="it")
+            if len(ids) == 1
+            else f"{len(ids)} sources for this chat, these files:\n"
+            + "\n".join(f"- {file}" for file in files)
+            + "\nUse only those. "
+            + _HOW.format(them="them")
+        )
+    else:
+        chose = (
+            f"1 source for this chat; it is the file in {SOURCES}/. Use only that one."
+            if len(ids) == 1
+            else f"{len(ids)} sources for this chat; they are the files in {SOURCES}/. "
+            "Use only those."
+        )
+    return f"{tag}\nThe user chose {chose} {_EARLIER} {_UNSAID}"
 
 
 def shown_scope(

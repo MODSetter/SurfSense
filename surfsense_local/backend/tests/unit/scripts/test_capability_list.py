@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from capability_list.ladder_input import LadderResults
-from capability_list.rows import COMMITTED_INPUT, measured_rows
+from capability_list.rows import COMMITTED_INPUT, measured_rows, with_ladder_rows
 from capability_list.verdict import verdict
 
 from modules.llm.capability import Level
@@ -143,13 +143,18 @@ def test_a_pass_holds_only_where_it_was_measured_and_a_failure_everywhere() -> N
 def test_the_shipped_list_is_what_the_generator_writes_from_the_committed_results() -> (
     None
 ):
-    """Edited by the generator only, so a reviewer reads one diff: the results."""
+    """Edited by the generators only, so a reviewer reads one diff: the results.
+
+    The ladder's rows are its own; the screening sweep's sit after them.
+    """
     committed = LadderResults.model_validate_json(
         COMMITTED_INPUT.read_text(encoding="utf-8")
     )
     shipped = CapabilityList.model_validate_json(SHIPPED.read_text(encoding="utf-8"))
+    ladder = measured_rows(committed)
 
-    assert measured_rows(committed) == shipped
+    assert with_ladder_rows(shipped, ladder) == shipped
+    assert shipped.models[: len(ladder.models)] == ladder.models
     assert json.loads(SHIPPED.read_text(encoding="utf-8"))["schema_version"] == 1
 
 

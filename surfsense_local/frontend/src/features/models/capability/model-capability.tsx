@@ -1,22 +1,20 @@
-import { useId } from "react"
-
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 import { intl } from "@/i18n/intl"
 
 import { useSelection } from "../selection/use-selection"
 import type { ModelCapability } from "./api"
 import { capabilityLabel } from "./capability-label"
-import { useAgentTrial } from "./use-agent-trial"
 
 /**
  * What the chat model in use is measured to do, under the model in use: the
- * level, its evidence, and for a model nobody measured, the agent trial.
+ * level, its evidence, and the mode its new chats start in.
  */
 export function ModelCapabilitySummary() {
   const selection = useSelection("text_gen")
   const capability = selection.data?.capability
   if (!capability) return null
+  // Listed at the agent level without a run: said once, never as a pass.
+  const assumed = capability.measured?.assumed === true
 
   return (
     <section
@@ -38,23 +36,27 @@ export function ModelCapabilitySummary() {
           {capabilityLabel(capability.level)}
         </Badge>
         <span className="text-muted-foreground">
-          {intl.formatMessage(
-            {
-              id: "models_capability_level_body",
-              defaultMessage:
-                "{level, select, agent {New chats work on your files with the agent.} agent_limited {New chats use the agent, which may need a nudge, such as asking it to check each page.} studio_only {Chats answer questions, and Studio writes Word and PDF from Markdown.} other {Chats answer questions, and Studio works as before.}}",
-            },
-            { level: capability.level }
-          )}
+          {assumed
+            ? intl.formatMessage({
+                id: "models_capability_assumed_body",
+                defaultMessage:
+                  "Not run: SurfSense expects this expensive flagship model to pass.",
+              })
+            : intl.formatMessage(
+                {
+                  id: "models_capability_level_body",
+                  defaultMessage:
+                    "{level, select, agent {Passed SurfSense’s Agentic tests.} agent_limited {Near the bar in SurfSense’s Agentic tests: it may need a nudge, such as asking it to check each page.} studio_only {Below the bar in SurfSense’s Agentic tests, so Studio writes Word and PDF from Markdown.} other {Not tested for Agentic mode yet.}}",
+                },
+                { level: capability.level }
+              )}
         </span>
       </div>
-      <Evidence capability={capability} />
-      {capability.note ? (
+      {assumed ? null : <Evidence capability={capability} />}
+      {capability.note && !assumed ? (
         <p className="text-muted-foreground">{capability.note}</p>
       ) : null}
-      {capability.level === "not_measured" ? (
-        <AgentTrialControl capability={capability} />
-      ) : null}
+      <Modes capability={capability} />
     </section>
   )
 }
@@ -103,55 +105,36 @@ function Evidence({ capability }: { capability: ModelCapability }) {
   )
 }
 
-function AgentTrialControl({ capability }: { capability: ModelCapability }) {
-  const trial = useAgentTrial()
-  const warningId = useId()
-  const { offered, enabled, blocked } = capability.agent_trial
-
-  if (!offered) {
-    return blocked ? (
-      <p className="text-muted-foreground">
-        {intl.formatMessage(
-          {
-            id: "models_capability_trial_blocked_body",
-            defaultMessage:
-              "{blocked, select, window_below_floor {The agent needs a window of at least 32,768 tokens, and this model has less.} other {The model catalog does not say this model can call tools, so the agent cannot be tried with it.}}",
-          },
-          { blocked }
-        )}
-      </p>
-    ) : null
-  }
-
+function Modes({ capability }: { capability: ModelCapability }) {
+  const { modes } = capability
   return (
     <div className="flex flex-col gap-1 pt-1">
-      <label className="flex w-fit cursor-pointer items-center gap-2 font-medium">
-        <Switch
-          checked={trial.isPending ? !enabled : enabled}
-          disabled={trial.isPending}
-          aria-describedby={warningId}
-          onCheckedChange={(checked) => trial.mutate(checked)}
-        />
-        {intl.formatMessage({
-          id: "models_capability_trial_label",
-          defaultMessage: "Try the agent",
-        })}
-      </label>
-      <p id={warningId} className="text-muted-foreground">
-        {intl.formatMessage({
-          id: "models_capability_trial_warning_body",
-          defaultMessage:
-            "SurfSense has not tested the agent with this model, so it may stop early or make mistakes in new chats.",
-        })}
+      <p>
+        {intl.formatMessage(
+          {
+            id: "models_capability_default_mode_body",
+            defaultMessage:
+              "{mode, select, agentic {New chats start in Agentic mode.} other {New chats start in Basic (Q&A) mode.}}",
+          },
+          { mode: modes.default_mode }
+        )}
       </p>
-      {trial.isError ? (
-        <p role="alert" className="text-destructive">
-          {intl.formatMessage({
-            id: "models_capability_trial_error",
-            defaultMessage: "Could not change this setting. Try again.",
-          })}
-        </p>
-      ) : null}
+      <p className="text-muted-foreground">
+        {modes.agentic_allowed
+          ? intl.formatMessage({
+              id: "models_capability_modes_body",
+              defaultMessage:
+                "Choose Basic (Q&A) or Agentic for each new chat in the composer. A chat keeps the mode it started in.",
+            })
+          : intl.formatMessage(
+              {
+                id: "models_capability_agentic_blocked_body",
+                defaultMessage:
+                  "{blocked, select, agent_not_installed {Agentic mode isn’t available: this install doesn’t include the agent.} window_below_floor {Agentic mode isn’t available: it needs a context window of at least 32,768 tokens, and this model has less.} other {Agentic mode isn’t available: this model can’t use tools.}}",
+              },
+              { blocked: modes.blocked ?? "" }
+            )}
+      </p>
     </div>
   )
 }

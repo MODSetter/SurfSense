@@ -19,7 +19,7 @@ class Call(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    # Only /responses is recorded; the client speaks /chat/completions.
+    # Only /responses is recorded; a model without it answers on /chat/completions.
     route: Literal["responses"] | None = None
     # Another wire format entirely, such as "anthropic".
     protocol: str | None = None

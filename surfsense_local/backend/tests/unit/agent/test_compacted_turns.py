@@ -10,6 +10,8 @@ from typing import Any
 
 import pytest
 
+from modules.agent.agent_threads import replies
+from modules.agent.agent_threads.compaction import turn_openers
 from modules.agent.agent_threads.replies import thread_turns, turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.opencode_client import Event
@@ -114,6 +116,76 @@ def test_after_a_failed_compaction_the_next_message_is_the_users() -> None:
         ("user", "Asked in u2"),
         ("assistant", "Here it is."),
     ]
+
+
+MIXED = [
+    _user("u0"),
+    _assistant("a0", "u0", "First."),
+    _user("u1"),
+    _assistant("a1", "u1", finish="tool-calls"),
+    _user("c1", COMPACTION),
+    _summary("s1", "c1"),
+    _user("k1", CONTINUE),
+    _assistant("a2", "k1", "The proposal is in Studio."),
+    _user("u2"),
+    _user("c2", {**COMPACTION, "overflow": True}),
+    _summary("s2", "c2"),
+    _user("r2", {"type": "text", "text": "Asked in u2"}),
+    _assistant("a3", "r2", "Done."),
+    _user("u3"),
+    _user("c3", COMPACTION),
+    _summary("s3", "c3", finish="error", error={"name": "ContextOverflowError"}),
+    _user("u4"),
+    _assistant("a4", "u4", "Step one.", finish="tool-calls"),
+    _assistant("a5", "u4", "Step two."),
+    _assistant("a6", "gone", "Answers nothing in this session."),
+    _user("u5"),
+]
+
+
+@pytest.mark.parametrize("answering", [False, True])
+def test_the_threads_replies_are_each_turns_own(answering: bool) -> None:
+    """Read whole or a turn at a time, through compactions clean, replayed and failed."""
+    noted = {"u4:reply": {"type": "stopped"}}
+
+    turns = thread_turns(MIXED, [], noted, answering)
+
+    users = [turn["id"] for turn in turns if turn["role"] == "user"]
+    assert users == ["u0", "u1", "u2", "u3", "u4", "u5"]
+    expected = [
+        reply
+        for user in users
+        if (
+            reply := turn_reply(
+                MIXED, user, [], noted, live=answering and user == users[-1]
+            )
+        )
+        is not None
+    ]
+    assert [turn for turn in turns if turn["role"] == "assistant"] == expected
+    assert [reply["content"]["text"] for reply in expected] == [
+        "First.",
+        "The proposal is in Studio.",
+        "Done.",
+        "Step one.\n\nStep two.",
+    ]
+
+
+def test_a_thread_is_read_once_however_many_turns_it_has(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Finding each turn's steps by a pass per turn grew with turns times messages."""
+    reads: list[int] = []
+
+    def counted(messages: list[dict[str, Any]]) -> dict[str, str]:
+        reads.append(len(messages))
+        return turn_openers(messages)
+
+    monkeypatch.setattr(replies, "turn_openers", counted)
+
+    thread_turns(MIXED, [])
+
+    assert reads == [len(MIXED)]
 
 
 def _stream(turn: TurnFrames) -> Callable[..., list[dict[str, Any]]]:

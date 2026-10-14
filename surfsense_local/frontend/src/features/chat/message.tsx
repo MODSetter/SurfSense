@@ -6,15 +6,28 @@ import {
   useAuiState,
 } from "@assistant-ui/react"
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
-import { code } from "@streamdown/code"
-import { createMathPlugin } from "@streamdown/math"
-import type { ComponentType } from "react"
+import { useCallback, useDeferredValue, type ComponentType } from "react"
 import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
 import { AgentSteps } from "@/features/agent/agent-steps"
-import type { AgentStep, TurnSources } from "@/features/agent/api"
+import type {
+  AgentStep,
+  TurnSources,
+  UnavailablePlugin,
+} from "@/features/agent/api"
+import { PluginsUnavailable } from "@/features/agent/plugins-unavailable"
 import { WorkingFrom } from "@/features/agent/working-from"
+import { OfficeOfferBanner } from "@/features/office-support/office-offer-banner"
+import {
+  useOfficeOffer,
+  type OfficeOffer,
+} from "@/features/office-support/office-offer"
+import {
+  STREAMDOWN_LINK_SAFETY,
+  streamdownPlugins,
+  streamingStreamdownPlugins,
+} from "@/features/studio/viewers/streamdown-config"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -37,10 +50,6 @@ import {
 } from "./reply-thinking"
 import type { Citation } from "./sse"
 
-const streamdownPlugins = {
-  code,
-  math: createMathPlugin({ singleDollarTextMath: true }),
-}
 const streamdownIcons = { CheckIcon, CopyIcon, DownloadIcon }
 const citationComponents: Components = {
   citation: InlineCitation as ComponentType<
@@ -50,23 +59,38 @@ const citationComponents: Components = {
 const citationAllowedTags = {
   citation: ["data-chunk-id"],
 }
+// Every prop below keeps its identity between renders: a new security object
+// rebuilds the rehype plugins, and then every block of the reply is parsed
+// again on every token instead of the one block that changed.
+const markdownSecurity = {
+  allowedProtocols: ["http", "https", "mailto"],
+  allowedImagePrefixes: [],
+  allowDataImages: false,
+}
+const NO_CITATIONS: Citation[] = []
 
 function MarkdownText() {
-  const citations = useCitationContext()?.citations ?? []
+  const citations = useCitationContext()?.citations ?? NO_CITATIONS
+  const running = useAuiState(
+    ({ message }) => message.status?.type === "running"
+  )
+  // `defer` renders the text a pass late. The plugins switch in that same
+  // pass, or the end of a run would colour the code of the text before it.
+  const streaming = useDeferredValue(running)
+  const preprocess = useCallback(
+    (content: string) => preprocessCitationMarkdown(content, citations),
+    [citations]
+  )
   return (
     <StreamdownTextPrimitive
       defer
       allowedTags={citationAllowedTags}
       components={citationComponents}
       icons={streamdownIcons}
-      plugins={streamdownPlugins}
-      preprocess={(content) => preprocessCitationMarkdown(content, citations)}
-      linkSafety={{ enabled: true }}
-      security={{
-        allowedProtocols: ["http", "https", "mailto"],
-        allowedImagePrefixes: [],
-        allowDataImages: false,
-      }}
+      plugins={streaming ? streamingStreamdownPlugins : streamdownPlugins}
+      preprocess={preprocess}
+      linkSafety={STREAMDOWN_LINK_SAFETY}
+      security={markdownSecurity}
     />
   )
 }
@@ -147,6 +171,10 @@ function MessageThinking() {
   )
 }
 
+// One empty list, so a selector over a message without steps returns the same
+// value each time it runs.
+const NO_STEPS: AgentStep[] = []
+
 function stepsFrom(custom: unknown): AgentStep[] {
   if (
     typeof custom === "object" &&
@@ -156,19 +184,103 @@ function stepsFrom(custom: unknown): AgentStep[] {
   ) {
     return custom.steps as AgentStep[]
   }
-  return []
+  return NO_STEPS
+}
+
+function unavailablePluginsFrom(custom: unknown): UnavailablePlugin[] | null {
+  if (
+    typeof custom === "object" &&
+    custom !== null &&
+    "unavailablePlugins" in custom
+  ) {
+    return (custom.unavailablePlugins as UnavailablePlugin[] | null) ?? null
+  }
+  return null
+}
+
+function MessagePluginsUnavailable() {
+  const plugins = useAuiState(({ message }) =>
+    unavailablePluginsFrom(message.metadata.custom)
+  )
+  return <PluginsUnavailable plugins={plugins} />
+}
+
+function threadIdFrom(custom: unknown): number | null {
+  if (typeof custom === "object" && custom !== null && "threadId" in custom) {
+    return (custom.threadId as number | null) ?? null
+  }
+  return null
 }
 
 function MessageSteps() {
   const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
+  const threadId = useAuiState(({ message }) =>
+    threadIdFrom(message.metadata.custom)
+  )
+  const latest = useAuiState(
+    ({ thread, message }) => message.index === thread.messages.length - 1
+  )
   // The turn's sources are kept on the user's message this reply answers.
   const scope = useAuiState(({ thread, message }) => {
-    const asked = thread.messages
-      .slice(0, message.index)
-      .findLast((candidate) => candidate.role === "user")
-    return asked ? scopeFrom(asked.metadata.custom) : null
+    for (let index = message.index - 1; index >= 0; index -= 1) {
+      const asked = thread.messages[index]
+      if (asked.role === "user") return scopeFrom(asked.metadata.custom)
+    }
+    return null
   })
-  return <AgentSteps steps={steps} scope={scope} />
+  return (
+    <AgentSteps
+      steps={steps}
+      scope={scope}
+      threadId={threadId}
+      latest={latest}
+    />
+  )
+}
+
+type ThreadReply = { id: string; role: string; metadata: { custom: unknown } }
+
+// Every message's selector runs on every store update, so the thread is
+// scanned once per messages array, not once per message.
+const latestOfficeReplies = new WeakMap<
+  OfficeOffer,
+  WeakMap<readonly ThreadReply[], string | null>
+>()
+
+function latestOfficeReplyId(
+  messages: readonly ThreadReply[],
+  offer: OfficeOffer
+) {
+  let byThread = latestOfficeReplies.get(offer)
+  if (!byThread) {
+    byThread = new WeakMap()
+    latestOfficeReplies.set(offer, byThread)
+  }
+  let id = byThread.get(messages)
+  if (id === undefined) {
+    id =
+      messages.findLast(
+        (candidate) =>
+          candidate.role === "assistant" &&
+          stepsFrom(candidate.metadata.custom).some(
+            (step) =>
+              step.artifact != null && offer.isOfficeFile(step.artifact.id)
+          )
+      )?.id ?? null
+    byThread.set(messages, id)
+  }
+  return id
+}
+
+/** The offer shows once per thread: under the latest reply that made an Office file. */
+function MessageOfficeOffer() {
+  const offer = useOfficeOffer()
+  const shown = useAuiState(
+    ({ thread, message }) =>
+      offer !== null &&
+      latestOfficeReplyId(thread.messages, offer) === message.id
+  )
+  return shown ? <OfficeOfferBanner /> : null
 }
 
 function scopeFrom(custom: unknown): TurnSources | null {
@@ -311,8 +423,10 @@ export function AssistantMessage({
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessageThinking />
+          <MessagePluginsUnavailable />
           <MessageSteps />
           <MessagePrimitive.Parts components={assistantMessageParts} />
+          <MessageOfficeOffer />
         </div>
       </CitationProvider>
       <ChatErrorNotice

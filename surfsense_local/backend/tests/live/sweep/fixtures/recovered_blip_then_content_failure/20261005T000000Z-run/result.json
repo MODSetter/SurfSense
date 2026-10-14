@@ -1,0 +1,13 @@
+{
+ "case": "demo-flow",
+ "model": "qwen/qwen3.8-27b",
+ "provider": "openrouter",
+ "reads_images": true,
+ "outcome": "failed",
+ "detail": "tests\\live\\test_demo_flow.py:58: in test_the_agent_drafts_edits_and_exports_a_proposal\n    assert any(f == \"pdf\" and n == 1 for f, _, n in versions), \"no PDF was made\"\nE   AssertionError: no PDF was made\nE   assert False\nE    +  where False = any(<generator object test_the_agent_drafts_edits_and_exports_a_proposal.<locals>.<genexpr> at 0x00000202B1C06DC0>)",
+ "word_previews": {
+  "unavailable": null,
+  "printed": 3,
+  "failures": []
+ }
+}

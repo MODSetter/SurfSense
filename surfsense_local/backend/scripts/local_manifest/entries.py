@@ -85,6 +85,20 @@ _MEASURED = "memory measured on audio.cpp v0.8.2, 24 Sep 2026"
 
 
 ENTRIES: tuple[Entry, ...] = (
+    # Leads: the one local model whose remote runs passed the create-and-edit
+    # ladder (docs/proposals/file-agent/08-model-ladder-results.md).
+    Entry(
+        id="qwen3.8-27b",
+        name="Qwen3.8 27B",
+        family="Qwen3.8",
+        publisher="Qwen",
+        description="Best with documents and tools, and reads images, for 24 GB machines",
+        license="apache-2.0",
+        source_repo="Qwen/Qwen3.8-27B",
+        repo="unsloth/Qwen3.8-27B-GGUF",
+        # No Qwen or bartowski GGUF repo exists for it yet.
+        aliases=("Qwen/Qwen3.8-27B",),
+    ),
     _qwen3("32B", "The strongest answers here, for machines with 24 GB or more"),
     _qwen3("14B", "Careful answers from long documents, for 16 GB machines"),
     _qwen3("8B", "Balanced chat model for documents, fits most 12 GB machines"),

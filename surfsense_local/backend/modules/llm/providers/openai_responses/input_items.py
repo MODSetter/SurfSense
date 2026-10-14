@@ -2,8 +2,8 @@ import base64
 
 from modules.llm.providers.types import Message
 
-# The plan's endpoint refuses `instructions`, so a system prompt travels as the
-# developer's own turn, which the Responses API ranks the same way.
+# A plan rejects `system` items, and every Responses endpoint ranks a developer
+# turn the same way, so a system prompt travels as one.
 _ROLES = {"system": "developer"}
 
 

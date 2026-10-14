@@ -4,6 +4,7 @@ import json
 import os
 import re
 import stat
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ def setup(
         reads_images=reads_images,
         endpoint_url=ENDPOINT,
         launch_key="launch-key",
+        route="chat_completions",
     )
 
 
@@ -50,6 +52,19 @@ def test_opencode_reaches_only_the_model_endpoint_with_the_launch_key(
     assert provider["options"]["baseURL"] == ENDPOINT
     assert provider["options"]["apiKey"] == "launch-key"
     assert config["enabled_providers"] == ["surfsense"]
+
+
+def test_a_responses_model_is_reached_through_openais_own_provider(
+    tmp_path: Path,
+) -> None:
+    """opencode then calls the endpoint's /responses, still SurfSense's, still under the launch key."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, replace(setup(), route="responses"))
+
+    provider = written(path)["provider"]["surfsense"]
+    assert provider["npm"] == "@ai-sdk/openai"
+    assert provider["options"]["baseURL"] == ENDPOINT
+    assert provider["options"]["apiKey"] == "launch-key"
 
 
 def test_every_request_names_the_selected_model_titles_included(tmp_path: Path) -> None:
@@ -150,19 +165,30 @@ def test_the_agent_has_no_shell_and_writes_only_to_outputs(tmp_path: Path) -> No
         assert permission[tool] == "deny", tool
 
 
-def test_only_surfsenses_documents_skill_loads_from_the_shipped_folder(
-    tmp_path: Path,
+@pytest.mark.parametrize("route", ["chat_completions", "responses"])
+def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
+    tmp_path: Path, route: str
 ) -> None:
-    """opencode's built-in skills and any the user installed stay out of SurfSense's agent."""
+    """opencode's built-in skills and any the user installed stay out of SurfSense's agent,
+    whichever route the model answers on."""
     path = tmp_path / "opencode.json"
-    write_opencode_config(path, setup())
+    write_opencode_config(path, replace(setup(), route=route))
 
     config = written(path)
     (skills,) = config["skills"]["paths"]
-    assert (Path(skills) / "surfsense-documents" / "SKILL.md").is_file()
+    for name in (
+        "surfsense-documents",
+        "surfsense-revisions",
+        "surfsense-data",
+        "surfsense-pdf",
+    ):
+        assert (Path(skills) / name / "SKILL.md").is_file()
     assert list(config["permission"]["skill"].items()) == [
         ("*", "deny"),
         ("surfsense-documents", "allow"),
+        ("surfsense-revisions", "allow"),
+        ("surfsense-data", "allow"),
+        ("surfsense-pdf", "allow"),
     ]
 
 
@@ -284,13 +310,14 @@ def test_the_prompt_asks_for_no_shell(tmp_path: Path) -> None:
     assert "approve" not in prompt.lower()
 
 
+@pytest.mark.parametrize("route", ["chat_completions", "responses"])
 @pytest.mark.parametrize("reads_images", [True, False])
 def test_the_written_file_says_whether_the_model_is_shown_images(
-    tmp_path: Path, reads_images: bool
+    tmp_path: Path, reads_images: bool, route: str
 ) -> None:
-    """The render tool draws previews only for a model opencode will show them to."""
+    """The render tool draws previews only for a model opencode will show them to, on either route."""
     path = tmp_path / "opencode.json"
-    write_opencode_config(path, setup(reads_images=reads_images))
+    write_opencode_config(path, replace(setup(reads_images=reads_images), route=route))
 
     assert declares_image_input(path) is reads_images
     assert declares_image_input(tmp_path / "none.json") is False

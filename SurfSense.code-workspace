@@ -10,15 +10,15 @@
 		},
 		{
 			"name": "plugin CLI",
-			"path": "plugins/core/cli"
+			"path": "plugins/bundles/core/cli"
 		},
 		{
 			"name": "plugin SDK",
-			"path": "plugins/core/sdk"
+			"path": "plugins/bundles/core/sdk"
 		},
 		{
 			"name": "plugin manifest rules",
-			"path": "plugins/core/manifest"
+			"path": "plugins/bundles/core/manifest"
 		}
 	],
 	"settings": {}

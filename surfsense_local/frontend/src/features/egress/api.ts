@@ -28,7 +28,11 @@ export function setDestinationEnabled(
   })
 }
 
-export function describeDestination(destination: string, host: string) {
+export function describeDestination(
+  destination: string,
+  host: string,
+  purpose?: string
+) {
   if (destination === "app_updates") {
     return {
       label: intl.formatMessage({
@@ -67,6 +71,69 @@ export function describeDestination(destination: string, host: string) {
           id: "egress_huggingface_prompt_body",
           defaultMessage:
             "Searching sends what you type to {host} as you type it. Downloading sends the name of the model you chose. Both send your IP address, and neither sends your chats or your documents.",
+        },
+        { host }
+      ),
+    }
+  }
+  // Office support's download is the only errand to The Document Foundation.
+  if (
+    host === "documentfoundation.org" ||
+    host.endsWith(".documentfoundation.org")
+  ) {
+    return {
+      label: intl.formatMessage({
+        id: "egress_office_download_label",
+        defaultMessage: "Office support download",
+      }),
+      title: intl.formatMessage({
+        id: "egress_office_download_prompt_title",
+        defaultMessage: "Allow downloading LibreOffice?",
+      }),
+      body: intl.formatMessage(
+        {
+          id: "egress_office_download_prompt_body",
+          defaultMessage:
+            "Turning on Office support downloads LibreOffice from {host}. SurfSense sends your IP address and the file’s name, nothing else.",
+        },
+        { host }
+      ),
+    }
+  }
+  // The registry's host is also SurfSense's own plugins', so one answer covers both.
+  if (purpose === "plugin_registry") {
+    return {
+      label: host,
+      title: intl.formatMessage({
+        id: "egress_plugin_registry_prompt_title",
+        defaultMessage: "Allow fetching the list of plugins?",
+      }),
+      body: intl.formatMessage(
+        {
+          id: "egress_plugin_registry_prompt_body",
+          defaultMessage:
+            "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. You can turn this off any time in Settings › Network.",
+        },
+        { host }
+      ),
+    }
+  }
+  // A plugin's server gets what its tools are sent, never every chat.
+  if (purpose === "plugin") {
+    return {
+      label: host,
+      title: intl.formatMessage(
+        {
+          id: "egress_plugin_prompt_title",
+          defaultMessage: "Allow connecting to {host}?",
+        },
+        { host }
+      ),
+      body: intl.formatMessage(
+        {
+          id: "egress_plugin_prompt_body",
+          defaultMessage:
+            "{host} runs a plugin’s server. SurfSense contacts it to list its tools, and the agent sends it what a tool you allow needs, along with your IP address. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),

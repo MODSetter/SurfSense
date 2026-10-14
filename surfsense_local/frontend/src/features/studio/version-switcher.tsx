@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ChevronDownIcon } from "@/components/ui/icons"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { intl } from "@/i18n/intl"
 
 import type { Artifact } from "./api"
@@ -84,42 +85,47 @@ export function VersionSwitcher({
           </Button>
         }
       />
-      <DropdownMenuContent align="end" sideOffset={8} className="min-w-36">
+      <DropdownMenuContent align="end" sideOffset={8} className="min-w-36 pb-0">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>
+          <DropdownMenuLabel className="select-none">
             {intl.formatMessage({
               id: "studio_version_switcher_title",
               defaultMessage: "Versions",
             })}
           </DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={String(openId)}
-            onValueChange={(value) => onOpen(Number(value))}
-          >
-            {versions.map((version) => {
-              const status = unopenedStatus(version)
-              return (
-                <DropdownMenuRadioItem
-                  key={version.id}
-                  value={String(version.id)}
-                  // Base UI radio items stay open on pick; a pick here is done.
-                  closeOnClick
-                  disabled={status !== null}
-                  className="tabular-nums"
-                >
-                  {versionLabel(version.version.number)}
-                  {status ? (
-                    <>
-                      {" "}
-                      <span className="text-xs text-muted-foreground">
-                        {status}
-                      </span>
-                    </>
-                  ) : null}
-                </DropdownMenuRadioItem>
-              )
-            })}
-          </DropdownMenuRadioGroup>
+          {/* Six and a half 28px rows, plus the menu's bottom padding moved in
+              here so a cut row meets the edge: the half row says it scrolls,
+              and the label above stays put while it does. */}
+          <ScrollFade viewportClassName="max-h-46.5 pb-1">
+            <DropdownMenuRadioGroup
+              value={String(openId)}
+              onValueChange={(value) => onOpen(Number(value))}
+            >
+              {versions.map((version) => {
+                const status = unopenedStatus(version)
+                return (
+                  <DropdownMenuRadioItem
+                    key={version.id}
+                    value={String(version.id)}
+                    // Base UI radio items stay open on pick; a pick here is done.
+                    closeOnClick
+                    disabled={status !== null}
+                    className="tabular-nums"
+                  >
+                    {versionLabel(version.version.number)}
+                    {status ? (
+                      <>
+                        {" "}
+                        <span className="text-xs text-muted-foreground">
+                          {status}
+                        </span>
+                      </>
+                    ) : null}
+                  </DropdownMenuRadioItem>
+                )
+              })}
+            </DropdownMenuRadioGroup>
+          </ScrollFade>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
