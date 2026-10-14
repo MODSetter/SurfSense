@@ -81,7 +81,7 @@ export const metadata: Metadata = {
 				url: "/og-image.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense, open-source NotebookLM alternative for AI agents",
+				alt: "SurfSense, the air-gapped open-source NotebookLM alternative",
 			},
 		],
 		locale: "en_US",
@@ -95,10 +95,10 @@ export const metadata: Metadata = {
 		site: "@SurfSenseAI",
 		images: [
 			{
-				url: "/og-image-twitter.png",
+				url: "/og-image.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense, open-source NotebookLM alternative for AI agents",
+				alt: "SurfSense, the air-gapped open-source NotebookLM alternative",
 			},
 		],
 	},

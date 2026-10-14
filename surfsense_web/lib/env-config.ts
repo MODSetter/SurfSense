@@ -95,8 +95,8 @@ export const GLOBAL_ANNOUNCEMENT_ENABLED =
 export const GLOBAL_ANNOUNCEMENT_MESSAGE =
 	process.env.NEXT_PUBLIC_GLOBAL_ANNOUNCEMENT_MESSAGE ?? "";
 
-// Sticky top banner pointing at the /sunset announcement. Distinct from the
-// maintenance banner above: this one sits above the nav and links straight to
-// /sunset. Toggle via NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED ("true" to show) —
-// the copy and link are fixed in TopAnnouncementBar.
+// The announcement pill above the homepage headline. Distinct from the
+// maintenance banner above. Toggle via NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED
+// ("true" to show); the name predates the pill, kept so deployments keep
+// working. The copy and link are fixed in HomeAnnouncement.
 export const TOP_ANNOUNCEMENT_ENABLED = process.env.NEXT_PUBLIC_TOP_ANNOUNCEMENT_ENABLED === "true";

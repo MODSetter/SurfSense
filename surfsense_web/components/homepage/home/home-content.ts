@@ -38,15 +38,9 @@ export { BUSINESS_URL, DOWNLOADS_URL, REPO_URL };
  * Logos live in `public/logos/`.
  */
 /**
- * `light: true` marks a logo that must not be inverted: a white-on-transparent
- * crest, or a favicon drawn on its own coloured disc. Everything else is
- * inverted.
- *
- * Inverting is the default because most of these third-party SVGs draw in a
- * single dark colour, and several have paths with no `fill` at all, which the
- * renderer defaults to black; unfiltered they would be invisible here. The
- * alternative, a blanket `brightness(0) invert(1)`, does guarantee visibility
- * but fills every interior counter and reduces a detailed crest to a disc.
+ * `light: true` marks a logo drawn light (a white-on-transparent crest, or a
+ * favicon on its own coloured disc). Those are inverted so they show on the
+ * light ground; everything else is drawn dark and reads as-is.
  */
 export const COMPANIES: { title: string; file: string; light?: boolean }[] = [
 	{ title: "UC Berkeley", file: "berkeley.svg", light: true },
@@ -76,8 +70,8 @@ export type Cell = {
 	body: string;
 };
 
-/** Which bento cells in `ON_YOUR_MACHINE` carry a designed SVG illustration. */
-export type IllustratedCell = "no-cloud" | "local-key" | "artifacts";
+/** The node in the air-gap diagram that each `ON_YOUR_MACHINE` claim annotates. */
+export type AirGapNode = "index" | "model" | "outputs";
 
 export type Action = {
 	label: string;
@@ -94,21 +88,21 @@ export type Action = {
  * more often someone handling a client's material than a student
  * (`plans/community-local/seo/07-what-users-do.md`).
  */
-export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
+export const ON_YOUR_MACHINE: (Cell & { node: AirGapNode })[] = [
 	{
-		title: "No cloud in the loop",
-		body: "The index is a file on your disk, not a row in someone else's database. Pull the network cable and it keeps answering questions about the sources you already added. That matters most when the source is a case file or a client's ledger.",
-		illustration: "no-cloud",
+		title: "Your index lives on your disk",
+		body: "A file you own, not a row in someone else's database. With a local model, pull the network cable and it keeps answering questions about the sources you already added. That matters most for a case file or a client's ledger.",
+		node: "index",
 	},
 	{
-		title: "Local model or your own key",
+		title: "Your model, or your own key",
 		body: "Use SurfSense with a local model, or paste a key for a provider you already pay for. The key stays on the machine that uses it.",
-		illustration: "local-key",
+		node: "model",
 	},
 	{
 		title: "Sources become deliverables",
 		body: "Turn what you have indexed into a deck, a report, a briefing or a study guide, generated and stored in the same local database as everything else.",
-		illustration: "artifacts",
+		node: "outputs",
 	},
 ];
 
@@ -120,33 +114,35 @@ export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
  *
  * The twelve formats and their order come straight from the backend's own
  * catalog (`surfsense_local/backend/modules/artifacts/formats.py`), and each
- * `key` matches that file's format keys exactly — `HomeFormats` looks up an
- * icon per key from the same set the in-app Studio library uses
- * (`features/artifacts/lib/artifact-format-catalog.ts`), so the homepage and
- * the product never draw a format with two different icons.
+ * `key` matches that file's format keys exactly; `HomeFormats` places each
+ * one by key.
  */
 export type Format = { key: string; label: string; body: string };
 
 export const FORMATS: Format[] = [
-	{ key: "summary", label: "Summary", body: "A short brief of everything you have indexed." },
+	{ key: "summary", label: "Markdown", body: "A short brief of everything you have indexed." },
 	{
 		key: "docx",
-		label: "Document",
+		label: "Word",
 		body: "An editable write-up you can revise afterward.",
 	},
 	{ key: "pptx", label: "Slides", body: "An editable presentation deck." },
 	{ key: "xlsx", label: "Spreadsheet", body: "Tables pulled out of your sources." },
-	{ key: "html", label: "Web page", body: "A standalone page you can host anywhere." },
+	{ key: "html", label: "Web page", body: "A standalone HTML page." },
 	{ key: "pdf", label: "PDF", body: "A print-ready export of the same content." },
 	{ key: "mindmap", label: "Mind map", body: "Concepts laid out as a linked graph." },
 	{ key: "flashcards", label: "Flashcards", body: "A front-and-back deck for review." },
-	{ key: "quiz", label: "Quiz", body: "Multiple-choice questions with source citations." },
+	{
+		key: "quiz",
+		label: "Quiz",
+		body: "Test yourself, with every answer explained.",
+	},
 	{
 		key: "podcast",
 		label: "Podcast",
-		body: "A two-voice audio conversation, synthesised offline.",
+		body: "Your sources talked through as an audio conversation.",
 	},
-	{ key: "image", label: "Image", body: "A generated illustration for a single idea." },
+	{ key: "image", label: "Image", body: "Turn an idea into a picture." },
 	{ key: "infographic", label: "Infographic", body: "Key figures laid out as one visual." },
 ];
 
@@ -154,93 +150,87 @@ export const FORMATS: Format[] = [
 export const PILLARS: (Cell & { action: Action })[] = [
 	{
 		title: "Self-hosted, no account required",
-		body: "There is no sign-up, no email, no workspace to be invited to. Install it and start; the only identity involved is your operating system user.",
+		body: "No sign-up, no email, no workspace invite. The only identity involved is your computer's own user.",
 		action: { label: "How installation works", href: "/docs" },
 	},
 	{
 		title: "Bring your own model",
-		body: "NotebookLM gives you Gemini and nothing else. Here the model is a setting: a local Qwen or Llama through Ollama, or OpenAI, Anthropic and anything OpenAI-compatible.",
+		body: "NotebookLM gives you Gemini only. Here the model is a setting: a local Qwen or Gemma, or OpenAI, Anthropic and anything OpenAI-compatible.",
 		action: { label: "Supported models", href: "/docs" },
 	},
 	{
-		title: "Install and go: no Docker, no terminal, no GPU",
-		body: "A normal desktop installer for Windows, macOS and Linux. No compose file, no environment variables, no CUDA. Ollama ships in the box; pick a model on first launch and it runs on a laptop CPU.",
+		title: "Install and start: no Docker, no terminal",
+		body: "A normal installer for Windows, macOS and Linux, with llama.cpp built in. Pick a model on first launch and it runs on your computer.",
 		action: { label: "Download the installer", href: DOWNLOADS_URL },
 	},
 ];
 
 /**
- * H2 #5, #6, #7 — each claim paired with the concrete things that back it.
+ * H2 #5, #6, #7 — one row per claim, each held to a line and two points.
  *
- * The proof points are deliberately short and checkable: the reference design
- * runs a claim alongside a ruled list, and a list of adjectives would waste
- * that structure.
+ * The plugins row replaced *Open source, audit it yourself*; its heading keeps
+ * "open source" so the brief's phrase still has an H2. Plugins are not out
+ * yet, so the row says so, as `/plugins` does.
  */
-export const STORIES: {
-	key: "artifacts" | "open" | "private";
+export type FeaturePoint = { title: string; body: string };
+
+export const FEATURES: {
+	key: "artifacts" | "plugins" | "private";
 	heading: string;
-	body: string[];
+	body: string;
+	points: [FeaturePoint, FeaturePoint];
 	action: Action;
 }[] = [
 	{
 		key: "artifacts",
 		heading: "Artifacts: decks, reports, briefings, podcasts",
-		body: [
-			"Every source can become more than an answer: a slide deck, a written report, a two-voice briefing podcast or an infographic. The same builders make a study guide, a flashcard deck and a practice quiz when that is the job instead.",
-			"Every format is generated and stored in the same local database as everything else. No cloud model in the loop, no per-minute fee, no second pass over your data to make them.",
+		body: "Every source can become more than an answer.",
+		points: [
+			{
+				title: "Twelve formats",
+				body: "Slides, reports, podcasts, quizzes and more from one set of sources.",
+			},
+			{
+				title: "Made offline",
+				body: "Generated and stored on your machine, with no per-minute fee.",
+			},
 		],
-		// Not the deliverables page: the "For confidential work" band lower down
-		// already links it, and two links to one page from one screen read as a
-		// mistake. The twelve-format row sits directly below this tab, so the
-		// useful next step here is the installer.
+		// Not the deliverables page: the "For confidential work" band below links it.
 		action: { label: "Download and try them", href: DOWNLOADS_URL },
 	},
 	{
-		key: "open",
-		heading: "Open source, audit it yourself",
-		body: [
-			"Every claim on this page is checkable, because the code that would have to betray it is public. There is no minified bundle phoning home, no closed sync daemon, and no build you cannot reproduce.",
-			"If you want to know what leaves your machine, read the network layer. That is a shorter file than you would expect.",
+		key: "plugins",
+		heading: "Open source, extended by plugins",
+		body: "Each plugin pulls public data from one platform into your notebook. Coming soon.",
+		points: [
+			{
+				title: "More places to search",
+				body: "Reddit, YouTube, Google Maps, Amazon and the open web come first.",
+			},
+			{
+				title: "Open by pull request",
+				body: "Every plugin is code in the public repo, checked like the rest of it.",
+			},
 		],
-		action: { label: "Read the source on GitHub", href: REPO_URL, external: true },
+		action: { label: "See the plugins", href: "/plugins" },
 	},
 	{
 		key: "private",
 		heading: "Private by construction",
-		body: [
-			"Most tools promise privacy as a policy: a commitment about what a company will choose not to do with data it nonetheless holds. A policy can change, and it can be compelled.",
-			"Data that never left your machine cannot be handed over, subpoenaed, breached at a vendor, or repriced. That is a structural guarantee rather than a promise, and it is the only kind that survives a change of owner.",
+		body: "Privacy as a structure, not a policy that can change.",
+		points: [
+			{
+				title: "Nothing to hand over",
+				body: "Data that never left your machine cannot be subpoenaed, breached or repriced.",
+			},
+			{
+				title: "No account, ever",
+				body: "Your index lives in your user folder. Delete the folder and it is gone.",
+			},
 		],
 		action: { label: "Read the compliance notes", href: "/privacy" },
 	},
 ];
-
-export const PROOF_POINTS: Record<(typeof STORIES)[number]["key"], string[]> = {
-	artifacts: [
-		"Editable decks and reports",
-		"Two-voice briefings, synthesised offline",
-		"Infographics and one-page summaries",
-		"Study guides and flashcard decks",
-		"Practice quizzes with citations",
-		"No per-minute generation fee",
-	],
-	open: [
-		"Source public on GitHub",
-		"Reproducible desktop builds",
-		"No telemetry in the binary",
-		"Auditable network layer",
-		"Community issues and PRs",
-		"Apache-licensed",
-	],
-	private: [
-		"No account, ever",
-		"Index stored in your user directory",
-		"Model keys never leave the device",
-		"Works with the network unplugged",
-		"Nothing to subpoena from us",
-		"Delete it by deleting a folder",
-	],
-};
 
 /**
  * H2 #8 — *For confidential work*, added to the brief on 17 Sep 2026.
@@ -256,63 +246,72 @@ export const PROOF_POINTS: Record<(typeof STORIES)[number]["key"], string[]> = {
  */
 export const CONFIDENTIAL: { eyebrow: string; heading: string; body: string; action: Action } = {
 	eyebrow: "For confidential work",
-	heading: "Private AI for business, because the file never moves",
-	body: "Lawyers, accountants, consultants and engineers all do the same job with this: a file they are not allowed to upload goes in, and a deck, a report or a briefing comes out. The deliverable is built on the same machine the source sits on, so no vendor ever holds a copy of the contract, the ledger or the inspection report.",
-	action: { label: "Turn confidential documents into deliverables", href: BUSINESS_URL },
+	heading: "Private AI for business, with no vendor holding a copy",
+	body: "Lawyers, accountants, consultants and engineers all have files they are not allowed to upload. SurfSense turns them into a deck, a report or a briefing anyway. The deliverable is built on the same machine the source sits on, so no vendor ever holds a copy of the contract, the ledger or the inspection report.",
+	action: { label: "Learn more", href: BUSINESS_URL },
 };
 
-export type CompareRow = {
-	label: string;
-	ours: string;
-	notebooklm: string;
-	anythingllm: string;
-	openNotebook: string;
-};
+/** How a cell reads at a glance; the text beside it carries the nuance. */
+export type CompareVerdict = "yes" | "no" | "partial";
+
+export type CompareCell = { text: string; verdict: CompareVerdict };
+
+export type CompareProduct = "ours" | "notebooklm" | "anythingllm" | "openNotebook";
+
+export const COMPARE_PRODUCTS: { key: CompareProduct; name: string }[] = [
+	{ key: "ours", name: "SurfSense" },
+	{ key: "notebooklm", name: "NotebookLM" },
+	{ key: "anythingllm", name: "AnythingLLM" },
+	{ key: "openNotebook", name: "Open Notebook" },
+];
+
+export type CompareRow = { label: string } & Record<CompareProduct, CompareCell>;
 
 /** Compared at the thing the brief says this page converts on: getting started
- * without an account, a cloud, or a container runtime. */
+ * without an account, a cloud, or a container runtime. Verdicts are judged the
+ * same way for every column; SurfSense does not win every row. */
 export const COMPARE_ROWS: CompareRow[] = [
 	{
 		label: "Runs offline",
-		ours: "Yes, fully",
-		notebooklm: "No, cloud only",
-		anythingllm: "Yes",
-		openNotebook: "Yes",
+		ours: { text: "Yes, fully", verdict: "yes" },
+		notebooklm: { text: "No, cloud only", verdict: "no" },
+		anythingllm: { text: "Yes", verdict: "yes" },
+		openNotebook: { text: "Yes", verdict: "yes" },
 	},
 	{
 		label: "Account required",
-		ours: "None",
-		notebooklm: "Google account",
-		anythingllm: "None",
-		openNotebook: "None",
+		ours: { text: "None", verdict: "yes" },
+		notebooklm: { text: "Google account", verdict: "no" },
+		anythingllm: { text: "None", verdict: "yes" },
+		openNotebook: { text: "None", verdict: "yes" },
 	},
 	{
 		label: "Setup",
-		ours: "Desktop installer",
-		notebooklm: "Web sign-in",
-		anythingllm: "Installer or Docker",
-		openNotebook: "Docker + env vars",
+		ours: { text: "Desktop installer", verdict: "yes" },
+		notebooklm: { text: "Web sign-in", verdict: "partial" },
+		anythingllm: { text: "Installer or Docker", verdict: "yes" },
+		openNotebook: { text: "Docker", verdict: "no" },
 	},
 	{
 		label: "Choice of model",
-		ours: "Any, local or hosted",
-		notebooklm: "Gemini only",
-		anythingllm: "Any",
-		openNotebook: "Any",
+		ours: { text: "Any, local or hosted", verdict: "yes" },
+		notebooklm: { text: "Gemini only", verdict: "no" },
+		anythingllm: { text: "Any", verdict: "yes" },
+		openNotebook: { text: "Any", verdict: "yes" },
 	},
 	{
 		label: "Model bundled",
-		ours: "No, pick one during setup",
-		notebooklm: "Not applicable",
-		anythingllm: "Yes",
-		openNotebook: "No",
+		ours: { text: "Picked at first launch", verdict: "partial" },
+		notebooklm: { text: "Not applicable", verdict: "partial" },
+		anythingllm: { text: "Yes", verdict: "yes" },
+		openNotebook: { text: "No", verdict: "no" },
 	},
 	{
 		label: "Source code",
-		ours: "Open, auditable",
-		notebooklm: "Closed",
-		anythingllm: "Open",
-		openNotebook: "Open",
+		ours: { text: "Open, auditable", verdict: "yes" },
+		notebooklm: { text: "Closed", verdict: "no" },
+		anythingllm: { text: "Open", verdict: "yes" },
+		openNotebook: { text: "Open", verdict: "yes" },
 	},
 ];
 
@@ -328,7 +327,7 @@ export const HOME_FAQ = [
 	{
 		question: "Is there an AI I can use without internet?",
 		answer:
-			"Yes. SurfSense installs with Ollama built in, and its one-time setup screen has you pick a small language model that runs on the CPU. Once that one download finishes, you can add documents and ask questions with no network connection. An internet connection is only needed for that initial model download, if you choose a hosted model such as GPT or Claude, or when you download an update.",
+			"Yes. SurfSense installs with llama.cpp built in, and its one-time setup screen has you pick a small language model that runs on the CPU. Once that one download finishes, you can add documents and ask questions with no network connection. An internet connection is only needed for that initial model download, if you choose a hosted model such as GPT or Claude, or when you download an update.",
 	},
 	{
 		question: "Can I run NotebookLM locally?",

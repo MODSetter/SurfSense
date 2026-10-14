@@ -1,6 +1,6 @@
 # ADR 0051: A plugin is an MCP server, and SurfSense decides which of its tools each caller gets, remote servers first
 
-- **Status:** Proposed, with the [plugins proposal](../proposals/plugins/README.md)
+- **Status:** Accepted
 - **Date:** 2026-10-08
 - **Source:** maintainer decision, 8 Oct 2026 (no permalink); [Pi's built-in MCP extension](https://github.com/earendil-works/pi/blob/ce950d78f424dcaf9f5d6a03ce80ab141130eb1d/packages/coding-agent/src/extensions/mcp/index.ts), [Pi's MCP client](https://github.com/earendil-works/pi/blob/ce950d78f424dcaf9f5d6a03ce80ab141130eb1d/packages/mcp/README.md)
 
@@ -32,4 +32,4 @@ The agent already calls SurfSense's own tools over MCP ([agent](../architecture/
 
 ## Where the code stands
 
-The MCP client's listing, the gateway's readiness and approval rules, the plugin tables and the `/plugins` routes are in `surfsense_local/backend/modules/plugins/`. Nothing yet gives the agent's opencode plugin servers or rules. The gateway's call path and a table of calls come with the chat engine. `modules/plugins/bundles/` holds the earlier design's runner, and `plugins/bundles/core/` its SDK, CLI and manifest rules.
+Built for remote servers ([plugins](../architecture/plugins.md)): the MCP client's listing, the gateway's readiness and approval rules, the plugin tables and the `/plugins` routes are in `surfsense_local/backend/modules/plugins/`, and `modules/agent/plugin_tools/` gives the agent's opencode the ready servers and their rules each turn ([agent](../architecture/agent.md#plugins)). There is no interface for sources yet, only the remote one. The gateway's call path and a table of calls come with the chat engine ([proposal](../proposals/plugins/README.md#the-chat-engines-router-step)). `modules/plugins/bundles/` holds the earlier design's runner, and `plugins/bundles/core/` its SDK, CLI and manifest rules.

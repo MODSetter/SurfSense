@@ -7,16 +7,18 @@ import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
+import { siteText } from "@/components/site/site-text";
 import { Button } from "@/components/ui/button";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { setRedirectPath } from "@/lib/auth-utils";
+import { cn } from "@/lib/utils";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
 
 /**
  * Rendered in the site design: listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`, so the palette, ruled column and
- * navigation all come from `app/(home)/home.css`. `SiteShell` skips the
+ * navigation all come from the site shell. `SiteShell` skips the
  * footer here (`isAuthPage`), same as it always has for this route.
  */
 
@@ -106,11 +108,11 @@ function LoginContent() {
 	}
 
 	return (
-		<section className="ss-home-hero ss-home-pad flex min-h-screen items-center justify-center">
+		<section className="py-20 md:py-28 flex min-h-screen items-center justify-center">
 			<div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
 				<Logo priority className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
-				<h1 className="ss-home-h2 mt-6 mb-2">{t("sign_in")}</h1>
-				<p className="ss-home-body">{t("login_subtitle")}</p>
+				<h1 className={cn(siteText.h2, "mt-6 mb-2")}>{t("sign_in")}</h1>
+				<p className={siteText.body}>{t("login_subtitle")}</p>
 
 				{/* URL Error Display */}
 				<AnimatePresence>

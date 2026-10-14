@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
+import { HomeCompare } from "@/components/homepage/home/home-compare/home-compare";
+import { HomeConfidential } from "@/components/homepage/home/home-confidential/home-confidential";
+import { HomeFeatures } from "@/components/homepage/home/home-features/home-features";
+import { HomeFormats } from "@/components/homepage/home/home-formats/home-formats";
 import { HomeLogos } from "@/components/homepage/home/home-logos";
+import { HomePillars } from "@/components/homepage/home/home-pillars/home-pillars";
 import { HomeQuestions } from "@/components/homepage/home/home-questions";
-import {
-	HomeCompare,
-	HomeConfidential,
-	HomeFeatures,
-	HomeFormats,
-	HomeHero,
-	HomeOnYourMachine,
-	HomePillars,
-} from "@/components/homepage/home/home-sections";
-import { HomeSmoothScroll } from "@/components/homepage/home/home-smooth-scroll";
+import { HomeHero, HomeOnYourMachine } from "@/components/homepage/home/home-sections";
 import { JsonLd } from "@/components/seo/json-ld";
 
 /**
@@ -21,8 +17,8 @@ import { JsonLd } from "@/components/seo/json-ld";
  * phrases and their order is load-bearing — see `home-content.ts`.
  *
  * A server component. Most sections are static and the FAQ uses native
- * details/summary; the client exceptions are the hero's shader backdrop, the
- * claims tabs and the formats row's hover spotlight (see `home-sections.tsx`).
+ * details/summary; the client exceptions are the claims tabs and the formats
+ * row's hover spotlight (see `home-sections.tsx`).
  */
 
 export const metadata: Metadata = {
@@ -37,6 +33,14 @@ export const metadata: Metadata = {
 		url: "https://www.surfsense.com",
 		siteName: "SurfSense",
 		type: "website",
+		images: [
+			{
+				url: "/og-image.png",
+				width: 1200,
+				height: 630,
+				alt: "SurfSense, the air-gapped open-source NotebookLM alternative",
+			},
+		],
 	},
 };
 
@@ -64,7 +68,6 @@ export default function HomePage() {
 		// from app/(home)/layout.tsx, which renders them for every site-design route.
 		<>
 			<JsonLd data={APPLICATION_SCHEMA} />
-			<HomeSmoothScroll />
 			<HomeHero />
 			<HomeLogos />
 			<HomeOnYourMachine />

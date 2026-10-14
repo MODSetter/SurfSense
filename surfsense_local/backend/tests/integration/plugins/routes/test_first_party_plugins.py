@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 
 import pytest
 from httpx import AsyncClient
@@ -163,3 +164,122 @@ async def test_a_custom_plugin_never_takes_a_first_party_id(
     )
 
     assert added.json()["id"] == "amazon-plugin"
+
+
+class LicenseHost:
+    """A plugin host started on demand, with what it was asked."""
+
+    def __init__(self, guard: RequiringLicense, asks: list[str | None]) -> None:
+        self.guard = guard
+        self.license_asks = asks
+
+
+@pytest.fixture
+def start_host(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., LicenseHost]]:
+    """SurfSense's plugin host, with `/license` served, missing, or down."""
+    with ExitStack() as stack:
+
+        def start(license_route: str = "served") -> LicenseHost:
+            guarded: list[RequiringLicense] = []
+            asks: list[str | None] = []
+
+            def around(app):
+                guarded.append(RequiringLicense(app, {TRIAL_KEY: "expired"}))
+                return guarded[-1]
+
+            base = stack.enter_context(
+                serving(
+                    plugin_host(
+                        "amazon",
+                        amazon_server(),
+                        around,
+                        license_asks=asks,
+                        license_route=license_route,
+                    )
+                )
+            )
+            monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
+            return LicenseHost(guarded[0], asks)
+
+        yield start
+
+
+async def amazon_failure(client: AsyncClient) -> str | None:
+    """The connected Amazon plugin's last check, as Settings > Plugins reads it."""
+    plugins = (await client.get("/plugins")).json()
+    return next(p for p in plugins if p["id"] == "amazon")["check_failure"]
+
+
+async def test_removing_the_license_says_one_is_needed_at_once(
+    client: AsyncClient, start_host: Callable[..., LicenseHost]
+) -> None:
+    """Asked once of the plugin host, not by listing each paid plugin."""
+    host = start_host()
+    await import_license(client, "individual.lic")
+    await client.post("/plugins/first-party/amazon")
+    listings = len(host.guard.authorizations)
+
+    await client.delete("/license")
+    checked = await client.post("/plugins/license/check")
+
+    assert checked.status_code == 204
+    assert await amazon_failure(client) == "needs_license"
+    assert host.license_asks == [None]
+    assert len(host.guard.authorizations) == listings
+
+
+async def test_a_license_imported_again_clears_the_verdict_at_once(
+    client: AsyncClient, start_host: Callable[..., LicenseHost]
+) -> None:
+    """No Refresh tools needed: importing asks the host straight away."""
+    start_host()
+    await client.post("/plugins/first-party/amazon")
+    assert await amazon_failure(client) == "needs_license"
+
+    await import_license(client, "individual.lic")
+    await client.post("/plugins/license/check")
+
+    assert await amazon_failure(client) is None
+
+
+async def test_a_host_without_the_route_changes_nothing(
+    client: AsyncClient, start_host: Callable[..., LicenseHost]
+) -> None:
+    """No `/license` is no answer: the verdict stays, and nothing is listed for it."""
+    host = start_host(license_route="missing")
+    await import_license(client, "individual.lic")
+    await client.post("/plugins/first-party/amazon")
+    listings = len(host.guard.authorizations)
+
+    await client.delete("/license")
+    await client.post("/plugins/license/check")
+
+    assert await amazon_failure(client) is None
+    assert len(host.guard.authorizations) == listings
+
+
+async def test_no_answer_from_the_host_keeps_the_last_verdict(
+    client: AsyncClient, start_host: Callable[..., LicenseHost]
+) -> None:
+    """Keygen down, or the host unreachable, never changes what the user sees."""
+    start_host(license_route="down")
+    await client.post("/plugins/first-party/amazon")
+
+    await import_license(client, "individual.lic")
+    await client.post("/plugins/license/check")
+
+    assert await amazon_failure(client) == "needs_license"
+
+
+async def test_a_fresh_verdict_is_not_asked_for_again(
+    client: AsyncClient, start_host: Callable[..., LicenseHost]
+) -> None:
+    """Opening Plugins asks only when the last answer is older than five minutes."""
+    host = start_host()
+    await import_license(client, "individual.lic")
+    await client.post("/plugins/first-party/amazon")
+
+    await client.post("/plugins/license/check")
+    await client.post("/plugins/license/check", params={"if_stale": True})
+
+    assert len(host.license_asks) == 1

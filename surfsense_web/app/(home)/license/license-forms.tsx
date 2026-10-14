@@ -2,8 +2,10 @@
 
 import { useId, useState } from "react";
 import { HomeButton } from "@/components/homepage/home/home-button";
+import { siteText } from "@/components/site/site-text";
 import { Spinner } from "@/components/ui/spinner";
 import { buildBackendUrl } from "@/lib/env-config";
+import { cn } from "@/lib/utils";
 
 /**
  * The two license forms, now on separate pages. `ResendForm` is the whole of
@@ -12,7 +14,7 @@ import { buildBackendUrl } from "@/lib/env-config";
  * is part of the free plan and a licence file is inert without the app the
  * same page hands you.
  *
- * Built from the same `ss-home-*` primitives as the rest of the site design:
+ * Tailwind plus the shared `siteText` styles, like the rest of the site design:
  * a flush hairline-bordered panel rather than a floating shadcn `Card`, and
  * plain inputs styled like the blog search box, so this page reads as part of
  * the same document as the homepage and pricing rather than an older surface
@@ -103,7 +105,7 @@ function InlineEmailField({
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 				required
-				className="w-64 max-w-full rounded-(--radius) border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+				className="min-w-0 flex-1 bg-transparent py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
 			/>
 		</>
 	);
@@ -117,7 +119,7 @@ function InlineEmailField({
 function FormPanel({ description, children }: { description: string; children: React.ReactNode }) {
 	return (
 		<div className="flex flex-col items-center text-center">
-			<p className="ss-home-body text-sm">{description}</p>
+			<p className={cn(siteText.body, "text-sm")}>{description}</p>
 			<div className="mt-5 flex flex-col items-center">{children}</div>
 		</div>
 	);
@@ -165,7 +167,9 @@ export function ResendForm() {
 				</HomeButton>
 				{outcome ? (
 					<p
-						className={outcome.kind === "ok" ? "ss-home-body text-sm" : "text-sm text-destructive"}
+						className={
+							outcome.kind === "ok" ? cn(siteText.body, "text-sm") : "text-sm text-destructive"
+						}
 					>
 						{outcome.message}
 					</p>
@@ -231,9 +235,19 @@ export function TrialForm({
 
 	return (
 		<div className="mt-10 flex flex-col items-center gap-5">
-			<form onSubmit={handleSubmit} className="flex flex-wrap items-center justify-center gap-2">
+			{/* One pill, field and button together, like the site's search pills; the
+			    ring sits on the pill because the field inside has no border of its own. */}
+			<form
+				onSubmit={handleSubmit}
+				className="flex w-full max-w-md items-center gap-2 rounded-full border border-border bg-card py-1.5 pr-1.5 pl-5 shadow-xs focus-within:ring-3 focus-within:ring-ring/50"
+			>
 				<InlineEmailField id={`trial-email-${id}`} value={email} onChange={setEmail} />
-				<HomeButton type="submit" size="xl" disabled={busy} className="relative shrink-0">
+				<HomeButton
+					type="submit"
+					size="xl"
+					disabled={busy}
+					className="relative shrink-0 rounded-full px-5"
+				>
 					<span className={busy ? "opacity-0" : ""}>{label}</span>
 					{busy ? <Spinner size="sm" className="absolute" /> : null}
 				</HomeButton>
@@ -243,7 +257,7 @@ export function TrialForm({
 					className={
 						outcome?.kind === "error"
 							? "max-w-sm text-sm text-destructive"
-							: "ss-home-body max-w-sm text-sm"
+							: cn(siteText.body, "max-w-sm text-sm")
 					}
 				>
 					{outcome ? outcome.message : note}

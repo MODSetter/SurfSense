@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HomeBadge } from "@/components/homepage/home/home-badge";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
-import { Badge } from "@/components/ui/badge";
+import { SiteFaqItem } from "@/components/site/site-faq-item";
+import { siteText } from "@/components/site/site-text";
 import { LinkSquare02Icon } from "@/components/ui/icons";
 import { ACCESS_LABEL, FREE_MODELS } from "@/lib/free-models";
+import { cn } from "@/lib/utils";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and footer
- * all come from `app/(home)/layout.tsx`, and every style resolves from
- * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
+ * all come from `app/(home)/layout.tsx`; the page uses Tailwind plus the shared
+ * `siteText` styles. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
  * The copy, metadata, keyword set and structured data are the ones this page
@@ -172,43 +175,35 @@ export default function FreeHubPage() {
 			<FAQJsonLd questions={FAQ_ITEMS} />
 
 			{/* Hero */}
-			<section className="ss-home-hero ss-home-pad">
+			<section className="py-20 md:py-28">
 				<div className="mx-auto max-w-4xl text-center">
-					<h1 className="ss-home-display">ChatGPT Free Online Without Login</h1>
-					<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
+					<h1 className={siteText.display}>ChatGPT Free Online Without Login</h1>
+					<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
 						Use <strong>ChatGPT</strong>, <strong>Claude AI</strong>, <strong>Gemini</strong>, and
 						other AI models free online without login. No sign-up, no email, no password. Pick a
 						model and start chatting instantly.
 					</p>
 					<div className="mt-10 flex flex-wrap items-center justify-center gap-2">
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							No login required
-						</Badge>
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							500K free tokens
-						</Badge>
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							{FREE_MODELS.length} AI models
-						</Badge>
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							Open source
-						</Badge>
+						<HomeBadge>No login required</HomeBadge>
+						<HomeBadge>500K free tokens</HomeBadge>
+						<HomeBadge>{FREE_MODELS.length} AI models</HomeBadge>
+						<HomeBadge>Open source</HomeBadge>
 					</div>
 				</div>
 			</section>
 
 			{/* Model Table */}
-			<section className="ss-home-rule">
-				<div className="ss-home-head">
-					<h2 className="ss-home-h2">Free AI Models Available Without Login</h2>
-					<p className="ss-home-body mt-3 max-w-2xl text-sm">
+			<section className="border-t border-border">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<h2 className={siteText.h2}>Free AI Models Available Without Login</h2>
+					<p className={cn(siteText.body, "mt-3 max-w-2xl text-sm")}>
 						All models below work without login or sign-up. Click any model to start a free AI chat
 						instantly.
 					</p>
 				</div>
 
 				<section
-					className="ss-home-table-scroll"
+					className="overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
 					aria-label="Free AI models available without login"
 					/* biome-ignore lint/a11y/noNoninteractiveTabindex: a region that scrolls horizontally has to be focusable, or a keyboard-only visitor cannot reach the columns past the fold. The labelled landmark is what makes the focus stop meaningful. */
 					tabIndex={0}
@@ -228,21 +223,21 @@ export default function FreeHubPage() {
 							{FREE_MODELS.map((model) => (
 								<tr key={model.slug}>
 									<td>
-										<Link className="ss-home-link" href={`/free/${model.slug}`}>
+										<Link className={siteText.link} href={`/free/${model.slug}`}>
 											{model.name}
 										</Link>
 									</td>
 									<td>{model.provider}</td>
 									<td>
 										<span
-											className="ss-home-tag"
+											className="inline-flex items-center rounded-full border border-border px-2 py-px text-[10px] font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase data-[tone=accent]:border-primary/40 data-[tone=accent]:text-primary"
 											data-tone={model.access === "offline" ? "accent" : undefined}
 										>
 											{ACCESS_LABEL[model.access]}
 										</span>
 									</td>
 									<td>
-										<Link className="ss-home-forward" href={`/free/${model.slug}`}>
+										<Link className={siteText.forward} href={`/free/${model.slug}`}>
 											Run it
 											<LinkSquare02Icon aria-hidden="true" className="size-3.5" />
 										</Link>
@@ -255,31 +250,31 @@ export default function FreeHubPage() {
 			</section>
 
 			{/* Why SurfSense */}
-			<section className="ss-home-rule">
-				<div className="ss-home-head">
-					<h2 className="ss-home-h2">Why Use SurfSense as Your Free ChatGPT Alternative</h2>
+			<section className="border-t border-border">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<h2 className={siteText.h2}>Why Use SurfSense as Your Free ChatGPT Alternative</h2>
 				</div>
 
-				<div className="ss-home-grid ss-home-grid-3">
-					<div className="ss-home-cell">
-						<h3 className="ss-home-h3">Multiple AI Models in One Place</h3>
-						<p className="ss-home-body mt-2 text-sm">
+				<div className="ss-home-grid md:grid-cols-3">
+					<div className="px-6 py-8 md:px-10">
+						<h3 className={siteText.h3}>Multiple AI Models in One Place</h3>
+						<p className={cn(siteText.body, "mt-2 text-sm")}>
 							Access ChatGPT, Claude AI free, Gemini, DeepSeek, and more. Works like sites like
 							ChatGPT but with all AI models available, not just GPT. A true free AI chatbot like
 							ChatGPT and beyond.
 						</p>
 					</div>
-					<div className="ss-home-cell">
-						<h3 className="ss-home-h3">No Login, No Sign-Up Required</h3>
-						<p className="ss-home-body mt-2 text-sm">
+					<div className="px-6 py-8 md:px-10">
+						<h3 className={siteText.h3}>No Login, No Sign-Up Required</h3>
+						<p className={cn(siteText.body, "mt-2 text-sm")}>
 							Start using ChatGPT free online immediately. No email, no password, no verification.
 							Get ChatGPT no login access and Claude AI free access from one platform. AI with no
 							restrictions on which model you can use.
 						</p>
 					</div>
-					<div className="ss-home-cell">
-						<h3 className="ss-home-h3">Open Source NotebookLM Alternative</h3>
-						<p className="ss-home-body mt-2 text-sm">
+					<div className="px-6 py-8 md:px-10">
+						<h3 className={siteText.h3}>Open Source NotebookLM Alternative</h3>
+						<p className={cn(siteText.body, "mt-2 text-sm")}>
 							SurfSense is a free, open source NotebookLM alternative with document Q&A and
 							citations, integrations with Slack, Google Drive, Notion, and Confluence, plus team
 							collaboration and self-hosting support.
@@ -289,10 +284,10 @@ export default function FreeHubPage() {
 			</section>
 
 			{/* CTA */}
-			<section className="ss-home-rule ss-home-pad py-16">
+			<section className="border-t border-border py-16">
 				<div className="mx-auto max-w-2xl text-center">
-					<h2 className="ss-home-h2">Want More Features?</h2>
-					<p className="ss-home-body mt-3">
+					<h2 className={siteText.h2}>Want More Features?</h2>
+					<p className={cn(siteText.body, "mt-3")}>
 						Create a free SurfSense account to unlock $5 of premium credit, document uploads with
 						citations, team collaboration, and integrations with Slack, Google Drive, Notion, and
 						30+ more tools.
@@ -306,31 +301,25 @@ export default function FreeHubPage() {
 			</section>
 
 			{/* FAQ */}
-			<section className="ss-home-rule" aria-labelledby="ss-free-faq-label">
-				<div className="ss-home-head">
-					<h2 id="ss-free-faq-label" className="ss-home-h2">
+			<section className="border-t border-border" aria-labelledby="ss-free-faq-label">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<h2 id="ss-free-faq-label" className={siteText.h2}>
 						Frequently Asked Questions
 					</h2>
 				</div>
 
 				<div className="ss-home-grid">
 					{FAQ_ITEMS.map((item) => (
-						<details key={item.question} className="ss-home-faq">
-							<summary className="ss-home-faq-summary">
-								<span className="ss-home-h3">{item.question}</span>
-								<span aria-hidden="true" className="ss-home-faq-marker" />
-							</summary>
-							<div className="ss-home-faq-answer">
-								<p className="ss-home-body">{item.answer}</p>
-							</div>
-						</details>
+						<SiteFaqItem key={item.question} question={item.question}>
+							<p className={siteText.body}>{item.answer}</p>
+						</SiteFaqItem>
 					))}
 				</div>
 			</section>
 
 			{/* Internal links */}
-			<nav aria-label="Related pages" className="ss-home-rule ss-home-pad py-12">
-				<h2 className="ss-home-h3">Explore SurfSense</h2>
+			<nav aria-label="Related pages" className="border-t border-border py-12">
+				<h2 className={siteText.h3}>Explore SurfSense</h2>
 				<ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
 					<li>
 						<HomeButton variant="outline" size="lg" asChild>

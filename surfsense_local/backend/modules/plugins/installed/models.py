@@ -46,6 +46,17 @@ class CheckFailure(enum.StrEnum):
     LICENSE_INVALID = "license_invalid"
 
 
+# The plugin host's verdict on the license: only the host saying so sets or clears one.
+LICENSE_FAILURES = frozenset(
+    {
+        CheckFailure.NEEDS_LICENSE,
+        CheckFailure.LICENSE_EXPIRED,
+        CheckFailure.LICENSE_REVOKED,
+        CheckFailure.LICENSE_INVALID,
+    }
+)
+
+
 class InstalledPlugin(Base):
     """A plugin the user connected, the list entry it was connected from, and its sign-in.
 

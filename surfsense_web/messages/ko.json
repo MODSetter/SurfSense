@@ -226,7 +226,6 @@
 		"forever": "영구 무료",
 		"contact_us": "문의하기",
 		"feature_llms": "100개 이상의 LLM 지원",
-		"feature_ollama": "로컬 Ollama 또는 vLLM 설정 지원",
 		"feature_embeddings": "6000개 이상의 임베딩 모델",
 		"feature_files": "50개 이상의 파일 확장자 지원.",
 		"feature_podcasts": "로컬 TTS 제공업체를 이용한 팟캐스트 지원.",
