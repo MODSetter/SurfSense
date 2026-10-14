@@ -11,6 +11,7 @@ code:
   - surfsense_local/backend/tests/packaging/
   - surfsense_local/backend/bundling/
   - surfsense_local/backend/pyproject.toml
+  - surfsense_local/backend/shared/config.py
   - surfsense_local/electron/src/main/
   - surfsense_local/electron/src/preload/
   - surfsense_local/electron/scripts/audiocpp/

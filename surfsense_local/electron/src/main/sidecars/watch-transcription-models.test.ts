@@ -53,17 +53,27 @@ function recording(): {
   running: Sidecars
   /** The last child started, exited as a crash leaves it: still in `running`. */
   crash: () => void
+  /** Stops wait, as a server slow to exit makes them, until the returned release. */
+  holdStops: () => () => void
 } {
   const running: Sidecars = new Map()
   const started: SidecarSpec[] = []
   const stopped: string[] = []
   let last: FakeChild | undefined
+  let held: Promise<void> | undefined
   return {
     running,
     started,
     stopped,
     crash: () => {
       if (last) last.exitCode = 1
+    },
+    holdStops: () => {
+      let release = () => {}
+      held = new Promise((resolve) => {
+        release = resolve
+      })
+      return release
     },
     control: {
       running,
@@ -72,9 +82,11 @@ function recording(): {
         last = { exitCode: null, signalCode: null }
         running.set(spec.name, last as unknown as ChildProcess)
       },
+      // As the supervisor's: forgotten at once, then waited on until it exits.
       stop: async (name) => {
         stopped.push(name)
         running.delete(name)
+        await held
       },
     },
   }
@@ -128,6 +140,26 @@ test("restarts it when the API rewrites its config", async () => {
     writeFileSync(config, '{"models":[1,2]}')
     await until(() => rec.started.length === 2)
     assert.deepEqual(rec.stopped, [AUDIOCPP_TRANSCRIPTION_SIDECAR])
+  } finally {
+    stop()
+  }
+})
+
+test("a rewrite while the old server is still stopping starts one server, not two", async () => {
+  // A second start would replace a running child that nothing then stops.
+  const { config, rec, stop } = watching()
+  try {
+    writeFileSync(config, '{"models":[1]}')
+    await until(() => rec.started.length === 1)
+    const release = rec.holdStops()
+    writeFileSync(config, '{"models":[1,2]}')
+    await until(() => rec.stopped.length === 1)
+    writeFileSync(config, '{"models":[1,2,3]}')
+    await settle()
+    release()
+    await until(() => rec.started.length === 3)
+    await settle()
+    assert.equal(rec.stopped.length, rec.started.length - 1)
   } finally {
     stop()
   }
@@ -277,6 +309,32 @@ test("restarts nothing while the app is quitting", async () => {
     rec.crash()
     clock.now = 60_000
     writeFileSync(config, '{"models":[1,2]}')
+    await settle()
+    assert.equal(rec.started.length, 1)
+  } finally {
+    stop()
+  }
+})
+
+test("a restart the quit overtakes starts nothing once the old server stops", async () => {
+  // The quit stops only the children running when it begins.
+  const { ctx, config } = staged()
+  const rec = recording()
+  let quitting = false
+  const stop = watchTranscriptionModels({
+    ctx,
+    control: rec.control,
+    stopping: () => quitting,
+    pollMs: 5,
+  })
+  try {
+    writeFileSync(config, '{"models":[1]}')
+    await until(() => rec.started.length === 1)
+    const release = rec.holdStops()
+    writeFileSync(config, '{"models":[1,2]}')
+    await until(() => rec.stopped.length === 1)
+    quitting = true
+    release()
     await settle()
     assert.equal(rec.started.length, 1)
   } finally {

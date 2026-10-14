@@ -42,6 +42,8 @@ export function watchTranscriptionModels(options: TranscriptionWatcherOptions): 
   let gaveUp = false
 
   const start = () => {
+    // Checked again after a stop: the quit stops only what runs when it begins.
+    if (stopping()) return
     const spec = audiocppTranscriptionSpec(ctx)
     if (!spec) return
     control.start(spec)
@@ -86,10 +88,18 @@ export function watchTranscriptionModels(options: TranscriptionWatcherOptions): 
     start()
   }
 
+  // A tick during a slow stop would start a second server over the first.
+  let reconciling = false
   const timer = setInterval(() => {
-    void reconcile().catch(() => {
-      // Mid-write or mid-restart; the next tick tries again.
-    })
+    if (reconciling) return
+    reconciling = true
+    void reconcile()
+      .catch(() => {
+        // Mid-write or mid-restart; the next tick tries again.
+      })
+      .finally(() => {
+        reconciling = false
+      })
   }, pollMs)
   timer.unref()
   return () => clearInterval(timer)
