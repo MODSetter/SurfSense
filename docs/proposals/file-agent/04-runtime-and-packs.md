@@ -472,7 +472,7 @@ The gate runs in `code-quality.yml` on pull requests that change a lockfile, a `
 - **Windows, Office pack.** TDF's signatures survive the trim (measured), and SurfSense signs nothing in it. A file the backend's own HTTP client writes carries no Mark of the Web, so SmartScreen does not prompt (estimate, checked in RT3b on a clean VM).
 - **macOS, installer.** PBS's interpreter is signed by the `afterPack` hook with its own entitlements (section 4); its `.so` files are signed with the bundle. v2.2.0 is notarized and carries opencode under its vendor's signature (`mac.signIgnore`), so the agent ships on macOS as on the other two. No build has carried PBS yet, and a notarized build carrying it gates RT4 on macOS.
 - **macOS, Office pack.** TDF's `.app` is copied whole, so its signature and stapled ticket stay valid wherever it is extracted (verified in RT3b with `spctl`). A trimmed macOS pack needs SurfSense to re-sign and notarize it.
-- **The Apple Developer agreement.** Notarization stops whenever it lapses, as it did on 3 Oct 2026 until the account holder accepted it, which needs no code. RT0 runs the existing `notarytool history` step on manual dry runs too, and weekly on a schedule, so a lapsed agreement fails before a release rather than after a full build.
+- **The Apple Developer agreement.** Notarization stops whenever it lapses, as it did on 3 Oct 2026 until the account holder accepted it, which needs no code. Built: `notarytool history` runs in its own workflow, weekly, on demand and before every release build, dry runs included, so a lapsed agreement fails before a release rather than after a full build ([packaging](../../architecture/packaging.md)).
 
 ## Options considered and rejected
 
