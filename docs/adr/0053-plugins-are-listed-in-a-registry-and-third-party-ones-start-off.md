@@ -1,6 +1,6 @@
 # ADR 0053: First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off
 
-- **Status:** Accepted
+- **Status:** Accepted; verifying an entry by its domain superseded by [ADR 0055](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md)
 - **Date:** 2026-10-08
 - **Source:** maintainer decision, 8 Oct 2026 (no permalink); [obsidianmd/obsidian-releases](https://github.com/obsidianmd/obsidian-releases), [Obsidian plugin security](https://obsidian.md/help/Extending+Obsidian/Plugin+security)
 
