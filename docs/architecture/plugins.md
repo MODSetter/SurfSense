@@ -70,7 +70,7 @@ A registry entry with `auth: oauth`, or a server added by URL that asks for it, 
 
 ## Ready tools
 
-`list_tools()` in [`gateway/listing.py`](../../surfsense_local/backend/modules/plugins/gateway/listing.py) is the one answer to which tools may be used now: a tool switched on, of a plugin switched on and not disconnected, whose hosts are all allowed, not removed from the registry, not an OAuth plugin signed out, and, unless SurfSense publishes it, only while third-party plugins are allowed. `needs_approval()` in [`gateway/approval.py`](../../surfsense_local/backend/modules/plugins/gateway/approval.py) says which ask: a first-party read-only tool never does, a tool that does not say it is read-only and does not say it is harmless (`destructiveHint` absent or true) always does, and any other asks unless set to Always allow.
+`list_tools()` in [`gateway/listing.py`](../../surfsense_local/backend/modules/plugins/gateway/listing.py) is the one answer to which tools may be used now: a tool switched on, of a plugin switched on and not disconnected, whose hosts are all allowed, not removed from the registry, not an OAuth plugin signed out, not a plugin whose license the plugin host refused, and, unless SurfSense publishes it, only while third-party plugins are allowed. `needs_approval()` in [`gateway/approval.py`](../../surfsense_local/backend/modules/plugins/gateway/approval.py) says which ask: a first-party read-only tool never does, a tool that does not say it is read-only and does not say it is harmless (`destructiveHint` absent or true) always does, and any other asks unless set to Always allow.
 
 These two are the gateway today: it decides readiness and approval, and calls no tool. `list_tools()` returns `ReadyTool` records that name no engine ([`ready_tool.py`](../../surfsense_local/backend/modules/plugins/gateway/ready_tool.py)); the agent reads them each turn. Their `qualified_name`, `<plugin>__<tool>`, waits for the chat engine; opencode names a tool `<plugin>_<tool>` itself ([agent](agent.md#plugins)).
 
@@ -82,6 +82,14 @@ Every listing of a server is a check, recorded on its row ([`plugin_check.py`](.
 
 A tool switched off by a check, because it is new or its description or annotations changed, is marked `added` or `changed`. Switching it on clears the mark: the user has allowed it as it now reads.
 
+
+## The license verdict
+
+Whether the license unlocks SurfSense's paid plugins is the plugin host's to say, never the app's: the imported license file is only a hint of when to ask ([`license_verdict/`](../../surfsense_local/backend/modules/plugins/license_verdict/)). `POST /plugins/license/check` asks `GET /license` on the plugin host once, for every paid plugin connected, and applies the one answer to all of them: `missing_license`, `expired`, `revoked` or `invalid` become their license failure, and a valid license clears one. A host without `/license` is no answer, like one out of reach: it serves 2.2.1 and earlier apps, which learn the license from their listings, so it is deployed before an app that asks.
+
+- **When it asks.** At once after a license is imported, replaced or removed (Settings › License calls it). With `if_stale`, on opening Settings › Plugins and before each agent turn: when no verdict came in the last five minutes, or the license file's expiry passed since the last one. The time is kept in memory, so a restart asks again.
+- **What it never does.** No paid plugin, or `plugins.surfsense.com` switched off in Settings › Network, asks nothing. No answer, the host out of reach or `503 license_service_unavailable`, keeps every verdict as it was; so does any check that cannot reach the server, so a refused license is never turned back into a plugin that seems ready.
+- **What it changes.** A plugin whose license is refused is not ready, so `@` and the agent leave it out, and it stays connected: the next verdict that says the license works brings it back, renewed on the server or imported again.
 ## What a plugin can reach
 
 A plugin's server gets the arguments of the calls opencode makes to it, and nothing else of the user's: no plugin code runs in the app, nothing it returns reaches Sources unless the user saves it ([agent](agent.md#plugins)), and opencode's connections are tunnelled only to the hosts of a ready plugin ([agent](agent.md#network)). Against text in a source or a result steering the model, the defences are approval with the exact arguments, hosts the user consented to, a changed description switching its tool off, which hides it from the model, and third-party plugins off until allowed. None of this is a sandbox.
@@ -131,7 +139,6 @@ A plugin's server gets the arguments of the calls opencode makes to it, and noth
 
 ## Known gaps
 
-- An agent turn names a license plugin it could not use as needing sign-in, not as needing a license ([agent](agent.md#plugins)).
 - Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added; whether it should be is an [open question](../proposals/plugins/README.md#open-questions).
 - OAuth sign-in has been tried only against a stand-in authorization server, never a live provider.
 - The tests stand in for the callback page's forward to the API by calling the API's callback themselves; the deployed page is not exercised by any test.

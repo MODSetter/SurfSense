@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from modules.plugins.gateway.qualified_name import qualified_name
 from modules.plugins.gateway.ready_tool import ReadyTool
 from modules.plugins.installed.models import (
+    LICENSE_FAILURES,
     CheckFailure,
     InstalledPlugin,
     PluginSource,
@@ -29,6 +30,8 @@ def list_tools(session: Session) -> list[ReadyTool]:
                 and delisted_reason(plugin, delisted) is None
                 and not hosts_not_allowed(session, plugin)
                 and not _signed_out(plugin)
+                # The plugin host refused the license: a call would only be refused.
+                and plugin.check_failure not in LICENSE_FAILURES
             )
         return ready[plugin.id]
 

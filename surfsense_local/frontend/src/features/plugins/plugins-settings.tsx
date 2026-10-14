@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { PlusIcon } from "@/components/ui/icons"
@@ -12,6 +12,7 @@ import { AddPluginDialog } from "./add-custom/add-plugin-dialog"
 import { BrowsePlugins } from "./browse/browse-plugins"
 import { PluginSearchField } from "./search/plugin-search-field"
 import { PluginSearchResults } from "./search/plugin-search-results"
+import { refreshLicenseVerdict } from "./license-verdict"
 import { YourPlugins } from "./yours/your-plugins"
 
 type Tab = "yours" | "browse"
@@ -29,6 +30,10 @@ export function PluginsSettings({
 }) {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(start === "add")
+  // A license changed or expired since the last answer shows here, not at the next turn.
+  useEffect(() => {
+    void refreshLicenseVerdict(queryClient, { ifStale: true })
+  }, [queryClient])
   const [query, setQuery] = useState("")
   // While searching, results from both tabs replace them, so the tabs wait.
   const searching = query.trim() !== ""

@@ -31,6 +31,7 @@ import {
 } from "./api"
 import { TrialButton } from "./trial-button"
 import { licenseQueryKey, useLicense } from "./use-license"
+import { refreshLicenseVerdict } from "@/features/plugins/license-verdict"
 
 const DAY = 24 * 60 * 60 * 1000
 const EXPIRY_NOTICE_DAYS = 14
@@ -50,6 +51,8 @@ function notice(status: LicenseStatus): {
   title: string
   description: string
   link?: { href: string; label: string }
+  /** A heads-up rather than a problem reads quieter. */
+  variant?: "secondary"
 } | null {
   if (status.state === "clock_untrusted") {
     return {
@@ -100,6 +103,7 @@ function notice(status: LicenseStatus): {
           },
           { count: days }
         ),
+        variant: "secondary",
       }
     }
   }
@@ -268,8 +272,11 @@ export function LicenseSettings() {
   const status = license.data ?? null
   // Straight into the cache rather than local state, so the sidebar's license
   // row reacts to an import here without refetching.
-  const publish = (next: LicenseStatus) =>
+  const publish = (next: LicenseStatus) => {
     queryClient.setQueryData(licenseQueryKey, next)
+    // The paid plugins show what the new license unlocks, before anyone opens Plugins.
+    void refreshLicenseVerdict(queryClient, { ifStale: false })
+  }
 
   const remove = async () => {
     setBusy(true)
@@ -431,7 +438,7 @@ export function LicenseSettings() {
       ) : null}
 
       {shown ? (
-        <Alert role="status" className="mt-6">
+        <Alert role="status" variant={shown.variant} className="mt-6">
           <CircleAlertIcon />
           <AlertTitle>{shown.title}</AlertTitle>
           <AlertDescription className="flex flex-col items-start gap-1">

@@ -33,6 +33,10 @@ The client tells the user `reason`, never a bare status.
 
 `revoked` covers Keygen `SUSPENDED` and `BANNED`. `invalid` covers unknown key and policy mismatch. `expired` is Keygen `EXPIRED`.
 
+
+### The plugin host's `GET /license`
+
+The plugin host also answers the license alone, once for every paid plugin it serves: the same request header, and `200 {"status": "valid"}` in place of the route's normal response, or the refusal above. A host without a paid plugin has no such route and answers `404`.
 ## Producer rules
 
 Both producers:
@@ -50,13 +54,14 @@ The plugin host answers a refusal itself, before the request reaches the plugin.
 
 - The app sends the imported license's key, a trial's included, on every request to a plugin on SurfSense's plugin host, and to no other host. It does not check the license's expiry: the producer decides. With no license imported it sends no header, and the host answers `401 missing_license`.
 - The app makes no request until the user has allowed `plugins.surfsense.com`.
-- The app records each `reason` as the plugin's check failure and shows it, with a link to Settings › License.
+- The app records each `reason` as the plugin's check failure and shows it, with a link to Settings › License. A paid plugin with a refused license is held out of `@` and the agent until a verdict says the license works.
+- The app learns the verdict for every paid plugin at once from the plugin host's `GET /license`, below, rather than by listing each one. A `404` is no answer, so the host is deployed with `/license` before an app that asks; apps before it learn the verdict from their listings, which every host still answers.
 - Treat `503 license_service_unavailable` as transient: retry later, and do not treat the license as bad.
 - MCP sends the same `Authorization: License <key>` header, from `SURFSENSE_LICENSE_KEY`. It does not register the knowledge-base tools in license mode. PATs keep working until the T+30 purge, after which license mode is the only auth.
 
 ## Tests each side owns
 
-- Plugin host: each Keygen status maps to the documented status and `reason`, the five-minute cache, the 24-hour grace and its end once a key is refused ([`license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/)).
-- App: the key on every request to the plugin host and on none elsewhere, and a missing or expired license recorded with its reason ([`test_first_party_plugins.py`](../../surfsense_local/backend/tests/integration/plugins/routes/test_first_party_plugins.py)).
+- Plugin host: each Keygen status maps to the documented status and `reason`, the five-minute cache, the 24-hour grace and its end once a key is refused, and `GET /license` answering once for every paid plugin ([`license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/)).
+- App: the key on every request to the plugin host and on none elsewhere, a missing or expired license recorded with its reason, and the verdict asked once of `GET /license`, a missing route changing nothing ([`test_first_party_plugins.py`](../../surfsense_local/backend/tests/integration/plugins/routes/test_first_party_plugins.py)).
 - Backend, once built: each Keygen status maps to the documented status and `reason`; the 24-hour fallback serves a cached key when the Keygen client raises; a first call for an unseen key creates exactly one synthetic user and workspace, and a second call reuses them.
 - MCP, once built: a `401` or `403` shows `reason`; a `503` is treated as transient.

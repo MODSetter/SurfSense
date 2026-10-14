@@ -9,6 +9,7 @@ import {
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
+  ArrowUpRight01Icon as ArrowUpRight01IconData,
   ArrowUp02Icon as ArrowUp02IconData,
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
@@ -51,7 +52,6 @@ import {
   GridViewIcon as GridViewIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
-  LinkSquare02Icon as LinkSquare02IconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
   Moon02Icon as Moon02IconData,
@@ -176,7 +176,7 @@ export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const GridViewIcon = createIcon(GridViewIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
-export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
+export const ExternalLinkIcon = createIcon(ArrowUpRight01IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MoonIcon = createIcon(Moon02IconData)
