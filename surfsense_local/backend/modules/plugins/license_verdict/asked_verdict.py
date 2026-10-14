@@ -18,19 +18,13 @@ class Verdict:
     failure: CheckFailure | None
 
 
-class RouteMissing:
-    """A plugin host built before `/license`: the verdict comes from one listing instead."""
-
-
-async def asked_verdict(headers: dict[str, str]) -> Verdict | RouteMissing | None:
-    """None when the host gave no verdict: unreachable, Keygen down, or an answer it never sends."""
+async def asked_verdict(headers: dict[str, str]) -> Verdict | None:
+    """None when the host gave no verdict: unreachable, Keygen down, or no `/license`."""
     try:
         async with httpx2.AsyncClient(timeout=TIMEOUT_SECONDS) as http:
             answer = await http.get(f"{plugin_host()}/license", headers=headers)
     except httpx2.HTTPError:
         return None
-    if answer.status_code == 404:
-        return RouteMissing()
     if answer.status_code == 200:
         return Verdict(None)
     if answer.status_code in (401, 403):

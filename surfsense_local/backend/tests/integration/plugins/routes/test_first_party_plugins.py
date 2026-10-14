@@ -242,10 +242,10 @@ async def test_a_license_imported_again_clears_the_verdict_at_once(
     assert await amazon_failure(client) is None
 
 
-async def test_a_host_built_before_the_route_is_asked_by_one_listing(
+async def test_a_host_without_the_route_changes_nothing(
     client: AsyncClient, start_host: Callable[..., LicenseHost]
 ) -> None:
-    """An app newer than its plugin host still gets the verdict."""
+    """No `/license` is no answer: the verdict stays, and nothing is listed for it."""
     host = start_host(license_route="missing")
     await import_license(client, "individual.lic")
     await client.post("/plugins/first-party/amazon")
@@ -254,8 +254,8 @@ async def test_a_host_built_before_the_route_is_asked_by_one_listing(
     await client.delete("/license")
     await client.post("/plugins/license/check")
 
-    assert await amazon_failure(client) == "needs_license"
-    assert len(host.guard.authorizations) > listings
+    assert await amazon_failure(client) is None
+    assert len(host.guard.authorizations) == listings
 
 
 async def test_no_answer_from_the_host_keeps_the_last_verdict(
