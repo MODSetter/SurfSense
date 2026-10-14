@@ -7,6 +7,7 @@ rarely does, and the checks cost nothing when they do not fire.
 """
 
 import logging
+import re
 import zlib
 
 __all__ = ["cleaned"]
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Written without spaces between words, so a run is counted in characters.
 _UNSPACED = frozenset({"zh", "ja", "yue", "th"})
+# There a number or a Latin word is one unit, so 100000 keeps its zeros.
+_UNSPACED_UNIT = re.compile(r"[\dA-Za-z]+|.", re.DOTALL)
 _LONGEST_RUN = 4
 _REPEATS = 4
 # Faster than anyone speaks, in characters a second of audio.
@@ -35,7 +38,7 @@ def cleaned(text: str, language: str | None, seconds: float) -> str:
 def _cleaned(text: str, language: str | None, seconds: float) -> str:
     text = text.strip()
     if language in _UNSPACED:
-        text = "".join(_collapsed(list(text)))
+        text = "".join(_collapsed(_UNSPACED_UNIT.findall(text)))
     else:
         words = text.split()
         collapsed = _collapsed(words)

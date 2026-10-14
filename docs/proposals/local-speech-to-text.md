@@ -254,7 +254,7 @@ Transcript of meeting.mp3 · 42:10 · Japanese (detected) · Nemotron 3.5. [hh:m
 
 The chunker splits at blank lines ([`chunking.py`](../../surfsense_local/backend/worker/ingestion/chunking.py)), so while a window's paragraph stays under its 480 tokens ([Open questions](#open-questions)), every chunk's first line carries its start time and the agent can quote times. CJK text has no `. ` sentence breaks, so paragraphs keep chunk boundaries meaningful. The header language is the majority across windows; each window keeps its own. The job stores `transcription: {language, duration_s, model}` in the document's metadata.
 
-**Text cleanup**, the same for files and dictation, and fail-open (on any error the text is kept as it is), as Handy's is: trim; collapse any run of one to four words (characters for zh, ja, yue and th) repeated four or more times to one; drop a window's text, and log it, when it runs past 40 characters per second of audio or its zlib compression ratio passes 2.4 over at least 50 characters. Runaway repetition is the known failure of autoregressive decoders such as Qwen's; Nemotron's transducer rarely repeats, and the guard costs nothing when it does not fire. No filler removal and no model rewriting in v1.
+**Text cleanup**, the same for files and dictation, and fail-open (on any error the text is kept as it is), as Handy's is: trim; collapse any run of one to four words (characters for zh, ja, yue and th, where a number or a Latin word counts as one) repeated four or more times to one; drop a window's text, and log it, when it runs past 40 characters per second of audio or its zlib compression ratio passes 2.4 over at least 50 characters. Runaway repetition is the known failure of autoregressive decoders such as Qwen's; Nemotron's transducer rarely repeats, and the guard costs nothing when it does not fire. No filler removal and no model rewriting in v1.
 
 ### No speech model yet
 
@@ -285,10 +285,10 @@ The renderer never talks to a sidecar ([`preload`](../../surfsense_local/electro
 |---|---|
 | `GET /llm/transcription/status` | → `{ready, reason: needs_speech_model or transcription_unavailable or null, model, language_intent, languages}` |
 | `POST /llm/transcription/dictations` | → `201 {id, warm: loaded or loading}`; `409 needs_speech_model`; `409 transcription_needs_memory` with `needed_bytes`, `available_bytes` and an English `message`; `503 transcription_unavailable` |
-| `POST /llm/transcription/dictations/{id}/phrases` | multipart `audio`, a WAV of 16 kHz mono s16, at most 30 s → `{text, language, no_speech}`; `404 dictation_ended` for a session the API does not know |
+| `POST /llm/transcription/dictations/{id}/phrases` | multipart `audio`, a WAV of 16 kHz mono s16, at most 30 s → `{text, language, no_speech}`; `404 dictation_ended` for a session the API does not know; `409 transcription_needs_memory` when a hold has unloaded the model and memory is short |
 | `POST /llm/transcription/dictations/{id}/keepalive` | every 10 s while recording → `204` |
 | `DELETE /llm/transcription/dictations/{id}` | → `204` |
-| `POST /internal/transcription/windows` | a file window from the ingest worker, multipart → `200 {text, language, model_id}`; after at most 30 s of waiting, `503 waiting {reason: dictation, hold or memory}`, with both sizes for memory; `409 needs_speech_model`; `503 transcription_unavailable` |
+| `POST /internal/transcription/windows` | a file window from the ingest worker, multipart → `200 {text, language, model_id}`; after at most 30 s of waiting, `503 waiting {reason: dictation, hold, memory or busy}`, with both sizes for memory; `409 needs_speech_model`; `503 transcription_unavailable` |
 
 The worker meets `503 waiting` by checking for cancel and the yield rule, then asking again: a hold's wait has no bound, and memory waits count toward the job's 10 minutes ([Memory](#memory)). `409 needs_speech_model` makes the recording wait for a model, and `503 transcription_unavailable` is retried.
 

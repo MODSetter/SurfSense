@@ -160,14 +160,15 @@ async def transcribe_phrase(
 @router.post(
     "/dictations/{dictation_id}/keepalive", status_code=status.HTTP_204_NO_CONTENT
 )
-def keep_dictation_open(dictation_id: str, dictations: DictationsDep) -> Response:
-    """Every 10 s while recording, so a long pause does not end it."""
+async def keep_dictation_open(dictation_id: str, dictations: DictationsDep) -> Response:
+    """Every 10 s while recording, so a long pause does not end it. On the
+    event loop, as every other use of the sessions is, so none races."""
     _keep_open(dictations, dictation_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/dictations/{dictation_id}", status_code=status.HTTP_204_NO_CONTENT)
-def close_dictation(dictation_id: str, dictations: DictationsDep) -> Response:
+async def close_dictation(dictation_id: str, dictations: DictationsDep) -> Response:
     """After the last phrase: recordings may use the server again."""
     dictations.close(dictation_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

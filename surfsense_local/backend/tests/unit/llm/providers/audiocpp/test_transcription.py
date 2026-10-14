@@ -151,6 +151,29 @@ async def test_a_second_failure_says_the_server_is_unavailable() -> None:
         await client(answer, retry_after=0).transcribe(MODEL, wav(1.0), None)
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        pytest.param(httpx.ReadTimeout("hung"), id="past its deadline"),
+        pytest.param(httpx.Response(200, text="<html>"), id="an unreadable reply"),
+    ],
+)
+async def test_a_hung_or_garbled_server_is_unavailable_not_asked_again(reply) -> None:
+    """A hung server fails one window, not the job: the route answers 503
+    rather than an error the worker cannot read."""
+    asked: list[int] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        asked.append(1)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    with pytest.raises(TranscriptionUnavailableError):
+        await client(answer, retry_after=0).transcribe(MODEL, wav(1.0), None)
+    assert len(asked) == 1
+
+
 async def test_a_failure_the_server_explains_is_not_asked_again() -> None:
     """Its own words are kept for the reason."""
     asked: list[int] = []

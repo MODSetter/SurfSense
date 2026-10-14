@@ -46,6 +46,18 @@ def test_chinese_repeats_are_counted_in_characters() -> None:
     assert cleaned("好的好的好的好的好的我们开始", "zh", 5.0) == "好的我们开始"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("收入是100000元", id="a number"),
+        pytest.param("他说Hmmmm好吧", id="a Latin word"),
+    ],
+)
+def test_a_number_or_latin_word_in_chinese_is_one_unit(text: str) -> None:
+    """Its zeros or letters are not a run of characters said four times."""
+    assert cleaned(text, "zh", 5.0) == text
+
+
 def test_text_faster_than_anyone_speaks_is_dropped() -> None:
     """Over 40 characters a second of audio is a decoder running away."""
     assert cleaned("The model wrote far more than was said here.", "en", 1.0) == ""

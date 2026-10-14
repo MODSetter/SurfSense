@@ -45,6 +45,13 @@ def test_what_is_sent_on_is_a_wav_of_the_same_samples() -> None:
         assert sent.readframes(sent.getnframes()) == clip.pcm
 
 
+def test_a_clip_cut_mid_sample_keeps_its_whole_samples() -> None:
+    """Half a sample would fail the detector and reach the server as is."""
+    clip = checked_audio(wav(1.0)[:-1])
+
+    assert len(clip.pcm) == (16000 - 1) * 2
+
+
 @pytest.mark.parametrize(
     "data",
     [

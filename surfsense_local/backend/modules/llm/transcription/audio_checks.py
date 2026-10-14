@@ -52,7 +52,8 @@ def checked_audio(data: bytes) -> CheckedAudio:
             f"needs 16 kHz mono 16-bit audio, not {rate} Hz, "
             f"{channels} channels, {width * 8}-bit"
         )
-    checked = CheckedAudio(pcm)
+    # A file cut mid-sample keeps its whole samples.
+    checked = CheckedAudio(pcm[: len(pcm) - len(pcm) % 2])
     if checked.seconds > MAX_SECONDS:
         raise UnfitAudioError(
             f"at most {MAX_SECONDS:.0f} s, not {checked.seconds:.1f} s"

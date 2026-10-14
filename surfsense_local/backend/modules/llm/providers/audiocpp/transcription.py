@@ -51,11 +51,21 @@ class AudioCppTranscriber:
         try:
             async with self._client(httpx.Timeout(deadline, connect=5.0)) as client:
                 reply = await self._post_once_more_if_restarting(client, wav, fields)
+        except httpx.HTTPError as error:
+            # Past its deadline, say: it had its time, so it is not asked again.
+            raise TranscriptionUnavailableError(
+                f"the speech recognition server did not answer: {error!r}"
+            ) from error
         finally:
             await model_activity.release_use(key)
         if reply.is_error:
             raise TranscriptionUnavailableError(_server_message(reply))
-        return str(reply.json().get("text", ""))
+        try:
+            return str(reply.json().get("text", ""))
+        except (ValueError, AttributeError) as error:
+            raise TranscriptionUnavailableError(
+                f"the speech recognition server answered without text: {error!r}"
+            ) from error
 
     async def is_loaded(self, model: str) -> bool:
         try:
