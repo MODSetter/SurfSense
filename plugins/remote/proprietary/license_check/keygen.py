@@ -1,40 +1,69 @@
-"""Keygen's validate-key action, which needs no token: the key is the credential."""
+"""Keygen's validate-key action, which needs no token: the key is the credential.
 
+Settings, under the backend's own names and meanings, so a deployment gives both the
+same values:
+
+- `KEYGEN_API_URL`: the accounts endpoint, Keygen Cloud's unless set. SurfSense's
+  self-hosted Keygen CE is reached inside the deployment, as `http://keygen-web:3000/v1/accounts`.
+- `KEYGEN_ACCOUNT_ID`: SurfSense's Keygen account. Not a secret: it is part of every
+  validation URL.
+- `KEYGEN_HOST`: CE's own hostname, such as `keygen.internal`. CE finds the account
+  from `Host` and redirects plain HTTP unless a proxy vouches for it, so when this is
+  set it goes as `Host`, with `X-Forwarded-Proto: https`.
+"""
+
+import logging
+import os
 from dataclasses import dataclass, field
 
 import httpx2
 
-KEYGEN_API_URL = "https://api.keygen.sh"
-# SurfSense's Keygen account, the backend's KEYGEN_ACCOUNT_ID. Not a secret: it is
-# part of every validation URL.
-SURFSENSE_ACCOUNT_ID = ""
+logger = logging.getLogger(__name__)
+
+CLOUD_ACCOUNTS_URL = "https://api.keygen.sh/v1/accounts"
 TIMEOUT_SECONDS = 10.0
 
 
 class KeygenUnreachableError(Exception):
-    """No answer about the key: a network failure or Keygen's own 5xx."""
+    """No answer about the key: a network failure, Keygen's own 5xx, or a reply that is not one."""
 
 
 @dataclass(frozen=True)
 class Keygen:
-    # Read when made, not when defined, so a test can point a plugin at a stand-in.
-    api_url: str = field(default_factory=lambda: KEYGEN_API_URL)
-    account_id: str = field(default_factory=lambda: SURFSENSE_ACCOUNT_ID)
+    # Read when made, not when defined, so a test or a deployment's environment sets them.
+    api_url: str = field(
+        default_factory=lambda: os.environ.get("KEYGEN_API_URL") or CLOUD_ACCOUNTS_URL
+    )
+    account_id: str = field(
+        default_factory=lambda: os.environ.get("KEYGEN_ACCOUNT_ID", "")
+    )
+    host: str | None = field(
+        default_factory=lambda: os.environ.get("KEYGEN_HOST") or None
+    )
 
     def __post_init__(self) -> None:
         if not self.account_id:
-            raise ValueError("SURFSENSE_ACCOUNT_ID in keygen.py is not set")
+            raise ValueError(
+                "KEYGEN_ACCOUNT_ID is not set: SurfSense's Keygen account, as the backend's"
+            )
 
     async def validation_code(self, key: str) -> str:
-        """Keygen's `meta.code`, such as VALID, EXPIRED or NOT_FOUND."""
+        """Keygen's `meta.code`, such as VALID, EXPIRED or NOT_FOUND.
+
+        Any other answer that is not Keygen's own failure, a 4xx or a redirect, is
+        `HTTP_<status>`, which refuses the key as invalid rather than failing the request.
+        """
         url = (
-            f"{self.api_url.rstrip('/')}/v1/accounts/{self.account_id}"
+            f"{self.api_url.rstrip('/')}/{self.account_id}"
             "/licenses/actions/validate-key"
         )
         headers = {
             "Content-Type": "application/vnd.api+json",
             "Accept": "application/vnd.api+json",
         }
+        if self.host:
+            headers["Host"] = self.host
+            headers["X-Forwarded-Proto"] = "https"
         try:
             async with httpx2.AsyncClient(timeout=TIMEOUT_SECONDS) as http:
                 response = await http.post(
@@ -44,5 +73,17 @@ class Keygen:
             raise KeygenUnreachableError(str(error)) from error
         if response.status_code >= 500:
             raise KeygenUnreachableError(f"Keygen answered {response.status_code}")
-        response.raise_for_status()
-        return response.json()["meta"]["code"]
+        if not response.is_success:
+            # A wrong account id or address answers 404 for every key, and a
+            # self-hosted Keygen redirects without KEYGEN_HOST: worth an operator's look.
+            logger.warning(
+                "Keygen answered %s to validate-key; the key is refused as invalid",
+                response.status_code,
+            )
+            return f"HTTP_{response.status_code}"
+        try:
+            return response.json()["meta"]["code"]
+        except (ValueError, KeyError, TypeError) as error:
+            raise KeygenUnreachableError(
+                f"Keygen answered {response.status_code} without a code"
+            ) from error

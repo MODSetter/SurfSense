@@ -25,12 +25,13 @@ class PluginRead(BaseModel):
     id: str
     name: str
     source: str
-    publisher: str
     url: str
     hosts: list[str]
     # How it signs in: `none`, `token`, `license` or `oauth`.
     auth_type: str
     enabled: bool
+    # Disconnected by the user: kept with its tool settings, signed out, never offered.
+    disconnected: bool
     connected_at: datetime
     checked_at: datetime | None
     # `unreachable` or `sign_in` when the last check failed; None when it answered.
@@ -54,11 +55,11 @@ def read_plugin(
         id=plugin.id,
         name=plugin.entry.get("name", plugin.id),
         source=plugin.source,
-        publisher=plugin.publisher,
         url=plugin.url,
         hosts=plugin.entry.get("hosts", []),
         auth_type=plugin.credential_kind or "none",
         enabled=plugin.enabled,
+        disconnected=plugin.disconnected_at is not None,
         connected_at=plugin.connected_at,
         checked_at=plugin.checked_at,
         check_failure=plugin.check_failure,

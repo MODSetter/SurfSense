@@ -23,7 +23,8 @@ import {
 import { managedOriginalPath } from "./document-files.ts"
 import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
 import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
-import { allowedExternalUrl } from "./external-url.ts"
+import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
+import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
 import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
 import { stopAll, type Sidecars } from "./sidecars/supervisor.ts"
@@ -200,6 +201,34 @@ function registerDocumentHandlers(dataDir: string): void {
     }
     const allowed = allowedExternalUrl(url)
     if (allowed) await shell.openExternal(allowed)
+  })
+
+  // A link from content the user confirmed in the link popup, which named its host.
+  ipcMain.handle("shell:open-confirmed-link", async (event, url) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof url !== "string"
+    ) {
+      return
+    }
+    const confirmed = confirmedExternalUrl(url)
+    if (confirmed) await shell.openExternal(confirmed)
+  })
+
+  // A listed plugin's page by its id: the address comes from the registry, not the page.
+  ipcMain.handle("shell:open-plugin-page", async (event, pluginId, page) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof pluginId !== "string" ||
+      typeof page !== "string" ||
+      apiUrl === null
+    ) {
+      return
+    }
+    const address = await pluginPageUrl(apiUrl, pluginId, page as PluginPage)
+    if (address) await shell.openExternal(address)
   })
 
   ipcMain.handle("documents:reveal", async (event, workspaceId, documentId) => {

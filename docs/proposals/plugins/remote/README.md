@@ -38,7 +38,7 @@ chat engine, later ──► Tool Gateway ──► MCP client ─────�
 | Publisher | Code | Runs on |
 |---|---|---|
 | SurfSense | `plugins/remote/`, and `plugins/remote/proprietary/` when paid | One plugin host at `plugins.surfsense.com`, apart from `surfsense_backend` ([`02-surfsense-servers.md`](02-surfsense-servers.md#the-plugin-host)) |
-| A partner or a community developer | Wherever they keep it | Their own server |
+| A third-party company or project | Wherever they keep it | Their own server |
 | A user's custom plugin | Wherever its publisher keeps it | Its publisher's server; it is in the user's app only, in neither list |
 
 A remote plugin needs the network and sends each call's arguments to its publisher, which the screen says before Connect. Offline plugins come with [bundles](../bundles/README.md).

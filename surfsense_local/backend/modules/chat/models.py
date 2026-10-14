@@ -17,12 +17,17 @@ class MessageRole(enum.StrEnum):
 
 class ChatThread(Base):
     __tablename__ = "chat_threads"
-    __table_args__ = (Index("chat_threads_workspace", "workspace_id"),)
+    __table_args__ = (
+        Index("chat_threads_workspace", "workspace_id"),
+        Index("chat_threads_cloud_id", "cloud_id", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE")
     )
+    # The hosted thread this one was imported from, so a re-import finds it.
+    cloud_id: Mapped[int | None]
     title: Mapped[str | None]
     # Set when the agent answers this thread: its turns live in that opencode
     # session, not in chat_messages. Chosen when the thread is opened, and kept.

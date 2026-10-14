@@ -24,6 +24,7 @@ from modules.agent.opencode_config import (
     write_opencode_config,
 )
 from modules.agent.opencode_failure import opencode_failure
+from modules.agent.thread_folder.repo_fence import fence_every_workspace
 from shared.config import get_agent_settings, get_storage_settings
 
 # Electron checks the file every 2 s and opencode answers about 2 s after it
@@ -55,6 +56,7 @@ async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
     if not settings.opencode_url or not settings.opencode_password:
         raise AgentUnavailableError("the agent's runtime is not part of this install")
 
+    await transact(session, fence_every_workspace)
     model, window = await selected_model_window(session)
     setup = AgentSetup(
         model=model,

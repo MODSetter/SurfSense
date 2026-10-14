@@ -4,7 +4,7 @@
     {
       "id": "deepwiki",
       "kind": "remote",
-      "publisher": "community",
+      "verification": "community",
       "name": "DeepWiki",
       "description": "Ask questions about public GitHub repositories and read their generated wikis.",
       "author": "Cognition",
@@ -18,7 +18,14 @@
       "access": "free",
       "privacy_policy": "https://cognition.com/legal/privacy-policy",
       "homepage": "https://deepwiki.com",
-      "icon": "deepwiki.svg"
+      "icon": "deepwiki.svg",
+      "tools": [
+        "ask_wiki_question",
+        "read_wiki_contents",
+        "read_wiki_structure"
+      ],
+      "added": "2026-10",
+      "about": "Connect DeepWiki to SurfSense to understand any public GitHub repository without reading its code first. Ask questions about a repository and read the wiki DeepWiki generates for it, from its outline down to any page. Useful for getting up to speed on an unfamiliar codebase, comparing libraries, or checking how a project is put together before you depend on it."
     }
   ],
   "removed": []

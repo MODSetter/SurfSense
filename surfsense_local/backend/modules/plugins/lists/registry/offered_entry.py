@@ -14,11 +14,7 @@ _SURFSENSE_ONLY = "claims to be SurfSense's"
 
 
 def refusal(entry: RegistryEntry) -> str | None:
-    if (
-        entry.publisher == "surfsense"
-        or entry.auth.type == "license"
-        or entry.access == "license"
-    ):
+    if entry.auth.type == "license" or entry.access == "license":
         return _SURFSENSE_ONLY
     if entry.id in {listed.id for listed in checked_entries(FIRST_PARTY_LIST)}:
         return "takes a first-party id"

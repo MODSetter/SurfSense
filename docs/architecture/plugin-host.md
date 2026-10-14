@@ -1,6 +1,6 @@
 # Plugin host
 
-The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The [registry](plugin-registry.md#the-container) is served on the same hostname by a container of its own; the host does not serve it. The host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
+The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The app's first-party list offers eight: Reddit and Instagram stay out until they can read anonymously again ([Known gaps](#known-gaps)). The [registry](plugin-registry.md#the-container) is served on the same hostname by a container of its own; the host does not serve it. The host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
 
 **Code:** [`plugins/remote/`](../../plugins/remote/)
 **Decisions:** [ADR 0054](../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [ADR 0047](../adr/0047-premium-plugins-are-source-available.md)
@@ -30,6 +30,8 @@ The license check is `license_check/`, not `license/`: a `license/` folder besid
 - The SDK's DNS-rebinding guard is off: it protects servers on a user's loopback, and the host is reached by its public name.
 
 `python -m host`, run from `plugins/remote/`, serves on `PORT`, 8000 by default. `PLUGINS`, ids separated by commas, limits the container to those plugins, as one split out of the shared container runs; an id it does not find stops the host from starting. `REDIS_URL` passes a Stop to the other copies. [`host/.env.example`](../../plugins/remote/host/.env.example) lists every setting the container reads, the scraper plugins' `SCRAPING_PROXY_*` among them; locally, `uv run --project host --env-file host/.env python -m host` reads a copy of it.
+
+Before it loads a plugin, `python -m host` redacts every log record as it is made, its message, arguments and traceback, so no logger or handler writes a credential: a URL's `user:password@`, a proxy in the captcha solvers' `user:password@host:port` form, and a `password` or a solver's `key` as a field ([`redacted_logs.py`](../../plugins/remote/host/redacted_logs.py)). Scrapling would otherwise log a failed proxy with its user and password.
 
 ## The image
 
@@ -114,31 +116,34 @@ A paid plugin sets `access = LicenseAccess()` ([`license_access.py`](../../plugi
 | `EXPIRED` | `403 expired` |
 | `SUSPENDED` or `BANNED` (a refund suspends) | `403 revoked` |
 | `NOT_FOUND` or any other code | `403 invalid` |
-| Keygen unreachable or answering 5xx, key valid in the last 24 hours | Through to the plugin |
-| Keygen unreachable, key not valid in the last 24 hours, or refused since | `503 license_service_unavailable` |
+| Keygen answers 4xx or a redirect | `403 invalid`, and a warning in the log: a wrong account id or address answers so for every key |
+| Keygen unreachable, answering 5xx or with no code, key valid in the last 24 hours | Through to the plugin |
+| Keygen unreachable, answering 5xx or with no code, key not valid in the last 24 hours, or refused since | `503 license_service_unavailable` |
 
 - Keygen is asked about a key at most once in five minutes; the answer, refusal or not, is kept that long.
-- The check uses Keygen's `validate-key` action ([`keygen.py`](../../plugins/remote/proprietary/license_check/keygen.py)), which takes no token: the key is the credential, so the host holds no Keygen secret. Keygen's address and SurfSense's account id are constants in that file, not settings.
+- The check uses Keygen's `validate-key` action ([`keygen.py`](../../plugins/remote/proprietary/license_check/keygen.py)), which takes no token: the key is the credential, so the host holds no Keygen secret.
+- Its settings are the backend's, under the same names and meanings, so a deployment gives both the same values: `KEYGEN_API_URL`, the accounts endpoint, Keygen Cloud's `https://api.keygen.sh/v1/accounts` unless set; `KEYGEN_ACCOUNT_ID`, SurfSense's account, without which a paid plugin stops the host from starting; and `KEYGEN_HOST`, a self-hosted Keygen CE's hostname, sent as `Host` with `X-Forwarded-Proto: https`, since CE finds the account from `Host` and redirects plain HTTP unless a proxy vouches for it ([portal](license/portal.md)). Production's CE is reached inside the deployment, at `http://keygen-web:3000/v1/accounts` with `KEYGEN_HOST=keygen.internal`, as the backend reaches it.
 
 ## Tests
 
 From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run ruff format --check ..`. The lint includes ruff's `ASYNC` rules, which fail a blocking call inside an `async def`, since the plugins share each process's event loop. CI runs them in `plugins-pull-request-checks.yml` when `plugins/remote/` changes.
 
+- [`test_first_party_list.py`](../../plugins/remote/host/tests/test_first_party_list.py) checks that each entry in the app's first-party list names exactly the tools its `server.py` registers, read from the source, since building a licensed plugin needs the license server's account.
 - [`host/tests/`](../../plugins/remote/host/tests/) serve sample plugins on loopback and reach them with the official MCP client: the health check, each plugin at its path, the build without `proprietary/`, a failing tool, an underscored folder at its hyphenated id, and reserved folders. `test_scaling.py` drives a stateless host as opencode's client does: a request answered by a copy that never saw the one before it, `PLUGINS`, and Stop ending the thread's call with a whole response, leaving another thread's or license's alone, and reaching the call on another copy through a real Redis, from `REDIS_URL` in CI or a `redis-server` the test starts.
-- [`proprietary/license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/) check the license against a stand-in Keygen on loopback, with the clock passed in: each answer above, the five-minute cache, the 24-hour grace and its end once a key is refused, and a paid sample plugin through the host.
+- [`proprietary/license_check/tests/`](../../plugins/remote/proprietary/license_check/tests/) check the license against a stand-in Keygen on loopback, with the clock passed in: each answer above, the five-minute cache, the 24-hour grace and its end once a key is refused, a 4xx refusing the key as invalid, a reply with no code read as no answer, `Host` and `X-Forwarded-Proto` sent only with `KEYGEN_HOST`, the settings read from the environment, and a paid sample plugin through the host.
+- [`test_redacted_logs.py`](../../plugins/remote/host/tests/test_redacted_logs.py) checks each credential form hidden, text without one left alone, and every record redacted before a handler formats it, its traceback included.
 - `proprietary/<plugin>/tests/` hold each plugin's tests from the backend, beside a `test_<plugin>_plugin.py` that serves the real plugin on the host behind a stand-in Keygen, the site faked at its fetch seam, Google Search's at its render seam: its tools listed read-only and open-world, each tool's results with their summary and progress, a block or sign-in wall, a call naming nothing refused, and no license refused.
 - [`proprietary/reddit/tests/`](../../plugins/remote/proprietary/reddit/tests/) run the real plugin on the host behind a stand-in Keygen, with Reddit faked at the scraper's `fetch_json` and its proxy sessions: one read-only, open-world tool; a search's posts with their summary and progress; Reddit refusing every address, and a call naming nothing, as the tool's error; and a request with no license refused. The scraper's own tests, its parsers, URLs, rotation and fan-out, came from the backend with it, as did the proxy providers' tests, in [`proprietary/scraping/tests/`](../../plugins/remote/proprietary/scraping/tests/), beside the captcha solvers', which solve against a stand-in vendor on loopback.
 
 ## Known gaps
 
-- `SURFSENSE_ACCOUNT_ID` in `keygen.py` is empty, so a paid plugin's `LicenseAccess()` stops the host from starting until it is set.
-- Instagram's profile API answers `401` to an anonymous session on every IP and country, even with its web app's full headers, so both tools fail on public profiles; the profile page itself still loads with its counts (measured 2026-10-12).
+- Reddit answers `403` ("You've been blocked by network security") to every anonymous `.json` request, on every exit country and even from inside the warmed browser on the same sticky IP, so `scrape` fails after about three minutes of warm-ups (measured 2026-10-13). It needs another way to read Reddit; until then the app's first-party list leaves it out, and a deployment's `PLUGINS` should too.
+- Instagram's profile API answers `401` with `require_login` to an anonymous session on every IP and country, even with its web app's full headers, so `details` and profile feeds fail, and each target spends four proxy sessions rotating; single post and reel URLs still read (measured 2026-10-12 and 2026-10-13). The app's first-party list leaves it out, and a deployment's `PLUGINS` should too.
 - TikTok returned no comments for a public video, headless or headed, on three exit countries (measured 2026-10-12).
 - Web Crawl runs a whole crawl in one call, so a deep crawl of many pages can pass the request limit of the proxies in front of the host; it is to run as a job.
 - A block reads as an error item (Amazon, Walmart) or as no items (YouTube), not as the tool's error, so the agent may take it for an empty result.
 - 20 of the backend's tests stay skipped, as there, for want of captured responses: 15 of Google Maps', 2 of Reddit's, 2 of Instagram's and 1 of YouTube's.
 - YouTube's date cutoffs need `dateparser`, which the image lacks; neither tool offers a cutoff yet.
-- With `SURFSENSE_ACCOUNT_ID` empty, the host cannot start with Reddit, even locally.
 - No limit on threads or browsers per plugin, so Reddit's warm-up browsers are bounded only by its 16 sessions per call; and no per-IP limit for a free plugin, since none exists.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
 - Google Search runs its queries and pages one after another, each page up to 180 seconds, so a call of many queries or pages can pass the request limit of the proxies in front of the host.

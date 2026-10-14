@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
 from modules.plugins.installed.custom_plugin import (
-    PUBLISHER,
     connected_name,
     custom_plugin_id,
     store_custom_plugin,
@@ -25,6 +24,7 @@ from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_key import replace_key
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
 from modules.plugins.installed.plugin_switch import set_plugin_enabled
+from modules.plugins.installed.remove import remove
 from modules.plugins.installed.server_url import server_url
 from modules.plugins.installed.third_party import set_third_party_on, third_party_on
 from modules.plugins.installed.tool_settings import set_tool
@@ -32,13 +32,16 @@ from modules.plugins.lists.first_party.entry_read import (
     FirstPartyEntryRead,
     read_first_party,
 )
+from modules.plugins.lists.first_party.first_party_icon import first_party_icon
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
+from modules.plugins.lists.icon_response import icon_response
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
     list_once,
     listed_after_refresh,
 )
+from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
 from modules.plugins.remote.sign_in.oauth.start_sign_in import start_sign_in
@@ -141,7 +144,6 @@ async def add_custom_plugin(
                     name=payload.name,
                     url=url,
                     source=PluginSource.CUSTOM,
-                    publisher=PUBLISHER,
                     entry={
                         "name": payload.name,
                         "hosts": [url_host(url)],
@@ -173,6 +175,17 @@ async def add_custom_plugin(
 )
 def list_first_party(session: SessionDep) -> list[FirstPartyEntryRead]:
     return read_first_party(session)
+
+
+@router.get(
+    "/first-party/icons/{plugin_id}", summary="One of SurfSense's plugins' icon"
+)
+def first_party_icon_file(plugin_id: str) -> Response:
+    """Packaged beside the list, so served with no network."""
+    path = first_party_icon(plugin_id)
+    if path is None or not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} has no icon")
+    return icon_response(path)
 
 
 @router.post(
@@ -237,11 +250,21 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
 
     def address(s):
         plugin = s.get(InstalledPlugin, plugin_id)
-        return None if plugin is None else (plugin.url, sign_in_headers(s, plugin))
+        if plugin is None or plugin.disconnected_at is not None:
+            return plugin
+        return plugin.url, sign_in_headers(s, plugin)
 
     found = await transact(session, address)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    if isinstance(found, InstalledPlugin):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "plugin_disconnected",
+                "message": "Connect this plugin before checking it.",
+            },
+        )
     listed = await list_once(*found)
     listed = await listed_after_refresh(session, plugin_id, found[1], listed)
 
@@ -323,7 +346,75 @@ def write_plugin(
     return read_plugin(session, plugin)
 
 
-@router.delete("/{plugin_id}", status_code=204, summary="Disconnect a plugin")
+@router.post(
+    "/{plugin_id}/disconnect",
+    response_model=PluginRead,
+    summary="Disconnect a plugin, keeping it and its tool settings",
+)
+def disconnect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
+    plugin = disconnect(session, plugin_id)
+    if plugin is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    return read_plugin(session, plugin)
+
+
+@router.post(
+    "/{plugin_id}/connect",
+    response_model=PluginRead,
+    summary="Connect a disconnected plugin that needs nothing entered",
+)
+async def connect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
+    """A key or an account sign-in comes back through `/key` or `/sign-in` instead.
+
+    As at first connect, only an unreachable server refuses; a refused license connects
+    with its reason as the status.
+    """
+
+    def address(s):
+        plugin = s.get(InstalledPlugin, plugin_id)
+        if plugin is None:
+            return None
+        return plugin.credential_kind, plugin.url, sign_in_headers(s, plugin)
+
+    found = await transact(session, address)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    kind, url, headers = found
+    if kind == "token":
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {"code": "plugin_needs_key", "message": "Enter the plugin's key."},
+        )
+    if kind == OAUTH:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {
+                "code": "plugin_needs_account",
+                "message": "Sign in to the plugin with your account.",
+            },
+        )
+    source = RemoteMcpSource(url, headers)
+    try:
+        listed = await source.list_tools()
+    except ServerError as error:
+        if check_failure(error) == CheckFailure.UNREACHABLE:
+            raise connect_refusal(error) from error
+        listed = error
+    finally:
+        await source.close()
+
+    def store(s):
+        plugin = s.get_one(InstalledPlugin, plugin_id)
+        plugin.disconnected_at = None
+        record_check(s, plugin, listed)
+        return read_plugin(s, plugin)
+
+    return await transact(session, store)
+
+
+@router.delete(
+    "/{plugin_id}", status_code=204, summary="Remove a plugin and its tool settings"
+)
 def remove_plugin(plugin_id: str, session: SessionDep) -> None:
-    if not disconnect(session, plugin_id):
+    if not remove(session, plugin_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
