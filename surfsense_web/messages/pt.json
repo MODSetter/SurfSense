@@ -226,7 +226,6 @@
 		"forever": "para sempre",
 		"contact_us": "Fale conosco",
 		"feature_llms": "Suporta mais de 100 LLMs",
-		"feature_ollama": "Suporta configurações locais de Ollama ou vLLM",
 		"feature_embeddings": "Mais de 6000 modelos de embeddings",
 		"feature_files": "Mais de 50 extensões de arquivo suportadas.",
 		"feature_podcasts": "Suporte a podcasts com provedores TTS locais.",

@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
 		ignoreBuildErrors: true,
 	},
 	images: {
+		// AVIF first: noticeably smaller than WebP at the same quality. 85 is for
+		// the dithered homepage scene, where 75 starts to smudge the dots.
+		formats: ["image/avif", "image/webp"],
+		qualities: [75, 85],
 		remotePatterns: [
 			{
 				protocol: "https",

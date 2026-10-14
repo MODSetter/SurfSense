@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HomeBadge } from "@/components/homepage/home/home-badge";
+import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
 import { AmazonLogo } from "@/components/homepage/icons/amazon-logo";
 import { GoogleMapsLogo } from "@/components/homepage/icons/google-maps-logo";
 import { GoogleSearchLogo } from "@/components/homepage/icons/google-search-logo";
@@ -10,15 +12,16 @@ import { TiktokLogo } from "@/components/homepage/icons/tiktok-logo";
 import { WalmartLogo } from "@/components/homepage/icons/walmart-logo";
 import { WebCrawlLogo } from "@/components/homepage/icons/web-crawl-logo";
 import { YoutubeLogo } from "@/components/homepage/icons/youtube-logo";
-import { Badge } from "@/components/ui/badge";
+import { siteText } from "@/components/site/site-text";
 import { ArrowUpRight01Icon } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
 
 /**
  * Plugins page.
  *
- * Rendered in the site design: the palette, ruled column, navigation and footer
- * all come from `app/(home)/layout.tsx`, and every style resolves from
- * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
+ * Rendered in the site design: the palette, column, navigation and footer all
+ * come from `app/(home)/layout.tsx`; the page uses the homepage's centred
+ * headings and rounded cards, with no motion. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
  * The page is a placeholder while the plugins ship, so it says the one thing a
@@ -83,62 +86,74 @@ const PLUGINS = [
 export default function PluginsPage() {
 	return (
 		<>
-			<section className="ss-home-hero ss-home-pad">
-				<div className="mx-auto max-w-3xl text-center">
-					<Badge variant="secondary" className="rounded-full px-3 py-1">
-						Coming soon
-					</Badge>
-					<h1 className="ss-home-display mt-4">
-						Plugins for the platforms your <span className="ss-home-accent">answers live on</span>
+			<section className="text-center">
+				<div className={sectionSpacing.head}>
+					<HomeBadge>Coming soon</HomeBadge>
+					<h1 className={cn(siteText.display, "mx-auto mt-4 max-w-4xl")}>
+						Plugins for the platforms your <span className="text-primary">answers live on</span>
 					</h1>
-					<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
+					<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
 						Each plugin pulls public data from one platform straight into your notebook. These are
 						the ones being built first.
 					</p>
 				</div>
 			</section>
 
-			<section className="ss-home-rule" aria-labelledby="ss-plugins-label">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">Plugins</p>
-					<h2 id="ss-plugins-label" className="ss-home-h2 mt-2">
+			<section aria-labelledby="ss-plugins-label" className={sectionSpacing.foot}>
+				<div className={cn("text-center", sectionSpacing.head)}>
+					<HomeBadge>Plugins</HomeBadge>
+					<h2 id="ss-plugins-label" className={cn(siteText.h2, "mt-4")}>
 						Shipping first
 					</h2>
 				</div>
 
-				<ul className="ss-home-grid ss-home-grid-2 ss-home-grid-3 list-none border-t border-[color:var(--border)] p-0">
+				<ul className="m-0 mt-10 grid list-none gap-4 p-0 sm:grid-cols-2 lg:mt-14 lg:grid-cols-3">
 					{PLUGINS.map((plugin) => (
 						<li key={plugin.name}>
-							<Link href={plugin.href} className="ss-home-cell ss-home-cell-link">
-								<plugin.Logo className="size-5 shrink-0" />
-								<span className="ss-home-h3">{plugin.name}</span>
+							<Link
+								href={plugin.href}
+								className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 text-inherit shadow-xs hover:border-muted-foreground/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+							>
+								<span className="grid size-12 shrink-0 place-items-center rounded-xl bg-secondary">
+									<plugin.Logo className="size-6" />
+								</span>
+								<span className="flex flex-1 flex-col gap-0.5">
+									<span className={siteText.h3}>{plugin.name}</span>
+									<span className="text-xs text-muted-foreground">Coming soon</span>
+								</span>
 								<ArrowUpRight01Icon
 									aria-hidden="true"
-									className="ss-home-cell-link-arrow size-4 shrink-0"
+									className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground group-focus-visible:text-foreground"
 								/>
 							</Link>
 						</li>
 					))}
-					{/* Fills out the last row of the three-column grid: ten platforms is
-					    not a multiple of three, and this says so instead of leaving the
-					    row's remaining cells empty. Not a link — there is nothing to open
-					    yet for whatever comes after this list. */}
-					<li className="ss-home-grid-span-2">
-						<div className="ss-home-cell flex items-center text-[color:var(--muted-foreground)]">
-							<span className="text-sm">And many more on the way</span>
+					{/* Fills out the last row: ten is not a multiple of three, and this says
+					    so instead of leaving the row's remaining cells empty. Not a link —
+					    there is nothing to open yet for whatever comes after this list. */}
+					<li className="sm:col-span-2">
+						<div className="flex h-full min-h-20 items-center justify-center rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+							And many more on the way
 						</div>
 					</li>
 				</ul>
 			</section>
 
-			<section className="ss-home-rule ss-home-pad py-12">
-				<p className="ss-home-body mx-auto max-w-2xl text-center text-sm">
-					Need a platform that is not on this list?{" "}
-					<Link className="ss-home-link" href="/contact">
+			<section className={sectionSpacing.foot}>
+				<div className="flex flex-col items-start gap-6 rounded-4xl border border-border bg-card px-6 py-8 shadow-xs md:px-12 md:py-12 lg:flex-row lg:items-center lg:justify-between">
+					<div>
+						<p className={siteText.h3}>Need a platform that is not on this list?</p>
+						<p className={cn(siteText.body, "mt-2")}>
+							Tell us which one, and we will weigh it for the next plugins we build.
+						</p>
+					</div>
+					<Link
+						href="/contact"
+						className="inline-flex h-12 shrink-0 items-center rounded-full bg-foreground px-6 text-sm font-semibold text-background shadow-lg hover:bg-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+					>
 						Tell us which one
 					</Link>
-					.
-				</p>
+				</div>
 			</section>
 		</>
 	);

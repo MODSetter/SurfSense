@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SiteFaqItem } from "@/components/site/site-faq-item";
+import { siteText } from "@/components/site/site-text";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
 import { ResendForm } from "./license-forms";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and
- * footer all come from `app/(home)/layout.tsx`, and every style resolves from
- * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
+ * footer all come from `app/(home)/layout.tsx`; the page itself is Tailwind
+ * plus the shared `siteText` styles. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
  * This page does one thing: send a licence file back to the address it was
@@ -38,11 +41,11 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 		question: "Where does the file go?",
 		answer: (
 			<>
-				Save the attached <code className="ss-home-mono">surfsense.lic</code>, open SurfSense, go to
+				Save the attached <code className="font-mono">surfsense.lic</code>, open SurfSense, go to
 				Settings, then License{" "}
 				<ArrowRightIcon aria-hidden="true" className="inline size-3.5 align-[-0.1em]" /> and drop it
 				in. The{" "}
-				<Link className="ss-home-link" href="/license/activate">
+				<Link className={siteText.link} href="/license/activate">
 					activation guide
 				</Link>{" "}
 				walks through it with screenshots. Your license never expires the app: when it runs out,
@@ -62,7 +65,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 				If you mistyped your email when buying, or no longer have access to it, we cannot send the
 				file anywhere else automatically, since anyone could otherwise type your address and receive
 				your license. Email{" "}
-				<a className="ss-home-link" href="mailto:rohan@surfsense.com?subject=License%20recovery">
+				<a className={siteText.link} href="mailto:rohan@surfsense.com?subject=License%20recovery">
 					rohan@surfsense.com
 				</a>{" "}
 				with your payment details (the charge on your card statement, or the last 4 digits, amount
@@ -76,11 +79,11 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 			<>
 				This page only sends back a license that already exists. The free 30-day license comes with
 				the app, on{" "}
-				<a className="ss-home-link" href="/downloads">
+				<a className={siteText.link} href="/downloads">
 					the download page
 				</a>
 				; to buy one, see{" "}
-				<a className="ss-home-link" href="/pricing">
+				<a className={siteText.link} href="/pricing">
 					pricing
 				</a>
 				.
@@ -92,10 +95,10 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 export default function LicensePage() {
 	return (
 		<>
-			<section className="ss-home-hero ss-home-pad">
+			<section className="py-20 md:py-28">
 				<div className="mx-auto max-w-2xl text-center">
-					<h1 className="ss-home-display">Get your license again</h1>
-					<p className="ss-home-lede mx-auto mt-6 mb-10 max-w-xl">
+					<h1 className={siteText.display}>Get your license again</h1>
+					<p className={cn(siteText.lede, "mx-auto mt-6 mb-10 max-w-xl")}>
 						Your license is a file, not an account. Lost it? We will send it back.
 					</p>
 					<ResendForm />
@@ -103,7 +106,7 @@ export default function LicensePage() {
 					    landed: this page is where they arrive with no idea what a
 					    .lic file is for. */}
 					<p className="mt-10">
-						<Link className="ss-home-forward" href="/license/activate">
+						<Link className={siteText.forward} href="/license/activate">
 							Already have the file? Activate it{" "}
 							<ArrowRightIcon aria-hidden="true" className="size-4" />
 						</Link>
@@ -111,25 +114,19 @@ export default function LicensePage() {
 				</div>
 			</section>
 
-			<section className="ss-home-rule" aria-labelledby="ss-license-faq-label">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">FAQ</p>
-					<h2 id="ss-license-faq-label" className="ss-home-h2 mt-2">
+			<section className="border-t border-border" aria-labelledby="ss-license-faq-label">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<p className={siteText.eyebrow}>FAQ</p>
+					<h2 id="ss-license-faq-label" className={cn(siteText.h2, "mt-2")}>
 						Common questions
 					</h2>
 				</div>
 
-				<div className="ss-home-grid border-t border-border">
+				<div className="ss-home-grid">
 					{FAQ.map((item) => (
-						<details key={item.question} className="ss-home-faq">
-							<summary className="ss-home-faq-summary">
-								<span className="ss-home-h3">{item.question}</span>
-								<span aria-hidden="true" className="ss-home-faq-marker" />
-							</summary>
-							<div className="ss-home-faq-answer">
-								<p className="ss-home-body">{item.answer}</p>
-							</div>
-						</details>
+						<SiteFaqItem key={item.question} question={item.question}>
+							<p className={siteText.body}>{item.answer}</p>
+						</SiteFaqItem>
 					))}
 				</div>
 			</section>

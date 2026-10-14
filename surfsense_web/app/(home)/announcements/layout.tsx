@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 		description: "Latest product updates, feature releases, and news from SurfSense.",
 		url: "https://www.surfsense.com/announcements",
 		type: "website",
+		images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "What's new in SurfSense" }],
 	},
 	twitter: {
 		card: "summary_large_image",
