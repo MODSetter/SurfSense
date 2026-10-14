@@ -1,4 +1,4 @@
-"""What one registry entry must say, per docs/proposals/plugins/core/02-registry.md.
+"""What one registry entry must say, per docs/architecture/plugin-registry.md.
 
 Each problem is `field: message`; unknown fields are allowed so newer apps can add them.
 """

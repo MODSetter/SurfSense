@@ -66,7 +66,7 @@ Open a pull request into `dev` that adds your entry to [`registry/plugins.json`]
 - **`privacy_policy`**: required. The user's requests and credentials reach your server, so this is yours, not your API provider's.
 - **`icon`**: SVG or PNG, square, at most 32 KB; PNG at least 64×64; SVG with no scripts, event handlers or external references. Without one, SurfSense shows your name's first letter.
 
-The full rules are in the [registry proposal](../docs/proposals/plugins/core/02-registry.md#two-lists).
+The full rules are in [plugin registry](../docs/architecture/plugin-registry.md#the-entry-rules).
 
 ### What happens to your pull request
 

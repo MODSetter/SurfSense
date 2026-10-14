@@ -34,7 +34,7 @@ The client passes `reason` on to the user verbatim. For the plugin, that means w
 
 ## Consumer rules (the paid scraper plugin and `surfsense_mcp`)
 
-How the plugin receives the key is an open question in the [plugins proposal](../proposals/plugins/README.md).
+The app sends SurfSense's plugins the imported key as `Authorization: License <key>` ([plugins](../architecture/plugins.md#surfsenses-own-plugins)).
 
 - The app runs the plugin only while it holds an unexpired license, a trial included, and only after the user has allowed the scraper API's host. Otherwise no request is made.
 - Treat `503 license_service_unavailable` as transient: retry later, and do not treat the license as bad.

@@ -1,6 +1,6 @@
 # Plugin host
 
-The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The app's first-party list offers eight: Reddit and Instagram stay out until they can read anonymously again ([Known gaps](#known-gaps)). The [registry](plugin-registry.md#the-container) is served on the same hostname by a container of its own; the host does not serve it. The host is not deployed ([proposal](../proposals/plugins/remote/02-surfsense-servers.md)).
+The plugin host is the one server that runs SurfSense's own plugins, free and paid, each an MCP server at `/<id>/mcp`. It is apart from `surfsense_backend` and the desktop app, and imports neither. It serves `/health`, `/cancel` and each plugin folder, and checks the SurfSense license for paid ones. All ten scraper plugins are written: [Reddit](#the-reddit-plugin), [YouTube, Amazon, Walmart and Google Maps](#youtube-amazon-walmart-and-google-maps), [Google Search](#the-google-search-plugin), and [Instagram, TikTok, Indeed and Web Crawl](#instagram-tiktok-indeed-and-web-crawl). The app's first-party list offers eight: Reddit and Instagram stay out until they can read anonymously again ([Known gaps](#known-gaps)). The [registry](plugin-registry.md#the-container) is served on the same hostname by a container of its own; the host does not serve it. The host is not deployed ([Known gaps](#known-gaps)).
 
 **Code:** [`plugins/remote/`](../../plugins/remote/)
 **Decisions:** [ADR 0054](../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), [ADR 0047](../adr/0047-premium-plugins-are-source-available.md)
@@ -17,6 +17,26 @@ The plugin host is the one server that runs SurfSense's own plugins, free and pa
 | [`proprietary/`](../../plugins/remote/proprietary/) | Business Source License 1.1 | Paid plugins: [`reddit/`](../../plugins/remote/proprietary/reddit/), [`youtube/`](../../plugins/remote/proprietary/youtube/), [`amazon/`](../../plugins/remote/proprietary/amazon/), [`walmart/`](../../plugins/remote/proprietary/walmart/), [`google_maps/`](../../plugins/remote/proprietary/google_maps/), [`google_search/`](../../plugins/remote/proprietary/google_search/), [`instagram/`](../../plugins/remote/proprietary/instagram/), [`tiktok/`](../../plugins/remote/proprietary/tiktok/), [`indeed/`](../../plugins/remote/proprietary/indeed/) and [`web_crawl/`](../../plugins/remote/proprietary/web_crawl/); [`license_check/`](../../plugins/remote/proprietary/license_check/); and [`scraping/`](../../plugins/remote/proprietary/scraping/), what the scraper plugins share: the residential proxy vendors' providers and their country rotation, the captcha solvers, and the loop that drives Scrapling's stealth browsers, with their settings from `SCRAPING_*` ([`config.py`](../../plugins/remote/proprietary/scraping/config.py)) |
 
 The license check is `license_check/`, not `license/`: a `license/` folder beside the `LICENSE` file is one path on macOS and Windows.
+
+- **The folder decides the license.** The root `LICENSE` names `plugins/remote/proprietary/`, whose own [`LICENSE`](../../plugins/remote/proprietary/LICENSE) turns each version into Apache-2.0 four years after its release ([ADR 0047](../adr/0047-premium-plugins-are-source-available.md)).
+- **Only maintainers change `proprietary/`,** so SurfSense holds all of its copyright: code-quality's Proprietary Code job fails a pull request from anyone else that touches it, and CODEOWNERS names them.
+- **The open build runs without it.** `test_without_proprietary_the_free_plugins_still_run` deletes `proprietary/` and serves the rest, so Apache-2.0 code never imports from it.
+- **The backend keeps its copy.** The scrapers and `scraping/` were copied from `surfsense_backend/app/proprietary/` and `app/utils/` (`proxy/`, `captcha/`, `crawl/`, `browser_loop.py`), which still serve the backend's scraper API, `surfsense_mcp` and outside clients. A fix to a scraper goes to both copies until that API is retired, never before the purge on 18 Oct 2026. The helpers that are Apache-2.0 in the backend are BSL here.
+
+## Adding a plugin
+
+Every plugin joins the same way, with no change to the host, the image's layout or the app:
+
+| | A free plugin | A paid plugin |
+|---|---|---|
+| Its folder | `plugins/remote/<id>/`, Apache-2.0 | `plugins/remote/proprietary/<id>/`, BSL 1.1 |
+| `access` in its `server.py` | None | `LicenseAccess()` |
+| Its first-party list entry | `access: free`, `auth: none` | `access: license`, `auth: license` |
+
+- The folder holds `server.py`, whose `server()` returns its `MCPServer`, and its tests.
+- In the same change: its Python packages in `host/pyproject.toml`, its system packages and binaries in `host/Dockerfile`, its settings in `host/.env.example`, and its entry in the app's [first-party list](plugins.md#surfsenses-own-plugins), whose `tools` `test_first_party_list.py` checks against the server.
+- Nothing blocks the event loop (ruff's `ASYNC` rules), and a tool's failure is returned as its MCP error.
+- A plugin that must run apart is the same image started with `PLUGINS=<id>`, reached at the same `/<id>/mcp` through a path rule in front.
 
 ## Serving plugins
 
@@ -41,7 +61,7 @@ Before it loads a plugin, `python -m host` redacts every log record as it is mad
 - **Browsers:** `scrapling install` adds Playwright's Chromium and the system libraries it needs, and `patchright install chromium` the build Scrapling's stealth fetchers launch, both under `/ms-playwright` (`PLAYWRIGHT_BROWSERS_PATH`) so an unprivileged user can start them.
 - **Fonts** for emoji and CJK, Thai and Latin text, so a stealth browser's fingerprints look like a desktop's.
 - **Xvfb**, a virtual display. [`host/entrypoint.sh`](../../plugins/remote/host/entrypoint.sh) starts it on `:99` and sets `DISPLAY` when `CRAWL_HEADED_XVFB_ENABLED=true`, then `exec`s the host, so the host stays the process that gets the container's signals. TikTok's profile feeds need it: TikTok withholds them from a headless browser.
-- **One browser for every plugin.** Indeed's Cloudflare-solving session is Scrapling's stealth session, which in Scrapling 0.4 is the same patchright Chromium, so the image holds no Camoufox. A plugin adds its own packages and binaries in the change that adds it ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#adding-a-plugin)).
+- **One browser for every plugin.** Indeed's Cloudflare-solving session is Scrapling's stealth session, which in Scrapling 0.4 is the same patchright Chromium, so the image holds no Camoufox. A plugin adds its own packages and binaries in the change that adds it ([adding a plugin](#adding-a-plugin)).
 - It runs `python -m host` as an unprivileged user, on `PORT`, with a health check on `/health`. Its settings are environment variables, as [`host/.env.example`](../../plugins/remote/host/.env.example) lists.
 - [`Dockerfile.dockerignore`](../../plugins/remote/host/Dockerfile.dockerignore) keeps out the bundles, every `tests/` folder, the host's sample plugins among them, and local state.
 
@@ -105,7 +125,7 @@ Each is the backend's scraper, copied as the others were, behind one tool per ba
 
 ## The license check
 
-A plugin's `server.py` may set `access`, an object with `refusal(headers)` ([`access.py`](../../plugins/remote/mcp_server/access.py)). The host asks it before every request reaches the plugin, and answers a refusal itself with its status and `{"reason": ...}` ([`refused_unless_allowed.py`](../../plugins/remote/host/refused_unless_allowed.py)). A plugin without `access` is open: SurfSense offers no free plugin yet, and nothing limits an open one per IP address ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#adding-a-plugin)).
+A plugin's `server.py` may set `access`, an object with `refusal(headers)` ([`access.py`](../../plugins/remote/mcp_server/access.py)). The host asks it before every request reaches the plugin, and answers a refusal itself with its status and `{"reason": ...}` ([`refused_unless_allowed.py`](../../plugins/remote/host/refused_unless_allowed.py)). A plugin without `access` is open: SurfSense offers no free plugin yet, and nothing limits an open one per IP address ([Known gaps](#known-gaps)).
 
 A paid plugin sets `access = LicenseAccess()` ([`license_access.py`](../../plugins/remote/proprietary/license_check/license_access.py)), which applies [contract 2](../contracts/02-scraper-api-auth.md):
 
@@ -147,6 +167,6 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 - No limit on threads or browsers per plugin, so Reddit's warm-up browsers are bounded only by its 16 sessions per call; and no per-IP limit for a free plugin, since none exists.
 - Requests are not counted or rate-limited per license. License answers and the 24-hour grace are kept per replica, in memory, not in Redis, so a deploy during a Keygen outage refuses keys that were valid.
 - Google Search runs its queries and pages one after another, each page up to 180 seconds, so a call of many queries or pages can pass the request limit of the proxies in front of the host.
-- No deadline on a plugin's call and no MCP progress. Long calls and large results do not run as jobs, and there is no job runner or object storage ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#long-calls-run-as-jobs)).
-- No scale rule, so copies are not yet added on load ([proposal](../proposals/plugins/remote/02-surfsense-servers.md#scaling)).
+- No deadline on a plugin's call. Long calls and large results do not run as jobs, and there is no job runner or object storage ([proposal](../proposals/plugins/README.md#long-calls-as-jobs-on-the-plugin-host)).
+- No scale rule, so copies are not yet added on load ([proposal](../proposals/plugins/README.md#scaling-the-plugin-host)).
 - No deployment, and no workflow builds the image.

@@ -1,6 +1,6 @@
 # ADR 0054: SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it
 
-- **Status:** Proposed, with the [plugins proposal](../proposals/plugins/README.md)
+- **Status:** Accepted
 - **Date:** 2026-10-10
 - **Supersedes:** [ADR 0047](0047-premium-plugins-are-source-available.md) in part: paid plugins living in `plugins/proprietary/`, each a container of its own
 - **Source:** design discussion, 10 Oct 2026 (no permalink)
@@ -33,4 +33,5 @@ SurfSense publishes its plugins as remote MCP servers and hosts them itself ([AD
 
 ## Where the code stands
 
-- No plugin host or `plugins/registry/` exists. `plugins/remote/` holds only `proprietary/LICENSE`, which the root `LICENSE` names. The earlier design's tooling is in `plugins/bundles/`.
+- Built ([plugin host](../architecture/plugin-host.md)): the host, stateless MCP, Stop through `/cancel` and Redis, the license check, ten scraper plugins in `plugins/remote/proprietary/`, the image, and the registry's container.
+- Not built ([proposal](../proposals/plugins/README.md#long-calls-as-jobs-on-the-plugin-host)): jobs and their object storage, rate limits per license and per IP address, license state in Redis, the scale rule, and any deployment.
