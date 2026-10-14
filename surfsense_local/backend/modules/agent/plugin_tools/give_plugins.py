@@ -31,7 +31,7 @@ ADD_SECONDS = 25
 @dataclass(frozen=True)
 class UnavailablePlugin:
     title: str
-    reason: Literal["unreachable", "sign_in"]
+    reason: Literal["unreachable", "sign_in", "license"]
 
 
 @dataclass(frozen=True)
@@ -104,7 +104,8 @@ async def give_plugins(
     unavailable = []
     for plugin, (status, _) in zip(plugins, given, strict=True):
         if status in _SIGN_IN:
-            unavailable.append(UnavailablePlugin(plugin.title, "sign_in"))
+            reason = "license" if plugin.licensed else "sign_in"
+            unavailable.append(UnavailablePlugin(plugin.title, reason))
         elif status != "connected":
             unavailable.append(UnavailablePlugin(plugin.title, "unreachable"))
     failed |= {

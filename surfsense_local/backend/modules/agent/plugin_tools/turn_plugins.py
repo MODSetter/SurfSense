@@ -10,7 +10,7 @@ from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.plugin_host import on_plugin_host
-from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
+from modules.plugins.remote.sign_in.plugin_headers import LICENSE, sign_in_headers
 
 # More tools than this crowd the model's choice and its prompt; the plugins connected first win.
 MAX_TOOLS = 24
@@ -31,6 +31,8 @@ class TurnPlugin:
     rules: dict[str, str] = field(default_factory=dict)
     # On SurfSense's plugin host, whose calls run longer and which Stop can reach.
     on_plugin_host: bool = False
+    # Signs in with the SurfSense license, so a refusal is the license, not a sign-in.
+    licensed: bool = False
 
 
 def opencode_tool_name(server: str, tool: str) -> str:
@@ -72,6 +74,7 @@ def turn_plugins(
                 url=row.url,
                 headers=headers,
                 on_plugin_host=ours,
+                licensed=row.credential_kind == LICENSE,
             )
         rule = "ask" if needs_approval(tool) else "allow"
         name = opencode_tool_name(tool.plugin_id, tool.tool)

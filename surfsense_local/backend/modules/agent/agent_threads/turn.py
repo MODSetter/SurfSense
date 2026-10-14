@@ -71,6 +71,7 @@ from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import MessageCreate
 from modules.events.broker import EventBroker
 from modules.llm.resolution import ModelResolutionError
+from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -396,6 +397,11 @@ async def _prepare_tools(
     workspace_id, thread_id = where
     with sessions() as session:
         signed_out = await _timed(took, "refresh", refresh_sign_ins(session))
+        # Before the listings below: a plugin held out over its license is not listed.
+        licensed_out = [
+            UnavailablePlugin(title, "license")
+            for title in await refresh_license_verdict(session, if_stale=True)
+        ]
         mentions = await transact(session, mentioned_plugins, text)
         mentioned = frozenset(m.plugin_id for m in mentions)
         calls_token = thread_calls_token(thread_id)
@@ -411,7 +417,7 @@ async def _prepare_tools(
                 client, folder, workspace_id, thread_id, launch_key
             )
             await checked
-            return _Tools(mentions, [], signed_out)
+            return _Tools(mentions, [], signed_out + licensed_out)
         registered = asyncio.create_task(
             _timed(
                 took,
@@ -451,7 +457,7 @@ async def _prepare_tools(
                 raise
             logger.warning("%s's plugin rules were not set", folder, exc_info=True)
         took["registered"] = await registered
-    return _Tools(mentions, plugins, signed_out + given.unavailable)
+    return _Tools(mentions, plugins, signed_out + licensed_out + given.unavailable)
 
 
 async def _timed[T](took: dict[str, float], stage: str, work: Awaitable[T]) -> T:

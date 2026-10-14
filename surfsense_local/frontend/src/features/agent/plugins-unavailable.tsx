@@ -4,6 +4,14 @@ import { intl } from "@/i18n/intl"
 import type { UnavailablePlugin } from "./api"
 
 function label({ title, reason }: UnavailablePlugin) {
+  if (reason === "license")
+    return intl.formatMessage(
+      {
+        id: "agent_plugin_license_label",
+        defaultMessage: "{plugin} needs a SurfSense license",
+      },
+      { plugin: title }
+    )
   return reason === "sign_in"
     ? intl.formatMessage(
         {

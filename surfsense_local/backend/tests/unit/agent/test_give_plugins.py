@@ -266,3 +266,35 @@ def test_a_call_given_up_on_alone_is_ended_at_once_and_one_left_at_the_turn_s_en
 
     assert at_once == [[ours]]
     assert stopped == [[ours], [ours]]
+
+
+class _AsksForSignIn(_Opencode):
+    """Answers every server added as needing sign-in."""
+
+    async def add_tool_server(
+        self,
+        directory: Path,
+        name: str,
+        url: str,
+        headers: dict[str, str],
+        *,
+        timeout_seconds: int,
+    ) -> str:
+        return "needs_auth"
+
+
+async def test_a_refused_license_is_named_as_one_not_as_a_sign_in(
+    tmp_path: Path,
+) -> None:
+    """A paid plugin's refusal is its license; signing in again would not help."""
+    plugins = [
+        replace(plugin("amazon", ours=True), licensed=True),
+        plugin("notion"),
+    ]
+
+    given = await give_plugins(_AsksForSignIn({}), tmp_path, {}, plugins)
+
+    assert given.unavailable == [
+        UnavailablePlugin("Amazon", "license"),
+        UnavailablePlugin("Notion", "sign_in"),
+    ]

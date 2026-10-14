@@ -1,0 +1,57 @@
+name: Report a plugin
+description: A plugin in Settings → Plugins is broken, misleading or unsafe
+title: "[plugin] "
+labels: [plugins]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for telling us. A maintainer looks at every report, and a third-party plugin that breaks the rules can be removed from the list for everyone.
+
+        **A security problem, such as a plugin taking data it should not?** Please report it privately through a [security advisory](https://github.com/MODSetter/SurfSense/security/advisories/new), not here.
+  - type: input
+    id: plugin
+    attributes:
+      label: Which plugin?
+      description: Its name as Settings → Plugins shows it.
+      placeholder: DeepWiki
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What is wrong?
+      options:
+        - It does not work or cannot be reached
+        - Its tools do something other than they say
+        - A tool's description tells the AI what to do
+        - It sends or keeps more of my data than it should
+        - Its listing is wrong (who runs it, its links, its privacy policy)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you asked, which tool ran, and what it did.
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: When?
+      description: Roughly when it happened, and your SurfSense version if you know it.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: In the desktop app, Report issue copies this session's log to your clipboard. Paste it here, and remove anything you would rather not share.
+      render: text
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Before you send
+      options:
+        - label: I removed every key, token and password from this report.
+          required: true

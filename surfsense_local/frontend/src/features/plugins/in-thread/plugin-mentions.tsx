@@ -16,6 +16,7 @@ import {
   thirdPartyQueryKey,
   type Plugin,
 } from "../api"
+import { licenseRefused } from "../license-refused"
 
 // A plugin id: lowercase words joined by hyphens.
 const MENTION = /@([a-z0-9-]+)/g
@@ -63,6 +64,7 @@ function readyMentions(
       (plugin) =>
         plugin.enabled &&
         !plugin.disconnected &&
+        !licenseRefused(plugin) &&
         (plugin.source === "first_party" || thirdPartyOn) &&
         plugin.tools.some((tool) => tool.enabled)
     )
@@ -90,6 +92,13 @@ function emptyMessage(plugins: Plugin[], thirdPartyOn: boolean) {
       id: "plugins_mentions_third_party_off_empty",
       defaultMessage:
         "Allow third-party plugins in Settings › Plugins to use them here.",
+    })
+  }
+  if (plugins.some((plugin) => plugin.enabled && licenseRefused(plugin))) {
+    return intl.formatMessage({
+      id: "plugins_mentions_license_empty",
+      defaultMessage:
+        "Your SurfSense license doesn’t unlock these plugins. Check Settings › License.",
     })
   }
   return intl.formatMessage({
