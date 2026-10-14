@@ -267,6 +267,54 @@ def audio_entry(**overrides) -> dict:
     return {**base, **overrides}
 
 
+def recogniser_entry(**overrides) -> dict:
+    """Nemotron as audio.cpp runs it: one file, the languages it is listed for,
+    the locales it takes, and the memory it measured while transcribing."""
+    base = {
+        "id": "nemotron-3.5-asr-streaming-0.6b",
+        "name": "Nemotron 3.5 ASR Streaming 0.6B",
+        "family": "Nemotron",
+        "publisher": "NVIDIA",
+        "description": "Writes down speech in 26 languages.",
+        "license": "openmdw-1.1",
+        "source_repo": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+        # The shared repo's tag; the family is what says it hears.
+        "evidence": {
+            "architecture": "nemotron_asr",
+            "pipeline_tag": "text-to-speech",
+        },
+        "transcription": {
+            "origin": "nvidia/nemotron-3.5-asr-streaming-0.6b model card",
+            "sample_rate": 16000,
+            "peak_mb": 1776,
+            "window_s": 28,
+            "detects_language": True,
+            "languages": ["en", "es", "ja"],
+            "family_codes": {"en": "en-US", "es": "es-ES", "ja": "ja-JP"},
+            "detected_only": {"et": "et-EE"},
+            "request_options": {"keep_language_tags": True},
+        },
+        "builds": [
+            {
+                "quantization": "Q8_0",
+                "files": [
+                    {
+                        **file(
+                            "weights",
+                            "Nemotron-3.5-ASR-Streaming-0.6B-GGUF/"
+                            "nemotron-3.5-asr-streaming-0.6b-q8_0.gguf",
+                            930_625_888,
+                        ),
+                        "repo": "audio-cpp/audio.cpp-gguf",
+                    }
+                ],
+                "validated": {"audio_cpp": "v0.8.2"},
+            }
+        ],
+    }
+    return {**base, **overrides}
+
+
 def embedding_entry(**overrides) -> dict:
     """granite-97m as the ONNX embedding engine runs it: weights and tokenizer,
     and what the index's spec needs that no file states."""
@@ -472,6 +520,26 @@ def test_an_image_model_needs_no_chat_fields() -> None:
             entry(video=video_entry()["video"]), id="a chat model with video defaults"
         ),
         pytest.param(
+            recogniser_entry(transcription=None),
+            id="a recogniser without its languages",
+        ),
+        pytest.param(
+            recogniser_entry(transcription=None, audio=audio_entry()["audio"]),
+            id="a recogniser with voices instead",
+        ),
+        pytest.param(
+            recogniser_entry(audio=audio_entry()["audio"]),
+            id="a recogniser with voices too",
+        ),
+        pytest.param(
+            audio_entry(audio=None, transcription=recogniser_entry()["transcription"]),
+            id="a voice model with a recogniser's languages instead",
+        ),
+        pytest.param(
+            entry(transcription=recogniser_entry()["transcription"]),
+            id="a chat model with a recogniser's languages",
+        ),
+        pytest.param(
             embedding_entry(embedding=None), id="an embedding model without its spec"
         ),
         pytest.param(
@@ -534,3 +602,65 @@ def test_an_audio_models_voices_hold_together(audio: dict) -> None:
     """Checked here, before review: every voice is one a podcast speaker can use."""
     with pytest.raises(ValidationError):
         LocalManifest.model_validate(manifest(audio_entry(audio=audio)))
+
+
+def test_a_recogniser_carries_its_languages_and_memory() -> None:
+    """The server states neither which languages it is good at nor what a
+    window costs, so the manifest commits both."""
+    (model,) = LocalManifest.model_validate(manifest(recogniser_entry())).models
+
+    assert model.audio is None
+    transcription = model.transcription
+    assert transcription is not None
+    assert (transcription.peak_mb, transcription.window_s) == (1776, 28)
+    assert transcription.detects_language
+    assert transcription.languages == ["en", "es", "ja"]
+    assert transcription.family_codes["ja"] == "ja-JP"
+    assert transcription.request_options == {"keep_language_tags": True}
+    assert model.builds[0].validated.audio_cpp == "v0.8.2"
+
+
+def _transcription(**changes) -> dict:
+    return {**recogniser_entry()["transcription"], **changes}
+
+
+@pytest.mark.parametrize(
+    "transcription",
+    [
+        pytest.param(
+            _transcription(family_codes={"de": "de-DE"}),
+            id="a locale for a language it is not listed for",
+        ),
+        pytest.param(
+            _transcription(detected_only={"en": "en-GB"}),
+            id="a detected-only language it is listed for",
+        ),
+        pytest.param(
+            _transcription(request_options={"beam_size": 4}),
+            id="a request option the family does not declare",
+        ),
+        pytest.param(
+            _transcription(family_codes={"en": "en-AU"}),
+            id="a locale the family does not take",
+        ),
+        pytest.param(
+            _transcription(detected_only={"yue": "yue-HK"}),
+            id="a detected locale the family does not know",
+        ),
+        pytest.param(
+            _transcription(languages=["en", "en"]), id="a language listed twice"
+        ),
+        pytest.param(
+            _transcription(languages=["English"], family_codes={}),
+            id="a language that is not a code",
+        ),
+        pytest.param(_transcription(languages=[], family_codes={}), id="no language"),
+    ],
+)
+def test_a_recognisers_languages_hold_together(transcription: dict) -> None:
+    """Checked here, before review: the screen lists `languages`, and every
+    locale and option reaches the server, which fails a request it cannot read."""
+    with pytest.raises(ValidationError):
+        LocalManifest.model_validate(
+            manifest(recogniser_entry(transcription=transcription))
+        )

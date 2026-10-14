@@ -1,7 +1,7 @@
 """What one install does, in the order its events say it."""
 
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Sequence
 
 import httpx
 from sqlalchemy.orm import Session
@@ -48,8 +48,12 @@ async def install_steps(
     select: bool,
     model_type: ModelType | None,
     session_factory: Callable[[], Session],
+    slots: Sequence[ModelType] = (),
 ) -> AsyncIterator[dict]:
-    """Run inside the install lock; the job reports the first `starting`."""
+    """Run inside the install lock; the job reports the first `starting`.
+
+    `slots` are the row's own; `select` fills the first unless `model_type`
+    names another, since one engine can run a voice model and a recogniser."""
     try:
         checked = await service.check(plan)
     except InstallRefusedError as refused:
@@ -131,7 +135,7 @@ async def install_steps(
         with session_factory() as session:
             chosen = await choose_model(
                 session,
-                model_type or engine.model_types[0],
+                model_type or next(iter(slots), engine.model_types[0]),
                 engine.provider,
                 checked.model_id,
             )

@@ -194,7 +194,7 @@ The schema refuses a `family_codes` key outside `languages`, a `detected_only` k
 
 - `manifest_fields.py` gains `TranscriptionDefaults`; [`registry.py`](../../surfsense_local/backend/modules/llm/catalog/local/engines/registry.py) has the engine run `(AUDIO_GEN, SPEECH_TO_TEXT)` with `entry_requires_one_of={"audio", "transcription"}`, as sdcpp does for images and video.
 - [`classifier.py`](../../surfsense_local/backend/modules/llm/catalog/local/classifier.py) answers `SPEECH_TO_TEXT` for `nemotron_asr`; other recognisers stay typeless.
-- `audio_folder/installed.py` and `server_config.py` keep only entries with `audio`. `audio_folder/transcription_config.py` writes `transcription.json`: `lazy_load`, then `{id, family, path, task: "asr", mode: "offline", session_options}` per installed recogniser, deleted when none is installed.
+- `audio_folder/installed.py` and `server_config.py` keep only entries with `audio`. `audio_folder/transcription_config.py` writes `transcription.json`: `lazy_load`, then `{id, family, path, task: "asr", mode: "offline", default_request_options}` per installed recogniser, deleted when none is installed.
 - Rows state the size, the memory while transcribing, that the model detects the language, and the languages it is listed for, a count that expands to the names. An install with `select: true` selects the row's own type.
 - `scripts/local_manifest/` adds the entry; `VALIDATED` pins its file to v0.8.2.
 

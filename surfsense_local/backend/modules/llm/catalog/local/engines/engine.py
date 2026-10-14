@@ -1,6 +1,6 @@
 """The seam every local engine answers at: rows, its folder, install and delete steps."""
 
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence, Set
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -45,8 +45,10 @@ class LocalEngine(Protocol):
         models: Sequence[CuratedModel],
         mint: Callable[[Build], str],
         *,
-        selected: str | None,
-    ) -> tuple[LocalRow, ...]: ...
+        selected: Set[str],
+    ) -> tuple[LocalRow, ...]:
+        """`selected` names the installed models chosen for any of its types."""
+        ...
 
     def landing(self, file: BuildFile, model_id: str) -> str:
         """Where one file of `model_id`'s build lands, relative to `folder`."""

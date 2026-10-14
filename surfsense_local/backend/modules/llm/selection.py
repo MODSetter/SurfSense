@@ -173,9 +173,10 @@ def _validate_local_image(
 def _validate_local_audio(
     model_type: ModelType, model_name: str, connection_id: int | None
 ) -> None:
-    """The bundled audio.cpp server fills the audio_gen slot, and only once
-    downloaded: Electron starts it on what `server.json` names."""
-    if model_type is not ModelType.AUDIO_GEN:
+    """The bundled audio.cpp servers fill the audio_gen slot with an installed
+    voice model and speech_to_text with an installed recogniser: Electron
+    starts each on what its config names."""
+    if model_type not in (ModelType.AUDIO_GEN, ModelType.SPEECH_TO_TEXT):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"the local audio runtime does not serve {model_type}",
@@ -185,10 +186,16 @@ def _validate_local_audio(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "local selections must not include a connection",
         )
-    if not get_local_catalog().audiocpp.holds(model_name):
+    engine = get_local_catalog().audiocpp
+    installed = (
+        engine.installed_model(model_name)
+        if model_type is ModelType.AUDIO_GEN
+        else engine.installed_recogniser(model_name)
+    )
+    if installed is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"audio model is not installed: {model_name}",
+            f"no installed audio model serves {model_type}: {model_name}",
         )
 
 

@@ -196,9 +196,7 @@ class LocalCatalogService:
             for row in engine.rows(
                 self._manifest.models,
                 self._minter(engine.name),
-                selected=next(
-                    (selected[t] for t in engine.model_types if t in selected), None
-                ),
+                selected={selected[t] for t in engine.model_types if t in selected},
             )
         )
         star = next((row.id for row in rows if row.recommended), None)
