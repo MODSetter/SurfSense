@@ -40,6 +40,24 @@ def _hashtags(challenges: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _mentions(text_extra: list[dict[str, Any]]) -> list[str]:
+    # ``type`` 0 marks an @mention; hashtags (type 1) are covered by ``challenges``.
+    return [
+        t["userUniqueId"]
+        for t in text_extra
+        if isinstance(t, dict) and t.get("type") == 0 and t.get("userUniqueId")
+    ]
+
+
+def _slideshow_urls(image_post: dict[str, Any]) -> list[str]:
+    urls = []
+    for image in image_post.get("images") or []:
+        url_list = ((image or {}).get("imageURL") or {}).get("urlList") or []
+        if url_list:
+            urls.append(url_list[0])
+    return urls
+
+
 def parse_video(item: dict[str, Any]) -> dict[str, Any]:
     """Map an ``itemStruct`` to the flat output contract, filling known fields."""
     author = item.get("author") or {}
@@ -54,20 +72,29 @@ def parse_video(item: dict[str, Any]) -> dict[str, Any]:
         else None
     )
     create_time = item.get("createTime")
+    image_post = item.get("imagePost")
 
     return TikTokVideoItem(
         id=video_id,
         text=item.get("desc"),
+        textLanguage=item.get("textLanguage"),
         createTime=create_time,
         createTimeISO=epoch_to_iso(create_time),
+        isAd=item.get("isAd"),
         authorMeta=build_author_meta(author, author_stats),
         musicMeta=_music_meta(item.get("music") or {}),
         videoMeta=_video_meta(item.get("video") or {}),
         webVideoUrl=web_url,
+        # Only slideshow images: a video's playAddr is a signed URL that expires.
+        mediaUrls=_slideshow_urls(image_post) if isinstance(image_post, dict) else [],
         diggCount=stats.get("diggCount"),
         shareCount=stats.get("shareCount"),
         playCount=stats.get("playCount"),
         collectCount=stats.get("collectCount"),
         commentCount=stats.get("commentCount"),
         hashtags=_hashtags(item.get("challenges") or []),
+        mentions=_mentions(item.get("textExtra") or []),
+        isSlideshow="imagePost" in item,
+        # Profile listings flag pinned posts; other feeds omit the key.
+        isPinned=item.get("isPinnedItem"),
     ).to_output()
