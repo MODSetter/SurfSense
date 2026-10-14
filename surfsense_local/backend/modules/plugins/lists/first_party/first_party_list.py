@@ -21,7 +21,9 @@ def icons_beside(path: Path) -> Path:
 def checked_entries(path: Path) -> list[ListEntry]:
     """Every entry, or a ValueError naming the entry and the field that is wrong."""
     entries: list[ListEntry] = []
-    for raw in json.loads(path.read_text())["plugins"]:
+    # UTF-8 whatever the system's code page: Windows would read the list's curly
+    # apostrophes as cp1252, and fail on a cp932 or cp936 system.
+    for raw in json.loads(path.read_text(encoding="utf-8"))["plugins"]:
         name = raw.get("id", "?")
         try:
             entry = ListEntry.model_validate(raw)
