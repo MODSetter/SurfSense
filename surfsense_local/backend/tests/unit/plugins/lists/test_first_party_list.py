@@ -38,14 +38,32 @@ def listed(tmp_path: Path, *entries: dict[str, Any]) -> Path:
     return path
 
 
+def test_the_list_is_read_as_utf_8_whatever_the_system_code_page(
+    tmp_path: Path,
+) -> None:
+    """The shipped list holds curly apostrophes, and Windows reads in its code page unless told."""
+    about = "Read a site\u2019s pages as clean text."
+    path = tmp_path / "plugins.json"
+    path.write_bytes(
+        json.dumps(
+            {"schema_version": 1, "plugins": [scrapers(about=about)]},
+            ensure_ascii=False,
+        ).encode("utf-8")
+    )
+
+    assert checked_entries(path)[0].about == about
+
+
 def test_the_packaged_list_passes_its_check() -> None:
-    """A bad entry fails CI here, not on a user's machine."""
+    """A bad entry fails CI here, not on a user's machine.
+
+    Reddit and Instagram are written but left out: Reddit refuses anonymous reads and
+    Instagram's profiles sit behind a login (plugin-host.md, Known gaps).
+    """
     assert [entry.id for entry in checked_entries(FIRST_PARTY_LIST)] == [
         "google-search",
         "web-crawl",
-        "reddit",
         "youtube",
-        "instagram",
         "tiktok",
         "google-maps",
         "amazon",

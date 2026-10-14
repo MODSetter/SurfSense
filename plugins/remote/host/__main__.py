@@ -2,6 +2,7 @@
 
 PLUGINS, a comma-separated list of ids, limits the container to those plugins.
 REDIS_URL passes a Stop to the other copies of the host.
+Logs are redacted before a plugin loads, so no credential reaches them.
 """
 
 import os
@@ -10,7 +11,9 @@ import uvicorn
 
 from host.app import host_app
 from host.cancel_broadcast import RedisBroadcast
+from host.redacted_logs import redact_every_record
 
+redact_every_record()
 only = os.environ.get("PLUGINS")
 redis_url = os.environ.get("REDIS_URL")
 app = host_app(

@@ -176,5 +176,4 @@ A custom tool named `read` replaces the built-in one. Custom tools load from a `
 
 ## Open questions
 
-- What the agent does when SurfSense's data folder sits inside a git repository, such as a home folder kept in git.
 - Whether `todowrite` earns its 2,012 characters on a 32,768-token window, once the fixed prompt is measured.
