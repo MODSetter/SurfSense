@@ -141,7 +141,14 @@ function api({
       const url = new URL(String(input), "http://api.test")
       const method = (init?.method ?? "GET").toUpperCase()
       const body = init?.body ? JSON.parse(String(init.body)) : null
-      calls.push({ method, path: url.pathname, body })
+      // A verdict request keeps its query, which says whether it asked only if stale.
+      const asked = url.pathname === LICENSE_CHECK
+      calls.push({
+        method,
+        path: asked ? url.pathname + url.search : url.pathname,
+        body,
+      })
+      if (asked) return new Response(null, { status: 204 })
       const [, , id, , tool] = url.pathname.split("/")
       if (url.pathname === "/egress/host:plugins.surfsense.com") {
         hostAllowed = true
@@ -319,7 +326,13 @@ function api({
   return calls
 }
 
-const changes = (calls: Call[]) => calls.filter((call) => call.method !== "GET")
+const LICENSE_CHECK = "/plugins/license/check"
+
+/** What the user changed: asking the license verdict changes nothing of theirs. */
+const changes = (calls: Call[]) =>
+  calls.filter(
+    (call) => call.method !== "GET" && !call.path.startsWith(LICENSE_CHECK)
+  )
 
 /** The Electron bridge's way to the user's browser. */
 function browser() {
@@ -370,6 +383,19 @@ afterEach(() => {
 })
 
 describe("plugins settings", () => {
+  it("asks for the paid plugins' license verdict when opened, if the last is stale", async () => {
+    const calls = api()
+    render(<PluginsSettings />)
+
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        method: "POST",
+        path: `${LICENSE_CHECK}?if_stale=true`,
+        body: null,
+      })
+    )
+  })
+
   it("opens on Yours when a plugin is connected", async () => {
     api()
     render(<PluginsSettings />)

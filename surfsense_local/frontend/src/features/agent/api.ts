@@ -45,7 +45,7 @@ export type TurnSources = {
  *  refused its sign-in. */
 export type UnavailablePlugin = {
   title: string
-  reason: "unreachable" | "sign_in"
+  reason: "unreachable" | "sign_in" | "license"
 }
 
 /** Something the agent wants to do that waits for the user's answer. */

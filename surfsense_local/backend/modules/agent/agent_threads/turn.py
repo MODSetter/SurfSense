@@ -37,7 +37,7 @@ from modules.agent.opencode_runtime import (
     ready_opencode,
 )
 from modules.agent.plugin_tools.changed_tools import check_changed_tools
-from modules.agent.plugin_tools.give_plugins import give_plugins
+from modules.agent.plugin_tools.give_plugins import UnavailablePlugin, give_plugins
 from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
 from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
@@ -55,6 +55,7 @@ from modules.chat.runs.stream import event_stream
 from modules.chat.schemas import MessageCreate
 from modules.events.broker import EventBroker
 from modules.llm.resolution import ModelResolutionError
+from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -198,6 +199,11 @@ async def _stream(
         await live_instances.wait_for_disposal(folder)
         await register_thread_tools(client, folder, workspace_id, thread_id, launch_key)
         signed_out = await refresh_sign_ins(session)
+        # Before the listings below: a plugin held out over its license is not listed.
+        licensed_out = [
+            UnavailablePlugin(title, "license")
+            for title in await refresh_license_verdict(session, if_stale=True)
+        ]
         await check_changed_tools(session)
         mentions = await transact(session, mentioned_plugins, sending.text)
         plugins = await transact(
@@ -206,8 +212,10 @@ async def _stream(
             frozenset(m.plugin_id for m in mentions),
             thread_calls_token(thread_id),
         )
-        unavailable = signed_out + await give_plugins(
-            client, folder, session_id, plugins
+        unavailable = (
+            signed_out
+            + licensed_out
+            + await give_plugins(client, folder, session_id, plugins)
         )
         if unavailable:
             yield _frame(

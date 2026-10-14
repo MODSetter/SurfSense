@@ -25,6 +25,7 @@ RESERVED = frozenset(
         "scraping",
         "health",
         "cancel",
+        "license",
     }
 )
 

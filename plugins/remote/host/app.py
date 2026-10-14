@@ -1,4 +1,4 @@
-"""The plugin host: `/health`, `/cancel`, and each plugin's MCP server at `/<id>/mcp`."""
+"""The plugin host: `/health`, `/cancel`, `/license`, and each plugin's MCP server at `/<id>/mcp`."""
 
 from collections.abc import AsyncIterator, Collection
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -15,6 +15,7 @@ from host.calls_in_flight import CallsInFlight
 from host.cancel_broadcast import CancelBroadcast, LocalBroadcast
 from host.cancel_route import cancel_route
 from host.cancellable_calls import CancellableCalls
+from host.license_route import license_route
 from host.mounted_plugins import MountedPlugin, mounted_plugins
 from host.refused_unless_allowed import RefusedUnlessAllowed
 
@@ -43,6 +44,10 @@ def host_app(
             listening.cancel_scope.cancel()
 
     routes: list[Route | Mount] = [Route("/health", _health), cancel_route(stops)]
+    # One license unlocks every paid plugin, so any one's check answers for all.
+    paid = next((plugin.access for plugin in mounted if plugin.access), None)
+    if paid is not None:
+        routes.append(license_route(paid))
     routes += [Mount(f"/{plugin.id}", app=_served(plugin, calls)) for plugin in mounted]
     return Starlette(routes=routes, lifespan=lifespan)
 

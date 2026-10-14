@@ -11,7 +11,7 @@ The file format is [contract 1](../../contracts/01-license-file.md); the hosted 
 
 Paid plugins and priority support, nothing else: priority support is offered in the license email. Expiry stops those two and leaves the app, its data and its updates alone. Updates are free for everyone and the updater has no license logic: with public installers, an expired user could delete the license file and become a free user, so gating updates would be theater. `maxUsers` is shown, never enforced.
 
-SurfSense's paid plugins run on its plugin host, and the app sends every request to them the imported key as `Authorization: License <key>`, without checking its expiry ([plugins](../plugins.md#surfsenses-own-plugins)); the host checks it with Keygen on every call ([plugin host](../plugin-host.md#the-license-check)). Inside the app, Settings and the sidebar are what read the license state.
+SurfSense's paid plugins run on its plugin host, and the app sends every request to them the imported key as `Authorization: License <key>`, without checking its expiry ([plugins](../plugins.md#surfsenses-own-plugins)); the host checks it with Keygen on every call ([plugin host](../plugin-host.md#the-license-check)). Importing, replacing or removing a license asks the plugin host straight away whether it unlocks them, so Settings › Plugins, `@` and the agent follow at once ([plugins](../plugins.md#the-license-verdict)). Inside the app, Settings and the sidebar are what read the license state.
 
 ## Verifying a file
 
