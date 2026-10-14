@@ -3,12 +3,14 @@
 from datetime import date
 from pathlib import Path
 
+from capability_list.merge import LeftOut, merged, same_model
 from capability_list.sweep_input import AssumedModel, SweepResults, SweptModel
 from modules.llm.capability import model_key
 from modules.llm.capability.measured.schema import (
     ASSUMED_NOTE,
     ASSUMED_SUITE,
     SCREEN_SUITE,
+    CapabilityList,
     Match,
     MeasuredModel,
     Passes,
@@ -36,6 +38,43 @@ def sweep_rows(sweep: SweepResults, measured_on: date) -> list[MeasuredModel]:
         *(_screened(model, model.measured_on or when) for model in sweep.measured()),
         *(_assumed(model, when) for model in sweep.assumed),
     ]
+
+
+def with_screen_rows(
+    shipped: CapabilityList, screen: list[MeasuredModel]
+) -> tuple[CapabilityList, list[LeftOut]]:
+    """The screen's rows in place of its suites', then every other row they do not name.
+
+    Rewriting from sweep results keeps the ladder's rows. The screen is the
+    source of truth for its suites: a listed screening or assumed row gives
+    way to the screen's row for the same model, the way a listed ladder row
+    gives way to `with_ladder_rows`. The left-out rows are the screen's rows
+    a ladder row or another screen row names over, plus the shipped rows the
+    screen replaces — the script prints them, the pin test ignores them.
+    """
+    others = [
+        row
+        for row in shipped.models
+        if row.suite not in {SCREEN_SUITE, ASSUMED_SUITE}
+    ]
+    written, left_out = merged(shipped.model_copy(update={"models": others}), screen)
+    for old in (
+        row for row in shipped.models if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+    ):
+        # A written row of a screen suite came from the screen: `merged`
+        # re-validates, so identity with the screen's rows does not hold.
+        new = next(
+            (
+                row
+                for row in written.models
+                if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+                and same_model(old, row)
+            ),
+            None,
+        )
+        if new is not None and new != old:
+            left_out.append(LeftOut(old, new, listed=False, replaced=True))
+    return written, left_out
 
 
 def _screened(model: SweptModel, measured_on: date) -> MeasuredModel:

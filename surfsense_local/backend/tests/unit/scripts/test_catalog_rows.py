@@ -10,11 +10,10 @@ from capability_list.ladder_input import LadderResults
 from capability_list.merge import merged
 from capability_list.rows import COMMITTED_INPUT, measured_rows, with_ladder_rows
 from capability_list.sweep_input import SweepResults
-from capability_list.sweep_rows import COMMITTED_SCREEN, sweep_rows
+from capability_list.sweep_rows import COMMITTED_SCREEN, sweep_rows, with_screen_rows
 
 from modules.llm.capability.measured.loader import SHIPPED
 from modules.llm.capability.measured.schema import (
-    SCREEN_SUITE,
     CapabilityList,
     MeasuredModel,
 )
@@ -344,14 +343,9 @@ def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed
 
     Rebuilding the whole list from the generators — the ladder's rows from
     its committed input, the sweep's from the committed screen — reproduces
-    the shipped list exactly. The merge alone cannot pin a screening row
-    whose name a listed (ladder) row also holds, because a listed row always
-    beats an added one of the same name, so the generated screening rows
-    are pinned directly against the shipped list too.
+    the shipped list exactly. The screen's rows replace the shipped list's
+    screening and assumed rows, the way the ladder's replace its suite's.
     """
-    ladder_committed = LadderResults.model_validate_json(
-        COMMITTED_INPUT.read_text(encoding="utf-8")
-    )
     sweep_committed = SweepResults.model_validate_json(
         COMMITTED_SCREEN.read_text(encoding="utf-8")
     )
@@ -360,12 +354,45 @@ def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed
     assert measured_on is not None
     screen = sweep_rows(sweep_committed, measured_on)
 
-    assert merged(measured_rows(ladder_committed), screen)[0] == shipped
-    screening = sorted(
-        (row for row in screen if row.suite == SCREEN_SUITE), key=lambda row: row.key
+    assert with_screen_rows(shipped, screen)[0] == shipped
+
+
+def test_a_folded_screen_s_verdicts_replace_the_list_s() -> None:
+    """The re-run's verdicts land on the list as it stood before the re-run.
+
+    The pre-re-run list holds the 7 October verdicts for the 18 re-measured
+    models; the folded screen replaces them with the 8 October ones, and the
+    list is the shipped one again. The old merge kept the listed rows, so
+    the 12 changed rows stayed at their first verdicts.
+    """
+    from capability_list.rerun import folded
+
+    runs = COMMITTED_SCREEN.parent / "runs"
+    base = SweepResults.model_validate_json(
+        (runs / "2026-10-07-screen" / "sweep-results.json").read_text(
+            encoding="utf-8"
+        )
     )
-    shipped_screening = sorted(
-        (row for row in shipped.models if row.suite == SCREEN_SUITE),
-        key=lambda row: row.key,
+    rerun = SweepResults.model_validate_json(
+        (runs / "2026-10-08-zero-ids" / "sweep-results.json").read_text(
+            encoding="utf-8"
+        )
     )
-    assert screening == shipped_screening
+    shipped = CapabilityList.model_validate_json(SHIPPED.read_text(encoding="utf-8"))
+    assert base.measured_on is not None
+    assert rerun.measured_on is not None
+    folded_screen = folded(base, rerun)
+    assert folded_screen.measured_on is not None
+
+    pre, _ = with_screen_rows(shipped, sweep_rows(base, base.measured_on))
+    post, _ = with_screen_rows(
+        pre, sweep_rows(folded_screen, folded_screen.measured_on)
+    )
+
+    assert post == shipped
+    changed = [
+        row.key
+        for row in pre.models
+        if row not in shipped.models
+    ]
+    assert len(changed) == 12

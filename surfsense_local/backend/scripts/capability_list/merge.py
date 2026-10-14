@@ -59,6 +59,11 @@ def merged(
     return CapabilityList.model_validate(rows.model_dump()), left_out
 
 
+def same_model(a: MeasuredModel, b: MeasuredModel) -> bool:
+    """Whether two rows name the same model, by exact or looser key."""
+    return bool(_names(a) & _names(b))
+
+
 def _weaker(candidate: tuple[MeasuredModel, bool]) -> tuple[int, int, bool]:
     """Sorts the strongest first: by suite, then the shorter key, then a listed row."""
     row, listed = candidate

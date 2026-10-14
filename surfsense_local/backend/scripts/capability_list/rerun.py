@@ -10,8 +10,7 @@ folded screen to `catalog_rows.py`:
     "
 """
 
-from capability_list.sweep_input import AssumedModel, SweepResults, SweptModel
-from capability_list.sweep_rows import CASE_CAP
+from capability_list.sweep_input import SweepResults, SweptModel
 
 
 def folded(base: SweepResults, rerun: SweepResults) -> SweepResults:
@@ -30,13 +29,6 @@ def folded(base: SweepResults, rerun: SweepResults) -> SweepResults:
             assumed.pop(model.key, None)
         else:
             models.pop(model.key, None)
-            if _capped(model):
-                assumed.setdefault(
-                    model.key,
-                    AssumedModel(
-                        id=model.id, key=model.key, reads_images=model.reads_images
-                    ),
-                )
     # The sweep writes a capped model to `assumed` (level agent, status
     # done): its key is the re-run's verdict — out of models and
     # unfinished, into assumed.
@@ -58,10 +50,3 @@ def folded(base: SweepResults, rerun: SweepResults) -> SweepResults:
         }
     )
 
-
-def _capped(model: SweptModel) -> bool:
-    """Whether the re-run stopped it at the per-case dollar cap, unmeasured."""
-    if model.notes is None:
-        return False
-    texts = [model.notes] if isinstance(model.notes, str) else model.notes
-    return any(CASE_CAP in text for text in texts)
