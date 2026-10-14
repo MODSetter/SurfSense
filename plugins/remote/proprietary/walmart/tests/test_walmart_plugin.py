@@ -17,8 +17,11 @@ from mcp.client.streamable_http import streamable_http_client
 from host.app import host_app
 from host.tests.mcp_calls import call
 from host.tests.serving import serving
-from proprietary.license_check import keygen
-from proprietary.license_check.tests.stand_in_keygen import ACCOUNT, StandInKeygen
+from proprietary.license_check.tests.stand_in_keygen import (
+    ACCOUNT,
+    StandInKeygen,
+    accounts_url,
+)
 from proprietary.walmart import fetch
 
 LICENSE = {"Authorization": "License k-1"}
@@ -34,8 +37,8 @@ PAGES = {
 def walmart(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """The real Walmart plugin on the host, its license checked by a stand-in Keygen."""
     with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
-        monkeypatch.setattr(keygen, "KEYGEN_API_URL", keygen_url)
-        monkeypatch.setattr(keygen, "SURFSENSE_ACCOUNT_ID", ACCOUNT)
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
         with serving(host_app(plugins={"walmart"})) as base:
             yield f"{base}/walmart/mcp"
 
