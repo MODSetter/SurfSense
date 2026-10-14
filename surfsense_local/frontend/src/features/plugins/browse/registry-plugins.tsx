@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api"
 
 import { listRegistry, registryQueryKey, type RegistryEntry } from "../api"
@@ -13,21 +14,31 @@ import { PluginIcon } from "../plugin-icon"
 import { PublisherByline } from "../public-page/publisher-byline"
 import { PublisherMark } from "../public-page/publisher-mark"
 import { ConnectListedPlugin } from "./connect-listed-plugin"
+import {
+  entryClassName,
+  ROW_ICON_CLASS,
+  type EntryLayout,
+} from "./entry-layout"
 
-function RegistryEntryRow({
+export function RegistryEntryRow({
   entry,
   onOpen,
+  layout = "card",
 }: {
   entry: RegistryEntry
   onOpen: () => void
+  layout?: EntryLayout
 }) {
+  const row = layout === "row"
   const nameId = useId()
   return (
-    <li
-      aria-labelledby={nameId}
-      className="relative flex items-start gap-3 rounded-lg bg-secondary p-3 transition-colors hover:bg-muted"
-    >
-      <PluginIcon id={entry.id} name={entry.name} hasIcon={entry.has_icon} />
+    <li aria-labelledby={nameId} className={entryClassName(layout)}>
+      <PluginIcon
+        id={entry.id}
+        name={entry.name}
+        hasIcon={entry.has_icon}
+        className={row ? ROW_ICON_CLASS : undefined}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           {/* Stretched over the row, so the whole entry opens its page. */}
@@ -41,11 +52,16 @@ function RegistryEntryRow({
           </button>
           <PublisherMark entry={entry} />
         </div>
-        <p className="text-xs text-muted-foreground">{entry.description}</p>
-        <p className="mt-1 flex text-xs text-muted-foreground">
-          <PublisherByline entry={entry} />
+        <p className={cn("text-xs text-muted-foreground", row && "truncate")}>
+          {entry.description}
         </p>
-        {entry.access === "external" && entry.access_note ? (
+        {/* A row keeps to one line; its page says who runs it and what it needs. */}
+        {row ? null : (
+          <p className="mt-1 flex text-xs text-muted-foreground">
+            <PublisherByline entry={entry} />
+          </p>
+        )}
+        {!row && entry.access === "external" && entry.access_note ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {entry.access_note}
           </p>

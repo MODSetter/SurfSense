@@ -1480,3 +1480,139 @@ describe("plugins settings", () => {
     ).toBeTruthy()
   })
 })
+
+/** Types into the search beside the tabs. */
+async function search(user: User, text: string) {
+  await user.type(
+    await screen.findByRole("searchbox", { name: "Search plugins" }),
+    text
+  )
+}
+
+const tabHeld = (name: string) => {
+  const tab = screen.getByRole("tab", { name })
+  return (
+    tab.hasAttribute("disabled") || tab.getAttribute("aria-disabled") === "true"
+  )
+}
+
+describe("searching plugins", () => {
+  it("lists connected plugins first, then the ones to add, from both lists", async () => {
+    api({
+      allowed: true,
+      plugins: [
+        notes(),
+        notes({ id: "reddit", name: "Reddit", source: "first_party" }),
+      ],
+      registry: [listed({ id: "redwood", name: "Redwood" })],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "red")
+
+    const connected = await screen.findByRole("region", { name: "Yours" })
+    const available = await screen.findByRole("region", { name: "Available" })
+    expect(within(connected).getByRole("row", { name: /Reddit/ })).toBeTruthy()
+    expect(within(connected).queryByRole("row", { name: /Notes/ })).toBeNull()
+    expect(
+      await within(available).findByRole("listitem", { name: "Redwood" })
+    ).toBeTruthy()
+    expect(
+      within(available).queryByRole("listitem", { name: "Reddit" })
+    ).toBeNull()
+    expect(
+      connected.compareDocumentPosition(available) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it("holds the tabs while searching, and gives them back once cleared", async () => {
+    api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+    await screen.findByRole("row", { name: /Notes/ })
+
+    await search(user, "notes")
+    expect(tabHeld("Yours")).toBe(true)
+    expect(tabHeld("Browse")).toBe(true)
+
+    await user.keyboard("{Escape}")
+    expect(
+      screen.getByRole<HTMLInputElement>("searchbox", {
+        name: "Search plugins",
+      }).value
+    ).toBe("")
+    expect(tabHeld("Yours")).toBe(false)
+    expect(
+      screen.getByRole("tab", { name: "Yours" }).getAttribute("aria-selected")
+    ).toBe("true")
+    expect(screen.getByRole("row", { name: /Notes/ })).toBeTruthy()
+  })
+
+  it("shows a skeleton, not a spinner, while the search settles", async () => {
+    api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "notes")
+
+    const results = screen.getByRole("region", { name: "Search results" })
+    expect(results.querySelector('[data-slot="skeleton"]')).not.toBeNull()
+    expect(within(results).queryByRole("status")).toBeNull()
+    expect(
+      await within(results).findByRole("region", { name: "Yours" })
+    ).toBeTruthy()
+    expect(results.querySelector('[data-slot="skeleton"]')).toBeNull()
+  })
+
+  it("says when nothing matches", async () => {
+    api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "zzz")
+
+    expect(await screen.findByText("No plugins match “zzz”.")).toBeTruthy()
+  })
+
+  it("leaves third-party plugins out while they are off, and fetches nothing", async () => {
+    const calls = api({ allowed: false, registry: [listed()] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "wiki")
+
+    expect(
+      await screen.findByText(
+        "Third-party plugins aren’t searched until you allow them in Browse."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("listitem", { name: "Wiki" })).toBeNull()
+    expect(calls.some((call) => call.path === "/plugins/registry")).toBe(false)
+  })
+
+  it("opens a result's page, and goes back to the results", async () => {
+    api({ plugins: [] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "red")
+    const available = await screen.findByRole("region", { name: "Available" })
+    await user.click(
+      await within(available).findByRole("button", { name: "Reddit" })
+    )
+
+    const page = await screen.findByRole("region", { name: "Reddit" })
+    expect(within(page).getByText(REDDIT.about)).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("region", { name: "Available" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole<HTMLInputElement>("searchbox", {
+        name: "Search plugins",
+      }).value
+    ).toBe("red")
+  })
+})
