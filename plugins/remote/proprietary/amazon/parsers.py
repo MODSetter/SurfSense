@@ -19,6 +19,12 @@ _NUMBER_RE = re.compile(r"[\d,.]+")
 _ASIN_RE = re.compile(r"^[A-Z0-9]{10}$")
 _ASIN_IN_TEXT_RE = re.compile(r"\b[A-Z0-9]{10}\b")
 _CURRENCY_BY_SYMBOL = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR"}
+_COUNT_RE = re.compile(r"([\d,.]+)\s*([KkMm])?")
+_ID_SELECTOR_RE = re.compile(r"#([A-Za-z][\w-]*)")
+# Amazon's cached, price-less product page (served to cookie-less clients).
+FALLBACK_PDP_MARKER = "To see product details, add this item to your cart"
+# The same page's price block, whatever the marketplace's language.
+_FALLBACK_PDP_BLOCK = 'id="priceNotAvailable_feature_div"'
 _JSON_ASSIGNMENT_RE = re.compile(
     r"(?:dimensionValuesDisplayData|variationValues|dimensionToAsinMap)"
     r"""\s*["']?\s*:\s*(\{.*?\})(?:,\s*["']|\s*;)""",
@@ -26,8 +32,20 @@ _JSON_ASSIGNMENT_RE = re.compile(
 )
 
 
+def is_fallback_product_page(html: str) -> bool:
+    """Whether a product page is Amazon's cached fallback, which has no price."""
+    return FALLBACK_PDP_MARKER in html or _FALLBACK_PDP_BLOCK in html
+
+
 def _one(node: Any, selector: str) -> Any | None:
-    found = node.css(selector)
+    # A bare #id on the whole page is answered from libxml2's ID table (the first
+    # element with that id, as css()[0]); the CSS scan walks the whole 1-3 MB
+    # product page for each of these lookups, 3-10 ms apiece.
+    match = _ID_SELECTOR_RE.fullmatch(selector)
+    if match is not None and node.parent is None:
+        found = node.xpath(f"id('{match.group(1)}')")
+    else:
+        found = node.css(selector)
     return found[0] if found else None
 
 
@@ -80,6 +98,22 @@ def _integer(value: str | None) -> int | None:
     return int(digits) if digits else None
 
 
+def _count(value: str | None) -> int | None:
+    """Parse a count that may be abbreviated, such as ``(45.3K)`` or ``1.2M``."""
+    if not value:
+        return None
+    match = _COUNT_RE.search(value)
+    if not match:
+        return None
+    suffix = (match.group(2) or "").upper()
+    if not suffix:
+        return _integer(match.group(1))
+    amount = _float(match.group(1))
+    if amount is None:
+        return None
+    return round(amount * (1_000 if suffix == "K" else 1_000_000))
+
+
 def _float(value: str | None) -> float | None:
     if not value:
         return None
@@ -130,6 +164,17 @@ def _asin_from_href(href: str | None) -> str | None:
         return None
     match = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{10})(?:[/?]|$)", href)
     return match.group(1) if match else None
+
+
+def _card_url(domain: str, href: str | None, asin: str) -> str:
+    """The product URL for a search card, unwrapping sponsored ``/sspa/click`` links."""
+    url = _absolute(domain, href)
+    if url and urlparse(url).path.startswith("/sspa/click"):
+        target = (parse_qs(urlparse(url).query).get("url") or [None])[0]
+        url = urljoin(f"https://{domain}", target) if target else None
+        if url and _asin_from_href(url) != asin:
+            url = None
+    return url or f"https://{domain}/dp/{asin}"
 
 
 def _embedded_json(html: str, key: str) -> Any | None:
@@ -272,13 +317,22 @@ def parse_product(
         "#price_inside_buybox",
         "#centerCol .a-price .a-offscreen",
     )
+    # Only the struck-through price in the core price block: a generic
+    # #centerCol .a-text-price also matches the per-unit price.
     list_price_text = _first_text(
         doc,
-        "#corePrice_feature_div .basisPrice .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .a-price[data-a-strike='true'] .a-offscreen",
+        "#corePrice_feature_div .a-price[data-a-strike='true'] .a-offscreen",
         "#corePriceDisplay_desktop_feature_div .basisPrice .a-offscreen",
+        "#corePrice_feature_div .basisPrice .a-offscreen",
         ".priceBlockStrikePriceString",
-        "#centerCol .a-price.a-text-price .a-offscreen",
     )
+    price = _price(price_text)
+    list_price = _price(list_price_text)
+    if list_price is not None and (
+        price is None or (list_price["value"] or 0) <= (price["value"] or 0)
+    ):
+        list_price = None
     availability = _first_text(doc, "#availability", "#outOfStock")
     availability_lower = (availability or "").lower()
     in_stock = (
@@ -336,6 +390,30 @@ def parse_product(
     reviews_link = _first_attr(
         doc, "href", "#acrCustomerReviewLink", "[data-hook='see-all-reviews-link-foot']"
     )
+    if reviews_link and reviews_link.startswith("#"):
+        # The ratings link is an in-page anchor on current pages.
+        reviews_link = f"/product-reviews/{asin}"
+    # #acBadge_feature_div is on every page (it holds the popover explainer);
+    # only the badge rectangle means the product has the badge.
+    choice_badge = _one(
+        doc,
+        "#acBadge_feature_div .mvt-ac-badge-rectangle, "
+        "#acBadge_feature_div .ac-badge-rectangle",
+    )
+    choice_text = (
+        " ".join(
+            _texts(
+                doc,
+                "#acBadge_feature_div .mvt-ac-badge-rectangle, "
+                "#acBadge_feature_div .ac-badge-rectangle, "
+                "#acBadge_feature_div .mvt-ac-for-text, "
+                "#acBadge_feature_div .ac-for-text",
+            )
+        )
+        or None
+        if choice_badge is not None
+        else None
+    )
     seller_link = _one(
         doc,
         "#sellerProfileTriggerId, #merchant-info a[href*='seller='], a[href*='/sp?seller=']",
@@ -358,8 +436,8 @@ def parse_product(
         "author": _first_text(
             doc, ".author", "#bylineInfo_feature_div .contributorNameID"
         ),
-        "price": _price(price_text),
-        "listPrice": _price(list_price_text),
+        "price": price,
+        "listPrice": list_price,
         "shippingPrice": _price(
             _first_text(doc, "#deliveryBlockMessage .a-color-secondary")
         ),
@@ -451,9 +529,8 @@ def parse_product(
             else None
         ),
         "bestsellerRanks": ranks,
-        "isAmazonChoice": _one(doc, "#acBadge_feature_div, .ac-badge-wrapper")
-        is not None,
-        "amazonChoiceText": _first_text(doc, "#acBadge_feature_div, .ac-badge-wrapper"),
+        "isAmazonChoice": choice_badge is not None,
+        "amazonChoiceText": choice_text,
         "reviewsLink": _absolute(domain, reviews_link),
         "hasReviews": bool(local_reviews or foreign_reviews),
         "productPageReviews": local_reviews,
@@ -461,41 +538,76 @@ def parse_product(
     }
 
 
+def _is_best_seller(node: Any) -> bool:
+    """Whether a card carries the Best Seller badge (not any badge, such as a deal)."""
+    if _one(node, "[aria-label^='Best Seller'], .rio-badge-style-BEST_SELLER"):
+        return True
+    return any(
+        "best seller" in value.lower()
+        for value in _texts(node, ".a-badge-text, .s-badge-text")
+    )
+
+
 def parse_search_page(
-    html: str, *, page: int = 1, domain: str = "www.amazon.com"
+    html: str, *, page: int = 1, domain: str = "www.amazon.com", offset: int = 0
 ) -> list[dict[str, Any]]:
-    """Parse product cards from a search or category page."""
+    """Parse product cards from a search or category page.
+
+    Positions count product cards only, in page order, from ``offset`` (the
+    cards on earlier pages). The ``sr_1_N`` link ranks are not used: sponsored
+    and organic cards repeat the same numbers on one page.
+    """
     doc = Adaptor(html)
     cards: list[dict[str, Any]] = []
-    for position, node in enumerate(
-        doc.css(
-            "[data-component-type='s-search-result'][data-asin], [data-asin].s-result-item"
-        ),
-        start=1,
+    for node in doc.css(
+        "[data-component-type='s-search-result'][data-asin], [data-asin].s-result-item"
     ):
         asin = (_attr(node, "data-asin") or "").upper()
         if not _ASIN_RE.match(asin):
             continue
         href = _first_attr(node, "href", "h2 a", "a.a-link-normal")
+        url = _card_url(domain, href, asin)
         title = _first_text(node, "h2", "h2 span", ".a-size-base-plus")
+        # The count is in the link's aria-label ("45,355 ratings"); the visible
+        # text is abbreviated ("(45.3K)"). Other languages word the label
+        # differently, so the ratings link next to the stars is read as well.
+        ratings_link = "[data-cy='reviews-block'] a.s-underline-text"
+        reviews_count = (
+            _integer(
+                _first_attr(
+                    node,
+                    "aria-label",
+                    "[aria-label$=' ratings']",
+                    "[aria-label$=' rating']",
+                    f"{ratings_link}[aria-label]",
+                )
+            )
+            or _count(_first_text(node, "[aria-label$='ratings']"))
+            or _count(_first_text(node, ratings_link))
+        )
+        price = _price(_first_text(node, ".a-price .a-offscreen"))
+        list_price = _price(
+            _first_text(node, ".a-price[data-a-strike='true'] .a-offscreen")
+        )
+        if price is None or (list_price and list_price["value"] <= price["value"]):
+            list_price = None
         cards.append(
             {
                 "asin": asin,
                 "originalAsin": asin,
                 "title": title,
-                "url": _absolute(domain, href) or f"https://{domain}/dp/{asin}",
-                "price": _price(_first_text(node, ".a-price .a-offscreen")),
+                "url": url,
+                "price": price,
+                "listPrice": list_price,
                 "stars": _float(_first_text(node, ".a-icon-alt")),
-                "reviewsCount": _integer(
-                    _first_text(node, "[aria-label$='ratings']", ".s-underline-text")
-                ),
+                "reviewsCount": reviews_count,
                 "thumbnailImage": _first_attr(node, "src", ".s-image"),
                 "categoryPageData": {
-                    "position": position,
+                    "position": offset + len(cards) + 1,
                     "page": page,
-                    "isSponsored": "sponsored" in (_text(node) or "").lower(),
-                    "isBestSeller": _one(node, ".a-badge-text, .s-badge-text")
-                    is not None,
+                    "isSponsored": "/sspa/click" in (href or "")
+                    or "sponsored" in (_text(node) or "").lower(),
+                    "isBestSeller": _is_best_seller(node),
                 },
             }
         )
@@ -508,9 +620,11 @@ def parse_aod_offers(
     """Parse rows from the public all-offers panel."""
     doc = Adaptor(html)
     offers: list[dict[str, Any]] = []
-    for position, node in enumerate(
-        doc.css("#aod-offer, .aod-information-block"), start=1
-    ):
+    # The featured (pinned) offer sits beside the #aod-offer rows, not inside one.
+    pinned = _one(doc, "#aod-pinned-offer")
+    rows = [(pinned, True)] if pinned is not None else []
+    rows += [(node, False) for node in doc.css("#aod-offer")]
+    for position, (node, is_pinned) in enumerate(rows, start=1):
         seller_link = _one(
             node, "#aod-offer-soldBy a[href*='seller='], a[href*='/sp?']"
         )
@@ -520,7 +634,19 @@ def parse_aod_offers(
         offers.append(
             {
                 "position": position,
-                "price": _price(_first_text(node, ".a-price .a-offscreen")),
+                # .a-price .a-offscreen is empty in current markup; the price is
+                # in the aok-offscreen label ("$29.99 with 40 percent savings").
+                "price": _price(
+                    _first_text(
+                        node,
+                        "[id^='aod-price-'] .aok-offscreen",
+                        ".apex-pricetopay-value .a-offscreen",
+                        ".a-price .a-offscreen",
+                    )
+                ),
+                "listPrice": _price(
+                    _first_text(node, ".a-price[data-a-strike='true'] .a-offscreen")
+                ),
                 "condition": _first_text(
                     node, "#aod-offer-heading", ".aod-information-block"
                 ),
@@ -531,8 +657,7 @@ def parse_aod_offers(
                     or _first_text(node, "#aod-offer-soldBy .a-color-base"),
                     "url": _absolute(domain, href),
                 },
-                "isPinnedOffer": _one(node, "#aod-pinned-offer, .aod-pinned-offer")
-                is not None,
+                "isPinnedOffer": is_pinned,
             }
         )
     return offers
@@ -562,13 +687,17 @@ def parse_bestsellers_page(
     """Parse ranked products from a best-sellers page."""
     doc = Adaptor(html)
     items: list[dict[str, Any]] = []
-    nodes = doc.css("#gridItemRoot, .zg-grid-general-faceout, [id^='p13n-asin-index-']")
-    for fallback_rank, node in enumerate(nodes, start=1):
+    # One selector only: the three containers nest, so a union matched each
+    # product up to 3 times and threw the fallback rank off.
+    nodes = doc.css("[id^='p13n-asin-index-']") or doc.css("#gridItemRoot")
+    seen: set[str] = set()
+    for node in nodes:
         href = _first_attr(node, "href", "a[href*='/dp/']", "a[href*='/gp/product/']")
         asin = _asin_from_href(href) or (_attr(node, "data-asin") or None)
-        if not asin or not _ASIN_RE.match(asin):
+        if not asin or not _ASIN_RE.match(asin) or asin in seen:
             continue
-        rank = _integer(_first_text(node, ".zg-bdg-text")) or fallback_rank
+        seen.add(asin)
+        rank = _integer(_first_text(node, ".zg-bdg-text")) or len(items) + 1
         items.append(
             {
                 "asin": asin,
@@ -577,7 +706,11 @@ def parse_bestsellers_page(
                     node, "._cDEzb_p13n-sc-css-line-clamp-3_g3dy1", "img"
                 ),
                 "url": _absolute(domain, href) or f"https://{domain}/dp/{asin}",
-                "price": _price(_first_text(node, ".a-price .a-offscreen")),
+                "price": _price(
+                    _first_text(
+                        node, "[class*='p13n-sc-price']", ".a-price .a-offscreen"
+                    )
+                ),
                 "stars": _float(_first_text(node, ".a-icon-alt")),
                 "thumbnailImage": _first_attr(node, "src", "img"),
                 "bestsellerPageData": {"rank": rank, "page": page},
