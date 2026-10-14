@@ -156,7 +156,10 @@ def go() -> None:
     pids = [int(pid) for pid in written.read_text().split()]
 
     # What the app's supervisor does to a worker when the app quits.
-    os.killpg(first.pid, signal.SIGKILL)
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/pid", str(first.pid), "/t", "/f"], check=True)
+    else:
+        os.killpg(first.pid, signal.SIGKILL)
     first.wait(timeout=10)
 
     assert not [pid for pid in pids if not gone(pid)]
