@@ -22,9 +22,12 @@ on:
       - surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/**
       - surfsense_local/backend/modules/llm/catalog/local/manifest/models.json
       - surfsense_local/backend/modules/llm/transcription/**
+      - surfsense_local/backend/worker/ingestion/audio/**
+      - surfsense_local/backend/worker/audio_decode/**
       - surfsense_local/backend/tests/packaging/test_audiocpp_voicing.py
       - surfsense_local/backend/tests/packaging/test_audiocpp_transcription.py
       - surfsense_local/backend/tests/packaging/test_audiocpp_transcription_config.py
+      - surfsense_local/backend/tests/packaging/test_recording_transcription.py
       - .github/workflows/build-audiocpp.yml
 
 permissions:
@@ -167,8 +170,9 @@ jobs:
 
       # Kokoro voices sentences in six languages and the transcription server,
       # started as Electron's second sidecar from the transcription.json the app
-      # writes, writes them down through the app's client. The test checks the
-      # file against the manifest's hash; Silero's check runs once it is staged.
+      # writes, writes them down through the app's client; then a recording goes
+      # through ingest, the API and that server. The test checks the file
+      # against the manifest's hash; Silero's check runs once it is staged.
       - name: Gate on speech recognition through the app
         working-directory: surfsense_local/backend
         env:
@@ -182,7 +186,7 @@ jobs:
           fi
           cp "$RECOGNISER" "$SURFSENSE_TEST_AUDIO_MODELS/"
           uv run scripts/fetch_silero_vad.py models
-          uv run pytest tests/packaging/test_audiocpp_transcription_config.py tests/packaging/test_audiocpp_transcription.py -m packaging
+          uv run pytest tests/packaging/test_audiocpp_transcription_config.py tests/packaging/test_audiocpp_transcription.py tests/packaging/test_recording_transcription.py -m packaging
 
       # An artifact drops symlinks and file modes; a tar keeps both.
       - name: Pack

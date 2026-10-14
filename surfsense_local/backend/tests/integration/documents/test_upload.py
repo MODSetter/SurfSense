@@ -7,6 +7,12 @@ from httpx import AsyncClient
 from sqlalchemy import Engine, text
 
 from modules.documents import storage
+from modules.documents.recordings.layout import work_files
+from modules.documents.recordings.progress_file import (
+    TranscriptionProgress,
+    write_progress,
+)
+from shared.config import get_storage_settings
 from shared.queue import ingest_queue
 
 pytestmark = pytest.mark.integration
@@ -149,6 +155,61 @@ async def test_unsupported_and_mismatched_files_are_rejected_per_file(
     ]
     assert [path.name for path in stored_files(data_dir)] == ["notes.txt"]
     assert len(ingest_queue.pending()) == 1
+
+
+async def test_a_recording_is_queued_and_an_opus_voice_note_is_turned_away(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """MP3, FLAC and Ogg Vorbis are transcribed; Opus waits for its decoder,
+    and the person reads why beside that one file."""
+    tones = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("standup.mp3", (tones / "tone.mp3").read_bytes(), "audio/x")),
+            ("files", ("voice.ogg", (tones / "tone-opus.ogg").read_bytes(), "")),
+            ("files", ("notes.txt", b"research notes", "text/plain")),
+        ],
+    )
+
+    assert response.status_code == 201
+    recording, notes = response.json()["created"]
+    assert (recording["mime_type"], recording["transcription"]) == (
+        "audio/mpeg",
+        {"language": None, "progress": None, "awaiting": False},
+    )
+    assert notes["transcription"] is None
+    assert response.json()["rejected"] == [
+        {"filename": "voice.ogg", "reason": "Opus support comes in a later update"}
+    ]
+    assert len(ingest_queue.pending()) == 2
+
+
+async def test_a_queued_recording_reports_how_far_its_transcription_came(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Read from the job's progress file, so a reload sees what the events said."""
+    tones = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+    uploaded = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("lecture.flac", (tones / "tone.flac").read_bytes(), "")},
+    )
+    recording = uploaded.json()["created"][0]["id"]
+    folder = get_storage_settings().document_dir(workspace_id, recording)
+    progress = work_files(folder).progress
+    progress.parent.mkdir(parents=True)
+    write_progress(progress, TranscriptionProgress(done_s=1392.5, total_s=3480.0))
+
+    listed = await client.get(f"/workspaces/{workspace_id}/documents")
+    read = await client.get(f"/workspaces/{workspace_id}/documents/{recording}")
+
+    expected = {
+        "language": None,
+        "progress": {"done_s": 1392.5, "total_s": 3480.0},
+        "awaiting": False,
+    }
+    assert listed.json()[0]["transcription"] == expected
+    assert read.json()["transcription"] == expected
 
 
 async def test_server_records_verified_mime_not_the_clients_claim(

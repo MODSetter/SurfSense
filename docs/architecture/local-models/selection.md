@@ -25,7 +25,7 @@ type is the slot.
 | `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
-| `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes, which no screen or job calls yet ([admission](admission.md#speech-recognition)) |
+| `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -90,6 +90,10 @@ runs after the response, because the load blocks until the weights are resident
 and choosing a model is when the user has said they are about to use it
 ([`runtime.md`](runtime.md#warming-listed-is-not-loaded)). Any other provider
 loads nothing.
+
+Choosing a `speech_to_text` model, through the route or an install with
+`select: true`, queues again every recording that failed for want of one, at
+`PRIORITY_BULK` ([documents](../documents.md#no-speech-model-yet)).
 
 Installing with `select: true` goes through the same `choose_model()`
 ([`catalog.md`](catalog.md)) and fills the row's own first slot unless the

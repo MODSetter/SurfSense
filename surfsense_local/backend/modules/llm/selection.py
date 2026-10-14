@@ -5,7 +5,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.documents.recordings.awaiting import mark_awaiting_pending, queue_requeued
 from modules.embedding.choose import lock_chosen
+from modules.events.broker import EventBroker
 from modules.llm.capability.modes import carried_to_next_model
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.listing import connection_models
@@ -31,7 +33,9 @@ async def choose_model(
     *,
     connection_id: int | None = None,
     allow_unlisted: bool = False,
+    broker: EventBroker | None = None,
 ) -> SelectedModel:
+    """`broker` tells open windows of recordings a speech model queues again."""
     model_name = model_name.strip()
     if not model_name:
         raise HTTPException(
@@ -65,6 +69,9 @@ async def choose_model(
         model_name,
         fingerprint,
     )
+    if model_type is ModelType.SPEECH_TO_TEXT:
+        # Recordings uploaded before any speech model waited for this one.
+        queue_requeued(await transact(session, mark_awaiting_pending), broker)
     logger.info(
         "llm: %s model %s/%s gets the %s prompt (params_b=%s vendor=%s line=%s)",
         model_type.value,

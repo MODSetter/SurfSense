@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Callable, Sequence
 import httpx
 from sqlalchemy.orm import Session
 
+from modules.events.broker import EventBroker
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
@@ -49,6 +50,7 @@ async def install_steps(
     model_type: ModelType | None,
     session_factory: Callable[[], Session],
     slots: Sequence[ModelType] = (),
+    broker: EventBroker | None = None,
 ) -> AsyncIterator[dict]:
     """Run inside the install lock; the job reports the first `starting`.
 
@@ -138,6 +140,7 @@ async def install_steps(
                 model_type or next(iter(slots), engine.model_types[0]),
                 engine.provider,
                 checked.model_id,
+                broker=broker,
             )
             selection = SelectionRead.model_validate(chosen).model_dump(mode="json")
     yield {

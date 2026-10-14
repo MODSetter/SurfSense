@@ -7,7 +7,9 @@ import psutil
 
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
+from modules.documents.recordings.kind import is_recording
 from shared.config import get_storage_settings
+from worker.ingestion.audio.transcript_job import recording_markdown
 from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
@@ -30,6 +32,9 @@ def markdown_for(document: Document) -> str:
     if path is None:
         raise FileNotFoundError("the uploaded file is no longer on disk")
 
+    # Before Docling, which must never read a recording.
+    if is_recording(document.mime_type):
+        return recording_markdown(document, path)
     return _markdown_from(path)
 
 

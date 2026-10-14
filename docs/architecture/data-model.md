@@ -62,7 +62,7 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | `content` | the markdown body: extracted text, the note itself, or an artifact's body |
 | `content_hash` | SHA-256 of a file's bytes, equal to `dedup_key` for an uploaded or imported file; `0025` copied it from `dedup_key`; null for notes and artifacts |
 | `dedup_key` | SHA-256 of an uploaded or imported file's bytes; null for notes and artifacts |
-| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids |
+| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids; a recording's ingest adds `transcription`, `{language, duration_s, model}` once transcribed or `{awaiting: true}` while it waits for a speech model ([`documents.md`](documents.md#recordings)) |
 | `embedding_index_id` | foreign key to `embedding_indexes`: the index its chunks were embedded into; null until its first ingest |
 | `folder_id` | foreign key to `folders`, `ON DELETE SET NULL`, from `0025`: every `FILE` and `NOTE` is filed; null is an unfiled artifact, or a source the backstop unfiled, which scopes and the tree treat as the top of the Library |
 | `created_at`, `updated_at` | |
@@ -184,7 +184,10 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/
-        │   └── <file name>       an uploaded or imported file, under its own name
+        │   ├── <file name>       an uploaded or imported file, under its own name
+        │   ├── figures/          the pictures ingest kept, and figures.json
+        │   └── transcript/       a recording's: segments.json once transcribed;
+        │       └── work/         the decoded audio, plan and windows a job resumes from
         ├── chats/<thread_id>/
         │   └── <sha256>.<ext>    an image a turn carried, normalised to PNG or JPEG
         ├── artifacts/<artifact_id>/

@@ -9,6 +9,7 @@ from api.dependencies import SessionDep, transact
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import active_index
+from modules.events.dependencies import EventBrokerDep
 from modules.llm.activity import (
     ModelBusyError,
     ModelFileHeldError,
@@ -336,6 +337,7 @@ async def set_selection(
     payload: SelectionWrite,
     session: SessionDep,
     background: BackgroundTasks,
+    broker: EventBrokerDep,
 ) -> SelectionRead:
     chosen = await choose_model(
         session,
@@ -344,6 +346,7 @@ async def set_selection(
         payload.name,
         connection_id=payload.connection_id,
         allow_unlisted=payload.allow_unlisted,
+        broker=broker,
     )
     # After the response, never during it: the load blocks until the model is
     # resident, which is the tens of seconds this exists to move somewhere the

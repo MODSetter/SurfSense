@@ -173,8 +173,9 @@ jobs:
           "$WORKER" --check-vision-runtime
 
       # A script is not analysed when the worker is frozen, so a library the
-      # spec leaves out shows only when a script runs in the shipped worker.
-      - name: Run document scripts in the frozen worker
+      # spec leaves out shows only when a script runs in the shipped worker;
+      # the same holds for the decode child's miniaudio.
+      - name: Run document scripts and decode a recording in the frozen worker
         working-directory: surfsense_local/backend
         # addopts pins -m 'not packaging'; the later -m on the command line wins.
         run: |
