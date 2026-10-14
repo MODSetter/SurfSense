@@ -631,7 +631,7 @@ on search and repo reads, and the job's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat**, **Image**, **Image editing**, **Video** and **Audio** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models** or **Audio generation models** on its own page.
+Settings has one section per model type, **Chat**, **Image**, **Image editing**, **Video**, **Audio** and **Speech recognition** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models**, **Audio generation models** or **Speech recognition models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
@@ -714,6 +714,30 @@ Rules the screen holds:
   audiocpp_server on its next poll. The voice the app ships is the exception:
   it is part of the install, read in place from the models pack, so it has no
   Delete, and the API refuses one.
+- The speech recognition section is local only: no server can fill
+  `speech_to_text`, so neither its list nor its Add model page offers one
+  (`ModelSlotSettings`' `localOnly`). It takes every row whose
+  `selectable_for` names the slot, described by the row's `transcription`, so
+  recognisers never reach the Audio page, which drops rows without `voicing`.
+  A row reads its build, its size, the memory it takes while transcribing, and
+  "Detects the language" when it does ("Q8_0 · 931 MB · 1.8 GB while
+  transcribing · Detects the language"), then its languages, counted, which
+  open to their names in the interface's language, alphabetically
+  (`Intl.DisplayNames`). A download installs with `select: true`: one speech
+  model serves recordings and voice input, so downloading one is choosing it.
+  Under the model in use, **Spoken language** reads and writes
+  `/llm/selection/speech_to_text/language`: "Detect automatically", only when
+  the model detects the language, then each language it lists.
+- The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/))
+  is the same download where speech is needed, for the mic and a recording
+  waiting for a model to open: one card per curated recogniser with its size,
+  its memory while transcribing and "Works well in:" its listed languages.
+  **Download and set up** starts the same install job with `select: true`, so
+  egress consent is the usual refused-request prompt, nested in the popover;
+  the card then shows the job's progress, and once the catalog marks the model
+  in use the popover reads "Speech recognition is ready", with **Start
+  talking** where its opener can listen. **More choices** opens this section.
+  `useSpeechSetup()` holds that state, so an opener can show the download too.
 
 ## How it is tested
 
@@ -726,7 +750,7 @@ the service's installs, install jobs (`test_install_jobs.py`), the audio.cpp sli
 engine's refresh assembly; the routes, audio's `server.json` included, are
 covered in
 [`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/), the feed over a real socket in `test_install_feed.py`,
-and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
+and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts`, the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx`, `audio-models-settings.test.tsx` and `speech-models-settings.test.tsx`, and the speech set-up in `speech-setup-popover.test.tsx`.
 
 ## Known gaps
 

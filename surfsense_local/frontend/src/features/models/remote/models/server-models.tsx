@@ -57,6 +57,11 @@ const TYPE_LABELS: Record<ModelType, () => string> = {
       id: "models_server_models_type_audio_gen_label",
       defaultMessage: "Audio generation",
     }),
+  speech_to_text: () =>
+    intl.formatMessage({
+      id: "models_server_models_type_speech_to_text_label",
+      defaultMessage: "Speech recognition",
+    }),
 }
 
 function messageFrom(error: unknown) {

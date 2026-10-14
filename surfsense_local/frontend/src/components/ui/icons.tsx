@@ -53,6 +53,7 @@ import {
   LinkSquare02Icon as LinkSquare02IconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
+  Mic01Icon as Mic01IconData,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
   NoteAddIcon as NoteAddIconData,
@@ -177,6 +178,7 @@ export const LicenseIcon = createIcon(LicenseIconData)
 export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
+export const Mic01Icon = createIcon(Mic01IconData)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
 export const NoteAddIcon = createIcon(NoteAddIconData)
