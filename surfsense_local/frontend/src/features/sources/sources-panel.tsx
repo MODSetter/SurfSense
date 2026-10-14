@@ -56,6 +56,7 @@ import {
   type DocumentRowActions,
   type FolderRowActions,
 } from "./tree/source-tree"
+import type { TranscriptionPace } from "./transcription/pace"
 import type { DraggedSource } from "./tree/tree-drag"
 import { TOP_TICK } from "./tree/use-source-scope"
 import { useDragAutoScroll } from "./use-drag-auto-scroll"
@@ -97,6 +98,8 @@ export const SourcesPanel = memo(function SourcesPanel({
   onRename,
   folderActions,
   notes,
+  transcriptionPaces,
+  onOpenSpeechSettings,
 }: {
   documents: WorkspaceDocument[]
   // The sources in their folders; absent, the documents are one flat list.
@@ -128,6 +131,10 @@ export const SourcesPanel = memo(function SourcesPanel({
   // Absent, the panel offers no folders to make, move or delete.
   folderActions?: FolderActions
   notes?: NoteActions
+  // Each running transcription's speed, by document id.
+  transcriptionPaces?: ReadonlyMap<number, TranscriptionPace>
+  // Opens Settings › Speech recognition; absent, a waiting recording only says so.
+  onOpenSpeechSettings?: () => void
 }) {
   const flatIndex = useMemo(() => indexSources([], documents), [documents])
   const index = givenIndex ?? flatIndex
@@ -277,6 +284,7 @@ export const SourcesPanel = memo(function SourcesPanel({
         : undefined,
       onEditNote: editsNotes ? openNote : undefined,
       onSelectionChange,
+      onOpenSpeechSettings,
     }),
     [
       onOpen,
@@ -288,6 +296,7 @@ export const SourcesPanel = memo(function SourcesPanel({
       editsNotes,
       openNote,
       onSelectionChange,
+      onOpenSpeechSettings,
     ]
   )
   const readyDocuments = documents.filter(
@@ -428,6 +437,7 @@ export const SourcesPanel = memo(function SourcesPanel({
               folderActions={folderRowActions}
               dropFolder={drop.dropFolder}
               takesFiles={onDropFiles !== undefined}
+              transcriptionPaces={transcriptionPaces}
             />
           ) : (
             <Empty className="min-h-0 border-0 px-2">
