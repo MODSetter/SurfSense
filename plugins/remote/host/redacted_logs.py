@@ -14,7 +14,7 @@ from typing import Any
 REDACTED = "***"
 
 _REDACTIONS = (
-    # scheme://user:password@host, the form every proxy is given in.
+    # A URL's user and password before its host, the form every proxy is given in.
     (
         re.compile(r"(\b[a-zA-Z][a-zA-Z0-9+.-]*://)[^\s/?#@'\"<>]+@"),
         rf"\1{REDACTED}@",
