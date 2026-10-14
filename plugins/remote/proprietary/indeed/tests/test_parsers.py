@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from proprietary.indeed import parsers
 from proprietary.indeed.parsers import (
@@ -329,6 +330,19 @@ def test_live_search_cards_with_no_rating_read_unknown():
     rated = next(i for i in items if i["jobKey"] == "17c2d37519bd8374")
     assert (rated["companyRating"], rated["companyReviewCount"]) == (4.2, 1791)
     assert rated["companyUrl"] == "https://www.indeed.com/cmp/Indeed"
+
+
+def test_live_search_capture_keeps_no_tracking_tokens():
+    # Each viewJobLink carries per-view tokens, and sponsored cards an ad blob;
+    # the capture keeps the parameters but not their live values.
+    queries = [
+        parse_qs(urlparse(raw["viewJobLink"]).query)
+        for raw in job_results(extract_jobcards_blob(_search_page()))
+    ]
+    assert sum("ad" in query for query in queries) == 4
+    for query in queries:
+        for key in ("tk", "xkcb", "advn", "adid", "ad"):
+            assert query.get(key, ["SCRUBBED"]) == ["SCRUBBED"], key
 
 
 def test_live_company_page_cards_read_unknown_rating():

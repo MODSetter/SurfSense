@@ -191,6 +191,13 @@ def coffee() -> list:
     return json.loads(_COFFEE.read_text(encoding="utf-8"))
 
 
+def test_coffee_capture_keeps_no_request_tokens(coffee):
+    # [7][4] held the website link's usg signature and ved click id, and the
+    # photo slots the request's ei.
+    assert dig(coffee, 7, 4) == "TOKEN"
+    assert {dig(coffee, 37, 3), dig(coffee, 37, 0, 0, 9)} == {"TOKEN"}
+
+
 def test_address_has_no_place_name_prefix(coffee):
     # darray[18] is "787 coffee, 245 W 46th St, ..."; [39] is the bare address.
     assert dig(coffee, 18).startswith("787 coffee, ")

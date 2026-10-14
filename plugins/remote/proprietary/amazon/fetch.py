@@ -259,15 +259,21 @@ async def fetch_page(
             return await _request(selected, jar, attempt)
         if not _take_hedge():
             raise _NoHedgeLeftError
-        # A hedge never joins the slow attempt's exit (or its slow tunnel).
-        exit = sessions.lease_exit("amazon", country)
+        # A hedge never joins the slow attempt's exit (or its slow tunnel). With
+        # no free sticky slot it still goes out, on a new gateway connection.
+        exit = _lease("amazon", country)
         blocked = True
         try:
-            response = await _request(exit.proxy_url(), jar, attempt)
+            response = await _request(
+                exit.proxy_url() if exit is not None else get_geo_proxy_url(country),
+                jar,
+                attempt,
+            )
             blocked = response.blocked
             return response
         finally:
-            sessions.release_exit(exit, burned=blocked)
+            if exit is not None:
+                sessions.release_exit(exit, burned=blocked)
 
     async def _request(
         selected: str | None, jar: dict[str, str], attempt: int

@@ -30,7 +30,7 @@ Every plugin joins the same way, with no change to the host, the image's layout 
 | | A free plugin | A paid plugin |
 |---|---|---|
 | Its folder | `plugins/remote/<id>/`, Apache-2.0 | `plugins/remote/proprietary/<id>/`, BSL 1.1 |
-| `access` in its `server.py` | None | `LicenseAccess()` |
+| `access` in its `server.py` | None | `shared_access()` ([the license check](#the-license-check)) |
 | Its first-party list entry | `access: free`, `auth: none` | `access: license`, `auth: license` |
 
 - The folder holds `server.py`, whose `server()` returns its `MCPServer`, and its tests.
@@ -80,7 +80,7 @@ opencode cancels a call by sending `notifications/cancelled` as a request of its
 
 ## The Reddit plugin
 
-[`reddit/`](../../plugins/remote/proprietary/reddit/) is the backend's anonymous Reddit scraper, copied, behind one MCP tool, `scrape`, at `/reddit/mcp` ([`server.py`](../../plugins/remote/proprietary/reddit/server.py)). It sets `access = LicenseAccess()`.
+[`reddit/`](../../plugins/remote/proprietary/reddit/) is the backend's anonymous Reddit scraper, copied, behind one MCP tool, `scrape`, at `/reddit/mcp` ([`server.py`](../../plugins/remote/proprietary/reddit/server.py)). It sets `access = shared_access()`.
 
 - **The tool.** `scrape` takes `urls` (a post, subreddit, user or search URL), `search_queries` or `community`, at least one of them and at most 20 URLs or searches, with `sort`, `time_filter`, `include_nsfw`, `skip_comments`, `max_items` (1–100), `max_posts`, `max_comments` and the two date limits. It declares `readOnlyHint` and `openWorldHint`, so the app lets it run without asking.
 - **What it returns.** A summary as text, one line per item with its kind, title, community and link, and the items themselves as `structuredContent` under `items`. It reports MCP progress after each item.
@@ -90,7 +90,7 @@ opencode cancels a call by sending `notifications/cancelled` as a request of its
 
 ## YouTube, Amazon, Walmart and Google Maps
 
-Each is the backend's scraper, copied with its imports moved and its collectors' progress turned into an `on_item` callback, behind one tool per backend verb, laid out and answering as Reddit's does: read-only and open-world, the backend's own inputs and limits, a summary as text with the items as `structuredContent`, progress per item, and `access = LicenseAccess()`.
+Each is the backend's scraper, copied with its imports moved and its collectors' progress turned into an `on_item` callback, behind one tool per backend verb, laid out and answering as Reddit's does: read-only and open-world, the backend's own inputs and limits, a summary as text with the items as `structuredContent`, progress per item, and `access = shared_access()`.
 
 | Plugin | Tools | How it reaches the site |
 |---|---|---|
@@ -126,7 +126,7 @@ Each is the backend's scraper, copied as the others were, behind one tool per ba
 
 - **Blocks.** Instagram and TikTok refusing every IP is the tool's error; TikTok's withheld feeds and comments are items with an `errorCode` (`no_items`, `no_comments`, `no_users`), as the backend returned them.
 - **Web Crawl refuses private addresses**: loopback, private ranges, link-local, carrier-grade NAT, the cloud metadata address and names that do not resolve, before any fetch ([`net_guard.py`](../../plugins/remote/proprietary/web_crawl/net_guard.py)). Its browser tiers run on the shared browser loop, as Google Search's do, so its captcha solve awaits the async solver. It needs `trafilatura`, `markdownify` and `validators`.
-- **Settings**, with the backend's names: `CRAWL_HEADED_XVFB_ENABLED` (headed TikTok feeds), `TIKTOK_LISTING_MAX_ATTEMPTS`, and the stealth browser's `CRAWL_GEOIP_MATCH_ENABLED`, `CRAWL_BLOCK_WEBRTC`, `CRAWL_HIDE_CANVAS`, `CRAWL_GOOGLE_SEARCH_REFERER` and `CRAWL_DNS_OVER_HTTPS`. Instagram and Indeed need none of their own.
+- **Settings**, with the backend's names: `CRAWL_HEADED_XVFB_ENABLED` (headed TikTok feeds), `TIKTOK_LISTING_MAX_ATTEMPTS`, and the stealth browser's `CRAWL_GEOIP_MATCH_ENABLED`, `CRAWL_BLOCK_WEBRTC`, `CRAWL_HIDE_CANVAS`, `CRAWL_GOOGLE_SEARCH_REFERER` and `CRAWL_DNS_OVER_HTTPS`. Instagram's one is its login wall's memory ([known gaps](#known-gaps)); Indeed needs none of its own.
 
 ## The license check
 
@@ -177,8 +177,8 @@ From `plugins/remote/host`: `uv run pytest`, `uv run ruff check ..` and `uv run 
 
 ## Known gaps
 
-- Reddit answers `403` ("You've been blocked by network security") to every anonymous `.json` request, on every exit country and even from inside the warmed browser on the same sticky IP, so `scrape` fails after about three minutes of warm-ups (measured 2026-10-13). It needs another way to read Reddit; until then the app's first-party list leaves it out, and a deployment's `PLUGINS` should too.
-- Instagram's profile API answers `401` with `require_login` to an anonymous session on every IP and country, even with its web app's full headers, so `details` and profile feeds fail, and each target spends four proxy sessions rotating; single post and reel URLs still read (measured 2026-10-12 and 2026-10-13). The app's first-party list leaves it out, and a deployment's `PLUGINS` should too.
+- Reddit answers `403` ("You've been blocked by network security") to every anonymous `.json` request, on every exit country and even from inside the warmed browser on the same sticky IP (measured 2026-10-13), so `scrape` fails once two countries' warmed sessions get that page, naming them, and every call fails at once for the next 30 minutes (`REDDIT_CLOSED_LATCH_S`, with the quorum in `REDDIT_CLOSED_QUORUM`) before one asks again ([`fetch.py`](../../plugins/remote/proprietary/reddit/fetch.py)). It needs another way to read Reddit; until then the app's first-party list leaves it out, and a deployment's `PLUGINS` should too.
+- Instagram's profile API answers `401` with `require_login` to an anonymous session on every IP and country, even with its web app's full headers, so `details` and profile feeds fail at once, without rotating, and that endpoint is not asked again for 15 minutes (`INSTAGRAM_LOGIN_WALL_LATCH_S`); single post and reel URLs still read (measured 2026-10-12 and 2026-10-13). The app's first-party list leaves it out, and a deployment's `PLUGINS` should too.
 - TikTok returned no comments for a public video, headless or headed, on three exit countries (measured 2026-10-12).
 - Web Crawl runs a whole crawl in one call, so a deep crawl of many pages can pass the request limit of the proxies in front of the host; it is to run as a job.
 - A block reads as an error item (Amazon, Walmart) or as no items (YouTube), not as the tool's error, so the agent may take it for an empty result.

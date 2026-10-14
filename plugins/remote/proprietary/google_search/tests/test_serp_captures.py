@@ -2,7 +2,7 @@
 
 The fixtures are those captures trimmed to what the parser reads (no scripts,
 styles, data images or tracking attributes; each ``/goto`` blob replaced by a
-short stand-in) and gzipped. They pin the data bugs the profiling run found:
+short stand-in, session tokens by ``x``) and gzipped. They pin the data bugs the profiling run found:
 page 2's result count, dates ending in a dash, star ratings read as dates,
 "Read more" in descriptions, empty AI Overview sources and missing displayed
 URLs on forum cards.
@@ -31,6 +31,14 @@ _DASHES = ("\N{MIDDLE DOT}", "-", "\N{EN DASH}", "\N{EM DASH}")
 
 def capture(name: str) -> str:
     return gzip.decompress((FIXTURES / f"{name}.html.gz").read_bytes()).decode()
+
+
+@pytest.mark.parametrize("name", PAGES)
+def test_captures_keep_no_session_tokens(name: str):
+    """sxsrf and sstk are the session's tokens, ei and ved its request ids."""
+    found = re.findall(r"[?&;](sxsrf|sstk|ei|ved)=([^&\"'\s<>]*)", capture(name))
+    assert {param for param, _ in found} >= {"sxsrf", "ei", "ved"}
+    assert {value for _, value in found} == {"x"}
 
 
 def test_page_two_counts_results_not_its_page_number():

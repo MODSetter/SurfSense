@@ -42,6 +42,7 @@ from collections.abc import Iterable, Iterator
 from proprietary.scraping import http, sessions
 from proprietary.scraping.concurrency import hedged
 
+from .captcha import is_sorry_url
 from .fetch import CONSENT_COOKIES
 from .parsers import GOTO_PREFIX
 from .schemas import SerpItem
@@ -76,9 +77,17 @@ _WAVE_SESSION = os.getenv("GOOGLE_SEARCH_GOTO_WAVE_SESSION", "1") != "0"
 
 
 def _blocked(response: http.RawResponse) -> bool:
-    """A refusal: a block status, or a redirect to the /sorry wall."""
-    where = f"{response.location() or ''} {response.url}"
-    return http.default_blocked(response) or "/sorry" in where
+    """A refusal: a block status, or a redirect to Google's /sorry wall.
+
+    The Location of an answer is the result's own site, which may have a /sorry
+    page of its own, so only Google's host and path count.
+    """
+    location = response.location()
+    return (
+        http.default_blocked(response)
+        or is_sorry_url(response.url)
+        or (bool(location) and is_sorry_url(location, base=response.url))
+    )
 
 
 def _answered(response: http.RawResponse) -> bool:

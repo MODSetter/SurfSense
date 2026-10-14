@@ -5,13 +5,13 @@
  "textLanguage": "en",
  "isAd": false,
  "author": {
-  "id": "7552952133055005728",
-  "uniqueId": "glootodd",
-  "nickname": "gloria",
+  "id": "1",
+  "uniqueId": "creator",
+  "nickname": "Creator",
   "verified": false,
-  "signature": "your curly hair bestie 🎀\ncurly hair tips • routines • volume",
-  "avatarLarger": "https://p16-common-sign.tiktokcdn-us.com/tos-maliva-avt-0068/8c5e8a6506566cf3c098389967a6697f~tplv-tiktokx-cropcenter:1080:1080.jpeg",
-  "secUid": "MS4wLjABAAAA3JzqO7v4Seb_UmuNrNN1dPP7IayQsdS4pAXh5tLUOagvh-Bw7-L4qlvl2FOd5OMh"
+  "signature": "bio",
+  "avatarLarger": "https://p16-common-sign.tiktokcdn-us.com/avatar.jpeg",
+  "secUid": "sec-1"
  },
  "authorStats": {
   "diggCount": 36600,

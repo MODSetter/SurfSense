@@ -1,7 +1,7 @@
 """Fields the parsers used to drop or misread, on scrubbed live captures (no network).
 
 ``explore_item.json`` is one itemStruct from the live Explore feed (signed URL
-queries stripped); ``user_search_list.json`` keeps the verification fields of a
+queries stripped, the creator replaced); ``user_search_list.json`` keeps the verification fields of a
 live ``/api/search/user/full/`` body.
 """
 
@@ -33,6 +33,19 @@ def test_parse_video_keeps_language_and_ad_flag():
     assert item["isSlideshow"] is False
     assert item["mediaUrls"] == []  # a video's playAddr expires, so none is kept
     assert item["isPinned"] is None  # only profile listings carry isPinnedItem
+
+
+def test_explore_capture_keeps_no_creator_identity():
+    # The creator is a private person: the capture keeps stand-ins only.
+    author = parse_video(_fixture("explore_item.json"))["authorMeta"]
+
+    assert (author["id"], author["name"], author["nickName"]) == (
+        "1",
+        "creator",
+        "Creator",
+    )
+    assert author["signature"] == "bio"
+    assert author["profileUrl"] == "https://www.tiktok.com/@creator"
 
 
 def test_parse_video_maps_mentions_from_text_extra():

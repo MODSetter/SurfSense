@@ -6,6 +6,7 @@ one sponsored ``/sspa/click`` card and repeats one card, as live pages do.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from proprietary.amazon.parsers import (
@@ -96,6 +97,16 @@ def test_search_positions_continue_from_the_earlier_pages():
     cards = parse_search_page(html, page=2, offset=16)
 
     assert cards[0]["categoryPageData"]["position"] == 17
+
+
+def test_search_capture_keeps_no_ad_tokens():
+    # The ad pixels' p= blob encodes the client's IP prefix and the brand
+    # widgets' tok= is a live token; the capture keeps only stand-ins.
+    html = _fixture("search_real.html")
+    pixels = re.findall(r"sponsored-ads\.amazon\.com/(?:imp|clk/)\?p=([^&\"']+)", html)
+    tokens = re.findall(r"\btok=([^;\"]+)", html)
+    assert len(pixels) == 48 and len(tokens) == 2
+    assert set(pixels) == set(tokens) == {"x"}
 
 
 def test_count_expands_abbreviations():

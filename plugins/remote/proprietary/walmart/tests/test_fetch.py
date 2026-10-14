@@ -62,6 +62,30 @@ async def test_the_redirect_to_the_slug_page_is_followed_on_the_same_session(
     assert len(exits) == 1  # both hops on the one try's session
 
 
+async def test_a_redirect_chain_past_the_follow_limit_moves_to_a_fresh_exit(
+    monkeypatch,
+):
+    """A try still redirecting after its last hop has no page: before, its empty
+    3xx came back as the page, so the product read as not found."""
+    redirects = [fetch._MAX_FOLLOWS + 1]
+
+    def respond(url: str) -> http.RawResponse:
+        if redirects[0]:
+            redirects[0] -= 1
+            return raw(url, status=302, location=f"{_SLUG_URL}?hop={redirects[0]}")
+        return raw(url, _PRODUCT)
+
+    asked = answering(monkeypatch, respond)
+
+    result = await fetch.fetch_page(_ID_URL)
+
+    assert result is not None and result.status == 200
+    assert "__NEXT_DATA__" in result.html
+    # The first try's whole chain, then the page on a fresh exit.
+    assert len(asked) == fetch._MAX_FOLLOWS + 2
+    assert asked[-1] == _ID_URL
+
+
 async def test_a_redirect_to_blocked_fails_the_try_without_loading_it(monkeypatch):
     blocked_once = [True]
 

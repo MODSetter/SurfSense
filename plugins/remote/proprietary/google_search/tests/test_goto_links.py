@@ -242,6 +242,23 @@ async def test_a_refused_link_retries_once_on_a_fresh_exit(monkeypatch):
     assert calls == [(True, 0), (False, 1)]
 
 
+@pytest.mark.parametrize(
+    ("location", "refused"),
+    [
+        ("https://www.google.com/sorry/index?continue=x", True),
+        ("https://ipv4.google.com/sorry/index?continue=x", True),
+        ("/sorry/index?continue=x", True),  # relative: the /goto's own host
+        ("https://www.merriam-webster.com/dictionary/sorry", False),
+        ("https://example.com/sorry/", False),
+        ("https://example.com/?next=https://www.google.com/sorry/index", False),
+        ("http://[malformed/sorry", False),
+    ],
+)
+def test_only_google_s_sorry_page_is_a_refusal(location, refused):
+    """The Location is the result's real destination, which can be any site."""
+    assert _response(_LINK, 302, location).blocked is refused
+
+
 async def test_attempts_stop_at_two(monkeypatch):
     calls: list[int] = []
 
@@ -374,15 +391,16 @@ async def test_the_wave_session_can_be_switched_off(monkeypatch):
 class _Holder:
     """The wave's session; ``refuse`` makes its exit answer with /sorry."""
 
-    def __init__(self, refuse: bool) -> None:
+    def __init__(self, refuse: bool, destination: str = "https://dest.example/"):
         self.refuse = refuse
+        self.destination = destination
         self.rotations = 0
         self.rotated: list[tuple[str, int | None]] = []
 
     async def request(self, method, url, *, stage, **kw):
         if self.refuse:
             return _response(url, 302, "https://www.google.com/sorry/index?x")
-        return _response(url, 302, "https://dest.example/")
+        return _response(url, 302, self.destination)
 
     async def rotate(self, reason, *, seen=None):
         self.rotated.append((reason, seen))
@@ -395,3 +413,11 @@ async def test_a_refused_exit_rotates_the_wave_s_session(refuse):
     response = await goto._get(_LINK, h, attempt=0)
     assert response.blocked is refuse
     assert h.rotated == ([("blocked", 0)] if refuse else [])
+
+
+async def test_a_destination_at_a_sorry_path_keeps_the_wave_s_exit():
+    """A result's own /sorry page is an answer: no rotation, the link resolves."""
+    h = _Holder(False, "https://www.merriam-webster.com/dictionary/sorry")
+    response = await goto._get(_LINK, h, attempt=0)
+    assert goto._answered(response)
+    assert h.rotated == []

@@ -133,6 +133,34 @@ async def test_a_slow_attempt_is_hedged_on_a_fresh_sticky_exit(
     assert leases == [("hedge-1", False)]
 
 
+async def test_a_hedge_without_a_free_sticky_slot_goes_out_on_the_gateway(
+    monkeypatch, quick_hedges
+):
+    def lease_exit(_prefix: str, _country: str | None = None) -> _Exit:
+        raise RuntimeError("no free sticky exit slot")
+
+    monkeypatch.setattr(sessions, "lease_exit", lease_exit)
+    replies = 0
+
+    async def reply(url: str, _kwargs: dict[str, Any]):
+        nonlocal replies
+        replies += 1
+        if replies == 1:  # the primary
+            await asyncio.sleep(5)
+        return raw(url, f"<html>reply-{replies}</html>")
+
+    sent = answering(monkeypatch, reply)
+    monkeypatch.setattr(fetch, "get_geo_proxy_url", lambda country=None: "http://geo")
+    started = time.monotonic()
+    result = await fetch.fetch_page(
+        "https://www.amazon.com/s?k=x", country="us", stage="search"
+    )
+
+    assert time.monotonic() - started < 1
+    assert result is not None and result.html == "<html>reply-2</html>"
+    assert [kwargs["proxy"] for kwargs in sent] == ["http://geo", "http://geo"]
+
+
 async def test_a_call_starts_at_most_three_hedges(monkeypatch, leases, quick_hedges):
     async def reply(url: str, kwargs: dict[str, Any]):
         if kwargs["proxy"] is None:

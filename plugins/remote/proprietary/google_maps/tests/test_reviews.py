@@ -129,6 +129,11 @@ def bird_branch() -> list:
     return json.loads(_BIRD_BRANCH.read_text(encoding="utf-8"))
 
 
+def test_bird_branch_capture_keeps_no_review_tokens(bird_branch):
+    # r[48][1] is a signed per-request token for the review's actions.
+    assert {raw[48][1] for raw in bird_branch} == {"TOKEN"}
+
+
 def test_translation_comes_from_slot_37_in_the_request_language(bird_branch):
     spanish = parse_review(bird_branch[2], "en")
     assert spanish["originalLanguage"] == "es"

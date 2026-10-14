@@ -243,6 +243,14 @@ def test_comment_pages_still_page_on_their_own_token() -> None:
     assert len(comment_reply_tokens(page)) == 3
 
 
+def test_captured_repliers_are_stand_ins() -> None:
+    # Unverified repliers are private people: their handles, channel ids and
+    # avatars are replaced. The verified top-level commenters are public.
+    replies = parse_comment_entities(load("replies_page_jNQXAC9IVRw.json"))
+
+    assert {r["author"] for r in replies} == {f"@commenter-{n}" for n in range(1, 11)}
+
+
 def test_zero_counts_are_zero_when_the_toolbar_is_there() -> None:
     replies = parse_comment_entities(load("replies_page_jNQXAC9IVRw.json"))
     blank = parse_comment_entity(

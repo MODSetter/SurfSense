@@ -174,6 +174,10 @@ async def _try(
     else:
         if response.blocked:
             return _Refused(f"blocked (status {response.status})")
+        if target is not None:
+            # Still redirecting after the last hop: its empty body is no page.
+            logger.info("Walmart redirects for %s went past %s hops", url, _MAX_FOLLOWS)
+            return _Refused(f"too many redirects (status {response.status})")
         if response.status >= 500:
             # A transient edge error (seen: 520 mid-way through review pages)
             # would otherwise read as an empty page and end the pagination.
