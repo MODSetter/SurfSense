@@ -2,7 +2,7 @@
 
 A chat thread belongs to a workspace. Each user message retrieves its own context from that workspace, the selected generation model streams an answer grounded in those passages, and each claim can cite the passage it came from. The server owns the conversation and every reply: a reply is a run in the API that keeps generating whoever watches it, both turns are stored before it starts and the assistant's text when it ends, citations are resolved to chunk ids before they are stored, and the frontend's live copy of a reply gives way to the stored turns once they catch up. Several threads can be answering at once, on any model.
 
-**Code:** [`modules/chat/`](../../surfsense_local/backend/modules/chat/), [`modules/chat/runs/`](../../surfsense_local/backend/modules/chat/runs/), [`shared/search.py`](../../surfsense_local/backend/shared/search.py), [`frontend/src/features/chat/`](../../surfsense_local/frontend/src/features/chat/), [`electron/src/main/quit/`](../../surfsense_local/electron/src/main/quit/)
+**Code:** [`modules/chat/`](../../surfsense_local/backend/modules/chat/), [`modules/chat/runs/`](../../surfsense_local/backend/modules/chat/runs/), [`shared/search.py`](../../surfsense_local/backend/shared/search.py), [`frontend/src/features/chat/`](../../surfsense_local/frontend/src/features/chat/), [`frontend/src/features/dictation/`](../../surfsense_local/frontend/src/features/dictation/), [`electron/src/main/quit/`](../../surfsense_local/electron/src/main/quit/)
 **Decisions:** [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0011](../adr/0011-llama-cpp-local-runtime.md), [ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md), [ADR 0048](../adr/0048-the-api-is-the-only-path-to-a-text-model.md), [ADR 0049](../adr/0049-prompts-grow-at-the-end.md)
 
 ## Endpoints
@@ -179,6 +179,53 @@ What it does not do:
 - It does not change how a thinking model samples beyond that. A curated Qwen3 commits a temperature for thinking only, so with thinking off it answers at llama-server's default: a mode with no set of its own is not given the other mode's ([`local-models/runtime.md`](local-models/runtime.md)).
 - On a local model that never thinks, such as Gemma 3, the button is enabled and changes nothing: the request carries `thinking: false` and the model answers as it would have.
 
+## Voice input
+
+The composer's mic turns speech into text on this computer, with the model chosen for speech recognition, through the API's transcription routes; the renderer never reaches the transcription server ([proposal](../proposals/local-speech-to-text.md)). Dictated text is ordinary composer text, the same in Basic and Agentic threads.
+
+- **Capture** ([`capture/`](../../surfsense_local/frontend/src/features/dictation/capture/)). `window.surfsense.microphone.request()` first ([microphone bridge](../../surfsense_local/electron/src/main/microphone/)): macOS shows its prompt, and a system switch that is off reads as `NotAllowedError`. Then `getUserMedia` on the default device, one channel with echo cancellation, noise suppression and automatic gain, into an `AudioContext` at 16 kHz and an AudioWorklet ([`frame-worklet.js`](../../surfsense_local/frontend/src/features/dictation/capture/frame-worklet.js)) loaded with `new URL(..., import.meta.url)`, as pdf.js's worker is. Vite emits it as its own file (`?no-inline`): a `data:` URL is another origin to a worklet. A platform that refuses the 16 kHz context captures at the device's rate, and each phrase is resampled with an `OfflineAudioContext` ([`resample.ts`](../../surfsense_local/frontend/src/features/dictation/capture/resample.ts)). The worklet posts 20 ms frames with their RMS level. Every track stops and the context closes when a recording ends, is cancelled, or its page goes, which clears the system's mic indicator.
+- **Phrases** ([`phrase-cutter.ts`](../../surfsense_local/frontend/src/features/dictation/capture/phrase-cutter.ts)). The noise floor is the 10th percentile of the last 3 s of levels, and a frame is speech at three times it and above 0.005 RMS (about -46 dBFS). A phrase ends after at least 1.0 s of speech and then 700 ms under the threshold, or at 20 s, cut mid-way through the quietest 200 ms of its second half. Each keeps 460 ms (23 frames) before its first speech and after its last; a word or two before a pause stays open until more speech joins it, or the stop sends it. Phrases go up as 16 kHz mono 16-bit WAVs ([`encode-wav.ts`](../../surfsense_local/frontend/src/features/dictation/capture/encode-wav.ts)), held in memory only, until transcribed or for Retry.
+- **The session** ([`dictation-session.ts`](../../surfsense_local/frontend/src/features/dictation/dictation-session.ts), [`api.ts`](../../surfsense_local/frontend/src/features/dictation/api.ts)). Pressing the mic opens `POST /llm/transcription/dictations` beside the microphone, so a memory refusal comes before anyone speaks. Phrases go to `POST …/dictations/{id}/phrases` one at a time, in the order spoken; a connection error or a `503` is asked once more after 2 s. A keepalive goes every 10 s, and `DELETE …/dictations/{id}`, sent with `keepalive` so a closing window still sends it, ends the session. `GET /llm/transcription/status` decides whether the mic listens or sets a model up ([`use-transcription-status.ts`](../../surfsense_local/frontend/src/features/dictation/use-transcription-status.ts)); it is keyed under the models' query, so choosing a speech model reads it again.
+- **How text lands** ([`dictation-adapter.ts`](../../surfsense_local/frontend/src/features/dictation/dictation-adapter.ts), [`recording.ts`](../../surfsense_local/frontend/src/features/dictation/recording.ts)). It is assistant-ui's `DictationAdapter`, in the runtime's `adapters` whatever the model reads, with `disableInputDuringDictation: false`: the message box goes read-only instead, keeping its focus and its keys. `listen()` returns a session in `starting`, `running` from the first real frame. Each answered phrase re-emits every phrase so far as one interim transcript, joined with a space, or with none between two in zh, ja, yue or th ([`join-phrases.ts`](../../surfsense_local/frontend/src/features/dictation/join-phrases.ts)), since assistant-ui puts a space between finals. Stop flushes the phrase in progress, waits for every phrase, emits one final, and only then ends: the runtime drops what an ended session emits. Text is clamped to the room left under the 4,096-character limit, at the last whole word, or the last character in Han, kana and Thai ([`clamp-to-room.ts`](../../surfsense_local/frontend/src/features/dictation/clamp-to-room.ts)), and reaching it stops the recording. A warning shows at 4:30 and recording stops at 5:00. A blank result inserts nothing.
+- **One per chat page.** [`use-chat-runtime.ts`](../../surfsense_local/frontend/src/features/chat/use-chat-runtime.ts) makes one, so a recording outlives the composer's remount on a thread switch. `ComposerDraftLifecycle` ([`thread-panel.tsx`](../../surfsense_local/frontend/src/features/chat/thread-panel.tsx)) cancels it on every switch, never stops it, so no late phrase lands in the next thread; leaving the page and `pagehide` cancel it too. A cancel drops the audio not yet transcribed, and nothing lands after it.
+
+| State | The mic, beside Send ([`mic/`](../../surfsense_local/frontend/src/features/dictation/mic/)) | The strip ([`strip/`](../../surfsense_local/frontend/src/features/dictation/strip/)) |
+|---|---|---|
+| Idle | a ghost icon button; tooltip "Voice input stays on this computer" | none |
+| Not set up | enabled; it opens the set-up popover ([`speech-setup-popover.tsx`](../../surfsense_local/frontend/src/features/speech-setup/speech-setup-popover.tsx)), whose "Start talking" starts listening, with a ring for a speech download under way | none |
+| Arming | pressed | a muted dot and pulsing bars until the first real frame; no timer |
+| Listening | pressed | a red dot, 9 level bars of the last 9 frames, a timer from the first frame, a cancel ✕ |
+| Loading | pressed | "Loading the speech model…", once a phrase has waited 2 s on a model the session opened `loading` |
+| Finishing | pressed | a spinner and "Transcribing…" |
+| Problem | as Idle | one line and one action, until it is acted on, dismissed, or the mic is pressed again |
+
+The strip sits inside the composer, never above it, where the model notice and the scroll button are: in the center placement in place of the source count and model control, in the bottom placement in place of the disclaimer. The mic is disabled whenever the message box is, and at the message limit.
+
+| Input while recording | Effect |
+|---|---|
+| Enter, or Send | stop, wait for the last phrase, insert; nothing is sent. Enter is caught in the composer's `onKeyDown`, before assistant-ui's, and Send's click is prevented, because assistant-ui's `send()` cancels a running session ([`use-dictation-keys.ts`](../../surfsense_local/frontend/src/features/dictation/use-dictation-keys.ts)) |
+| Escape, or the ✕ | cancel: the box returns to its text from before the mic. Escape does not also stop a reply being written meanwhile |
+| Click the mic | stop and keep the text |
+| Hold the mic 300 ms or more | push to talk: release stops |
+| Space or Enter on the focused mic | toggle |
+
+A click on the mic leaves the focus in the message box. Blur and minimising keep recording.
+
+| Problem ([`problem-text.ts`](../../surfsense_local/frontend/src/features/dictation/strip/problem-text.ts)) | Line | Action |
+|---|---|---|
+| `NotAllowedError`, or the system's switch off | "Microphone access is off for SurfSense." | Open settings on Windows and macOS (the bridge's `openSettings`), else Try again |
+| `NotFoundError` | "No microphone found." | Try again |
+| `NotReadableError` | "The microphone is in use by another app." | Try again |
+| the track ended | "The microphone was disconnected. What you said before that is kept." | dismiss |
+| a phrase failed twice, or was refused as malformed | "Couldn’t turn part of your speech into text." | Retry, which opens a new session and lands that phrase and every later one after the box's text |
+| `409 transcription_needs_memory` | "Transcribing needs about 2.9 GB free; this computer has 1.2 GB.", the server's sentence where it sent no sizes | dismiss |
+| `409 needs_speech_model` on opening, or on a phrase | "Set up speech recognition to use voice input." / "The speech model was removed." | Set up, which opens Settings › Speech recognition |
+| `503 transcription_unavailable` on opening | "Speech recognition isn’t available right now." | Try again |
+| `404 dictation_ended` | "Voice input stopped; what was transcribed is kept." | dismiss |
+| the limit, or 5:00 | "Voice input stopped at the 4,096-character message limit." / "Voice input stopped after 5 minutes." | dismiss |
+
+Interface strings are `dictation_<surface>_<purpose>`, and a server code is `dictation_error_<code>` ([localization](localization.md)).
+
 ## Frontend runtime
 
 - [`use-chat-runtime.ts`](../../surfsense_local/frontend/src/features/chat/use-chat-runtime.ts) holds the threads, the open thread's stored turns and the actions. The thread panel hands them to [`live-thread-runtime.tsx`](../../surfsense_local/frontend/src/features/chat/live-thread-runtime.tsx), which adds the open thread's run and builds assistant-ui's `useExternalStoreRuntime`. FastAPI is already the source of truth for threads and messages, and a local-runtime history adapter would add a second persistence path that could write a message twice.
@@ -212,6 +259,7 @@ What it does not do:
 - While the turn waits, the thinking header's `role="status"` region says "Thinking" or the reading quarter. A second region (`reply-announcer.tsx`) stays silent until it says "Reply finished" once, for a reply it watched run to completion. It is keyed by message, because messages render by index and an instance would otherwise watch one thread's reply and announce another's. Tokens are never fed to it, since a polite region read on every delta would interrupt without pause; a reply loaded from history, a turn that ended with no answer, and one that failed or was stopped after text arrived say nothing; its alert, or the stop, already does. A stopped reply is marked `incomplete` with reason `cancelled` by the runtime ([`use-chat-runtime.ts`](../../surfsense_local/frontend/src/features/chat/use-chat-runtime.ts)), since assistant-ui would otherwise call it complete once the run ends. A queued reply's header region says "Waiting for another reply" with its place. The Chats button's count is in its accessible name ("Chats, 2 replies being written"), and an unread row carries "New reply" as screen-reader text.
 - The conversation has a heading, the thread's title, hidden visually because the visible title is the rename button. Focus does not move to it: on every thread switch the composer keeps the focus assistant-ui gives it, so someone can switch and type, and the composer is described by the heading (`aria-describedby`), so a screen reader names the conversation it writes into. A new chat has no heading until it is a thread.
 - The startup loader and the typed-in thread title respect `prefers-reduced-motion`.
+- The mic carries `aria-pressed` and a name that follows its state: "Start voice input", "Stop voice input", or "Set up voice input"; its tooltip is visual only. While voice input runs, a `role="status"` line in the strip says "Starting the microphone…", "Listening", "Loading the speech model…", "Transcribing…" or the 30-second warning; a problem is a `role="alert"`, the two limits a `role="status"`. Under `prefers-reduced-motion` the level bars give way to the still dot beside them.
 
 ## Agent threads
 
@@ -254,4 +302,8 @@ A note that fails to save reads as `interrupted`, which offers Retry rather than
 - An agent thread refuses images.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. The trace now shows, so an empty answer is no longer unexplained, but how often it happens is unmeasured.
 - Nothing shows progress while a model loads beyond "Thinking": llama-server's prompt progress starts once the model is up ([`local-models/runtime.md`](local-models/runtime.md#prompt-progress)).
+- Voice input's capture is checked only in the desktop app's own Chromium over `http`: the 16 kHz context, the worklet by URL and the `OfflineAudioContext` resample. Packaged builds over `file://` on Windows, macOS and Linux, and the macOS prompt, are unmeasured.
+- The speech threshold's floor (0.005 RMS) and the phrase rule (1.0 s of speech, a 700 ms pause) are not measured against real microphones, nor phrases against whole utterances ([proposal](../proposals/local-speech-to-text.md#open-questions)).
+- Voice input takes the default microphone only; there is no device choice.
+- Text lands a phrase at a time, never word by word: there are no live partials.
 - The per-image cost is priced, not measured: Gemma 3, the curated vision model, spends a fixed 256, and 1,400 covers Qwen2.5-VL at the 1,024 px cap. No measurement at the pinned build confirms either.

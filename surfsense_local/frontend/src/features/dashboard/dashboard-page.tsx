@@ -497,6 +497,8 @@ function WorkspaceDashboard({
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
                 onOpenPlugins={onOpenPlugins}
+                dictation={chat.dictation}
+                onOpenSpeechSettings={openSpeechSettings}
                 onTitleAnimationComplete={chat.finishTitleAnimation}
                 autoNamingThreadId={chat.autoNamingThreadId}
                 onRename={chat.rename}

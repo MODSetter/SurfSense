@@ -1,0 +1,56 @@
+import { ApiError } from "@/lib/api"
+
+/** Why a recording ended other than by the user, or could not start. */
+export type DictationProblem =
+  | {
+      kind:
+        | "microphone_off"
+        | "no_microphone"
+        | "microphone_busy"
+        | "microphone_failed"
+        | "microphone_disconnected"
+        | "phrase_failed"
+        | "at_limit"
+        | "time_limit"
+        | "dictation_ended"
+        | "model_removed"
+        | "needs_speech_model"
+        | "transcription_unavailable"
+    }
+  | {
+      kind: "transcription_needs_memory"
+      neededBytes: number
+      availableBytes: number
+      /** The API's English sentence, for when the sizes are missing. */
+      message: string
+    }
+
+/** getUserMedia's own error names, and the system switch read as NotAllowedError. */
+export function microphoneProblem(error: unknown): DictationProblem {
+  const name = error instanceof DOMException ? error.name : ""
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return { kind: "microphone_off" }
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return { kind: "no_microphone" }
+  }
+  if (name === "NotReadableError" || name === "AbortError") {
+    return { kind: "microphone_busy" }
+  }
+  return { kind: "microphone_failed" }
+}
+
+/** A refusal to open a session, by its code; anything else is a server not answering. */
+export function openingProblem(error: unknown): DictationProblem {
+  if (!(error instanceof ApiError)) return { kind: "transcription_unavailable" }
+  if (error.code === "needs_speech_model") return { kind: "needs_speech_model" }
+  if (error.code === "transcription_needs_memory") {
+    return {
+      kind: "transcription_needs_memory",
+      neededBytes: Number(error.detail.needed_bytes),
+      availableBytes: Number(error.detail.available_bytes),
+      message: error.message,
+    }
+  }
+  return { kind: "transcription_unavailable" }
+}

@@ -1,0 +1,36 @@
+export type TranscribedPhrase = { text: string; language: string | null }
+
+// Written without spaces between words, so their phrases join without one.
+const UNSPACED_LANGUAGES = new Set(["zh", "ja", "yue", "th"])
+// For a phrase whose language went unnamed: Han, kana and Thai.
+export const UNSPACED_SCRIPT =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u
+
+function unspaced(phrase: TranscribedPhrase, edge: string): boolean {
+  if (phrase.language !== null) {
+    return UNSPACED_LANGUAGES.has(phrase.language.split("-")[0].toLowerCase())
+  }
+  return UNSPACED_SCRIPT.test(edge)
+}
+
+/**
+ * Every phrase so far as one text: a space between phrases, none between two
+ * in zh, ja, yue or th. assistant-ui would put a space between its finals.
+ */
+export function joinPhrases(phrases: readonly TranscribedPhrase[]): string {
+  let joined = ""
+  let previous: TranscribedPhrase | null = null
+  for (const phrase of phrases) {
+    const text = phrase.text.trim()
+    if (!text) continue
+    if (previous !== null) {
+      const glued =
+        unspaced(previous, [...previous.text].at(-1) ?? "") &&
+        unspaced(phrase, [...text][0])
+      if (!glued) joined += " "
+    }
+    joined += text
+    previous = { ...phrase, text }
+  }
+  return joined
+}
