@@ -18,6 +18,7 @@ import {
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
   Chat01Icon as Chat01IconData,
+  ChatGptIcon as ChatGptIconData,
   CheckIcon as CheckIconData,
   CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
@@ -138,6 +139,7 @@ export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
 export const Chat01Icon = createIcon(Chat01IconData)
+export const ChatGptIcon = createIcon(ChatGptIconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)

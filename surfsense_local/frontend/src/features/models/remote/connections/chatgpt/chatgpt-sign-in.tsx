@@ -9,11 +9,8 @@ import { intl } from "@/i18n/intl"
 
 import { getConnections, updateConnection, type Connection } from "../api"
 import { signOut } from "./api"
-import {
-  openSignInPage,
-  useChatGPTSignIn,
-  type SignInState,
-} from "./use-sign-in"
+import { SignInProgress } from "./sign-in-progress"
+import { useChatGPTSignIn } from "./use-sign-in"
 
 function accountText(connection: Connection) {
   if (!connection.signed_in)
@@ -33,60 +30,6 @@ function accountText(connection: Connection) {
         id: "models_chatgpt_signed_in_unnamed_body",
         defaultMessage: "Signed in.",
       })
-}
-
-function Progress({ state }: { state: SignInState }) {
-  if (state.phase === "waiting")
-    return (
-      <div className="flex flex-col gap-2 text-sm" role="status">
-        <p className="flex items-center gap-2 text-muted-foreground">
-          <Spinner />
-          {intl.formatMessage({
-            id: "models_chatgpt_waiting_status",
-            defaultMessage: "Finish signing in in your browser.",
-          })}
-        </p>
-        <Button
-          type="button"
-          variant="link"
-          className="self-start px-0"
-          onClick={() => openSignInPage(state.authorizeUrl)}
-        >
-          {intl.formatMessage({
-            id: "models_chatgpt_reopen_button",
-            defaultMessage: "Open the sign-in page again",
-          })}
-        </Button>
-      </div>
-    )
-  if (state.phase === "declined")
-    return (
-      <p className="text-sm text-destructive" role="alert">
-        {intl.formatMessage(
-          {
-            id: "models_chatgpt_host_declined_error",
-            defaultMessage:
-              "Signing in needs {host}. Allow it in Settings › Network to continue.",
-          },
-          { host: state.host }
-        )}
-      </p>
-    )
-  if (state.phase === "failed")
-    return (
-      <div className="flex flex-col gap-1 text-sm" role="alert">
-        <p className="text-destructive">
-          {intl.formatMessage({
-            id: "models_chatgpt_sign_in_error",
-            defaultMessage: "The sign-in didn’t finish.",
-          })}
-        </p>
-        {state.detail ? (
-          <p className="text-muted-foreground">{state.detail}</p>
-        ) : null}
-      </div>
-    )
-  return null
 }
 
 /**
@@ -176,7 +119,7 @@ export function ChatGPTSignIn({
                   "Uses your ChatGPT Plus or Pro plan for chat, with no API key. You sign in with your ChatGPT account in your browser.",
               })}
         </p>
-        <Progress state={state} />
+        <SignInProgress state={state} />
         {saveError ? (
           <p className="text-sm text-destructive" role="alert">
             {saveError}

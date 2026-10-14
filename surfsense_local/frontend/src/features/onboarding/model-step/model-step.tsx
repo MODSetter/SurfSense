@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
 import { useInstall } from "@/features/models/local/installs/use-install"
+import { ChatGPTOption } from "@/features/models/remote/connections/chatgpt/chatgpt-option"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
@@ -161,7 +162,8 @@ export function ModelStep({
       )
     }
     return (
-      <div className="flex flex-col gap-5">
+      // pb-1: the last row, whichever it is, stays off the scroll area's edge.
+      <div className="flex flex-col gap-5 pb-1">
         {/* Above the list: read before choosing, not after. */}
         {copy.notice ? (
           <Alert variant="secondary">
@@ -237,6 +239,14 @@ export function ModelStep({
                   ? setOnServer(true)
                   : setConnecting(true)
               }
+            />
+            <ChatGPTOption
+              modelType={slot}
+              dense
+              onConnected={(connection) => {
+                setOpenServerId(connection.id)
+                setOnServer(true)
+              }}
             />
           </>
         ) : null}
@@ -358,7 +368,6 @@ export function ModelStep({
       </CardFooter>
       <ConnectionDialog
         open={connecting}
-        modelType={slot ?? undefined}
         onOpenChange={setConnecting}
         onCreated={(connection) => {
           setOpenServerId(connection.id)
