@@ -10,6 +10,8 @@ import { intl } from "@/i18n/intl"
 import { listPlugins, pluginsQueryKey } from "./api"
 import { AddPluginDialog } from "./add-custom/add-plugin-dialog"
 import { BrowsePlugins } from "./browse/browse-plugins"
+import { PluginSearchField } from "./search/plugin-search-field"
+import { PluginSearchResults } from "./search/plugin-search-results"
 import { YourPlugins } from "./yours/your-plugins"
 
 type Tab = "yours" | "browse"
@@ -27,6 +29,9 @@ export function PluginsSettings({
 }) {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(start === "add")
+  const [query, setQuery] = useState("")
+  // While searching, results from both tabs replace them, so the tabs wait.
+  const searching = query.trim() !== ""
   const plugins = useQuery({
     queryKey: pluginsQueryKey,
     queryFn: ({ signal }) => listPlugins(signal),
@@ -60,44 +65,57 @@ export function PluginsSettings({
       >
         <div className="flex items-center justify-between gap-4">
           <TabsList variant="pill" activateOnFocus>
-            <TabsTrigger value="yours">
+            <TabsTrigger value="yours" disabled={searching}>
               {intl.formatMessage({
                 id: "plugins_settings_yours_label",
                 defaultMessage: "Yours",
               })}
             </TabsTrigger>
-            <TabsTrigger value="browse">
+            <TabsTrigger value="browse" disabled={searching}>
               {intl.formatMessage({
                 id: "plugins_settings_browse_label",
                 defaultMessage: "Browse",
               })}
             </TabsTrigger>
           </TabsList>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8"
-            onClick={() => setAdding(true)}
-          >
-            <PlusIcon data-icon="inline-start" />
-            {intl.formatMessage({
-              id: "plugins_settings_add_custom_button",
-              defaultMessage: "Add custom plugin",
-            })}
-          </Button>
+          <div className="flex min-w-0 items-center gap-2">
+            <PluginSearchField value={query} onChange={setQuery} />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0"
+              onClick={() => setAdding(true)}
+            >
+              <PlusIcon data-icon="inline-start" />
+              {intl.formatMessage({
+                id: "plugins_settings_add_custom_button",
+                defaultMessage: "Add custom plugin",
+              })}
+            </Button>
+          </div>
         </div>
-        <TabsContent value="yours">
-          <YourPlugins
+        {searching ? (
+          <PluginSearchResults
+            query={query}
             plugins={plugins}
-            onBrowse={() => setTab("browse")}
-            onAdd={() => setAdding(true)}
             onOpenLicense={onOpenLicense}
           />
-        </TabsContent>
-        <TabsContent value="browse">
-          <BrowsePlugins />
-        </TabsContent>
+        ) : (
+          <>
+            <TabsContent value="yours">
+              <YourPlugins
+                plugins={plugins}
+                onBrowse={() => setTab("browse")}
+                onAdd={() => setAdding(true)}
+                onOpenLicense={onOpenLicense}
+              />
+            </TabsContent>
+            <TabsContent value="browse">
+              <BrowsePlugins />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
       <AddPluginDialog
         open={adding}
