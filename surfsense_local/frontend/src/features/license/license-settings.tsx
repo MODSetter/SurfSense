@@ -51,6 +51,8 @@ function notice(status: LicenseStatus): {
   title: string
   description: string
   link?: { href: string; label: string }
+  /** A heads-up rather than a problem reads quieter. */
+  variant?: "secondary"
 } | null {
   if (status.state === "clock_untrusted") {
     return {
@@ -101,6 +103,7 @@ function notice(status: LicenseStatus): {
           },
           { count: days }
         ),
+        variant: "secondary",
       }
     }
   }
@@ -435,7 +438,7 @@ export function LicenseSettings() {
       ) : null}
 
       {shown ? (
-        <Alert role="status" className="mt-6">
+        <Alert role="status" variant={shown.variant} className="mt-6">
           <CircleAlertIcon />
           <AlertTitle>{shown.title}</AlertTitle>
           <AlertDescription className="flex flex-col items-start gap-1">
