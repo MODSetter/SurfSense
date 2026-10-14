@@ -26,6 +26,7 @@ from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.original_file import original_path, stored_name
+from modules.documents.recordings.ended_run import drop_when_cancelled_in_queue
 from modules.documents.schemas import (
     DocumentByChunkRead,
     DocumentDetail,
@@ -448,8 +449,10 @@ def retry_document(
 def cancel_ingest(
     document: DocumentDep, session: SessionDep, broker: EventBrokerDep
 ) -> Document:
+    was = document.status
     if not cancel_ingest_job(session, document):
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
+    drop_when_cancelled_in_queue(document, was)
     notify_document_updates(broker, document)
     return document
 

@@ -59,6 +59,9 @@ export interface SidecarContext {
   audioUrl?: string
   audioModelsDir?: string
   audioBinariesDir?: string
+  /** The same build run again for speech recognition, on its own port; only the API is told the URL. */
+  transcriptionPort?: number
+  transcriptionUrl?: string
   /** The staged opencode and its ripgrep: `scripts/opencode/stage.mjs` writes it. */
   opencodeBinariesDir?: string
   /**

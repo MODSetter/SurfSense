@@ -57,7 +57,7 @@ def entry_for(
         "source_repo": entry.source_repo,
         "aliases": list(entry.aliases),
         "evidence": {"architecture": family, "pipeline_tag": snapshot.pipeline_tag},
-        "audio": dict(entry.audio),
+        **_reviewed(entry),
         "builds": [
             {
                 "quantization": build.quantization,
@@ -78,3 +78,9 @@ def entry_for(
             for build in builds
         ],
     }
+
+
+def _reviewed(entry: AudioEntry) -> dict[str, Any]:
+    """The reviewed block the entry has: voices or languages, never both."""
+    blocks = {"audio": entry.audio, "transcription": entry.transcription}
+    return {name: dict(block) for name, block in blocks.items() if block}

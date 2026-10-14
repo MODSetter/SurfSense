@@ -10,7 +10,12 @@ from tests.integration.llm.installs import install_to_end
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
-AUDIO_IDS = {"kokoro-82m", "supertonic-3", "kitten-tts-mini-0.8"}
+AUDIO_IDS = {
+    "kokoro-82m",
+    "supertonic-3",
+    "kitten-tts-mini-0.8",
+    "nemotron-3.5-asr-streaming-0.6b",
+}
 
 
 def audio_rows(body: dict) -> dict[str, dict]:

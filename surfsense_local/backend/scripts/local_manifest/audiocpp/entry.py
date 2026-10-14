@@ -1,7 +1,8 @@
 """The hand-authored part of an audio model's entry.
 
 Beyond what every entry names, a person reviews what neither the file nor the
-server says: the voices, the languages and the memory measured while voicing.
+server says: a voice model's voices, a recogniser's languages and locales, and
+the memory each measured while it worked.
 """
 
 from dataclasses import dataclass, field
@@ -18,3 +19,5 @@ class AudioEntry(Entry):
     builds: tuple[str, ...] = ()
     # `AudioDefaults` as the manifest writes it, with `origin` naming the source.
     audio: dict[str, Any] = field(default_factory=dict)
+    # `TranscriptionDefaults` likewise, for a recogniser in place of `audio`.
+    transcription: dict[str, Any] = field(default_factory=dict)

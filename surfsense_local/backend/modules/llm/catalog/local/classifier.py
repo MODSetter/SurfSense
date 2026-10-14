@@ -86,6 +86,9 @@ _SPEECH_IN = (
     "automatic-speech-recognition",
     "audio-classification",
 )
+# audio.cpp's recogniser families a curated entry names as its architecture.
+# Other recognisers stay typeless until one is curated: nothing could run them.
+_SPEECH_RECOGNISERS = ("nemotron_asr",)
 _LABELLERS = (
     "openai-privacy-filter",
     "locateanything",
@@ -197,6 +200,16 @@ GROUPS: dict[str, Group] = {
         _SPEECH_IN,
         Group(
             _NONE,
+            (
+                "This model writes down what it hears in audio. It cannot answer questions."
+            ),
+            NotRunnableCode.SPEECH_IN,
+        ),
+    ),
+    **dict.fromkeys(
+        _SPEECH_RECOGNISERS,
+        Group(
+            (ModelType.SPEECH_TO_TEXT,),
             (
                 "This model writes down what it hears in audio. It cannot answer questions."
             ),

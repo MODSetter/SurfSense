@@ -11,6 +11,11 @@ import pytest
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from shared.config import get_llm_settings
 
+# audio.cpp's transcription server, for the speech recognition routes.
+from tests.integration.llm.transcription_stand_in import (
+    transcription_server,  # noqa: F401 - a fixture
+)
+
 INSTALLED = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
 DELETED: list[str] = []
 UNLOADED: list[str] = []

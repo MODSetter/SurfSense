@@ -5,6 +5,11 @@ import pytest
 from modules.llm.profile import Fingerprint, Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 
+# The API's speech routes, as a recording's ingest job reaches them.
+from tests.integration.worker.speech_api_stand_in import (
+    speech_api,  # noqa: F401 - a fixture
+)
+
 
 @pytest.fixture
 def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:

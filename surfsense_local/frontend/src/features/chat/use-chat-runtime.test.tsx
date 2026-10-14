@@ -289,6 +289,22 @@ function sendIn(
 }
 
 describe("useChatRuntime", () => {
+  it.each([false, true])(
+    "offers voice input whether the model reads images or not (reads images: %s)",
+    async (readsImages) => {
+      const { result } = renderRuntime({ readsImages })
+
+      await waitFor(() =>
+        expect(result.current.thread.getState().capabilities.dictation).toBe(
+          true
+        )
+      )
+      expect(result.current.thread.getState().capabilities.attachments).toBe(
+        readsImages
+      )
+    }
+  )
+
   it("keeps a reply arriving while another thread is open", async () => {
     const { result } = renderRuntime()
     await openThread(result, 1)
