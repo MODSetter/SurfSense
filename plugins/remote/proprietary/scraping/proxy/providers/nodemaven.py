@@ -96,3 +96,7 @@ class NodeMavenProvider(ProxyProvider):
     ) -> str | None:
         """Return the configured URL with a session id and optional country."""
         return self._rewrite_proxy_url(country=country, session_id=session_id)
+
+    def sticky_slot(self, session_id: str) -> object:
+        # The id is sanitised before it reaches the username, so "a-1" and "a1" meet.
+        return _safe_session_id(session_id)

@@ -37,6 +37,14 @@ def _avatar(user_info: dict[str, Any]) -> str | None:
     return None
 
 
+def _verified(user_info: dict[str, Any]) -> bool:
+    # enterprise_verify_reason also carries "Business account", which is not a badge.
+    reason = user_info.get("enterprise_verify_reason") or ""
+    return bool(user_info.get("custom_verify")) or (
+        isinstance(reason, str) and reason.strip().lower() == "verified account"
+    )
+
+
 def parse_search_user(user_info: dict[str, Any]) -> dict[str, Any]:
     """Map a search ``user_info`` to a :class:`TikTokProfileItem` output dict."""
     from ..schemas.items import TikTokProfileItem
@@ -47,7 +55,7 @@ def parse_search_user(user_info: dict[str, Any]) -> dict[str, Any]:
         name=username,
         nickName=user_info.get("nickname"),
         profileUrl=_PROFILE_URL.format(username=username) if username else None,
-        verified=bool(user_info.get("enterprise_verify_reason")),
+        verified=_verified(user_info),
         signature=user_info.get("signature"),
         avatar=_avatar(user_info),
         fans=user_info.get("follower_count"),

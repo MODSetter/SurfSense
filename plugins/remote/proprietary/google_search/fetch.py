@@ -36,12 +36,15 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Awaitable, Callable, Iterable
+from contextvars import ContextVar
+from typing import Protocol
+from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
-
-from scrapling.fetchers import AsyncFetcher
 
 from proprietary.google_search import captcha as _captcha
 from proprietary.google_search import pool_store as _store
+from proprietary.scraping import http, lifecycle
 from proprietary.scraping.browser_loop import in_browser_loop as _in_browser_loop
 from proprietary.scraping.captcha import captcha_enabled, get_captcha_config
 from proprietary.scraping.proxy import get_proxy_url, get_sticky_proxy_url
@@ -122,8 +125,11 @@ _FETCH_DEADLINE_S = float(os.getenv("GOOGLE_SEARCH_FETCH_DEADLINE_S", "180"))
 
 # A usable precheck responds in <1 s; anything slower is a dead/slow sticky IP
 # (seen hanging ~60 s). Abandon it on this deadline so a slow IP costs no more
-# than a walled one, keeping per-page time predictable.
+# than a walled one, keeping per-page time predictable. (connect incl. the
+# proxy CONNECT and TLS, read), one attempt: Scrapling's own retries had a dead
+# IP cost about 17 s.
 _PRECHECK_TIMEOUT_S = 5.0
+_PRECHECK_TIMEOUT = (_PRECHECK_TIMEOUT_S, _PRECHECK_TIMEOUT_S)
 
 # A walled response is small and says so; the anti-bot page never carries the
 # results container. Precheck (small shell page) keys off the text markers;
@@ -132,6 +138,29 @@ _PRECHECK_TIMEOUT_S = 5.0
 _BLOCK_MARKERS = ("unusual traffic", "detected unusual", "/sorry/")
 # Desktop markers + the mobile lightweight layout's result-block class.
 _RESULTS_MARKERS = ('id="rso"', 'id="search"', 'class="tF2Cxc', "Gx5Zad")
+
+
+class LinkSink(Protocol):
+    """Takes a render's ``/goto`` hrefs as soon as they attach (GS-3)."""
+
+    def feed(self, hrefs: Iterable[str]) -> None: ...  # thread-safe
+    def discard(self) -> None: ...  # request loop: that render was not returned
+
+
+# Set by the scraper around a page's fetch: the render feeds its /goto links
+# here so they resolve while the page is still expanding. None skips the read.
+link_sink: ContextVar[LinkSink | None] = ContextVar("google_search_links", default=None)
+# Set by the caller for MCP progress at each attempt (request loop only).
+stage_hook: ContextVar[Callable[[str], Awaitable[None]] | None] = ContextVar(
+    "google_search_stage", default=None
+)
+
+
+async def _stage(message: str) -> None:
+    hook = stage_hook.get()
+    if hook is not None:
+        with contextlib.suppress(Exception):  # progress never fails a render
+            await hook(message)
 
 
 def _sticky_proxy() -> str | None:
@@ -159,21 +188,28 @@ def _has_results(html: str | None) -> bool:
     return any(m in (html or "") for m in _RESULTS_MARKERS)
 
 
+def _precheck_blocked(response: http.RawResponse) -> bool:
+    return response.status != 200 or _is_walled(response.text())
+
+
 async def _precheck(url: str, proxy: str | None) -> bool:
     """Cheap GET to decide if this IP is walled (True = looks usable)."""
     try:
-        r = await AsyncFetcher.get(
+        r = await http.request(
+            "GET",
             url,
-            cookies=CONSENT_COOKIES,
+            plugin="google-search",
+            stage="precheck",
             proxy=proxy,
-            stealthy_headers=True,
-            timeout=_PRECHECK_TIMEOUT_S,
+            cookies=CONSENT_COOKIES,
+            timeout=_PRECHECK_TIMEOUT,
+            is_blocked=_precheck_blocked,
         )
     except Exception as e:
         # A timeout (slow/dead IP) lands here too; treat it like a walled IP.
         logger.debug("[google_search] precheck error: %s", e)
         return False
-    return r.status == 200 and not _is_walled(r.html_content)
+    return not r.blocked
 
 
 async def _vet_fresh_ip(url: str) -> str | None:
@@ -252,11 +288,14 @@ def _pool_abort_grow() -> None:
         _pool_pending = max(0, _pool_pending - 1)
 
 
-def _pool_settle(url: str, *, good: bool, grew: bool) -> None:
+def _pool_settle(url: str, *, good: bool | None, grew: bool) -> None:
     """Finish a render: drop its inflight hold, then admit or evict the IP.
 
     A good render (re)admits the IP to the warm pool (refreshing its LRU stamp);
     a walled render evicts it and drops its now-worthless cached exemption.
+    ``good`` None is a cancelled render, which says nothing about the IP: a
+    warm one keeps its standing (a sibling may have evicted it meanwhile), and
+    a fresh one joins only when its paid solve already landed.
     """
     global _pool_pending
     with _pool_lock:
@@ -267,7 +306,10 @@ def _pool_settle(url: str, *, good: bool, grew: bool) -> None:
             _pool_inflight[url] = n
         if grew:
             _pool_pending = max(0, _pool_pending - 1)
-        if good:
+        if good is None:
+            if grew and _exemption_jar.get(url):
+                _pool[url] = time.monotonic()
+        elif good:
             _pool[url] = time.monotonic()
         else:
             _pool.pop(url, None)
@@ -284,22 +326,267 @@ _PAA_ANSWER_WAIT_MS = 1500
 # The AI Overview's "Show more" clamp, when present.
 _AIO_SHOW_MORE_SEL = "[aria-label='Show more AI Overview']"
 
+# Event-driven settle (on by default; GOOGLE_SEARCH_FAST_SETTLE=0 restores the
+# network-idle wait and the fixed-sleep expansion). Google's telemetry pings
+# keep the network busy, so network idle cost 5.1-5.8 s on every render for
+# nothing the parser reads; the expansion now waits on the answers themselves.
+_FAST_SETTLE = os.getenv("GOOGLE_SEARCH_FAST_SETTLE", "1") != "0"
+# Organic results of the desktop and the mobile layout. Never ``#rso``: the JS
+# shell that reloads itself with ``sei`` carries it too.
+_READY_SEL = "div.tF2Cxc, div.Gx5Zad"
+_LOAD_TIMEOUT_MS = 8000
+_READY_TIMEOUT_MS = 2000
+# The PAA question's own toggle; clicking the pair div waited on actionability.
+_PAA_TOGGLE_SEL = "div.related-question-pair [role=button][aria-expanded='false']"
+_CLICK_TIMEOUT_MS = 500
+_PAA_ANSWER_CAP_MS = 2500
+_PAA_RETRY_CAP_MS = 1000
+# Some pages insert the PAA block after the load event; network idle used to
+# cover that. Page 1 of a plain desktop query waits this long for it to attach
+# (the mobile layout pre-renders its PAA in other markup).
+_PAA_SEL = "div.related-question-pair"
+_PAA_ATTACH_MS = 1500
+# Each expansion makes Google append a couple of questions, their answers
+# preloaded (the old fixed wait returned 9-12 answered questions for 4 clicks).
+# Once the clicked ones are answered, wait until the block stops changing for
+# _PAA_STABLE_MS, capped at _PAA_GRACE_CAP_MS. The appended answers trickle in
+# over seconds: on 'rust programming language' 400/1500 and 600/2000 got the 4
+# clicked answers (4-9 questions, expansion 1.6-3.4 s), 800/3000 got 12 of
+# 12-15 (expansion 7.1-7.4 s, a warm render slower than the old path's), where
+# the old path got 6-12. Raise these for the answers at that price.
+_PAA_STABLE_MS = int(os.getenv("GOOGLE_SEARCH_PAA_STABLE_MS", "400"))
+_PAA_GRACE_CAP_MS = int(os.getenv("GOOGLE_SEARCH_PAA_GRACE_MS", "1500"))
+# The AI Overview streams in and may attach after the PAA clicks. It is read
+# once its text held its length for _AIO_STABLE_MS, capped: waiting only for
+# its first paragraph read 0-680 of its ~2.5k characters.
+_AIO_STABLE_MS = int(os.getenv("GOOGLE_SEARCH_AIO_STABLE_MS", "500"))
+_AIO_PROSE_CAP_MS = 2000
+# True once each of the first ``n`` pairs holds an answer (snippet or AI).
+_PAA_ANSWERED_JS = """(n) => {
+  const pairs = [...document.querySelectorAll('div.related-question-pair')].slice(0, n);
+  return pairs.every(p => p.querySelector('.hgKElc, .n6owBd, .LGOjhe, #m-x-content'));
+}"""
+# True once the question and answer counts held still for ``ms``.
+_PAA_STABLE_JS = """(ms) => {
+  const pairs = [...document.querySelectorAll('div.related-question-pair')];
+  const answered = pairs.filter(
+    p => p.querySelector('.hgKElc, .n6owBd, .LGOjhe, #m-x-content')).length;
+  const key = pairs.length + ':' + answered;
+  const now = performance.now();
+  const seen = window.__gsPaaSeen;
+  if (!seen || seen.key !== key) {
+    window.__gsPaaSeen = {key, since: now};
+    return false;
+  }
+  return now - seen.since >= ms;
+}"""
+# The /goto links the parser will carry, picked as it picks them: each organic
+# block's first result anchor and sitelink once the results attach; then each PAA
+# answer's titled source and each AI Overview source. Only those: a SERP holds
+# 64-109 distinct /goto links, against 9-19 that the parser keeps.
+_LINKS_JS = """(expanded) => {
+  const target = h => h && /^(http|\\/url\\?|\\/goto\\?)/.test(h);
+  const first = root => [...root.querySelectorAll('a')]
+    .find(a => target(a.getAttribute('href')));
+  const goto = a => {
+    const h = a && a.getAttribute('href');
+    return h && h.startsWith('/goto?') ? h : null;
+  };
+  const out = [...document.querySelectorAll('div.tF2Cxc')].map(b => goto(first(b)));
+  for (const cell of document.querySelectorAll('td.cIkxbf')) {  // sitelinks
+    if (cell.querySelector('h3')) out.push(goto(first(cell)));
+  }
+  if (expanded) {
+    for (const pair of document.querySelectorAll('div.related-question-pair')) {
+      out.push(goto([...pair.querySelectorAll('a')]
+        .find(a => a.querySelector('h3') && target(a.getAttribute('href')))));
+    }
+    let sources = document.querySelectorAll('li.Ioqnib');
+    if (!sources.length) sources = document.querySelectorAll('li.h7wxwc');
+    for (const li of sources) out.push(goto(li.querySelector('a.vIWmYe') || first(li)));
+  }
+  return out.filter(Boolean);
+}"""
+# True once the AI Overview's text length held still for ``ms``. With no
+# overview it is true at once, unless ``late`` (page 1 of a plain query, where
+# one may still attach): then its absence must hold still too.
+_AIO_SETTLED_JS = """([ms, late]) => {
+  const box = document.querySelector('#m-x-content');
+  if (!box && !late) return true;
+  const len = box ? box.innerText.length : -1;
+  const now = performance.now();
+  const seen = window.__gsAioSeen;
+  if (!seen || seen.len !== len) {
+    window.__gsAioSeen = {len, since: now};
+    return false;
+  }
+  return now - seen.since >= ms;
+}"""
 
-async def _expand_blocks(page):
-    """Click open the lazy SERP blocks so their content renders into the DOM.
+# Strip the DOM before it is serialized (GOOGLE_SEARCH_SHRINK_DOM=0 keeps it
+# whole): a rendered SERP is 4-6 MB, mostly inline script, style, svg and
+# data-URI images the parser never reads, and page.content() plus the parse
+# took up to 2 s on it. Favicons (img.XNo5Ab) keep their data URI for
+# includeIcons; other data images keep the node and lose only the src, so a
+# lazy image's data-src survives. saveHtml returns this stripped DOM.
+_SHRINK_DOM = os.getenv("GOOGLE_SEARCH_SHRINK_DOM", "1") != "0"
+_SHRINK_JS = """() => {
+  document.querySelectorAll('script, style, noscript, svg').forEach(n => n.remove());
+  document.querySelectorAll("img[src^='data:']").forEach(img => {
+    if (!img.classList.contains('XNo5Ab')) img.removeAttribute('src');
+  });
+}"""
 
-    Runs inside the browser render (Playwright async API — the persistent
-    session's ``page_action`` must be a coroutine). Two expansions:
 
-    * AI Overview "Show more" (``ponytail:`` clicked unconditionally, so the
-      full overview is always scraped and ``scrapeFullAiOverview`` needs no
-      plumbing down here — a superset of the actor's gated behavior).
-    * The initially-served People-Also-Ask questions (answers load on click).
+async def _settle(page) -> None:
+    """Wait until the SERP's JS has loaded and its organic results are attached.
 
-    Both are free on pages without the block, and best-effort: a failed click
-    just leaves that section collapsed rather than failing the render.
+    The load event comes first because PAA clicks fired before the page's JS
+    was ready answered nothing (0 of 4 after a /sorry solve, whose SERP is a
+    fresh document). Both waits are capped, so a page without organic results
+    costs at most the caps; neither is ever a failure.
     """
-    _t0 = time.perf_counter()
+    with contextlib.suppress(Exception):
+        await page.wait_for_load_state("load", timeout=_LOAD_TIMEOUT_MS)
+    with contextlib.suppress(Exception):
+        await page.wait_for_selector(
+            _READY_SEL, state="attached", timeout=_READY_TIMEOUT_MS
+        )
+
+
+def _may_have_paa(url: str) -> bool:
+    """Page 1 of a plain query: later pages and ``site:`` searches carry no PAA."""
+    params = parse_qs(urlsplit(url).query)
+    start = (params.get("start") or ["0"])[0]
+    query = (params.get("q") or [""])[0]
+    return start in ("", "0") and "site:" not in query
+
+
+async def _answers_in(page, n: int, cap_ms: int) -> bool:
+    """Whether each of the first ``n`` PAA pairs held an answer within the cap."""
+    try:
+        await page.wait_for_function(
+            _PAA_ANSWERED_JS, arg=n, timeout=cap_ms, polling=100
+        )
+    except Exception:
+        return False
+    return True
+
+
+async def _click_paa(page) -> tuple[list, list]:
+    """Click the first PAA questions open; return (toggles, clicked ones).
+
+    Forced clicks skip Playwright's actionability waits (they are still
+    trusted input) but aim where the element is at that instant. Each
+    expansion animates and pushes everything below it down, so the questions
+    are clicked bottom first, and the AI Overview above them is opened after.
+    """
+    if _may_have_paa(page.url or "") and await page.query_selector("div.tF2Cxc"):
+        with contextlib.suppress(Exception):  # no PAA on this page
+            await page.wait_for_selector(
+                _PAA_SEL, state="attached", timeout=_PAA_ATTACH_MS
+            )
+    toggles = (await page.query_selector_all(_PAA_TOGGLE_SEL))[:_PAA_EXPAND_LIMIT]
+    clicked = []
+    for toggle in reversed(toggles):
+        try:
+            await toggle.click(
+                force=True, no_wait_after=True, timeout=_CLICK_TIMEOUT_MS
+            )
+            clicked.append(toggle)
+        except Exception:  # stale handle/overlay; skip pair
+            continue
+    return toggles, clicked
+
+
+async def _await_paa(page, toggles: list, clicked: list) -> None:
+    """Wait for the clicked questions' answers, then for the appended ones.
+
+    When the answers do not come, a toggle still collapsed was clicked before
+    its handler was bound and gets one more click; one that did expand is
+    never clicked again, since that would close it.
+    """
+    if not clicked:
+        return
+    if not await _answers_in(page, len(toggles), _PAA_ANSWER_CAP_MS):
+        retried = 0
+        for toggle in clicked:
+            with contextlib.suppress(Exception):
+                if await toggle.get_attribute("aria-expanded") == "false":
+                    await toggle.click(
+                        force=True, no_wait_after=True, timeout=_CLICK_TIMEOUT_MS
+                    )
+                    retried += 1
+        if retried:
+            await _answers_in(page, len(toggles), _PAA_RETRY_CAP_MS)
+    with contextlib.suppress(Exception):  # cap reached: keep what attached
+        await page.wait_for_function(
+            _PAA_STABLE_JS,
+            arg=_PAA_STABLE_MS,
+            timeout=_PAA_GRACE_CAP_MS,
+            polling=100,
+        )
+
+
+async def _click_show_more(page) -> bool:
+    """Open the AI Overview's "Show more" clamp, when it is there."""
+    try:
+        more = await page.query_selector(_AIO_SHOW_MORE_SEL)
+        if more:
+            await more.click(timeout=_CLICK_TIMEOUT_MS)
+            return True
+    except Exception:  # clamp absent/detached; the collapsed text still parses
+        pass
+    return False
+
+
+async def _await_overview(page) -> None:
+    """Wait for the AI Overview's text to stop growing; capped, never fails."""
+    late = _may_have_paa(page.url or "")
+    with contextlib.suppress(Exception):  # cap reached: keep what streamed
+        await page.wait_for_function(
+            _AIO_SETTLED_JS,
+            arg=[_AIO_STABLE_MS, late],
+            timeout=_AIO_PROSE_CAP_MS,
+            polling=100,
+        )
+
+
+async def _feed_links(page, sink: LinkSink | None, *, expanded: bool) -> None:
+    """Hand the page's /goto hrefs to ``sink``; best-effort."""
+    if sink is None:
+        return
+    try:
+        sink.feed(await page.evaluate(_LINKS_JS, expanded) or [])
+    except Exception as e:  # the parse-time resolution picks them up instead
+        logger.debug("[google_search] link prefetch skipped: %s", e)
+
+
+async def _expand_blocks_fast(page, sink: LinkSink | None = None) -> int:
+    """Event-driven expansion: settle, open PAA and AIO, wait for their text."""
+    await _settle(page)
+    await _feed_links(page, sink, expanded=False)
+    toggles: list = []
+    opened: list = []
+    try:
+        toggles, opened = await _click_paa(page)
+    except Exception as e:  # never fail the render over PAA
+        logger.debug("[google_search] PAA expansion skipped: %s", e)
+    more = await _click_show_more(page)
+    try:
+        await _await_paa(page, toggles, opened)
+    except Exception as e:  # never fail the render over PAA
+        logger.debug("[google_search] PAA answers skipped: %s", e)
+    await _await_overview(page)
+    if not more and await _click_show_more(page):
+        # The overview attached after the PAA clicks; open its clamp now.
+        more = True
+        await _await_overview(page)
+    return len(opened) + int(more)
+
+
+async def _expand_blocks_legacy(page) -> int:
+    """The network-idle-era expansion: actionability clicks, then a fixed wait."""
     clicked = 0
     try:
         more = await page.query_selector(_AIO_SHOW_MORE_SEL)
@@ -321,6 +608,38 @@ async def _expand_blocks(page):
     if clicked:
         # One shared wait while all the answer XHRs land in parallel.
         await page.wait_for_timeout(_PAA_ANSWER_WAIT_MS)
+    return clicked
+
+
+async def _expand_blocks(page, sink: LinkSink | None = None):
+    """Click open the lazy SERP blocks so their content renders into the DOM.
+
+    Runs inside the browser render (Playwright async API — the persistent
+    session's ``page_action`` must be a coroutine). Two expansions:
+
+    * AI Overview "Show more" (``ponytail:`` clicked unconditionally, so the
+      full overview is always scraped and ``scrapeFullAiOverview`` needs no
+      plumbing down here — a superset of the actor's gated behavior).
+    * The initially-served People-Also-Ask questions (answers load on click).
+
+    Both are free on pages without the block, and best-effort: a failed click
+    just leaves that section collapsed rather than failing the render. A page
+    still on /sorry is left alone (the fetch loop moves to the next IP), and AI
+    Mode keeps the old path: its render already waited for network idle.
+    The page's /goto links go to ``sink`` as they appear. Finally the DOM is
+    shrunk before scrapling serializes it.
+    """
+    _t0 = time.perf_counter()
+    if _captcha.on_sorry(page):
+        return page
+    if _FAST_SETTLE and "udm=50" not in (page.url or ""):
+        clicked = await _expand_blocks_fast(page, sink)
+    else:
+        clicked = await _expand_blocks_legacy(page)
+    await _feed_links(page, sink, expanded=True)
+    if _SHRINK_DOM:
+        with contextlib.suppress(Exception):  # an unshrunk page still parses
+            await page.evaluate(_SHRINK_JS)
     logger.info(
         "[google_search][perf] expand_ms=%.0f clicked=%d",
         (time.perf_counter() - _t0) * 1000,
@@ -343,18 +662,23 @@ def _make_page_setup(proxy: str | None):
     return page_setup
 
 
-def _make_page_action(proxy: str | None, cfg):
+def _make_page_action(proxy: str | None, cfg, sink: LinkSink | None = None):
     """Per-fetch ``page_action``: solve the /sorry wall if hit, then expand blocks.
 
     Overrides the session default (:func:`_expand_blocks`) so it must still call
     it afterwards. On a successful solve the resulting ``GOOGLE_ABUSE_EXEMPTION``
-    cookie is cached against this sticky proxy for reuse.
+    cookie is cached against this sticky proxy for reuse. ``cfg`` None skips
+    the solve (no solver wired); ``sink`` takes the page's /goto links.
     """
 
     async def page_action(page):
-        if _captcha.on_sorry(page) and await _captcha.solve_sorry(page, proxy, cfg):
+        if (
+            cfg is not None
+            and _captcha.on_sorry(page)
+            and await _captcha.solve_sorry(page, proxy, cfg)
+        ):
             _exemption_jar[proxy or ""] = await _captcha.exemption_cookies(page)
-        return await _expand_blocks(page)
+        return await _expand_blocks(page, sink)
 
     return page_action
 
@@ -415,7 +739,8 @@ async def _get_session(mobile: bool) -> AsyncStealthySession:
             return session
         kwargs: dict = {
             "headless": True,
-            "network_idle": True,
+            # The page_action settles on the results themselves instead.
+            "network_idle": not _FAST_SETTLE,
             "google_search": True,
             "page_action": _expand_blocks,
             "retries": 1,  # our own IP loop is the retry policy
@@ -460,7 +785,9 @@ async def close_sessions() -> None:
         await _drop_session(mobile)
 
 
-async def _render_on_loop(url: str, proxy: str | None, mobile: bool):
+async def _render_on_loop(
+    url: str, proxy: str | None, mobile: bool, sink: LinkSink | None = None
+):
     async with _render_gate:
         session = await _get_session(mobile)
         _inflight[session] = _inflight.get(session, 0) + 1
@@ -474,13 +801,18 @@ async def _render_on_loop(url: str, proxy: str | None, mobile: bool):
             # udm=50 marker its URL always carries.
             if "udm=50" not in url:
                 kwargs["disable_resources"] = True
+            else:
+                # The AI Mode answer streams in; network idle is its settle.
+                kwargs["network_idle"] = True
             # Only wire the solver when it's configured AND still viable this
             # process; otherwise the session's default page_action (expand-only)
             # runs and the stealth tier is unchanged.
             if proxy and captcha_enabled() and not _captcha.solver_latched():
                 cfg = get_captcha_config()
                 kwargs["page_setup"] = _make_page_setup(proxy)
-                kwargs["page_action"] = _make_page_action(proxy, cfg)
+                kwargs["page_action"] = _make_page_action(proxy, cfg, sink)
+            elif sink is not None:
+                kwargs["page_action"] = _make_page_action(proxy, None, sink)
             return await session.fetch(url, proxy=proxy, **kwargs)
         finally:
             _inflight[session] -= 1
@@ -492,14 +824,43 @@ async def _render_on_loop(url: str, proxy: str | None, mobile: bool):
                         await session.close()
 
 
-async def _render(url: str, proxy: str | None, mobile: bool = False):
+async def _render(
+    url: str, proxy: str | None, mobile: bool = False, sink: LinkSink | None = None
+):
     """Headless render of a SERP on the shared browser (fresh proxy context).
 
     The actual browser work is marshalled onto the dedicated subprocess-capable
     loop (see :func:`_get_browser_loop`); this coroutine just awaits it from
     the caller's loop.
     """
-    return await _in_browser_loop(_render_on_loop(url, proxy, mobile))
+    return await _in_browser_loop(_render_on_loop(url, proxy, mobile, sink))
+
+
+async def warm_browser() -> None:
+    """Launch the desktop browser now (GS-8): no context, no proxy, no credit."""
+    if AsyncStealthySession is None:
+        return
+    lifecycle.at_shutdown(close_sessions)
+    await _in_browser_loop(_get_session(False))
+
+
+def render_slots() -> int:
+    """Renders one call may run at once without vetting IPs it does not need.
+
+    Follows the warm pool's free slots (each warm IP takes
+    ``_WARM_IP_MAX_CONCURRENCY`` renders, less those other calls hold), at most
+    the render gate: a burst queues for warm IPs instead of growing the pool
+    through fresh vets that may need a paid solve. With no free warm slot it is
+    1: two queries on a cold pool each vetted a fresh IP and both paid a /sorry
+    solve (24.8 s, 2 solves), where one after the other the second page reuses
+    the first one's IP.
+    """
+    with _pool_lock:
+        free = sum(
+            max(0, _WARM_IP_MAX_CONCURRENCY - _pool_inflight.get(url, 0))
+            for url in _pool
+        )
+    return max(1, min(_MAX_CONCURRENT_PAGES, free))
 
 
 async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
@@ -517,15 +878,19 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
     if AsyncStealthySession is None:
         logger.error("[google_search] browser tier unavailable; cannot render SERPs")
         return None
+    lifecycle.at_shutdown(close_sessions)
+    sink = link_sink.get()
 
     base = get_proxy_url()
     if not base:
         # No proxy configured: a single direct render, no pool bookkeeping.
         with contextlib.suppress(Exception):
-            page = await _render(url, None, mobile=mobile)
+            page = await _render(url, None, mobile=mobile, sink=sink)
             html = page.html_content or ""
             if page.status == 200 and _has_results(html):
                 return html
+        if sink is not None:
+            sink.discard()
         logger.warning("[google_search] gave up on %s (unproxied single render)", url)
         return None
 
@@ -545,15 +910,23 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
             # Before paying for a solve, try to adopt an IP another process
             # already solved (fleet-shared exemption). Only if none is available
             # do we vet a fresh IP and solve on it ourselves.
-            adopted = await _store.adopt(set(_pool))
+            try:
+                adopted = await _store.adopt(set(_pool))
+                if adopted is None:
+                    await _stage("vetting fresh IPs")
+                    vt = time.perf_counter()
+                    proxy = await _vet_fresh_ip(url)
+                    vet_ms = (time.perf_counter() - vt) * 1000
+            except BaseException:
+                # Cancelled (a host /cancel, or a sibling page failed): give the
+                # reserved slot back, or it counts against the pool for good.
+                _pool_abort_grow()
+                raise
             if adopted is not None:
                 proxy, cookies = adopted
                 _exemption_jar[proxy] = cookies
                 _pool_adopt(proxy)
             else:
-                vt = time.perf_counter()
-                proxy = await _vet_fresh_ip(url)
-                vet_ms = (time.perf_counter() - vt) * 1000
                 ips_tried += _VET_CONCURRENCY
                 if proxy is None:
                     _pool_abort_grow()
@@ -562,14 +935,21 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
                     continue
                 _pool_bind_fresh(proxy)
                 solved_fresh = True
-        started = time.perf_counter()
         try:
-            page = await _render(url, proxy, mobile=mobile)
+            await _stage("rendering on a fresh IP" if solved_fresh else "rendering")
+            started = time.perf_counter()
+            page = await _render(url, proxy, mobile=mobile, sink=sink)
+        except asyncio.CancelledError:
+            # Release the hold, or two leaked holds retire a warm IP for good.
+            _pool_settle(proxy, good=None, grew=solved_fresh)
+            raise
         except Exception as e:
             # Renders on a walled IP still return HTML; an exception means the
             # browser side is broken, so relaunch it rather than limp along.
             # repr(), not str(): e.g. NotImplementedError stringifies to "".
             logger.warning("[google_search] render failed: %r", e)
+            if sink is not None:
+                sink.discard()
             _pool_settle(proxy, good=False, grew=solved_fresh)
             await _store.evict(proxy)
             await _drop_session(mobile)
@@ -594,6 +974,9 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
             if solved_fresh and _exemption_jar.get(proxy):
                 await _store.publish(proxy, _exemption_jar[proxy])
             return html
+        if sink is not None:
+            sink.discard()
+        await _stage("walled; trying another IP")
         await _store.evict(proxy)
     logger.warning(
         "[google_search] gave up on %s (deadline/%d-IP budget)", url, _MAX_IP_ATTEMPTS

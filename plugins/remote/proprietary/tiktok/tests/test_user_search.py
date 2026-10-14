@@ -19,7 +19,8 @@ def _user(uid: str, unique_id: str, followers: int = 10) -> dict[str, Any]:
         "follower_count": followers,
         "total_favorited": 999,
         "sec_uid": f"sec-{uid}",
-        "enterprise_verify_reason": "official" if uid == "1" else "",
+        # TikTok's own wording for the badge; "Business account" is not one.
+        "enterprise_verify_reason": "verified account" if uid == "1" else "",
         "avatar_thumb": {"url_list": [f"https://cdn/{uid}.webp"]},
     }
 

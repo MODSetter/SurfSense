@@ -24,7 +24,7 @@ import logging
 import os
 from typing import Any
 
-import httpx2
+from proprietary.scraping.api_clients import api_client
 
 from .schemas import (
     GoogleSearchScrapeInput,
@@ -77,8 +77,9 @@ def _query(term: str, input_model: GoogleSearchScrapeInput) -> str:
 
 async def _fetch_json(params: dict[str, Any]) -> dict[str, Any] | None:
     try:
-        async with httpx2.AsyncClient(timeout=_TIMEOUT_S) as client:
-            response = await client.get(f"{_HOST.rstrip('/')}/search", params=params)
+        # One kept client per instance: a fallback page skips the TLS handshake.
+        client = api_client(_HOST)
+        response = await client.get("/search", params=params, timeout=_TIMEOUT_S)
         if response.status_code == 403:
             logger.warning(
                 "[google_search][searxng] instance refused the JSON API (403); "

@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Literal
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 ResolvedKind = Literal["product", "search", "bestsellers", "shortened"]
 
@@ -77,6 +77,12 @@ def resolve_url(url: str) -> ResolvedUrl | None:
     if "amazon." not in host:
         return None
 
+    # A sponsored search card links through /sspa/click; the product is its url param.
+    if path.startswith("/sspa/click"):
+        target = (parse_qs(parsed.query).get("url") or [None])[0]
+        inner = resolve_url(urljoin(f"https://{host}", target)) if target else None
+        return inner if inner is not None and inner.kind == "product" else None
+
     marketplace = _marketplace_from_host(host)
 
     # Bestsellers before search: a /zgbs page has no /s path but is its own kind.
@@ -92,7 +98,12 @@ def resolve_url(url: str) -> ResolvedUrl | None:
 
     # Search / category: the /s path, or any search-carrying query param.
     query = parse_qs(parsed.query)
-    if path.startswith("/s") or any(k in query for k in _SEARCH_QUERY_KEYS):
+    # Only /s itself: a bare prefix match also took /sspa/click and /stores pages.
+    if (
+        path == "/s"
+        or path.startswith("/s/")
+        or any(k in query for k in _SEARCH_QUERY_KEYS)
+    ):
         return ResolvedUrl("search", url, domain=host, marketplace=marketplace)
 
     return None

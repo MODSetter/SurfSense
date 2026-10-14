@@ -55,7 +55,8 @@ class _ItemBase(BaseModel):
     still returns the items it could source, mirroring the actor's shape.
     """
 
-    model_config = ConfigDict(extra="allow")
+    # Ids come as strings or numbers (the relay blob's ``pk``); output strings.
+    model_config = ConfigDict(extra="allow", coerce_numbers_to_str=True)
     inputUrl: str | None = None
     error: str | None = None
     errorDescription: str | None = None

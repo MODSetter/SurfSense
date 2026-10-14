@@ -99,8 +99,8 @@ def _video_html() -> str:
             "viewCount": "100",
             "author": "TechReviewer",
             "channelId": "UC123",
-            "shortDescription": "desc",
-            "keywords": ["#tech"],
+            "shortDescription": "desc #tech",
+            "keywords": ["tech review"],
             "thumbnail": {
                 "thumbnails": [
                     {
@@ -130,7 +130,22 @@ def _video_html() -> str:
         "ctx": {"contextualInfo": {"runs": [{"text": "1,250"}]}},
         "chan": {"canonicalBaseUrl": "/@Apify"},
         "subs": {"subscriberCountText": {"simpleText": "500K subscribers"}},
-        "badge": {"metadataBadgeRenderer": {"tooltip": "Verified"}},
+        "owner": {
+            "videoSecondaryInfoRenderer": {
+                "owner": {
+                    "videoOwnerRenderer": {
+                        "badges": [
+                            {
+                                "metadataBadgeRenderer": {
+                                    "style": "BADGE_STYLE_TYPE_VERIFIED",
+                                    "tooltip": "Verified",
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
     }
     return (
         "<html><script>var ytInitialPlayerResponse = "
@@ -152,6 +167,7 @@ def test_parse_video_page():
     assert result["date"] == "2024-08-27"
     assert result["thumbnailUrl"] == "https://i.ytimg.com/vi/abc123/hq.jpg"
     assert result["hashtags"] == ["#tech"]
+    assert result["keywords"] == ["tech review"]
     assert result["channelName"] == "TechReviewer"
     assert result["channelId"] == "UC123"
     assert result["likes"] == 15_000
@@ -397,7 +413,7 @@ def test_parse_search_response():
     assert item["id"] == "mx3g7XoPVNQ"
     assert item["title"] == "A bad day"
     assert item["viewCount"] == 451_000
-    assert item["duration"] == "8:39"
+    assert item["duration"] == "00:08:39"
     assert item["publishedTimeText"] == "7 days ago"
     assert item["date"] is None  # list pages have no real date
     assert item["channelName"] == "Life of Boris"
@@ -862,7 +878,8 @@ def test_comment_entity_reply_level_and_empty_reply_count():
         }
     )[0]
     assert reply["type"] == "reply"
-    assert reply["replyCount"] is None  # empty string -> None
+    # The toolbar blanks a zero count; only a missing toolbar is unknown.
+    assert reply["replyCount"] == 0
 
 
 def test_comment_sort_tokens():

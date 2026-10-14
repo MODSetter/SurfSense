@@ -8,15 +8,18 @@ Indeed embeds job data as a JS assignment::
     window.mosaic.providerData["mosaic-provider-jobcards"]={"metaData":{...}};
 
 The literal recurs hundreds of times in the page, so :func:`extract_jobcards_blob`
-anchors on the assignment (``...]=``) and brace-matches the balanced object.
+anchors on the assignment (``...]=``) and decodes the object in place.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from html import unescape
+from re import compile as _re_compile
 from re import sub as _re_sub
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 _DEFAULT_BASE = "https://www.indeed.com"
 
@@ -27,6 +30,11 @@ _JOBCARDS_ANCHOR = 'window.mosaic.providerData["mosaic-provider-jobcards"]='
 _ROOT_PROPS_ANCHOR = "window._rootProps"
 _ROOT_PROPS_KEY = "preloadedVJData"
 _INITIAL_DATA_ANCHOR = "window._initialData"
+# A search page inlines its first job's ``spa=1`` answer for the two-pane view.
+_INLINE_VIEWJOB_ANCHOR = '"autoOpenTwoPaneViewjobResponse":'
+_OBJECT_START = _re_compile(r"\s*\{")
+
+_JSON = json.JSONDecoder()
 
 # Indeed's extractedSalary.type -> our SalaryPeriod.
 _SALARY_PERIODS = {
@@ -67,41 +75,29 @@ def _brace_match(text: str, start: int) -> str | None:
 
 def extract_jobcards_blob(html: str) -> dict | None:
     """Decode the ``mosaic-provider-jobcards`` assignment, or ``None`` if absent."""
-    import json
-
-    idx = html.find(_JOBCARDS_ANCHOR)
-    if idx == -1:
-        return None
-    brace = html.find("{", idx + len(_JOBCARDS_ANCHOR))
-    if brace == -1:
-        return None
-    blob = _brace_match(html, brace)
-    if not blob:
-        return None
-    try:
-        data = json.loads(blob)
-    except ValueError:
-        return None
-    return data if isinstance(data, dict) else None
+    return _decode_assignment(html, _JOBCARDS_ANCHOR)
 
 
 def _decode_assignment(html: str, anchor: str) -> dict | None:
     """Decode the balanced JSON object assigned after ``anchor``, or ``None``."""
-    import json
-
     idx = html.find(anchor)
     if idx == -1:
         return None
     brace = html.find("{", idx + len(anchor))
     if brace == -1:
         return None
-    blob = _brace_match(html, brace)
-    if not blob:
-        return None
     try:
-        data = json.loads(blob)
+        # raw_decode parses in place and stops at the object's end: ~20x faster
+        # than brace-matching a 1.6 MB search page in Python first.
+        data = _JSON.raw_decode(html, brace)[0]
     except ValueError:
-        return None
+        blob = _brace_match(html, brace)
+        if not blob:
+            return None
+        try:
+            data = json.loads(blob)
+        except ValueError:
+            return None
     return data if isinstance(data, dict) else None
 
 
@@ -122,6 +118,33 @@ def extract_initial_data(html: str) -> dict | None:
     if isinstance(legacy, dict) and legacy.get("jobInfoWrapperModel"):
         return legacy
     return None
+
+
+def _viewjob_model(answer: Any) -> dict[str, Any] | None:
+    """The viewjob model in a ``spa=1`` answer (``{"status", "body"}``), or ``None``."""
+    body = answer.get("body") if isinstance(answer, dict) else None
+    if isinstance(body, dict) and (body.get("jobInfoWrapperModel") or {}).get(
+        "jobInfoModel"
+    ):
+        return body
+    return None
+
+
+def spa_model(text: str) -> dict[str, Any] | None:
+    """Decode a ``/viewjob?...&spa=1`` answer into its viewjob model, or ``None``."""
+    try:
+        return _viewjob_model(json.loads(text))
+    except ValueError:
+        return None
+
+
+def inline_viewjob(html: str) -> dict[str, Any] | None:
+    """The first job's viewjob model that a search page carries inline, or ``None``."""
+    idx = html.find(_INLINE_VIEWJOB_ANCHOR)
+    # A null answer: the next object along (the jobcards blob, say) is not it.
+    if idx == -1 or not _OBJECT_START.match(html, idx + len(_INLINE_VIEWJOB_ANCHOR)):
+        return None
+    return _viewjob_model(_decode_assignment(html, _INLINE_VIEWJOB_ANCHOR))
 
 
 def job_results(blob: dict | None) -> list[dict[str, Any]]:
@@ -162,6 +185,27 @@ def _abs_url(path: Any, base_url: str) -> str | None:
     if path.startswith("http"):
         return path
     return f"{base_url}{path if path.startswith('/') else '/' + path}"
+
+
+def _strip_query(url: str | None) -> str | None:
+    """Drop the query and fragment: detail links carry per-view tracking tokens."""
+    if not url:
+        return None
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+
+def _rating(value: Any) -> float | None:
+    """A company rating; Indeed sends ``0`` for "no rating", which means unknown."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return value if value > 0 else None
+
+
+def _review_count(value: Any, rating: float | None) -> int | None:
+    """A review count; ``0`` beside an unknown rating is unknown too."""
+    count = _int(value)
+    return None if count == 0 and rating is None else count
 
 
 def _clean_snippet(snippet: Any) -> str | None:
@@ -239,6 +283,7 @@ def parse_job(raw: dict[str, Any], *, base_url: str = _DEFAULT_BASE) -> dict[str
     taxo = _taxonomy(raw)
     job_key = raw.get("jobkey")
     remote_model = raw.get("remoteWorkModel")
+    rating = _rating(raw.get("companyRating"))
     return {
         "jobKey": job_key if isinstance(job_key, str) else None,
         "title": raw.get("displayTitle") or raw.get("title"),
@@ -246,8 +291,8 @@ def parse_job(raw: dict[str, Any], *, base_url: str = _DEFAULT_BASE) -> dict[str
         "applyUrl": raw.get("thirdPartyApplyUrl") or None,
         "company": raw.get("company") or raw.get("truncatedCompany"),
         "companyUrl": _abs_url(raw.get("companyOverviewLink"), base_url),
-        "companyRating": raw.get("companyRating"),
-        "companyReviewCount": _int(raw.get("companyReviewCount")),
+        "companyRating": rating,
+        "companyReviewCount": _review_count(raw.get("companyReviewCount"), rating),
         "formattedLocation": raw.get("formattedLocation"),
         "city": raw.get("jobLocationCity"),
         "state": raw.get("jobLocationState"),
@@ -273,34 +318,86 @@ def parse_job(raw: dict[str, Any], *, base_url: str = _DEFAULT_BASE) -> dict[str
     }
 
 
-def _detail_salary(hdr: dict[str, Any]) -> dict[str, Any] | None:
-    """Salary from the detail header's flat ``salaryMin/Max/Currency/Type`` fields."""
-    smin = hdr.get("salaryMin")
-    smax = hdr.get("salaryMax")
-    if smin is None and smax is None:
+def _salary_block(
+    model: dict[str, Any], currency: Any, text: Any = None, source: Any = None
+) -> dict[str, Any] | None:
+    """A salary dict from one detail model's ``salaryMin/Max/Type``, or ``None``."""
+    smin = model.get("salaryMin")
+    smax = model.get("salaryMax")
+    text = text if isinstance(text, str) and text else None
+    if smin is None and smax is None and text is None:
         return None
     return {
-        "salaryText": None,
+        "salaryText": text,
         "salaryMin": smin,
         "salaryMax": smax,
-        "currency": hdr.get("salaryCurrency"),
-        "period": _SALARY_PERIODS.get(hdr.get("salaryType")),
-        "isEstimated": False,
+        "currency": currency,
+        "period": _SALARY_PERIODS.get(model.get("salaryType")),
+        "isEstimated": isinstance(source, str) and "ESTIMAT" in source.upper(),
     }
 
 
+def _detail_salary(data: dict[str, Any], hdr: dict[str, Any]) -> dict[str, Any] | None:
+    """Salary from a detail model, best source first.
+
+    Live pages leave the header's ``salaryMin/Max`` null and carry the pay in
+    ``salaryInfoModel``; ``companyTabModel.salaryDisplayModel`` has the bounds
+    without text, and the header is the legacy shape.
+    """
+    info = data.get("salaryInfoModel")
+    if isinstance(info, dict):
+        block = _salary_block(
+            info,
+            info.get("salaryCurrency"),
+            info.get("salaryText"),
+            info.get("salarySource"),
+        )
+        if block:
+            return block
+    tab = (data.get("companyTabModel") or {}).get("salaryDisplayModel")
+    if isinstance(tab, dict):
+        block = _salary_block(tab, hdr.get("salaryCurrency"))
+        if block:
+            return block
+    return _salary_block(hdr, hdr.get("salaryCurrency"))
+
+
+def _detail_job_types(
+    jim: dict[str, Any], hdr: dict[str, Any], taxo: dict[str, list[str]]
+) -> list[str]:
+    """Job types from the header, the "Job details" section and the metadata line."""
+    seen = dict.fromkeys(_job_types(hdr, taxo))
+    section = (jim.get("jobDescriptionSectionModel") or {}).get("jobDetailsSection")
+    for jt in (section or {}).get("jobTypes") or []:
+        if isinstance(jt, dict) and isinstance(jt.get("label"), str):
+            seen.setdefault(jt["label"], None)
+    meta = (jim.get("jobMetadataHeaderModel") or {}).get("jobType")
+    if isinstance(meta, str):
+        # The metadata line joins several types with commas.
+        for jt in meta.split(","):
+            if jt.strip():
+                seen.setdefault(jt.strip(), None)
+    return list(seen)
+
+
 def parse_job_detail(html: str, *, base_url: str = _DEFAULT_BASE) -> dict[str, Any]:
-    """Map a /viewjob page to enrichment fields (empty dict if not a job page).
+    """Map a /viewjob page to enrichment fields (empty dict if not a job page)."""
+    return parse_job_detail_model(extract_initial_data(html), base_url=base_url)
+
+
+def parse_job_detail_model(
+    data: dict[str, Any] | None, *, base_url: str = _DEFAULT_BASE
+) -> dict[str, Any]:
+    """Map a viewjob model (``preloadedVJData``, or a ``spa=1`` body) to fields.
 
     Returns only fields the detail page actually carries, so the caller can merge
     it onto a listing item without clobbering known values with blanks. The full
     description (``sanitizedJobDescription``) is the field listings never have.
     """
-    data = extract_initial_data(html)
     if not isinstance(data, dict):
         return {}
     jim = (data.get("jobInfoWrapperModel") or {}).get("jobInfoModel") or {}
-    if not isinstance(jim, dict):
+    if not isinstance(jim, dict) or not jim:
         return {}
     hdr = jim.get("jobInfoHeaderModel")
     hdr = hdr if isinstance(hdr, dict) else {}
@@ -308,19 +405,27 @@ def parse_job_detail(html: str, *, base_url: str = _DEFAULT_BASE) -> dict[str, A
     desc_html = jim.get("sanitizedJobDescription")
     desc_html = desc_html if isinstance(desc_html, str) and desc_html else None
     remote_model = hdr.get("remoteWorkModel")
+    ratings = (hdr.get("companyReviewModel") or {}).get("ratingsModel") or {}
+    rating = _rating(ratings.get("rating"))
+    job_key = data.get("jobKey")
+    country = data.get("country") or data.get("jobCountry")
     out: dict[str, Any] = {
+        "jobKey": job_key if isinstance(job_key, str) else None,
         "descriptionHtml": desc_html,
         "descriptionText": _clean_snippet(desc_html),
         "title": hdr.get("jobTitle"),
         "company": hdr.get("companyName"),
-        "companyUrl": _abs_url(hdr.get("companyOverviewLink"), base_url),
+        "companyUrl": _strip_query(_abs_url(hdr.get("companyOverviewLink"), base_url)),
+        "companyRating": rating,
+        "companyReviewCount": _review_count(ratings.get("count"), rating),
         "formattedLocation": hdr.get("formattedLocation") or data.get("jobLocation"),
+        "country": country if isinstance(country, str) else None,
         "remoteType": remote_model.get("type")
         if isinstance(remote_model, dict)
         else None,
-        "jobTypes": _job_types(hdr, taxo),
+        "jobTypes": _detail_job_types(jim, hdr, taxo),
         "benefits": taxo.get("benefits", []),
-        "salary": _detail_salary(hdr),
+        "salary": _detail_salary(data, hdr),
     }
     if _is_remote(hdr, taxo):
         out["isRemote"] = True

@@ -9,17 +9,18 @@ from .listing import (
     fetch_item_list,
     fetch_trending,
     fetch_user_search,
+    warm_browser,
 )
-from .proxy import bind_proxy_holder, open_proxy_holder, proxy_session
+from .proxy import on_stage, proxy_session
 
 __all__ = [
     "TikTokAccessBlockedError",
-    "bind_proxy_holder",
     "fetch_comments",
     "fetch_html",
     "fetch_item_list",
     "fetch_trending",
     "fetch_user_search",
-    "open_proxy_holder",
+    "on_stage",
     "proxy_session",
+    "warm_browser",
 ]
