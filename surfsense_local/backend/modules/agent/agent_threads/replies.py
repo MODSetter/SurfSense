@@ -11,7 +11,7 @@ from typing import Any
 
 from modules.agent.agent_threads.compaction import is_summary, turn_openers
 from modules.agent.agent_threads.reply_ending import reply_ending
-from modules.agent.agent_threads.scope_note import is_scope_note, noted_scope
+from modules.agent.agent_threads.scope_note import noted_scope
 from modules.agent.agent_threads.steps import step_of
 from modules.chat.prompt import Citation, resolve_citations
 
@@ -151,7 +151,8 @@ def _user_content(parts: list[dict[str, Any]]) -> dict[str, Any]:
     thread's reader names them.
     """
     content: dict[str, Any] = {
-        "text": _text([part for part in parts if not is_scope_note(part)])
+        # SurfSense's notes beside the user's words, the scope and any mentions.
+        "text": _text([part for part in parts if part.get("synthetic") is not True])
     }
     scope = noted_scope(parts)
     if scope is not None:

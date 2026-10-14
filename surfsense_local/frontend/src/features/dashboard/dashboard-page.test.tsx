@@ -1115,11 +1115,12 @@ describe("dashboard chat", () => {
     await user.click(
       within(conversation).getByRole("button", { name: /^Chat mode Basic/ })
     )
-    await user.click(
-      await screen.findByRole("menuitem", {
-        name: /^Start a new chat in Agentic mode/,
-      })
-    )
+    // The open chat's other mode is a row of its own, marked as a new chat.
+    const agentic = await screen.findByRole("menuitemradio", {
+      name: /^Agentic/,
+    })
+    expect(within(agentic).getByText("New chat")).toBeTruthy()
+    await user.click(agentic)
 
     expect(
       await within(conversation).findByRole("button", {
@@ -1450,6 +1451,31 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
     expect(screen.queryByRole("dialog", { name: "Report an issue" })).toBeNull()
     delete window.surfsense?.help
+  })
+
+  it("opens Settings on Plugins from the sidebar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: /^Plugins/ }))
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Plugins" })
+    ).toBeTruthy()
   })
 
   it("leaves the Help menu to the popup when there is no workspace", async () => {

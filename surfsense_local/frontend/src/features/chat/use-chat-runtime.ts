@@ -473,7 +473,7 @@ export function useChatRuntime({
         } else if (event.type === "delta") {
           if (autoNamingRef.current === threadId) setAutoNaming(null)
         } else if (event.type === "permission-request") {
-          const { id, permission, patterns, command } = event
+          const { id, permission, patterns, command, call_id = null } = event
           setApprovalsByThread((all) => {
             const current = all[threadId] ?? []
             return current.some((waiting) => waiting.id === id)
@@ -482,7 +482,7 @@ export function useChatRuntime({
                   ...all,
                   [threadId]: [
                     ...current,
-                    { id, permission, patterns, command },
+                    { id, permission, patterns, command, call_id },
                   ],
                 }
           })

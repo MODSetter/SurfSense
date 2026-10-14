@@ -1,6 +1,6 @@
 # ADR 0052: The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it
 
-- **Status:** Proposed, with the [plugins proposal](../proposals/plugins/README.md)
+- **Status:** Proposed, with the [plugins proposal](../proposals/plugins/README.md); deferred until plugins reach the chat engine, after agent threads
 - **Date:** 2026-10-08
 - **Source:** maintainer decision, 8 Oct 2026 (no permalink); [agent: which engine a model gets](../proposals/agent/01-which-engine.md)
 

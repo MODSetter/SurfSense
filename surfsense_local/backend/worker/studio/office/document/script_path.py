@@ -8,7 +8,6 @@ from importlib.resources import files
 from modules.artifacts.script_documents.spec import DocumentScript, DocumentSpec
 from modules.llm import prompting
 from modules.llm.resolution import ResolvedGeneration
-from shared import cancellation
 from worker.studio.office.document.figure_list import script_figures
 from worker.studio.office.document.figure_shelf import shelf_of
 from worker.studio.office.document.reply import (
@@ -16,26 +15,16 @@ from worker.studio.office.document.reply import (
     script_reply,
     script_title,
 )
+from worker.studio.office.script_attempts import drafted
+from worker.studio.office.script_failed import (
+    REPAIR_CHARS,
+    StudioScriptFailedError,
+)
 from worker.studio.office.spec import Office
 from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
-from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, SourceImage, fallback_title
 from worker.studio.shared.text import file_stem
-
-# A draft's script that fails is shown its error twice before the job gives up.
-ATTEMPTS = 3
-# What of a failure the model is shown to fix it: the error and the traceback's end.
-REPAIR_CHARS = 2000
-
-
-class StudioScriptFailedError(RuntimeError):
-    """Studio's script failed; Retry asks the model again, so no "Script error:" mark."""
-
-    def __init__(self, error: str, shown: str | None = None) -> None:
-        super().__init__(f"The document script failed: {error}")
-        # The error and the traceback's end, as the model is shown them to fix it.
-        self.shown = shown or error
 
 
 def draft(
@@ -56,24 +45,12 @@ def draft(
         figures=script_figures(figures),
     )
     title = fallback_title(user_prompt, sources, office.label)
-    repair: generate.Repair | None = None
-    for attempt in range(ATTEMPTS):
-        # Outside the try below: a cancel must not be mistaken for a broken script.
-        cancellation.raise_if_cancelled()
-        raw = generate.run_model(model, system, sources, repair=repair)
-        try:
-            return run(office, script_reply(raw), figures, title)
-        except StudioScriptFailedError as error:
-            if attempt == ATTEMPTS - 1:
-                raise
-            repair = generate.Repair(
-                reply=raw,
-                instruction=(
-                    f"That script failed: {error.shown}. Return the whole script "
-                    "corrected, changing only what the error points to."
-                ),
-            )
-    raise AssertionError("unreachable")  # pragma: no cover
+    return drafted(
+        model,
+        system,
+        sources,
+        lambda raw: run(office, script_reply(raw), figures, title),
+    )
 
 
 def run(

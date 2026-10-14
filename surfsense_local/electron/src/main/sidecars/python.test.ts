@@ -75,8 +75,9 @@ function withAgent(): SidecarContext {
   return {
     ...withAudio(),
     opencodePort: 4321,
-    opencodePassword: "launch-password",
+    opencodePassword: "launch-password", // pragma: allowlist secret
     opencodeUrl: "http://127.0.0.1:4321",
+    pluginProxyPort: 5555,
     docxSnapshotKey: "snapshot-key",
   }
 }
@@ -87,6 +88,12 @@ test("the API is told where the agent will be and its password", () => {
 
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_URL, "http://127.0.0.1:4321")
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_PASSWORD, "launch-password")
+})
+
+test("the API is told where to run the proxy opencode reaches plugins through", () => {
+  const api = apiSpec(withAgent()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_PLUGIN_PROXY_PORT, "5555")
 })
 
 test("a worker is never told the agent's password", () => {

@@ -20,6 +20,7 @@ from api.main import create_app
 from modules.agent.agent_threads import live_instances
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
+from modules.agent.plugin_tools import changed_tools
 from modules.agent.tool_endpoint import failed_renders
 from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.model_type import ModelType
@@ -127,6 +128,12 @@ def no_live_instances(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(live_instances, "_turns", Counter())
 
 
+@pytest.fixture(autouse=True)
+def plugins_checked_every_turn(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test's server changes within seconds of connecting, not minutes."""
+    monkeypatch.setattr(changed_tools, "CHECK_SECONDS", 0)
+
+
 # MAX_PATH less its terminator: the most a path may hold where long paths are off.
 MAX_PATH = 259
 
@@ -222,9 +229,18 @@ class AgentAPI:
         return OpencodeClient(self.opencode_url, self.password)
 
 
+@pytest.fixture
+def opencode_env() -> dict[str, str]:
+    """What a test changes in opencode's environment; a test file overrides it."""
+    return {}
+
+
 @pytest_asyncio.fixture(loop_scope="function")
 async def agent_api(
-    base_url: str, scripted_model: ScriptedModel, monkeypatch: pytest.MonkeyPatch
+    base_url: str,
+    scripted_model: ScriptedModel,
+    opencode_env: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[AgentAPI]:
     """Every part of an agent turn but Electron, which a stand-in plays."""
     needs_staged_opencode()
@@ -262,7 +278,7 @@ async def agent_api(
         workspace = await http.post("/workspaces", json={"name": "Research"})
         workspace.raise_for_status()
         with StandInForElectron(
-            get_storage_settings().agent_dir, port, password
+            get_storage_settings().agent_dir, port, password, opencode_env
         ) as electron:
             yield AgentAPI(
                 http,

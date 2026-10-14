@@ -29,11 +29,12 @@ import {
 } from "./ask-egress"
 
 function requestFrom(error: ApiError): Omit<Pending, "resolve"> {
-  const { destination, host } = error.detail
+  const { destination, host, purpose } = error.detail
   const key = typeof destination === "string" ? destination : ""
   return {
     destination: key,
     host: typeof host === "string" ? host : "",
+    purpose: typeof purpose === "string" ? purpose : undefined,
     allow: () => setDestinationEnabled(key, true),
   }
 }
@@ -64,7 +65,7 @@ export function EgressPrompt() {
   }
 
   const copy = question
-    ? describeDestination(question.destination, question.host)
+    ? describeDestination(question.destination, question.host, question.purpose)
     : null
   return (
     <AlertDialog

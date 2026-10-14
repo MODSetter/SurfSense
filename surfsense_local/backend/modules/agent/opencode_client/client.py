@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 from typing import Any, Literal, Self
 
@@ -139,18 +139,17 @@ class OpencodeClient:
         text: str,
         *,
         model: str,
-        note: str | None = None,
+        notes: Sequence[str] = (),
     ) -> None:
         """Start a turn and return at once; what happens next arrives as events.
 
         The model is named on every turn, so a session keeps working after the
-        selected model, and with it opencode's configuration, changes. A `note`
-        goes beside the user's words as a synthetic part: the model reads it,
-        and it is marked as not the user's.
+        selected model, and with it opencode's configuration, changes. Each of
+        `notes` goes beside the user's words as a synthetic part: the model
+        reads it, and it is marked as not the user's.
         """
         parts: list[dict[str, Any]] = [{"type": "text", "text": text}]
-        if note is not None:
-            parts.append({"type": "text", "text": note, "synthetic": True})
+        parts += [{"type": "text", "text": note, "synthetic": True} for note in notes]
         body = {
             "agent": AGENT,
             "model": {"providerID": PROVIDER, "modelID": model},
@@ -210,6 +209,31 @@ class OpencodeClient:
         )
         added.raise_for_status()
         return added.json().get(name, {}).get("status", "unknown")
+
+    async def tool_servers(self, directory: Path) -> dict[str, str]:
+        """Each MCP server the folder's instance holds, by name, with its status."""
+        reply = await self._http.get("/mcp", params=_in(directory))
+        reply.raise_for_status()
+        return {
+            name: held.get("status", "unknown") for name, held in reply.json().items()
+        }
+
+    async def drop_tool_server(self, directory: Path, name: str) -> None:
+        """Close the folder's connection to a server; its tools leave the next call."""
+        reply = await self._http.post(f"/mcp/{name}/disconnect", params=_in(directory))
+        reply.raise_for_status()
+
+    async def set_session_rules(
+        self, directory: Path, session_id: str, rules: list[dict[str, str]]
+    ) -> None:
+        """Replace the session's own permission rules; they apply from its next call.
+
+        A denied tool is also left out of what the model is offered.
+        """
+        reply = await self._http.patch(
+            f"/session/{session_id}", params=_in(directory), json={"permission": rules}
+        )
+        reply.raise_for_status()
 
     def events(self, directory: Path) -> AsyncIterator[Event]:
         """The folder's event stream, until it drops or falls silent."""

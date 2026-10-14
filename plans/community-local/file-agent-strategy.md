@@ -84,10 +84,10 @@ measured on any model yet
   multi-turn 22.1% for Qwen3-4B-Instruct-2507,
   [leaderboard](https://gorilla.cs.berkeley.edu/leaderboard.html)).
 - **Anything about timing against Cowork's change.** It took effect on 6 Oct
-  2026, and SurfSense's agent reaches installers only with the first release
-  built after 7 Oct 2026, when `ENABLED_BY_DEFAULT` turned true in
-  [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs).
-  Until that release is out there is nothing to point a Cowork user to.
+  2026, and SurfSense's agent reached installers with 2.2.0 on 9 Oct 2026,
+  after `ENABLED_BY_DEFAULT` turned true in
+  [`enabled.mjs`](../../surfsense_local/electron/scripts/opencode/enabled.mjs)
+  on 7 Oct.
 
 ## Who buys first, and which job ships first
 
@@ -191,7 +191,7 @@ the app's download, consent and install path, all before the first premium
 plugin ships.
 
 **Gaps in the paid offer today.** No plugin exists, the pricing page still says
-"No plugin ships in version 2.0" while the app is 2.1.0
+"No plugin ships in version 2.0" while the app is 2.2.0
 ([`package.json`](../../surfsense_local/electron/package.json), line 6), and the
 Enterprise card promises a mirror, central policy and an egress audit log that
 are not built (I8 gap 2). Until the scraper plugin ships, priority support is
@@ -323,14 +323,13 @@ Two rules make the wording hold:
 
 | Surface | Today | Change | Gate |
 |---|---|---|---|
-| [README](../../README.md) lead | "The air-gapped, open-source NotebookLM alternative. Turn documents you can't upload into briefings, decks, reports, study guides and podcasts" | Lead with the edit: your folder in, your own file back with tracked changes, on your machine, with the model you choose. Keep NotebookLM in the comparison table, updated for its cloud computer and Office output | the first job passing on one model; until then only the comparison table changes |
-| README comparison table | NotebookLM rows on sources, models, licence | add rows: local folders, edits the user's file with tracked changes, model choice, where the agent runs; concede media breadth | none: these are facts about Gemini Notebook today |
+| [README](../../README.md) lead | since 9 Oct 2026 ([#2212](https://github.com/MODSetter/SurfSense/pull/2212)): "The air-gapped, open-source NotebookLM alternative." over "The AI agent that researches, transforms and edits your documents, on your machine.", a demo video of a contract redlined as tracked changes, and a table of what it reads, creates, edits as a copy and transforms per format; it names no model and no job | Lead with the edit: your folder in, your own file back with tracked changes, on your machine, with the model you choose. Keep NotebookLM in the comparison table, updated for its cloud computer and Office output | the first job passing on one model; the 9 Oct lead names editing, which the revise tool does today, before any job has shipped |
+| README comparison table | five rows against NotebookLM (now Gemini Notebook): offline use, whether documents leave the machine, editing files (added 9 Oct 2026), licence and models; no concession on media | add rows: local folders, edits the user's file with tracked changes, model choice, where the agent runs; concede media breadth | none: these are facts about Gemini Notebook today |
 | [`/private-ai-for-business`](../../surfsense_web/app/\(home\)/private-ai-for-business/page.tsx) | "Point it at a discovery folder…"; "Contract review runs against the executed copy sitting on your disk" | Read the copy against what has shipped. Linked folders are 01 phase 4a (M8) and the redline is 06 J3 (M6); until then the lines should describe uploads and Q&A | ship-dependent |
 | Every surface naming privacy | "Documents never leave your laptop" | add the qualifier: "unless you choose a cloud model" | none |
 | [Privacy page](../../surfsense_web/app/\(home\)/privacy/page.tsx) | its description says "your documents never leave your machine"; section 3.2 lists three kinds of destination: update checks to github.com, model downloads to registry.ollama.ai and huggingface.co, and a model provider the user configures | M0: the qualifier. Then each milestone that adds a destination names it: api.anthropic.com in M4, including `count_tokens` calls, which send the text being counted ([05](../../docs/proposals/file-agent/05-model-ladder-and-evals.md#1-the-native-anthropic-provider-chat-titles-studio)); release-assets.githubusercontent.com for packs in M8 ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md) decisions 9 and 18) | the release that adds the destination |
 | [User docs](../../surfsense_web/content/docs/v2/index.mdx) | one placeholder page: "Its documentation is being written now" | one how-to page per new feature in `content/docs/v2` at each milestone's exit: folders (M2); versions and Refine (M3); the Claude key and spending caps (M4); Answer and Work on files (M5); revised copies and playbooks (M6); the questionnaire (M7); linking a folder and Office support (M8); a troubleshooting page that grows with each | each milestone's release |
 | [Changelog](../../surfsense_web/changelog/content/) and [announcements](../../surfsense_web/lib/announcements/announcements-data.ts) | the newest changelog entry is dated 16 Aug 2026; v2.0.0 was tagged on 18 Sep 2026 | a changelog entry and an announcement for every milestone release, starting with M0's 2.1.x point release | each release |
-| [Downloads](../../surfsense_web/app/\(home\)/downloads/page.tsx) | Windows, macOS and Linux panels, with no macOS status | a macOS status line: notarization blocked since 3 Oct 2026, and, if it still is in M5, the agent ships on Windows and Linux first | now (M0) |
 | [Pricing](../../surfsense_web/components/pricing/pricing-content.ts) | Individual sells scraper plugins; "No plugin ships in version 2.0" | correct the version; mark unbuilt Enterprise items as planned; keep the license to premium plugins, priority support and Enterprise, and price no job or job content | now (M0) |
 | Job pages (new) | none | one page per job, following the vendors that win organically with one page per artifact (08): "Fill a security questionnaire from your own policies", "Redline a contract against your playbook", "Answer an RFP from past proposals"; each names the document languages its job supports | a committed passing row on at least one model; for the redline page and any legal SEO page, also the lawyer's review of the starter playbooks |
 | Model page (new) | none | "Which model can do which job", generated from the matrix | the first committed sweep (05 P3a, M4) |
@@ -369,10 +368,10 @@ says which release carries each.
 
 | # | Phase | Scope | Milestone | Depends on | Size |
 |---|---|---|---|---|---|
-| B0 | Honest copy now | the privacy qualifier on every surface and on the privacy page; landing lines matched to what has shipped; pricing version fix; Enterprise items marked planned; the macOS status on /downloads; a changelog entry and announcement for the 2.1.x point release | M0 | nothing | S |
+| B0 | Honest copy now | the privacy qualifier on every surface and on the privacy page; landing lines matched to what has shipped; pricing version fix; Enterprise items marked planned; a changelog entry and announcement for the 2.1.x point release | M0 | nothing | S |
 | B1 | Clean engines | the clean-room fix and no-regression gate (02 phase 0), with the provenance legal review (0L) in parallel; the baseline re-run at n=3 on Haiku 4.5 and on Sonnet 5.5 at low effort before 15 Oct 2026, the earliest date Haiku 4.5 may retire | M1 | a spec author and a separate implementer | L |
 | B2 | Frontier evidence | native Anthropic provider, spend ledger and caps, first paid sweep (05 P1, P2, P3a); the privacy page names api.anthropic.com; how-to pages for the Claude key and spending caps | M4 | B1 | M, about $150 |
-| B3 | Redline in the app | 02 phases 1, 1b, 3, 4 and 6; 03 phase 4; 06 J3; revised copies download without internal comments by default; the user's own playbook and "Make a playbook from this document"; workspace and playbook export; free, with the starter playbook labelled | M6, after the agent is on in installers (M5) | B1, B2; versions (M3); per-thread folders and `copy_original` (M5) | L |
+| B3 | Redline in the app | 02 phases 1, 1b, 3, 4 and 6; 03 phase 4; 06 J3; revised copies download without internal comments by default; the user's own playbook and "Make a playbook from this document"; workspace and playbook export; free, with the starter playbook labelled | M6, after M5; the agent is in installers since 2.2.0 | B1, B2; versions (M3); per-thread folders and `copy_original` (M5) | L |
 | B4 | Questionnaire | the xlsx engine (02 phase 5a), started right after M1; 06 J4, free, with its mappings and eval cases Apache-2.0 in the app. Open-source job packs through the plugin installer (02 phase 8, 06 P1) follow in M10, never paywalled | M7 | B1; 02 phase 1 and 03 phase 4 from M6; not the redline workflow | XL |
 | B5 | Pages | model page; questionnaire job page; redline page and legal SEO pages after the provenance legal review (02 phase 0L) and the lawyer's review of the starter playbooks | from M4 (model page) and M7 (questionnaire page) | committed rows from B2–B4 | M |
 | B6 | Enterprise | organization policy (06 E1); audit log and mirror when a customer's deployment needs them | M10 | an Enterprise conversation | M |
@@ -391,7 +390,7 @@ says which release carries each.
 | A competitor copies the open job content | SurfSense's playbooks, mappings or templates ship in another product | Apache-2.0 allows it; the lead rests on the app, the engines and the published eval rows; premium plugins stay under the Business Source License |
 | Frontier cost deters users | measured token medians well above these estimates | default to the workflow level where it passes; cheaper columns earn rows |
 | The 4B tier fails its own floors | 4B rows below 05 section 7 targets | the free promise narrows to Q&A and the formats that pass; the wording above already allows it |
-| macOS cannot ship | notarization failed on 3 Oct 2026 (Apple agreement expired; [04](../../docs/proposals/file-agent/04-runtime-and-packs.md#open-questions)) | Windows and Linux first, the agent included from M5; a notarized macOS build that carries opencode is a macOS release gate; the downloads page says so |
+| macOS cannot ship | notarization stops when Apple's developer agreement lapses, as on 3 Oct 2026 until the account holder accepted it; the v2.1.0 and v2.2.0 builds were notarized, 2.2.0's carrying opencode ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md#signing-and-notarization)) | the account holder accepts it, which needs no code; Windows and Linux ship meanwhile |
 | License holders get nothing | scraper license mode not live when hosted tokens are purged on 18 Oct 2026 (I8 gap 1) | priority support is the license's deliverable until the scraper plugin ships through the license server, so consider extending affected licenses; what else a license includes is revisited after the video and real user feedback (What stays free and what is sold) |
 
 **What would change the order of jobs:** a measured questionnaire engine in
@@ -403,8 +402,8 @@ be had soon. Either moves the questionnaire to ship first.
 Each with a recommended answer.
 
 1. **Does the free promise cover the agent?** Yes. Decide it in the open now,
-   because the FAQ is live, 06 already assumes it, and the agent is on in
-   installers from M5.
+   because the FAQ is live, 06 already assumes it, and the agent has been in
+   installers since 2.2.0 (9 Oct 2026).
 2. **Where do premium plugins live?** Decided: under the Business Source
    License in `surfsense_backend/app/proprietary/`, served by the license
    server to a valid license, with `surfsense_backend` otherwise reduced to the
@@ -435,16 +434,18 @@ Each with a recommended answer.
    The README, 02 and 06 state the same rule.
 7. **Must a sandbox exist before selling to security buyers?** No, but two
    things must: job threads with bash denied, and Studio's `exec()` of
-   model-written code inside the worker replaced. After the create-and-edit
+   model-written code inside the worker replaced, which
+   [#2184](https://github.com/MODSetter/SurfSense/pull/2184) did on 11 Oct
+   2026. After the create-and-edit
    slice, Studio's Word and PDF take two paths
    ([07](../../docs/proposals/file-agent/07-create-and-edit-mvp.md#after-the-slice)):
    small models write Markdown that committed builders render, and strong
    models keep writing a script, which runs in SurfSense's script runner, a
    separate process killed at its time limit
    ([ADR 0039](../../docs/adr/0039-document-scripts-run-without-approval.md)).
-   PowerPoint and Excel take the same two paths: a script on the runner for
-   strong models, and for small models a builder from a flat spec once it
-   scores at least the script path's baseline (02 phase B); until then a
+   PowerPoint and Excel run their scripts on the runner for every model
+   since #2184, and move to a builder from a flat spec for small models once
+   it scores at least the script path's baseline (02 phase B); until then a
    format keeps its script, so free users lose nothing. No
    model-written code runs in a job on any model. The runner is not a sandbox:
    a script runs with the user's privileges, and ADR 0039 has this answer
@@ -466,6 +467,6 @@ Each with a recommended answer.
 11. **Should job pages deep-link into the app?** Not in v1: link to downloads
     and the job's setup instructions. A `surfsense://` handler is new attack
     surface ([06, open questions](../../docs/proposals/file-agent/06-product-shape.md#open-questions)).
-12. **Should SurfSense speak to Cowork's change on 6 Oct?** Not until the agent
-    ships in installers (M5). Pull the keyword data, and write one factual
-    comparison page only if demand exists.
+12. **Should SurfSense speak to Cowork's change on 6 Oct?** Only once the agent
+    ships in installers, which 2.2.0 did on 9 Oct 2026. Pull the keyword data,
+    and write one factual comparison page only if demand exists.

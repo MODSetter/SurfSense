@@ -1,6 +1,6 @@
 # App — API
 
-> Owns: `surfsense_local/backend/modules/plugins/router.py`, `schemas.py`, the `plugin_secrets` table, and two changes outside the module: `document_metadata` on `NoteCreate`, and a list of hosts on the egress refusal.
+> Owns: `surfsense_local/backend/modules/plugins/bundles/router.py`, `schemas.py`, the `plugin_secrets` table, and two changes outside the module: `document_metadata` on `NoteCreate`, and a list of hosts on the egress refusal.
 > Routes the screen in [`02-screen.md`](02-screen.md) calls. Runtime: [`../runtime/01-process.md`](../runtime/01-process.md). Install: [`../install/01-install-update-uninstall.md`](../install/01-install-update-uninstall.md).
 
 ## Goal
@@ -44,7 +44,7 @@ Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.s
 - Run of a `paid` plugin with no license returns 402. With a trial license, it runs.
 - Run of a plugin with two declared hosts, neither allowed, returns 403 naming both, and does not insert a run.
 - Run of an installed version blocked for this app returns 409 `cannot_run` with the reason and an offer, and list shows the same.
-- A successful run of `plugins/example` returns a run id; polling the run reaches `succeeded`; a note exists in the workspace, and its `document_metadata` names the plugin, its version and the run.
+- A successful run of `plugins/bundles/example` returns a run id; polling the run reaches `succeeded`; a note exists in the workspace, and its `document_metadata` names the plugin, its version and the run.
 - An egress refusal for one host still carries `destination` and `host` as before, plus `hosts` with that one host.
 - `GET` of secrets returns `set: true` after `PUT` and does not contain the value.
 - A run started in one workspace is listed by that workspace's `GET /workspaces/{id}/plugin-runs` and not by another's.

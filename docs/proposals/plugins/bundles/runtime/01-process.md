@@ -1,6 +1,6 @@
 # Runtime — process
 
-> Owns: `surfsense_local/backend/modules/plugins/runner/`, `modules/plugins/tasks.py`, the `plugin_runs` table, the `plugins` queue and its worker, and one change outside the module: deleting a workspace stops its runs first.
+> Owns: `surfsense_local/backend/modules/plugins/bundles/runner/`, `modules/plugins/bundles/tasks.py`, the `plugin_runs` table, the `plugins` queue and its worker, and one change outside the module: deleting a workspace stops its runs first.
 > Contract: [`../01-protocol.md`](../01-protocol.md).
 
 ## Goal
@@ -27,7 +27,7 @@ The worker starts a plugin process for one run, hands it its context, and record
 
 ## Acceptance
 
-- A run of `plugins/example` with input `hi` exits 0, and a note with that content exists in the run's workspace. The run status is `succeeded`.
+- A run of `plugins/bundles/example` with input `hi` exits 0, and a note with that content exists in the run's workspace. The run status is `succeeded`.
 - A plugin that exits 1: status `failed`, worker process still alive.
 - A plugin that adds two documents and then raises: status `failed`, and both documents are there.
 - Cancel mid-run: status `cancelled` within ten seconds, and neither the plugin's pid nor a child it spawned is still alive.
@@ -42,4 +42,4 @@ The worker starts a plugin process for one run, hands it its context, and record
 
 ## Needs from
 
-The protocol. `plugins/example` from the SDK stream for the success test, and a running API for any test that exercises a verb. A one-file fake plugin in this stream's tests is enough for spawn, cancel, timeout and crash, so this stream does not wait on the SDK.
+The protocol. `plugins/bundles/example` from the SDK stream for the success test, and a running API for any test that exercises a verb. A one-file fake plugin in this stream's tests is enough for spawn, cancel, timeout and crash, so this stream does not wait on the SDK.

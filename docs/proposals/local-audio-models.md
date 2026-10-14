@@ -28,7 +28,7 @@ This extends the local catalog ([`catalog.md`](../architecture/local-models/cata
 | Podcast gate | `requires_voice`, "Needs a voice model" | `audio_gen` among the format's required model types, "Needs an audio model" |
 | Voices | a list hard-coded in `providers/kokoro/provider.py` | each model's roster, committed in the manifest |
 
-The installer loses the 340 MB of Kokoro weights and three Python packages, and gains the sidecar. A podcast needs one download first, so the root README's two lines that say the podcast voice ships inside the installer change with the step that removes it.
+The installer loses the 340 MB of Kokoro weights and three Python packages, and gains the sidecar. A podcast needs one download first, so the root README's Podcast row, "voiced on your machine by default", and its translations are re-checked with the step that removes it; the lines that said the voice ships inside the installer went in the 9 Oct 2026 rewrite (#2212).
 
 ## Why audio.cpp
 

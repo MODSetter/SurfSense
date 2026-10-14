@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/alembic/versions/
   - surfsense_local/backend/modules/artifacts/
@@ -29,7 +29,7 @@ code:
 
 > An artifact becomes a list of versions that only grows. A regenerate, a refine prompt, an edit to a selected passage, an accepted tracked change, a restore, a workflow run and a file the agent wrote each make a new version, and every version is created by one function and run by a named job on the Studio or the engines queue. The version shown and indexed, the head, moves only when a run succeeds, so a failed or cancelled run never hides the last good output. Every edit names the version it was made against and is refused when the head has moved. A filled questionnaire or a redlined contract is an artifact derived from the user's file: its first version is that file with the edits applied as tracked changes, the user's file is never written, and the copy downloads without internal comments unless the user asks for them. Every edit returns a per-operation report built by the engine that applied it, not by the model, and an edit the user did not ask to be partial either applies whole or saves nothing.
 
-**Status, 6 Oct 2026:** on `slice/revise`, a cut of the revised copies is built: `surfsense_revise_document` makes v1 of a revised copy from a ticked `.docx`, `.xlsx`, `.xlsm` or `.pptx` source and its next versions, with all-or-nothing reports, Word edits always tracked, internal comments, Accept all and Reject all as versions, and the "With changes" and "Clean" downloads under localized names. Versions stay artifacts with `version` in metadata, not `artifact_versions` rows; the engines run in the Studio worker, not an engines queue; quotes replace `inspect_document` ids. What is true now, and what was cut, is in [studio](../../architecture/studio.md#revised-copies) and its Known gaps.
+**Status, 11 Oct 2026:** a cut of the revised copies is built, merged into `dev` with [#2194](https://github.com/MODSetter/SurfSense/pull/2194) and shipped in 2.2.0: `surfsense_revise_document` makes v1 of a revised copy from a ticked `.docx`, `.xlsx`, `.xlsm` or `.pptx` source and its next versions, with all-or-nothing reports, Word edits always tracked, internal comments, Accept all and Reject all as versions, and the "With changes" and "Clean" downloads under localized names. Versions stay artifacts with `version` in metadata, not `artifact_versions` rows; the engines run in the Studio worker, not an engines queue; quotes replace `inspect_document` ids. What is true now, and what was cut, is in [studio](../../architecture/studio.md#revised-copies) and its Known gaps.
 
 Stream 03 of the file-agent proposal. Facts were checked against `dev_mod` at `0847e12f7` on 2026-10-03; "verified" means read in the linked file, "estimate" means not measured. Milestones (M0 to M10) are the [README](README.md)'s.
 
@@ -461,7 +461,7 @@ They live in `modules/artifacts/version_router.py`. Quiz and flashcard routes pa
 | **6. Artifacts as sources** | M3 | Self-exclusion through 01's resolver; `inputs.sources[].version`; the newer-source hint. | 1; 01's scope resolver and filing (its phases 0 and 5) | S. |
 | **7. Keeping and forking** | M10 | Pin and configurable retention; Save as copy (`artifacts.derived_from_version`, kind `copy`); `markdown` and `csv` viewers with `allowedImagePrefixes: []`; PDF export through `export_job` with Office support; a filter on head title and body in Studio's list; cross-artifact dedup if measured disk use asks for it. | 1; 04's RT3b for PDF | M. |
 
-Phases 2, 3 and 6 can run in parallel after 1. Phase 3 ships in M5 with 06's Answer / Work on files switch, and M5 turns the agent on in installers only once it has shipped, so files the agent writes are never invisible to the user. Phase 4 carries the B2B value; it waits on 02's clean-room engine work in M1 and ships with `docx.external` in M6.
+Phases 2, 3 and 6 can run in parallel after 1. Phase 3 ships in M5 with 06's Answer / Work on files switch, and M5 turns the agent on in installers only once it has shipped, so files the agent writes are never invisible to the user. The agent reached installers in 2.2.0 (9 Oct 2026) without phase 3, so a file it writes with its own tools stays in `outputs/`, outside Studio ([agent](../../architecture/agent.md#known-gaps)). Phase 4 carries the B2B value; it waits on 02's clean-room engine work in M1 and ships with `docx.external` in M6.
 
 ## Tests
 

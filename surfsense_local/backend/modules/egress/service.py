@@ -14,15 +14,28 @@ HOST_PREFIX = "host:"
 # downloading an image model all reach this one, and the panel asks about the
 # host rather than about each errand sent to it.
 HUGGINGFACE = f"{HOST_PREFIX}huggingface.co"
+# SurfSense's plugin host (`modules/plugins/lists/plugin_host.py`): the
+# third-party registry and SurfSense's own plugins, under one consent.
+PLUGIN_HOST = f"{HOST_PREFIX}plugins.surfsense.com"
 # Contacted whether or not a connection points at them, so they are listed with
 # no connection to discover them from.
-BUILT_IN = (HUGGINGFACE,)
+BUILT_IN = (HUGGINGFACE, PLUGIN_HOST)
 
 
 class EgressDeniedError(Exception):
-    def __init__(self, destination: str, host: str | None = None) -> None:
+    def __init__(
+        self,
+        destination: str,
+        host: str | None = None,
+        hosts: list[str] | None = None,
+        purpose: str | None = None,
+    ) -> None:
         self.destination = destination
+        # What the call is for, when the host alone does not say: the prompt words its question by it.
+        self.purpose = purpose
         self.host = host or host_of(destination)
+        # Every host still to allow, so one prompt asks for them together; the first is `host`.
+        self.hosts = hosts or [self.host]
         super().__init__(f"sending data to {self.host} is off in Settings > Network")
 
 
@@ -49,9 +62,7 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
-def require(
-    session: Session, destination: str | None, host: str | None = None
-) -> None:
+def require(session: Session, destination: str | None, host: str | None = None) -> None:
     if destination is None:
         return
     row = session.get(EgressDestination, destination)

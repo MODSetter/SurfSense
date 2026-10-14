@@ -127,7 +127,7 @@ class LocalRow:
         return self.classification.reason or UNSUPPORTED_REASON
 
     @property
-    def not_runnable_code(self) -> NotRunnableCode | None:
+    def not_runnable_code(self) -> StrEnum | None:
         """The reason as a code. None for a reason that has none, which the
         interface shows as it came."""
         if self.runnable:

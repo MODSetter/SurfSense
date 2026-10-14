@@ -159,6 +159,8 @@ class TurnFrames:
                 "permission": properties["permission"],
                 "patterns": properties.get("patterns") or [],
                 "command": (properties.get("metadata") or {}).get("command"),
+                # The tool call it holds back, so the thread asks on that step.
+                "call_id": (properties.get("tool") or {}).get("callID"),
             }
         ]
 

@@ -8,7 +8,7 @@ import type { Writable } from "node:stream"
 
 import { sessionLog } from "../session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
-import type { CrashHandler, SidecarSpec } from "./types.ts"
+import type { CrashHandler, SidecarContext, SidecarSpec } from "./types.ts"
 
 /** The running children, keyed by spec name so index.ts can wait on one. */
 export type Sidecars = Map<string, ChildProcess>
@@ -54,6 +54,7 @@ const mirror = createEcho()
 // children we asked to stop; their `exit` is a stop, not a crash
 const stopping = new WeakSet<ChildProcess>()
 
+/** Spawn one spec, mirror its output to the terminal and the session log, and tell a crash apart from an asked-for stop. */
 function spawnOne(
   spec: SidecarSpec,
   onCrash?: CrashHandler,
@@ -91,6 +92,7 @@ function spawnOne(
   return child
 }
 
+/** Spawn every spec up front, keyed by name. */
 export function startAll(
   specs: SidecarSpec[],
   onCrash?: CrashHandler,
@@ -123,6 +125,41 @@ export async function stopNamed(
   await stopOne(child, timeoutMs)
 }
 
+/**
+ * The running children and the two changes a watcher makes to them. A watcher
+ * takes one so a test can hand it fakes and spawn nothing.
+ */
+export interface SidecarControl {
+  readonly running: Sidecars
+  /** Start `spec`, replacing any child under its name. */
+  start(spec: SidecarSpec): void
+  /** Stop the child under `name`, leaving the rest running. */
+  stop(name: string): Promise<void>
+}
+
+/** A control over `children`, giving every child it starts the same crash handler. */
+export function sidecarControl(
+  children: Sidecars,
+  onCrash?: CrashHandler,
+): SidecarControl {
+  return {
+    running: children,
+    start: (spec) => startOne(children, spec, onCrash),
+    stop: (name) => stopNamed(children, name),
+  }
+}
+
+/** What a watcher reads: the context, the children, and whether to stop. */
+export interface WatcherOptions {
+  ctx: SidecarContext
+  control: SidecarControl
+  /** True once the app is shutting down; a restart then would fight it. */
+  stopping: () => boolean
+  /** How often to look at the file or the API; a test lowers it. */
+  pollMs?: number
+}
+
+/** Ask one child to stop, kill its group if it ignores SIGTERM, and resolve once it exits. */
 function stopOne(child: ChildProcess, timeoutMs: number): Promise<void> {
   return new Promise((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null || child.pid == null) {
@@ -163,6 +200,7 @@ function killGroup(pid: number): void {
   }
 }
 
+/** Stop every sidecar in parallel, each waiting out its own timeout. */
 export async function stopAll(children: Sidecars, timeoutMs = 5000): Promise<void> {
   await Promise.all([...children.values()].map((c) => stopOne(c, timeoutMs)))
 }

@@ -27,6 +27,7 @@ import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
@@ -164,6 +165,7 @@ export function ThreadPanel({
   onDelete,
   onUploadSources,
   isUploadingSources,
+  onOpenPlugins,
 }: {
   live: LiveThreadSource
   thread: ChatThread | null
@@ -187,6 +189,8 @@ export function ThreadPanel({
   onDelete: (id: number) => Promise<void>
   onUploadSources?: (files: File[]) => void
   isUploadingSources?: boolean
+  // Opens Settings › Plugins, from the composer's add menu.
+  onOpenPlugins?: (start?: PluginsStart) => void
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const headingId = useId()
@@ -224,6 +228,7 @@ export function ThreadPanel({
         thread == null ? null : thread.uses_agent ? "agentic" : "basic"
       }
       onNewChat={onNewChat}
+      onOpenPlugins={onOpenPlugins}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined
