@@ -148,6 +148,34 @@ describe("chat model settings", () => {
     ).toBeTruthy()
   })
 
+  it("offers a ChatGPT plan below Use a server, where one can serve chat", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [row()],
+        extra: (path) =>
+          path === "/llm/connections/chatgpt"
+            ? Response.json({ serves: ["text_gen"], hosts: [] })
+            : null,
+      })
+    )
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+
+    const plan = await screen.findByRole("region", {
+      name: "Use your ChatGPT plan",
+    })
+    const server = screen.getByRole("region", { name: "Use a server" })
+    expect(
+      within(plan).getByRole("button", { name: "Sign in with ChatGPT" })
+    ).toBeTruthy()
+    expect(
+      server.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
   it("opens a new server's models once it is saved", async () => {
     let saved = false
     const server = {

@@ -1,4 +1,4 @@
-"""The plugin host: `/health`, `/cancel`, and each plugin's MCP server at `/<id>/mcp`."""
+"""The plugin host: `/health`, `/cancel`, `/license`, and each plugin's MCP server at `/<id>/mcp`."""
 
 import logging
 from collections.abc import AsyncIterator, Collection
@@ -16,6 +16,7 @@ from host.calls_in_flight import CallsInFlight
 from host.cancel_broadcast import CancelBroadcast, LocalBroadcast
 from host.cancel_route import cancel_route
 from host.cancellable_calls import CancellableCalls
+from host.license_route import license_route
 from host.mounted_plugins import MountedPlugin, mounted_plugins
 from host.post_only import PostOnly
 from host.refused_unless_allowed import RefusedUnlessAllowed
@@ -62,6 +63,10 @@ def host_app(
             listening.cancel_scope.cancel()
 
     routes: list[Route | Mount] = [Route("/health", _health), cancel_route(stops)]
+    # One license unlocks every paid plugin, so any one's check answers for all.
+    paid = next((plugin.access for plugin in mounted if plugin.access), None)
+    if paid is not None:
+        routes.append(license_route(paid))
     routes += [Mount(f"/{plugin.id}", app=_served(plugin, calls)) for plugin in mounted]
     return Starlette(routes=routes, lifespan=lifespan)
 
@@ -74,7 +79,7 @@ def _served(plugin: MountedPlugin, calls: CallsInFlight) -> ASGIApp:
         plugin.server.streamable_http_app(host="0.0.0.0", stateless_http=True), calls
     )
     # A plugin without `access` is open to anyone. SurfSense offers no free plugin
-    # yet; one will be limited per IP address here, as 02-surfsense-servers.md says.
+    # yet; one will be limited per IP address here, as the plugins proposal says.
     if plugin.access is not None:
         app = RefusedUnlessAllowed(app, plugin.access)
     # Outermost, so a refused GET costs no license check.

@@ -179,34 +179,14 @@ describe("connection form", () => {
     )
   })
 
-  it("offers a ChatGPT sign-in only where the backend says it can serve", async () => {
+  it("leaves a new ChatGPT sign-in to its own option beside Use a server", async () => {
     serve()
     const user = userEvent.setup()
-    const video = render(
-      <ConnectionForm
-        modelType="video_gen"
-        onCancel={vi.fn()}
-        onSaved={vi.fn()}
-      />
-    )
+    render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
     await user.click(screen.getByLabelText("Provider"))
     await screen.findByRole("option", { name: /^Local or custom server/ })
     expect(
       screen.queryByRole("option", { name: /^ChatGPT subscription/ })
     ).toBeNull()
-    video.unmount()
-
-    render(
-      <ConnectionForm
-        modelType="text_gen"
-        onCancel={vi.fn()}
-        onSaved={vi.fn()}
-      />
-    )
-    await user.click(screen.getByLabelText("Provider"))
-    const option = await screen.findByRole("option", {
-      name: /^ChatGPT subscription/,
-    })
-    expect(option.textContent).toContain("Chat only")
   })
 })

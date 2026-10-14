@@ -361,3 +361,28 @@ async def test_paid_plugins_on_one_host_ask_keygen_once_for_a_key(
             assert await tool_names(f"{base}/paid-too/mcp", licensed) == ["scrape"]
 
     assert keygen.validated == ["k-1"]
+
+
+async def test_the_host_answers_the_license_once_for_every_paid_plugin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The app asks once, not by listing each paid plugin; the answers are contract 2's."""
+    keygen = StandInKeygen({"k-1": "VALID", "k-2": "EXPIRED"})
+    with serving(keygen.app) as keygen_url:
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+        with serving(host_app(SAMPLES)) as base:
+            missing = httpx2.get(f"{base}/license")
+            expired = httpx2.get(
+                f"{base}/license", headers={"Authorization": "License k-2"}
+            )
+            valid = httpx2.get(
+                f"{base}/license", headers={"Authorization": "License k-1"}
+            )
+
+    assert (missing.status_code, missing.json()) == (
+        401,
+        {"reason": "missing_license"},
+    )
+    assert (expired.status_code, expired.json()) == (403, {"reason": "expired"})
+    assert (valid.status_code, valid.json()) == (200, {"status": "valid"})
