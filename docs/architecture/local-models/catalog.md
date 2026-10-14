@@ -637,7 +637,8 @@ Each names the model in use at the top, then groups the slot's models by source:
 can fill the slot) or In use and Delete after confirmation; then one group per
 connected server ([`../connections.md`](../connections.md)). **Add model** opens
 one page with both ways in, laid out alike, no card or border around either:
-**Use a server**, collapsed to a Connect button until opened, because it is
+**Use your ChatGPT plan** where a plan fills the slot ([ChatGPT subscription](../chatgpt-subscription.md#frontend)),
+then **Use a server**, collapsed to a Connect button until opened, both
 short, then **On this computer**, the catalog below. Both sections read the
 one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image and image
 editing and video take sd.cpp's that can fill their slot (`selectable_for`), and audio

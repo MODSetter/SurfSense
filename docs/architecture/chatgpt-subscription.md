@@ -83,6 +83,8 @@ The OpenAI catalog records the plan's models as calling tools, so Agentic mode i
 
 Every model list reads `serves` rather than deciding: the Settings sections, their empty states and onboarding's server steps leave a ChatGPT connection out of every section but chat. The connection form lists **ChatGPT subscription** beside **Local or custom server**, only when the dialog was opened for a slot the sign-in's `serves` includes, with a hint built from that list ("Chat only"). Choosing it hides the URL and key fields and shows **Sign in with ChatGPT**, which asks about the hosts, opens the browser and waits, with **Open the sign-in page again** and Cancel. Editing a ChatGPT connection shows the account, and offers **Sign in again**, **Sign out**, and **Save changes** for a new name. Its provider cannot be changed, and an API-key connection cannot become one. The model groups show the account's email in place of the URL.
 
+**Use your ChatGPT plan** also sits above **Use a server** on Settings' **Add model** page and on onboarding's text step, wherever the sign-in's `serves` includes the slot ([`chatgpt-option.tsx`](../../surfsense_local/frontend/src/features/models/remote/connections/chatgpt/chatgpt-option.tsx)). One click signs in as **ChatGPT subscription**, with the dialog's progress in the row and Cancel in place of the button, then opens the new connection's models as connecting a server does. A plan already connected reads "Connected as" its email and offers **Show models** instead.
+
 ## Known gaps
 
 - Signing in again as the same client leaves the replaced refresh token to expire on its own: whether revoking it would end OpenAI's whole grant is unknown.
