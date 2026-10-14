@@ -45,6 +45,13 @@ for (const platform of ["linux", "win32"]) {
     assert.equal(defs.get("AUDIOCPP_MODEL_SET"), "custom")
     assert.equal(defs.get("AUDIOCPP_MODELS"), FAMILIES.join(","))
   })
+
+  test(`${platform}: builds Nemotron's family beside the voices, for speech recognition`, () => {
+    const families = definitions(configureArgs(platform)).get("AUDIOCPP_MODELS").split(",")
+    for (const family of ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr"]) {
+      assert.ok(families.includes(family), family)
+    }
+  })
 }
 
 test("linux: links libstdc++ into every file, ggml's backend modules included", () => {

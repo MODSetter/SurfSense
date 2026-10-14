@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/
   - surfsense_local/backend/modules/documents/

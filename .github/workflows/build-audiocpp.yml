@@ -1,8 +1,9 @@
 # Compile audio.cpp's server for Windows and Linux with the recipe in
 # surfsense_local/electron/scripts/audiocpp/, check it against the app's
 # floors, and hand the staged folder to the desktop release as an artifact.
-# A pull request that changes the recipe, or the app code that drives the
-# server, runs it too.
+# Check that upstream's macOS archive, which the release ships as it is, has
+# every curated family too. A pull request that changes the recipe, or the
+# app code that drives the server, runs it too.
 #
 # TODO: ask upstream (0xShug0/audio.cpp) to publish Linux archives built on
 # Ubuntu 22.04 and Windows ones with per-CPU ggml libraries, as llama.cpp does.
@@ -71,6 +72,8 @@ jobs:
           echo "CC=gcc-13" >> "$GITHUB_ENV"
           echo "CXX=g++-13" >> "$GITHUB_ENV"
 
+      # Staging starts the server once per curated family and fails unless
+      # that family's loader runs, so a family the recipe drops never ships.
       - name: Compile and stage
         if: steps.cache.outputs.cache-hit != 'true'
         run: node scripts/audiocpp/stage.mjs --strict
@@ -148,3 +151,25 @@ jobs:
           name: audiocpp-${{ runner.os }}
           path: surfsense_local/electron/audiocpp.tar
           retention-days: 7
+
+  # macOS ships upstream's archive, which the recipe does not build, so a
+  # family added to the pin is checked against the archive itself. The release
+  # job stages it again; this only fails earlier, on the pull request.
+  macos-archive:
+    name: macOS arm64, upstream's archive
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: surfsense_local/electron
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      # Downloads the pinned archive, copies each curated family's spec, which
+      # fails on one it lacks, and starts the server once per family.
+      - name: Stage and check every curated family
+        run: node scripts/audiocpp/stage.mjs --strict
