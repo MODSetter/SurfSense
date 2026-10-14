@@ -163,6 +163,7 @@ The maintainer then sets `verification` to `verified` and adds `"domain": "<doma
 - **Updating your server needs no pull request.** Deploy whenever you like. A tool you add, or one whose description changes or whose annotations become less safe, is switched off in every app until the user turns it on, so tell your users when you add or reword something.
 - **Changing your entry** (name, URL, hosts, sign-in) is another pull request and another review.
 - **Removing your plugin** moves its entry to `removed`, as `{"id": "acme-docs", "reason": "..."}`. Apps stop offering its tools and show the reason; users keep their connection in case it returns. An id is never reused.
+- **Reports.** Anyone can report a listed plugin that is broken, misleading or unsafe with the [Report a plugin](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-report.yml) form. A maintainer may then remove it, with the reason users see.
 
 ## Questions
 
