@@ -18,9 +18,12 @@ import argparse
 from datetime import date
 from pathlib import Path
 
+from capability_list.merge import same_model
 from capability_list.shipped import read_shipped, write_shipped
 from capability_list.sweep_input import SweepResults
 from capability_list.sweep_rows import sweep_rows, with_screen_rows
+
+from modules.llm.capability.measured.schema import ASSUMED_SUITE, SCREEN_SUITE
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -35,7 +38,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     sweep = SweepResults.model_validate_json(args.results.read_text("utf-8"))
     rows = sweep_rows(sweep, args.date)
-    written, left_out = with_screen_rows(read_shipped(), rows)
+    shipped = read_shipped()
+    written, left_out = with_screen_rows(shipped, rows)
     write_shipped(written)
     for row in rows:
         if all(row is not out.row for out in left_out):
@@ -52,6 +56,15 @@ def main(argv: list[str] | None = None) -> None:
             f"{out.row.key} ({out.row.suite}): left out, {whose} "
             f"{out.kept.key} ({out.kept.suite}) names the same model"
         )
+    # A partial screen — a re-run fed without its base — drops the rows it
+    # does not cover; the maintainer reads the drops, not just the diff.
+    for old in (
+        row
+        for row in shipped.models
+        if row.suite in {SCREEN_SUITE, ASSUMED_SUITE}
+    ):
+        if not any(same_model(old, new) for new in written.models):
+            print(f"{old.key} ({old.suite}): dropped, the screen has no row for it")
     for model in sweep.models:
         if model.finished and (base := sweep.waiting_for(model)) is not None:
             print(f"{model.key}: left out, waiting for {base.key}")

@@ -131,6 +131,39 @@ def test_the_folded_screen_is_dated_by_the_rerun() -> None:
     assert folded(base, SweepResults()).measured_on == date(2026, 10, 7)
 
 
+def test_a_model_the_rerun_left_unfinished_drops_its_assumption() -> None:
+    """A re-run that never measured an assumed model leaves no stale row.
+
+    The base assumed it; the re-run left it unfinished, so the folded
+    screen holds neither the assumption nor a measurement.
+    """
+    from capability_list.sweep_input import AssumedModel
+
+    base = SweepResults(
+        assumed=[
+            AssumedModel(id="openai/gpt-6-luna", key="gpt-6-luna", reads_images=False)
+        ]
+    )
+    rerun = SweepResults(
+        unfinished=[
+            _swept(
+                "gpt-6-luna",
+                status="running",
+                level=None,
+                passed=None,
+                counted=None,
+                run=None,
+            )
+        ]
+    )
+
+    result = folded(base, rerun)
+
+    assert [model.key for model in result.models] == []
+    assert [model.key for model in result.assumed] == []
+    assert [model.key for model in result.unfinished] == ["gpt-6-luna"]
+
+
 def test_a_model_unfinished_in_the_rerun_list_drops_out() -> None:
     """Unfinished entries name models too, and the same invalidation applies."""
     base = _screen(_swept("mimo-v2-6-pro-ultraspeed"))

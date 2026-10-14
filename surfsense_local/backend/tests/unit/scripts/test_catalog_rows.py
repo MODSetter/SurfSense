@@ -336,6 +336,34 @@ def test_the_script_says_which_variant_waits_and_which_row_it_replaced(
     assert "gpt-5-5: agent (2/2)" in said
 
 
+def test_the_script_says_which_rows_the_screen_drops(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A screen that says nothing about a listed model drops its row, and says so.
+
+    A partial screen — a re-run fed without its base — must not silently
+    wipe the rows it does not cover; the maintainer reads the drops.
+    """
+    copy = tmp_path / "capabilities.json"
+    monkeypatch.setattr(shipped_list, "SHIPPED", copy)
+    shipped_list.write_shipped(_listed_with_gpt_5_5_assumed())
+    results = tmp_path / "sweep-results.json"
+    results.write_text(
+        _run_sweep([_done("openai/gpt-5.2", "gpt-5-2", 2)]).model_dump_json(
+            by_alias=True
+        ),
+        encoding="utf-8",
+    )
+
+    catalog_rows.main([str(results)])
+
+    said = capsys.readouterr().out.splitlines()
+    assert "gpt-5-2: agent (2/2)" in said
+    assert "gpt-5-5 (assumed): dropped, the screen has no row for it" in said
+    written = CapabilityList.model_validate_json(copy.read_text(encoding="utf-8"))
+    assert "gpt-5-5" not in {row.key for row in written.models}
+
+
 def test_the_shipped_sweep_rows_are_what_the_generator_writes_from_the_committed_screen() -> (
     None
 ):

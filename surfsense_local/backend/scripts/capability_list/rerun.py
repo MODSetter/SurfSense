@@ -28,7 +28,10 @@ def folded(base: SweepResults, rerun: SweepResults) -> SweepResults:
             # beside the measured result.
             assumed.pop(model.key, None)
         else:
+            # No verdict: the model drops out, and a stale assumption
+            # goes with it, as a measured verdict clears one.
             models.pop(model.key, None)
+            assumed.pop(model.key, None)
     # The sweep writes a capped model to `assumed` (level agent, status
     # done): its key is the re-run's verdict — out of models and
     # unfinished, into assumed.
