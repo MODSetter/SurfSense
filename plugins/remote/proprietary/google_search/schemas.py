@@ -193,6 +193,7 @@ class AiSource(BaseModel):
     title: str | None = None
     url: str | None = None
     description: str | None = None
+    site: str | None = None  # the source's site name, e.g. "Wikipedia"
     imageUrl: str | None = None
 
 
