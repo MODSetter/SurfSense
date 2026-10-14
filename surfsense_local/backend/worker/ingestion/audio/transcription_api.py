@@ -1,6 +1,6 @@
 """The two API routes a recording's job calls: whether speech recognition can
 run, and one window at a time. Workers reach the transcription server only
-through the API, whose gate orders every request (ADR 0055)."""
+through the API, whose gate orders every request (ADR 0056)."""
 
 from dataclasses import dataclass
 

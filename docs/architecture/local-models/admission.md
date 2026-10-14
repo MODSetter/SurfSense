@@ -3,7 +3,7 @@
 The local runtime serves up to four replies at once from one shared cache, and every request that generates on it is admitted first, by one gate in the API. Remote models are never admitted: each provider has its own servers. Speech recognition has a gate of its own, for the one request its server runs at a time ([below](#speech-recognition)).
 
 **Code:** [`modules/llm/admission/`](../../../surfsense_local/backend/modules/llm/admission/), [`modules/llm/model_route/`](../../../surfsense_local/backend/modules/llm/model_route/), [`modules/llm/fit/plan_load.py`](../../../surfsense_local/backend/modules/llm/fit/plan_load.py), [`providers/llamacpp/preset.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/preset.py), [`modules/llm/transcription/`](../../../surfsense_local/backend/modules/llm/transcription/)
-**Decisions:** [ADR 0048](../../adr/0048-the-api-is-the-only-path-to-a-text-model.md), [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0055](../../adr/0055-speech-recognition-runs-on-a-second-audiocpp-server.md)
+**Decisions:** [ADR 0048](../../adr/0048-the-api-is-the-only-path-to-a-text-model.md), [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0056](../../adr/0056-speech-recognition-runs-on-a-second-audiocpp-server.md)
 
 ## Slots
 
@@ -49,7 +49,7 @@ The same hold, which a podcast also takes while it voices, pauses speech recogni
 
 ## Speech recognition
 
-The transcription server, audio.cpp run a second time, holds one model and runs one request at a time, and only the API reaches it ([ADR 0055](../../adr/0055-speech-recognition-runs-on-a-second-audiocpp-server.md)). Every request goes through one gate, [`gate.py`](../../../surfsense_local/backend/modules/llm/transcription/gate.py), so a speaker never waits behind a recording.
+The transcription server, audio.cpp run a second time, holds one model and runs one request at a time, and only the API reaches it ([ADR 0056](../../adr/0056-speech-recognition-runs-on-a-second-audiocpp-server.md)). Every request goes through one gate, [`gate.py`](../../../surfsense_local/backend/modules/llm/transcription/gate.py), so a speaker never waits behind a recording.
 
 - **Dictation first.** A phrase waits at most for the request in flight, a recording's window of up to 28 s: about 2.5 s at the measured 11.5x real time. No window starts while a phrase waits.
 - **An open dictation holds the server.** From `POST /llm/transcription/dictations` until its `DELETE`, 20 s without a phrase or keepalive, or 6 minutes ([`sessions.py`](../../../surfsense_local/backend/modules/llm/transcription/sessions.py)), no window starts. Opening one ends any other; phrases already sent for it still answer, and later ones are `404 dictation_ended`.

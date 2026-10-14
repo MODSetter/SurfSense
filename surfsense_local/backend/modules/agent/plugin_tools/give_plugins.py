@@ -20,7 +20,7 @@ _SIGN_IN = {"needs_auth", "needs_client_registration"}
 @dataclass(frozen=True)
 class UnavailablePlugin:
     title: str
-    reason: Literal["unreachable", "sign_in"]
+    reason: Literal["unreachable", "sign_in", "license"]
 
 
 async def give_plugins(
@@ -56,7 +56,8 @@ async def _give(
             )
             remember_given(folder, plugin.name, digest(plugin))
         if status in _SIGN_IN:
-            unavailable.append(UnavailablePlugin(plugin.title, "sign_in"))
+            reason = "license" if plugin.licensed else "sign_in"
+            unavailable.append(UnavailablePlugin(plugin.title, reason))
         elif status != "connected":
             unavailable.append(UnavailablePlugin(plugin.title, "unreachable"))
 

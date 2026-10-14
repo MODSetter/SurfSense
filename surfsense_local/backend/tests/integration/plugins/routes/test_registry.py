@@ -77,7 +77,6 @@ async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
             entry(
                 "keyed",
                 verification="verified",
-                domain="surfsense.com",
                 author="Keyed Inc.",
                 auth={
                     "type": "token",

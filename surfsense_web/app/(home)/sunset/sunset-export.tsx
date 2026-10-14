@@ -4,19 +4,21 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { useIsGoogleAuth } from "@/components/providers/runtime-config";
+import { siteText } from "@/components/site/site-text";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/hooks/use-session";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { redirectToLogin } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
+import { cn } from "@/lib/utils";
 
 /**
  * Step one of the guide on `/sunset`, rendered inside that step rather than in
  * the headline band above it: the step that tells you to export is the place
  * the button belongs, and the reader meets it in the order they act.
  *
- * Built from the same `ss-home-*` primitives as the rest of the site design
+ * Tailwind plus the shared `siteText` styles, like the rest of the site design
  * (`HomeButton` rather than the product's own `Button`) so it still reads as
  * part of the same document as the homepage, pricing and contact pages, and
  * left-aligned to sit with the step's prose.
@@ -124,7 +126,7 @@ export function SunsetExport() {
 				</span>
 				{busy ? <Spinner size="sm" className="absolute" /> : null}
 			</HomeButton>
-			<p className="ss-home-body mt-4 max-w-xl text-sm text-pretty">
+			<p className={cn(siteText.body, "mt-4 max-w-xl text-sm text-pretty")}>
 				The ZIP holds every workspace you can access: ready documents as markdown, the folder
 				structure, and your chat threads. It does not carry original uploads, generated artifacts,
 				tool calls, agent steps or live citation links.

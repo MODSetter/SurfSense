@@ -2,9 +2,11 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
+import { siteText } from "@/components/site/site-text";
 import { Button } from "@/components/ui/button";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
+import { cn } from "@/lib/utils";
 
 function GoogleGLogo({ className }: { className?: string }) {
 	return (
@@ -53,10 +55,10 @@ export function GoogleLoginButton() {
 		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
 	};
 	return (
-		<section className="ss-home-hero ss-home-pad flex min-h-screen items-center justify-center">
+		<section className="py-20 md:py-28 flex min-h-screen items-center justify-center">
 			<div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
 				<Logo className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
-				<h1 className="ss-home-h2 mt-6 mb-8">{t("sign_in")}</h1>
+				<h1 className={cn(siteText.h2, "mt-6 mb-8")}>{t("sign_in")}</h1>
 
 				<Button
 					variant="outline"

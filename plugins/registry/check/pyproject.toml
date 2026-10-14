@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-registry-check"
-version = "0.0.0"
+version = "0.1.0"
 description = "Checks and signs the third-party plugin registry, plugins/registry/plugins.json."
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
@@ -8,7 +8,8 @@ dependencies = [
     "cryptography>=44.0",
     # Icons are submitted by strangers: no entity expansion while reading an SVG.
     "defusedxml>=0.7.1",
-    "publicsuffixlist>=1.1.0.20261010",
+    # The live check lists a server with the client the app uses, at the same minor.
+    "mcp>=2.3,<2.4",
 ]
 
 [dependency-groups]

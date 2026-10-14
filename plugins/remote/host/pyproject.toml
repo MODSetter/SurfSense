@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-plugin-host"
-version = "0.0.0"
+version = "0.1.0"
 description = "The one server that runs every SurfSense plugin, each at /<id>/mcp."
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }

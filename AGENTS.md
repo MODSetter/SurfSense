@@ -12,7 +12,7 @@ Desktop app plus scraper API. Five trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
-| `plugins` | SurfSense's own plugin servers and the registry, being built from the [proposal](docs/proposals/plugins/README.md). `bundles/` holds the earlier, local design's SDK and tooling, deferred |
+| `plugins` | SurfSense's own plugin servers ([plugin host](docs/architecture/plugin-host.md)) and the [registry](docs/architecture/plugin-registry.md). `bundles/` holds the earlier, local design's SDK and tooling, deferred |
 
 The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
