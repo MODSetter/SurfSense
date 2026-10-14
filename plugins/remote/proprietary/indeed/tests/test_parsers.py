@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from proprietary.indeed import parsers
 from proprietary.indeed.parsers import (
+    _brace_match,
     extract_jobcards_blob,
     job_results,
     parse_job,
     parse_job_detail,
+    parse_job_detail_model,
 )
 
 _FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -144,20 +147,46 @@ def test_fixture_blob_parses_into_items():
 
 
 def test_parse_job_detail_extracts_description_and_fields():
-    html = (_FIXTURE_DIR / "sample_viewjob.html").read_text()
+    # A live /viewjob page (scrubbed): window._rootProps with preloadedVJData,
+    # beside the non-JSON window._initialData literal.
+    html = (_FIXTURE_DIR / "viewjob_live.html").read_text(encoding="utf-8")
     detail = parse_job_detail(html)
     assert detail["descriptionHtml"].startswith("<div>")
-    assert "Data Analyst" in detail["descriptionText"]
     assert "<div>" not in detail["descriptionText"]  # tags stripped
-    assert detail["title"]
-    assert detail["company"]
-    assert detail["formattedLocation"]
+    _assert_live_detail(detail)
+
+
+def test_parse_job_detail_reads_header_taxonomy_and_legacy_salary():
+    # Older pages put job types, benefits, remote and pay on the header itself.
+    hdr = {
+        "jobTitle": "Data Analyst",
+        "salaryMin": 60000,
+        "salaryMax": 90000,
+        "salaryCurrency": "USD",
+        "salaryType": "YEARLY",
+        "remoteWorkModel": {"type": "HYBRID"},
+        "taxonomyAttributes": [
+            {"label": "job-types", "attributes": [{"label": "Full-time"}]},
+            {
+                "label": "benefits",
+                "attributes": [{"label": "401(k)"}, {"label": "Health insurance"}],
+            },
+            {"label": "remote", "attributes": [{"label": "Hybrid work"}]},
+        ],
+    }
+    model = {"jobInfoWrapperModel": {"jobInfoModel": {"jobInfoHeaderModel": hdr}}}
+    detail = parse_job_detail_model(model)
     assert detail["jobTypes"] == ["Full-time"]
     assert detail["benefits"] == ["401(k)", "Health insurance"]
     assert detail["isRemote"] is True
     assert detail["remoteType"] == "HYBRID"
     sal = detail["salary"]
     assert (sal["salaryMin"], sal["salaryMax"], sal["period"]) == (60000, 90000, "year")
+    assert (sal["currency"], sal["salaryText"], sal["isEstimated"]) == (
+        "USD",
+        None,
+        False,
+    )
 
 
 def test_parse_job_detail_reads_rootprops_shape():
@@ -194,3 +223,166 @@ def test_parse_job_detail_omits_blank_fields():
 
 def test_parse_job_detail_not_a_job_page_returns_empty():
     assert parse_job_detail("<html>just a moment...</html>") == {}
+
+
+# --- live captures (scrubbed): spa=1 body, search and company pages --------
+
+
+def _spa_body() -> dict:
+    """A live ``/viewjob?jk=...&spa=1`` body, the model a /viewjob page preloads."""
+    raw = (_FIXTURE_DIR / "viewjob_spa.json").read_text(encoding="utf-8")
+    return json.loads(raw)["body"]
+
+
+def _assert_live_detail(detail: dict) -> None:
+    assert detail["jobKey"] == "17c2d37519bd8374"
+    assert detail["title"] == "Software Engineer I"
+    assert detail["company"] == "Indeed"
+    # The header's link carries per-view tracking (campaignid, tk, fromjk).
+    assert detail["companyUrl"] == "https://www.indeed.com/cmp/Indeed"
+    assert detail["companyRating"] == 4.2
+    assert detail["companyReviewCount"] == 1792
+    assert detail["jobTypes"] == ["Full-time"]
+    assert detail["country"] == "US"
+    assert detail["formattedLocation"] == "Austin, TX"
+    assert len(detail["descriptionText"]) > 1000
+    # The header's salaryMin/Max are null on live pages; salaryInfoModel has it.
+    assert detail["salary"] == {
+        "salaryText": "$94,000 - $142,000 a year",
+        "salaryMin": 94000,
+        "salaryMax": 142000,
+        "currency": "USD",
+        "period": "year",
+        "isEstimated": False,
+    }
+
+
+def test_parse_job_detail_model_maps_live_spa_body():
+    _assert_live_detail(parse_job_detail_model(_spa_body()))
+
+
+def test_detail_salary_falls_back_to_company_tab_then_header():
+    body = _spa_body()
+    body["salaryInfoModel"] = None
+    sal = parse_job_detail_model(body)["salary"]
+    assert (sal["salaryMin"], sal["salaryMax"], sal["period"]) == (
+        94000,
+        142000,
+        "year",
+    )
+    assert sal["salaryText"] is None
+
+    body["companyTabModel"] = None
+    hdr = body["jobInfoWrapperModel"]["jobInfoModel"]["jobInfoHeaderModel"]
+    hdr.update(salaryMin=20, salaryMax=25, salaryCurrency="USD", salaryType="HOURLY")
+    sal = parse_job_detail_model(body)["salary"]
+    assert (sal["salaryMin"], sal["salaryMax"], sal["period"]) == (20, 25, "hour")
+    assert sal["currency"] == "USD"
+
+
+def test_detail_salary_flags_an_estimate():
+    body = _spa_body()
+    body["salaryInfoModel"]["salarySource"] = "ESTIMATED"
+    assert parse_job_detail_model(body)["salary"]["isEstimated"] is True
+
+
+def test_detail_job_types_split_the_metadata_line():
+    body = _spa_body()
+    jim = body["jobInfoWrapperModel"]["jobInfoModel"]
+    jim["jobMetadataHeaderModel"]["jobType"] = "Full-time, Contract"
+    assert parse_job_detail_model(body)["jobTypes"] == ["Full-time", "Contract"]
+
+
+def test_parse_job_detail_model_rejects_non_models():
+    assert parse_job_detail_model(None) == {}
+    assert parse_job_detail_model({"jobKey": "x"}) == {}
+
+
+def _search_page() -> str:
+    return (_FIXTURE_DIR / "search_page_jobcards.html").read_text(encoding="utf-8")
+
+
+def test_raw_decode_matches_the_brace_matcher_on_a_live_page():
+    html = _search_page()
+    anchor = 'window.mosaic.providerData["mosaic-provider-jobcards"]='
+    brace = html.find("{", html.find(anchor) + len(anchor))
+    expected = json.loads(_brace_match(html, brace))
+    blob = extract_jobcards_blob(html)
+    assert blob == expected
+    assert len(job_results(blob)) == 12
+
+
+def test_brace_matcher_is_the_fallback(monkeypatch):
+    class _Failing:
+        def raw_decode(self, *_args):
+            raise ValueError("forced")
+
+    monkeypatch.setattr(parsers, "_JSON", _Failing())
+    assert len(job_results(extract_jobcards_blob(_search_page()))) == 12
+
+
+def test_live_search_cards_with_no_rating_read_unknown():
+    items = [parse_job(r) for r in job_results(extract_jobcards_blob(_search_page()))]
+    unrated = [i for i in items if i["companyRating"] is None]
+    assert unrated, "the capture holds cards Indeed sent with companyRating 0"
+    assert all(i["companyReviewCount"] is None for i in unrated)
+    rated = next(i for i in items if i["jobKey"] == "17c2d37519bd8374")
+    assert (rated["companyRating"], rated["companyReviewCount"]) == (4.2, 1791)
+    assert rated["companyUrl"] == "https://www.indeed.com/cmp/Indeed"
+
+
+def test_live_company_page_cards_read_unknown_rating():
+    html = (_FIXTURE_DIR / "company_page_jobcards.html").read_text(encoding="utf-8")
+    items = [parse_job(r) for r in job_results(extract_jobcards_blob(html))]
+    assert len(items) == 3
+    for item in items:
+        assert item["companyRating"] is None
+        assert item["companyReviewCount"] is None
+        assert item["companyUrl"] is None  # the scraper fills it from the slug
+
+
+def test_rating_zero_with_reviews_keeps_the_count():
+    raw = {**_raw_job(), "companyRating": 0, "companyReviewCount": 12}
+    item = parse_job(raw)
+    assert item["companyRating"] is None
+    assert item["companyReviewCount"] == 12
+
+
+def test_spa_model_reads_the_viewjob_model_from_a_spa_answer():
+    from proprietary.indeed.parsers import spa_model
+
+    text = (_FIXTURE_DIR / "viewjob_spa.json").read_text(encoding="utf-8")
+    model = spa_model(text)
+    assert model is not None and model["jobKey"] == "17c2d37519bd8374"
+    assert parse_job_detail_model(model)["salary"]["salaryMin"] == 94000
+    # A wall, an error answer or a body with no job reads as no model.
+    assert spa_model("<html>Just a moment</html>") is None
+    assert spa_model('{"status": "error", "body": null}') is None
+    assert spa_model('{"status": "success", "body": {"jobKey": "x"}}') is None
+
+
+def test_inline_viewjob_reads_the_first_job_s_answer_from_a_search_page():
+    from proprietary.indeed.parsers import inline_viewjob
+
+    answer = (_FIXTURE_DIR / "viewjob_spa.json").read_text(encoding="utf-8")
+    html = f'<script>{{"autoOpenTwoPaneJobKey":"x","autoOpenTwoPaneViewjobResponse":{answer}}}</script>'
+    model = inline_viewjob(html)
+    assert model is not None and model["jobKey"] == "17c2d37519bd8374"
+    assert inline_viewjob("<html>no pane</html>") is None
+
+
+def test_a_null_inline_answer_is_not_the_next_object_along():
+    other = {
+        "status": "success",
+        "body": {
+            "jobKey": "k9",
+            "jobInfoWrapperModel": {
+                "jobInfoModel": {"sanitizedJobDescription": "<p>not the inline job</p>"}
+            },
+        },
+    }
+    html = (
+        '<script>{"autoOpenTwoPaneViewjobResponse":null,'
+        f'"other":{json.dumps(other)}}}</script>'
+    )
+    assert parsers.inline_viewjob(html) is None
