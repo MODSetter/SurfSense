@@ -39,10 +39,33 @@ def find_all(obj: Any, key: str) -> list[Any]:
     return out
 
 
+_MISSING = object()
+
+
+def _first(node: Any, key: str) -> Any:
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == key:
+                return v
+            found = _first(v, key)
+            if found is not _MISSING:
+                return found
+    elif isinstance(node, list):
+        for item in node:
+            found = _first(item, key)
+            if found is not _MISSING:
+                return found
+    return _MISSING
+
+
 def find_first(obj: Any, key: str) -> Any:
-    """First value stored under ``key`` anywhere in the structure, else ``None``."""
-    matches = find_all(obj, key)
-    return matches[0] if matches else None
+    """First value stored under ``key`` anywhere in the structure, else ``None``.
+
+    The same order as :func:`find_all`, but it stops at the hit instead of
+    walking the whole 1-2 MB page.
+    """
+    found = _first(obj, key)
+    return None if found is _MISSING else found
 
 
 def find_last(obj: Any, key: str) -> Any:
@@ -124,6 +147,76 @@ def seconds_to_duration(seconds: Any) -> str | None:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
+def _clock_to_duration(text: Any) -> str | None:
+    """Normalize a ``"7:16"`` / ``"2:02:21"`` clock string to ``HH:MM:SS``.
+
+    List pages show the clock as YouTube prints it; watch pages give seconds.
+    Non-clock badges (``"LIVE"``, ``"SHORTS"``) are not durations: ``None``.
+    """
+    if not isinstance(text, str):
+        return None
+    parts = text.strip().split(":")
+    if not 2 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+        return None
+    seconds = 0
+    for part in parts:
+        seconds = seconds * 60 + int(part)
+    return seconds_to_duration(seconds)
+
+
+def _runs_text(node: Any) -> str | None:
+    """Join every text run of a ``{"runs": [...]}`` node (bold spans split runs)."""
+    runs = dig(node, "runs")
+    if not isinstance(runs, list):
+        return None
+    return "".join(r.get("text", "") for r in runs if isinstance(r, dict)) or None
+
+
+# Owner badge styles that mean a verified channel (artists get their own style).
+_VERIFIED_STYLES = frozenset(
+    {"BADGE_STYLE_TYPE_VERIFIED", "BADGE_STYLE_TYPE_VERIFIED_ARTIST"}
+)
+
+
+def _is_verified(badges: Any) -> bool | None:
+    """``True`` when an owner badge list carries a verified style, else ``None``."""
+    if not isinstance(badges, list):
+        return None
+    return (
+        any(
+            dig(b, "metadataBadgeRenderer", "style") in _VERIFIED_STYLES for b in badges
+        )
+        or None
+    )
+
+
+# Hashtags are #words in the description; the lookbehind skips HTML entities
+# (``&#39;``) and URL fragments (``/#section``).
+_HASHTAG_RE = re.compile(r"(?<![\w&/])#\w+")
+
+
+def _hashtags(description: Any, primary_info: Any) -> list[str]:
+    """Description ``#tags`` plus the ones YouTube lifts above the title, de-duped."""
+    tags = _HASHTAG_RE.findall(description) if isinstance(description, str) else []
+    for run in dig(primary_info, "superTitleLink", "runs") or []:
+        text = (run.get("text") or "").strip() if isinstance(run, dict) else ""
+        if text.startswith("#"):
+            tags.append(text)
+    return list(dict.fromkeys(tags))
+
+
+# The like button's a11y text has the exact count ("...along with 170,857
+# other people"); its visible title is rounded ("170K").
+_LIKE_DIGITS_RE = re.compile(r"\d[\d,]*")
+
+
+def _likes(button: dict) -> int | None:
+    match = _LIKE_DIGITS_RE.search(button.get("accessibilityText") or "")
+    if match:
+        return int(match.group().replace(",", ""))
+    return parse_count(button.get("title"))
+
+
 def _best_thumbnail(thumbnails: Any) -> str | None:
     """Return the highest-resolution thumbnail URL from a thumbnails list."""
     if not isinstance(thumbnails, list) or not thumbnails:
@@ -145,6 +238,9 @@ def _best_thumbnail(thumbnails: Any) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+_DECODER = json.JSONDecoder()
+
+
 def _extract_json_object(html: str, patterns: list[re.Pattern[str]]) -> dict | None:
     start = -1
     for pattern in patterns:
@@ -154,6 +250,15 @@ def _extract_json_object(html: str, patterns: list[re.Pattern[str]]) -> dict | N
             break
     if start == -1:
         return None
+
+    # The C decoder stops at the object's end by itself: about 0.2 s faster per
+    # watch page than the pure-Python brace scan below, kept as the fallback.
+    try:
+        obj, _ = _DECODER.raw_decode(html, start)
+    except json.JSONDecodeError:
+        obj = None
+    if isinstance(obj, dict):
+        return obj
 
     depth = 0
     i = start
@@ -503,7 +608,12 @@ def parse_video_page(html: str) -> dict[str, Any] | None:
         "duration": seconds_to_duration(details.get("lengthSeconds")),
         "date": parse_date(microformat),
         "thumbnailUrl": _best_thumbnail(dig(details, "thumbnail", "thumbnails")),
-        "hashtags": details.get("keywords") or [],
+        "hashtags": _hashtags(
+            details.get("shortDescription"),
+            find_first(initial, "videoPrimaryInfoRenderer") if initial else None,
+        ),
+        # The uploader's hidden SEO tags, not hashtags.
+        "keywords": details.get("keywords") or [],
         "channelName": details.get("author"),
         "channelId": details.get("channelId"),
         "isAgeRestricted": _is_age_restricted(player, microformat),
@@ -517,15 +627,16 @@ def parse_video_page(html: str) -> dict[str, Any] | None:
     }
 
     if initial:
-        # Likes: the LIKE button's label carries the count string.
+        # Likes: the LIKE button carries the count.
         likes = [
-            b.get("title")
+            b
             for b in find_all(initial, "buttonViewModel")
             if isinstance(b, dict) and b.get("iconName") == "LIKE"
         ]
-        result["likes"] = parse_count(likes[0]) if likes else None
+        result["likes"] = _likes(likes[0]) if likes else None
 
-        # Comment count lives in the engagement panel contextual info.
+        # Comment count lives in the engagement panel contextual info. It is
+        # rounded at the source ("3.3K"); the comments tool reads the exact one.
         contextual = find_first(initial, "contextualInfo")
         result["commentsCount"] = parse_count(dig(contextual, "runs", 0, "text"))
         result["commentsTurnedOff"] = _comments_turned_off(initial)
@@ -546,18 +657,21 @@ def parse_video_page(html: str) -> dict[str, Any] | None:
             subs.get("simpleText") if isinstance(subs, dict) else subs
         )
 
-        # Verified badge on the channel owner.
-        badges = find_all(initial, "metadataBadgeRenderer")
-        result["isChannelVerified"] = (
-            any(isinstance(b, dict) and b.get("tooltip") == "Verified" for b in badges)
-            or None
+        # Verified badge on the uploader only: a page-wide scan also sees other
+        # channels' badges, and missed the artist style.
+        owner = dig(
+            find_first(initial, "videoSecondaryInfoRenderer"),
+            "owner",
+            "videoOwnerRenderer",
         )
+        result["isChannelVerified"] = _is_verified(dig(owner, "badges"))
 
     return result
 
 
 def _view_count_from_renderer(renderer: dict) -> int | None:
-    for key in ("shortViewCountText", "viewCountText"):
+    # The long text is exact ("3,666,349 views"); the short one is rounded.
+    for key in ("viewCountText", "shortViewCountText"):
         node = renderer.get(key)
         if isinstance(node, dict):
             text = node.get("simpleText") or dig(node, "runs", 0, "text")
@@ -578,15 +692,16 @@ def parse_search_response(data: dict) -> tuple[list[dict[str, Any]], str | None]
             {
                 "id": vid,
                 "url": f"https://www.youtube.com/watch?v={vid}",
-                "title": dig(r, "title", "runs", 0, "text"),
-                "text": dig(
-                    r, "detailedMetadataSnippets", 0, "snippetText", "runs", 0, "text"
+                "title": _runs_text(r.get("title")),
+                "text": _runs_text(
+                    dig(r, "detailedMetadataSnippets", 0, "snippetText")
                 ),
                 "date": None,  # list pages only expose relative time
                 "publishedTimeText": dig(r, "publishedTimeText", "simpleText"),
-                "duration": dig(r, "lengthText", "simpleText"),
+                "duration": _clock_to_duration(dig(r, "lengthText", "simpleText")),
                 "viewCount": _view_count_from_renderer(r),
                 "thumbnailUrl": _best_thumbnail(dig(r, "thumbnail", "thumbnails")),
+                "isChannelVerified": _is_verified(r.get("ownerBadges")),
                 **_channel_from_byline(r),
             }
         )
@@ -641,7 +756,9 @@ def parse_channel_videos(data: dict) -> tuple[list[dict[str, Any]], str | None]:
                 "title": dig(meta, "title", "content"),
                 "viewCount": parse_count(dig(parts, 0, "text", "content")),
                 "date": None,
-                "publishedTimeText": dig(parts, 1, "text", "content"),
+                "publishedTimeText": _long_relative_time(
+                    dig(parts, 1, "text", "content")
+                ),
                 "duration": _lockup_duration(lockup),
                 "thumbnailUrl": _best_thumbnail(
                     dig(
@@ -686,6 +803,34 @@ def parse_channel_shorts(data: dict) -> tuple[list[dict[str, Any]], str | None]:
     return results, _continuation_token(data)
 
 
+# Channel tab pages print compact relative times ("10h ago", "Streamed 8y
+# ago") while their /browse continuations print long ones ("10 hours ago").
+_COMPACT_UNITS = {
+    "s": "second",
+    "m": "minute",
+    "min": "minute",
+    "h": "hour",
+    "d": "day",
+    "w": "week",
+    "mo": "month",
+    "y": "year",
+}
+_COMPACT_TIME_RE = re.compile(r"\b(\d+)\s?(min|mo|[smhdwy]) ago\b")
+
+
+def _long_relative_time(text: Any) -> Any:
+    """Spell a compact relative time out, so every page of a tab reads alike."""
+    if not isinstance(text, str):
+        return text
+
+    def spell(match: re.Match[str]) -> str:
+        count = int(match.group(1))
+        unit = _COMPACT_UNITS[match.group(2)]
+        return f"{count} {unit}{'' if count == 1 else 's'} ago"
+
+    return _COMPACT_TIME_RE.sub(spell, text)
+
+
 def _lockup_duration(lockup: dict) -> str | None:
     overlays = dig(lockup, "contentImage", "thumbnailViewModel", "overlays") or []
     for overlay in overlays:
@@ -697,8 +842,9 @@ def _lockup_duration(lockup: dict) -> str | None:
             "thumbnailBadgeViewModel",
             "text",
         )
-        if text:
-            return text
+        duration = _clock_to_duration(text)
+        if duration:
+            return duration
     return None
 
 
@@ -751,14 +897,20 @@ def comment_next_token(data: dict) -> str | None:
 
     Reply loaders are nested inside ``commentThreadRenderer``s; the page's own
     "load more" token is the last top-level continuation item, so scan the
-    action's ``continuationItems`` from the end.
+    action's ``continuationItems`` from the end. Comment pages put the token on
+    ``continuationEndpoint``; reply pages put it behind a "Show more replies"
+    button.
     """
     for item in reversed(_comment_continuation_items(data)):
         if isinstance(item, dict) and "continuationItemRenderer" in item:
+            renderer = item["continuationItemRenderer"]
             token = dig(
-                item,
-                "continuationItemRenderer",
-                "continuationEndpoint",
+                renderer, "continuationEndpoint", "continuationCommand", "token"
+            ) or dig(
+                renderer,
+                "button",
+                "buttonRenderer",
+                "command",
                 "continuationCommand",
                 "token",
             )
@@ -787,14 +939,18 @@ def parse_comment_entity(cep: dict) -> dict[str, Any]:
     """Map one ``commentEntityPayload`` to a partial CommentItem dict."""
     props = cep.get("properties") or {}
     author = cep.get("author") or {}
-    toolbar = cep.get("toolbar") or {}
+    toolbar = cep.get("toolbar")
+    # The toolbar blanks a count that is zero; only a missing toolbar is unknown.
+    zero = 0 if isinstance(toolbar, dict) else None
+    toolbar = toolbar if isinstance(toolbar, dict) else {}
     return {
         "cid": props.get("commentId"),
         "comment": dig(props, "content", "content"),
         "author": author.get("displayName"),
         "publishedTimeText": props.get("publishedTime"),
-        "voteCount": parse_count(toolbar.get("likeCountNotliked")),
-        "replyCount": parse_count(toolbar.get("replyCount")),
+        # Rounded at the source above 1K ("4.8M"); YouTube sends no exact count.
+        "voteCount": parse_count(toolbar.get("likeCountNotliked")) or zero,
+        "replyCount": parse_count(toolbar.get("replyCount")) or zero,
         "authorIsChannelOwner": bool(author.get("isCreator")),
         # A creator heart attaches the channel owner's avatar to the toolbar.
         "hasCreatorHeart": bool(toolbar.get("creatorThumbnailUrl")),
