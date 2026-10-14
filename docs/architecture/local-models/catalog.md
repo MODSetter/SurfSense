@@ -687,7 +687,7 @@ on search and repo reads, and the job's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat**, **Image**, **Image editing**, **Video**, **Audio** and **Speech recognition** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models**, **Audio generation models** or **Speech recognition models** on its own page.
+Settings has one section per model type, **Text gen**, **Image gen**, **Image edit**, **Video**, **Audio** and **Speech recognition** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models**, **Audio generation models** or **Speech recognition models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
@@ -813,7 +813,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `ins
 ## Known gaps
 
 - Only the three voice defaults and Nemotron's `Q8_0` are validated; `validated` is empty on every other build.
-- No screen offers the speech recogniser yet: the Audio section drops rows without `voicing`, and Settings has no speech recognition section ([proposal](../../proposals/local-speech-to-text.md#catalog-selection-and-settings)).
 - Qwen3.8 27B is a hybrid model (`qwen35`): the fit estimate charges a KV cache on all 65 layers where 16 keep one, about four times too much, and does not size its recurrent state ([runtime](runtime.md)).
 - Qwen3.8 27B commits no `sampling`: its repo has no `params` file, so it runs on llama-server's defaults rather than the model card's.
 - `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.

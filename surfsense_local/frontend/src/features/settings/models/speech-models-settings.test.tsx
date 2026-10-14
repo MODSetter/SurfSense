@@ -109,6 +109,30 @@ describe("speech recognition settings", () => {
     expect(screen.queryByText(/Kokoro/)).toBeNull()
   })
 
+  it("offers no ChatGPT plan either, even one that says it serves the slot", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving([], (path) =>
+        path === "/llm/connections/chatgpt"
+          ? Response.json({ serves: ["text_gen", "speech_to_text"], hosts: [] })
+          : null
+      )
+    )
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+    expect(
+      await screen.findByText(
+        "Speech recognition models cannot run on this computer"
+      )
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("region", { name: "Use your ChatGPT plan" })
+    ).toBeNull()
+    expect(screen.queryByRole("region", { name: "Use a server" })).toBeNull()
+  })
+
   it("says the models could not load, not that this computer cannot run one", async () => {
     vi.stubGlobal(
       "fetch",
