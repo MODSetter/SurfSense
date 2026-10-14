@@ -80,5 +80,6 @@ The Date is the day the decision was first written down. Source links are permal
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted |
 | 0051 | [A plugin is an MCP server, and SurfSense decides which of its tools each caller gets, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Accepted |
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed, deferred |
-| 0053 | [First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Accepted |
+| 0053 | [First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Accepted, in part superseded by 0055 |
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted |
+| 0055 | [Verified is a maintainer's judgement, and CI contacts each server a pull request adds](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md) | Accepted |

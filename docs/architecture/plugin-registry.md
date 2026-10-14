@@ -23,7 +23,7 @@ The registry is the list of third-party plugins, verified and community, the app
 `static` checks every entry offline and prints one line per problem, naming the entry and the field ([`entry_rules.py`](../../plugins/registry/check/registry_check/static/entry_rules.py), [`list_rules.py`](../../plugins/registry/check/registry_check/static/list_rules.py)):
 
 - **Identity.** An `id` of lowercase letters, digits and hyphens, `kind: remote`, `verification` `verified` or `community`. The license belongs to the first-party list alone, and being in that list is what makes a plugin SurfSense's.
-- **Verified.** A `verified` entry names the `domain` whose ownership was proven: a registered domain, never a bare shared suffix such as `vercel.app`, decided offline by the Public Suffix List the check ships with (`publicsuffixlist`). The URL's host is on it, and so is every other host unless the entry signs in with OAuth, whose sign-in hosts may be elsewhere.
+- **Verified.** Nothing more than `verification: verified`: it is a maintainer's judgement, which no check can make ([below](#verified)). A `domain` an older entry carries is ignored.
 - **Display.** `name` and `author` up to 80 characters, `description` up to 200. `author` is the company or project that runs the server, never a person's name; review checks it.
 - **Server.** An `https` `url` with no credentials. `hosts` lists exact lowercase hostnames, none loopback, none twice, the URL's host among them.
 - **Sign-in.** `auth.type` is `none`, `token` (with a `title` and `description` saying what to paste) or `oauth` (with an optional `client_id` and `scopes`). No `auth` field may carry a secret.
@@ -33,9 +33,22 @@ The registry is the list of third-party plugins, verified and community, the app
 - **Ids.** Unique in the registry and across the first-party list, which the check reads too; an id in `removed` is never listed again, and each removed entry gives a `reason`. Unknown fields are allowed, so a newer app can add them.
 - **Icons** ([`icon_rules.py`](../../plugins/registry/check/registry_check/static/icon_rules.py)). A plain file name in `icons/`, `.svg` or `.png`, at most 32 KB, square; a PNG at least 64×64; an SVG read with `defusedxml`, with no script, `foreignObject`, frame or embed, no event attribute and no reference outside itself. An icon no entry uses fails.
 
-## Proving ownership
+## Verified
 
-`verified` is set by a maintainer in review, once the publisher has proven it runs the server: the URL's host is on `domain`, `domain` belongs to `author`, and the publisher controls it, by one of a file at `https://{domain}/.well-known/surfsense-plugins.json` holding `{"plugins": ["<id>"]}`, a DNS TXT record `surfsense-plugin=<id>` on `domain`, or the same server URL in the [MCP Registry](https://modelcontextprotocol.io/registry/about) under that domain's namespace. The proof is checked again whenever a pull request changes the entry's URL, hosts or domain; the app never fetches it. Every other entry is `community`.
+`verified` is set by a maintainer in review, when they are satisfied that `author` runs the server, on whatever evidence convinces them: the publisher's own docs linking the server, the pull request coming from the publisher's own account, a contact they know, or a proof on the server's domain. The app shows it as a checkmark ([ADR 0055](../adr/0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md)). Every other entry is `community`. Only a maintainer's approval merges a change to the registry (CODEOWNERS), so only a maintainer sets or keeps it.
+
+## Contacting the servers
+
+`live` connects to each entry a pull request adds or changes, compared with the list it is based on, with the MCP client the app uses, the official SDK at the app's minor ([`live/`](../../plugins/registry/check/registry_check/live/)). An unchanged entry is not contacted again. A pull request's log is public, so a failure is reported as a reason of the check's own, such as "it answered 404", never with what the server answered, and the SDK's logging, which quotes a bad answer whole, is silenced ([`failure_reason.py`](../../plugins/registry/check/registry_check/live/failure_reason.py)). Problems fail the pull request; what MCP leaves optional only warns, so any server the app could use passes:
+
+| `auth` | Problems | Warnings |
+|---|---|---|
+| Any | the URL cannot be reached, or does not answer MCP over Streamable HTTP | none |
+| `none` | the server asks for sign-in; `tools` names a tool the server does not list, or leaves one out | no `tools` in the entry, naming the server's; a tool with neither `readOnlyHint` nor `destructiveHint` |
+| `token` | none: without a key it is expected to refuse | the server lists its tools without a key |
+| `oauth` | no authorization server found as the app finds one (RFC 9728, then RFC 8414 on the server's origin); a sign-in host, the authorization server's or one of its endpoints', missing from `hosts`; an authorization server that takes neither SurfSense's client metadata document nor dynamic registration, with no `client_id` in the entry | the server lists its tools without signing in |
+
+A server behind a key or an account is not listed by CI, which holds no credentials: the maintainer connects it on `dev` and checks its tools. The entry's `privacy_policy` and `homepage` are not opened: a site often refuses a script, and the reviewer opens the privacy policy anyway.
 
 ## Signing
 
@@ -45,8 +58,8 @@ The registry is the list of third-party plugins, verified and community, the app
 
 | Workflow | Runs | Does |
 |---|---|---|
-| [`plugins-registry.yml`](../../.github/workflows/plugins-registry.yml), on a pull request | Pull requests into `main` or `dev` that touch `plugins/registry/` or the first-party list | Fails a hand edit to `published/`, except from the bot or the release pull request from `dev` into `main`; runs the check's lint, format and tests, `static`, and the callback page's Node tests. A manual run checks any branch. A maintainer then connects the listing on `dev` and reviews its tools, since most servers need a key or a sign-in CI does not hold |
-| [`plugins-registry.yml`](../../.github/workflows/plugins-registry.yml), on `dev` | Pushes to `dev` that change `plugins.json` or `icons/`, or a manual run on `dev` | Its sign job, the only one with write access to the code: runs `static`, signs with the `REGISTRY_SIGNING_KEY` secret, verifies with the public key the app compiles in, and commits `published/` to `dev` itself. Nothing pushes to `main`: the release pull request carries it there, and the registry container is built from `main` |
+| [`plugins-registry.yml`](../../.github/workflows/plugins-registry.yml), on a pull request | Pull requests into `main` or `dev` that touch `plugins/registry/` or the first-party list | Fails a hand edit to `published/`, except from the bot or the release pull request from `dev` into `main`; runs the check's lint, format and tests, `static`, then `live` against the list the pull request is based on, and the callback page's Node tests. A manual run checks any branch, without `live`. A maintainer then connects the listing on `dev` and reviews its tools, since a server behind a key or a sign-in is not listed by CI |
+| [`plugins-registry.yml`](../../.github/workflows/plugins-registry.yml), on `dev` | Pushes to `dev` that change `plugins.json` or `icons/`, or a manual run on `dev` | Its sign job, the only one with write access to the code: runs `static`, never `live`, so a third-party server that is down never holds up signing; signs with the `REGISTRY_SIGNING_KEY` secret, verifies with the public key the app compiles in, and commits `published/` to `dev` itself. Nothing pushes to `main`: the release pull request carries it there, and the registry container is built from `main` |
 
 ## The container
 
@@ -82,7 +95,7 @@ SurfSense signs in to OAuth plugins as one public client ([plugins](plugins.md#s
 
 ## Tests
 
-- **Check:** from `plugins/registry/check`, `uv run pytest`. [`tests/`](../../plugins/registry/check/tests/) hold each entry rule and icon rule, unique ids across both lists, removed entries, and signing: a list verifies, one changed byte or another key fails, the stamps, stable formatting, and the source never rewritten. The sign job alone also checks the committed list against the production key. [`oauth/tests/callback.test.mjs`](../../plugins/registry/oauth/tests/callback.test.mjs) runs the callback page: a valid state forwarded, a provider's error forwarded, each malformed state going nowhere, and a CSP that loads nothing.
+- **Check:** from `plugins/registry/check`, `uv run pytest`. [`tests/`](../../plugins/registry/check/tests/) hold each entry rule and icon rule, unique ids across both lists, removed entries, the live check against real MCP servers from the SDK on loopback ([`live_servers.py`](../../plugins/registry/check/tests/live_servers.py)): tools matching or not, missing hints, a server down or with no MCP, sign-in asked where none is declared, a key server, OAuth with its hosts listed or not, no authorization server, no way to register and a `client_id` or client metadata document instead, unchanged entries left alone, and an answer carrying credentials never reaching the output; and signing: a list verifies, one changed byte or another key fails, the stamps, stable formatting, and the source never rewritten. The sign job alone also checks the committed list against the production key. [`oauth/tests/callback.test.mjs`](../../plugins/registry/oauth/tests/callback.test.mjs) runs the callback page: a valid state forwarded, a provider's error forwarded, each malformed state going nowhere, and a CSP that loads nothing.
 - **App:** [`test_registry.py`](../../surfsense_local/backend/tests/integration/plugins/routes/test_registry.py) runs the routes against a stand-in plugin host signing with a test key ([`tests/registry_stand_in.py`](../../surfsense_local/backend/tests/registry_stand_in.py)): nothing fetched while third-party plugins are off, the five-minute refresh, a bad signature, an older list and an unknown schema each ignored, the cached copy offline, no copy, entries only the first-party list may hold dropped, the host's consent, icons, the checkout read unsigned, connecting, removed plugins, and custom ids. [`test_registry_compiled.py`](../../surfsense_local/backend/tests/unit/plugins/lists/test_registry_compiled.py) checks the production key is compiled in and the host is built in.
 
 ## Known gaps

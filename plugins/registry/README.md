@@ -95,7 +95,7 @@ Add one object to the `plugins` array in [`plugins.json`](plugins.json):
 |---|---|
 | `id` | Lowercase letters, digits and hyphens, starting with a letter. Unique, and never reused once listed |
 | `kind` | `remote` |
-| `verification` | `community`. A maintainer changes it to `verified` once you [prove you run the server](#verified-or-community) |
+| `verification` | `community`. Only a maintainer sets `verified` ([below](#verified-or-community)) |
 | `name`, `author` | Up to 80 characters. `author` is the company or project that runs the server, not a person |
 | `description` | Up to 200 characters: the one line on your card |
 | `url` | Your server's MCP endpoint, `https`, with no credentials in it |
@@ -118,10 +118,11 @@ From [`check/`](check/), with [uv](https://docs.astral.sh/uv/) installed:
 
 ```bash
 uv sync
-uv run python -m registry_check static
+uv run python -m registry_check static   # the entry rules and your icon
+uv run python -m registry_check live     # connects to your server, as the app would
 ```
 
-It prints `static check: passed`, or one line per problem naming your entry and the field, such as `plugins[1] "acme-docs": hosts: must include the url's host, mcp.acme.example`. CI runs the same check on your pull request.
+It prints `static check: passed`, or one line per problem naming your entry and the field, such as `plugins[1] "acme-docs": hosts: must include the url's host, mcp.acme.example`. `live` connects to your server with the app's own MCP client and fails if the app could not use it: unreachable, not MCP over Streamable HTTP, asking for sign-in when `auth` is `none`, listing other tools than `tools`, or, for OAuth, no authorization server, a sign-in host missing from `hosts`, or no way for SurfSense to register. What MCP leaves optional, such as tool hints, only warns. It never signs in, so a server behind a key or an account is checked up to its sign-in. CI runs both on your pull request.
 
 ## 5. Open the pull request
 
@@ -131,7 +132,7 @@ Fill in the template's headings, What, Why and How to test, and include:
 
 - **A prompt to try**, such as "What do Acme's docs say about rate limits?", and the tools it should call.
 - **How a reviewer signs in**, if your plugin needs a key or an account. Never put a key or password in the pull request: say that one is needed, and a maintainer will arrange it with you, or reach the maintainers on [Discord](https://discord.gg/ejRNvftDp9).
-- **Your proof**, if you are asking for Verified ([below](#verified-or-community)).
+- **Why you should be Verified**, if you think you should be: a link from your own docs to the server, for example ([below](#verified-or-community)).
 
 A title in [Conventional Commits](https://www.conventionalcommits.org) form helps, such as `feat(registry): list Acme Docs`.
 
@@ -148,15 +149,9 @@ Once merged, CI signs the list. It reaches every app that allows third-party plu
 
 ## Verified or Community
 
-Every plugin starts as **Community**: the app shows a small badge and, before connecting, reminds the user who runs the server. **Verified** shows a checkmark instead, and means a maintainer confirmed that `author` runs the server, through a domain they control.
+Every plugin starts as **Community**: the app shows a small badge and, before connecting, reminds the user who runs the server. **Verified** shows a checkmark instead, and means a maintainer is satisfied that `author` runs the server.
 
-To ask for it, say which domain in your pull request and prove it one way:
-
-- a file at `https://<domain>/.well-known/surfsense-plugins.json` holding `{"plugins": ["<your id>"]}`;
-- a DNS TXT record `surfsense-plugin=<your id>` on `<domain>`;
-- your server URL in the [MCP Registry](https://modelcontextprotocol.io/registry/about) under that domain's namespace.
-
-The maintainer then sets `verification` to `verified` and adds `"domain": "<domain>"`. Your server's host must be on that domain, and so must every other host unless you sign in with OAuth. A shared suffix such as `vercel.app` is not a domain you own. The proof is checked again whenever your entry's URL, hosts or domain change.
+A maintainer decides it, on whatever convinces them that `author` runs the server: your own docs linking it, the pull request coming from your company's account, or someone they can ask. Nothing in the entry proves it, and no check decides it, so never set it yourself.
 
 ## After your plugin is listed
 
@@ -178,8 +173,8 @@ If you are helping someone list a plugin:
 
 1. Confirm the server is remote, Streamable HTTP, on HTTPS. If it only runs from a command or over SSE, stop and say so; it cannot be listed yet.
 2. Read each tool's name from the server, or ask for them; never invent `tools`. Check every tool has `readOnlyHint` or `destructiveHint`.
-3. Append one entry to `plugins` in `plugins.json`, with `verification: "community"`. Never set `verified` or `domain` yourself: a maintainer does, after the proof.
+3. Append one entry to `plugins` in `plugins.json`, with `verification: "community"`. Never set `verified`: only a maintainer does.
 4. Put no key, token, password or client secret anywhere: not in the entry, the pull request or a commit message.
 5. Touch only `plugins.json` and `icons/<file>`. Never edit `published/`, `check/` or another entry.
-6. Run `uv run python -m registry_check static` in `check/` and fix every line it prints.
+6. Run `uv run python -m registry_check static` and `uv run python -m registry_check live` in `check/`, and fix every problem they print.
 7. Open the pull request into `dev` with What, Why and How to test, a prompt to try, and whether the reviewer needs sign-in details, without including them.
