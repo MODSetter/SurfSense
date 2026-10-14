@@ -8,12 +8,13 @@ logger or handler, the host's or a library's, can write a credential out.
 
 import logging
 import re
+from collections.abc import Mapping
 from typing import Any
 
 REDACTED = "***"
 
 _REDACTIONS = (
-    # scheme://user:password@host, the form every proxy is given in.
+    # A URL's user and password before its host, the form every proxy is given in.
     (
         re.compile(r"(\b[a-zA-Z][a-zA-Z0-9+.-]*://)[^\s/?#@'\"<>]+@"),
         rf"\1{REDACTED}@",
@@ -57,13 +58,37 @@ def redact_every_record() -> None:
 
 
 def _redact(record: logging.LogRecord) -> None:
+    # The arguments keep their shape, since a formatter may read them: uvicorn's
+    # access log unpacks its five. Only one that holds a credential is replaced,
+    # and a template with arguments is left whole, so its placeholders still match.
+    if isinstance(record.args, Mapping):
+        record.args = {key: _redacted_value(v) for key, v in record.args.items()}
+    elif isinstance(record.args, tuple) and record.args:
+        record.args = tuple(_redacted_value(arg) for arg in record.args)
+    else:
+        record.msg = _redacted_value(record.msg)
     try:
         message = record.getMessage()
     except Exception:
         # A message that does not format is the logging module's own error to report.
         return
-    record.msg, record.args = redacted(message), None
+    # A credential split across the message and its arguments shows only once
+    # formatted; such a record keeps just its redacted text.
+    if redacted(message) != message:
+        record.msg, record.args = redacted(message), None
     if record.exc_info and not record.exc_text:
         record.exc_text = redacted(logging.Formatter().formatException(record.exc_info))
     if record.stack_info:
         record.stack_info = redacted(record.stack_info)
+
+
+def _redacted_value(value: Any) -> Any:
+    """A string redacted; anything else as it is, unless its text holds a credential."""
+    if isinstance(value, str):
+        return redacted(value)
+    try:
+        text = str(value)
+    except Exception:
+        return value
+    clean = redacted(text)
+    return value if clean == text else clean

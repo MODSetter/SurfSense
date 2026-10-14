@@ -2,6 +2,7 @@ import logging
 from collections.abc import Iterator
 
 import pytest
+from uvicorn.logging import AccessFormatter
 
 from host.redacted_logs import redact_every_record, redacted
 
@@ -79,6 +80,49 @@ def test_every_record_is_redacted_whoever_formats_it(
     ]
     assert "s3cr" not in caplog.text
     assert f"tunnel to {HIDDEN} refused" in caplog.text
+
+
+def test_a_formatter_that_reads_the_arguments_still_formats(
+    record_factory: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """uvicorn's access log unpacks its five arguments: they keep their shape and types."""
+    redact_every_record()
+    logger = logging.getLogger("host.tests.redacted.access")
+    with caplog.at_level(logging.INFO, logger=logger.name):
+        logger.info(
+            '%s - "%s %s HTTP/%s" %d',
+            "10.0.1.7:51234",
+            "POST",
+            "/web-crawl/mcp?key=abc123",
+            "1.1",
+            200,
+        )
+
+    (record,) = caplog.records
+    assert record.args == (
+        "10.0.1.7:51234",
+        "POST",
+        "/web-crawl/mcp?key=***",
+        "1.1",
+        200,
+    )
+    formatted = AccessFormatter("%(request_line)s %(status_code)s").format(record)
+    assert formatted == "POST /web-crawl/mcp?key=*** HTTP/1.1 200 OK"
+
+
+def test_a_credential_split_across_message_and_arguments_is_hidden(
+    record_factory: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    redact_every_record()
+    logger = logging.getLogger("host.tests.redacted.split")
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        logger.warning("proxy http://%s:%s@%s failed", "user-1", "s3cret", "gw:823")
+        logger.warning("open failed: %s", ConnectionError(f"tunnel to {PROXY} refused"))
+
+    assert [record.getMessage() for record in caplog.records] == [
+        "proxy http://***@gw:823 failed",
+        f"open failed: tunnel to {HIDDEN} refused",
+    ]
 
 
 def test_redacting_twice_wraps_the_factory_once(record_factory: None) -> None:
