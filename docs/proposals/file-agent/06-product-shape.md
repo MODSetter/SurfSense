@@ -27,7 +27,7 @@ code:
   - surfsense_local/frontend/src/features/resources/
   - surfsense_local/frontend/src/features/updates/
   - surfsense_local/frontend/src/features/onboarding/model-step/
-  - docs/adr/0044-capability-comes-from-a-measured-manifest.md
+  - docs/adr/0044-a-score-sets-the-default-mode-never-whether-agentic-is-allowed.md
 ---
 
 # Product shape
@@ -365,7 +365,7 @@ Until 05's matrix lands rows, S1 to J2 ship today's behaviour with honest labels
 
 ## What this changes in other streams, ADRs and proposals
 
-- **ADR 0044, written with [05](05-model-ladder-and-evals.md):** one workspace kind; capability from 05's measured profile; the license never changes it; organization policy may lower it; no verdict stands for a hold SurfSense places itself; the word "mode" stays out of the interface.
+- **[ADR 0044](../../adr/0044-a-score-sets-the-default-mode-never-whether-agentic-is-allowed.md)** records what #2207 built instead: modes chosen per chat, a measured score setting only the default. Still to record from this page: one workspace kind; the license never changes a verdict; organization policy may only lower one; no verdict stands for a hold SurfSense places itself.
 - **[`01-which-engine.md`](../agent/01-which-engine.md) and the [agent README](../agent/README.md) "Where the agent appears":** the model decides which engines a thread may use; when it allows both, the user picks per thread at creation. "A thread keeps its engine" stands.
 - **[01](01-sources-and-folders.md):** roles live on 01's `folders.role` with this stream's `Role` vocabulary (`evidence`, `target`, `playbook`, `library`); templates set them through `set_up_job()`.
 - **[02](02-skills-and-engines.md):** section 6 reads 05's `Capability` (`engines`, `jobs[key].level`, `skills`, `bash`) through `policy_for(capability)`; job threads run on predefined `surfsense-job-<key>` agents; the playbook format, its validation and the drafting workflow behind "Make a playbook from this document" are 02's, and the form and failure codes are this stream's; the redline's release rule is decision 13 here; `workspaces.settings.revision_author` is created by this stream's revision; job content is free and job packs are an open-source extension, as "Free, premium plugins and Enterprise" above sets out.
