@@ -127,6 +127,14 @@ class TranscriptionDefaults(BaseModel):
             | (set(self.request_options) - known.request_options)
         )
 
+    def without_locale(self, family: str) -> list[str]:
+        """Listed languages `family` would get no locale for: pinning one would
+        send the bare code, which a family that takes locales fails on."""
+        known = RECOGNISER_FAMILIES.get(family, _NOTHING_KNOWN)
+        if not known.locales:
+            return []
+        return [code for code in self.languages if code not in self.family_codes]
+
 
 ENTRY_OWNS = frozenset({"audio", "transcription"})
 ENTRY_REQUIRES: frozenset[str] = frozenset()

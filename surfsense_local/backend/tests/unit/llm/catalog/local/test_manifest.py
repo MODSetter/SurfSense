@@ -648,6 +648,10 @@ def _transcription(**changes) -> dict:
             id="a detected locale the family does not know",
         ),
         pytest.param(
+            _transcription(languages=["en", "es", "ja", "de"]),
+            id="a listed language with no locale for a family that takes locales",
+        ),
+        pytest.param(
             _transcription(languages=["en", "en"]), id="a language listed twice"
         ),
         pytest.param(

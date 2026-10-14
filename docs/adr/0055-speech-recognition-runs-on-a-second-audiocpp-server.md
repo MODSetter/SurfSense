@@ -30,4 +30,4 @@ Text models already reach their runtime only through the API, so one gate can or
 
 ## Where the code stands
 
-The family is compiled and checked in staging, and Electron has the sidecar, its watcher with the crash restart, and the API's address (`sidecars/audiocpp-transcription.ts`, `sidecars/watch-transcription-models.ts`, `sidecars/python.ts`). Nothing writes `transcription.json` yet, so the server never starts, and the API has no client, gate or routes for it ([proposal](../proposals/local-speech-to-text.md#order-of-work), steps 3 and 4).
+The family is compiled and checked in staging, and Electron has the sidecar, its watcher with the crash restart, and the API's address (`sidecars/audiocpp-transcription.ts`, `sidecars/watch-transcription-models.ts`, `sidecars/python.ts`). The API writes `transcription.json` once a speech recogniser is downloaded, so the server runs only then, and has no client, gate or routes for it yet ([proposal](../proposals/local-speech-to-text.md#order-of-work), step 4).

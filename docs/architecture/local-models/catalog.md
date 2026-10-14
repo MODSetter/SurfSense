@@ -186,7 +186,9 @@ preferred first, and nothing in it is a score.
   it may detect without being listed for them; and `request_options`, written
   as the server entry's `default_request_options`, since the multipart routes
   take none. The schema refuses a language listed twice, a `family_codes` key
-  outside `languages`, a `detected_only` key inside it, and a locale or request
+  outside `languages`, a `detected_only` key inside it, a listed language with
+  no `family_codes` locale for a family that takes locales, since pinning it
+  would send the bare code, and a locale or request
   option the family does not take at the pinned server: `RECOGNISER_FAMILIES`
   in [`manifest_fields.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/manifest_fields.py)
   copies each family's locales from its model spec and its options from its

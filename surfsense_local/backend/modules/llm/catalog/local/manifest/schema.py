@@ -174,6 +174,8 @@ class CuratedModel(BaseModel):
         family = self.evidence.architecture
         if stray := self.transcription.unknown_to(family):
             raise ValueError(f"{self.id}: {family} takes none of {stray}")
+        if bare := self.transcription.without_locale(family):
+            raise ValueError(f"{self.id}: {family} needs a locale for {bare}")
         return self
 
     @model_validator(mode="after")
