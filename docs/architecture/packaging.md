@@ -156,7 +156,6 @@ Four run in CI: `test_license_key.py` inside the release workflow, `test_frozen_
 
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
 - No packaging test checks that the frozen API carries the agent's `SKILL.md`; `api.spec` collects it, and it was checked by hand.
-- [`desktop-tests.yml`](../../.github/workflows/desktop-tests.yml)'s macOS and Windows legs have not passed yet, its integration step included, so a break that shows only on Windows or macOS can still show first in a release build ([#2226](https://github.com/MODSetter/SurfSense/issues/2226)).
 - The packaged `llama-server`, `audiocpp_server` and `sd-server` are started only on the Linux runner ([#1986](https://github.com/MODSetter/SurfSense/issues/1986)).
 - A dry run's Windows build is signed with the macOS certificate through signtool, not through Azure Trusted Signing, so only a tag's build exercises Windows signing as it ships, and a lapsed Azure client secret shows there first ([#2223](https://github.com/MODSetter/SurfSense/issues/2223)).
 - What matplotlib adds to the installer has not been measured against its size gate. A scratch freeze of the worker put it at about 15 MB unpacked under `_internal/matplotlib`, plus about 0.6 MB for contourpy and kiwisolver.
