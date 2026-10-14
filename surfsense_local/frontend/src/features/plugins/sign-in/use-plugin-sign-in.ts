@@ -10,7 +10,8 @@ const POLL_MS = 1000
 export type PluginSignInState =
   | { phase: "idle" }
   | { phase: "waiting" }
-  | { phase: "failed"; message: string | null }
+  // Why, as the API said it; both null once the API has forgotten the sign-in.
+  | { phase: "failed"; code: string | null; message: string | null }
 
 function openSignInPage(url: string) {
   if (window.surfsense?.openExternal) {
@@ -55,7 +56,7 @@ export function usePluginSignIn(onConnected: () => void) {
         // Forgotten by the API: expired, or the API restarted. Anything else is retried.
         if (!(error instanceof ApiError && error.status === 404)) continue
         flow.current = null
-        setState({ phase: "failed", message: null })
+        setState({ phase: "failed", code: null, message: null })
         return
       }
       if (progress.status === "connected") {
@@ -66,7 +67,11 @@ export function usePluginSignIn(onConnected: () => void) {
       }
       if (progress.status === "failed") {
         flow.current = null
-        setState({ phase: "failed", message: progress.message })
+        setState({
+          phase: "failed",
+          code: progress.code,
+          message: progress.message,
+        })
         return
       }
     }
