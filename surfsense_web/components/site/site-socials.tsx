@@ -6,7 +6,7 @@ import { XLogo } from "@/components/homepage/icons/x-logo";
 import { REPO_URL } from "@/components/site/site-content";
 
 /**
- * The footer's social links, each in a small chip on the light footer card.
+ * The footer's social links, each in a small bordered square.
  *
  * GitHub, Discord and X are single-colour marks and take the card's ink.
  * Reddit's and LinkedIn's marks are full-colour by design and keep their own.
@@ -28,16 +28,16 @@ const SOCIALS: Social[] = [
 
 export function SiteSocials() {
 	return (
-		<ul className="flex list-none flex-wrap gap-2 p-0">
+		<ul className="flex list-none flex-wrap gap-3 p-0">
 			{SOCIALS.map(({ title, href, Logo }) => (
 				<li key={title}>
 					<a
 						href={href}
 						target="_blank"
 						rel="noreferrer noopener"
-						className="grid size-8 place-items-center rounded-lg bg-(--home-badge) text-foreground transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+						className="grid size-11 place-items-center rounded-lg border border-foreground/15 bg-background/60 text-foreground transition-colors duration-100 hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 					>
-						<Logo className="size-4" />
+						<Logo className="size-[1.125rem]" />
 						<span className="sr-only">{title}</span>
 					</a>
 				</li>

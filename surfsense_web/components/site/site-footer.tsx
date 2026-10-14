@@ -1,25 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
-import { HomeDownloadButton } from "@/components/homepage/home/home-download-button";
-import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
-import { FOOTER_COLUMNS } from "@/components/site/site-content";
+import { FOOTER_COLUMNS, REPO_URL } from "@/components/site/site-content";
 import footerScene from "@/components/site/site-footer-scene.webp";
 import { SiteSocials } from "@/components/site/site-socials";
-import { siteText } from "@/components/site/site-text";
 import { cn } from "@/lib/utils";
 
 /**
- * Site footer: the closing call to action and the site's links, set on a
- * painted summer sky with clouds banked at the bottom.
- *
- * The page's ground fades into the painting's sky from the top, so the download pitch
- * sits on open ground with no card of its own; the links ride a light card
- * over the clouds. Rendered by `app/(home)/layout.tsx` for
- * every route under `(home)` except the auth pages.
+ * Site footer: the site's links set straight on the page's ground, which fades
+ * into an engraved Golden Gate Bridge that fills the open band below.
+ * Rendered by `app/(home)/layout.tsx` for every route under `(home)` except the
+ * auth pages.
  */
 
 const LINK_CLASS =
-	"text-sm text-muted-foreground transition-colors duration-100 hover:text-foreground focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+	"text-[0.9375rem] text-muted-foreground transition-colors duration-100 hover:text-foreground focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const WORDMARK_CLASS =
 	"font-[family-name:var(--font-brand)] font-semibold [font-variation-settings:'SOFT'_75,'WONK'_0]";
@@ -27,95 +21,89 @@ const WORDMARK_CLASS =
 export function SiteFooter() {
 	return (
 		<footer className="relative isolate overflow-hidden">
-			{/* The 2:1 sky covers the footer at twice its height: about 56rem tall on
-			    desktop, about 80rem on a phone where the card's columns stack. */}
+			{/* Sized by width and anchored to the bottom, so the bridge stays in the open band
+			    however tall the links make the footer. Covering the footer instead would
+			    blow the 3:1 scene up well past its 4344px source and blur the linework.
+			    From lg the whole panorama shows; below it the scene is wider than the screen
+			    and the left offsets keep the main tower, a third of the way in, on screen. */}
 			<div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-				<Image
-					src={footerScene}
-					alt=""
-					fill
-					sizes="(max-width: 767px) 160rem, max(100vw, 112rem)"
-					quality={85}
-					placeholder="blur"
-					className="object-cover object-center select-none"
-				/>
-				<div className="absolute inset-x-0 top-0 h-[62%] bg-linear-to-b from-background via-background/85 to-transparent" />
-			</div>
-
-			<div
-				className={cn(
-					"mx-auto max-w-(--home-max) px-6 pb-16 text-center md:px-10 md:pb-20",
-					sectionSpacing.head
-				)}
-			>
-				<p className={cn(siteText.h2, "md:text-5xl")}>Your notebook, on your own machine</p>
-				<p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground md:text-lg">
-					Download SurfSense and keep every document, model key and answer on your own disk. Free,
-					open source, no account.
-				</p>
-				<div className="mt-8 flex justify-center">
-					<HomeDownloadButton tone="dark" />
+				<div className="absolute bottom-0 -left-[60%] aspect-[4344/1448] w-[360%] sm:-left-[15%] sm:w-[220%] lg:left-0 lg:w-full">
+					<Image
+						src={footerScene}
+						alt=""
+						fill
+						sizes="(max-width: 639px) 360vw, (max-width: 1023px) 220vw, 100vw"
+						quality={85}
+						placeholder="blur"
+						className="object-cover object-bottom select-none"
+					/>
+					<div className="absolute inset-x-0 top-0 h-[45%] bg-linear-to-b from-background via-background/80 to-transparent" />
 				</div>
 			</div>
 
-			{/* The content column and the sections' gutters, so the card's edges line up
-			    with every section's content while the image behind runs full width. */}
-			<div className="mx-auto max-w-(--home-max) px-6 pb-16 md:px-10 md:pb-24">
-				<div className="rounded-3xl bg-card px-6 py-11 shadow-xl md:px-14 md:py-16">
-					<div className="grid gap-10 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))] lg:gap-8">
-						<div>
-							<Link href="/" className="inline-flex items-center gap-1.5 select-none">
-								<Image src="/icon-128.svg" alt="" width={28} height={28} className="size-7" />
-								<span className={cn(WORDMARK_CLASS, "text-xl text-foreground")}>SurfSense</span>
-							</Link>
-							<p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-								One private workspace for everything you read, save and ask.
-							</p>
-							<Link
-								href="/contact"
-								className="mt-8 inline-flex h-11 items-center rounded-full bg-foreground px-6 text-sm font-medium text-background transition-colors duration-150 hover:bg-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-							>
-								Contact us
-							</Link>
-						</div>
-
-						<div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:contents">
-							{FOOTER_COLUMNS.map((column) => (
-								<div key={column.heading}>
-									<p className="text-base font-medium text-foreground">{column.heading}</p>
-									<ul className="mt-4 flex list-none flex-col gap-3 p-0">
-										{column.links.map((link) => (
-											<li key={link.title}>
-												{link.external ? (
-													<a
-														href={link.href}
-														target="_blank"
-														rel="noreferrer noopener"
-														className={LINK_CLASS}
-													>
-														{link.title}
-													</a>
-												) : (
-													<Link href={link.href} className={LINK_CLASS}>
-														{link.title}
-													</Link>
-												)}
-											</li>
-										))}
-									</ul>
-								</div>
-							))}
-						</div>
-					</div>
-
-					<div className="mt-14 flex flex-col-reverse gap-6 border-t border-border pt-9 sm:flex-row sm:items-center sm:justify-between">
-						<p className="text-sm text-muted-foreground">
-							&copy; SurfSense {new Date().getFullYear()}. Free and open source.
+			<div className="mx-auto max-w-(--home-max) px-6 pt-20 md:px-10 md:pt-28">
+				<div className="flex flex-col gap-12 lg:flex-row lg:justify-between lg:gap-16">
+					<div className="max-w-sm">
+						<Link href="/" className="inline-flex items-center gap-2 select-none">
+							<Image src="/icon-128.svg" alt="" width={32} height={32} className="size-8" />
+							<span className={cn(WORDMARK_CLASS, "text-2xl text-foreground")}>SurfSense</span>
+						</Link>
+						<p className="mt-5 text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">
+							One private workspace for everything you read, save and ask.
 						</p>
-						<SiteSocials />
+						<div className="mt-8">
+							<SiteSocials />
+						</div>
+					</div>
+
+					<div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 sm:gap-x-16 lg:gap-x-24">
+						{FOOTER_COLUMNS.map((column) => (
+							<div key={column.heading}>
+								<p className="text-base font-medium text-foreground">{column.heading}</p>
+								<ul className="mt-5 flex list-none flex-col gap-3.5 p-0">
+									{column.links.map((link) => (
+										<li key={link.title}>
+											{link.external ? (
+												<a
+													href={link.href}
+													target="_blank"
+													rel="noreferrer noopener"
+													className={LINK_CLASS}
+												>
+													{link.title}
+												</a>
+											) : (
+												<Link href={link.href} className={LINK_CLASS}>
+													{link.title}
+												</Link>
+											)}
+										</li>
+									))}
+								</ul>
+							</div>
+						))}
 					</div>
 				</div>
+
+				<div className="mt-16 flex flex-col gap-3 border-t border-foreground/15 pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+					<p>&copy; {new Date().getFullYear()} SurfSense. All rights reserved.</p>
+					<p>
+						Free and{" "}
+						<a
+							href={REPO_URL}
+							target="_blank"
+							rel="noreferrer noopener"
+							className="text-foreground underline underline-offset-4 transition-colors duration-100 hover:text-foreground/80 focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+						>
+							open source
+						</a>
+					</p>
+				</div>
 			</div>
+
+			{/* The open band the bridge shows through. From lg it is 75% of the scene's
+			    height, so the tower rises behind the copyright row at every width. */}
+			<div aria-hidden="true" className="h-96 lg:aspect-4/1 lg:h-auto" />
 		</footer>
 	);
 }
