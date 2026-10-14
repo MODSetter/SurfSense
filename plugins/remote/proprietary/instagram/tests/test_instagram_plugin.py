@@ -18,8 +18,11 @@ from host.tests.mcp_calls import call
 from host.tests.serving import serving
 from proprietary.instagram import scraper
 from proprietary.instagram.fetch import InstagramAccessBlockedError
-from proprietary.license_check import keygen
-from proprietary.license_check.tests.stand_in_keygen import ACCOUNT, StandInKeygen
+from proprietary.license_check.tests.stand_in_keygen import (
+    ACCOUNT,
+    StandInKeygen,
+    accounts_url,
+)
 
 LICENSE = {"Authorization": "License k-1"}
 
@@ -28,8 +31,8 @@ LICENSE = {"Authorization": "License k-1"}
 def instagram(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """The real Instagram plugin on the host, its license checked by a stand-in Keygen."""
     with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
-        monkeypatch.setattr(keygen, "KEYGEN_API_URL", keygen_url)
-        monkeypatch.setattr(keygen, "SURFSENSE_ACCOUNT_ID", ACCOUNT)
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
         with serving(host_app(plugins={"instagram"})) as base:
             yield f"{base}/instagram/mcp"
 

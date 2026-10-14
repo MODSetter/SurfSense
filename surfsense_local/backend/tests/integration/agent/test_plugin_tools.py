@@ -28,9 +28,9 @@ from tests.mcp_test_server import (
     RecordingMethods,
     RequiringLicense,
     RequiringToken,
+    amazon_server,
     notes_server,
     plugin_host,
-    reddit_server,
     serving,
 )
 from tests.oauth_stand_in import ProtectedByStandIn, StandInAuthorizationServer
@@ -206,13 +206,13 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
         guarded.append(RequiringLicense(app))
         return guarded[0]
 
-    with serving(plugin_host("reddit", reddit_server(), around)) as base:
+    with serving(plugin_host("amazon", amazon_server(), around)) as base:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
-        connected = await agent_api.http.post("/plugins/first-party/reddit")
+        connected = await agent_api.http.post("/plugins/first-party/amazon")
         assert connected.status_code == 201, connected.text
         guarded[0].authorizations.clear()
         agent_api.model.replies = [
-            call("reddit_search_posts", query="ship"),
+            call("amazon_search_products", query="ship"),
             ("text", "Done."),
         ]
         thread = await open_thread(agent_api)
@@ -220,7 +220,7 @@ async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
         frames = await send(agent_api, thread["id"], "Search the web")
 
     step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("reddit_search_posts", "completed")
+    assert (step["tool"], step["status"]) == ("amazon_search_products", "completed")
     assert set(guarded[0].authorizations) == {f"License {INDIVIDUAL_KEY}"}
 
 
@@ -237,12 +237,12 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
         guarded.append(RequiringLicense(app))
         return guarded[0]
 
-    host = plugin_host("reddit", reddit_server(), around, cancels)
+    host = plugin_host("amazon", amazon_server(), around, cancels)
     others = RecordingHeaders(notes_server().streamable_http_app(), "x-surfsense-calls")
     with serving(host) as base, serving(others) as third_party:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
         assert (
-            await agent_api.http.post("/plugins/first-party/reddit")
+            await agent_api.http.post("/plugins/first-party/amazon")
         ).status_code == 201
         await connect_notes(agent_api, f"{third_party}/mcp")
         agent_api.model.replies = [("stall", "Thinking about")]
