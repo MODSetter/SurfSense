@@ -11,7 +11,7 @@ import { ServerCard } from "./server-card"
 
 /**
  * Both ways a model arrives, on one page and in the same shape for every slot:
- * a ChatGPT plan where one fills the slot, then the server card, both short,
+ * the server card, then a ChatGPT plan where one fills the slot, both short,
  * then this computer's catalog, which says so itself when nothing can run here.
  */
 export function AddModelOptions({
@@ -30,8 +30,8 @@ export function AddModelOptions({
     <div className="flex flex-col gap-6">
       {onConnected ? (
         <>
+          <ServerCard onConnected={onConnected} />
           <ChatGPTOption modelType={modelType} onConnected={onConnected} />
-          <ServerCard modelType={modelType} onConnected={onConnected} />
           <Separator />
         </>
       ) : null}

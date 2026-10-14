@@ -148,7 +148,7 @@ describe("chat model settings", () => {
     ).toBeTruthy()
   })
 
-  it("offers a ChatGPT plan above Use a server, where one can serve chat", async () => {
+  it("offers a ChatGPT plan below Use a server, where one can serve chat", async () => {
     vi.stubGlobal(
       "fetch",
       serving({
@@ -172,7 +172,7 @@ describe("chat model settings", () => {
       within(plan).getByRole("button", { name: "Sign in with ChatGPT" })
     ).toBeTruthy()
     expect(
-      plan.compareDocumentPosition(server) & Node.DOCUMENT_POSITION_FOLLOWING
+      server.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
   })
 

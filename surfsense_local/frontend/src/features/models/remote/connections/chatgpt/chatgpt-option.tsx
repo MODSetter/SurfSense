@@ -56,7 +56,13 @@ export function ChatGPTOption({
 
   return (
     <section aria-label={title} className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
+      {/* Aligned as the Use a server row beside it is; progress shows below, so the button stays put. */}
+      <div
+        className={cn(
+          "flex justify-between",
+          dense ? "items-center gap-4" : "items-start gap-3"
+        )}
+      >
         <div className="min-w-0">
           <h3
             className={cn(

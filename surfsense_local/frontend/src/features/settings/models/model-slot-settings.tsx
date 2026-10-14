@@ -193,7 +193,6 @@ export function ModelSlotSettings({
       )}
       <ConnectionDialog
         open={editOpen}
-        modelType={modelType}
         connection={editing ?? undefined}
         onOpenChange={setEditOpen}
         onOpenChangeComplete={(open) => {

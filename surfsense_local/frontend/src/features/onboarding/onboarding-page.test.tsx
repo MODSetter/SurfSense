@@ -810,7 +810,7 @@ describe("onboarding", () => {
     expect(search()).toBeNull()
   })
 
-  it("offers a ChatGPT plan above Use a server on the chat step", async () => {
+  it("offers a ChatGPT plan below Use a server on the chat step", async () => {
     vi.stubGlobal("fetch", backend({ chatgpt: true }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -824,7 +824,7 @@ describe("onboarding", () => {
       within(plan).getByRole("button", { name: "Sign in with ChatGPT" })
     ).toBeTruthy()
     expect(
-      plan.compareDocumentPosition(server) & Node.DOCUMENT_POSITION_FOLLOWING
+      server.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
   })
 
