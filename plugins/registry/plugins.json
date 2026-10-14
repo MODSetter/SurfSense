@@ -73,7 +73,18 @@
         "notion-get-comments",
         "notion-get-teams",
         "notion-get-users",
-        "notion-get-async-task"
+        "notion-get-async-task",
+        "notion-list-agents",
+        "notion-search-agents",
+        "notion-query-sessions",
+        "notion-search-sessions",
+        "notion-spawn-session",
+        "notion-get-session-status",
+        "notion-wait-session",
+        "notion-stop-session",
+        "notion-send-message-to-session",
+        "notion-list-session-events",
+        "notion-read-session-event"
       ],
       "added": "2026-10",
       "about": "Connect Notion to SurfSense to work with your workspace from an Agentic chat. Search your pages and databases, read them in full, and create, update, move or comment on pages. You sign in with your own Notion account, and the agent sees only what that account can see. Some tools, such as AI search across connected apps, depend on your Notion plan."
