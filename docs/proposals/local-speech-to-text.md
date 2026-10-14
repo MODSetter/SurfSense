@@ -419,7 +419,7 @@ The maintainer set the rule for the model, the one that takes the least of the u
 Each is a measurement with its rule already set, and the step that takes it:
 
 - **Nemotron on a laptop (step 2).** Speed and peak memory on the i5-1235U and on an 8 GB Windows laptop with a 4B `Q4_K_M` chat model loaded, and error on about 50 FLEURS test utterances in each of the 26 listed languages. A language over 30% on audio.cpp's package is dropped from `languages`. Below 3× real time on the laptop, file windows shrink to 15 s so dictation waits less behind them.
-- **Language tags (step 4).** How often a phrase or window comes back with no `<xx-XX>` tag. Above 1 in 10, the API reads the language from the text's script before giving up.
+- **Language tags (step 4).** How often a phrase or window comes back with no `<xx-XX>` tag. Above 1 in 10, the API reads the language from the text's script before giving up. Measured in step 4 on Kokoro's six sentences: French and Hindi came back untagged, so the API reads the script.
 - **Whisper large-v3-turbo on long files** in transcribe.cpp, which only short clips have measured (1.43×): the number that decides whether the fallback can carry the long tail (step 11).
 - **Language flips in files (step 5).** How often windows of a one-language recording are detected as another. Above 1 window in 20, a file locks to the majority of its first three speech windows.
 - **Hallucination (step 5).** An hour of meeting audio and 10 minutes of music and noise, with and without the Silero gate and the compression-ratio drop. A guard that drops real speech from the FLEURS subset is removed.

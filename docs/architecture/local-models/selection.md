@@ -25,7 +25,7 @@ type is the slot.
 | `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
-| `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | nothing yet ([proposal](../../proposals/local-speech-to-text.md)) |
+| `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes, which no screen or job calls yet ([admission](admission.md#speech-recognition)) |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -257,7 +257,9 @@ The intent lives in the row's `settings` under `transcription`, as
 `{"language": "ja"}`, read and written only by
 [`language_intent.py`](../../../surfsense_local/backend/modules/llm/transcription/language_intent.py).
 A kept language the model no longer lists reads as `auto`, and nothing rewrites
-it from a detection. Like voices, it is dropped when the slot takes another
+it from a detection. A request names the language's locale from the entry's
+`family_codes` (`ja-JP` for Nemotron), and `auto` names none, so the model
+detects it. Like voices, it is dropped when the slot takes another
 model; choosing the same model again keeps it.
 
 ## Capabilities and the system role

@@ -50,6 +50,7 @@ from modules.llm.selectable import SLOTS, selectable_for
 from modules.llm.selection import choose_model, complete_onboarding
 from modules.llm.subscriptions.chatgpt.router import router as chatgpt_router
 from modules.llm.transcription.language_router import router as language_router
+from modules.llm.transcription.router import router as transcription_router
 from modules.llm.voices.router import router as voices_router
 from shared.config import get_llm_settings
 
@@ -62,6 +63,7 @@ router.include_router(chatgpt_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
 router.include_router(language_router)
+router.include_router(transcription_router)
 
 
 @router.get(

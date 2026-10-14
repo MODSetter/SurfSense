@@ -12,6 +12,7 @@ from modules.llm.resolution import (
     ResolvedSpeechToText,
     resolve_speech_to_text,
 )
+from modules.llm.transcription import http_errors
 from modules.llm.transcription.language_intent import (
     AUTO,
     keep_language_intent,
@@ -63,10 +64,7 @@ def _speech_model(session: Session) -> ResolvedSpeechToText:
     try:
         return resolve_speech_to_text(session)
     except NoSpeechModelError as error:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            {"message": "Choose a speech model first.", "code": "needs_speech_model"},
-        ) from error
+        raise http_errors.needs_speech_model() from error
 
 
 def _read(chosen: ResolvedSpeechToText) -> LanguageRead:

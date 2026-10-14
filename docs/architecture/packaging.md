@@ -53,15 +53,16 @@ Office support adds nothing to either binary. LibreOffice is downloaded only whe
 
 ## Model packs
 
-Three packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses, the first query embeds and the first podcast voices with no network. Every other audio model is downloaded like any other model ([`local-models/catalog.md`](local-models/catalog.md)).
+Four packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses, the first query embeds and the first podcast voices with no network, and silence never reaches a speech model. Every other audio model is downloaded like any other model ([`local-models/catalog.md`](local-models/catalog.md)).
 
 | Pack | Staged by | Holds |
 |---|---|---|
 | Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model and its tokenizer, from a pinned revision, sha256-checked |
 | Voice | `build:voice`, `scripts/fetch_bundled_voice.py` | `audio/`: the manifest's first audio model in its default build, Kokoro 82M `Q8_0` (190 MB), with its install record, fetched as a catalog install is: from its pinned commit, sha256-checked |
+| Voice activity | `build:vad`, `scripts/fetch_silero_vad.py` | `silero-vad/`: Silero VAD's 16 kHz ONNX build, `silero_vad_16k_op15.onnx` (1,289,603 B, MIT), and its licence, from v6.2.3's commit of `snakers4/silero-vad`, sha256-checked; the API and the worker read it in place ([admission](local-models/admission.md#speech-recognition)) |
 | Parser | `build:parser`, `scripts/fetch_docling_models.py` | Docling's layout, table and RapidOCR weights, pruned of the variants ingest never loads |
 
-The release workflow runs the three scripts directly. Without the parser pack, Docling downloads its weights on first use and RapidOCR writes into `site-packages`, which is read-only inside a frozen bundle, so the first PDF would fail rather than merely be slow. `worker/ingestion/parsing.py` points `HF_HOME` at the models directory before Docling loads and, once the parser pack is complete, sets `HF_HUB_OFFLINE=1`.
+The release workflow runs the four scripts directly. Without the parser pack, Docling downloads its weights on first use and RapidOCR writes into `site-packages`, which is read-only inside a frozen bundle, so the first PDF would fail rather than merely be slow. `worker/ingestion/parsing.py` points `HF_HOME` at the models directory before Docling loads and, once the parser pack is complete, sets `HF_HUB_OFFLINE=1`.
 
 ## Native runtimes
 
@@ -83,7 +84,7 @@ The release workflow runs the three scripts directly. Without the parser pack, D
 
 ## Building audio.cpp
 
-[`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/`, `scripts/not-staged/`, the audio.cpp adapter or engine, the manifest or the voicing test runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build, and voices with it again.
+[`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/`, `scripts/not-staged/`, the audio.cpp adapters or engine, the transcription slice, the manifest or either server's test runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build, and voices and transcribes with it again. The recogniser's 930 MB file is cached by its pinned sha256, while the voices are downloaded every run.
 
 Why it compiles rather than downloads, in plain words: upstream's ready-made programs for Linux and Windows do not run on many of the computers the app supports, for a different reason on each.
 
@@ -141,7 +142,7 @@ The installer's version is the one the workflow resolved, passed as `-c.extraMet
 
 ## Packaging tests
 
-All seven carry the `packaging` marker, which `pyproject.toml` excludes by default because three of them freeze a binary, one runs audio.cpp's server on real models and one runs sd.cpp's on a 3 GB one:
+All nine carry the `packaging` marker, which `pyproject.toml` excludes by default because three of them freeze a binary, three run audio.cpp's server on real models and one runs sd.cpp's on a 3 GB one:
 
 | Test | Proves |
 |---|---|
@@ -151,9 +152,11 @@ All seven carry the `packaging` marker, which `pyproject.toml` excludes by defau
 | `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing, and both `api.spec` and `worker.spec` bundle the local model manifest |
 | `test_license_key.py` | the compiled license keys exclude the fixture key |
 | `test_audiocpp_voicing.py` | the staged audio.cpp server, started with the sidecar's flags from the `server.json` the app writes, voices two turns of each curated model through the app's adapter, at the sample rate its entry names, then holds no model loaded; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` names a folder of the pinned files, each checked against its sha256, and then fails without a staged server; `build-audiocpp.yml` runs it on both builds |
+| `test_audiocpp_transcription_config.py` | the staged server, started as the transcription sidecar from the `transcription.json` the app writes, loads the curated recogniser and takes its request options |
+| `test_audiocpp_transcription.py` | Kokoro, on the voices' server, says one sentence each in English, Spanish, French, Hindi, Brazilian Portuguese and Chinese, and the transcription server writes each down through the app's client, tags and cleanup included, within 20% word error (character error for Chinese) and in the language voiced, which a Latin-script sentence Nemotron left untagged may leave unnamed; it records the server's peak memory, gives the model back by id, and, with Silero staged, checks the detector hears every sentence; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` holds Kokoro's and the recogniser's pinned files |
 | `test_sdcpp_generation.py` | the staged sd.cpp server, started with the sidecar's flags on Stable Diffusion 1.5 as the engine reads an installed build, makes one image of a red apple through the app's image client, and the reply is checked for what such a picture has, not for the apple itself: it decodes, is the 512 pixels square the entry asks for, has more than a thousand colours, is red on average, and its middle is redder than its border, which neither a flat frame nor noise is; it runs at 4 steps and on seed 42, sd-server's default written down, the two flags the app does not pass (and `--backend cpu` on the hosted macOS runner, whose virtual graphics card Metal cannot use, so Metal itself is not exercised in CI), and only when `SURFSENSE_TEST_IMAGE_MODELS` names a folder holding the pinned file, checked against its sha256, and then fails without a staged server |
 
-Four run in CI: `test_license_key.py` inside the release workflow, `test_frozen_document_scripts.py` there too, on each OS against the worker the job just froze, `test_audiocpp_voicing.py` inside `build-audiocpp.yml`, and `test_sdcpp_generation.py` inside `build-sdcpp.yml`. Windows' `sd-server` is a pinned download the release job stages, so that gate does not cover it.
+Six run in CI: `test_license_key.py` inside the release workflow, `test_frozen_document_scripts.py` there too, on each OS against the worker the job just froze, the three audio.cpp tests inside `build-audiocpp.yml`, and `test_sdcpp_generation.py` inside `build-sdcpp.yml`. Windows' `sd-server` is a pinned download the release job stages, so that gate does not cover it.
 
 ## Known gaps
 

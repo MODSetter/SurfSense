@@ -120,3 +120,25 @@ def real_model(monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
     monkeypatch.setenv("SURFSENSE_LOCAL_MODELS_DIR", str(REAL_MODELS))
     yield REAL_MODELS
+
+
+@pytest.fixture
+def real_silero_vad(monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point voice activity at the model fetch_silero_vad.py staged, or skip."""
+    from modules.llm.transcription.voice_activity.model_file import (
+        SILERO_VAD,
+        VAD_DIR_NAME,
+    )
+
+    models = next(
+        (
+            candidate
+            for candidate in (_STAGED_MODELS, _DEFAULT_MODELS)
+            if (candidate / VAD_DIR_NAME / SILERO_VAD.weights.name).is_file()
+        ),
+        None,
+    )
+    if models is None:
+        pytest.skip("run scripts/fetch_silero_vad.py to exercise the real detector")
+    monkeypatch.setenv("SURFSENSE_LOCAL_MODELS_DIR", str(models))
+    return models / VAD_DIR_NAME / SILERO_VAD.weights.name
