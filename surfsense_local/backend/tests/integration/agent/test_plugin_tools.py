@@ -238,7 +238,10 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
         return guarded[0]
 
     host = plugin_host("amazon", amazon_server(), around, cancels)
-    others = RecordingHeaders(notes_server().streamable_http_app(), "x-surfsense-calls")
+    texts = RecordingHeaders(
+        notes_server().streamable_http_app(), turn_plugins.TEXT_ONLY_HEADER
+    )
+    others = RecordingHeaders(texts, "x-surfsense-calls")
     with serving(host) as base, serving(others) as third_party:
         monkeypatch.setattr(get_plugin_host_settings(), "plugin_host_url", base)
         assert (
@@ -257,8 +260,10 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
     assert cancels == [
         {"authorization": f"License {INDIVIDUAL_KEY}", "x-surfsense-calls": token}
     ]
-    # The token names the user's thread; it never leaves for a third party's server.
+    # The token names the user's thread; it never leaves for a third party's server,
+    # nor does the ask for text-only results, which only SurfSense's host reads.
     assert set(others.authorizations) == {None}
+    assert set(texts.authorizations) == {None}
 
 
 async def test_a_plugin_whose_server_is_down_is_named_in_the_thread(

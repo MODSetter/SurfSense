@@ -9,7 +9,8 @@ end it.
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,16 +37,31 @@ from modules.agent.opencode_runtime import (
     ReadyAgent,
     ready_opencode,
 )
-from modules.agent.plugin_tools.changed_tools import check_changed_tools
-from modules.agent.plugin_tools.give_plugins import give_plugins
-from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
+from modules.agent.plugin_tools.changed_tools import (
+    check_after_turn,
+    check_changed_tools,
+)
+from modules.agent.plugin_tools.give_plugins import (
+    UnavailablePlugin,
+    give_plugins,
+    servers,
+    set_plugin_rules,
+)
+from modules.agent.plugin_tools.mentions import (
+    Mention,
+    mention_note,
+    mentioned_plugins,
+)
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
-from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
+from modules.agent.plugin_tools.stop_plugin_calls import (
+    HostCalls,
+    stop_plugin_calls,
+)
 from modules.agent.plugin_tools.thread_calls import thread_calls_token
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
-from modules.agent.tool_endpoint.registration import register_thread_tools
+from modules.agent.tool_endpoint.registration import SERVER, register_thread_tools
 from modules.chat.errors import classify_chat_error
 from modules.chat.models import ChatThread
 from modules.chat.runs.notify import notify_run
@@ -75,6 +91,15 @@ class _Sending:
     text: str
     sources: TurnSources
     title: str | None
+
+
+@dataclass(frozen=True)
+class _Tools:
+    """What the turn's opencode was given: the plugins mentioned, the plugins, and those it cannot use."""
+
+    mentions: list[Mention]
+    plugins: list[TurnPlugin]
+    unavailable: list[UnavailablePlugin]
 
 
 @dataclass(frozen=True)
@@ -135,6 +160,7 @@ async def agent_turn(
             async for frame in _stream(
                 run,
                 run_session,
+                place.session_factory,
                 (workspace_id, thread_id),
                 ready,
                 launch_key,
@@ -158,6 +184,7 @@ async def agent_turn(
 async def _stream(
     run: Run,
     session: Session,
+    sessions: sessionmaker[Session],
     where: tuple[int, int],
     ready: ReadyAgent,
     launch_key: str,
@@ -173,6 +200,7 @@ async def _stream(
     turn = TurnFrames(session_id)
     # Approvals asked and not yet answered: the turn waits on the user meanwhile.
     waiting: set[str] = set()
+    host_calls = HostCalls()
     sent = False
     plugins: list[TurnPlugin] = []
     live_instances.turn_began(folder)
@@ -180,35 +208,53 @@ async def _stream(
         # A big scope's first sync takes about 30 s: the thread says why it waits.
         count = len(sending.sources.document_ids)
         yield _frame({"type": "agent-preparing", "count": count})
+        started = time.perf_counter()
+        took: dict[str, float] = {}
+        prepared: asyncio.Task[_Tools] | None = None
         try:
             if thread is None:
                 raise ThreadGoneError(thread_id)
+            # The turn's first call into its instance: one being disposed is finished first.
+            await live_instances.wait_for_disposal(folder)
+            # Given while the sources sync, so neither waits on the other's network or disk.
+            prepared = asyncio.create_task(
+                _prepare_tools(
+                    sessions,
+                    client,
+                    folder,
+                    where,
+                    launch_key,
+                    session_id,
+                    sending.text,
+                    took,
+                )
+            )
             # Commits its own short reads: files are written with the write lock free.
-            await run_in_threadpool(
-                sync_thread_folder, session, thread, sending.sources.document_ids
+            await _timed(
+                took,
+                "sync",
+                run_in_threadpool(
+                    sync_thread_folder, session, thread, sending.sources.document_ids
+                ),
             )
         except (ThreadGoneError, OSError) as error:
+            _drop(prepared)
             logger.warning(
                 "thread %s's sources were not prepared", thread_id, exc_info=True
             )
             yield _frame(_not_prepared(error))
             yield _DONE
             return
-        # The turn's first call into its instance: one being disposed is finished first.
-        await live_instances.wait_for_disposal(folder)
-        await register_thread_tools(client, folder, workspace_id, thread_id, launch_key)
-        signed_out = await refresh_sign_ins(session)
-        await check_changed_tools(session)
-        mentions = await transact(session, mentioned_plugins, sending.text)
-        plugins = await transact(
-            session,
-            turn_plugins,
-            frozenset(m.plugin_id for m in mentions),
-            thread_calls_token(thread_id),
+        except BaseException:
+            _drop(prepared)
+            raise
+        tools = await prepared
+        mentions, plugins, unavailable = (
+            tools.mentions,
+            tools.plugins,
+            tools.unavailable,
         )
-        unavailable = signed_out + await give_plugins(
-            client, folder, session_id, plugins
-        )
+        _log_preparation(thread_id, started, took)
         if unavailable:
             yield _frame(
                 {
@@ -251,6 +297,7 @@ async def _stream(
                         continue
                     for frame in turn.frames(event):
                         _follow_approvals(run, waiting, frame)
+                        host_calls.follow(frame, plugins)
                         if frame.get("artifact") is not None:
                             # Whether it made the document, as the stored step says.
                             await transact(
@@ -287,6 +334,8 @@ async def _stream(
             }
         )
         yield _DONE
+        # While the user reads the reply, so the next turn rarely waits on a check.
+        check_after_turn(sessions)
     except httpx.HTTPError as failure:
         logger.warning("agent turn in %s failed", session_id, exc_info=True)
         message = f"The agent could not be reached: {failure}"
@@ -314,6 +363,8 @@ async def _stream(
                 # opencode stores a Stop as it stores a quit: only this note tells them apart.
                 await _note_stop(client, folder, session_id, turn.user_message_id)
                 await stop_plugin_calls(plugins)
+            else:
+                host_calls.end()
             if sent and not turn.finished:
                 try:
                     await client.abort(folder, session_id)
@@ -323,6 +374,131 @@ async def _stream(
                     )
             await live_instances.turn_ended(client, folder)
             await client.close()
+
+
+async def _prepare_tools(
+    sessions: sessionmaker[Session],
+    client: OpencodeClient,
+    folder: Path,
+    where: tuple[int, int],
+    launch_key: str,
+    session_id: str,
+    text: str,
+    took: dict[str, float],
+) -> _Tools:
+    """SurfSense's tools and the ready plugins given to the folder's opencode, and the session's rules set.
+
+    In a session of its own, as it runs beside the sync. The plugins are given
+    while their check runs; the rules wait for the check, so a tool it switched
+    off is denied before the model is asked. A turn goes on without plugins if
+    opencode cannot say which servers it holds, and fails if their rules cannot be set.
+    """
+    workspace_id, thread_id = where
+    with sessions() as session:
+        signed_out = await _timed(took, "refresh", refresh_sign_ins(session))
+        mentions = await transact(session, mentioned_plugins, text)
+        mentioned = frozenset(m.plugin_id for m in mentions)
+        calls_token = thread_calls_token(thread_id)
+        planned = await transact(session, turn_plugins, mentioned, calls_token)
+        checked = asyncio.create_task(
+            _timed(took, "check", check_changed_tools(sessions))
+        )
+        try:
+            held = await client.tool_servers(folder)
+        except httpx.HTTPError:
+            logger.warning("%s's turn runs without plugins", folder, exc_info=True)
+            took["registered"] = await register_thread_tools(
+                client, folder, workspace_id, thread_id, launch_key
+            )
+            await checked
+            return _Tools(mentions, [], signed_out)
+        registered = asyncio.create_task(
+            _timed(
+                took,
+                "register",
+                register_thread_tools(
+                    client,
+                    folder,
+                    workspace_id,
+                    thread_id,
+                    launch_key,
+                    held.get(SERVER),
+                ),
+            )
+        )
+        given = await _timed(took, "give", give_plugins(client, folder, held, planned))
+        took["listed"] = await checked
+        # Read as the check left them, not as rows the planned read still holds.
+        session.expire_all()
+        plugins = await transact(session, turn_plugins, mentioned, calls_token)
+        added = given.added
+        if servers(plugins) != servers(planned):
+            # A server that failed already is not waited on twice.
+            given = await give_plugins(client, folder, held, plugins, given.failed)
+            added += given.added
+        took["added"] = added
+        try:
+            await _timed(
+                took,
+                "rules",
+                set_plugin_rules(client, folder, session_id, held, plugins),
+            )
+        except httpx.HTTPError:
+            if plugins or held.keys() - {SERVER}:
+                # Fails closed: the last turn's rules would allow a server given
+                # since, and a tool switched off since.
+                _drop(registered)
+                raise
+            logger.warning("%s's plugin rules were not set", folder, exc_info=True)
+        took["registered"] = await registered
+    return _Tools(mentions, plugins, signed_out + given.unavailable)
+
+
+async def _timed[T](took: dict[str, float], stage: str, work: Awaitable[T]) -> T:
+    """Await `work`, noting in `took` how many milliseconds it took."""
+    began = time.perf_counter()
+    try:
+        return await work
+    finally:
+        took[stage] = (time.perf_counter() - began) * 1000
+
+
+def _log_preparation(thread_id: int, started: float, took: dict[str, float]) -> None:
+    """One line per turn: where the wait before the model was asked went, in ms.
+
+    The sync runs beside the rest, so the stages add up to more than the whole.
+    """
+    logger.info(
+        "thread %s prepared in %.0f ms: sync %.0f, refresh %.0f, check %.0f "
+        "(%d listed), give %.0f (%d added), rules %.0f, register %.0f (%s)",
+        thread_id,
+        (time.perf_counter() - started) * 1000,
+        took.get("sync", 0),
+        took.get("refresh", 0),
+        took.get("check", 0),
+        took.get("listed", 0),
+        took.get("give", 0),
+        took.get("added", 0),
+        took.get("rules", 0),
+        took.get("register", 0),
+        "given" if took.get("registered") else "held",
+    )
+
+
+def _drop(task: asyncio.Task | None) -> None:
+    """Cancel a task the turn no longer waits on; any failure it had is only logged."""
+    if task is None:
+        return
+    task.cancel()
+    task.add_done_callback(
+        lambda done: (
+            done.cancelled()
+            or done.exception() is None
+            or logger.warning(
+                "a turn's tools were not given", exc_info=done.exception()
+            )
+        )
+    )
 
 
 async def _note_stop(

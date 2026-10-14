@@ -1,5 +1,6 @@
 """A real MCP server, from the official SDK, served on loopback for the client's tests."""
 
+import asyncio
 import json
 import socket
 import threading
@@ -171,6 +172,45 @@ class RecordingMethods:
             if not event.get("more_body"):
                 break
         self.methods.append(json.loads(body).get("method", ""))
+        replayed = False
+
+        async def replay():
+            nonlocal replayed
+            if replayed:
+                return await receive()
+            replayed = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay, send)
+
+
+class Delaying:
+    """Holds each request for a JSON-RPC method `seconds` before passing it on, once `on`.
+
+    Keeps when each one arrived and when it was passed on, by the clock of `time.monotonic`.
+    """
+
+    def __init__(self, app: ASGIApp, method: str, seconds: float) -> None:
+        self.app = app
+        self.method = method
+        self.seconds = seconds
+        self.on = True
+        self.held: list[tuple[float, float]] = []
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "POST":
+            await self.app(scope, receive, send)
+            return
+        body = b""
+        while True:
+            event = await receive()
+            body += event.get("body", b"")
+            if not event.get("more_body"):
+                break
+        if self.on and json.loads(body).get("method") == self.method:
+            arrived = time.monotonic()
+            await asyncio.sleep(self.seconds)
+            self.held.append((arrived, time.monotonic()))
         replayed = False
 
         async def replay():
