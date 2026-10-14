@@ -300,6 +300,41 @@ async def test_a_check_that_fails_is_answered(
     assert echo.connections == 0
 
 
+async def test_opencode_gone_before_its_answer_closes_the_hosts_connection(
+    engine: Engine, proxy: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tunnel never opens, so nothing else would close the host's side of it."""
+    drain = asyncio.StreamWriter.drain
+    # Held, as opencode's reader holds the error a reset leaves on it: the host's
+    # connection is not then closed by being collected, only by the proxy.
+    raised: list[ConnectionResetError] = []
+
+    async def reset(writer: asyncio.StreamWriter) -> None:
+        # The proxy's 200 fails, as it does once opencode reset the connection.
+        if writer.get_extra_info("sockname")[1] == proxy:
+            raised.append(ConnectionResetError())
+            raise raised[-1]
+        await drain(writer)
+
+    monkeypatch.setattr(asyncio.StreamWriter, "drain", reset)
+    loop = asyncio.get_running_loop()
+    # A bare socket, so a connection left open fails the test rather than hanging it.
+    with socket.create_server(("127.0.0.1", 0)) as host:
+        host.setblocking(False)
+        port = host.getsockname()[1]
+        connect_plugin(engine, f"https://localhost:{port}/mcp")
+        reader, writer = await asyncio.open_connection("127.0.0.1", proxy)
+        writer.write(f"CONNECT localhost:{port} HTTP/1.1\r\n\r\n".encode())
+        await writer.drain()
+        await reader.read()
+        writer.close()
+        tunnel, _ = await asyncio.wait_for(loop.sock_accept(host), 5)
+        with tunnel:
+            received = await asyncio.wait_for(loop.sock_recv(tunnel, 100), 5)
+
+    assert received == b""
+
+
 def test_a_hosts_call_is_recorded_at_most_once_a_minute(
     engine: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:

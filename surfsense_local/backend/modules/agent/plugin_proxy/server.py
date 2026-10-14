@@ -110,15 +110,20 @@ async def _tunnel(
         (checked - started) * 1000,
         (connected - checked) * 1000,
     )
-    if (destination := allowed.call_to_record(host)) is not None:
-        task = asyncio.create_task(_record_call(allowed, destination))
-        recording.add(task)
-        task.add_done_callback(recording.discard)
-    writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-    await writer.drain()
-    sent, received = await asyncio.gather(
-        _pipe(reader, upstream_writer), _pipe(upstream_reader, writer)
-    )
+    # Closed here as well as by its pipe: opencode gone before its 200, or a cancel,
+    # would otherwise leave the host's connection open until it is collected.
+    try:
+        if (destination := allowed.call_to_record(host)) is not None:
+            task = asyncio.create_task(_record_call(allowed, destination))
+            recording.add(task)
+            task.add_done_callback(recording.discard)
+        writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        await writer.drain()
+        sent, received = await asyncio.gather(
+            _pipe(reader, upstream_writer), _pipe(upstream_reader, writer)
+        )
+    finally:
+        upstream_writer.close()
     logger.info(
         "tunnel to %s:%s closed: %d bytes out, %d in, %.1f s",
         host,

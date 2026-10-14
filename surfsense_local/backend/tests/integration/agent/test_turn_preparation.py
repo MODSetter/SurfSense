@@ -139,6 +139,30 @@ async def test_a_turn_whose_plugin_rules_cannot_be_set_fails_closed(
         assert of_type(frames, "completed")[0]["text"] == "Hi."
 
 
+async def test_a_turn_whose_servers_cannot_be_listed_fails_closed(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unlisted, a server opencode holds keeps the last turn's allow for a tool switched off since."""
+
+    async def refused(*_args: object, **_kwargs: object) -> dict[str, str]:
+        raise httpx.ConnectError("opencode went away")
+
+    with serving(notes_server().streamable_http_app()) as base:
+        await connect_notes(agent_api, f"{base}/mcp")
+        agent_api.model.replies = [("text", "Hi."), ("text", "Hi again.")]
+        thread = await open_thread(agent_api)
+        await send(agent_api, thread["id"], "Hello")
+        await agent_api.http.put("/plugins/notes/tools/count", json={"enabled": False})
+        monkeypatch.setattr(OpencodeClient, "tool_servers", refused)
+
+        frames = await send(agent_api, thread["id"], "Hello again")
+
+    (error,) = of_type(frames, "error")
+    assert error["kind"] == "network"
+    assert "notes_count" in offered(agent_api, 0)
+    assert len(agent_api.model.requests) == 1
+
+
 def one_tool_server() -> MCPServer:
     """A plugin whose only tool is a read-only search."""
     server = MCPServer("solo")

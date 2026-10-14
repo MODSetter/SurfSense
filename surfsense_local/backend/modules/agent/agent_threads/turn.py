@@ -391,8 +391,8 @@ async def _prepare_tools(
 
     In a session of its own, as it runs beside the sync. The plugins are given
     while their check runs; the rules wait for the check, so a tool it switched
-    off is denied before the model is asked. A turn goes on without plugins if
-    opencode cannot say which servers it holds, and fails if their rules cannot be set.
+    off is denied before the model is asked. A turn fails if opencode cannot say
+    which servers it holds, or if their rules cannot be set.
     """
     workspace_id, thread_id = where
     with sessions() as session:
@@ -412,12 +412,11 @@ async def _prepare_tools(
         try:
             held = await client.tool_servers(folder)
         except httpx.HTTPError:
-            logger.warning("%s's turn runs without plugins", folder, exc_info=True)
-            took["registered"] = await register_thread_tools(
-                client, folder, workspace_id, thread_id, launch_key
-            )
+            # Fails closed: a server opencode holds keeps the last turn's rules,
+            # which may allow a tool switched off since, and only a rule denying
+            # every tool, opencode's own too, could deny a server not named.
             await checked
-            return _Tools(mentions, [], signed_out + licensed_out)
+            raise
         registered = asyncio.create_task(
             _timed(
                 took,
