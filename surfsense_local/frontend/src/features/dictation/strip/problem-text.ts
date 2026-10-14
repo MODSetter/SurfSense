@@ -34,6 +34,7 @@ export function problemAction(
     case "transcription_unavailable":
       return "try_again"
     case "phrase_failed":
+    case "transcription_needs_memory":
       return canRetry ? "retry" : "dismiss"
     case "needs_speech_model":
     case "model_removed":
@@ -99,7 +100,7 @@ export function problemText(problem: DictationProblem): string {
     case "model_removed":
       return intl.formatMessage({
         id: "dictation_strip_model_removed_error",
-        defaultMessage: "The speech model was removed.",
+        defaultMessage: "The speech recognition model was removed.",
       })
     case "dictation_ended":
       return intl.formatMessage({

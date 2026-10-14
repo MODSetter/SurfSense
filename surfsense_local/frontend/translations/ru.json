@@ -271,7 +271,7 @@
   "dictation_strip_model_removed_error": "Модель распознавания речи удалена.",
   "dictation_strip_no_microphone_error": "Микрофон не найден.",
   "dictation_strip_open_settings_button": "Открыть настройки",
-  "dictation_strip_phrase_failed_error": "Не удалось превратить часть речи в текст.",
+  "dictation_strip_phrase_failed_error": "Не удалось преобразовать в текст часть сказанного.",
   "dictation_strip_retry_button": "Повторить",
   "dictation_strip_set_up_button": "Настроить",
   "dictation_strip_time_limit_status": "Голосовой ввод остановлен через {minutes, plural, one {# минуту} few {# минуты} many {# минут} other {# минуты}}.",

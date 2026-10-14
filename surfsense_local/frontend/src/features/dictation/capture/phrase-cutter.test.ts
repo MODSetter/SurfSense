@@ -83,6 +83,25 @@ describe("phrase endpointing", () => {
     })
   })
 
+  it("sends a lone word once at 20 s, without the quiet after it, and never the quiet alone", () => {
+    const { push, phrases } = feed()
+
+    push(50, QUIET)
+    push(20, VOICE) // 50-69, 0.4 s: too short to end at a pause
+    push(1500, QUIET) // 70-1569, 30 s of quiet
+    expect(phrases).toEqual([{ at: 1026, first: 27, last: 92, frames: 66 }])
+
+    push(60, VOICE) // 1570-1629
+    push(35, QUIET)
+    // Its own 460 ms before it, not the quiet since the word.
+    expect(phrases[1]).toEqual({
+      at: 1664,
+      first: 1547,
+      last: 1652,
+      frames: 106,
+    })
+  })
+
   it("hands over the phrase in progress when the speaker stops", () => {
     const { cutter, push } = feed()
 

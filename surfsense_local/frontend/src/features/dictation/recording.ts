@@ -12,6 +12,7 @@ import { createPhraseCutter } from "./capture/phrase-cutter"
 import { resampleForSpeech, SPEECH_SAMPLE_RATE } from "./capture/resample"
 import { clampToRoom } from "./clamp-to-room"
 import {
+  memoryProblem,
   microphoneProblem,
   openingProblem,
   type DictationProblem,
@@ -37,7 +38,7 @@ export type RecordingView =
 
 export type RecordingOutcome = {
   problem: DictationProblem | null
-  /** Audio not yet transcribed when a phrase failed, for Retry. */
+  /** Audio not yet transcribed when a phrase was refused, for Retry. */
   kept: Blob[]
 }
 
@@ -262,9 +263,9 @@ export class Recording implements DictationAdapter.Session {
     ) {
       this.stopSending({ kind: "model_removed" })
     } else {
-      // This phrase and every one after it wait for Retry.
+      // This phrase and every one after it wait for Retry; memory says why.
       this.kept = [wav]
-      this.stopSending({ kind: "phrase_failed" })
+      this.stopSending(memoryProblem(error) ?? { kind: "phrase_failed" })
     }
   }
 
@@ -272,7 +273,11 @@ export class Recording implements DictationAdapter.Session {
     if (this.options.kept) {
       // A retry keeps its audio whatever stopped it, so Retry stays offered.
       this.kept = []
-      this.stopSending({ kind: "phrase_failed" })
+      this.stopSending(
+        problem.kind === "transcription_needs_memory"
+          ? problem
+          : { kind: "phrase_failed" }
+      )
     } else {
       this.stopSending(problem)
     }

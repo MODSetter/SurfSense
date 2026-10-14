@@ -103,6 +103,9 @@ export function createPhraseCutter() {
       if (phrase.length >= MAX_PHRASE_FRAMES) {
         const cut = quietestCut(phrase)
         const rest = phrase.slice(cut)
+        // Only quiet left after the cut: the phrase ends at its last word, so
+        // the quiet is never sent, alone or ahead of the next phrase.
+        if (voicedIn(rest) === 0) return close(phrase)
         const done = joined(phrase.slice(0, cut))
         phrase = rest
         return done

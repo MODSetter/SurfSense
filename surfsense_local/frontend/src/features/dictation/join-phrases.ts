@@ -5,6 +5,15 @@ const UNSPACED_LANGUAGES = new Set(["zh", "ja", "yue", "th"])
 // For a phrase whose language went unnamed: Han, kana and Thai.
 export const UNSPACED_SCRIPT =
   /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u
+// Punctuation such as 。 or 「 belongs to no script, so the join reads the
+// letter nearest it.
+const LETTER = /\p{L}/u
+
+function letterAt(text: string, end: "first" | "last"): string {
+  const chars = [...text]
+  const letter = (char: string) => LETTER.test(char)
+  return (end === "first" ? chars.find(letter) : chars.findLast(letter)) ?? ""
+}
 
 function unspaced(phrase: TranscribedPhrase, edge: string): boolean {
   if (phrase.language !== null) {
@@ -25,8 +34,8 @@ export function joinPhrases(phrases: readonly TranscribedPhrase[]): string {
     if (!text) continue
     if (previous !== null) {
       const glued =
-        unspaced(previous, [...previous.text].at(-1) ?? "") &&
-        unspaced(phrase, [...text][0])
+        unspaced(previous, letterAt(previous.text, "last")) &&
+        unspaced(phrase, letterAt(text, "first"))
       if (!glued) joined += " "
     }
     joined += text

@@ -191,6 +191,18 @@ describe("dictation", () => {
     dictation.cancel()
   })
 
+  it("joins Chinese phrases with no space when no language came back with them", async () => {
+    const { api, mic, dictation, composer, text, listening } = setUp()
+    api.answer(said("你好。", null), said("「谢谢」", null), said("OK.", null))
+
+    dictation.start(composer)
+    await listening()
+    for (let i = 0; i < 3; i++) mic.say()
+
+    await vi.waitFor(() => expect(text()).toBe("你好。「谢谢」 OK."))
+    dictation.cancel()
+  })
+
   it("stops at the message limit, cut at the last whole word", async () => {
     const { api, mic, dictation, composer, text, listening } = setUp()
     // Room for 20 characters after the separating space.
@@ -287,6 +299,74 @@ describe("dictation", () => {
     await vi.waitFor(() => expect(text()).toBe("First part. Second part."))
     await vi.waitFor(() => expect(dictation.getView().phase).toBe("idle"))
     expect(mic.state.opens).toBe(1)
+  })
+
+  it("says memory is short when a phrase is refused for it, keeping the audio for Retry", async () => {
+    const { api, mic, dictation, composer, text, listening } = setUp()
+    api.answer(said("Before the podcast."), () =>
+      refusal(409, "transcription_needs_memory", {
+        needed_bytes: 2_900_000_000,
+        available_bytes: 1_200_000_000,
+      })
+    )
+
+    dictation.start(composer)
+    await listening()
+    mic.say()
+    await vi.waitFor(() => expect(text()).toBe("Before the podcast."))
+    mic.say()
+
+    await vi.waitFor(() =>
+      expect(dictation.getView()).toEqual({
+        phase: "problem",
+        problem: {
+          kind: "transcription_needs_memory",
+          neededBytes: 2_900_000_000,
+          availableBytes: 1_200_000_000,
+          message: "Refused: transcription_needs_memory",
+        },
+        canRetry: true,
+      })
+    )
+    expect(api.phrases).toHaveLength(2)
+    expect(mic.state.open).toBe(false)
+
+    api.answer(said("After it."))
+    dictation.retry(composer)
+
+    await vi.waitFor(() => expect(text()).toBe("Before the podcast. After it."))
+    await vi.waitFor(() => expect(dictation.getView().phase).toBe("idle"))
+  })
+
+  it("keeps the audio when a Retry is refused for memory, and offers Retry again", async () => {
+    const { api, mic, dictation, composer, listening } = setUp()
+    api.answer(() => refusal(422, "unfit_audio"))
+    dictation.start(composer)
+    await listening()
+    mic.say()
+    await vi.waitFor(() =>
+      expect(dictation.getView()).toMatchObject({ canRetry: true })
+    )
+    const served = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      String(input) === "/llm/transcription/dictations"
+        ? refusal(409, "transcription_needs_memory", {
+            needed_bytes: 2_900_000_000,
+            available_bytes: 1_200_000_000,
+          })
+        : served(input, init)
+    )
+
+    dictation.retry(composer)
+
+    await vi.waitFor(() =>
+      expect(dictation.getView()).toMatchObject({
+        phase: "problem",
+        problem: { kind: "transcription_needs_memory" },
+        canRetry: true,
+      })
+    )
+    expect(api.phrases).toHaveLength(1)
   })
 
   it("says why when the microphone is refused, and lets the API go", async () => {

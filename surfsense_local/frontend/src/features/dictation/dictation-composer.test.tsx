@@ -347,6 +347,29 @@ describe("voice input in the composer", () => {
     expect(screen.queryByRole("alert")).toBeNull()
   })
 
+  it("names both sizes when a phrase is refused for memory, and offers Retry", async () => {
+    const { api, mic, dictation, user, box, listening } = setUp()
+    api.answer(() =>
+      refusal(409, "transcription_needs_memory", {
+        needed_bytes: 2_900_000_000,
+        available_bytes: 1_200_000_000,
+      })
+    )
+    render(<Harness dictation={dictation} />)
+
+    await user.click(await startButton())
+    await listening()
+    act(() => mic.say())
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Transcribing needs about 2.9 GB free; this computer has 1.2 GB."
+    )
+    api.answer(said("Freed up."))
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    await waitFor(() => expect(box().value).toBe("Freed up."))
+  })
+
   it("says why it stopped at the message limit", async () => {
     const { api, mic, dictation, user, box, listening } = setUp()
     api.answer(said("one two three four five"))

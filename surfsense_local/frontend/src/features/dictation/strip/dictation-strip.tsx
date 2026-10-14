@@ -29,7 +29,7 @@ function statusOf(view: DictationView): Status | null {
     return {
       text: intl.formatMessage({
         id: "dictation_strip_loading_status",
-        defaultMessage: "Loading the speech model…",
+        defaultMessage: "Loading the speech recognition model…",
       }),
       shown: true,
     }

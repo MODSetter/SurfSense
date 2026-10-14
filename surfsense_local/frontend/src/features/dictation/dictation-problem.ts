@@ -40,17 +40,21 @@ export function microphoneProblem(error: unknown): DictationProblem {
   return { kind: "microphone_failed" }
 }
 
+/** The API's memory refusal, at the session's start or on a phrase. */
+export function memoryProblem(error: unknown): DictationProblem | null {
+  if (!(error instanceof ApiError)) return null
+  if (error.code !== "transcription_needs_memory") return null
+  return {
+    kind: "transcription_needs_memory",
+    neededBytes: Number(error.detail.needed_bytes),
+    availableBytes: Number(error.detail.available_bytes),
+    message: error.message,
+  }
+}
+
 /** A refusal to open a session, by its code; anything else is a server not answering. */
 export function openingProblem(error: unknown): DictationProblem {
   if (!(error instanceof ApiError)) return { kind: "transcription_unavailable" }
   if (error.code === "needs_speech_model") return { kind: "needs_speech_model" }
-  if (error.code === "transcription_needs_memory") {
-    return {
-      kind: "transcription_needs_memory",
-      neededBytes: Number(error.detail.needed_bytes),
-      availableBytes: Number(error.detail.available_bytes),
-      message: error.message,
-    }
-  }
-  return { kind: "transcription_unavailable" }
+  return memoryProblem(error) ?? { kind: "transcription_unavailable" }
 }

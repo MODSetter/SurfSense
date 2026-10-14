@@ -89,7 +89,7 @@ export function createDictation({
         if (recording !== current) return
         recording = null
         level = 0
-        kept = problem?.kind === "phrase_failed" ? left : []
+        kept = problem ? left : []
         show(
           problem
             ? { phase: "problem", problem, canRetry: kept.length > 0 }
