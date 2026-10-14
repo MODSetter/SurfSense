@@ -47,7 +47,7 @@ test("stops an opencode a crashed run left, once its password proves it is ours"
   const agentDir = mkdtempSync(join(tmpdir(), "leftovers-"))
   const port = await getFreePort(HOST)
   const pid = await leftover({ PORT: String(port), PASSWORD: "old-launch" })
-  recordOpencode(agentDir, { pid, port, password: "old-launch" })
+  recordOpencode(agentDir, { pid, port, password: "old-launch" }) // pragma: allowlist secret
 
   await stopLeftoverOpencode(agentDir, HOST)
   await new Promise((resolve) => setTimeout(resolve, 200)) // let the OS reap it
@@ -61,7 +61,7 @@ test("leaves a process alone when the record no longer opens it", async () => {
   const port = await getFreePort(HOST)
   const pid = await leftover({ PORT: String(port), PASSWORD: "someone-else" })
   try {
-    recordOpencode(agentDir, { pid, port, password: "old-launch" })
+    recordOpencode(agentDir, { pid, port, password: "old-launch" }) // pragma: allowlist secret
 
     await stopLeftoverOpencode(agentDir, HOST)
 
