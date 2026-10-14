@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "文字起こし中 · {done, number}/{total, number, ::unit/minute} · 残り1分未満",
   "sources_row_transcribing_left_status": "文字起こし中 · {done, number}/{total, number, ::unit/minute} · 残り約{left, number, ::unit/minute}",
   "sources_row_transcribing_status": "文字起こし中 · {done, number}/{total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "検出された言語：{language} · 文字起こしの精度が低い可能性があります",
   "sources_tree_filter_empty": "「{filter}」に一致するソースはありません",
   "sources_unexpected_error": "予期しないエラーが発生しました",
   "sources_upload_added_toast": "{count, plural, other {#件のソースを追加しました}}",

@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import { fakeSpeechRow } from "@/features/models/local/transcription/fake-speech-rows"
+import {
+  fakeSpeechRow,
+  NEMOTRON_LANGUAGES,
+} from "@/features/models/local/transcription/fake-speech-rows"
 import { render } from "@/test-utils"
 
 import type { DocumentTranscription, WorkspaceDocument } from "../api"
@@ -81,6 +84,12 @@ const transcribed = (done_s: number, total_s = 3480) =>
       })}\n\n`
     )
   )
+const changed = (status: WorkspaceDocument["status"]) =>
+  feed?.enqueue(
+    encoder.encode(
+      `event: documents\ndata: ${JSON.stringify({ ids: [5], status })}\n\n`
+    )
+  )
 
 /** The API: the listing the test sets, the event stream, and what rows read. */
 function serving(
@@ -94,10 +103,12 @@ function serving(
       const path = String(input)
       calls.push(`${init?.method ?? "GET"} ${path}`)
       if (path.endsWith("/events")) {
+        // The set-up popover follows downloads on a stream of its own.
+        const workspace = path === "/workspaces/1/events"
         return new Response(
           new ReadableStream<Uint8Array>({
             start(controller) {
-              feed = controller
+              if (workspace) feed = controller
             },
           }),
           { headers: { "Content-Type": "text/event-stream" } }
@@ -107,6 +118,13 @@ function serving(
       if (path === "/embedding/index") return Response.json(embedding)
       if (path === "/llm/catalog/local") {
         return Response.json({ rows: [fakeSpeechRow()], recommended_id: null })
+      }
+      if (path === "/llm/selection/speech_to_text/language") {
+        return Response.json({
+          language: "auto",
+          languages: NEMOTRON_LANGUAGES,
+          detects_language: true,
+        })
       }
       return Response.json({ detail: "not found" }, { status: 404 })
     })
@@ -210,6 +228,45 @@ describe("recordings in the sources panel", () => {
     ).toBeTruthy()
   })
 
+  it("reads a recording again when it resumes after making way, and times it afresh", async () => {
+    const documents = [
+      recording("processing", { progress: { done_s: 1380, total_s: 3480 } }),
+    ]
+    const api = serving(documents)
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000)
+    render(<Harness />)
+    await screen.findByText("Transcribing · 23 of 58 min")
+    await waitFor(() => expect(feed).not.toBeNull())
+    connected()
+    transcribed(1440)
+    await screen.findByText("Transcribing · 24 of 58 min")
+    now.mockReturnValue(1_010_000)
+    transcribed(1580)
+    await screen.findByText("Transcribing · 26 of 58 min · about 2 min left")
+
+    // A PDF takes the queue; ten minutes later the recording resumes.
+    documents[0] = recording("pending", {
+      progress: { done_s: 1580, total_s: 3480 },
+    })
+    changed("pending")
+    await screen.findByText("Queued · 45% transcribed")
+    now.mockReturnValue(1_600_000)
+    documents[0] = recording("processing", {
+      progress: { done_s: 1680, total_s: 3480 },
+    })
+    transcribed(1680)
+
+    // The row was queued, so the event's status is new to it: read again.
+    expect(await screen.findByText("Transcribing · 28 of 58 min")).toBeTruthy()
+    expect(api.listings()).toHaveLength(3)
+    now.mockReturnValue(1_610_000)
+    transcribed(1820)
+    // 140 s in 10 s again; the queued ten minutes are not in the speed.
+    expect(
+      await screen.findByText("Transcribing · 30 of 58 min · about 2 min left")
+    ).toBeTruthy()
+  })
+
   it("shows a recording that made way for other sources as queued", async () => {
     serving([
       recording("pending", { progress: { done_s: 1392, total_s: 3480 } }),
@@ -254,6 +311,34 @@ describe("recordings in the sources panel", () => {
     expect(onOpenSpeechSettings).toHaveBeenCalledOnce()
   })
 
+  it("keeps the set-up open while choosing a model queues the recording again", async () => {
+    const documents = [recording("failed", { awaiting: true })]
+    serving(documents)
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(
+      within(
+        await screen.findByRole("treeitem", { name: "meeting.mp3" })
+      ).getByRole("button", { name: "Set up" })
+    )
+    await screen.findByRole("dialog", { name: "Set up speech recognition" })
+    await waitFor(() => expect(feed).not.toBeNull())
+    connected()
+
+    // The download chose the model, and the API queued the recording again.
+    documents[0] = recording("pending", {})
+    changed("pending")
+    await screen.findByRole("status", { name: "Processing meeting.mp3" })
+
+    expect(
+      screen.getByRole("dialog", { name: "Set up speech recognition" })
+    ).toBeTruthy()
+    await user.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(screen.queryByText("Waiting for speech recognition")).toBeNull()
+    )
+  })
+
   it("says search finds a recording best in its own language while the index is English-only", async () => {
     serving([
       recording("ready", { language: "ja" }),
@@ -282,6 +367,29 @@ describe("recordings in the sources panel", () => {
     ).toBeTruthy()
     // English is what the index reads best.
     expect(screen.getAllByText(/Search finds it best/)).toHaveLength(2)
+  })
+
+  it("says a transcript may be less accurate in a language the model is not listed for", async () => {
+    serving(
+      [
+        recording("ready", { language: "et" }),
+        recording(
+          "ready",
+          { language: "ja" },
+          { id: 6, title: "interview.wav", mime_type: "audio/wav" }
+        ),
+      ],
+      { embedding: MULTILINGUAL }
+    )
+    render(<Harness />)
+
+    expect(
+      await screen.findByText(
+        "Estonian (detected) · the transcript may be less accurate"
+      )
+    ).toBeTruthy()
+    // Japanese is one the model is listed for.
+    expect(screen.getAllByText(/may be less accurate/)).toHaveLength(1)
   })
 
   it("says nothing of search once the index reads every language", async () => {

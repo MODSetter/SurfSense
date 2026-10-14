@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "Transcription · {done, number} sur {total, number, ::unit/minute} · moins d’une minute restante",
   "sources_row_transcribing_left_status": "Transcription · {done, number} sur {total, number, ::unit/minute} · encore environ {left, number, ::unit/minute}",
   "sources_row_transcribing_status": "Transcription · {done, number} sur {total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "Langue détectée : {language} · la transcription peut être moins précise",
   "sources_tree_filter_empty": "Aucune source ne correspond à « {filter} »",
   "sources_unexpected_error": "Une erreur inattendue s’est produite",
   "sources_upload_added_toast": "{count, plural, one {# source ajoutée} many {# sources ajoutées} other {# sources ajoutées}}",

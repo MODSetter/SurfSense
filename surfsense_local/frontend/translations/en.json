@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "Transcribing · {done, number} of {total, number, ::unit/minute} · less than a minute left",
   "sources_row_transcribing_left_status": "Transcribing · {done, number} of {total, number, ::unit/minute} · about {left, number, ::unit/minute} left",
   "sources_row_transcribing_status": "Transcribing · {done, number} of {total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "{language} (detected) · the transcript may be less accurate",
   "sources_tree_filter_empty": "No sources match “{filter}”",
   "sources_unexpected_error": "An unexpected error occurred",
   "sources_upload_added_toast": "{count, plural, one {# source added} other {# sources added}}",

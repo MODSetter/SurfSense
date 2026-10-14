@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "ट्रांसक्राइब हो रहा है · {total, number, ::unit/minute} में से {done, number} · एक मिनट से कम बाकी",
   "sources_row_transcribing_left_status": "ट्रांसक्राइब हो रहा है · {total, number, ::unit/minute} में से {done, number} · लगभग {left, number, ::unit/minute} बाकी",
   "sources_row_transcribing_status": "ट्रांसक्राइब हो रहा है · {total, number, ::unit/minute} में से {done, number}",
+  "sources_row_unlisted_language_body": "पहचानी गई भाषा: {language} · ट्रांसक्रिप्ट कम सटीक हो सकता है",
   "sources_tree_filter_empty": "“{filter}” से कोई स्रोत मेल नहीं खाता",
   "sources_unexpected_error": "एक अनपेक्षित त्रुटि हुई",
   "sources_upload_added_toast": "{count, plural, one {# स्रोत जोड़ा गया} other {# स्रोत जोड़े गए}}",

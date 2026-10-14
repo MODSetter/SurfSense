@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "Wird transkribiert · {done, number} von {total, number, ::unit/minute} · weniger als eine Minute übrig",
   "sources_row_transcribing_left_status": "Wird transkribiert · {done, number} von {total, number, ::unit/minute} · noch etwa {left, number, ::unit/minute}",
   "sources_row_transcribing_status": "Wird transkribiert · {done, number} von {total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "Erkannte Sprache: {language} · das Transkript ist möglicherweise ungenauer",
   "sources_tree_filter_empty": "Keine Quelle passt zu „{filter}“",
   "sources_unexpected_error": "Ein unerwarteter Fehler ist aufgetreten",
   "sources_upload_added_toast": "{count, plural, one {# Quelle hinzugefügt} other {# Quellen hinzugefügt}}",

@@ -10,12 +10,17 @@ export const speechLanguageQueryKey = [
   "language",
 ] as const
 
-export function useSpeechLanguage() {
-  const client = useQueryClient()
-  const language = useQuery({
+/** The intent and the languages the model is listed for, read only. */
+export function useSpeechLanguageRead() {
+  return useQuery({
     queryKey: speechLanguageQueryKey,
     queryFn: ({ signal }) => readSpeechLanguage(signal),
   })
+}
+
+export function useSpeechLanguage() {
+  const client = useQueryClient()
+  const language = useSpeechLanguageRead()
   const choose = useMutation({
     mutationFn: writeSpeechLanguage,
     onSuccess: (saved) => client.setQueryData(speechLanguageQueryKey, saved),

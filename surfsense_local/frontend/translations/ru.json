@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "Распознавание · {done, number} из {total, number, ::unit/minute} · осталось меньше минуты",
   "sources_row_transcribing_left_status": "Распознавание · {done, number} из {total, number, ::unit/minute} · осталось около {left, number, ::unit/minute}",
   "sources_row_transcribing_status": "Распознавание · {done, number} из {total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "Определён язык: {language} · расшифровка может быть менее точной",
   "sources_tree_filter_empty": "Нет источников, подходящих под «{filter}»",
   "sources_unexpected_error": "Произошла непредвиденная ошибка",
   "sources_upload_added_toast": "{count, plural, one {Добавлен # источник} few {Добавлено # источника} many {Добавлено # источников} other {Добавлено # источника}}",

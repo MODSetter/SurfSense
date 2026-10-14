@@ -7,8 +7,12 @@ import { intl } from "@/i18n/intl"
  * failure. Choosing a model queues it again, so set-up is the whole fix.
  */
 export function AwaitingSpeechLine({
+  setUpOpen,
+  onSetUpOpenChange,
   onOpenSpeechSettings,
 }: {
+  setUpOpen: boolean
+  onSetUpOpenChange: (open: boolean) => void
   // Absent, the line only says what it waits for.
   onOpenSpeechSettings?: () => void
 }) {
@@ -22,6 +26,8 @@ export function AwaitingSpeechLine({
       </span>
       {onOpenSpeechSettings ? (
         <SpeechSetupPopover
+          open={setUpOpen}
+          onOpenChange={onSetUpOpenChange}
           side="right"
           align="start"
           onMoreChoices={onOpenSpeechSettings}

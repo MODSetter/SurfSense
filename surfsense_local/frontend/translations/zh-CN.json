@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "正在转写 · {done, number}/{total, number, ::unit/minute} · 剩余不到 1 分钟",
   "sources_row_transcribing_left_status": "正在转写 · {done, number}/{total, number, ::unit/minute} · 剩余约 {left, number, ::unit/minute}",
   "sources_row_transcribing_status": "正在转写 · {done, number}/{total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "检测到的语言：{language} · 文字稿可能不够准确",
   "sources_tree_filter_empty": "没有与“{filter}”匹配的来源",
   "sources_unexpected_error": "发生了意外错误",
   "sources_upload_added_toast": "{count, plural, other {已添加 # 个来源}}",

@@ -1124,6 +1124,7 @@
   "sources_row_transcribing_last_minute_status": "Transcribiendo · {done, number} de {total, number, ::unit/minute} · termina en menos de un minuto",
   "sources_row_transcribing_left_status": "Transcribiendo · {done, number} de {total, number, ::unit/minute} · termina en aprox. {left, number, ::unit/minute}",
   "sources_row_transcribing_status": "Transcribiendo · {done, number} de {total, number, ::unit/minute}",
+  "sources_row_unlisted_language_body": "Idioma detectado: {language} · la transcripción puede ser menos precisa",
   "sources_tree_filter_empty": "Ninguna fuente coincide con «{filter}»",
   "sources_unexpected_error": "Se produjo un error inesperado",
   "sources_upload_added_toast": "{count, plural, one {# fuente añadida} many {# fuentes añadidas} other {# fuentes añadidas}}",
