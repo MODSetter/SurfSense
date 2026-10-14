@@ -130,11 +130,10 @@ A plugin's server gets the arguments of the calls opencode makes to it, and noth
 
 ## Known gaps
 
-- The scraper plugins' entries point at `plugins.surfsense.com`, which is not deployed, so connecting one fails as `502 plugin_unreachable` outside a developer's local plugin host.
 - An agent turn names a license plugin it could not use as needing sign-in, not as needing a license ([agent](agent.md#plugins)).
 - Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added; whether it should be is an [open question](../proposals/plugins/README.md#open-questions).
 - OAuth sign-in has been tried only against a stand-in authorization server, never a live provider.
-- A packaged app's browser comes back through `plugins.surfsense.com/oauth/callback`, which is not deployed; the tests stand in for its forward by calling the API's callback themselves.
+- The tests stand in for the callback page's forward to the API by calling the API's callback themselves; the deployed page is not exercised by any test.
 - A failed sign-in reads "The sign-in didn’t finish" whatever the cause; the API's `message` saying why is not shown.
 - A server added by URL whose authorization server is on another host raises a second consent prompt, for that host, after the one for the server's own.
 - A removed plugin's reason shows only on its connected row; the Third-party list leaves removed entries out and does not show `removed`.

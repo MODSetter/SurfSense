@@ -87,6 +87,6 @@ SurfSense signs in to OAuth plugins as one public client ([plugins](plugins.md#s
 
 ## Known gaps
 
-- Nothing builds or deploys the registry image, so `plugins.surfsense.com` serves no list, and a packaged app's fetch fails.
+- No workflow builds the registry image: `plugins.surfsense.com` is deployed outside CI, so a merged list reaches it only when someone deploys.
 - A delisting reaches the app only when Settings → Plugins lists the registry; nothing fetches it before an agent turn.
 - `min_app_version` has not been tried in a frozen build; only a test that `bundling/api.spec` copies the package's metadata guards it.

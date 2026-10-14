@@ -30,4 +30,4 @@ Obsidian keeps its community plugins as one list, served from its own server wit
 
 ## Where the code stands
 
-Built: the registry, its check and signing in `plugins/registry/`, the first-party list packaged into the app, the app's signed, cached copy, the third-party switch and Settings → Plugins ([plugin registry](../architecture/plugin-registry.md), [plugins](../architecture/plugins.md)). Nothing deploys the registry's container yet.
+Built: the registry, its check and signing in `plugins/registry/`, the first-party list packaged into the app, the app's signed, cached copy, the third-party switch and Settings → Plugins ([plugin registry](../architecture/plugin-registry.md), [plugins](../architecture/plugins.md)). The registry is served from `plugins.surfsense.com`.

@@ -33,5 +33,5 @@ SurfSense publishes its plugins as remote MCP servers and hosts them itself ([AD
 
 ## Where the code stands
 
-- Built ([plugin host](../architecture/plugin-host.md)): the host, stateless MCP, Stop through `/cancel` and Redis, the license check, ten scraper plugins in `plugins/remote/proprietary/`, the image, and the registry's container.
-- Not built ([proposal](../proposals/plugins/README.md#long-calls-as-jobs-on-the-plugin-host)): jobs and their object storage, rate limits per license and per IP address, license state in Redis, the scale rule, and any deployment.
+- Built ([plugin host](../architecture/plugin-host.md)): the host, stateless MCP, Stop through `/cancel` and Redis, the license check, ten scraper plugins in `plugins/remote/proprietary/`, the image, and the registry's container, both deployed at `plugins.surfsense.com`.
+- Not built ([proposal](../proposals/plugins/README.md#long-calls-as-jobs-on-the-plugin-host)): jobs and their object storage, rate limits per license and per IP address, license state in Redis, and the scale rule.
