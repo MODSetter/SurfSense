@@ -32,7 +32,7 @@ permissions:
 
 env:
   # The app compiles in the same key.
-  REGISTRY_PUBLIC_KEY: e75ba1bddb3124497e37072c87bddfcedf42f7f44650ddfda877e39cb1ec9769
+  REGISTRY_PUBLIC_KEY: 9498a1606105a625feeaa655648df03885410421a387478a72ec763188f10395
   SIGN_MESSAGE: 'chore(registry): sign the plugin list'
 
 jobs:

@@ -12,7 +12,7 @@ pytestmark = pytest.mark.unit
 def test_the_production_registry_key_is_compiled_in() -> None:
     """The key CI signs with, so a shipped app trusts the published list."""
     assert REGISTRY_PUBLIC_KEYS_HEX[0] == (
-        "e75ba1bddb3124497e37072c87bddfcedf42f7f44650ddfda877e39cb1ec9769"
+        "9498a1606105a625feeaa655648df03885410421a387478a72ec763188f10395"
     )
 
 

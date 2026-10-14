@@ -22,7 +22,7 @@ from registry_check.signing.verify import verify_registry
 from tests.registry_files import SQUARE_SVG, valid_entry, write_registry
 
 PRODUCTION_PUBLIC_KEY = (
-    "e75ba1bddb3124497e37072c87bddfcedf42f7f44650ddfda877e39cb1ec9769"
+    "9498a1606105a625feeaa655648df03885410421a387478a72ec763188f10395"
 )
 COMMITTED = Path(__file__).resolve().parents[2] / "published" / "plugins.json"
 
