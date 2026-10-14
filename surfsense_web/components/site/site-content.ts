@@ -7,6 +7,14 @@
  * `app/(home)/layout.tsx` and kept mounted across navigations.
  */
 
+import {
+	BookOpen01Icon,
+	HistoryIcon,
+	type Icon,
+	Mail01Icon,
+	Megaphone01Icon,
+} from "@/components/ui/icons";
+
 export const REPO_URL = "https://github.com/MODSetter/SurfSense";
 export const DOWNLOADS_URL = "/downloads";
 
@@ -20,7 +28,7 @@ export const DOWNLOADS_URL = "/downloads";
 export const BUSINESS_URL = "/private-ai-for-business";
 
 export type SiteLink = { name: string; href: string; external?: boolean };
-export type SiteMenuItem = SiteLink & { description: string };
+export type SiteMenuItem = SiteLink & { description: string; icon: Icon };
 
 export const NAV_LINKS: SiteLink[] = [
 	{ name: "For business", href: BUSINESS_URL },
@@ -30,10 +38,30 @@ export const NAV_LINKS: SiteLink[] = [
 ];
 
 export const NAV_RESOURCES: SiteMenuItem[] = [
-	{ name: "Blog", href: "/blog", description: "Guides, comparisons and deep dives" },
-	{ name: "Announcements", href: "/announcements", description: "Product news and updates" },
-	{ name: "Changelog", href: "/changelog", description: "What's new in SurfSense" },
-	{ name: "Contact us", href: "/contact", description: "Questions, bugs and feedback" },
+	{
+		name: "Blog",
+		href: "/blog",
+		description: "Guides, comparisons and deep dives",
+		icon: BookOpen01Icon,
+	},
+	{
+		name: "Announcements",
+		href: "/announcements",
+		description: "Product news and updates",
+		icon: Megaphone01Icon,
+	},
+	{
+		name: "Changelog",
+		href: "/changelog",
+		description: "What's new in SurfSense",
+		icon: HistoryIcon,
+	},
+	{
+		name: "Contact us",
+		href: "/contact",
+		description: "Questions, bugs and feedback",
+		icon: Mail01Icon,
+	},
 ];
 
 export type FooterLink = { title: string; href: string; external?: boolean };

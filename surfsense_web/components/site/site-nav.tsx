@@ -158,16 +158,21 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 							</button>
 
 							{resourcesOpen ? (
-								<div className="absolute top-full left-1/2 mt-7 w-64 -translate-x-1/2 rounded-xl bg-popover p-1.5 text-popover-foreground shadow-(--nav-surface)">
+								<div className="absolute top-full left-1/2 mt-7 w-72 -translate-x-1/2 rounded-xl bg-popover p-1.5 text-popover-foreground shadow-(--nav-surface)">
 									{NAV_RESOURCES.map((item) => (
 										<Link
 											key={item.href}
 											href={item.href}
 											onClick={closeAll}
-											className="flex flex-col gap-0.5 rounded-md px-3 py-2.5 transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+											className="flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors duration-100 hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
 										>
-											<span className="text-sm font-medium text-foreground">{item.name}</span>
-											<span className="text-xs text-muted-foreground">{item.description}</span>
+											<span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+												<item.icon aria-hidden="true" className="size-[1.125rem]" />
+											</span>
+											<span className="flex min-w-0 flex-col gap-0.5">
+												<span className="text-sm font-medium text-foreground">{item.name}</span>
+												<span className="text-xs text-muted-foreground">{item.description}</span>
+											</span>
 										</Link>
 									))}
 								</div>

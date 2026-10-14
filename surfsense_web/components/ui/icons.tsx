@@ -4,6 +4,7 @@ import {
 	ArrowRightIcon as ArrowRightIconData,
 	ArrowUp02Icon as ArrowUp02IconData,
 	ArrowUpRight01Icon as ArrowUpRight01IconData,
+	BookOpen01Icon as BookOpen01IconData,
 	Briefcase01Icon as Briefcase01IconData,
 	Calculator01Icon as Calculator01IconData,
 	Calendar03Icon as Calendar03IconData,
@@ -20,6 +21,7 @@ import {
 	DotIcon as DotIconData,
 	DownloadIcon as DownloadIconData,
 	File02Icon as File02IconData,
+	HistoryIcon as HistoryIconData,
 	Image01Icon as Image01IconData,
 	Key01Icon as Key01IconData,
 	LaptopIcon as LaptopIconData,
@@ -88,6 +90,7 @@ export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData);
 export const ArrowRightIcon = createIcon(ArrowRightIconData);
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData);
 export const ArrowUpRight01Icon = createIcon(ArrowUpRight01IconData);
+export const BookOpen01Icon = createIcon(BookOpen01IconData);
 export const Briefcase01Icon = createIcon(Briefcase01IconData);
 export const Calculator01Icon = createIcon(Calculator01IconData);
 export const Calendar03Icon = createIcon(Calendar03IconData);
@@ -104,6 +107,7 @@ export const Database01Icon = createIcon(Database01IconData);
 export const DotIcon = createIcon(DotIconData);
 export const DownloadIcon = createIcon(DownloadIconData);
 export const File02Icon = createIcon(File02IconData);
+export const HistoryIcon = createIcon(HistoryIconData);
 export const Image01Icon = createIcon(Image01IconData);
 export const Key01Icon = createIcon(Key01IconData);
 export const LaptopIcon = createIcon(LaptopIconData);
