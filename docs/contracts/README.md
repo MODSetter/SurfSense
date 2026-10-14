@@ -5,7 +5,7 @@ A contract is a frozen file describing something that crosses from one tree to a
 | # | Contract | Producer | Consumer | In use since |
 |---|---|---|---|---|
 | 1 | [License file](01-license-file.md) | `surfsense_backend` license routes | `surfsense_local` license module | 2.0.0 |
-| 2 | [Scraper API auth](02-scraper-api-auth.md) | `surfsense_backend` capabilities routes | the paid scraper plugin and `surfsense_mcp` | not yet; neither side is built |
+| 2 | [Scraper API auth](02-scraper-api-auth.md) | the plugin host; `surfsense_backend` capabilities routes | the desktop app; `surfsense_mcp` | plugin host and app built (2.2.1), host not deployed; backend and MCP not built |
 | 3 | [Export bundle](03-export-bundle.md) | `surfsense_backend` export | `surfsense_local` import | 2.0.0 |
 | 4 | [Sunset flag](04-sunset-flag.md) | `surfsense_backend` `/health` | legacy desktop v0.0.40, whose source is at tag `archive/hosted-2026-09` | v0.0.40, 12 Sep 2026; the flag reads `true` from T-0, 18 Sep 2026 |
 
