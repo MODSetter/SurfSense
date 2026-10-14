@@ -1,6 +1,6 @@
 # Plugins
 
-A plugin is a remote [MCP](https://modelcontextprotocol.io) server that gives SurfSense's agent tools. You host the server; SurfSense lists it, asks the user before connecting, and calls it. Any MCP server that works in other MCP clients works here unchanged. The design is the [plugins proposal](../docs/proposals/plugins/README.md).
+A plugin is a remote [MCP](https://modelcontextprotocol.io) server that gives SurfSense's agent tools. You host the server; SurfSense lists it, asks the user before connecting, and calls it. Any MCP server that works in other MCP clients works here unchanged. How SurfSense handles plugins is in [plugins](../docs/architecture/plugins.md).
 
 | Folder | What it holds |
 |---|---|
@@ -32,7 +32,7 @@ The rest of this page is for publishers: companies and developers listing their 
 You need no listing to try your server:
 
 1. Settings → Plugins → turn on **Allow third-party plugins**.
-2. **Add MCP server**, with its URL and, if it needs one, a key.
+2. **Add custom plugin**, with a name, its URL and, if it needs one, a key.
 3. Allow the tools you want, then ask the agent to use them in an Agentic thread.
 
 A server added this way is marked third-party, not reviewed by SurfSense, and stays on that one computer.
@@ -45,7 +45,7 @@ Open a pull request into `dev` that adds your entry to [`registry/plugins.json`]
 {
   "id": "acme-docs",
   "kind": "remote",
-  "publisher": "community",
+  "verification": "community",
   "name": "Acme Docs",
   "description": "Search and read Acme's public documentation.",
   "author": "Acme Inc.",
@@ -55,16 +55,28 @@ Open a pull request into `dev` that adds your entry to [`registry/plugins.json`]
   "access": "free",
   "privacy_policy": "https://acme.example/privacy",
   "homepage": "https://acme.example",
-  "icon": "acme-docs.svg"
+  "icon": "acme-docs.svg",
+  "about": "Search Acme's public documentation and read any page of it in full, so the agent answers from the current docs rather than from memory.",
+  "tools": ["search_docs", "read_page"],
+  "added": "2026-10"
 }
 ```
 
 - **`id`**: lowercase letters, digits and hyphens, unique, never reused once listed.
-- **`publisher`**: `community`. `partner` (shown as "Verified") needs evidence in the pull request that you speak for the company that runs the server.
+- **`verification`**: `community`, unless you prove you run the server; then a maintainer sets `verified`, shown with a checkmark, and adds `domain`, the registered domain you proved. Prove it with one of:
+  - a file at `https://<domain>/.well-known/surfsense-plugins.json` holding `{"plugins": ["<id>"]}`;
+  - a DNS TXT record `surfsense-plugin=<id>` on `<domain>`;
+  - your server URL in the [MCP Registry](https://modelcontextprotocol.io/registry/about) under that domain's namespace.
+
+  Your server's host must be on `domain`, and so must every other host unless you sign in with OAuth. A shared suffix such as `vercel.app` is not a domain you own. The proof is checked again whenever your entry's URL, hosts or domain change.
+- **`name`** and **`author`** up to 80 characters, **`description`** up to 200. `author` is the company or project that runs the server, not a person.
+- **`auth`**: `{"type": "none"}`, `{"type": "token", "title": ..., "description": ...}` saying what to paste, or `{"type": "oauth"}` with an optional `client_id` and `scopes`. Never a secret.
 - **`hosts`**: every host SurfSense contacts for your plugin: your server's, and for OAuth your authorization server's. The user consents to each.
 - **`access`**: `free`, or `external` with an `access_note` saying what the user must buy or have.
 - **`privacy_policy`**: required. The user's requests and credentials reach your server, so this is yours, not your API provider's.
 - **`icon`**: SVG or PNG, square, at most 32 KB; PNG at least 64×64; SVG with no scripts, event handlers or external references. Without one, SurfSense shows your name's first letter.
+- **`about`**, **`tools`** and **`added`**: what your plugin's page in SurfSense shows before anyone connects it. `about` is up to 600 characters, `tools` names every tool your server lists, and `added` is the month, like `2026-10`. The check lets them out; review asks for all three.
+- **`min_app_version`**, optional: the oldest SurfSense version your plugin works with, like `2.3.0`.
 
 The full rules are in [plugin registry](../docs/architecture/plugin-registry.md#the-entry-rules).
 
