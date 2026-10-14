@@ -45,12 +45,18 @@ class ReadyAgent:
     model: str
 
 
-async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
+async def ready_opencode(
+    session: Session, *, launch_key: str, earns_a_start: bool = True
+) -> ReadyAgent:
     """Write opencode's configuration for the selected model, then wait until it serves it.
 
     The opencode already running may hold an earlier configuration, with
     another model or a launch key from a previous run; it is reloaded, and
     counts only once it reports this one. The caller closes the client.
+
+    A turn or a new session earns an opencode Electron gave up on another
+    start. A history read passes `earns_a_start=False`, so reading a failed
+    turn back does not start it a second time.
     """
     settings = get_agent_settings()
     if not settings.opencode_url or not settings.opencode_password:
@@ -69,7 +75,10 @@ async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
     agent_dir = get_storage_settings().agent_dir
     config = agent_dir / CONFIG_FILE
     await run_in_threadpool(write_opencode_config, config, setup)
-    if opencode_failure(agent_dir, config.stat().st_mtime) is not None:
+    if (
+        earns_a_start
+        and opencode_failure(agent_dir, config.stat().st_mtime) is not None
+    ):
         # Electron starts opencode again only for a newer file, and an unchanged one is not rewritten.
         os.utime(config)
     written = config.stat().st_mtime
