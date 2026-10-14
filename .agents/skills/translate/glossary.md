@@ -43,7 +43,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every 
 | speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
 | speech recognition (turning recordings and the voice into text, on this computer) | 音声認識 | 음성 인식 | 语音识别 | स्पीच रिकग्निशन | Spracherkennung | reconocimiento de voz | reconnaissance vocale | reconhecimento de voz | распознавание речи |
 | voice input (dictating into the chat composer) | 音声入力 | 음성 입력 | 语音输入 | वॉइस इनपुट | Spracheingabe | entrada de voz | saisie vocale | entrada de voz | голосовой ввод |
-| transcript (a recording’s text) | 文字起こし | 대본 | 转录文本 | ट्रांसक्रिप्ट | Transkript | transcripción | transcription | transcrição | расшифровка |
+| transcript (a recording’s text) | 文字起こし | 스크립트 | 文字稿 | ट्रांसक्रिप्ट | Transkript | transcripción | transcription | transcrição | расшифровка |
 | sidebar (the workspace’s left column) | サイドバー | 사이드바 | 侧边栏 | साइडबार | Seitenleiste | barra lateral | barre latérale | barra lateral | боковая панель |
 | workspace | ワークスペース | 워크스페이스 | 工作区 | वर्कस्पेस | Workspace | espacio de trabajo | espace de travail | Workspace | рабочая область |
 | artifact (a Studio output) | 生成物 | 생성물 | 产物 | आर्टिफ़ैक्ट | Artefakt | artefacto | artefact | artefato | артефакт |

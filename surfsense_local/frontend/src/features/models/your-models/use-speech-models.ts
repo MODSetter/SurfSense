@@ -38,7 +38,8 @@ export function useSpeechModels(): YourModels {
     // No server serves this slot, so there is none to name.
     inUse: describeInUse(selection.data, local, undefined),
     isPending: catalog.isPending || selection.isPending,
-    error: selection.error,
+    // With no server to fall back on, a failed catalog leaves nothing to show.
+    error: selection.error ?? catalog.error,
     canDownload: models.length > 0,
   }
 }

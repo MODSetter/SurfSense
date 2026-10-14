@@ -109,6 +109,42 @@ describe("speech recognition settings", () => {
     expect(screen.queryByText(/Kokoro/)).toBeNull()
   })
 
+  it("says the models could not load, not that this computer cannot run one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving([], (path) =>
+        path === "/llm/catalog/local"
+          ? Response.json({ detail: "catalog failed" }, { status: 500 })
+          : null
+      )
+    )
+    renderSettings()
+
+    expect(
+      await screen.findByText("Could not load model settings")
+    ).toBeTruthy()
+    expect(screen.queryByText("This computer can’t run one.")).toBeNull()
+  })
+
+  it("shows an empty slot without waiting on servers it never offers", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving([fakeSpeechRow()], (path) =>
+        path === "/llm/connections"
+          ? Response.json({ detail: "connections failed" }, { status: 500 })
+          : null
+      )
+    )
+    renderSettings()
+
+    expect(
+      await screen.findByText("No speech recognition model yet")
+    ).toBeTruthy()
+    expect(
+      screen.getByText("Download one to run on this computer.")
+    ).toBeTruthy()
+  })
+
   it("describes each model by what transcribing takes and what it understands", async () => {
     vi.stubGlobal("fetch", serving([fakeSpeechRow(), voiceRow]))
     const user = userEvent.setup()

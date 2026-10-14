@@ -147,7 +147,7 @@ export function ModelSlotSettings({
 
   const empty =
     !models.isPending &&
-    connections.data?.length === 0 &&
+    (localOnly || connections.data?.length === 0) &&
     models.local.length === 0 &&
     !pending &&
     models.inUse === null
