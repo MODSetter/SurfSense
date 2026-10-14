@@ -207,21 +207,19 @@ describe("source upload", () => {
     })
     expect(readyButton.className).not.toContain("truncate")
     expect(readyButton.className).toContain("sidebar-row-title-fade")
-    expect(readyButton.parentElement?.className).toContain("overflow-hidden")
-    expect(readyButton.parentElement?.className).toContain("h-8")
+    // The row's first line; a recording adds a second below it.
+    expect(readyButton.parentElement?.className).toContain("h-7.5")
     expect(readyButton.parentElement?.className).toContain("gap-1.5")
-    expect(readyButton.parentElement?.className).toContain("pl-1")
-    expect(readyButton.parentElement?.className).toContain("rounded-lg")
-    expect(readyButton.parentElement?.className).toContain("hover:bg-muted")
-    expect(readyButton.parentElement?.className).toContain(
-      "dark:hover:bg-muted/50"
-    )
-    expect(readyButton.parentElement?.className).toContain("border-ring")
-    expect(readyButton.parentElement?.className).not.toContain(
-      "bg-sidebar-accent"
-    )
-    expect(readyButton.parentElement?.className).not.toContain("text-white")
-    expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
+    const readyRow = screen.getByRole("treeitem", { name: ready.title })
+    expect(readyRow.className).toContain("overflow-hidden")
+    expect(readyRow.className).toContain("pl-1")
+    expect(readyRow.className).toContain("rounded-lg")
+    expect(readyRow.className).toContain("hover:bg-muted")
+    expect(readyRow.className).toContain("dark:hover:bg-muted/50")
+    expect(readyRow.className).toContain("border-ring")
+    expect(readyRow.className).not.toContain("bg-sidebar-accent")
+    expect(readyRow.className).not.toContain("text-white")
+    expect(readyRow.getAttribute("aria-current")).toBe("true")
     expect(readyCheckbox.getAttribute("aria-checked")).toBe("false")
     expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
     expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
@@ -918,6 +916,56 @@ describe("source upload", () => {
     expect(screen.queryByText("Drop files to add them as sources")).toBeNull()
     // Out of the window, which ends the drag.
     fireEvent.dragLeave(panel, { dataTransfer })
+  })
+
+  it("takes recordings in the formats speech recognition reads", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (
+          String(input) === "/workspaces/1/documents/upload" &&
+          init?.method === "POST"
+        ) {
+          return Response.json(
+            { created: [], duplicates: [], rejected: [] },
+            { status: 201 }
+          )
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    render(<SourceHarness />)
+    await screen.findByText("No sources yet")
+
+    const accept = screen
+      .getByLabelText("Upload source files")
+      .getAttribute("accept")
+      ?.split(",")
+    expect(accept).toEqual(
+      expect.arrayContaining([".wav", ".mp3", ".flac", ".ogg", ".oga"])
+    )
+    // Opus waits for the decoder that comes later.
+    expect(accept).not.toContain(".opus")
+
+    const recordings = ["talk.wav", "talk.MP3", "talk.flac", "talk.ogg"].map(
+      (name) => new File(["audio"], name)
+    )
+    dropOn(
+      screen.getByRole("region", { name: "Sources" }),
+      fakeDataTransfer({
+        files: [...recordings, new File(["audio"], "voice.opus")],
+      })
+    )
+
+    await waitFor(() => {
+      const upload = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/workspaces/1/documents/upload" && init?.method === "POST"
+      )
+      expect((upload?.[1]?.body as FormData).getAll("files")).toEqual(
+        recordings
+      )
+    })
   })
 
   it("refuses an unsupported dropped file before uploading", async () => {

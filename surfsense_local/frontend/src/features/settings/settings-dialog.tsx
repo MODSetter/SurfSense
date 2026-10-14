@@ -18,6 +18,7 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  Mic01Icon,
   PlugIcon,
   Settings2Icon,
   EmbeddingIcon,
@@ -52,6 +53,7 @@ import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
+import { SpeechModelsSettings } from "./models/speech-models-settings"
 import { VideoModelsSettings } from "./models/video-models-settings"
 import { SettingsSection } from "./settings-section"
 
@@ -67,6 +69,7 @@ export type SettingsSectionId =
   | "image-models"
   | "image-edit-models"
   | "audio-models"
+  | "speech-models"
   | "video-models"
   | "embedding-model"
   | "resources"
@@ -216,6 +219,7 @@ const SETTINGS_SECTIONS = [
   { id: "image-models", group: "models", icon: Image01Icon },
   { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
   { id: "audio-models", group: "models", icon: AudioWaveformIcon },
+  { id: "speech-models", group: "models", icon: Mic01Icon },
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
@@ -278,6 +282,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_audio_label",
       defaultMessage: "Audio",
+    }),
+  "speech-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_speech_label",
+      defaultMessage: "Speech recognition",
     }),
   "embedding-model": () =>
     intl.formatMessage({
@@ -436,6 +445,9 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />
+            ) : null}
+            {activeSection.id === "speech-models" ? (
+              <SpeechModelsSettings />
             ) : null}
             {activeSection.id === "embedding-model" ? (
               <EmbeddingSettings />

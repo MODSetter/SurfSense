@@ -3,6 +3,19 @@ import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 export type DocumentStatus =
   "pending" | "processing" | "ready" | "failed" | "cancelled"
 
+/** Seconds of a recording's audio transcribed so far, of all it holds. */
+export type TranscriptionProgress = { done_s: number; total_s: number }
+
+/** Where a recording's transcript stands. */
+export type DocumentTranscription = {
+  // ISO 639-1; null until known, or when the model could not name it.
+  language: string | null
+  // Null before the first window and once the transcript is ready.
+  progress: TranscriptionProgress | null
+  // No speech recognition model was chosen when it was last tried.
+  awaiting: boolean
+}
+
 export type WorkspaceDocument = {
   id: number
   title: string
@@ -14,6 +27,8 @@ export type WorkspaceDocument = {
   updated_at: string
   // Absent from an API without folders; null for a source outside any folder.
   folder_id?: number | null
+  // Set for a recording (an audio/* source) only; absent from an older API.
+  transcription?: DocumentTranscription | null
 }
 
 // UX mirror of backend/modules/documents/storage.py UPLOAD_MIME_BY_SUFFIX.
@@ -38,6 +53,12 @@ export const SUPPORTED_SOURCE_EXTENSIONS = [
   ".tiff",
   ".bmp",
   ".webp",
+  // Recordings, transcribed on this computer. Opus waits for a decoder.
+  ".wav",
+  ".mp3",
+  ".flac",
+  ".ogg",
+  ".oga",
 ] as const
 
 export const SOURCE_FILE_ACCEPT = SUPPORTED_SOURCE_EXTENSIONS.join(",")
