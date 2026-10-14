@@ -17,6 +17,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session, object_session
 
 from modules.documents.models import Document
+from modules.documents.recordings.ended_run import drop_run_files
 from modules.documents.recordings.layout import WorkFiles, segments_file, work_files
 from modules.documents.recordings.metadata import AWAITING, KEY, is_awaiting
 from modules.llm.model_route.api_address import api_url
@@ -79,10 +80,10 @@ def recording_markdown(document: Document, original: Path) -> str:
         raise
     except AwaitingSpeechModelError:
         merge_metadata(session, document, KEY, {AWAITING: True})
-        _end_of_run(files)
+        drop_run_files(files)
         raise
     except BaseException:
-        _end_of_run(files)
+        drop_run_files(files)
         raise
 
 
@@ -95,10 +96,10 @@ def _transcribe(
     folder: Path,
     status: SpeechStatus,
 ) -> str:
-    assert status.model is not None, "a ready status names its model"
     files = work_files(folder)
-    model_id, intent = status.model, status.language_intent
     while True:
+        assert status.model is not None, "a ready status names its model"
+        model_id, intent = status.model, status.language_intent
         plan, done = _planned(original, files, turn, model_id, intent)
         with _full_disk_refused(plan.seconds):
             try:
@@ -108,9 +109,10 @@ def _transcribe(
                     ),
                     done,
                 )
-            except ModelChangedError as changed:
+            except ModelChangedError:
                 files.windows.unlink(missing_ok=True)
-                model_id = changed.model_id
+                # A model chosen anew starts without the last one's language.
+                status = speech_recognition_ready(api, turn)
                 continue
             return _finished(session, document, folder, plan, done, model_id, status)
 
@@ -192,13 +194,6 @@ def _finished(
     )
     shutil.rmtree(work_files(folder).folder, ignore_errors=True)
     return markdown
-
-
-def _end_of_run(files: WorkFiles) -> None:
-    """A run that ends the job keeps its windows and plan for the next one, not
-    the decoded audio, which decoding again costs seconds to make."""
-    files.audio.unlink(missing_ok=True)
-    files.progress.unlink(missing_ok=True)
 
 
 @contextmanager

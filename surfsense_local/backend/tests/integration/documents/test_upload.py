@@ -417,6 +417,32 @@ async def test_a_pending_document_can_be_cancelled(
     assert ingest_queue.is_revoked(task)
 
 
+async def test_cancelling_a_recording_that_gave_way_drops_its_decoded_audio(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """No run of its job is left to clear the 115 MB an hour it decoded; the
+    windows written stay, so a retry carries on from them."""
+    tones = Path(__file__).resolve().parents[2] / "fixtures" / "audio"
+    uploaded = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("lecture.flac", (tones / "tone.flac").read_bytes(), "")},
+    )
+    recording = uploaded.json()["created"][0]["id"]
+    work = work_files(get_storage_settings().document_dir(workspace_id, recording))
+    work.folder.mkdir(parents=True)
+    work.audio.write_bytes(b"\0" * 64)
+    work.windows.write_text('{"n": 0}\n', encoding="utf-8")
+    write_progress(work.progress, TranscriptionProgress(done_s=28.0, total_s=3480.0))
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{recording}/cancel"
+    )
+
+    assert response.status_code == 200
+    assert (work.audio.exists(), work.progress.exists()) == (False, False)
+    assert work.windows.exists()
+
+
 async def test_a_ready_document_cannot_be_cancelled(
     client: AsyncClient, workspace_id: int, engine: Engine
 ) -> None:

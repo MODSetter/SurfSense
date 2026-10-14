@@ -9,6 +9,7 @@ from pathlib import Path
 
 import miniaudio
 
+from worker.audio_decode.ogg_length import vorbis_seconds
 from worker.audio_decode.outcome import DecodeOutcome
 from worker.audio_decode.room import needed_bytes
 
@@ -25,7 +26,7 @@ def decode_to_pcm(source: Path, out: Path) -> DecodeOutcome:
     part = out.with_name(f"{out.name}.part")
     try:
         needed = needed_bytes(_header_seconds(source))
-    except miniaudio.MiniaudioError as error:
+    except (miniaudio.MiniaudioError, ValueError) as error:
         return DecodeOutcome("undecodable", detail=str(error))
     if shutil.disk_usage(out.parent).free < needed:
         return DecodeOutcome("no_room", needed_bytes=needed)
@@ -47,9 +48,9 @@ def decode_to_pcm(source: Path, out: Path) -> DecodeOutcome:
 
 
 def _header_seconds(source: Path) -> float:
-    # miniaudio picks the reader by extension and knows .oga by no name.
-    if source.suffix.lower() == ".oga":
-        return miniaudio.vorbis_get_file_info(str(source)).duration
+    # miniaudio's Vorbis reader opens by a narrow path; the others by a wide one.
+    if source.suffix.lower() in (".ogg", ".oga"):
+        return vorbis_seconds(source)
     return miniaudio.get_file_info(str(source)).duration
 
 

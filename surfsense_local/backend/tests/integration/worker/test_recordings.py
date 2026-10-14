@@ -349,6 +349,40 @@ def test_a_cancel_during_a_window_stops_the_recording_after_it(
     assert not work_files(folder_of(recording)).audio.exists()
 
 
+def test_a_cancel_that_lands_as_the_recording_would_give_way_still_stops_it(
+    session: Session,
+    stub_model: None,
+    speech_api: SpeechApi,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cancelled, not queued again, and its decoded audio gone with it."""
+    monkeypatch.setattr(queue_turn, "YIELD_AFTER_SECONDS", 0.0)
+    recording = add_recording(session)
+    session.add(
+        Document(
+            workspace_id=recording.workspace_id,
+            title="Note",
+            document_type=DocumentType.NOTE,
+            content="text",
+        )
+    )
+    session.commit()
+
+    def cancel(n: int) -> None:
+        with create_session_factory(session.get_bind())() as api:
+            api.get(Document, recording.id).status = DocumentStatus.CANCELLED
+            api.commit()
+
+    speech_api.during_window = cancel
+
+    run(recording.id)
+
+    session.expire_all()
+    assert recording.status is DocumentStatus.CANCELLED
+    assert ingest_queue.pending() == []
+    assert not work_files(folder_of(recording)).audio.exists()
+
+
 # Failures
 
 
@@ -501,19 +535,31 @@ def test_a_disk_without_room_fails_with_what_it_needs(
 def test_another_model_chosen_midway_writes_the_whole_transcript(
     session: Session, stub_model: None, speech_api: SpeechApi
 ) -> None:
-    """One model's text is never stitched to another's."""
+    """One model's text is never stitched to another's. The new model starts
+    without the language set for the last, so the header says what it heard."""
+    speech_api.status["language_intent"] = "ja"
     other = {"text": "Other words.", "language": "en", "model_id": "other-model"}
-    speech_api.replies = [
-        (200, speech_api.written(0)),
-        (200, other),
-        (200, other),
-        (200, other),
-    ]
+
+    def choose_another(n: int) -> None:
+        if n == 1:
+            speech_api.status = {
+                **speech_api.status,
+                "model": "other-model",
+                "language_intent": "auto",
+            }
+
+    speech_api.during_window = choose_another
+    speech_api.replies = [(200, speech_api.written(0))] + [(200, other)] * 3
     recording = add_recording(session)
 
     run(recording.id)
 
     session.expire_all()
-    assert recording.document_metadata["transcription"]["model"] == "other-model"
+    assert recording.document_metadata["transcription"] == {
+        "language": "en",
+        "duration_s": pytest.approx(36.65, abs=0.01),
+        "model": "other-model",
+    }
     assert "Words of window 0." not in recording.content
+    assert " · English (detected) · other-model." in recording.content.split("\n")[0]
     assert len(speech_api.windows) == 4

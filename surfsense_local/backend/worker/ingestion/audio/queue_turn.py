@@ -32,4 +32,6 @@ class QueueTurn:
         if time.monotonic() - self._started < YIELD_AFTER_SECONDS:
             return
         if other_sources_pending(self._session):
+            # A cancel landed meanwhile ends the job, files and all, instead.
+            self.check_cancelled()
             raise JobYieldedError

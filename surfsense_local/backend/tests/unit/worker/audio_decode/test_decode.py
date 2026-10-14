@@ -97,18 +97,43 @@ def test_bytes_the_decoder_cannot_read_are_undecodable(tmp_path: Path) -> None:
     assert list(tmp_path.iterdir()) == [source]
 
 
+@pytest.mark.parametrize("name", ["tone.mp3", "tone.ogg"])
 def test_a_disk_without_room_for_the_decoded_audio_is_refused_first(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
     """Checked from the file's own length before a byte is written."""
     usage = namedtuple("usage", "total used free")
     monkeypatch.setattr(shutil, "disk_usage", lambda _path: usage(1, 1, 10_000))
     out = tmp_path / "audio16k.raw"
 
-    outcome = decode_to_pcm(AUDIO / "tone.mp3", out)
+    outcome = decode_to_pcm(AUDIO / name, out)
 
     assert (outcome.kind, outcome.needed_bytes) == ("no_room", needed_bytes(1.0))
     assert not out.exists()
+
+
+@pytest.mark.parametrize(
+    ("fixture", "name"),
+    [
+        ("tone.mp3", "réunion.mp3"),
+        ("tone.flac", "会議.flac"),
+        ("tone.ogg", "会議.ogg"),
+        ("tone.ogg", "Besprechung für Jürgen.oga"),
+    ],
+)
+def test_a_recording_named_in_any_script_decodes(
+    tmp_path: Path, fixture: str, name: str
+) -> None:
+    """A file called 会議.ogg, or a data folder under a Windows account named
+    José: no format may be refused for its path."""
+    folder = tmp_path / "José"
+    folder.mkdir()
+    source = folder / name
+    source.write_bytes((AUDIO / fixture).read_bytes())
+
+    outcome = decode_to_pcm(source, folder / "audio16k.raw")
+
+    assert outcome.kind == "decoded", outcome
 
 
 def test_an_hour_needs_its_pcm_and_some_room_to_spare() -> None:

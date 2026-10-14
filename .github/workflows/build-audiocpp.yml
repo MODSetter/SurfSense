@@ -24,6 +24,7 @@ on:
       - surfsense_local/backend/modules/llm/transcription/**
       - surfsense_local/backend/worker/ingestion/audio/**
       - surfsense_local/backend/worker/audio_decode/**
+      - surfsense_local/backend/modules/documents/recordings/**
       - surfsense_local/backend/tests/packaging/test_audiocpp_voicing.py
       - surfsense_local/backend/tests/packaging/test_audiocpp_transcription.py
       - surfsense_local/backend/tests/packaging/test_audiocpp_transcription_config.py
