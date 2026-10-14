@@ -35,7 +35,7 @@ The registry is the list of third-party plugins, verified and community, the app
 
 ## Proving ownership
 
-`verified` is set by a maintainer in review, once the publisher has proven it runs the server ([proposal](../proposals/plugins/core/02-registry.md#publishers)): the URL's host is on `domain`, `domain` belongs to `author`, and the publisher controls it, by one of a file at `https://{domain}/.well-known/surfsense-plugins.json` holding `{"plugins": ["<id>"]}`, a DNS TXT record `surfsense-plugin=<id>` on `domain`, or the same server URL in the [MCP Registry](https://modelcontextprotocol.io/registry/about) under that domain's namespace. The proof is checked again whenever a pull request changes the entry's URL, hosts or domain; the app never fetches it. Every other entry is `community`.
+`verified` is set by a maintainer in review, once the publisher has proven it runs the server: the URL's host is on `domain`, `domain` belongs to `author`, and the publisher controls it, by one of a file at `https://{domain}/.well-known/surfsense-plugins.json` holding `{"plugins": ["<id>"]}`, a DNS TXT record `surfsense-plugin=<id>` on `domain`, or the same server URL in the [MCP Registry](https://modelcontextprotocol.io/registry/about) under that domain's namespace. The proof is checked again whenever a pull request changes the entry's URL, hosts or domain; the app never fetches it. Every other entry is `community`.
 
 ## Signing
 
@@ -87,7 +87,6 @@ SurfSense signs in to OAuth plugins as one public client ([plugins](plugins.md#s
 
 ## Known gaps
 
-- `published/` holds no signed list yet: the sign job needs the `REGISTRY_SIGNING_KEY` secret, and it pushes its commit to `dev` directly, which a branch protection rule on `dev` requiring pull requests would refuse.
-- Nothing builds or deploys the registry image, so `plugins.surfsense.com` serves no list, and a packaged app's fetch fails.
+- No workflow builds the registry image: `plugins.surfsense.com` is deployed outside CI, so a merged list reaches it only when someone deploys.
 - A delisting reaches the app only when Settings → Plugins lists the registry; nothing fetches it before an agent turn.
 - `min_app_version` has not been tried in a frozen build; only a test that `bundling/api.spec` copies the package's metadata guards it.

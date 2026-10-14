@@ -55,7 +55,7 @@ def _served(plugin: MountedPlugin, calls: CallsInFlight) -> ASGIApp:
         plugin.server.streamable_http_app(host="0.0.0.0", stateless_http=True), calls
     )
     # A plugin without `access` is open to anyone. SurfSense offers no free plugin
-    # yet; one will be limited per IP address here, as 02-surfsense-servers.md says.
+    # yet; one will be limited per IP address here, as the plugins proposal says.
     return app if plugin.access is None else RefusedUnlessAllowed(app, plugin.access)
 
 

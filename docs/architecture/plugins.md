@@ -1,6 +1,6 @@
 # Plugins
 
-A plugin is a remote MCP server whose tools the agent can use. The user connects one of SurfSense's own plugins from the list packaged into the app, a verified or community plugin from the signed [registry](plugin-registry.md), or any server by its URL, in Settings → Plugins, signs in with a key, the license or an account, chooses which of its tools the agent may use and which ask first, and the agent's opencode calls the server itself, under rules SurfSense writes each turn ([agent](agent.md#plugins)). Plugins in Basic threads are still the [proposal](../proposals/plugins/README.md).
+A plugin is a remote MCP server whose tools the agent can use. The user connects one of SurfSense's own plugins from the list packaged into the app, a verified or community plugin from the signed [registry](plugin-registry.md), or any server by its URL, in Settings → Plugins, signs in with a key, the license or an account, chooses which of its tools the agent may use and which ask first, and the agent's opencode calls the server itself, under rules SurfSense writes each turn ([agent](agent.md#plugins)). Plugins in Basic threads, and what else is not built, are the [proposal](../proposals/plugins/README.md).
 
 **Code:** [`surfsense_local/backend/modules/plugins/`](../../surfsense_local/backend/modules/plugins/), [`surfsense_local/frontend/src/features/plugins/`](../../surfsense_local/frontend/src/features/plugins/)
 **Decisions:** [ADR 0051](../adr/0051-plugins-are-mcp-servers-behind-one-tool-gateway.md), [ADR 0053](../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md)
@@ -20,7 +20,7 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 `GET /plugins/registry` lists the [registry](plugin-registry.md#in-the-app)'s entries, fetched at most every five minutes and only while third-party plugins are allowed; while they are off it answers `third_party_off: true` and fetches nothing ([`routes.py`](../../surfsense_local/backend/modules/plugins/lists/registry/routes.py), [`registry_read.py`](../../surfsense_local/backend/modules/plugins/lists/registry/registry_read.py)). Each entry carries its name, description, author, `verification` and `verified` for a plugin proven to be run by its author, `server_host`, the host every call goes to, and `sign_in_hosts`, an OAuth plugin's other hosts, `access` and `access_note`, `auth_type` with a token entry's `auth_title` and `auth_description`, `hosts`, `homepage`, `privacy_policy`, `about`, `tools` (null when the entry lists none), `added`, `has_icon` and `connected`; the answer carries `fetched_at` and `removed`.
 
 - **Connecting.** `POST /plugins/registry/{id}`, with `{token}` for a `token` entry: third-party plugins off is `403 third_party_off`; an id not listed is `404`; one connected already, or whose URL is, is `409 plugin_already_connected`; any of the entry's hosts not allowed is `403 egress_disabled` naming them all. An `oauth` entry then starts a sign-in, `202` ([below](#signing-in-with-oauth)). Any other lists the server's tools, with the key as `Authorization: Bearer`, refused as a server added by URL is, and is stored with `source: registry`, its publisher and entry, and a key as `credential_kind: token` ([`registry_plugin.py`](../../surfsense_local/backend/modules/plugins/installed/registry_plugin.py)).
-- **Removed.** A plugin connected from the registry whose id is in `removed` keeps its row and key, but `list_tools()` leaves it out, and its row carries `removed_reason`. A custom plugin with the same id is untouched.
+- **Removed.** A maintainer moves an entry to `removed`, often after a report through the [Report a plugin](../../.github/ISSUE_TEMPLATE/plugin-report.yml) issue form. A plugin connected from the registry whose id is in `removed` keeps its row and key, but `list_tools()` leaves it out, and its row carries `removed_reason`. A custom plugin with the same id is untouched.
 - A custom plugin never takes a registry id, a removed one included ([`custom_plugin.py`](../../surfsense_local/backend/modules/plugins/installed/custom_plugin.py)).
 
 ## Connecting a server
@@ -33,6 +33,15 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 4. A host not allowed is `403 egress_disabled` with `hosts` and `purpose: "plugin"`, so the prompt words its question for a plugin's server, and the host is recorded off for Settings › Network ([egress](egress.md)).
 5. SurfSense lists the server's tools with the official MCP SDK's client, the key as `Authorization: Bearer`. A `401` to a request with no key, from a server that asks for OAuth, starts a sign-in instead, `202` ([below](#signing-in-with-oauth)). Any other `401` or `403` is `422 plugin_needs_sign_in`; anything else that fails is `502 plugin_unreachable`.
 6. The plugin is stored with its key encrypted (`shared/secrets.py`), and every tool it listed starts on.
+
+## The MCP client
+
+SurfSense lists a server's tools itself, to connect it and to notice tools that change; it never calls one, which is opencode's ([`mcp_client/session.py`](../../surfsense_local/backend/modules/plugins/remote/mcp_client/session.py)). It speaks Streamable HTTP only, through the official MCP SDK, pinned to `mcp` 2.3.x, so a server that offers only SSE, or is started by a command, cannot be connected.
+
+- Each listing opens its own connection and closes it, since the SDK's tasks must close where they opened; nothing stays open between listings.
+- `tools/list` is followed page by page through its cursor.
+- A network error, `408`, `429` or `5xx` is retried twice, 0.2 and 0.4 seconds apart ([`retries.py`](../../surfsense_local/backend/modules/plugins/remote/mcp_client/retries.py)). A server that forgot the session is listed once more on a new one.
+- A refusal keeps its HTTP status and the `reason` in its body, which is how a license refusal reaches the [checks](#checks).
 
 ## Signing in with OAuth
 
@@ -56,12 +65,14 @@ A registry entry with `auth: oauth`, or a server added by URL that asks for it, 
 | Table | Holds |
 |---|---|
 | `installed_plugins` | `id`, `kind` (`remote`), `source` (`first_party`, `registry` or `custom`), the unique `url`, the `entry` it was connected from, `enabled`, `connected_at`, its sign-in as `credential_kind` (`token`, `license` or `oauth`) and `credential_ciphertext` (a pasted key or an OAuth sign-in; a license's key is never stored), and its last check: `checked_at`, and `check_failure` (`unreachable`, `sign_in`, or for a refused license `needs_license`, `license_expired`, `license_revoked` or `license_invalid`; null when the server answered), and `disconnected_at`, set while the user has disconnected it |
-| `plugin_tools` | one row per tool: its listing (`title`, `description`, `input_schema`, `annotations`), `position`, the user's `enabled` and `approval` (`ask` or `always`), `exposure`, `first_seen_at`, and `change` (`added` or `changed`) while a tool switched off on its own waits to be allowed; removed with its plugin |
+| `plugin_tools` | one row per tool: its listing (`title`, `description`, `input_schema`, `annotations`), `position`, the user's `enabled` and `approval` (`ask` or `always`), `exposure` (always `direct`; `deferred` is kept for a tool search not built), `first_seen_at`, and `change` (`added` or `changed`) while a tool switched off on its own waits to be allowed; removed with its plugin |
 | `plugin_settings` | one row: `third_party_on` |
 
 ## Ready tools
 
 `list_tools()` in [`gateway/listing.py`](../../surfsense_local/backend/modules/plugins/gateway/listing.py) is the one answer to which tools may be used now: a tool switched on, of a plugin switched on and not disconnected, whose hosts are all allowed, not removed from the registry, not an OAuth plugin signed out, and, unless SurfSense publishes it, only while third-party plugins are allowed. `needs_approval()` in [`gateway/approval.py`](../../surfsense_local/backend/modules/plugins/gateway/approval.py) says which ask: a first-party read-only tool never does, a tool that does not say it is read-only and does not say it is harmless (`destructiveHint` absent or true) always does, and any other asks unless set to Always allow.
+
+These two are the gateway today: it decides readiness and approval, and calls no tool. `list_tools()` returns `ReadyTool` records that name no engine ([`ready_tool.py`](../../surfsense_local/backend/modules/plugins/gateway/ready_tool.py)); the agent reads them each turn. Their `qualified_name`, `<plugin>__<tool>`, waits for the chat engine; opencode names a tool `<plugin>_<tool>` itself ([agent](agent.md#plugins)).
 
 **Tools added later.** Each listing after the first is recorded by [`recorded_tools.py`](../../surfsense_local/backend/modules/plugins/installed/recorded_tools.py): a new tool starts off, a tool whose description changed or whose annotations became less safe is switched off, and a tool the server dropped is deleted. The agent's turn lists again at most every five minutes ([agent](agent.md#plugins)).
 
@@ -70,6 +81,10 @@ A registry entry with `auth: oauth`, or a server added by URL that asks for it, 
 Every listing of a server is a check, recorded on its row ([`plugin_check.py`](../../surfsense_local/backend/modules/plugins/installed/plugin_check.py)): connecting, the agent's listing before a turn when the last check is five minutes old ([agent](agent.md#plugins)), and **Refresh tools**. One that answers records its tools; one that fails keeps the tools last recorded and says why: a `401` or `403` as `sign_in`, unless its body's `reason` is one of [contract 2](../contracts/02-scraper-api-auth.md)'s, `missing_license`, `expired`, `revoked` or `invalid`, which become the license failures; anything else is `unreachable`. An OAuth plugin's `401` is refreshed and listed once more first ([above](#signing-in-with-oauth)).
 
 A tool switched off by a check, because it is new or its description or annotations changed, is marked `added` or `changed`. Switching it on clears the mark: the user has allowed it as it now reads.
+
+## What a plugin can reach
+
+A plugin's server gets the arguments of the calls opencode makes to it, and nothing else of the user's: no plugin code runs in the app, nothing it returns reaches Sources unless the user saves it ([agent](agent.md#plugins)), and opencode's connections are tunnelled only to the hosts of a ready plugin ([agent](agent.md#network)). Against text in a source or a result steering the model, the defences are approval with the exact arguments, hosts the user consented to, a changed description switching its tool off, which hides it from the model, and third-party plugins off until allowed. None of this is a sandbox.
 
 ## Routes
 
@@ -115,14 +130,17 @@ A tool switched off by a check, because it is new or its description or annotati
 
 ## Known gaps
 
-- The scraper plugins' entries point at `plugins.surfsense.com`, which is not deployed, so connecting one fails as `502 plugin_unreachable` outside a developer's local plugin host.
 - An agent turn names a license plugin it could not use as needing sign-in, not as needing a license ([agent](agent.md#plugins)).
 - Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added; whether it should be is an [open question](../proposals/plugins/README.md#open-questions).
 - OAuth sign-in has been tried only against a stand-in authorization server, never a live provider.
-- A packaged app's browser comes back through `plugins.surfsense.com/oauth/callback`, which is not deployed; the tests stand in for its forward by calling the API's callback themselves.
+- The tests stand in for the callback page's forward to the API by calling the API's callback themselves; the deployed page is not exercised by any test.
 - A failed sign-in reads "The sign-in didn’t finish" whatever the cause; the API's `message` saying why is not shown.
 - A server added by URL whose authorization server is on another host raises a second consent prompt, for that host, after the one for the server's own.
 - A removed plugin's reason shows only on its connected row; the Third-party list leaves removed entries out and does not show `removed`.
 - A check runs at connect, before an agent turn and on request, never on a schedule, so a server that went down is seen only then.
 - No activity view: a plugin's recent calls are kept in each thread's opencode session, and the screen does not gather them yet.
-- Plugins reach Agentic threads only; Basic threads get none until the chat engine's router step ([proposal](../proposals/plugins/core/03-engines.md#the-chat-engine-later)).
+- Plugins reach Agentic threads only; Basic threads get none until the chat engine's router step ([proposal](../proposals/plugins/README.md#the-chat-engines-router-step)).
+- A server's `notifications/tools/list_changed` is not read; a changed tool is seen at the next check.
+- Settings › Network lists a plugin's hosts without the plugin's name.
+- Tools are switched one at a time; Read-only and Can make changes have no switch for the whole group.
+- No organisation policy can turn plugins off or hold third-party plugins off ([proposal](../proposals/plugins/README.md#organisation-policy)).

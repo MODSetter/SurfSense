@@ -25,6 +25,7 @@ This repo holds four products. Clone it once, then open the README for the produ
 | MCP server | [`surfsense_mcp/README.md`](surfsense_mcp/README.md) |
 | API / scrapers | [`surfsense_backend/README.md`](surfsense_backend/README.md) |
 | Self-host web UI | [`surfsense_web/README.md`](surfsense_web/README.md) |
+| A plugin, your MCP server listed in the app | [`plugins/registry/README.md`](plugins/registry/README.md) |
 
 The web UI needs the API running. Desktop does not. MCP talks to any backend over HTTP.
 
