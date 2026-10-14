@@ -4,15 +4,26 @@ import test from "node:test"
 import { confineSnapshotSession, type SnapshotSession } from "./confine-snapshot-session.ts"
 
 type Listener = Parameters<SnapshotSession["webRequest"]["onBeforeRequest"]>[0]
+type RequestHandler = Parameters<SnapshotSession["setPermissionRequestHandler"]>[0]
+type CheckHandler = Parameters<SnapshotSession["setPermissionCheckHandler"]>[0]
+type Permission = Parameters<NonNullable<CheckHandler>>[1]
 
 /** A session that records the request filter and answers whether a URL passes it. */
 function fakeSession() {
   let listener: Listener | undefined
+  let request: RequestHandler = null
+  let check: CheckHandler = null
   const session: SnapshotSession = {
     webRequest: {
       onBeforeRequest: (registered) => {
         listener = registered
       },
+    },
+    setPermissionRequestHandler: (handler) => {
+      request = handler
+    },
+    setPermissionCheckHandler: (handler) => {
+      check = handler
     },
   }
   const passes = (url: string): boolean => {
@@ -23,7 +34,23 @@ function fakeSession() {
     assert.notEqual(cancelled, undefined, `no answer for ${url}`)
     return cancelled === false
   }
-  return { session, passes }
+  /** Whether the page gets a permission, by asking for it or by checking it. */
+  const grants = (permission: Permission): boolean => {
+    assert.ok(request && check, "no permission handlers were set")
+    const frame = { isMainFrame: true, requestingUrl: PACKAGED.href }
+    let requested: boolean | undefined
+    request(
+      {} as Electron.WebContents,
+      permission,
+      (granted) => {
+        requested = granted
+      },
+      { ...frame, mediaTypes: ["audio"] },
+    )
+    assert.notEqual(requested, undefined, `no answer for ${permission}`)
+    return requested === true || check(null, permission, "file:///", frame)
+  }
+  return { session, passes, grants }
 }
 
 const PACKAGED = new URL("file:///C:/Program%20Files/SurfSense/resources/frontend/dist/docx-snapshot.html")
@@ -84,4 +111,20 @@ test("in development the page reaches its dev server and nothing else", () => {
   assert.ok(!passes("http://127.0.0.1:51234/workspaces"))
   assert.ok(!passes("https://example.com/collect"))
   assert.ok(!passes("file:///C:/Users/me/.surfsense/secret.bin"))
+})
+
+test("the page is refused every permission, the microphone and the clipboard included", () => {
+  const { session, grants } = fakeSession()
+  confineSnapshotSession(session, PACKAGED)
+
+  for (const permission of [
+    "media",
+    "display-capture",
+    "clipboard-sanitized-write",
+    "clipboard-read",
+    "notifications",
+    "fullscreen",
+  ] as const) {
+    assert.ok(!grants(permission), permission)
+  }
 })
