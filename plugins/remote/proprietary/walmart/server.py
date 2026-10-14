@@ -1,15 +1,22 @@
 """SurfSense's Walmart plugin: public products, listings and reviews, behind the license."""
 
-from collections.abc import Callable
+import functools
+import itertools
+from collections import Counter
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 from urllib.parse import quote_plus, urlsplit
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp_types import CallToolResult, TextContent, ToolAnnotations
+from mcp_types import CallToolResult, ToolAnnotations
 from pydantic import Field
 
-from proprietary.license_check.license_access import LicenseAccess
+from mcp_server.progress import stage
+from mcp_server.results import tool_result, wants_text_only
+from proprietary.license_check.license_access import shared_access
+from proprietary.scraping import lifecycle
 from proprietary.walmart.schemas import WalmartReviewsInput, WalmartScrapeInput
 from proprietary.walmart.scraper import scrape_products, scrape_reviews
 
@@ -18,10 +25,25 @@ MAX_SOURCES = 20
 MAX_RESULTS = 1000
 MAX_ITEMS_PER_SOURCE = 100
 MAX_REVIEWS_PER_SOURCE = 5000
+# Text past these adds little to an answer and crowds out other items: ten
+# detailed products should fit the text's 32 KB with room to spare (at 500
+# characters and every specification, ten measured 31.2 KB).
+_DESCRIPTION_CHARS = 300
+_SPECIFICATIONS = 15
+_SAMPLE_REVIEWS = 2
+_SAMPLE_TEXT_CHARS = 200
+_SELLER_RESPONSE_CHARS = 200
 
-access = LicenseAccess()
+access = shared_access()
 
 ReviewSort = Literal["most-recent", "most-helpful", "rating-high", "rating-low"]
+
+
+@asynccontextmanager
+async def lifespan() -> AsyncIterator[None]:
+    """Joins the shared pools' close at shutdown; Walmart has nothing free to warm."""
+    async with lifecycle.lifespan():
+        yield
 
 
 def server() -> MCPServer:
@@ -60,7 +82,9 @@ def server() -> MCPServer:
             bool,
             Field(
                 description=(
-                    "Open each listed product's page for its full details; slower."
+                    "Open each listed product's page for its full details; slower. "
+                    "Listings leave out the rating of products sold in variants, "
+                    "so those need details for stars and review counts."
                 )
             ),
         ] = True,
@@ -85,9 +109,13 @@ def server() -> MCPServer:
             ),
         ]
         expected = min(len(start_urls) * max_items, MAX_RESULTS)
+        await stage(ctx, "searching Walmart", total=expected)
 
         async def heard(count: int) -> None:
-            await ctx.report_progress(count, expected)
+            await stage(ctx, f"{count} of {expected} products", done=count)
+
+        async def fetching(message: str) -> None:
+            await stage(ctx, message)
 
         request = WalmartScrapeInput(
             startUrls=start_urls,
@@ -95,8 +123,15 @@ def server() -> MCPServer:
             includeDetails=include_details,
             includeReviewsSample=include_reviews_sample,
         )
-        items = await scrape_products(request, limit=MAX_RESULTS, on_item=heard)
-        return _result(items, "products", _product_line)
+        items = await scrape_products(
+            request, limit=MAX_RESULTS, on_item=heard, on_stage=fetching
+        )
+        return tool_result(
+            _summary(items, "products"),
+            items,
+            project=_product_fields,
+            text_only=wants_text_only(ctx),
+        )
 
     @walmart.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
     async def reviews(
@@ -136,15 +171,32 @@ def server() -> MCPServer:
             raise ToolError("Give at least one of urls or item_ids.")
         sources = [*_http_urls(urls), *item_ids]
         expected = len(sources) * max_reviews
+        await stage(ctx, "fetching Walmart reviews", total=expected)
 
         async def heard(count: int) -> None:
-            await ctx.report_progress(count, expected)
+            await stage(ctx, f"{count} of {expected} reviews", done=count)
+
+        async def fetching(message: str) -> None:
+            await stage(ctx, message)
 
         request = WalmartReviewsInput(
             itemIds=sources, maxReviews=max_reviews, sort=sort_by
         )
-        items = await scrape_reviews(request, limit=expected, on_item=heard)
-        return _result(items, "reviews", _review_line)
+        items = await scrape_reviews(
+            request, limit=expected, on_item=heard, on_stage=fetching
+        )
+        counts = _per_product(items)
+        head = _summary(items, "reviews")
+        if len(counts) > 1:
+            # Says whose reviews the text runs out before.
+            head += " (" + ", ".join(f"{n} for {i}" for i, n in counts.items()) + ")"
+        return tool_result(
+            head,
+            items,
+            # With one product, its id on every line is ~10% of the text.
+            project=functools.partial(_review_fields, with_id=len(counts) > 1),
+            text_only=wants_text_only(ctx),
+        )
 
     return walmart
 
@@ -159,47 +211,113 @@ def _http_urls(urls: list[str]) -> list[str]:
     return trimmed
 
 
-def _result(
-    items: list[dict[str, Any]], kind: str, line: Callable[[dict[str, Any]], str]
-) -> CallToolResult:
-    return CallToolResult(
-        content=[TextContent(type="text", text=_summary(items, kind, line))],
-        structured_content={"items": items},
-    )
+def _clip(text: Any, chars: int) -> Any:
+    if isinstance(text, str) and len(text) > chars:
+        return text[:chars] + "…"
+    return text
 
 
-def _summary(
-    items: list[dict[str, Any]], kind: str, line: Callable[[dict[str, Any]], str]
-) -> str:
-    """What the agent reads first; the items themselves are in the structured result.
+def _summary(items: list[dict[str, Any]], kind: str) -> str:
+    """The header line the agent reads first; each item follows as one JSON line.
 
     Failed inputs are items with an `error` key, as the scraper streams them.
     """
-    errors = [item for item in items if "error" in item]
-    head = f"{len(items) - len(errors)} Walmart {kind}"
+    errors = sum("error" in item for item in items)
+    head = f"{len(items) - errors} Walmart {kind}"
     if errors:
-        head += f", {len(errors)} failed"
-    lines = [head]
-    for item in items:
-        if "error" in item:
-            lines.append(
-                f"- [{item['error']}] {item.get('errorDescription') or ''} "
-                f"({item.get('input') or ''})"
-            )
-        else:
-            lines.append(line(item))
-    return "\n".join(lines)
+        head += f", {errors} failed"
+    # A listing card stands in when its product page failed to load.
+    partial = sum("detailsError" in item for item in items)
+    if partial:
+        head += f"; {partial} listing card only (details failed)"
+    return head
 
 
-def _product_line(item: dict[str, Any]) -> str:
-    price = (item.get("price") or {}).get("value")
-    cost = f" ${price}" if price is not None else ""
-    return f"- {item.get('name')}{cost} {item.get('url') or ''}"
+def _per_product(items: list[dict[str, Any]]) -> Counter[Any]:
+    """Each product's review count, in input order."""
+    return Counter(item.get("usItemId") for item in items if "error" not in item)
 
 
-def _review_line(item: dict[str, Any]) -> str:
-    said = item.get("title") or (item.get("text") or "")[:120]
-    return (
-        f"- {item.get('rating')}/5 {said} by {item.get('author')} "
-        f"(item {item.get('usItemId')})"
-    )
+def _failure(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "error": item["error"],
+        "errorDescription": item.get("errorDescription"),
+        "input": item.get("input"),
+    }
+
+
+def _product_fields(item: dict[str, Any]) -> dict[str, Any]:
+    """What an agent compares products on; images and raw variant nodes stay out."""
+    if "error" in item:
+        return _failure(item)
+    price = item.get("price") or {}
+    sample = item.get("reviewsSample") or {}
+    fulfillment = item.get("fulfillment") or {}
+    return {
+        "usItemId": item.get("usItemId"),
+        "name": item.get("name"),
+        "brand": item.get("brand"),
+        "price": price.get("value"),
+        "listPrice": (item.get("listPrice") or {}).get("value"),
+        "currency": item.get("currency") or price.get("currency"),
+        "stars": item.get("stars"),
+        "reviewsCount": item.get("reviewsCount"),
+        "availability": item.get("availabilityStatus"),
+        "seller": (item.get("seller") or {}).get("name"),
+        "sponsored": item.get("sponsored"),
+        "category": item.get("category"),
+        "url": item.get("url"),
+        "shortDescription": _clip(item.get("shortDescription"), _DESCRIPTION_CHARS),
+        "longDescription": _clip(item.get("longDescription"), _DESCRIPTION_CHARS),
+        "specifications": _first(item.get("specifications"), _SPECIFICATIONS),
+        "fulfillment": {
+            kind: {
+                key: option.get(key)
+                for key in ("availabilityStatus", "deliveryDate", "badge", "price")
+            }
+            for kind, option in fulfillment.items()
+            if isinstance(option, dict)
+        },
+        "topReviews": [
+            {
+                "rating": review.get("rating"),
+                "title": review.get("title"),
+                "text": _clip(review.get("text"), _SAMPLE_TEXT_CHARS),
+            }
+            for review in (sample.get("topReviews") or [])[:_SAMPLE_REVIEWS]
+        ],
+        "detailsError": item.get("detailsError"),
+    }
+
+
+def _first(specs: Any, count: int) -> Any:
+    """The first ``count`` entries of a name→value dict, in the page's order."""
+    if isinstance(specs, dict) and len(specs) > count:
+        return dict(itertools.islice(specs.items(), count))
+    return specs
+
+
+def _review_fields(item: dict[str, Any], *, with_id: bool = True) -> dict[str, Any]:
+    """The review itself; the variant it is about only when not the one asked for.
+
+    A whole rating reads as ``5``, not ``5.0``, no helpful votes as none, and
+    the keys are short: small, but on every one of 200 lines.
+    """
+    if "error" in item:
+        return _failure(item)
+    other = item.get("reviewedItemId") not in (None, item.get("usItemId"))
+    rating = item.get("rating")
+    if isinstance(rating, float) and rating.is_integer():
+        rating = int(rating)
+    return {
+        "usItemId": item.get("usItemId") if with_id else None,
+        "rating": rating,
+        "title": item.get("title"),
+        "text": item.get("text"),
+        "date": item.get("submissionTime"),
+        "verified": item.get("verifiedPurchase"),
+        "helpful": item.get("positiveFeedback") or None,
+        "sellerResponse": _clip(item.get("sellerResponse"), _SELLER_RESPONSE_CHARS),
+        "reviewedItemId": item.get("reviewedItemId") if other else None,
+        "reviewedItemName": item.get("reviewedItemName") if other else None,
+    }
