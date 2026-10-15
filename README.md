@@ -34,6 +34,7 @@
     <a href="#what-it-does-with-each-format">Formats</a> ·
     <a href="#quick-start">Quick start</a> ·
     <a href="#how-it-compares">Compare</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Pricing</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -93,6 +94,13 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 | Open source | No | **Apache-2.0** |
 | Models | Gemini only | Any OpenAI-compatible API, or a local one |
 
+## Plugins
+
+Plugins give the agent live data from the web, in Agentic chats. Connect them in **Settings › Plugins**, then name one in a chat with `@`, such as `@amazon`.
+
+- **By SurfSense:** Google Search, Web Crawl, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, read without your own accounts. They need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 30-day one.
+- **Third-party:** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+
 ## Community
 
 - [Discord](https://discord.gg/ejRNvftDp9) for help, [Issues](https://github.com/MODSetter/SurfSense/issues) for bugs, [Discussions](https://github.com/MODSetter/SurfSense/discussions) for ideas.
@@ -100,18 +108,6 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense contributors" /></a>
 
-## Star history
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
-
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE). Two folders are under the Business Source License 1.1 instead, as the `LICENSE` in each says: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), SurfSense's own plugins, and [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
