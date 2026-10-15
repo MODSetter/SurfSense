@@ -114,4 +114,4 @@ Verbinde sie unter **Einstellungen › Plugins**.
 
 ## Lizenz
 
-Apache-2.0. Siehe [LICENSE](LICENSE). Zwei Ordner stehen stattdessen unter der Business Source License 1.1, wie die `LICENSE` im jeweiligen Ordner angibt: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), die eigenen Plugins von SurfSense, und [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
+Apache-2.0. Siehe [LICENSE](LICENSE).

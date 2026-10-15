@@ -115,4 +115,4 @@ Conéctalos en **Ajustes › Plugins**.
 
 ## Licencia
 
-Apache-2.0. Consulta el archivo [LICENSE](LICENSE). En cambio, dos carpetas están bajo la Business Source License 1.1, como indica el archivo `LICENSE` de cada una: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), los plugins de SurfSense, y [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
+Apache-2.0. Consulta el archivo [LICENSE](LICENSE).

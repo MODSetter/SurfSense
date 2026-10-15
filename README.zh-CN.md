@@ -114,4 +114,4 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 
 ## 许可证
 
-Apache-2.0。详见 [LICENSE](LICENSE)。不过有两个文件夹改用 Business Source License 1.1，见各自文件夹中的 `LICENSE`：[`plugins/remote/proprietary/`](plugins/remote/proprietary/)（SurfSense 自己的插件）和 [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/)。
+Apache-2.0。详见 [LICENSE](LICENSE)。

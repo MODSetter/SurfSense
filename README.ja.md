@@ -114,4 +114,4 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 
 ## ライセンス
 
-Apache-2.0。[LICENSE](LICENSE) を参照してください。ただし次の 2 つのフォルダーは、それぞれの `LICENSE` にあるとおり、Business Source License 1.1 のもとで公開されています：[`plugins/remote/proprietary/`](plugins/remote/proprietary/)（SurfSense 独自のプラグイン）と [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/)。
+Apache-2.0。[LICENSE](LICENSE) を参照してください。

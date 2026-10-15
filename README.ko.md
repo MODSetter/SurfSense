@@ -115,4 +115,4 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 
 ## 라이선스
 
-Apache-2.0. [LICENSE](LICENSE)를 보세요. 다만 두 폴더는 각 폴더의 `LICENSE`에 적힌 대로 Apache-2.0 대신 Business Source License 1.1을 따릅니다. 해당 폴더는 [`plugins/remote/proprietary/`](plugins/remote/proprietary/)(SurfSense 자체 플러그인)와 [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/)입니다.
+Apache-2.0. [LICENSE](LICENSE)를 보세요.
