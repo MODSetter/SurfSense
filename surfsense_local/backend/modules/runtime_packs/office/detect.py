@@ -106,7 +106,7 @@ def _registered_windows_install() -> list[Path]:
 
     try:
         with winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\LibreOffice\UNO\InstallPath"
+            winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\LibreOffice\UNO\InstallPath"  # pragma: allowlist secret
         ) as key:
             program, _ = winreg.QueryValueEx(key, "")
     except OSError:

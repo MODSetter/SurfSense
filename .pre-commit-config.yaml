@@ -28,8 +28,10 @@ repos:
             .*\.env\.example|
             .*\.env\.template|
             .*/tests/.*|
+            .*/fixtures/.*|
             .*test.*\.py|
             test_.*\.py|
+            .*\.test\.ts|
             .github/workflows/.*\.yml|
             .github/workflows/.*\.yaml|
             .*pnpm-lock\.yaml|
@@ -37,7 +39,9 @@ repos:
             .*alembic/versions/.*\.py|
             .*\.mdx$|
             .*/messages/.*\.json$|
-            surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json
+            surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json|
+            plugins/registry/published/plugins\.json|
+            surfsense_local/backend/scripts/capability_list/sweep/.*
           )$
 
   # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting.

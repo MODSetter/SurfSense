@@ -13,7 +13,7 @@ so this is NOT :pyattr:`~ProxyProvider.is_pool_backed`.
 
 Example URL::
 
-    http://your_login-country-us:your_password@gate.nodemaven.com:8080
+    http://your_login-country-us:your_password@gate.nodemaven.com:8080  # pragma: allowlist secret
 
 ``region``, ``city`` and ``isp`` belong to a country, so they are dropped when
 the country is changed and kept otherwise; ``ttl`` and other parameters are
