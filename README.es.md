@@ -77,16 +77,6 @@ SurfSense es una aplicación de escritorio gratuita y de código abierto para lo
 
 Las ediciones, las conversiones y las herramientas de PDF siempre crean un archivo nuevo; tu original nunca se modifica. Hoy por hoy, PDF, Word y Excel son los formatos con los que más se puede hacer, y la compatibilidad con el resto de formatos no deja de mejorar.
 
-## Cómo se compara
-
-| | NotebookLM (ahora Gemini Notebook) | SurfSense |
-|---|---|---|
-| Funciona sin conexión / aislado de la red | No | **Sí** |
-| Tus documentos salen de tu equipo | Sí | **No**, salvo que elijas un modelo remoto |
-| Puede editar tus archivos | No | **Sí** |
-| Código abierto | No | **Apache-2.0** |
-| Modelos | Solo Gemini | Cualquier API compatible con OpenAI, o una local |
-
 ## Plugins
 
 Conéctalos en **Ajustes › Plugins**.
@@ -105,6 +95,16 @@ Conéctalos en **Ajustes › Plugins**.
 | **Indeed** | Leer ofertas de empleo en Indeed |
 
 **De terceros.** Servidores MCP del [registro de plugins](plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
+
+## Cómo se compara
+
+| | NotebookLM (ahora Gemini Notebook) | SurfSense |
+|---|---|---|
+| Funciona sin conexión / aislado de la red | No | **Sí** |
+| Tus documentos salen de tu equipo | Sí | **No**, salvo que elijas un modelo remoto |
+| Puede editar tus archivos | No | **Sí** |
+| Código abierto | No | **Apache-2.0** |
+| Modelos | Solo Gemini | Cualquier API compatible con OpenAI, o una local |
 
 ## Comunidad
 
