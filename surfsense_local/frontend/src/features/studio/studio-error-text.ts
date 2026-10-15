@@ -4,8 +4,9 @@ import { ApiError } from "@/lib/api"
 // English mirrors `_required()` in modules/artifacts/service.py, whose
 // `_required_code()` builds the `needs_*` codes for a refused create or
 // regenerate (a refine's `needs_chat` comes from studio_documents/fits.py),
-// and the sentences its `_refused()` sends for a job that cannot start, be
-// run again or be stopped;
+// and the sentences `refused()` sends for a job that cannot start, be run
+// again or be stopped, and for a document that cannot be refined
+// (studio_documents/service.py);
 // the backend's own text stays the fallback for a code that has no line here.
 const studioErrorText: Record<string, () => string> = {
   already_generating: () =>
@@ -32,6 +33,24 @@ const studioErrorText: Record<string, () => string> = {
     intl.formatMessage({
       id: "studio_error_sources_gone",
       defaultMessage: "None of this artifact’s sources are left.",
+    }),
+  not_refinable: () =>
+    intl.formatMessage({
+      id: "studio_error_not_refinable",
+      defaultMessage:
+        "Only a Word document or PDF made in Studio can be refined.",
+    }),
+  agent_made: () =>
+    intl.formatMessage({
+      id: "studio_error_agent_made",
+      defaultMessage:
+        "The agent made this document: ask for changes in its chat.",
+    }),
+  version_unfinished: () =>
+    intl.formatMessage({
+      id: "studio_error_version_unfinished",
+      defaultMessage:
+        "This version did not finish: retry it, or refine another version.",
     }),
   needs_chat: () =>
     intl.formatMessage({

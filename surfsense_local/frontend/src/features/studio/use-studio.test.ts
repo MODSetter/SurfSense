@@ -10,7 +10,7 @@ import { toast } from "sonner"
 
 import { createQueryClient } from "@/lib/query-client"
 
-import { useStudio } from "./use-studio"
+import { messageFrom, useStudio } from "./use-studio"
 import type { Artifact } from "./api"
 
 vi.mock("sonner", () => ({
@@ -472,6 +472,32 @@ describe("useStudio refine", () => {
       "This document is too long for the selected model."
     )
     expect(result.current.artifacts.map((each) => each.id)).toEqual([40])
+  })
+
+  it("rejects a refusal that has a code with an error the Refine box says in the interface’s words", async () => {
+    refineApi(
+      Response.json(
+        {
+          detail: {
+            message: "the backend's sentence, never shown",
+            code: "agent_made",
+          },
+        },
+        { status: 409 }
+      )
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    const refusal = await result.current
+      .refine(40, "Shorter")
+      .catch((cause: unknown) => cause)
+
+    // refine-box.tsx shows messageFrom(cause) under the instruction.
+    expect(messageFrom(refusal)).toBe(
+      "The agent made this document: ask for changes in its chat."
+    )
   })
 })
 
