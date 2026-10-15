@@ -201,15 +201,15 @@ export const FEATURES: {
 	{
 		key: "plugins",
 		heading: "Open source, extended by plugins",
-		body: "Each plugin pulls public data from one platform into your notebook. Coming soon.",
+		body: "Each plugin gives the agent live data from one platform. Eight ship today.",
 		points: [
 			{
 				title: "More places to search",
-				body: "Reddit, YouTube, Google Maps, Amazon and the open web come first.",
+				body: "Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart, Indeed and the open web.",
 			},
 			{
 				title: "Open by pull request",
-				body: "Every plugin is code in the public repo, checked like the rest of it.",
+				body: "Our plugins are code in the public repo; anyone can list an MCP server in the registry.",
 			},
 		],
 		action: { label: "See the plugins", href: "/plugins" },

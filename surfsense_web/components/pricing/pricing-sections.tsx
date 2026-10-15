@@ -18,11 +18,11 @@ import { CheckIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 /**
- * Splits a feature string around "9 platforms" so that segment alone can be
+ * Splits a feature string around "7 platforms" so that segment alone can be
  * wrapped in `PlatformsTooltip` — the rest of the line renders as plain text.
  */
 function renderFeature(feature: string) {
-	const marker = "9 platforms";
+	const marker = "7 platforms";
 	const index = feature.indexOf(marker);
 	if (index === -1) return feature;
 

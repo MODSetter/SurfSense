@@ -10,7 +10,10 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  *     (`/pricing` — B5)
  *
  * The plugin note follows `docs/adr/0025-scraper-client-as-paid-plugin.md`,
- * which supersedes the plan's plugin section.
+ * which supersedes the plan's plugin section. SurfSense's plugins shipped in
+ * 2.2.1 as eight MCP servers on the plugin host; the platform list below
+ * follows the app's first-party list
+ * (`surfsense_local/backend/modules/plugins/lists/first_party/plugins.json`).
  *
  * Three things here disagree with the plan documents, all decided after those
  * documents were written:
@@ -58,21 +61,20 @@ export const BUY_INDIVIDUAL_URL =
 	process.env.NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL || "/contact";
 
 /**
- * The nine scraper platforms behind the "9 platforms" feature line, in the
- * same order as the `PLUGINS` list on `/plugins` (`app/(home)/plugins/page.tsx`),
- * minus the web crawler — that one is called out separately in the copy
- * ("9 platforms and the web crawler") and in this list's consumer.
+ * The seven platforms behind the "7 platforms" feature line, in the same order
+ * as the `PLUGINS` list on `/plugins` (`app/(home)/plugins/page.tsx`), minus the
+ * web crawler — that one is called out separately in the copy ("7 platforms and
+ * the web crawler") and in this list's consumer. Reddit and Instagram are not
+ * offered: both close their public pages to readers who are not signed in.
  */
 export const PLUGIN_PLATFORMS = [
-	"Reddit",
+	"Google Search",
 	"YouTube",
-	"Instagram",
 	"TikTok",
 	"Google Maps",
-	"Google Search",
-	"Indeed",
 	"Amazon",
 	"Walmart",
+	"Indeed",
 ];
 
 export type Plan = {
@@ -109,7 +111,7 @@ export const PLANS: Plan[] = [
 		summary: "Adds the scraper plugins and priority support for one person.",
 		features: [
 			"Everything in Free",
-			"Every scraper plugin: 9 platforms and the web crawler",
+			"Every SurfSense plugin: 7 platforms and the web crawler",
 			"Unlimited, with no per-item metering and no credits to buy",
 			"Priority support",
 		],
@@ -145,9 +147,12 @@ export const PLANS: Plan[] = [
 export const SMALL_GROUP_NOTE =
 	"A handful of people do not need an enterprise agreement. Buy an Individual licence each: there is no minimum, no seat count to manage, and everyone gets their own file. Enterprise is about how you deploy SurfSense, not how many people use it.";
 
-/** Required by the brief: buyers must know the first plugin is not in the box. */
+/**
+ * What the licence buys today, and what it does not gate: the brief asks that
+ * buyers know exactly which plugins are in the box.
+ */
 export const PLUGIN_NOTE =
-	"No plugin ships in version 2.0. The first one will be the hosted scraper API, covering all nine platforms and the web crawler, installed from inside the app once the plugin system is ready.";
+	"SurfSense's eight plugins shipped in version 2.2.1: Google Search, Web Crawl, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed. Connect them in Settings › Plugins. Third-party plugins and MCP servers you add yourself work without a licence.";
 
 /**
  * Answers are written as quotable definitions: one plain paragraph an AI
@@ -165,12 +170,12 @@ export const PRICING_FAQ = [
 	{
 		question: "What does a paid licence add?",
 		answer:
-			"A licence unlocks priority support and the scraper plugins: nine platform connectors plus the web crawler. Plugins are unlimited at a flat price, so nothing is metered per item and there is no credit balance to top up. The licence does not lock any of the app's own features.",
+			"A licence unlocks priority support and SurfSense's own plugins: Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, plus the web crawler. Plugins are unlimited at a flat price, so nothing is metered per item and there is no credit balance to top up. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.",
 	},
 	{
 		question: "Is there a free trial?",
 		answer:
-			"Yes. A 30-day licence comes with the free plan. It needs only an email address, with no card and no account. You receive a licence file by email, drop it into the app, and every plugin is unlocked for 30 days. The clock starts when the first plugin ships rather than when you ask for the file, so waiting for it costs you nothing.",
+			"Yes. A 30-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 30 days.",
 	},
 	{
 		question: "Does the $60 early-bird price renew at $60?",
@@ -185,7 +190,7 @@ export const PRICING_FAQ = [
 	{
 		question: "What happens when my licence expires?",
 		answer:
-			"The app keeps working. A licence expiry never disables SurfSense: your documents, your index and every local feature carry on exactly as before. Only the scraper plugins stop, because they are the part that runs against our servers. Renewing is a new licence file.",
+			"The app keeps working. A licence expiry never disables SurfSense: your documents, your index and every local feature carry on exactly as before. Only SurfSense's own plugins stop, because they run on our servers; third-party plugins keep working. Renewing is a new licence file.",
 	},
 	{
 		question: "Do I need an account to buy?",
