@@ -13,13 +13,14 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
-from modules.egress.service import HUGGINGFACE
 
 revision: str = "0027"
 down_revision: str | Sequence[str] | None = "0026"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# Frozen, not imported: an older release runs this script without the app's modules.
+HUGGINGFACE = "host:huggingface.co"
 SEARCH = "model_search"
 DOWNLOADS = ("model_download", "image_model_pull")
 
