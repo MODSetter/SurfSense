@@ -17,9 +17,13 @@ from modules.plugins.remote.sign_in.oauth.sign_in_failure import SignInFailure
 class NotStoredError(Exception):
     """The row changed while the user was signing in; the message says how."""
 
-    def __init__(self, code: SignInFailure, message: str) -> None:
+    def __init__(
+        self, code: SignInFailure, message: str, name: str | None = None
+    ) -> None:
         super().__init__(message)
         self.code = code
+        # The plugin's name, for the screen's own sentence
+        self.name = name
 
 
 def store_signed_in(
@@ -32,8 +36,7 @@ def store_signed_in(
         plugin = session.get(InstalledPlugin, draft.plugin_id)
         if plugin is None:
             raise NotStoredError(
-                SignInFailure.PLUGIN_DISCONNECTED,
-                f"{draft.name} was disconnected meanwhile.",
+                SignInFailure.PLUGIN_REMOVED, f"{draft.name} was removed meanwhile."
             )
     else:
         taken = (
@@ -45,6 +48,7 @@ def store_signed_in(
             raise NotStoredError(
                 SignInFailure.PLUGIN_ALREADY_CONNECTED,
                 f"This server is already connected as {taken}.",
+                name=taken,
             )
         plugin = InstalledPlugin(
             id=draft.plugin_id,

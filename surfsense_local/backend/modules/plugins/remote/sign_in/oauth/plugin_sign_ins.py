@@ -66,9 +66,12 @@ class PendingSignIn:
     draft: PluginDraft
     expires_at: float
     status: SignInStatus = "waiting"
-    # Why it failed, once it has
+    # Why it failed, once it has: the code, its sentence, and the host or the
+    # name the sentence names, as raw values for the screen's own sentence.
     failure: SignInFailure | None = None
     message: str | None = None
+    failure_host: str | None = None
+    failure_name: str | None = None
     authorization_url: str = ""
     nonce: str | None = None
     started: asyncio.Future[None] = field(
@@ -226,6 +229,10 @@ class PluginSignIns:
                 return
             pending.status = "failed"
             pending.failure, pending.message = _failure(error)
+            if isinstance(error, HostNotAllowedError):
+                pending.failure_host = error.host
+            elif isinstance(error, NotStoredError):
+                pending.failure_name = error.name
             # The type alone: an SDK message can quote a provider's response.
             logger.warning(
                 "signing in to %s failed: %s", draft.plugin_id, type(error).__name__

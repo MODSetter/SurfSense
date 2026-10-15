@@ -11,7 +11,7 @@ class SignInFailure(enum.StrEnum):
     HOST_NOT_ALLOWED = "sign_in_host_not_allowed"
     SERVER_UNREACHABLE = "sign_in_server_unreachable"
     TOOLS_NOT_LISTED = "sign_in_tools_not_listed"
-    PLUGIN_DISCONNECTED = "sign_in_plugin_disconnected"
+    PLUGIN_REMOVED = "sign_in_plugin_removed"
     PLUGIN_ALREADY_CONNECTED = "sign_in_plugin_already_connected"
     NOT_FINISHED = "sign_in_not_finished"
     FAILED = "sign_in_failed"

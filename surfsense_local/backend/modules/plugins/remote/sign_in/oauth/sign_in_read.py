@@ -19,9 +19,13 @@ class SignInRead(BaseModel):
     id: str
     plugin_id: str
     status: SignInStatus
-    # Why it failed: a code the screen has words for, and a sentence; None otherwise.
+    # Why it failed: a code the screen has words for, and a sentence; None
+    # otherwise. The host not allowed, or the name the server is connected as,
+    # as raw values for the screen's own sentence.
     code: SignInFailure | None
     message: str | None
+    host: str | None
+    name: str | None
 
 
 def started(pending: PendingSignIn) -> SignInStarted:
@@ -39,4 +43,6 @@ def read_sign_in(pending: PendingSignIn) -> SignInRead:
         status=pending.status,
         code=pending.failure,
         message=pending.message,
+        host=pending.failure_host,
+        name=pending.failure_name,
     )

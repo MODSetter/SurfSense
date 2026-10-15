@@ -214,6 +214,26 @@ async def test_a_provider_refusal_ends_the_sign_in_with_no_plugin(
         "sign_in_declined",
         "The sign-in was declined.",
     )
+    assert (status["host"], status["name"]) == (None, None)
+    assert (await client.get("/plugins")).json() == []
+
+
+async def test_any_other_provider_refusal_ends_the_sign_in_as_refused(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """An `error` other than `access_denied` is the provider's refusal, named in the sentence."""
+    servers.authorization.deny_with = "server_error"
+    sign_in = await start_custom(client, servers)
+
+    page = await approve_in_browser(client, sign_in["authorization_url"])
+
+    assert page.status_code == 400
+    status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
+    assert (status["status"], status["code"], status["message"]) == (
+        "failed",
+        "sign_in_refused",
+        "The sign-in was refused (server_error).",
+    )
     assert (await client.get("/plugins")).json() == []
 
 
