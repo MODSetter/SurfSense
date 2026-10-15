@@ -226,7 +226,6 @@
 		"forever": "永久",
 		"contact_us": "联系我们",
 		"feature_llms": "支持 100+ 种 LLM",
-		"feature_ollama": "支持本地 Ollama 或 vLLM 部署",
 		"feature_embeddings": "6000+ 种嵌入模型",
 		"feature_files": "支持 50+ 种文件扩展名",
 		"feature_podcasts": "支持播客与本地 TTS 提供商",

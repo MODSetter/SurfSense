@@ -1,10 +1,15 @@
 import { followWorkspaceEvents } from "./api"
+import type { ChangeProgress } from "./read-sse"
 
 export type WorkspaceChangeKind =
   "documents" | "artifacts" | "chat-runs" | "folders"
 
 /** Which rows changed and to what; absent when a dropped stream came back. */
-export type WorkspaceChange = { ids: number[]; status: string }
+export type WorkspaceChange = {
+  ids: number[]
+  status: string
+  progress?: ChangeProgress
+}
 
 type Listener = (change?: WorkspaceChange) => void
 
@@ -61,6 +66,7 @@ async function follow(workspaceId: number, subscription: Subscription) {
           notify(subscription.listeners.get(event.type), {
             ids: event.ids,
             status: event.status,
+            ...(event.progress ? { progress: event.progress } : {}),
           })
         }
       }

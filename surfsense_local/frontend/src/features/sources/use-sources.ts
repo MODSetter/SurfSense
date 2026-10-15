@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
 import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
+import type { WorkspaceChange } from "@/features/workspaces/workspace-changes"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
 
@@ -24,6 +25,8 @@ import {
   type UploadEntry,
 } from "./folder-upload/upload-plan"
 import { reuseUnchanged } from "./reuse-unchanged"
+import { useTranscriptionPaces } from "./transcription/use-transcription-paces"
+import { describesListed, withProgress } from "./transcription/with-progress"
 import { indexSources } from "./tree/source-index"
 import { useFolders } from "./tree/use-folders"
 import { useSourceScope } from "./tree/use-source-scope"
@@ -33,6 +36,14 @@ const MAX_SOURCE_MEGABYTES = MAX_SOURCE_BYTES / 1024 / 1024
 // The worker's notices are best-effort: one lost while a row is in flight would
 // leave it stale, so the list is still re-read now and then until none is.
 const LOST_NOTICE_POLL_MS = 10_000
+
+// A recording waiting for a speech recognition model is not running.
+function isIngesting(document: WorkspaceDocument) {
+  return (
+    (document.status === "pending" || document.status === "processing") &&
+    document.transcription?.awaiting !== true
+  )
+}
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -74,10 +85,12 @@ export function useSources(workspaceId: number) {
   const uploadController = useRef<AbortController | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const changeController = useRef<AbortController | null>(null)
-  const hasActiveIngestion = documents.some(
-    (document) =>
-      document.status === "pending" || document.status === "processing"
-  )
+  const hasActiveIngestion = documents.some(isIngesting)
+  const {
+    paces: transcriptionPaces,
+    heard,
+    keepRunning,
+  } = useTranscriptionPaces()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -86,6 +99,7 @@ export function useSources(workspaceId: number) {
       .then((next) => {
         if (listController.current === controller) {
           setDocuments((current) => reuseUnchanged(current, next))
+          keepRunning(next)
           setError(null)
           setIsLoading(false)
         }
@@ -102,7 +116,7 @@ export function useSources(workspaceId: number) {
       pollController.current?.abort()
       changeController.current?.abort()
     }
-  }, [workspaceId])
+  }, [workspaceId, keepRunning])
 
   useEffect(() => {
     if (!hasActiveIngestion) {
@@ -121,14 +135,9 @@ export function useSources(workspaceId: number) {
             return
           }
           setDocuments((current) => reuseUnchanged(current, next))
+          keepRunning(next)
           setError(null)
-          if (
-            !next.some(
-              (document) =>
-                document.status === "pending" ||
-                document.status === "processing"
-            )
-          ) {
+          if (!next.some(isIngesting)) {
             return
           }
         }
@@ -140,7 +149,7 @@ export function useSources(workspaceId: number) {
     })()
 
     return () => controller.abort()
-  }, [hasActiveIngestion, workspaceId])
+  }, [hasActiveIngestion, workspaceId, keepRunning])
 
   // Without the loading state: the list is on screen, and only its rows move.
   const reloadQuietly = useStableCallback(() => {
@@ -151,6 +160,7 @@ export function useSources(workspaceId: number) {
       .then((next) => {
         if (changeController.current === controller) {
           setDocuments((current) => reuseUnchanged(current, next))
+          keepRunning(next)
           setError(null)
         }
       })
@@ -158,7 +168,20 @@ export function useSources(workspaceId: number) {
         // The next change, or the re-read while something ingests, reloads.
       })
   })
-  useWorkspaceChanges(workspaceId, "documents", reloadQuietly)
+  // A transcribed window's progress changes no row the list has: it is kept
+  // as it comes, and timed for the estimate, without reading the list again.
+  const documentsChanged = (change?: WorkspaceChange) => {
+    const progress = change?.progress
+    if (progress && change.status === "processing") {
+      heard(change.ids, progress.done_s)
+      if (describesListed(documents, change.ids, change.status)) {
+        setDocuments((current) => withProgress(current, change.ids, progress))
+        return
+      }
+    }
+    reloadQuietly()
+  }
+  useWorkspaceChanges(workspaceId, "documents", documentsChanged)
 
   const folders = useFolders(workspaceId, reloadQuietly)
   const index = useMemo(
@@ -176,6 +199,7 @@ export function useSources(workspaceId: number) {
       const next = await listDocuments(workspaceId, controller.signal)
       if (listController.current === controller) {
         setDocuments((current) => reuseUnchanged(current, next))
+        keepRunning(next)
         setError(null)
       }
     } catch (cause) {
@@ -642,6 +666,7 @@ export function useSources(workspaceId: number) {
 
   return {
     documents,
+    transcriptionPaces,
     folders: folders.folders,
     folderActions: folders.actions,
     index,

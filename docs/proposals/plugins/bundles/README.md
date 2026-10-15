@@ -9,11 +9,49 @@ code:
 
 # Bundles: plugins that run on the user's machine
 
-> Deferred. The [plugins proposal](../README.md) ships remote plugins first. A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([later](../core/06-later.md)).
+> Deferred. Remote plugins are built ([plugins](../../../architecture/plugins.md)). A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([what is not built](../README.md)).
 
-The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`plugins/bundles/core/`](../../../../plugins/bundles/core/). Where a file here disagrees with the [plugins proposal](../README.md), the proposal holds.
+The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`plugins/bundles/core/`](../../../../plugins/bundles/core/). Where a file here disagrees with how remote plugins are built ([plugins](../../../architecture/plugins.md), [plugin registry](../../../architecture/plugin-registry.md)), they hold.
 
-**Where a bundle lives.** A third party's bundle lives in its author's repository: its code, its manifest, and the files of each release, which the author attaches to a GitHub release there. This repository holds only its entry in [`plugins.json`](../core/02-registry.md#bundle-entries-later), with each approved version's file URLs and sha256s, and never a copy of the code or the files. The exceptions are SurfSense's own: a bundle SurfSense publishes lives in `plugins/bundles/<id>/`, or `plugins/bundles/proprietary/` when paid, the teaching example in `plugins/bundles/example/`, and the tooling in `plugins/bundles/core/`.
+**Where a bundle lives.** A third party's bundle lives in its author's repository: its code, its manifest, and the files of each release, which the author attaches to a GitHub release there. This repository holds only its entry in [`plugins.json`](#the-bundle-entry), with each approved version's file URLs and sha256s, and never a copy of the code or the files. The exceptions are SurfSense's own: a bundle SurfSense publishes lives in `plugins/bundles/<id>/`, or `plugins/bundles/proprietary/` when paid, the teaching example in `plugins/bundles/example/`, and the tooling in `plugins/bundles/core/`.
+
+## The bundle entry
+
+A bundle is one more entry, `kind: bundle`, in the list of its publisher.
+
+A third party's bundle is a registry entry carrying each approved version's files:
+
+```json
+{
+  "id": "acme-local",
+  "kind": "bundle",
+  "verification": "community",
+  "name": "Acme Local",
+  "description": "Query your local Acme database.",
+  "author": "Jane Doe",
+  "repo": "janedoe/surfsense-acme-local",
+  "path": ".",
+  "hosts": [],
+  "access": "free",
+  "privacy_policy": "https://example.com/privacy",
+  "versions": [
+    {
+      "version": "1.2.0",
+      "min_app_version": "2.6.0",
+      "files": {
+        "macos-arm64": { "url": "https://github.com/janedoe/surfsense-acme-local/releases/download/1.2.0/acme-local-1.2.0-macos-arm64.tar.gz", "sha256": "<64 hex>", "size": 812345 },
+        "linux-x64": { "url": "…", "sha256": "…", "size": 0 },
+        "windows-x64": { "url": "…", "sha256": "…", "size": 0 }
+      },
+      "blocked": []
+    }
+  ]
+}
+```
+
+A SurfSense bundle is a first-party entry that says who it is and where its versions are listed: SurfSense's plugin host for a free one, the license server for a paid one ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)). Its versions, files and sha256s are fetched when the user installs or updates it. A new version needs no app release, and no bundle's files are ever in the installer.
+
+How versions are built, scanned, verified and blocked is in [`release/`](release/01-packaging.md).
 
 ## Remote and bundle
 
@@ -39,12 +77,12 @@ Both are MCP servers, and both reach opencode, the chat router and `@` mentions 
 | A manifest of `actions` with run forms | `tools`, with descriptions, flat inputs, MCP annotations and exposure, as remote plugins declare them. Packaged as an MCP Bundle ([MCPB](https://github.com/modelcontextprotocol/mcpb)) with a `surfsense` section for `hosts` and `access`; secrets and settings through MCPB's `user_config` |
 | `@action` functions run once per run, writing notes | `@tool` functions returning a result, behind an MCP stdio loop in the SDK; `document.add` stays for tools that save on purpose |
 | One process per run on the `plugins` queue | A warm process per active bundle, started by the gateway's `BundleSource` on first call and stopped when idle; the queue stays for long `job` tools |
-| A sidebar action and a run dialog ([`app/02-screen.md`](app/02-screen.md)) | Dropped. A bundle's tools are called like any plugin's ([`../core/03-engines.md`](../core/03-engines.md)), and it is connected from Settings → Plugins |
+| A sidebar action and a run dialog ([`app/02-screen.md`](app/02-screen.md)) | Dropped. A bundle's tools are called like any plugin's ([agent](../../../architecture/agent.md#plugins)), and it is connected from Settings → Plugins |
 | Plugin code in `plugins/<id>/` of this repository, published only with app releases, versioned by the app | The author's own repository, listed in `plugins.json`; versioned by the author with `min_app_version` |
 | Packaged by SurfSense's release workflow and uploaded to `SurfSense-Inc/surfsense-plugin-releases` ([`release/`](release/01-packaging.md)) | Packaged by the author with a GitHub Action from SurfSense's plugin template, one archive per platform, attached to a GitHub release in the author's repository. The packaging rules stay: prebuilt wheels only, one archive per platform, reproducible archives, a size limit |
 | A catalog of every version, written by SurfSense's release workflow | Each version's file URLs and sha256s in the plugin's `plugins.json` entry, committed by SurfSense's scanner when the release passes the checks. The app downloads from the author's release and refuses a file whose sha256 differs |
 | Every version reviewed by a maintainer | The first version, and any version that adds a host, a secret, or an open-world or destructive tool, reviewed by a person; every version checked by the scanner, as Obsidian scans every version of its community plugins |
-| `free` or `paid` on a reserved id in `plugins/` | `access` as in [`../core/05-paid.md`](../core/05-paid.md); a SurfSense paid bundle comes from the license server ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)) |
+| `free` or `paid` on a reserved id in `plugins/` | `access` as in the [registry's rules](../../../architecture/plugin-registry.md#the-entry-rules); a SurfSense paid bundle comes from the license server ([ADR 0047](../../../adr/0047-premium-plugins-are-source-available.md)) |
 | Run with no review gate in the app | Off until third-party plugins are allowed, like every third-party plugin |
 
 What stays: a separate process with its environment built from scratch, declared hosts checked by the SDK's `http`, hash-pinned dependencies, prebuilt wheels only, no `pip` on the user's machine, a sha256 for every download, the bundled Python ([`python/01-interpreter.md`](python/01-interpreter.md)), and the block list.

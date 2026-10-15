@@ -88,7 +88,7 @@ export type RegistryEntry = {
   description: string
   author: string
   verification: "verified" | "community"
-  /** Its author was proven, by its domain, to run the server that receives its calls. */
+  /** A maintainer judged that its author runs the server that receives its calls. */
   verified: boolean
   access: "free" | "external"
   /** What the user must have, when `access` is `external`. */

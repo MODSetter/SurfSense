@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useId } from "react"
 
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 import {
   firstPartyQueryKey,
@@ -10,25 +11,31 @@ import {
 } from "../api"
 import { PluginIcon } from "../plugin-icon"
 import { ConnectListedPlugin } from "./connect-listed-plugin"
+import {
+  entryClassName,
+  ROW_ICON_CLASS,
+  type EntryLayout,
+} from "./entry-layout"
 
-function FirstPartyEntryRow({
+export function FirstPartyEntryRow({
   entry,
   onOpen,
+  layout = "card",
 }: {
   entry: FirstPartyEntry
   onOpen: () => void
+  layout?: EntryLayout
 }) {
+  const row = layout === "row"
   const nameId = useId()
   return (
-    <li
-      aria-labelledby={nameId}
-      className="relative flex items-start gap-3 rounded-lg bg-secondary p-3 transition-colors hover:bg-muted"
-    >
+    <li aria-labelledby={nameId} className={entryClassName(layout)}>
       <PluginIcon
         id={entry.id}
         name={entry.name}
         hasIcon={entry.has_icon}
         firstParty
+        className={row ? ROW_ICON_CLASS : undefined}
       />
       <div className="min-w-0 flex-1">
         {/* Stretched over the row, so the whole entry opens its page. */}
@@ -40,8 +47,11 @@ function FirstPartyEntryRow({
         >
           {entry.name}
         </button>
-        <p className="text-xs text-muted-foreground">{entry.description}</p>
-        {entry.access === "license" ? (
+        <p className={cn("text-xs text-muted-foreground", row && "truncate")}>
+          {entry.description}
+        </p>
+        {/* A row keeps to one line; the page and Connect say what a license needs. */}
+        {!row && entry.access === "license" ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {intl.formatMessage({
               id: "plugins_first_party_license_label",

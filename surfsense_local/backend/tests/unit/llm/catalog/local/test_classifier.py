@@ -133,6 +133,16 @@ def test_audio_cpps_voice_families_read_text_aloud() -> None:
         assert classify(family).types == (ModelType.AUDIO_GEN,), family
 
 
+def test_audio_cpps_curated_recogniser_writes_down_speech() -> None:
+    """Nemotron's family fills the speech recognition slot. Recognisers no
+    curated entry runs stay typeless, so nothing offers them."""
+    nemotron = classify("nemotron_asr", "text-to-speech")
+    assert nemotron.types == (ModelType.SPEECH_TO_TEXT,)
+    assert nemotron.code is NotRunnableCode.SPEECH_IN
+    for family in ("qwen3_asr", "whisper", "automatic-speech-recognition"):
+        assert classify(family).types == (), family
+
+
 def test_a_bare_audio_cpp_file_is_not_offered_from_search() -> None:
     """Every audio.cpp file declares `audiocpp`, speech recognisers included, so
     the architecture alone says neither direction, even beside a TTS tag."""

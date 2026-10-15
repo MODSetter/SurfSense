@@ -1,12 +1,16 @@
 import { loader } from "fumadocs-core/source";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { blog } from "@/.source/server";
+import { HomeBadge } from "@/components/homepage/home/home-badge";
+import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
 import { ArticleJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
-import { Badge } from "@/components/ui/badge";
+import { siteText } from "@/components/site/site-text";
+import { ArrowRightIcon, DotIcon } from "@/components/ui/icons";
 import { extractFaqFromBlogPost } from "@/lib/blog-faq";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { getMDXComponents } from "@/mdx-components";
 
 const source = loader({
@@ -86,67 +90,77 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 		: undefined;
 	const faqEntries = await extractFaqFromBlogPost(slug);
 
+	const author = page.data.author ?? "SurfSense Team";
+
 	return (
-		<div className="ss-home-pad pt-16 pb-20">
+		<article className={sectionSpacing.foot}>
 			<ArticleJsonLd
 				title={page.data.title}
 				description={page.data.description}
 				url={`https://www.surfsense.com/blog/${slug}`}
 				datePublished={page.data.date}
 				dateModified={dateModified}
-				author={page.data.author ?? "SurfSense Team"}
+				author={author}
 				image={page.data.image ? `https://www.surfsense.com${page.data.image}` : undefined}
 			/>
 			{faqEntries.length > 0 && <FAQJsonLd questions={faqEntries} />}
-			<div className="mx-auto max-w-3xl">
-				{page.data.image && (
-					<div className="relative mb-8 aspect-2/1 overflow-hidden border border-border">
+
+			{/* Centred like every homepage section head. */}
+			<header className="mx-auto max-w-3xl pt-16 text-center md:pt-24">
+				<Link
+					href="/blog"
+					className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+				>
+					<ArrowRightIcon aria-hidden="true" className="size-4 rotate-180" />
+					All posts
+				</Link>
+				<h1 className={cn(siteText.h2, "mt-6 md:text-5xl")}>{page.data.title}</h1>
+				{page.data.description && (
+					<p className={cn(siteText.lede, "mx-auto mt-5 max-w-2xl")}>{page.data.description}</p>
+				)}
+				<p className="mt-6 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+					{page.data.authorAvatar && (
+						<Image
+							src={page.data.authorAvatar}
+							alt=""
+							width={28}
+							height={28}
+							className="size-7 rounded-full object-cover"
+						/>
+					)}
+					<span className="font-medium text-foreground">{author}</span>
+					<DotIcon aria-hidden="true" className="size-4" />
+					<time dateTime={page.data.date}>{formatDate(date)}</time>
+				</p>
+				{page.data.tags && page.data.tags.length > 0 && (
+					<ul className="m-0 mt-6 flex list-none flex-wrap justify-center gap-2 p-0">
+						{page.data.tags.map((tag: string) => (
+							<li key={tag}>
+								<HomeBadge>{tag}</HomeBadge>
+							</li>
+						))}
+					</ul>
+				)}
+			</header>
+
+			{page.data.image && (
+				<div className="mx-auto mt-10 max-w-5xl rounded-3xl bg-muted p-2 lg:mt-14">
+					<div className="relative aspect-2/1 overflow-hidden rounded-2xl">
 						<Image
 							src={page.data.image}
 							alt={page.data.title}
 							fill
 							className="object-cover"
 							priority
-							sizes="(max-width: 768px) 100vw, 768px"
+							sizes="(max-width: 1024px) 100vw, 1024px"
 						/>
 					</div>
-				)}
-
-				<div className="mb-10 space-y-4">
-					<h1 className="ss-home-h2">{page.data.title}</h1>
-
-					{page.data.tags && page.data.tags.length > 0 && (
-						<div className="flex flex-wrap gap-2">
-							{page.data.tags.map((tag: string) => (
-								<Badge key={tag} variant="secondary" className="rounded-full px-3 py-1">
-									{tag}
-								</Badge>
-							))}
-						</div>
-					)}
-
-					<div className="flex items-center gap-3 text-sm text-muted-foreground">
-						{page.data.authorAvatar && (
-							<Image
-								src={page.data.authorAvatar}
-								alt={page.data.author ?? "SurfSense Team"}
-								width={32}
-								height={32}
-								className="h-8 w-8 rounded-full object-cover"
-							/>
-						)}
-						<span className="font-medium text-foreground">
-							{page.data.author ?? "SurfSense Team"}
-						</span>
-						<span>·</span>
-						<time dateTime={page.data.date}>{formatDate(date)}</time>
-					</div>
 				</div>
+			)}
 
-				<div className="prose prose-invert max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-a:no-underline prose-headings:tracking-tight prose-headings:text-balance prose-p:tracking-tight prose-p:text-balance prose-img:rounded-none prose-img:border prose-img:border-border prose-img:shadow-none">
-					<MDX components={getMDXComponents()} />
-				</div>
+			<div className="prose mx-auto mt-12 max-w-3xl prose-headings:scroll-mt-24 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-balance prose-p:text-pretty prose-a:no-underline prose-img:rounded-2xl prose-img:border prose-img:border-border prose-img:shadow-none lg:mt-16">
+				<MDX components={getMDXComponents()} />
 			</div>
-		</div>
+		</article>
 	);
 }

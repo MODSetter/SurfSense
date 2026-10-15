@@ -13,6 +13,7 @@ from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
     collect_dynamic_libs,
+    copy_metadata,
 )
 
 sys.path.insert(0, SPECPATH)
@@ -83,6 +84,13 @@ binaries += collect_dynamic_libs("tokenizers")
 # importlib.resources, so the analyser does not see them as source.
 datas += collect_data_files("worker.studio", includes=["**/*.md"])
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
+
+# The decode child (worker.py --decode-audio) reads recordings with miniaudio,
+# whose compiled half is a cffi extension: the C code imports _cffi_backend,
+# which the analyser cannot see. Its metadata carries the MIT notice, which
+# asks to travel with every copy.
+hiddenimports += ["miniaudio", "_miniaudio", "_cffi_backend"]
+datas += copy_metadata("miniaudio")
 
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += [

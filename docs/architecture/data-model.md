@@ -62,7 +62,7 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | `content` | the markdown body: extracted text, the note itself, or an artifact's body |
 | `content_hash` | SHA-256 of a file's bytes, equal to `dedup_key` for an uploaded or imported file; `0025` copied it from `dedup_key`; null for notes and artifacts |
 | `dedup_key` | SHA-256 of an uploaded or imported file's bytes; null for notes and artifacts |
-| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids |
+| `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids; a recording's ingest adds `transcription`, `{language, duration_s, model}` once transcribed or `{awaiting: true}` while it waits for a speech model ([`documents.md`](documents.md#recordings)) |
 | `embedding_index_id` | foreign key to `embedding_indexes`: the index its chunks were embedded into; null until its first ingest |
 | `folder_id` | foreign key to `folders`, `ON DELETE SET NULL`, from `0025`: every `FILE` and `NOTE` is filed; null is an unfiled artifact, or a source the backstop unfiled, which scopes and the tree treat as the top of the Library |
 | `created_at`, `updated_at` | |
@@ -141,10 +141,10 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | Table | Columns | Notes |
 |---|---|---|
 | `provider_connections` | `id`, `label`, `provider`, `base_url`, `catalog_provider`, `api_key_ciphertext`, timestamps, and since `0023` `auth_kind`, `oauth_ciphertext` and `token_version` | `label` unique case-insensitively; `provider` must be `openai_compatible`; `catalog_provider` is a remote manifest provider id or `custom`, since `0014`; the key is Fernet ciphertext since `0007`; since `0023`, `auth_kind` is `api_key` or `chatgpt`, `oauth_ciphertext` the Fernet-encrypted token set of a `chatgpt` row (`NULL` when signed out), and `token_version` the counter that keeps refreshes from racing ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
-| `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `settings`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen`; `settings` is JSON for what the user set that no endpoint states, keyed by the slice that owns each entry, and cleared when the slot takes another model, all but `chat_modes`: the mode last picked for each model, keyed `<provider>/<connection id>/<name>`, which stays so a model's pick comes back with it ([model capabilities](model-capabilities.md#the-modes)) |
+| `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `settings`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen`, `audio_gen` or `speech_to_text`; `settings` is JSON for what the user set that no endpoint states, keyed by the slice that owns each entry (a server voice model's `voices`, the speech model's `transcription` language), and cleared when the slot takes another model, all but `chat_modes`: the mode last picked for each model, keyed `<provider>/<connection id>/<name>`, which stays so a model's pick comes back with it ([model capabilities](model-capabilities.md#the-modes)) |
 | `onboarding_completion` | `id`, `completed_at` | a singleton (`CHECK id = 1`) whose presence means onboarding is done |
 
-- A CHECK on `selected_models` allows `llamacpp`, `sdcpp` and `audiocpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and `video_gen`, and `audiocpp` only `audio_gen`. `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
+- A CHECK on `selected_models` allows `llamacpp`, `sdcpp` and `audiocpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and `video_gen`, and `audiocpp` only `audio_gen` and `speech_to_text`. No CHECK keeps a connection out of `speech_to_text`; selection does ([selection](local-models/selection.md)). `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
 - `params_b`, `vendor` and `line` (`flagship` or `small`) are the model's fingerprint, recorded when it is chosen. They feed the prompt tier, which is computed on read, so retuning a threshold needs no migration.
 - Choosing a model never writes `onboarding_completion`; `POST /llm/onboarding` does, once a `text_gen` selection exists.
 - Remote `/models` answers, the local catalog, hardware profiles and fit estimates are not stored; they are recomputed or fetched live.
@@ -184,7 +184,10 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/
-        │   └── <file name>       an uploaded or imported file, under its own name
+        │   ├── <file name>       an uploaded or imported file, under its own name
+        │   ├── figures/          the pictures ingest kept, and figures.json
+        │   └── transcript/       a recording's: segments.json once transcribed;
+        │       └── work/         the decoded audio, plan and windows a job resumes from
         ├── chats/<thread_id>/
         │   └── <sha256>.<ext>    an image a turn carried, normalised to PNG or JPEG
         ├── artifacts/<artifact_id>/
@@ -317,6 +320,7 @@ erDiagram
     real params_b
     text vendor
     text line
+    json settings
     datetime updated_at
   }
   onboarding_completion {
@@ -380,12 +384,13 @@ erDiagram
 | `0026` | `0026_chat_history_start.py` | `chat_threads.history_start_message_id`, by a plain `ALTER TABLE`; no row is backfilled, so a thread sends its whole history until it first outgrows its budget |
 | `0027` | `0027_retire_pre_host_egress_grants.py` | egress rows under `model_download`, `model_search` and `image_model_pull` removed; `host:huggingface.co` allowed only where search and a download were both allowed and the host had no row; downgrading changes nothing |
 | `0029` | `0029_chat_thread_cloud_id.py` | `chat_threads.cloud_id`, nullable and unique; marks workspaces with older unkeyed imported threads |
+| `0030` | `0030_speech_to_text_slot.py` | `selected_models` rebuilt so `speech_to_text` is a type and `audiocpp` may hold it beside `audio_gen`, carrying every column, `0019`'s `settings` included, which `0018`'s rebuild predates; downgrading drops a `speech_to_text` selection |
 
 - Before the API applies a pending revision to an existing database, `upgrade_to_head` writes a `VACUUM INTO` copy to `<data>/backups/<from>-<to>.db` (via `.partial`, renamed once complete) and keeps the newest two ([`migration_snapshot.py`](../../surfsense_local/backend/shared/migration_snapshot.py)). A new database or one at head writes none. If the copy fails, nothing migrates and the API start fails with the reason. To restore: quit SurfSense, replace `surfsense.db` with the snapshot, and start the app.
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
-- SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.
+- SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012`, `0013`, `0016`, `0018` and `0030` copy `selected_models` into a new table. A copy names every column the table has by then: one written from an older rebuild drops what later revisions added.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
-- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py`, `test_migration_0027.py` and `test_migration_0029.py` beside it test what those revisions change.
+- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py`, `test_migration_0027.py`, `test_migration_0029.py` and `test_migration_0030.py` beside it test what those revisions change.
 
 ## Known gaps
 

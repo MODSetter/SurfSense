@@ -77,7 +77,6 @@ async def test_a_signed_registry_is_listed_once_third_party_plugins_are_allowed(
             entry(
                 "keyed",
                 verification="verified",
-                domain="surfsense.com",
                 author="Keyed Inc.",
                 auth={
                     "type": "token",
@@ -259,7 +258,7 @@ async def test_entries_only_the_first_party_list_may_hold_are_dropped(
         [
             entry("wants-license", auth={"type": "license"}),
             entry("sells-license", access="license"),
-            entry("reddit"),
+            entry("amazon"),
             entry("from-the-future", min_app_version="99.0.0"),
             entry("from-the-past", min_app_version="2.0.0"),
             entry("notes"),

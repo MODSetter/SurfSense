@@ -3,8 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HomeButton } from "@/components/homepage/home/home-button";
+import { siteText } from "@/components/site/site-text";
 import { Spinner } from "@/components/ui/spinner";
 import { buildBackendUrl } from "@/lib/env-config";
+import { cn } from "@/lib/utils";
 
 const LICENSE_FILENAME = "surfsense.lic";
 
@@ -74,7 +76,7 @@ export function LicenseDownload() {
 			<p className="text-sm text-destructive">
 				This link is missing its checkout reference. Use the copy we emailed you, or request it
 				again at{" "}
-				<a className="ss-home-link" href="/license">
+				<a className={siteText.link} href="/license">
 					surfsense.com/license
 				</a>
 				.
@@ -89,8 +91,8 @@ export function LicenseDownload() {
 				{state === "loading" ? "Preparing" : "Download license file"}
 			</HomeButton>
 			{state === "ready" ? (
-				<p className="ss-home-body text-sm">
-					Saved as <code className="ss-home-mono">{LICENSE_FILENAME}</code>. A copy is on its way to
+				<p className={cn(siteText.body, "text-sm")}>
+					Saved as <code className="font-mono">{LICENSE_FILENAME}</code>. A copy is on its way to
 					your email as well.
 				</p>
 			) : null}
@@ -104,7 +106,7 @@ export function LicenseDownload() {
 			{state === "error" ? (
 				<p className="text-sm text-destructive">
 					Something went wrong preparing your file. Press the button to try again, or request it at{" "}
-					<a className="ss-home-link" href="/license">
+					<a className={siteText.link} href="/license">
 						surfsense.com/license
 					</a>
 					.

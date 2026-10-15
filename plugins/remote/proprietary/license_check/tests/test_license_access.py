@@ -8,9 +8,13 @@ from host.app import host_app
 from host.tests.mcp_calls import tool_names
 from host.tests.serving import serving
 from mcp_server.access import Refusal
-from proprietary.license_check.keygen import Keygen
+from proprietary.license_check.keygen import CLOUD_ACCOUNTS_URL, Keygen
 from proprietary.license_check.license_access import LicenseAccess
-from proprietary.license_check.tests.stand_in_keygen import ACCOUNT, StandInKeygen
+from proprietary.license_check.tests.stand_in_keygen import (
+    ACCOUNT,
+    StandInKeygen,
+    accounts_url,
+)
 
 SAMPLES = Path(__file__).parent / "sample_plugins"
 
@@ -35,7 +39,9 @@ async def test_a_request_without_a_license_key_is_refused(
     keygen = StandInKeygen({})
     headers = Headers({"authorization": authorization} if authorization else {})
     with serving(keygen.app) as url:
-        refusal = await LicenseAccess(Keygen(url, ACCOUNT)).refusal(headers)
+        refusal = await LicenseAccess(Keygen(accounts_url(url), ACCOUNT)).refusal(
+            headers
+        )
 
     assert refusal == Refusal(401, "missing_license")
     assert keygen.validated == []
@@ -58,7 +64,7 @@ async def test_keygen_decides_whether_a_key_may_call(
     """Contract 2's reasons: a refund suspends a license, which reads as revoked."""
     keygen = StandInKeygen({"k-1": code})
     with serving(keygen.app) as url:
-        access = LicenseAccess(Keygen(url, ACCOUNT))
+        access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT))
         assert await access.refusal(license_header("k-1")) == refusal
 
 
@@ -66,7 +72,7 @@ async def test_a_key_is_asked_about_once_in_five_minutes() -> None:
     keygen = StandInKeygen({"k-1": "VALID"})
     clock = Clock()
     with serving(keygen.app) as url:
-        access = LicenseAccess(Keygen(url, ACCOUNT), clock)
+        access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT), clock)
         await access.refusal(license_header("k-1"))
         clock.now += 299
         await access.refusal(license_header("k-1"))
@@ -82,7 +88,7 @@ async def test_keygen_down_keeps_a_key_valid_this_morning_working() -> None:
     keygen = StandInKeygen({"k-1": "VALID"})
     clock = Clock()
     with serving(keygen.app) as url:
-        access = LicenseAccess(Keygen(url, ACCOUNT), clock)
+        access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT), clock)
         await access.refusal(license_header("k-1"))
         keygen.down = True
 
@@ -99,7 +105,7 @@ async def test_a_key_refused_since_it_was_valid_has_no_grace() -> None:
     keygen = StandInKeygen({"k-1": "VALID"})
     clock = Clock()
     with serving(keygen.app) as url:
-        access = LicenseAccess(Keygen(url, ACCOUNT), clock)
+        access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT), clock)
         await access.refusal(license_header("k-1"))
         keygen.codes["k-1"] = "EXPIRED"
         clock.now += 300
@@ -116,11 +122,74 @@ async def test_keygen_unreachable_refuses_a_key_never_seen_for_now() -> None:
     """A 503: the app shows it as temporary, not as a bad license."""
     with serving(StandInKeygen({}).app) as url:
         pass
-    access = LicenseAccess(Keygen(url, ACCOUNT))
+    access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT))
 
     assert await access.refusal(license_header("k-1")) == Refusal(
         503, "license_service_unavailable"
     )
+
+
+async def test_a_keygen_refusing_the_request_refuses_the_key_as_invalid() -> None:
+    """A 4xx, such as a wrong account's 404, is a 403 invalid, never the plugin's 500."""
+    keygen = StandInKeygen({"k-1": "VALID"})
+    with serving(keygen.app) as url:
+        access = LicenseAccess(Keygen(accounts_url(url), "another-account"))
+        assert await access.refusal(license_header("k-1")) == Refusal(403, "invalid")
+
+
+async def test_an_answer_that_is_not_keygen_s_is_no_answer() -> None:
+    """A page with no code, as a proxy in the way would serve, gives the grace, not a verdict."""
+    keygen = StandInKeygen({"k-1": "VALID"})
+    clock = Clock()
+    with serving(keygen.app) as url:
+        access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT), clock)
+        await access.refusal(license_header("k-1"))
+        keygen.garbled = True
+        clock.now += 300
+        assert await access.refusal(license_header("k-1")) is None
+        assert await access.refusal(license_header("k-2")) == Refusal(
+            503, "license_service_unavailable"
+        )
+
+
+async def test_a_self_hosted_keygen_is_told_its_host_and_https() -> None:
+    """Keygen CE finds the account from Host and redirects plain HTTP unless a proxy vouches."""
+    keygen = StandInKeygen({"k-1": "VALID"})
+    with serving(keygen.app) as url:
+        hosted = Keygen(accounts_url(url), ACCOUNT, "keygen.internal")
+        assert await hosted.validation_code("k-1") == "VALID"
+        assert await Keygen(accounts_url(url), ACCOUNT).validation_code("k-1") == (
+            "VALID"
+        )
+
+    (hosted_host, hosted_proto), (plain_host, plain_proto) = keygen.seen_headers
+    assert (hosted_host, hosted_proto) == ("keygen.internal", "https")
+    assert plain_host == url.removeprefix("http://")
+    assert plain_proto is None
+
+
+def test_keygen_s_settings_are_the_deployment_s(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The backend's names and meanings, so a deployment gives both the same values."""
+    monkeypatch.setenv("KEYGEN_API_URL", "http://keygen-web:3000/v1/accounts")
+    monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+    monkeypatch.setenv("KEYGEN_HOST", "keygen.internal")
+
+    assert Keygen() == Keygen(
+        "http://keygen-web:3000/v1/accounts", ACCOUNT, "keygen.internal"
+    )
+
+
+def test_without_settings_keygen_is_keygen_cloud_and_the_account_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in ("KEYGEN_API_URL", "KEYGEN_ACCOUNT_ID", "KEYGEN_HOST"):
+        monkeypatch.delenv(name, raising=False)
+
+    with pytest.raises(ValueError, match="KEYGEN_ACCOUNT_ID"):
+        Keygen()
+    assert Keygen(account_id=ACCOUNT) == Keygen(CLOUD_ACCOUNTS_URL, ACCOUNT, None)
 
 
 async def test_a_paid_plugin_on_the_host_answers_only_a_valid_license(
@@ -128,7 +197,8 @@ async def test_a_paid_plugin_on_the_host_answers_only_a_valid_license(
 ) -> None:
     keygen = StandInKeygen({"k-1": "VALID", "k-2": "EXPIRED"})
     with serving(keygen.app) as keygen_url:
-        monkeypatch.setenv("STAND_IN_KEYGEN_URL", keygen_url)
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
         with serving(host_app(SAMPLES)) as base:
             plugin = f"{base}/paid/mcp"
             missing = httpx2.post(plugin, json={})
@@ -143,3 +213,28 @@ async def test_a_paid_plugin_on_the_host_answers_only_a_valid_license(
     )
     assert (expired.status_code, expired.json()) == (403, {"reason": "expired"})
     assert tools == ["scrape"]
+
+
+async def test_the_host_answers_the_license_once_for_every_paid_plugin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The app asks once, not by listing each paid plugin; the answers are contract 2's."""
+    keygen = StandInKeygen({"k-1": "VALID", "k-2": "EXPIRED"})
+    with serving(keygen.app) as keygen_url:
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+        with serving(host_app(SAMPLES)) as base:
+            missing = httpx2.get(f"{base}/license")
+            expired = httpx2.get(
+                f"{base}/license", headers={"Authorization": "License k-2"}
+            )
+            valid = httpx2.get(
+                f"{base}/license", headers={"Authorization": "License k-1"}
+            )
+
+    assert (missing.status_code, missing.json()) == (
+        401,
+        {"reason": "missing_license"},
+    )
+    assert (expired.status_code, expired.json()) == (403, {"reason": "expired"})
+    assert (valid.status_code, valid.json()) == (200, {"status": "valid"})

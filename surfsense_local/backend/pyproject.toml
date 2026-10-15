@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-local-backend"
-version = "2.2.0"
+version = "2.2.1"
 description = "SurfSense Community Local backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,6 +21,10 @@ dependencies = [
     # Charts in document scripts (worker/document_script/), which draw one and
     # place the PNG, and in Studio's Markdown builders' chart blocks.
     "matplotlib>=3.11.2",
+    # Decodes a recording (WAV, MP3, FLAC, Ogg Vorbis) to 16 kHz mono in the
+    # worker's decode child (worker/audio_decode). MIT, with its decoders'
+    # public-domain or MIT-0 code; no FFmpeg.
+    "miniaudio>=1.71",
     "onnxruntime>=1.20",
     # Reads back the workbook a document script wrote
     # (worker/studio/script_document/workbook_summary.py). Docling brings it
