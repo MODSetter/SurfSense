@@ -59,18 +59,42 @@ async function loadOutput(stage, work, family) {
   })
 }
 
-/** Throw unless the server in `stage` has a loader for every curated family. */
-export async function verifyBuiltFamilies(stage) {
+/**
+ * What one family's probe shows: `built`, its loader ran; `missing`, the build
+ * refused it by name; `unknown`, the server never got that far (blocked by
+ * antivirus, a library missing), which says nothing about the build.
+ */
+export function probeVerdict(family, output) {
+  if (loaderRan(family, output)) return "built"
+  if (output.includes(`unsupported model family hint: ${family}`)) return "missing"
+  return "unknown"
+}
+
+/** Each curated family the server in `stage` does not prove, with its verdict and output. */
+export async function unprovenFamilies(stage, { families = FAMILIES, load = loadOutput } = {}) {
   const work = mkdtempSync(join(tmpdir(), "surfsense-audiocpp-families-"))
   try {
     writeFileSync(join(work, "empty.gguf"), EMPTY_GGUF)
-    for (const family of FAMILIES) {
-      const output = await loadOutput(stage, work, family)
-      if (!loaderRan(family, output)) {
-        throw new Error(`audiocpp_server was not built with ${family}: ${output}`)
-      }
+    const unproven = []
+    for (const family of families) {
+      const output = await load(stage, work, family)
+      const verdict = probeVerdict(family, output)
+      if (verdict !== "built") unproven.push({ family, verdict, output })
     }
+    return unproven
   } finally {
     rmSync(work, { recursive: true, force: true })
   }
+}
+
+/** Throw unless the server in `stage` has a loader for every curated family. */
+export async function verifyBuiltFamilies(stage) {
+  const [first, ...rest] = await unprovenFamilies(stage)
+  if (!first) return
+  const families = [first, ...rest].map(({ family }) => family).join(", ")
+  throw new Error(
+    first.verdict === "missing"
+      ? `audiocpp_server was not built with ${families}: ${first.output}`
+      : `audiocpp_server did not run to prove ${families}: ${first.output || "it printed nothing"}`
+  )
 }
