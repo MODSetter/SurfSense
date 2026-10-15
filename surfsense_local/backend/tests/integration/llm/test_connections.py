@@ -465,6 +465,34 @@ async def test_a_thinking_model_on_a_connection_is_not_called_broken(
     assert tested.json() == {"reply": "Hello"}
 
 
+async def test_an_error_the_model_sends_mid_reply_fails_the_chat_test(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 502 with the provider's reason, as a refused request gets, not a 500."""
+    monkeypatch.setattr(conftest, "CHAT_DELTAS", ["Hel"])
+    monkeypatch.setattr(
+        conftest,
+        "STREAM_ERROR",
+        {
+            "id": "gen-1",
+            "object": "chat.completion.chunk",
+            "error": {"code": "server_error", "message": "Provider disconnected"},
+            "choices": [
+                {"index": 0, "delta": {"content": ""}, "finish_reason": "error"}
+            ],
+        },
+    )
+    connection = await _connect(client, openai_server)
+
+    tested = await client.post(
+        f"/llm/connections/{connection['id']}/chat-test",
+        json={"model": "anthropic/claude-3.5-sonnet"},
+    )
+
+    assert tested.status_code == 502
+    assert tested.json() == {"detail": "chat request failed: Provider disconnected"}
+
+
 SD15 = "v1-5-pruned_Q4_0"
 SDXL = "sd_xl_base_1.0_0_Q4_0"
 

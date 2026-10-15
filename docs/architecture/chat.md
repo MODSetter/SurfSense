@@ -134,6 +134,7 @@ A chat thread's assistant turn stores how it ended in its content, as `ending`, 
 | Interrupted | `{"type": "interrupted"}` | a quit, or the API going away, cut it off |
 
 - **A failed turn is kept,** with or without text, so the question stays with the reason it failed. A turn stopped before any text is deleted, both halves, with any image file no other turn of the thread points at: the person chose to stop and there is nothing to show.
+- **An error the endpoint sends inside the stream,** as llama.cpp and OpenRouter do once the first token has gone out, fails the turn the same way rather than ending it as a finished reply.
 - **History skips** a failed or interrupted reply with no text, together with its question, so the model never receives an empty answer or two questions in a row ([`history.py`](../../surfsense_local/backend/modules/chat/history.py)). One with text stays, as a partial reply always did.
 - **A thread is renamed** only when its first turn ends with answer text.
 
