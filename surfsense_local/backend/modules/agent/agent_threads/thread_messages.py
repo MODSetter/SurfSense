@@ -31,7 +31,9 @@ async def agent_thread_messages(
     if session_id is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "this thread is not the agent's")
     try:
-        ready = await ready_opencode(session, launch_key=launch_key)
+        ready = await ready_opencode(
+            session, launch_key=launch_key, earns_a_start=False
+        )
     except ModelResolutionError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     except (AgentUnavailableError, OpencodeVersionError) as error:
