@@ -27,8 +27,15 @@ const STATIC_LIBSTDCXX = ["EXE", "SHARED", "MODULE"].map(
   (kind) => `-DCMAKE_${kind}_LINKER_FLAGS=-static-libstdc++`
 )
 
-/** The arguments after `cmake -S <source> -B <build>`. */
-export function configureArgs(platform) {
-  if (platform === "win32") return ["-A", "x64", ...PORTABLE_CPU_ONLY]
+/**
+ * The arguments after `cmake -S <source> -B <build>`. On Windows `generator` is
+ * Visual Studio's, named rather than left to CMake: a CMake from MinGW or MSYS2
+ * defaults to Ninja, which refuses -A and finds no compiler outside a VS prompt.
+ */
+export function configureArgs(platform, generator) {
+  if (platform === "win32") {
+    if (!generator) throw new Error("no Visual Studio with the C++ tools to build with")
+    return ["-G", generator, "-A", "x64", ...PORTABLE_CPU_ONLY]
+  }
   return ["-DCMAKE_BUILD_TYPE=Release", ...PORTABLE_CPU_ONLY, ...STATIC_LIBSTDCXX]
 }
