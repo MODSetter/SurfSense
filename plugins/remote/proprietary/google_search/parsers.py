@@ -14,7 +14,8 @@ Selectors are the current desktop layout's (verified live, Jul 2026):
 * displayed (green) URL ......... ``cite`` (first line, when it's a URL)
 * source/site name .............. ``.VuuXrf``
 * description ................... ``.VwiC3b``
-* inline date ................... ``span.YrbPuc``/``.LEwnzc``
+* inline date ................... ``.VwiC3b span.YrbPuc > span``/``.LEwnzc``
+  (``.yi40Hd`` is a star rating sharing the class)
 * emphasized keywords ........... ``em``
 * sitelinks (expanded) .......... ``td.cIkxbf`` cells in the result's card
 * related searches .............. ``a.ngTNl`` (bottom block)
@@ -23,7 +24,7 @@ Selectors are the current desktop layout's (verified live, Jul 2026):
 * PAA AI answer ................. ``.n6owBd`` paragraphs (source chips
   ``span.WBgIic`` stripped)
 * AI Overview ................... ``#m-x-content`` widget; prose ``.n6owBd``
-  + ``li.Z1qcYe``, sources ``li.h7wxwc``
+  + ``li.Z1qcYe``, sources ``li.Ioqnib`` (legacy ``li.h7wxwc``)
 * result count .................. ``#result-stats``
 
 **Result links are redirects, not destinations.** Google rolled out
@@ -68,9 +69,22 @@ _GOOGLE = "https://www.google.com"
 # Google's opaque outbound-result redirect (see the module docstring). Public
 # because :mod:`.goto` resolves exactly the URLs carrying this prefix.
 GOTO_PREFIX = _GOOGLE + "/goto?"
-_RESULT_COUNT_RE = re.compile(r"[\d,]+")
+# One digit group, grouped by a comma, dot, space, NBSP, U+202F or apostrophe
+# depending on the locale ("1,230", "1.230", "1 230", "1'230").
+_RESULT_COUNT_RE = re.compile(r"\d(?:[\d,.'\s\u00a0\u202f]*\d)?")
+# The timing Google appends last: "(0.53 seconds)", or "\uff080.45 \u79d2\uff09" in the
+# full-width parentheses of the ja and zh pages.
+_RESULT_TIMING_RE = re.compile(r"[(\uff08][^()\uff08\uff09]*[)\uff09]\s*$")
 # Leading inline date Google prepends to a snippet, e.g. "Jul 2, 2025 · rest…".
 _DATE_PREFIX_RE = re.compile(r"^[A-Z][a-z]{2}\s+\d{1,2},\s+\d{4}\s*[·\u00b7]?\s*")
+# Separators Google puts between a date and the snippet: middle dot, hyphen,
+# en dash, em dash.
+_SEP = r"[\u00b7\-\u2013\u2014]"
+# A star rating or a review count ("4.7", "(57)", "5.6K") in a date's class;
+# a real date or age has words or a year ("Jul 2, 2025", "hace 3 días").
+_RATING_RE = re.compile(r"\(?\d{1,3}(?:[.,]\d+)?[KkMm]?\)?")
+# Google's "Read more" link text, when it is not a separate node.
+_READ_MORE_RE = re.compile(r"\s*Read more\s*$")
 _PRICE_RE = re.compile(r"\$[\d,]+(?:\.\d{2})?")
 
 
@@ -105,17 +119,20 @@ def _abs_url(href: str | None) -> str | None:
 def parse_results_total(doc: Adaptor) -> int | None:
     """The integer from ``#result-stats`` ("About 123 results" -> 123).
 
-    The timing suffix "(0.53 seconds)" is cut so its digits never match. Some
-    SERPs (brand queries) render a visible "About 0 results" node while the
-    real count sits in a second, hidden ``#result-stats`` — so scan all nodes
-    and prefer the first non-zero count.
+    The trailing timing "(0.53 seconds)" is cut so its digits never match, and
+    the count is the *largest* digit group left: a page number never exceeds
+    the count (page N needs more than 10(N-1) results), and it comes before
+    the count in "Page 2 of about 467 results" but after it in Japanese
+    ("約 467 件中 2 ページ目"). Some SERPs (brand queries) render a visible
+    "About 0 results" node while the real count sits in a second, hidden
+    ``#result-stats`` — so scan all nodes and prefer the first non-zero count.
     """
     totals: list[int] = []
     for node in doc.css("#result-stats"):
-        stats = _text(node)
-        match = _RESULT_COUNT_RE.search(stats.split("(", 1)[0]) if stats else None
-        if match:
-            totals.append(int(match.group().replace(",", "")))
+        text = _RESULT_TIMING_RE.sub("", _text(node) or "")
+        groups = _RESULT_COUNT_RE.findall(text)
+        if groups:
+            totals.append(max(int(re.sub(r"\D", "", g)) for g in groups))
     if not totals:
         return None
     return next((t for t in totals if t), totals[0])
@@ -176,6 +193,9 @@ def _leaves_google(target: str | None) -> bool:
 
 
 def _displayed_url(block) -> str | None:
+    """The cite's URL head; ``None`` for forum and social cards, whose cite is
+    "220+ comments · 4 months ago" (the scraper falls back to the result's host
+    once its ``/goto`` link is resolved)."""
     cite = _one(block, "cite")
     if cite is None:
         return None
@@ -185,22 +205,45 @@ def _displayed_url(block) -> str | None:
 
 
 def _inline_date(block) -> str | None:
-    node = _one(block, "span.YrbPuc") or _one(block, ".LEwnzc span")
-    date = _text(node)
-    # The date span carries a trailing separator ("Jul 2, 2025 · "); drop it.
-    return re.sub(r"\s*[·\u00b7\-]\s*$", "", date).strip() or None if date else None
+    """The result's date or age, from the snippet's date span.
+
+    The live span wraps the date and its separator ("<span>Jul 23, 2026</span>
+    — "), so the inner span is read when there is one. Star ratings share the
+    ``YrbPuc`` class (as ``.yi40Hd``, outside the snippet), so a value that
+    reads as a rating or a count is dropped rather than reported as a date.
+    """
+    node = (
+        _one(block, ".VwiC3b span.YrbPuc:not(.yi40Hd)")
+        or _one(block, "span.YrbPuc:not(.yi40Hd)")
+        or _one(block, ".LEwnzc span")
+    )
+    if node is None:
+        return None
+    date = _text(_one(node, "span") or node)
+    if not date:
+        return None
+    # A separator may still trail the text ("Jul 2, 2025 · "); drop it.
+    date = re.sub(rf"\s*{_SEP}\s*$", "", date).strip()
+    return date if date and not _RATING_RE.fullmatch(date) else None
 
 
 def _description(block, date: str | None) -> str | None:
-    desc = _text(_one(block, ".VwiC3b"))
+    snippet = _one(block, ".VwiC3b")
+    desc = _text(snippet)
     if not desc:
         return None
+    # The "Read more" link (a.vzmbzf) sits inside the snippet; cut its text.
+    for more in snippet.css("a.vzmbzf"):
+        more_text = _text(more)
+        if more_text and desc.endswith(more_text):
+            desc = desc[: -len(more_text)]
+    desc = _READ_MORE_RE.sub("", desc)
     # Google prepends the date to the snippet; drop it so description is clean.
     if date and desc.startswith(date):
         desc = desc[len(date) :]
     desc = _DATE_PREFIX_RE.sub("", desc)
     # Strip a separator left behind between the date and the snippet body.
-    desc = re.sub(r"^\s*[·\u00b7\-]\s*", "", desc)
+    desc = re.sub(rf"^\s*{_SEP}\s*", "", desc)
     return desc.strip() or None
 
 
@@ -445,15 +488,21 @@ def parse_ai_overview(doc: Adaptor) -> AiOverviewResult | None:
 def _ai_sources(root) -> list[AiSource]:
     """Cited sources of an AI answer (AI Overview and AI Mode share the DOM).
 
-    ``li.h7wxwc`` list items: the citation anchor carries the URL and a
-    "<title>. Opens in new tab." aria-label; ``.vhJ6Pe`` is the snippet and
-    the thumbnail URL sits in the lazy image's ``data-src``. Google renders
-    the list twice (collapsed rail + expanded sheet), so dedupe by URL.
+    ``li.Ioqnib`` list items (Oct 2026; ``li.h7wxwc`` before): the citation
+    anchor ``a.vIWmYe`` carries the URL and a "<title>. Opens in new tab."
+    aria-label, ``.jdxGff`` is the site name, ``span.hxIQcc`` (legacy
+    ``.vhJ6Pe``) the snippet, and a thumbnail URL sits in a lazy image's
+    ``data-src``. The ``.sGgDgb`` site icon is usually an inline data URI,
+    which is not a URL and is kept only when it is one. Google renders the
+    list twice (collapsed rail + expanded sheet), so dedupe by URL.
     """
     sources: list[AiSource] = []
     seen: set[str] = set()
-    for li in root.css("li.h7wxwc"):
-        anchor, url = _first_result_anchor(li)
+    for li in root.css("li.Ioqnib") or root.css("li.h7wxwc"):
+        anchor = _one(li, "a.vIWmYe")
+        url = _anchor_target(anchor) if anchor is not None else None
+        if url is None:
+            anchor, url = _first_result_anchor(li)
         if anchor is None or url in seen:
             continue
         seen.add(url)
@@ -461,12 +510,18 @@ def _ai_sources(root) -> list[AiSource]:
             ". Opens in new tab."
         ).strip() or None
         image = _one(li, "img[data-src]")
+        image_url = image.attrib.get("data-src") if image is not None else None
+        if image_url is None:
+            icon = _one(li, "img.sGgDgb")
+            src = (icon.attrib.get("src") or "") if icon is not None else ""
+            image_url = src if src.startswith("http") else None
         sources.append(
             AiSource(
                 title=title,
                 url=url,
-                description=_text(_one(li, ".vhJ6Pe")),
-                imageUrl=image.attrib.get("data-src") if image is not None else None,
+                description=_text(_one(li, "span.hxIQcc") or _one(li, ".vhJ6Pe")),
+                site=_text(_one(li, ".jdxGff")),
+                imageUrl=image_url,
             )
         )
     return sources
@@ -477,7 +532,7 @@ def parse_ai_mode(html: str, *, query: str, url: str) -> AiModeResult | None:
 
     The conversational answer lives in the ``[data-subtree='aimc']``
     container, built from the same blocks as the AI Overview (``.n6owBd``
-    paragraphs + ``li.Z1qcYe`` bullets, sources in ``li.h7wxwc``), so the
+    paragraphs + ``li.Z1qcYe`` bullets, sources in ``li.Ioqnib``), so the
     extractors are shared. Returns ``None`` when the answer container is
     missing or empty (answer failed to stream before network-idle).
     """

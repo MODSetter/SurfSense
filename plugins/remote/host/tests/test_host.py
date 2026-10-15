@@ -53,7 +53,9 @@ async def test_a_plugin_that_fails_leaves_the_others_answering() -> None:
     assert found.structured_content == {"result": "found x"}
 
 
-@pytest.mark.parametrize("folder", ["host", "mcp_server", "license_check", "scraping"])
+@pytest.mark.parametrize(
+    "folder", ["host", "mcp_server", "license_check", "scraping", "license"]
+)
 def test_a_reserved_folder_is_never_a_plugin(tmp_path: Path, folder: str) -> None:
     """The host's own folders sit beside the plugins and must not be served."""
     root = tmp_path / "plugins"
@@ -61,3 +63,13 @@ def test_a_reserved_folder_is_never_a_plugin(tmp_path: Path, folder: str) -> Non
 
     with serving(host_app(root)) as base:
         assert httpx2.post(f"{base}/{folder}/mcp").status_code == 404
+
+
+async def test_without_a_paid_plugin_there_is_no_license_to_ask_about(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "plugins"
+    shutil.copytree(SAMPLES, root)
+    shutil.rmtree(root / "proprietary")
+    with serving(host_app(root)) as base:
+        assert httpx2.get(f"{base}/license").status_code == 404

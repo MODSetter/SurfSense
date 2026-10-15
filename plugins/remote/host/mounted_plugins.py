@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import sys
 from collections.abc import Callable, Collection
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -25,8 +26,13 @@ RESERVED = frozenset(
         "scraping",
         "health",
         "cancel",
+        "license",
     }
 )
+
+
+# What a plugin keeps from startup to shutdown, such as warm browsers and clients.
+Lifespan = Callable[[], AbstractAsyncContextManager[object]]
 
 
 @dataclass(frozen=True)
@@ -34,6 +40,8 @@ class MountedPlugin:
     id: str
     server: MCPServer
     access: Access | None
+    # The `lifespan` its `server.py` may define; the host holds it open while it serves.
+    lifespan: Lifespan | None = None
 
 
 def mounted_plugins(
@@ -69,7 +77,12 @@ def mounted_plugins(
 def _mounted(folder: Path) -> MountedPlugin:
     module = _loaded(folder / "server.py")
     build: Callable[[], MCPServer] = module.server
-    return MountedPlugin(plugin_id(folder), build(), getattr(module, "access", None))
+    return MountedPlugin(
+        plugin_id(folder),
+        build(),
+        getattr(module, "access", None),
+        getattr(module, "lifespan", None),
+    )
 
 
 def plugin_id(folder: Path) -> str:

@@ -1,57 +1,36 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
+import { cn } from "@/lib/utils";
+
+// Still placeholders shaped like `ChangelogTimeline`: no pulsing `Skeleton`.
+function Block({ className }: { className: string }) {
+	return <div className={cn("rounded-md bg-primary/10", className)} />;
+}
 
 export default function ChangelogLoading() {
 	return (
-		<div className="min-h-screen relative pt-20">
-			{/* Header */}
-			<div className="border-b border-border/50">
-				<div className="max-w-5xl mx-auto relative">
-					<div className="p-6 flex items-center justify-between">
-						<div>
-							<Skeleton className="h-10 w-48 mb-2" />
-							<Skeleton className="h-4 w-80" />
+		<section className={sectionSpacing.foot}>
+			<div className={cn("flex flex-col items-center", sectionSpacing.head)}>
+				<Block className="h-8 w-32 rounded-full" />
+				<Block className="mt-4 h-12 w-64" />
+				<Block className="mt-6 h-5 w-full max-w-xl" />
+			</div>
+
+			<div className="mt-10 divide-y divide-border border-y border-border lg:mt-14">
+				{["a", "b", "c"].map((key) => (
+					<div key={key} className="grid gap-6 py-10 md:grid-cols-[11rem_1fr] md:gap-10 md:py-14">
+						<div className="flex flex-col gap-3">
+							<Block className="h-6 w-24 rounded-full" />
+							<Block className="h-4 w-20" />
+						</div>
+						<div className="flex max-w-3xl flex-col gap-4">
+							<Block className="h-7 w-2/3" />
+							<Block className="h-4 w-full" />
+							<Block className="h-4 w-full" />
+							<Block className="h-4 w-3/4" />
 						</div>
 					</div>
-				</div>
+				))}
 			</div>
-
-			{/* Timeline */}
-			<div className="max-w-5xl mx-auto px-6 lg:px-10 pt-10 pb-20">
-				<div className="relative">
-					{Array.from({ length: 3 }).map((_, i) => (
-						<div key={i} className="relative flex flex-col md:flex-row gap-y-6 mb-10">
-							{/* Left: date + version */}
-							<div className="md:w-48 flex-shrink-0">
-								<Skeleton className="h-4 w-24 mb-3" />
-								<Skeleton className="h-12 w-12 rounded-xl" />
-							</div>
-
-							{/* Right: content */}
-							<div className="flex-1 md:pl-8 relative pb-10">
-								<div className="space-y-4">
-									{/* Title */}
-									<Skeleton className="h-7 w-2/3" />
-									{/* Tags */}
-									<div className="flex gap-2">
-										<Skeleton className="h-6 w-16 rounded-full" />
-										<Skeleton className="h-6 w-20 rounded-full" />
-									</div>
-									{/* Body paragraphs */}
-									<div className="space-y-2">
-										<Skeleton className="h-4 w-full" />
-										<Skeleton className="h-4 w-full" />
-										<Skeleton className="h-4 w-3/4" />
-									</div>
-									<div className="space-y-2">
-										<Skeleton className="h-4 w-full" />
-										<Skeleton className="h-4 w-5/6" />
-									</div>
-								</div>
-							</div>
-						</div>
-					))}
-				</div>
-			</div>
-		</div>
+		</section>
 	);
 }

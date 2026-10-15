@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import get_local_catalog
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed_recognisers import (
+    InstalledRecogniser,
+)
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.connections.serves import connection_serves
 from modules.llm.connections.text_generator import connection_generator
@@ -28,6 +31,10 @@ class ModelResolutionError(RuntimeError):
     pass
 
 
+class NoSpeechModelError(ModelResolutionError):
+    """No speech model is chosen, or the chosen one is no longer installed."""
+
+
 @dataclass(frozen=True)
 class ResolvedGeneration:
     selection: SelectedModel
@@ -43,6 +50,13 @@ class ResolvedGeneration:
 class ResolvedImageGeneration:
     selection: SelectedModel
     generator: ImageGenerator
+
+
+@dataclass(frozen=True)
+class ResolvedSpeechToText:
+    selection: SelectedModel
+    # The installed file and the reviewed languages the client is built from.
+    recogniser: InstalledRecogniser
 
 
 def resolve_generation(session: Session) -> ResolvedGeneration:
@@ -173,6 +187,18 @@ def local_speech(selected: SelectedModel) -> AudioCppSpeech:
         base_url=audiocpp.base_url(),
         give_up_text_runtime=text_runtime_given_up,
     )
+
+
+def resolve_speech_to_text(session: Session) -> ResolvedSpeechToText:
+    """The chosen speech model as the transcription server runs it. Local only:
+    no remote speech client exists."""
+    selected = session.get(SelectedModel, ModelType.SPEECH_TO_TEXT)
+    if selected is None or selected.provider != audiocpp.PROVIDER:
+        raise NoSpeechModelError("no speech model selected")
+    recogniser = get_local_catalog().audiocpp.installed_recogniser(selected.name)
+    if recogniser is None:
+        raise NoSpeechModelError("the speech model is not installed")
+    return ResolvedSpeechToText(selected, recogniser)
 
 
 def _require_serves(connection: ProviderConnection, model_type: ModelType) -> None:

@@ -241,7 +241,9 @@ async def test_a_model_the_manifest_marks_unusable_is_neither_offered_nor_chosen
         ).json()
     }
     assert catalog["claude-opus-5"]["availability"] == "unusable"
-    assert catalog["claude-opus-5"]["reason"] == listed["claude-opus-5"]["unusable_reason"]
+    assert (
+        catalog["claude-opus-5"]["reason"] == listed["claude-opus-5"]["unusable_reason"]
+    )
 
     choice = {
         "provider": "openai_compatible",
@@ -745,3 +747,24 @@ async def test_a_speech_model_only_the_full_listing_holds_fills_the_audio_slot(
     }
 
     assert models["hexgrad/kokoro-82m"]["selectable_for"] == ["audio_gen"]
+
+
+async def test_no_connection_fills_speech_recognition_even_when_confirmed(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """No remote speech client exists, so the slot is local only; confirming an
+    unlisted model must not get round that."""
+    connection = await _connect(client, openai_server)
+
+    refused = await client.put(
+        "/llm/selection/speech_to_text",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": connection["id"],
+            "name": "whisper-1",
+            "allow_unlisted": True,
+        },
+    )
+
+    assert refused.status_code == 422, refused.text
+    assert (await client.get("/llm/selection/speech_to_text")).status_code == 404

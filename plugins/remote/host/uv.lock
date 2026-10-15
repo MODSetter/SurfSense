@@ -1771,13 +1771,15 @@ wheels = [
 
 [[package]]
 name = "surfsense-plugin-host"
-version = "0.0.0"
+version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "curl-cffi" },
     { name = "fake-useragent" },
     { name = "httpx2" },
     { name = "markdownify" },
     { name = "mcp" },
+    { name = "orjson" },
     { name = "redis" },
     { name = "requests" },
     { name = "scrapling", extra = ["fetchers"] },
@@ -1796,13 +1798,15 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "curl-cffi", specifier = ">=0.16.3" },
     { name = "fake-useragent", specifier = ">=2.2.0" },
     { name = "httpx2", specifier = ">=2.10.0" },
     { name = "markdownify", specifier = ">=0.14.1" },
     { name = "mcp", specifier = ">=2.3,<2.4" },
+    { name = "orjson", specifier = ">=3.13.0" },
     { name = "redis", specifier = ">=5.2" },
     { name = "requests", specifier = ">=2.33" },
-    { name = "scrapling", extras = ["fetchers"], specifier = ">=0.4.11,<0.5" },
+    { name = "scrapling", extras = ["fetchers"], specifier = "==0.4.15" },
     { name = "trafilatura", specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
     { name = "validators", specifier = ">=0.34.0" },

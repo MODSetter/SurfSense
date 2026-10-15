@@ -27,6 +27,7 @@ import logging
 import re
 import time
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
 from proprietary.scraping.captcha import CaptchaConfig, solvers
 
@@ -38,6 +39,11 @@ _LOG = "[google_search][captcha]"
 # the Enterprise challenge binds to; both are mandatory in the solve request.
 _SITEKEY_RE = re.compile(r'data-sitekey="([\w-]+)"')
 _DATA_S_RE = re.compile(r'data-s="([^"]+)"')
+
+# Google's hosts, where its /sorry wall lives: google.com and the country
+# domains a given search URL may use (google.de, google.co.uk, google.com.au),
+# on any subdomain (www., ipv4.).
+_GOOGLE_HOST_RE = re.compile(r"(?:[\w-]+\.)*google\.(?:com?\.)?[a-z]{2,3}")
 
 # After submitting the solved /sorry form, Google 302s back to the SERP. We wait
 # only for the results container to attach — NOT for full network idle. A
@@ -69,9 +75,23 @@ def _latch(reason: str) -> None:
     logger.warning("%s solver latched OFF for this process: %s", _LOG, reason)
 
 
+def is_sorry_url(url: str, base: str = "") -> bool:
+    """Is ``url`` (relative to ``base``) Google's ``/sorry`` wall?
+
+    Host and path, never the rest: a search for "/sorry/" or a result at
+    example.com/sorry is not the wall.
+    """
+    try:
+        parts = urlsplit(urljoin(base, url))
+        host = parts.hostname or ""
+    except ValueError:  # malformed (an unclosed IPv6 bracket): not Google's
+        return False
+    return bool(_GOOGLE_HOST_RE.fullmatch(host)) and parts.path.startswith("/sorry")
+
+
 def on_sorry(page: Any) -> bool:
     """True when the render landed on Google's ``/sorry`` reCAPTCHA wall."""
-    return "/sorry/" in (getattr(page, "url", "") or "")
+    return is_sorry_url(getattr(page, "url", "") or "")
 
 
 # Set the token into the response textarea and submit the /sorry form. Google's

@@ -216,5 +216,6 @@ async def test_route_outside_location_allowlist_skips_session_mint(monkeypatch):
         "PRODUCT",
     )
 
-    assert context == (None, None, None, None)
+    # _location_context now returns the session itself (None here), not a tuple.
+    assert context is None
     assert calls == 0

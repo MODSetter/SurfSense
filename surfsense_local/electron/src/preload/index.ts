@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
+import type { MicrophoneAccess } from "../main/microphone/system-access.ts"
+
 // main passes the API base URL via additionalArguments; read it back off argv
 const FLAG = "--surfsense-api-url="
 const arg = process.argv.find((a) => a.startsWith(FLAG))
@@ -77,6 +79,16 @@ contextBridge.exposeInMainWorld("surfsense", {
   },
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
+  // The system's switch for SurfSense's microphone; the page's own permission is main's.
+  microphone: {
+    status: (): Promise<MicrophoneAccess> =>
+      ipcRenderer.invoke("microphone:status"),
+    // macOS shows its prompt the first time; call it before getUserMedia.
+    request: (): Promise<MicrophoneAccess> =>
+      ipcRenderer.invoke("microphone:request"),
+    openSettings: (): Promise<boolean> =>
+      ipcRenderer.invoke("microphone:open-settings"),
   },
   sidecars: {
     onCrash: (listener: (crash: SidecarCrash) => void): (() => void) => {

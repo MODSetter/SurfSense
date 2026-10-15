@@ -103,6 +103,7 @@ function WorkspaceDashboard({
   onModelSelected,
   onOpenLicense,
   onOpenAudioSettings,
+  onOpenSpeechSettings,
   onOpenOfficeSupport,
   onOpenPlugins,
   modelsVisited,
@@ -118,6 +119,7 @@ function WorkspaceDashboard({
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
   onOpenAudioSettings: () => void
+  onOpenSpeechSettings: () => void
   onOpenOfficeSupport: () => void
   onOpenPlugins: (start?: PluginsStart) => void
   modelsVisited: number
@@ -195,6 +197,7 @@ function WorkspaceDashboard({
   // Stable, like everything else the memoized sources panel takes: this page
   // re-renders when a run starts, ends or changes state, and for a title, a
   // thread switch, Settings and the other columns.
+  const openSpeechSettings = useStableCallback(() => onOpenSpeechSettings())
   const toggleSourcePreview = useStableCallback((documentId: number) => {
     const next = sourcePreviewId === documentId ? null : documentId
     setSourcePreviewId(next)
@@ -252,6 +255,8 @@ function WorkspaceDashboard({
           onRename={sources.rename}
           folderActions={sources.folderActions}
           notes={sourceNotes}
+          transcriptionPaces={sources.transcriptionPaces}
+          onOpenSpeechSettings={openSpeechSettings}
         />
       </aside>
     ),
@@ -279,6 +284,8 @@ function WorkspaceDashboard({
       sources.rename,
       sources.folderActions,
       sourceNotes,
+      sources.transcriptionPaces,
+      openSpeechSettings,
     ]
   )
   const sidebarFooter = useMemo(
@@ -490,6 +497,8 @@ function WorkspaceDashboard({
                 onUploadSources={(files) => void sources.upload(files)}
                 isUploadingSources={sources.isUploading}
                 onOpenPlugins={onOpenPlugins}
+                dictation={chat.dictation}
+                onOpenSpeechSettings={openSpeechSettings}
                 onTitleAnimationComplete={chat.finishTitleAnimation}
                 autoNamingThreadId={chat.autoNamingThreadId}
                 onRename={chat.rename}
@@ -785,6 +794,7 @@ export function DashboardPage({
           onModelSelected={onModelSelected}
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}
+          onOpenSpeechSettings={() => openSettings("speech-models")}
           onOpenOfficeSupport={openOfficeSupport}
           onOpenPlugins={openPlugins}
           modelsVisited={modelsVisited}

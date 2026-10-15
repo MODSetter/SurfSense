@@ -13,6 +13,7 @@ import { join } from "node:path"
 
 import { getFreePort, waitForHealth } from "../net.ts"
 import { audiocppSpec } from "./audiocpp.ts"
+import { audiocppTranscriptionSpec } from "./audiocpp-transcription.ts"
 import { llamacppSpec } from "./llamacpp.ts"
 import {
   binaryPath as opencodeBinaryPath,
@@ -36,6 +37,7 @@ import type { CrashHandler, SidecarContext, SidecarSpec } from "./types.ts"
 import { watchAudioModels } from "./watch-audio-models.ts"
 import { watchGenerationPreset } from "./watch-generation-preset.ts"
 import { watchImageModel } from "./watch-image-model.ts"
+import { watchTranscriptionModels } from "./watch-transcription-models.ts"
 
 /** What only the host knows: its paths, the packaged flag and the secret. */
 export interface BootContext {
@@ -113,6 +115,9 @@ export async function bootSidecars(
   ctx.audioUrl = `http://${host}:${ctx.audioPort}`
   ctx.audioModelsDir = join(dataDir, "audio")
   mkdirSync(ctx.audioModelsDir, { recursive: true })
+  // The same build again for speech recognition, on a port of its own.
+  ctx.transcriptionPort = await getFreePort(host)
+  ctx.transcriptionUrl = `http://${host}:${ctx.transcriptionPort}`
 
   // Only a host with a staged sd-server gets an images dir: without it the API
   // offers no image models, rather than downloads that can never run.
@@ -153,6 +158,8 @@ export async function bootSidecars(
     llamacppSpec(ctx),
     // Null until the API's config names an audio model.
     audiocppSpec(ctx),
+    // Null until the API's transcription config names a speech model.
+    audiocppTranscriptionSpec(ctx),
   ].filter((s): s is SidecarSpec => s !== null)
   const sidecars = startAll(specs, onCrash)
   const control = sidecarControl(sidecars, onCrash)
@@ -162,6 +169,7 @@ export async function bootSidecars(
     watchImageModel({ ctx, control, stopping: () => stopping }),
     watchGenerationPreset({ ctx, control, stopping: () => stopping }),
     watchAudioModels({ ctx, control, stopping: () => stopping }),
+    watchTranscriptionModels({ ctx, control, stopping: () => stopping }),
     watchAgentConfig({ ctx, control, onCrash, stopping: () => stopping }),
   ]
 

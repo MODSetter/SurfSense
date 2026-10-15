@@ -179,7 +179,7 @@ async def test_an_install_asked_to_select_says_so_before_it_ends(
 ) -> None:
     """Selecting is a step of its own, and the install ends with what it chose."""
 
-    async def choose(session, model_type, provider, name):
+    async def choose(session, model_type, provider, name, *, broker=None):
         return SimpleNamespace(
             model_type=model_type,
             provider=provider,

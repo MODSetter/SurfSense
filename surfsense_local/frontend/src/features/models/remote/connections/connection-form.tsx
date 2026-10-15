@@ -30,12 +30,7 @@ import {
   type ConnectionWrite,
   type RemoteProvider,
 } from "./api"
-import type { ModelType } from "../../model-type"
-import {
-  CHATGPT_PROVIDER,
-  getSignInOption,
-  signInOptionQueryKey,
-} from "./chatgpt/api"
+import { CHATGPT_PROVIDER } from "./chatgpt/api"
 import { ChatGPTSignIn } from "./chatgpt/chatgpt-sign-in"
 import { fillTemplate } from "./provider-url"
 
@@ -99,13 +94,10 @@ function messageFrom(error: unknown) {
  */
 export function ConnectionForm({
   connection,
-  modelType,
   onCancel,
   onSaved,
 }: {
   connection?: Connection
-  /** The slot being filled; a way to connect that cannot fill it is not offered. */
-  modelType?: ModelType
   onCancel: () => void
   onSaved: (connection: Connection) => void
 }) {
@@ -142,40 +134,21 @@ export function ConnectionForm({
     keywords: ["local", "custom"],
     disabled: false,
   }
-  const signIn = useQuery({
-    queryKey: signInOptionQueryKey,
-    queryFn: ({ signal }) => getSignInOption(signal),
-    staleTime: Infinity,
-  })
-  const signInServes = signIn.data?.serves ?? []
-  const editingChatGPT = connection?.auth_kind === "chatgpt"
-  // The backend says what a ChatGPT connection fills; offered only where it can.
-  const offerChatGPT =
-    editingChatGPT ||
-    (signIn.isSuccess && (!modelType || signInServes.includes(modelType)))
+  // A new ChatGPT sign-in is its own option beside Use a server; here the
+  // provider is only shown, fixed, while editing one.
+  const offerChatGPT = connection?.auth_kind === "chatgpt"
   const chatgptOption: ProviderOption = {
     value: CHATGPT_PROVIDER,
     label: intl.formatMessage({
       id: "models_connection_form_chatgpt_provider_label",
       defaultMessage: "ChatGPT subscription",
     }),
-    hint:
-      signInServes.length === 1
-        ? intl.formatMessage(
-            {
-              id: "models_connection_form_chatgpt_provider_only_body",
-              defaultMessage:
-                "{type, select, text_gen {Chat only} image_gen {Images only} image_edit {Image editing only} video_gen {Video only} audio_gen {Audio only} other {Some models only}}, sign in with your ChatGPT account",
-            },
-            { type: signInServes[0] }
-          )
-        : intl.formatMessage({
-            id: "models_connection_form_chatgpt_provider_body",
-            defaultMessage: "Sign in with your ChatGPT account",
-          }),
+    hint: intl.formatMessage({
+      id: "models_connection_form_chatgpt_provider_body",
+      defaultMessage: "Sign in with your ChatGPT account",
+    }),
     keywords: ["chatgpt", "openai", "plus", "pro", "subscription"],
-    // An existing key connection cannot become a sign-in, nor the reverse.
-    disabled: Boolean(connection && connection.auth_kind !== "chatgpt"),
+    disabled: false,
   }
   const providerGroups: ProviderGroup[] = [
     {

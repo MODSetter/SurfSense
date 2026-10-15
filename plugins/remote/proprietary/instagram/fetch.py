@@ -29,17 +29,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
 from scrapling.fetchers import AsyncFetcher, FetcherSession
 
+from proprietary.scraping.http import FAIL_FAST
 from proprietary.scraping.proxy import get_proxy_url
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,10 @@ class InstagramAccessBlockedError(RuntimeError):
     """
 
 
+class InstagramLoginRequiredError(InstagramAccessBlockedError):
+    """The endpoint itself needs a login: no exit IP or fresh session gets through."""
+
+
 # Per-flow proxy session, set by ``bind_proxy_holder`` around one continuation
 # chain. Reusing one keep-alive connection pins a single sticky exit IP so the
 # warmed ``csrftoken``/``mid`` cookies (bound to that IP) stay valid across the
@@ -66,7 +72,8 @@ _current_session: ContextVar[_RotatingSession | None] = ContextVar(
     "instagram_proxy_session", default=None
 )
 
-# 401/403 => this IP hit the login wall; rotate to a fresh one and re-warm.
+# 401/403 => this IP hit the login wall; rotate to a fresh one and re-warm,
+# unless the body says the endpoint needs a login (see _login_required).
 # 429 => rate limited; back off on the SAME IP (rotating wouldn't help and burns
 # the pool).
 _ROTATE_STATUSES = frozenset({401, 403})
@@ -83,8 +90,11 @@ _PACE_JITTER_S = 0.5
 
 # A healthy fetch lands in ~1-2s; cap at 15s so a dead sticky IP costs one
 # bounded wait, then the timeout falls into the generic exception branch of
-# fetch_json and rotates to a fresh IP — same treatment as a 403.
+# fetch_json and rotates to a fresh IP — same treatment as a 403. One attempt
+# per request (Scrapling would retry 3x on the same exit); the rotation loop in
+# _fetch is the only retry layer.
 _REQUEST_TIMEOUT_S = 15.0
+_HTTP_OPTIONS = {**FAIL_FAST, "timeout": (5, _REQUEST_TIMEOUT_S)}
 
 # The anonymous web app id every logged-out instagram.com XHR carries. Without
 # it the api/v1/*/web_info and web_profile_info endpoints 403 outright.
@@ -107,6 +117,15 @@ _CSRF_COOKIE = "csrftoken"
 # status-code rotate check — detect it via the response's final URL and treat
 # it exactly like a 403.
 _LOGIN_PATH = "/accounts/login"
+
+# Hard login wall: api/v1/users/web_profile_info/ answers every anonymous caller
+# 401 {"require_login": true, ...} (smoke test 2026-10-13: 8 residential exits
+# and the maintainer's home IP alike). Rotating cost 4 paid sessions and 7-24s
+# per target for nothing, so the endpoint fails at once and stays failed for
+# this long (0 keeps no memory between calls); then the next call asks again.
+_LOGIN_WALL_LATCH_S = float(os.getenv("INSTAGRAM_LOGIN_WALL_LATCH_S", "900"))
+# endpoint path -> (monotonic deadline, wall-clock time it was seen)
+_login_walls: dict[str, tuple[float, datetime]] = {}
 
 
 def now_iso() -> str:
@@ -168,6 +187,49 @@ def _is_login_redirect(page: Any) -> bool:
     return isinstance(final, str) and _LOGIN_PATH in final
 
 
+def _login_required(page: Any) -> bool:
+    """True when a 401/403 body is Instagram's JSON ``require_login`` answer."""
+    data = _parse_json(page)
+    return isinstance(data, dict) and data.get("require_login") is True
+
+
+def _endpoint(path: str) -> str:
+    """The latch key: the path without its query, so every username shares it."""
+    return path.split("?", 1)[0].strip("/")
+
+
+def _login_wall_error(
+    path: str, status: int | None = None
+) -> InstagramLoginRequiredError:
+    """The refusal for ``path``, latching it when ``status`` is a fresh answer."""
+    key = _endpoint(path)
+    now = time.monotonic()
+    if status is not None and _LOGIN_WALL_LATCH_S > 0:
+        _login_walls[key] = (now + _LOGIN_WALL_LATCH_S, datetime.now(UTC))
+    text = f"Instagram requires a login for {key}"
+    if status is not None:
+        text += f" (HTTP {status} require_login on a fresh anonymous session)"
+    if key in _login_walls:
+        until, seen = _login_walls[key]
+        retry_at = datetime.now(UTC) + timedelta(seconds=until - now)
+        text += (
+            f"; seen at {seen:%H:%M} UTC, SurfSense asks again after "
+            f"{retry_at:%H:%M} UTC"
+        )
+    return InstagramLoginRequiredError(text)
+
+
+def _check_login_wall(path: str) -> None:
+    """Raise at once while ``path`` is latched behind the login wall."""
+    key = _endpoint(path)
+    wall = _login_walls.get(key)
+    if wall is None:
+        return
+    if time.monotonic() < wall[0]:
+        raise _login_wall_error(path)
+    del _login_walls[key]
+
+
 def _build_url(path: str, params: dict[str, Any] | None) -> str:
     """Absolute URL for an instagram.com path (accepts already-absolute URLs)."""
     base = path if path.startswith("http") else f"{_BASE}/{path.strip('/')}/"
@@ -206,7 +268,7 @@ class _RotatingSession:
             proxy=proxy,
             stealthy_headers=True,
             impersonate="chrome",
-            timeout=_REQUEST_TIMEOUT_S,
+            **_HTTP_OPTIONS,
         )
         self.session = await self._cm.__aenter__()
 
@@ -290,7 +352,7 @@ async def _get_page(session: Any, url: str) -> Any:
         headers=_HEADERS,
         proxy=get_proxy_url(),
         stealthy_headers=True,
-        timeout=_REQUEST_TIMEOUT_S,
+        **_HTTP_OPTIONS,
     )
 
 
@@ -325,9 +387,12 @@ async def _fetch(
     Applies ``extract`` to the 200 response (JSON parse or HTML text); returns
     ``None`` on 404 / non-block failure. Warms cookies once per session; rotates
     the residential IP and re-warms on 401/403; backs off on 429. Raises
-    :class:`InstagramAccessBlockedError` only when every rotated IP refuses
-    anonymous access (the login-wall branch, which we cannot satisfy).
+    :class:`InstagramAccessBlockedError` when every rotated IP refuses anonymous
+    access, and :class:`InstagramLoginRequiredError` at once on a ``require_login``
+    answer or while that endpoint is latched (the login wall, which we cannot
+    satisfy).
     """
+    _check_login_wall(path)
     holder = _current_session.get()
     if holder is None:
         # No bound session (e.g. a direct call outside fan_out): open a
@@ -379,9 +444,11 @@ async def _fetch(
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
             if status in _ROTATE_STATUSES:
+                if _login_required(page):
+                    raise _login_wall_error(path, status)
                 # Bare 401/403: a per-IP block that a fresh exit IP recovers, so
-                # rotate and re-warm. (The endpoint-level auth wall is caught by
-                # the login-redirect branch above and fails fast without rotating.)
+                # rotate and re-warm. (The endpoint-level auth walls are caught
+                # above and fail fast without rotating.)
                 if attempt < _MAX_ROTATIONS:
                     attempt += 1
                     await holder.rotate()

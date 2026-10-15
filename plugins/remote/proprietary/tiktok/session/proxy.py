@@ -1,124 +1,72 @@
-"""Rotate-on-block sticky proxy session, bound per-flow via a ContextVar.
+"""Rotate-on-block proxy sessions for TikTok, on the shared keep-alive holders.
 
-Reusing one keep-alive connection pins a single residential exit IP so the
-warmed cookie jar (``ttwid``/``msToken``, bound to that IP) stays valid across
-the warm-up and every subsequent fetch. Ported from the Reddit sibling; the
-TikTok-specific warm-up lives in :mod:`client`.
+A holder keeps one connection open, so one residential exit IP serves the warm-up
+and every later fetch, and the ``ttwid`` cookie (bound to that IP) stays valid.
+Each rotation walks to the next country pool: TikTok withholds ``ttwid`` from the
+provider's worldwide pool but mints it on country-pinned exits (see
+:func:`proprietary.scraping.proxy.rotation.country_for_rotation`). The TikTok
+specifics on top of :mod:`proprietary.scraping.sessions` are that walk, a per-IP
+pace and the progress hook.
 """
 
 from __future__ import annotations
 
 import asyncio
-import logging
 import random
 import time
-from contextlib import asynccontextmanager, suppress
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Any
+from weakref import WeakKeyDictionary
 
-from scrapling.fetchers import FetcherSession
-
-from proprietary.scraping.proxy import get_geo_proxy_url
+from proprietary.scraping import sessions
 from proprietary.scraping.proxy.rotation import country_for_rotation
 
-logger = logging.getLogger(__name__)
+PLUGIN = "tiktok"
 
 # Pace each sticky IP so a fast exit can't burst past TikTok's per-IP threshold.
 _MIN_INTERVAL_S = 0.5
 _PACE_JITTER_S = 0.25
-# A healthy fetch lands in ~1-2s; cap a dead IP at one bounded wait before it
-# falls through to a rotation.
-_REQUEST_TIMEOUT_S = 15.0
+# A healthy fetch lands in ~1-2 s; a dead exit fails at connect (5 s) or the whole
+# request at 15 s, the old single bound, then the caller rotates.
+REQUEST_TIMEOUT = (5.0, 10.0)
 
-_current_session: ContextVar[_RotatingSession | None] = ContextVar(
-    "tiktok_proxy_session", default=None
+# When each holder last sent, for the pace.
+_last_at: WeakKeyDictionary[Any, float] = WeakKeyDictionary()
+
+on_stage: ContextVar[Callable[[str], Awaitable[None]] | None] = ContextVar(
+    "tiktok_on_stage", default=None
 )
+"""The tool's progress hook: hears each stage (attempt started, page fetched)."""
 
 
-class _RotatingSession:
-    """Owns one live ``FetcherSession`` (sticky IP); ``rotate()`` swaps the IP.
-
-    Each open walks to the next country pool (see
-    :func:`proprietary.scraping.proxy.rotation.country_for_rotation`): TikTok withholds the
-    anonymous ``ttwid`` cookie from the provider's default worldwide pool but
-    mints it on country-pinned exits, so re-drawing within the same pool never
-    warms — spreading rotations across country pools does. Used sequentially
-    within a single flow (never shared across concurrent tasks), so no locking is
-    needed. ``session`` is ``None`` only when no proxy is configured.
-    """
-
-    def __init__(self) -> None:
-        self._cm: Any | None = None
-        self.session: Any | None = None
-        self.rotations = 0
-        self.warmed = False
-        self.country = ""
-        self._last_at = 0.0
-
-    async def _open(self) -> None:
-        self.warmed = False
-        self.country = country_for_rotation(self.rotations)
-        proxy = get_geo_proxy_url(self.country)
-        if proxy is None:
-            self._cm = self.session = None
-            return
-        self._cm = FetcherSession(
-            proxy=proxy,
-            stealthy_headers=True,
-            impersonate="chrome",
-            timeout=_REQUEST_TIMEOUT_S,
-        )
-        self.session = await self._cm.__aenter__()
-
-    async def close(self) -> None:
-        if self._cm is not None:
-            with suppress(Exception):
-                await self._cm.__aexit__(None, None, None)
-        self._cm = self.session = None
-
-    async def rotate(self) -> Any | None:
-        """Drop the current IP and connect through a fresh one."""
-        await self.close()
-        self.rotations += 1
-        await self._open()
-        logger.info(
-            "[tiktok] rotated proxy session (rotation #%d, country=%s)",
-            self.rotations,
-            self.country,
-        )
-        return self.session
-
-    async def pace(self) -> None:
-        """Sleep to hold this sticky IP under TikTok's per-IP rate threshold."""
-        wait = _MIN_INTERVAL_S - (time.monotonic() - self._last_at)
-        if wait > 0:
-            await asyncio.sleep(wait + random.uniform(0, _PACE_JITTER_S))
-        self._last_at = time.monotonic()
+async def report_stage(message: str) -> None:
+    report = on_stage.get()
+    if report is not None:
+        await report(message)
 
 
-async def open_proxy_holder() -> _RotatingSession:
-    """Open a warm rotate-on-block session holder (caller owns ``close()``)."""
-    holder = _RotatingSession()
-    await holder._open()
-    return holder
+def first_exit() -> sessions.Exit:
+    """The rotating gateway in the first rotation country."""
+    return sessions.Exit(country_for_rotation(0))
+
+
+async def rotate(h: sessions.SessionHolder, reason: str, *, seen: int) -> None:
+    """Move ``h`` to the next country pool (a no-op if it rotated since ``seen``)."""
+    await h.rotate(reason, country=country_for_rotation(seen + 1), seen=seen)
+
+
+async def pace(h: Any) -> None:
+    """Sleep to hold this holder's IP under TikTok's per-IP rate threshold."""
+    wait = _MIN_INTERVAL_S - (time.monotonic() - _last_at.get(h, 0.0))
+    if wait > 0:
+        await asyncio.sleep(wait + random.uniform(0, _PACE_JITTER_S))
+    _last_at[h] = time.monotonic()
 
 
 @asynccontextmanager
-async def bind_proxy_holder(holder: _RotatingSession):
-    """Route this task's fetches through ``holder`` for the enclosed block."""
-    token = _current_session.set(holder)
-    try:
-        yield holder
-    finally:
-        _current_session.reset(token)
-
-
-@asynccontextmanager
-async def proxy_session():
-    """Open one reused, rotate-on-block proxy session for a continuation chain."""
-    holder = await open_proxy_holder()
-    try:
-        async with bind_proxy_holder(holder):
-            yield holder
-    finally:
-        await holder.close()
+async def proxy_session() -> AsyncIterator[sessions.SessionHolder]:
+    """One rotate-on-block holder for a continuation chain, bound for the block."""
+    async with sessions.bound(PLUGIN, first_exit()) as h:
+        yield h

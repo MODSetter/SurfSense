@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import httpx2
@@ -8,8 +9,16 @@ from host.app import host_app
 from host.tests.mcp_calls import tool_names
 from host.tests.serving import serving
 from mcp_server.access import Refusal
-from proprietary.license_check.keygen import CLOUD_ACCOUNTS_URL, Keygen
-from proprietary.license_check.license_access import LicenseAccess
+from proprietary.license_check.keygen import (
+    CLOUD_ACCOUNTS_URL,
+    Keygen,
+    KeygenUnreachableError,
+)
+from proprietary.license_check.license_access import (
+    GRACE_SECONDS,
+    LicenseAccess,
+    shared_access,
+)
 from proprietary.license_check.tests.stand_in_keygen import (
     ACCOUNT,
     StandInKeygen,
@@ -29,6 +38,24 @@ class Clock:
 
 def license_header(key: str) -> Headers:
     return Headers({"authorization": f"License {key}"})
+
+
+class GatedKeygen:
+    """Keygen in memory, answering once the test opens its gate."""
+
+    def __init__(self, codes: dict[str, str]) -> None:
+        self.codes = codes
+        self.asked: list[str] = []
+        self.down = False
+        self.gate = asyncio.Event()
+        self.gate.set()
+
+    async def validation_code(self, key: str) -> str:
+        self.asked.append(key)
+        await self.gate.wait()
+        if self.down:
+            raise KeygenUnreachableError("down")
+        return self.codes.get(key, "NOT_FOUND")
 
 
 @pytest.mark.parametrize("authorization", [None, "Bearer k-1", "License ", "License"])
@@ -69,6 +96,7 @@ async def test_keygen_decides_whether_a_key_may_call(
 
 
 async def test_a_key_is_asked_about_once_in_five_minutes() -> None:
+    """After five minutes a valid key is asked about again, in the background."""
     keygen = StandInKeygen({"k-1": "VALID"})
     clock = Clock()
     with serving(keygen.app) as url:
@@ -76,11 +104,114 @@ async def test_a_key_is_asked_about_once_in_five_minutes() -> None:
         await access.refusal(license_header("k-1"))
         clock.now += 299
         await access.refusal(license_header("k-1"))
+        await access.settled()
         assert keygen.validated == ["k-1"]
 
         clock.now += 1
         await access.refusal(license_header("k-1"))
+        await access.settled()
         assert keygen.validated == ["k-1", "k-1"]
+
+
+async def test_a_stale_valid_key_passes_at_once_while_keygen_is_asked_again() -> None:
+    """The answer comes from the background check, for the next request."""
+    keygen = GatedKeygen({"k-1": "VALID"})
+    clock = Clock()
+    access = LicenseAccess(keygen, clock)
+    await access.refusal(license_header("k-1"))
+    keygen.gate.clear()
+    keygen.codes["k-1"] = "EXPIRED"
+    clock.now += 600
+
+    for _ in range(3):
+        assert await asyncio.wait_for(access.refusal(license_header("k-1")), 1) is None
+    keygen.gate.set()
+    await access.settled()
+
+    assert keygen.asked == ["k-1", "k-1"]
+    assert await access.refusal(license_header("k-1")) == Refusal(403, "expired")
+
+
+async def test_requests_for_a_key_never_seen_ask_keygen_once() -> None:
+    keygen = GatedKeygen({"k-1": "VALID"})
+    keygen.gate.clear()
+    access = LicenseAccess(keygen, Clock())
+    waiting = [
+        asyncio.create_task(access.refusal(license_header("k-1"))) for _ in range(5)
+    ]
+    await asyncio.sleep(0.01)
+    keygen.gate.set()
+
+    assert await asyncio.gather(*waiting) == [None] * 5
+    assert keygen.asked == ["k-1"]
+
+
+async def test_a_request_giving_up_leaves_the_check_to_the_others() -> None:
+    keygen = GatedKeygen({"k-1": "VALID"})
+    keygen.gate.clear()
+    access = LicenseAccess(keygen, Clock())
+    leaving = asyncio.create_task(access.refusal(license_header("k-1")))
+    staying = asyncio.create_task(access.refusal(license_header("k-1")))
+    await asyncio.sleep(0.01)
+    leaving.cancel()
+    keygen.gate.set()
+
+    assert await staying is None
+    assert keygen.asked == ["k-1"]
+
+
+async def test_a_refused_key_waits_for_keygen_s_new_answer() -> None:
+    """A renewed key passes on its first request after five minutes."""
+    keygen = GatedKeygen({"k-1": "EXPIRED"})
+    clock = Clock()
+    access = LicenseAccess(keygen, clock)
+    assert await access.refusal(license_header("k-1")) == Refusal(403, "expired")
+    keygen.codes["k-1"] = "VALID"
+    clock.now += 300
+
+    assert await access.refusal(license_header("k-1")) is None
+
+
+async def test_a_key_unused_for_a_day_waits_for_keygen() -> None:
+    """Past the grace, a key once valid is not let through on its old answer."""
+    keygen = GatedKeygen({"k-1": "VALID"})
+    clock = Clock()
+    access = LicenseAccess(keygen, clock)
+    await access.refusal(license_header("k-1"))
+    keygen.codes["k-1"] = "EXPIRED"
+    clock.now += GRACE_SECONDS
+
+    assert await access.refusal(license_header("k-1")) == Refusal(403, "expired")
+
+
+async def test_keygen_down_in_the_background_keeps_the_grace() -> None:
+    keygen = GatedKeygen({"k-1": "VALID"})
+    clock = Clock()
+    access = LicenseAccess(keygen, clock)
+    await access.refusal(license_header("k-1"))
+    keygen.down = True
+
+    clock.now += 23 * 3600
+    assert await access.refusal(license_header("k-1")) is None
+    await access.settled()
+    clock.now += 3600
+    assert await access.refusal(license_header("k-1")) == Refusal(
+        503, "license_service_unavailable"
+    )
+
+
+def test_paid_plugins_share_one_license_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One per process for Keygen's settings, so a key is asked about once for all."""
+    monkeypatch.setenv("KEYGEN_API_URL", "http://keygen-a/v1/accounts")
+    monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+    monkeypatch.delenv("KEYGEN_HOST", raising=False)
+    first = shared_access()
+
+    assert shared_access() is first
+    monkeypatch.setenv("KEYGEN_API_URL", "http://keygen-b/v1/accounts")
+    assert shared_access() is not first
 
 
 async def test_keygen_down_keeps_a_key_valid_this_morning_working() -> None:
@@ -110,6 +241,8 @@ async def test_a_key_refused_since_it_was_valid_has_no_grace() -> None:
         keygen.codes["k-1"] = "EXPIRED"
         clock.now += 300
         await access.refusal(license_header("k-1"))
+        # Its answer, EXPIRED, comes from the check this request started.
+        await access.settled()
         keygen.down = True
         clock.now += 300
 
@@ -213,3 +346,43 @@ async def test_a_paid_plugin_on_the_host_answers_only_a_valid_license(
     )
     assert (expired.status_code, expired.json()) == (403, {"reason": "expired"})
     assert tools == ["scrape"]
+
+
+async def test_paid_plugins_on_one_host_ask_keygen_once_for_a_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keygen = StandInKeygen({"k-1": "VALID"})
+    with serving(keygen.app) as keygen_url:
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+        with serving(host_app(SAMPLES)) as base:
+            licensed = {"Authorization": "License k-1"}
+            assert await tool_names(f"{base}/paid/mcp", licensed) == ["scrape"]
+            assert await tool_names(f"{base}/paid-too/mcp", licensed) == ["scrape"]
+
+    assert keygen.validated == ["k-1"]
+
+
+async def test_the_host_answers_the_license_once_for_every_paid_plugin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The app asks once, not by listing each paid plugin; the answers are contract 2's."""
+    keygen = StandInKeygen({"k-1": "VALID", "k-2": "EXPIRED"})
+    with serving(keygen.app) as keygen_url:
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+        with serving(host_app(SAMPLES)) as base:
+            missing = httpx2.get(f"{base}/license")
+            expired = httpx2.get(
+                f"{base}/license", headers={"Authorization": "License k-2"}
+            )
+            valid = httpx2.get(
+                f"{base}/license", headers={"Authorization": "License k-1"}
+            )
+
+    assert (missing.status_code, missing.json()) == (
+        401,
+        {"reason": "missing_license"},
+    )
+    assert (expired.status_code, expired.json()) == (403, {"reason": "expired"})
+    assert (valid.status_code, valid.json()) == (200, {"status": "valid"})

@@ -27,6 +27,12 @@ _GOOGLE_DOMAIN = "google.com"
 
 _RESULTS_PER_PAGE = 10
 
+# With no localization at all, Google localizes by the exit IP, and each sticky
+# session draws a random residential exit, so results came back in whatever
+# language that exit had. US English is the stable default.
+_DEFAULT_COUNTRY = "us"
+_DEFAULT_LANGUAGE = "en"
+
 # Relative date like "8 days", "3 months" (Apify's beforeDate/afterDate).
 _RELATIVE_DATE_RE = re.compile(r"^\s*(\d+)\s*(day|week|month|year)s?\s*$", re.I)
 _ABSOLUTE_DATE_RE = re.compile(r"^\s*\d{4}-\d{2}-\d{2}\s*$")
@@ -135,6 +141,16 @@ def augment_query(term: str, input_model: GoogleSearchScrapeInput) -> str:
     return " ".join(parts)
 
 
+def locale(input_model: GoogleSearchScrapeInput) -> tuple[str | None, str | None]:
+    """The ``(gl, hl)`` a search sends: the caller's own, or US English when
+    the caller gave no country, language or location at all."""
+    country = (input_model.countryCode or "").lower() or None
+    language = input_model.languageCode or None
+    if country is None and language is None and not input_model.locationUule:
+        return _DEFAULT_COUNTRY, _DEFAULT_LANGUAGE
+    return country, language
+
+
 def build_search_url(
     term: str, input_model: GoogleSearchScrapeInput, *, page: int = 1
 ) -> str:
@@ -142,12 +158,13 @@ def build_search_url(
     params: list[tuple[str, str]] = [("q", augment_query(term, input_model))]
     if page > 1:
         params.append(("start", str((page - 1) * _RESULTS_PER_PAGE)))
-    if input_model.countryCode:
-        params.append(("gl", input_model.countryCode.lower()))
+    country, language = locale(input_model)
+    if country:
+        params.append(("gl", country))
     if input_model.searchLanguage:
         params.append(("lr", f"lang_{input_model.searchLanguage}"))
-    if input_model.languageCode:
-        params.append(("hl", input_model.languageCode))
+    if language:
+        params.append(("hl", language))
     if input_model.locationUule:
         params.append(("uule", input_model.locationUule))
     if input_model.quickDateRange:
@@ -165,9 +182,10 @@ def build_ai_mode_url(term: str, input_model: GoogleSearchScrapeInput) -> str:
     result-shaping parameters don't apply — plus localization.
     """
     params: list[tuple[str, str]] = [("q", term), ("udm", "50")]
-    if input_model.countryCode:
-        params.append(("gl", input_model.countryCode.lower()))
-    if input_model.languageCode:
-        params.append(("hl", input_model.languageCode))
+    country, language = locale(input_model)
+    if country:
+        params.append(("gl", country))
+    if language:
+        params.append(("hl", language))
     query_string = "&".join(f"{k}={quote_plus(v)}" for k, v in params)
     return f"https://www.{_GOOGLE_DOMAIN}/search?{query_string}"

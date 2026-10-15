@@ -2,7 +2,7 @@
 
 ``fetch_item_list`` re-fetches an empty capture up to ``TIKTOK_LISTING_MAX_ATTEMPTS``
 so a flagged rotating exit IP on the first draw doesn't collapse straight to an
-``ErrorItem``. These drive that loop deterministically by faking ``_fetch_sync``.
+``ErrorItem``. These drive that loop deterministically by faking ``_draw``.
 """
 
 from __future__ import annotations
@@ -17,14 +17,14 @@ class _Fake:
         self.results = results
         self.calls = 0
 
-    def __call__(self, *args, **kwargs):
+    async def __call__(self, *args, **kwargs):
         out = self.results[min(self.calls, len(self.results) - 1)]
         self.calls += 1
         return out
 
 
 def _patch(monkeypatch, fake: _Fake, attempts: int) -> None:
-    monkeypatch.setattr(listing, "_fetch_sync", fake)
+    monkeypatch.setattr(listing, "_draw", fake)
     monkeypatch.setattr(listing, "_LISTING_MAX_ATTEMPTS", attempts)
 
 

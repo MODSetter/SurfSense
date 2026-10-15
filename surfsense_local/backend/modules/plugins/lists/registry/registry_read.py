@@ -18,7 +18,7 @@ class RegistryEntryRead(BaseModel):
     name: str
     description: str
     author: str
-    # `verified` (its author proven to run the server, by its domain) or `community`.
+    # `verified` (a maintainer judged that its author runs the server) or `community`.
     verification: str
     verified: bool
     access: str

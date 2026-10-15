@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import unquote, urldefrag, urlsplit
 
 from lxml import html as lxml_html
@@ -20,8 +21,6 @@ _SOCIAL_HOSTS = (
     "instagram.com",
     "youtube.com",
     "youtu.be",
-    "github.com",
-    "gitlab.com",
     "tiktok.com",
     "discord.com",
     "discord.gg",
@@ -48,6 +47,34 @@ _SOCIAL_HOSTS = (
     "weixin.qq.com",
     "xing.com",
     "pf.kakao.com",
+)
+
+# Code hosts: a profile is ``host/<user-or-org>``. Every issue, pull request
+# and file is a deeper path, and a changelog links thousands of them.
+_CODE_HOSTS = frozenset({"github.com", "gitlab.com"})
+_CODE_HOST_RESERVED = frozenset(
+    {
+        "features",
+        "pricing",
+        "about",
+        "login",
+        "join",
+        "signup",
+        "explore",
+        "topics",
+        "marketplace",
+        "sponsors",
+        "orgs",
+        "settings",
+        "enterprise",
+        "collections",
+        "trending",
+        "users",
+        "groups",
+        "help",
+        "dashboard",
+        "-",
+    }
 )
 
 # Email domains that are almost never a real contact (SDKs, CDNs, examples).
@@ -105,6 +132,22 @@ _ASSET_TLDS = frozenset(
 )
 
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+# The source can spell an address's "@" and "." as entities (Sphinx writes
+# ``localhost&#64;other.com``); a parsed and re-serialised page shows them decoded.
+_EMAIL_ENTITIES = re.compile(r"&(?:#64|#x40|commat|#46|#x2e|period);", re.IGNORECASE)
+_ENTITY_CHAR = {
+    "#64": "@",
+    "#x40": "@",
+    "commat": "@",
+    "#46": ".",
+    "#x2e": ".",
+    "period": ".",
+}
+
+
+def _decode_email_entities(text: str) -> str:
+    return _EMAIL_ENTITIES.sub(lambda m: _ENTITY_CHAR[m.group(0)[1:-1].lower()], text)
+
 
 # Template/form placeholders, compared after stripping [._-] separators, so
 # "your.email"/"your-email"/"youremail" all match. Deliberately excludes real
@@ -183,6 +226,22 @@ def is_social_host(host: str) -> bool:
     return any(host == d or host.endswith("." + d) for d in _SOCIAL_HOSTS)
 
 
+def is_social_url(url: str) -> bool:
+    """True when ``url`` points at a profile on a known social host.
+
+    On a code host only ``host/<name>`` counts: ``github.com/org/repo/issues/1``
+    is a link, not anyone's profile.
+    """
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    if host in _CODE_HOSTS:
+        segments = [segment for segment in parts.path.split("/") if segment]
+        return len(segments) == 1 and segments[0].lower() not in _CODE_HOST_RESERVED
+    return is_social_host(host)
+
+
 def _keep_email(email: str) -> bool:
     local, _, domain = email.partition("@")
     domain = domain.lower()
@@ -218,14 +277,19 @@ def _dedup(values: list[str]) -> list[str]:
     return out
 
 
-def extract_contacts(raw_html: str | None) -> Contacts:
+def extract_contacts(
+    raw_html: str | None, root: Any = None, scan_text: str | None = None
+) -> Contacts:
     """Harvest emails, phone numbers, and social profile URLs from raw HTML.
 
     Emails come from ``mailto:`` hrefs (high confidence) and a plaintext scan of
     the source (noise-filtered). Phones come only from ``tel:`` hrefs — a text
     scan for phone numbers is too noisy to be worth it. Socials are ``href``
     targets on known profile hosts. Any parse error yields empty results rather
-    than aborting the crawl.
+    than aborting the crawl. ``root``, when given, is ``raw_html`` already
+    parsed, so the page is not parsed again. ``scan_text``, when given, is what
+    the plaintext scan reads instead: the whole page when ``raw_html`` is a
+    capped prefix of it.
     """
     if not raw_html or not raw_html.strip():
         return Contacts()
@@ -234,10 +298,11 @@ def extract_contacts(raw_html: str | None) -> Contacts:
     phones: list[str] = []
     socials: list[str] = []
 
-    try:
-        root = lxml_html.fromstring(raw_html)
-    except (ParserError, ValueError):
-        root = None
+    if root is None:
+        try:
+            root = lxml_html.fromstring(raw_html)
+        except (ParserError, ValueError):
+            root = None
 
     if root is not None:
         for href in root.xpath("//a/@href | //link/@href"):
@@ -253,13 +318,12 @@ def extract_contacts(raw_html: str | None) -> Contacts:
                 if num:
                     phones.append(num)
             elif low.startswith(("http://", "https://")):
-                host = (urlsplit(href).hostname or "").lower()
-                if is_social_host(host):
+                if is_social_url(href):
                     socials.append(urldefrag(href)[0])
 
     # Plaintext email scan over the source catches addresses rendered as text
     # (e.g. "hello@site.com" in a footer) that never appear as a mailto href.
-    emails.extend(_EMAIL_RE.findall(raw_html))
+    emails.extend(_EMAIL_RE.findall(_decode_email_entities(scan_text or raw_html)))
 
     return Contacts(
         emails=[e for e in _dedup(emails) if _keep_email(e)],

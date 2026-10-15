@@ -42,7 +42,7 @@ function publisherNote(entry: RegistryEntry) {
 }
 
 /**
- * Beside a third-party plugin's name: a checkmark when SurfSense proved by its domain
+ * Beside a third-party plugin's name: a checkmark when SurfSense's maintainers judged
  * that its author runs the server, else a Community badge. Raised above a Browse
  * card's stretched button (`z-10`), so hovering it shows its tooltip, not the card's.
  */

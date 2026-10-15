@@ -179,3 +179,55 @@ def test_strip_xssi_and_brace_match_handle_html_wrapper():
 
     wrapped = '<html><body><p>)]}\'\n[["a"]]'
     assert strip_xssi(wrapped).startswith("[[")
+
+
+_COFFEE = Path(__file__).parent / "fixtures" / "place_787coffee_darray.json"
+
+
+@pytest.fixture
+def coffee() -> list:
+    # Live place-RPC darray for 787 Coffee (Midtown), 2026-10-14, pruned to
+    # the slots parse_place reads and scrubbed of reviewer data and tokens.
+    return json.loads(_COFFEE.read_text(encoding="utf-8"))
+
+
+def test_coffee_capture_keeps_no_request_tokens(coffee):
+    # [7][4] held the website link's usg signature and ved click id, and the
+    # photo slots the request's ei.
+    assert dig(coffee, 7, 4) == "TOKEN"
+    assert {dig(coffee, 37, 3), dig(coffee, 37, 0, 0, 9)} == {"TOKEN"}
+
+
+def test_address_has_no_place_name_prefix(coffee):
+    # darray[18] is "787 coffee, 245 W 46th St, ..."; [39] is the bare address.
+    assert dig(coffee, 18).startswith("787 coffee, ")
+    assert parse_place(coffee)["address"] == "245 W 46th St, New York, NY 10036"
+
+
+def test_address_falls_back_to_the_full_line_without_the_title(coffee):
+    coffee[39] = None
+    assert parse_place(coffee)["address"] == "245 W 46th St, New York, NY 10036"
+    coffee[18] = "245 W 46th St, New York, NY 10036"  # no title prefix to cut
+    assert parse_place(coffee)["address"] == "245 W 46th St, New York, NY 10036"
+
+
+def test_phone_unformatted_is_e164(coffee):
+    place = parse_place(coffee)
+    assert place["phone"] == "(646) 596-7178"
+    assert place["phoneUnformatted"] == "+16465967178"
+
+
+def test_detail_fields_canary(coffee):
+    """The rich detail fields the NID mint was once needed for.
+
+    The place RPC parsed identically with and without an NID when this was
+    captured. If Google re-gates these fields, a fresh capture (now made
+    without an NID) loses them and this test says so: then set
+    GOOGLE_MAPS_SKIP_NID_MINT=0.
+    """
+    place = parse_place(coffee)
+    assert sum(place["reviewsDistribution"].values()) > 0
+    assert place["reviewsTags"]
+    assert place["imagesCount"] > 0
+    assert place["kgmid"] == "/g/11y31_2b88"
+    assert place["placeId"] == "ChIJfbedxbZZwokRpbnR5BBdz1c"

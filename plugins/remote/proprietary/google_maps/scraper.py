@@ -11,16 +11,24 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import aclosing
 from typing import Any
 from urllib.parse import quote
 
+from proprietary.scraping.concurrency import ordered_map
+
 from .fetch import (
+    GoogleRefusedError,
     SignInRequiredError,
+    call_bound,
+    error_item,
     fetch_place_darray,
-    gather_bounded,
     iter_search_pages,
+    job_session,
     now_iso,
+    reporting,
     resolve_fid,
+    together,
 )
 from .parsers import parse_place
 from .schemas import GoogleMapsScrapeInput, PlaceItem
@@ -35,8 +43,15 @@ __all__ = ["SignInRequiredError", "iter_places", "scrape_places"]
 # round-trip, so overlapping them is what turns a 20-place enriched search from
 # ~50s into a handful of seconds. ``ponytail:`` a fixed ceiling — high enough to
 # hide latency, low enough not to trip Google/proxy rate limits; make it
-# configurable if a faster proxy pool ever wants more.
+# configurable if a faster proxy pool ever wants more. It matches the job
+# session's 8 streams: a place that fetches both its detail and its reviews
+# holds two, so half as many places run then, or requests would queue for a
+# stream past the hedge delay and hedges would fire on queueing, not slow exits.
 _DETAIL_CONCURRENCY = 8
+
+# Sources (URLs, place IDs, searches) scraped at once (GMP-5): each on its own
+# exit, so the rate each IP sees is unchanged.
+_SOURCE_CONCURRENCY = 6
 
 _SEARCH_PAGE_SIZE = 20
 
@@ -142,12 +157,17 @@ async def _enrich_from_detail(
 
     Search darrays are served without the session-gated extras (reviewsCount,
     distribution, popular times, galleries, tags, full about sections); the
-    detail RPC with an NID cookie has them all. Detail values win on overlap.
+    detail RPC has them all. Detail values win on overlap.
     """
     fid = fields.get("fid")
     if not fid:
         return fields
-    darray = await fetch_place_darray(fid, language=input_model.language)
+    try:
+        darray = await fetch_place_darray(fid, language=input_model.language)
+    except GoogleRefusedError as error:
+        # One refused place keeps its search fields; the search keeps the rest.
+        logger.warning("[google_maps] detail of %s: %s", fid, error)
+        return fields
     if not darray:
         return fields
     return {**fields, **parse_place(darray)}
@@ -170,8 +190,17 @@ async def _build_items(
     """
 
     async def _build(fields: dict[str, Any], fid: str, rank: int) -> dict[str, Any]:
-        if enrich:
+        fetched = None
+        if enrich and input_model.maxReviews:
+            # Both need only the fid: send them together, not one after the other.
+            fields, fetched = await together(
+                _enrich_from_detail(fields, input_model),
+                _place_reviews(fid, input_model),
+            )
+        elif enrich:
             fields = await _enrich_from_detail(fields, input_model)
+        elif input_model.maxReviews:
+            fetched = await _place_reviews(fid, input_model)
         _apply_image_cap(fields, input_model)
         item = PlaceItem(**fields)
         item.searchString = search_string
@@ -182,14 +211,19 @@ async def _build_items(
             f"https://www.google.com/maps/place/?q=place_id:{fields.get('placeId')}"
         )
         item.scrapedAt = now_iso()
-        if input_model.maxReviews:
-            await _attach_reviews(item, fid, input_model)
+        if fetched is not None:
+            _attach_reviews(item, fetched)
         return item.to_output()
 
-    return await gather_bounded(
-        [lambda c=c: _build(*c) for c in candidates],
-        concurrency=_DETAIL_CONCURRENCY,
-    )
+    per_place = 2 if enrich and input_model.maxReviews else 1
+    async with aclosing(
+        ordered_map(
+            candidates,
+            lambda c: _build(*c),
+            concurrency=max(1, _DETAIL_CONCURRENCY // per_place),
+        )
+    ) as items:
+        return [item async for item in items]
 
 
 async def _search_flow(
@@ -215,40 +249,44 @@ async def _search_flow(
 
     seen: set[str] = set()
     emitted = 0
-    async for darrays in iter_search_pages(
+    # aclosing: an early return cancels the wave's page fetches still in flight
+    # while the job's session is open, not later in the garbage collector.
+    pages = iter_search_pages(
         search_query,
         language=input_model.language,
         lat=lat,
         lng=lng,
         radius_m=radius_m,
         prefetch=_prefetch_for(cap),
-    ):
-        candidates: list[tuple[dict[str, Any], str, int]] = []
-        new_on_page = 0
-        for darray in darrays:
-            fields = parse_place(darray)
-            fid = fields.get("fid")
-            if not fid or fid in seen:
-                continue
-            seen.add(fid)
-            new_on_page += 1
-            if _passes_filters(fields, query, input_model):
-                candidates.append((fields, fid, len(seen)))
-        if cap is not None:
-            candidates = candidates[: max(0, cap - emitted)]
-        for out in await _build_items(
-            candidates,
-            input_model,
-            search_string=query,
-            search_page_url=search_page_url,
-            enrich=enrich,
-        ):
-            yield out
-            emitted += 1
-        if cap is not None and emitted >= cap:
-            return
-        if not new_on_page:  # page was all repeats -> feed is cycling, stop
-            return
+    )
+    async with aclosing(pages):
+        async for darrays in pages:
+            candidates: list[tuple[dict[str, Any], str, int]] = []
+            new_on_page = 0
+            for darray in darrays:
+                fields = parse_place(darray)
+                fid = fields.get("fid")
+                if not fid or fid in seen:
+                    continue
+                seen.add(fid)
+                new_on_page += 1
+                if _passes_filters(fields, query, input_model):
+                    candidates.append((fields, fid, len(seen)))
+            if cap is not None:
+                candidates = candidates[: max(0, cap - emitted)]
+            for out in await _build_items(
+                candidates,
+                input_model,
+                search_string=query,
+                search_page_url=search_page_url,
+                enrich=enrich,
+            ):
+                yield out
+                emitted += 1
+            if cap is not None and emitted >= cap:
+                return
+            if not new_on_page:  # page was all repeats -> feed is cycling, stop
+                return
 
 
 # Broad category sweep for allPlacesNoSearchAction. Apify's implementation
@@ -294,40 +332,42 @@ async def _all_places_flow(
     emitted = 0
     for term in _ALL_PLACES_SWEEP:
         search_query = f"{term} in {location}" if location else term
-        async for darrays in iter_search_pages(
+        pages = iter_search_pages(
             search_query,
             language=input_model.language,
             lat=lat,
             lng=lng,
             radius_m=radius_m,
             prefetch=_prefetch_for(cap),
-        ):
-            candidates: list[tuple[dict[str, Any], str, int]] = []
-            new_on_page = 0
-            for darray in darrays:
-                fields = parse_place(darray)
-                fid = fields.get("fid")
-                if not fid or fid in seen:
-                    continue
-                seen.add(fid)
-                new_on_page += 1
-                if _passes_filters(fields, "", input_model):
-                    candidates.append((fields, fid, len(seen)))
-            if cap is not None:
-                candidates = candidates[: max(0, cap - emitted)]
-            for out in await _build_items(
-                candidates,
-                input_model,
-                search_string=input_model.allPlacesNoSearchAction,
-                search_page_url=None,
-                enrich=enrich,
-            ):
-                yield out
-                emitted += 1
-            if cap is not None and emitted >= cap:
-                return
-            if not new_on_page:
-                break  # this term is exhausted; move to the next one
+        )
+        async with aclosing(pages):
+            async for darrays in pages:
+                candidates: list[tuple[dict[str, Any], str, int]] = []
+                new_on_page = 0
+                for darray in darrays:
+                    fields = parse_place(darray)
+                    fid = fields.get("fid")
+                    if not fid or fid in seen:
+                        continue
+                    seen.add(fid)
+                    new_on_page += 1
+                    if _passes_filters(fields, "", input_model):
+                        candidates.append((fields, fid, len(seen)))
+                if cap is not None:
+                    candidates = candidates[: max(0, cap - emitted)]
+                for out in await _build_items(
+                    candidates,
+                    input_model,
+                    search_string=input_model.allPlacesNoSearchAction,
+                    search_page_url=None,
+                    enrich=enrich,
+                ):
+                    yield out
+                    emitted += 1
+                if cap is not None and emitted >= cap:
+                    return
+                if not new_on_page:
+                    break  # this term is exhausted; move to the next one
 
 
 async def _place_flow(
@@ -340,11 +380,19 @@ async def _place_flow(
     into a ``PlaceItem``. When ``maxReviews > 0`` the place's reviews are
     attached inline (Apify puts them on ``reviews[]``).
     """
-    fid = await resolve_fid(resolved)
+    fid = await resolve_fid(resolved, language=input_model.language)
     if not fid:
         logger.warning("[google_maps] could not resolve feature id: %s", resolved.url)
         return
-    darray = await fetch_place_darray(fid, language=input_model.language)
+    fetched = None
+    if input_model.maxReviews:
+        # The detail and the reviews need only the fid: fetch them together.
+        darray, fetched = await together(
+            fetch_place_darray(fid, language=input_model.language),
+            _place_reviews(fid, input_model),
+        )
+    else:
+        darray = await fetch_place_darray(fid, language=input_model.language)
     if not darray:
         logger.warning(
             "[google_maps] no place data (structure may have shifted): %s", resolved.url
@@ -356,27 +404,41 @@ async def _place_flow(
     item.url = resolved.url
     item.searchString = f"Direct URL: {resolved.url}"
     item.scrapedAt = now_iso()
-    if input_model.maxReviews and fields.get("fid"):
-        await _attach_reviews(item, fields["fid"], input_model)
+    if fetched is not None:
+        _attach_reviews(item, fetched)
     yield item.to_output()
 
 
-async def _attach_reviews(
-    item: PlaceItem, fid: str, input_model: GoogleMapsScrapeInput
-) -> None:
-    """Populate ``item.reviews`` (and total count when knowable) from the feed."""
+async def _place_reviews(
+    fid: str, input_model: GoogleMapsScrapeInput
+) -> tuple[list[dict[str, Any]], int | None]:
+    """A place's reviews from the feed, as ``(reviews, exact_total_or_None)``.
+
+    A feed refused on every exit costs the place its reviews, not the place.
+    """
     from .reviews import collect_place_reviews
 
-    reviews, total = await collect_place_reviews(
-        fid,
-        max_reviews=input_model.maxReviews,
-        sort=input_model.reviewsSort,
-        language=input_model.language,
-        filter_string=input_model.reviewsFilterString,
-        origin=input_model.reviewsOrigin,
-        personal_data=input_model.scrapeReviewsPersonalData,
-        start_date=input_model.reviewsStartDate,
-    )
+    try:
+        return await collect_place_reviews(
+            fid,
+            max_reviews=input_model.maxReviews,
+            sort=input_model.reviewsSort,
+            language=input_model.language,
+            filter_string=input_model.reviewsFilterString,
+            origin=input_model.reviewsOrigin,
+            personal_data=input_model.scrapeReviewsPersonalData,
+            start_date=input_model.reviewsStartDate,
+        )
+    except GoogleRefusedError as error:
+        logger.warning("[google_maps] reviews of %s: %s", fid, error)
+        return [], None
+
+
+def _attach_reviews(
+    item: PlaceItem, fetched: tuple[list[dict[str, Any]], int | None]
+) -> None:
+    """Populate ``item.reviews`` (and total count when knowable)."""
+    reviews, total = fetched
     item.reviews = reviews
     if total is not None and item.reviewsCount is None:
         item.reviewsCount = total
@@ -414,37 +476,41 @@ async def iter_places(
 
     Apify runs searches, startUrls, and placeIds side by side (they are
     additive, unlike the YouTube scraper where startUrls override queries).
+    So do we: each source is one job on its own session, the jobs run at once
+    and their items come out in input order (startUrls, placeIds, searches,
+    then the allPlacesNoSearchAction sweep).
+    A source that fails on every exit becomes one error item naming it.
     """
+    jobs: list[tuple[str, AsyncIterator[dict[str, Any]]]] = []
     for entry in input_model.startUrls:
         resolved = resolve_url(entry.url)
         if not resolved:
             logger.warning("Unrecognized Google Maps URL: %s", entry.url)
             continue
-        async for item in _dispatch(resolved, input_model):
-            yield item
+        jobs.append((entry.url, _dispatch(resolved, input_model)))
+    for pid in input_model.placeIds:
+        jobs.append((pid, _place_id_flow(pid, input_model=input_model)))
+    for query in input_model.searchStringsArray:
+        jobs.append((query, _search_flow(query, input_model=input_model)))
+    if input_model.allPlacesNoSearchAction:
+        action = input_model.allPlacesNoSearchAction
+        jobs.append((action, _all_places_flow(input_model)))
 
-    # placeIds are independent single-place detail fetches (~2s each); run the
-    # batch concurrently, bounded, results in input order — a bulk list of IDs
-    # is the common case and was previously fully sequential.
-    if input_model.placeIds:
+    async def run(job: tuple[str, AsyncIterator[dict[str, Any]]]) -> list[dict]:
+        source, flow = job
+        try:
+            async with job_session(), aclosing(flow):
+                return [item async for item in flow]
+        except GoogleRefusedError as error:
+            logger.warning("[google_maps] %s: %s", source, error)
+            return [error_item(error, source)]
 
-        async def _collect(pid: str) -> list[dict[str, Any]]:
-            return [it async for it in _place_id_flow(pid, input_model=input_model)]
-
-        for items in await gather_bounded(
-            [lambda p=p: _collect(p) for p in input_model.placeIds],
-            concurrency=_DETAIL_CONCURRENCY,
-        ):
+    async with aclosing(
+        ordered_map(jobs, run, concurrency=_SOURCE_CONCURRENCY)
+    ) as results:
+        async for items in results:
             for item in items:
                 yield item
-
-    for query in input_model.searchStringsArray:
-        async for item in _search_flow(query, input_model=input_model):
-            yield item
-
-    if input_model.allPlacesNoSearchAction:
-        async for item in _all_places_flow(input_model):
-            yield item
 
 
 async def scrape_places(
@@ -452,18 +518,22 @@ async def scrape_places(
     *,
     limit: int | None = None,
     on_item: Callable[[int], Awaitable[None]] | None = None,
+    on_stage: Callable[[str], Awaitable[None]] | None = None,
 ) -> list[dict[str, Any]]:
     """Collect :func:`iter_places` into a list, honoring an optional ``limit``.
 
     ``limit`` is a request-time policy guard (used by the route), NOT a ceiling
-    in the streaming core. ``on_item`` hears the count after each item, for the
+    in the streaming core. ``on_item`` hears the count after each item and
+    ``on_stage`` each stage of the call (a page fetched, a retry), for the
     caller's progress.
     """
     results: list[dict[str, Any]] = []
-    async for item in iter_places(input_model):
-        results.append(item)
-        if on_item is not None:
-            await on_item(len(results))
-        if limit is not None and len(results) >= limit:
-            break
+    with reporting(on_stage), call_bound():
+        async with aclosing(iter_places(input_model)) as items:
+            async for item in items:
+                results.append(item)
+                if on_item is not None:
+                    await on_item(len(results))
+                if limit is not None and len(results) >= limit:
+                    break
     return results

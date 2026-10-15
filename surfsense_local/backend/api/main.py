@@ -51,7 +51,14 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
+from modules.llm.transcription.gate import TranscriptionGate
+from modules.llm.transcription.internal_router import (
+    router as transcription_windows_router,
+)
+from modules.llm.transcription.server import unload_speech_model
+from modules.llm.transcription.sessions import DictationSessions
 from modules.migration.router import router as migration_router
+from modules.plugins.license_verdict.routes import router as plugin_license_router
 from modules.plugins.lists.registry.routes import router as plugin_registry_router
 from modules.plugins.remote.sign_in.oauth.routes import router as plugin_oauth_router
 from modules.plugins.routes import router as plugins_router
@@ -207,6 +214,10 @@ def create_app() -> FastAPI:
     app.state.broker = EventBroker()  # No benefits from lifespan hooks.
     app.state.chat_runs = ChatRuns()
     app.state.local_admission = LocalAdmission()
+    app.state.dictations = DictationSessions()
+    app.state.transcription_gate = TranscriptionGate(
+        dictating=app.state.dictations.any_open, unload=unload_speech_model
+    )
     # Written into opencode's configuration; this process's turns only.
     app.state.agent_launch_key = mint_launch_key()
     app.include_router(health_router)
@@ -215,6 +226,7 @@ def create_app() -> FastAPI:
     app.include_router(folders_router)
     app.include_router(llm_router)
     app.include_router(model_route_router)
+    app.include_router(transcription_windows_router)
     app.include_router(chat_router)
     app.include_router(chat_runs_router)
     app.include_router(source_scope_router)
@@ -229,8 +241,9 @@ def create_app() -> FastAPI:
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
     app.include_router(office_pack_router)
-    # Before `/plugins/{id}/...`, which would otherwise take `registry` for an id.
+    # Before `/plugins/{id}/...`, which would otherwise take `registry` or `license` for an id.
     app.include_router(plugin_registry_router)
+    app.include_router(plugin_license_router)
     app.include_router(plugin_oauth_router)
     app.include_router(plugins_router)
     # Routes only opencode calls, or that answer it, exist only beside one.

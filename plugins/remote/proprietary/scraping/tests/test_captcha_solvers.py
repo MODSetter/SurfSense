@@ -102,6 +102,8 @@ class StandInCapsolver:
         self.balance = balance
         self.polls = 0
         self.tasks: list[dict] = []
+        # The client port of each request: one port is one kept connection.
+        self.ports: list[int] = []
         self.app = Starlette(
             routes=[
                 Route("/createTask", self._create, methods=["POST"]),
@@ -110,6 +112,7 @@ class StandInCapsolver:
         )
 
     async def _create(self, request: Request) -> JSONResponse:
+        self.ports.append(request.client.port if request.client else 0)
         if not self.balance:
             return JSONResponse(
                 {
@@ -122,6 +125,7 @@ class StandInCapsolver:
         return JSONResponse({"errorId": 0, "taskId": "t-1"})
 
     async def _result(self, request: Request) -> JSONResponse:
+        self.ports.append(request.client.port if request.client else 0)
         self.polls += 1
         if self.polls < 2:
             return JSONResponse({"errorId": 0, "status": "processing"})
@@ -164,6 +168,21 @@ async def test_an_enterprise_solve_goes_through_the_sticky_proxy(capsolver):
     assert vendor.tasks[0]["type"] == "ReCaptchaV2EnterpriseTask"
     assert vendor.tasks[0]["proxy"] == "http:gw.dataimpulse.com:823:user:pass"
     assert vendor.tasks[0]["enterprisePayload"] == {"s": "ds-1"}
+
+
+async def test_a_solve_keeps_one_connection_for_the_task_and_its_polls(capsolver):
+    """A new connection per poll paid a TLS handshake each time."""
+    vendor = capsolver(StandInCapsolver())
+
+    await solvers.solve(
+        _cfg(provider="capsolver"),
+        challenge_type="v2",
+        sitekey="SK",
+        page_url="https://www.google.com/sorry/index",
+    )
+
+    assert len(vendor.ports) == 3
+    assert len(set(vendor.ports)) == 1
 
 
 async def test_no_balance_is_an_error_the_caller_latches_on(capsolver):

@@ -155,3 +155,11 @@ def test_playwright_proxy_from_base_parse(monkeypatch: pytest.MonkeyPatch) -> No
         "username": "acct-country-us",
         "password": "secret",
     }
+
+
+def test_sticky_slot_is_the_id_the_username_carries() -> None:
+    """Ids that sanitise to the same sid share an IP, so they share a lease slot."""
+    provider = NodeMavenProvider()
+
+    assert provider.sticky_slot("ab-12") == provider.sticky_slot("ab12") == "ab12"
+    assert provider.sticky_slot("ab13") != provider.sticky_slot("ab12")

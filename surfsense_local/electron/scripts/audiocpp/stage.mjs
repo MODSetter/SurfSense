@@ -1,5 +1,6 @@
 // `pnpm build:audiocpp`: stage audio.cpp's server and eSpeak-ng into
-// electron/audiocpp, swapped in whole once the server lists its devices.
+// electron/audiocpp, swapped in whole once the server lists its devices and
+// has a loader for every curated family.
 // macOS downloads upstream's archive; Windows and Linux compile the pinned
 // source. Without a toolchain the app runs without local audio, unless
 // --strict, which release CI and `pnpm dist` pass.
@@ -9,6 +10,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { verifyBuiltFamilies } from "./built-families.mjs"
 import { compile, missingToolchain } from "./compile.mjs"
 import { stageEspeak } from "./espeak.mjs"
 import { copyMsvcRuntime } from "../msvc-runtime.mjs"
@@ -69,6 +71,7 @@ async function main() {
     return
   }
 
+  const started = Date.now()
   const work = mkdtempSync(join(tmpdir(), "surfsense-audiocpp-"))
   const stage = `${OUT}.stage-${process.pid}`
   const backup = `${OUT}.old-${process.pid}`
@@ -82,6 +85,7 @@ async function main() {
     if (process.platform === "win32") copyMsvcRuntime(stage)
     await stageEspeak(work, stage)
     verifyStage(stage)
+    await verifyBuiltFamilies(stage)
 
     rmSync(backup, { recursive: true, force: true })
     if (existsSync(OUT)) renameSync(OUT, backup)
@@ -92,7 +96,8 @@ async function main() {
       throw error
     }
     rmSync(backup, { recursive: true, force: true })
-    console.log(`audio.cpp ${TAG} staged in ${OUT}: ${megabytes(OUT)} MB`)
+    const minutes = ((Date.now() - started) / 60_000).toFixed(1)
+    console.log(`audio.cpp ${TAG} staged in ${OUT}: ${megabytes(OUT)} MB, in ${minutes} min`)
   } finally {
     rmSync(work, { recursive: true, force: true })
     rmSync(stage, { recursive: true, force: true })

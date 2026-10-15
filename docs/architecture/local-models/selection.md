@@ -7,13 +7,14 @@ computed on read and never stored, so a threshold can move on evidence without a
 migration or a re-selection. Finishing onboarding is a separate marker that
 choosing or clearing a model never touches.
 
-**Code:** [`surfsense_local/backend/modules/llm/selection.py`](../../../surfsense_local/backend/modules/llm/selection.py), [`surfsense_local/backend/modules/llm/model_type.py`](../../../surfsense_local/backend/modules/llm/model_type.py), [`surfsense_local/backend/modules/llm/selectable.py`](../../../surfsense_local/backend/modules/llm/selectable.py), [`surfsense_local/backend/modules/llm/models.py`](../../../surfsense_local/backend/modules/llm/models.py), [`surfsense_local/backend/modules/llm/profile/`](../../../surfsense_local/backend/modules/llm/profile/), [`surfsense_local/backend/modules/llm/prompting/`](../../../surfsense_local/backend/modules/llm/prompting/), [`surfsense_local/backend/modules/llm/resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py), [`surfsense_local/backend/modules/llm/router.py`](../../../surfsense_local/backend/modules/llm/router.py)
+**Code:** [`surfsense_local/backend/modules/llm/selection.py`](../../../surfsense_local/backend/modules/llm/selection.py), [`surfsense_local/backend/modules/llm/model_type.py`](../../../surfsense_local/backend/modules/llm/model_type.py), [`surfsense_local/backend/modules/llm/selectable.py`](../../../surfsense_local/backend/modules/llm/selectable.py), [`surfsense_local/backend/modules/llm/models.py`](../../../surfsense_local/backend/modules/llm/models.py), [`surfsense_local/backend/modules/llm/profile/`](../../../surfsense_local/backend/modules/llm/profile/), [`surfsense_local/backend/modules/llm/prompting/`](../../../surfsense_local/backend/modules/llm/prompting/), [`surfsense_local/backend/modules/llm/resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py), [`surfsense_local/backend/modules/llm/router.py`](../../../surfsense_local/backend/modules/llm/router.py), [`surfsense_local/backend/modules/llm/transcription/`](../../../surfsense_local/backend/modules/llm/transcription/)
 **Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md)
 
 ## One row per model type
 
 `ModelType` is what a model is for: `text_gen`, `image_gen`, `image_edit`,
-`video_gen` or `audio_gen`. There are no separate roles; the type is the slot.
+`video_gen`, `audio_gen` or `speech_to_text`. There are no separate roles; the
+type is the slot.
 `SelectedModel` holds one row per type in `selected_models`, keyed by
 `model_type`, so choosing again updates in place.
 
@@ -24,6 +25,7 @@ choosing or clearing a model never touches.
 | `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | Studio's `podcast` |
 | `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
+| `speech_to_text` | `audiocpp`, a recogniser, run on a second audio.cpp server | none: local only | the transcription routes ([admission](admission.md#speech-recognition)), which a recording's ingest calls ([documents](../documents.md#recordings)) |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -36,12 +38,19 @@ belongs to the library's index, fixed when onboarding finishes
 `selectable_for` never offers `embedding`, not even to a model nothing
 recognises, and both `/llm/selection/{model_type}` routes answer `422` for it.
 
+`speech_to_text` is a slot, since speech models change freely as voices do, but
+a local-only one: no remote speech client exists to call a recogniser.
+`LOCAL_ONLY` in the same file names it, so a model nothing recognises fills
+every slot but it, and a connection serves `REMOTE_SLOTS`, every slot but it,
+which a confirmed unlisted model does not get round.
+
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
 when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
 `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and
-`video_gen` (revision `0018`), and `audiocpp` only `audio_gen`, and deleting a
-connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
+`video_gen` (revision `0018`), and `audiocpp` only `audio_gen` and
+`speech_to_text` (revision `0030`), and deleting a connection cascades to the
+rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
 `GET /llm/selection/{model_type}` returns the row with its computed `tier`, or
@@ -60,16 +69,18 @@ fingerprints and stores:
   `edit`, and `video_gen` for a model with a `video` block. FLUX.2 klein fills
   both image slots from the same files; SD 1.5 is refused for editing, and
   every image model for video.
-- **Local audio** (`audiocpp`): the type must be `audio_gen`, there is no
-  connection, and the name must be a curated audio build installed in the
-  audio folder or shipped in the models pack, named by its weights file as a
-  chat build is.
+- **Local audio** (`audiocpp`): there is no connection, and the name is a
+  curated build named by its weights file as a chat build is. For `audio_gen`
+  it must be a voice model, whose entry has an `audio` block, installed in the
+  audio folder or shipped in the models pack; for `speech_to_text`, a
+  recogniser, whose entry has a `transcription` block, installed in the audio
+  folder. Nemotron is refused for voices and Kokoro for speech recognition.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
   id anyway. Otherwise the model must be able to fill the slot, by one rule in
   `selectable.py`: a model fills the slots of the types it is, and one nothing
-  recognises fills every slot. The connection's model listing sends the same
+  recognises fills every slot but `speech_to_text`. The connection's model listing sends the same
   answer as `selectable_for`, so every picker offers what selection accepts. Remote
   inventory is discovered live and never synchronized into SQLite
   ([`../connections.md`](../connections.md)).
@@ -80,9 +91,15 @@ and choosing a model is when the user has said they are about to use it
 ([`runtime.md`](runtime.md#warming-listed-is-not-loaded)). Any other provider
 loads nothing.
 
+Choosing a `speech_to_text` model, through the route or an install with
+`select: true`, queues again every recording that failed for want of one, at
+`PRIORITY_BULK` ([documents](../documents.md#no-speech-model-yet)).
+
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears every row of the
-types its engine fills that named it, `image_gen` and `image_edit` both for a
+([`catalog.md`](catalog.md)) and fills the row's own first slot unless the
+request names another, so Nemotron's install fills `speech_to_text` though
+audio.cpp's first type is `audio_gen`. Deleting a local model clears every row
+of the types its engine fills that named it, `image_gen` and `image_edit` both for a
 model chosen for each, and reports
 `selection_cleared`; nothing chooses another
 model in its place, except that at the next start an empty `audio_gen` row takes
@@ -225,7 +242,29 @@ bundled runtime ([`runtime.md`](runtime.md)). An `openai_compatible` row resolve
 to its connection, and `egress.require()` checks the connection's host, which is
 a no-op for a loopback host, so a local LM Studio or Ollama endpoint never
 prompts. `resolve_image_generation()` does the same for sd-server or a
-connection.
+connection. `resolve_speech_to_text()` reads the `speech_to_text` row and
+returns it with its installed recogniser: the file, the family the server
+dispatches on, and the entry's languages and locales. With no row, or one whose
+model is gone, it raises `NoSpeechModelError`, which a route answers as `409`
+with the code `needs_speech_model`.
+
+## The speech model's language
+
+`GET /llm/selection/speech_to_text/language` answers `{language, languages,
+detects_language}`: the language the user says they speak, `auto` or an ISO
+639-1 code; the codes the model is listed for, best first; and whether `auto`
+detects. `PUT` takes `{language}` and answers the same. A code the model is not
+listed for is `422`, Estonian included, which Nemotron detects at lower
+accuracy. Both answer `409` `needs_speech_model` without a speech model.
+
+The intent lives in the row's `settings` under `transcription`, as
+`{"language": "ja"}`, read and written only by
+[`language_intent.py`](../../../surfsense_local/backend/modules/llm/transcription/language_intent.py).
+A kept language the model no longer lists reads as `auto`, and nothing rewrites
+it from a detection. A request names the language's locale from the entry's
+`family_codes` (`ja-JP` for Nemotron), and `auto` names none, so the model
+detects it. Like voices, it is dropped when the slot takes another
+model; choosing the same model again keeps it.
 
 ## Capabilities and the system role
 
@@ -297,7 +336,9 @@ covers `classify()` and fingerprinting, and
 [`surfsense_local/backend/tests/unit/llm/prompting/`](../../../surfsense_local/backend/tests/unit/llm/prompting/)
 asserts every case ships all three tiers and that slots fill.
 `tests/integration/llm/test_routes.py` covers selection, onboarding and delete
-over HTTP.
+over HTTP; `test_speech_catalog_routes.py` and `test_speech_language_routes.py`
+beside it cover the speech recognition slot, which model fills it and its
+language, and `test_connections.py` that no connection fills it.
 
 ## Known gaps
 

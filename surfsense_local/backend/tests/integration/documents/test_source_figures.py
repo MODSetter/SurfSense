@@ -130,7 +130,8 @@ def test_a_source_still_being_ingested_waits_for_its_own_ingest(
 def test_sources_that_hold_no_figures_list_none(
     session: Session, workspace: Workspace
 ) -> None:
-    """Notes, Studio outputs, plain text and failed sources have nothing to extract."""
+    """Notes, Studio outputs, plain text, recordings and failed sources have
+    nothing to extract: Docling must never read a recording."""
     note = Document(
         workspace_id=workspace.id,
         title="Ideas",
@@ -141,11 +142,12 @@ def test_sources_that_hold_no_figures_list_none(
     session.add(note)
     session.commit()
     text = add_source(session, workspace, filename="notes.md")
+    recording = add_source(session, workspace, filename="standup.mp3")
     failed = add_source(
         session, workspace, filename="broken.pdf", status=DocumentStatus.FAILED
     )
 
-    for source in (note, text, failed):
+    for source in (note, text, recording, failed):
         assert list_figures(session, workspace.id, source.id) == []
     assert queued() == []
 
