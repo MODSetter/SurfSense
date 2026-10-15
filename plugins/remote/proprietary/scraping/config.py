@@ -16,3 +16,12 @@ class Config:
     # The captcha solver, `capsolver` or `2captcha`, and its key. No key, no solves.
     CAPTCHA_PROVIDER = os.getenv("SCRAPING_CAPTCHA_PROVIDER", "capsolver")
     CAPTCHA_API_KEY = os.getenv("SCRAPING_CAPTCHA_API_KEY")
+
+    # Requests in flight through scraping/http.py at once, across every plugin: what
+    # the host lets the proxy plan see. A request over the limit waits its turn.
+    MAX_HTTP = int(os.getenv("SCRAPING_MAX_HTTP", "48"))
+    # Keep-alive sessions kept warm between tool calls by plugins that ask for it
+    # (scraping/sessions.py). 0 turns that reuse off everywhere.
+    MAX_IDLE_SESSIONS = int(os.getenv("SCRAPING_MAX_IDLE_SESSIONS", "16"))
+    # 0 turns hedging off: scraping/concurrency.hedged then runs only the first attempt.
+    HEDGE = os.getenv("SCRAPING_HEDGE", "1") != "0"

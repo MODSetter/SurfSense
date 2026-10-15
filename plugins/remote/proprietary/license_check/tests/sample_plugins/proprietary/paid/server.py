@@ -1,9 +1,9 @@
 from mcp.server.mcpserver import MCPServer
 
-from proprietary.license_check.license_access import LicenseAccess
+from proprietary.license_check.license_access import shared_access
 
 # As a real paid plugin: Keygen's settings come from the environment the test sets.
-access = LicenseAccess()
+access = shared_access()
 
 
 def server() -> MCPServer:

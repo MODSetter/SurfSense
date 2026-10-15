@@ -7,11 +7,15 @@ on:
   pull_request:
     branches: [main, dev]
     types: [opened, synchronize, reopened, ready_for_review]
+  # A merge that breaks dev shows here, not on the next pull request.
+  push:
+    branches: [dev]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A later push to dev must not cancel the run that checks the one before it.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Filtered per job, not per workflow: a workflow skipped by its paths leaves
@@ -19,6 +23,7 @@ jobs:
   changes:
     name: Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event.pull_request.draft == false
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
@@ -29,7 +34,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # A manual run has no pull request to diff; it starts every job instead.
+      # A push or a manual run has no pull request to diff; it starts every job instead.
       - name: Filter changed paths
         id: filter
         if: github.event_name == 'pull_request'
@@ -57,10 +62,21 @@ jobs:
               - '.github/workflows/desktop-tests.yml'
 
   backend:
-    name: Backend
-    runs-on: ubuntu-latest
+    name: Backend (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+    if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true'
+    # Hard links, file locks, long paths and the staging rename differ by OS.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    env:
+      # The runner's macOS Python cannot load SQLite extensions, which sqlite_vec
+      # needs; the release freezes with uv's own Python (release-local.yml).
+      UV_PYTHON_PREFERENCE: only-managed
 
     steps:
       - name: Checkout code
@@ -97,8 +113,9 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
 
     steps:
       - name: Checkout code
@@ -150,10 +167,15 @@ jobs:
         run: pnpm test
 
   electron:
-    name: Electron
-    runs-on: ubuntu-latest
+    name: Electron (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true'
+    if: github.event_name != 'pull_request' || needs.changes.outputs.electron == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - name: Checkout code
@@ -190,6 +212,7 @@ jobs:
   gate:
     name: Desktop Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [changes, backend, frontend, electron]
     if: always()
 

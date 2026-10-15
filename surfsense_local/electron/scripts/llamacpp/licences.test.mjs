@@ -40,10 +40,10 @@ test("a Windows archive gets llama.cpp's licence from the kept copy, and OpenMP'
 })
 
 test("a macOS or Linux archive's own licence is staged when it matches the kept copy", (t) => {
-  const { source, stage } = unpacked(t, { "llama-server": "", LICENSE: pinned().replace(/\n/g, "\r\n") })
+  const { source, stage } = unpacked(t, { "llama-server": "", LICENSE: pinned().replace(/\r?\n/g, "\r\n") })
 
   assert.deepEqual(stageLicences(source, stage), ["LICENSE"])
-  assert.equal(readFileSync(join(stage, "LICENSE"), "utf8"), pinned().replace(/\n/g, "\r\n"))
+  assert.equal(readFileSync(join(stage, "LICENSE"), "utf8"), pinned().replace(/\r?\n/g, "\r\n"))
 })
 
 test("an archive whose licence differs from the kept copy stops the fetch", (t) => {

@@ -5,7 +5,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.documents.recordings.awaiting import mark_awaiting_pending, queue_requeued
 from modules.embedding.choose import lock_chosen
+from modules.events.broker import EventBroker
 from modules.llm.capability.modes import carried_to_next_model
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.listing import connection_models
@@ -31,7 +33,9 @@ async def choose_model(
     *,
     connection_id: int | None = None,
     allow_unlisted: bool = False,
+    broker: EventBroker | None = None,
 ) -> SelectedModel:
+    """`broker` tells open windows of recordings a speech model queues again."""
     model_name = model_name.strip()
     if not model_name:
         raise HTTPException(
@@ -65,6 +69,9 @@ async def choose_model(
         model_name,
         fingerprint,
     )
+    if model_type is ModelType.SPEECH_TO_TEXT:
+        # Recordings uploaded before any speech model waited for this one.
+        queue_requeued(await transact(session, mark_awaiting_pending), broker)
     logger.info(
         "llm: %s model %s/%s gets the %s prompt (params_b=%s vendor=%s line=%s)",
         model_type.value,
@@ -173,9 +180,10 @@ def _validate_local_image(
 def _validate_local_audio(
     model_type: ModelType, model_name: str, connection_id: int | None
 ) -> None:
-    """The bundled audio.cpp server fills the audio_gen slot, and only once
-    downloaded: Electron starts it on what `server.json` names."""
-    if model_type is not ModelType.AUDIO_GEN:
+    """The bundled audio.cpp servers fill the audio_gen slot with an installed
+    voice model and speech_to_text with an installed recogniser: Electron
+    starts each on what its config names."""
+    if model_type not in (ModelType.AUDIO_GEN, ModelType.SPEECH_TO_TEXT):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"the local audio runtime does not serve {model_type}",
@@ -185,10 +193,16 @@ def _validate_local_audio(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "local selections must not include a connection",
         )
-    if not get_local_catalog().audiocpp.holds(model_name):
+    engine = get_local_catalog().audiocpp
+    installed = (
+        engine.installed_model(model_name)
+        if model_type is ModelType.AUDIO_GEN
+        else engine.installed_recogniser(model_name)
+    )
+    if installed is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"audio model is not installed: {model_name}",
+            f"no installed audio model serves {model_type}: {model_name}",
         )
 
 

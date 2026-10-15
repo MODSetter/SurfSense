@@ -7,6 +7,7 @@ import test from "node:test"
 
 import { getFreePort } from "../net.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./opencode-leftovers.ts"
+import { isWindows } from "./platform.ts"
 
 const HOST = "127.0.0.1"
 
@@ -46,7 +47,7 @@ test("stops an opencode a crashed run left, once its password proves it is ours"
   const agentDir = mkdtempSync(join(tmpdir(), "leftovers-"))
   const port = await getFreePort(HOST)
   const pid = await leftover({ PORT: String(port), PASSWORD: "old-launch" })
-  recordOpencode(agentDir, { pid, port, password: "old-launch" })
+  recordOpencode(agentDir, { pid, port, password: "old-launch" }) // pragma: allowlist secret
 
   await stopLeftoverOpencode(agentDir, HOST)
   await new Promise((resolve) => setTimeout(resolve, 200)) // let the OS reap it
@@ -60,13 +61,14 @@ test("leaves a process alone when the record no longer opens it", async () => {
   const port = await getFreePort(HOST)
   const pid = await leftover({ PORT: String(port), PASSWORD: "someone-else" })
   try {
-    recordOpencode(agentDir, { pid, port, password: "old-launch" })
+    recordOpencode(agentDir, { pid, port, password: "old-launch" }) // pragma: allowlist secret
 
     await stopLeftoverOpencode(agentDir, HOST)
 
     assert.equal(isAlive(pid), true)
     assert.equal(existsSync(join(agentDir, "opencode-process.json")), false)
   } finally {
-    process.kill(-pid, "SIGKILL")
+    // Windows has no process groups, and the fake has no children to reach.
+    process.kill(isWindows ? pid : -pid, "SIGKILL")
   }
 })

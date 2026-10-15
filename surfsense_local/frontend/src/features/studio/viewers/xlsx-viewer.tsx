@@ -191,9 +191,10 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
           className="flex shrink-0 gap-1 overflow-x-auto border-b border-neutral-200 px-2 py-1.5"
         >
           {view.sheets.map((entry, index) => (
-            <button
+            <Button
               key={entry.name}
               type="button"
+              variant="bare"
               role="tab"
               aria-selected={index === active}
               className={
@@ -204,7 +205,7 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
               onClick={() => setActive(index)}
             >
               {entry.name}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}

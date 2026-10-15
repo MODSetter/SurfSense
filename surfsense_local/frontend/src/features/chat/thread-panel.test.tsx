@@ -1,7 +1,25 @@
 import type { ComponentProps } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, screen } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 
+import { fakeMicrophone } from "@/features/dictation/capture/fake-microphone"
+import {
+  createDictation,
+  type Dictation,
+} from "@/features/dictation/dictation-adapter"
+import {
+  fakeDictationApi,
+  held,
+  said,
+} from "@/features/dictation/fake-dictation-api"
+import type { ModelSelection } from "@/features/models/selection/api"
 import { render } from "@/test-utils"
 
 import type { ChatMessage } from "./api"
@@ -51,22 +69,36 @@ const HISTORY = [
   }),
 ]
 
+const MODEL: ModelSelection = {
+  model_type: "text_gen",
+  provider: "llamacpp",
+  connection_id: null,
+  name: "Qwen3-1.7B-Q4_K_M",
+  updated_at: "2026-09-05T00:00:00Z",
+}
+
 function panel(handlers: {
   onRetry: (assistantId: string) => void
   onCitation?: (chunkId: number) => void
+  dictation?: Dictation
+  threadId?: number
 }) {
+  const threadId = handlers.threadId ?? THREAD.id
   const props: ComponentProps<typeof ThreadPanel> = {
     live: {
-      threadId: THREAD.id,
+      threadId,
       persistedMessages: HISTORY,
-      adapters: undefined,
+      adapters: handlers.dictation
+        ? { dictation: handlers.dictation }
+        : undefined,
       isSendDisabled: false,
       onNew: async () => undefined,
       onCancel: async () => undefined,
     },
-    thread: THREAD,
-    view: { status: "active", threadId: THREAD.id },
-    model: null,
+    thread: { ...THREAD, id: threadId },
+    view: { status: "active", threadId },
+    model: handlers.dictation ? MODEL : null,
+    dictation: handlers.dictation,
     isLoading: false,
     isRunning: false,
     animateTitle: false,
@@ -125,5 +157,39 @@ describe("thread panel", () => {
     expect(replies).not.toHaveBeenCalled()
     expect(latest).toHaveBeenCalledWith("6")
     expect(first).not.toHaveBeenCalled()
+  })
+
+  it("cancels voice input on a thread switch, so nothing lands in the next thread", async () => {
+    const api = fakeDictationApi()
+    const late = held(() => Response.json(said("For the first thread.")))
+    api.answer(late.answer)
+    vi.mocked(fetch).mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) =>
+        (await api.handle(String(input), init)) ?? Response.json([])
+    )
+    const mic = fakeMicrophone()
+    const dictation = createDictation({ openMicrophone: mic.open })
+    const user = userEvent.setup()
+    const { rerender } = render(panel({ onRetry: () => undefined, dictation }))
+
+    await user.click(
+      await screen.findByRole("button", { name: "Start voice input" })
+    )
+    await waitFor(() => expect(mic.state.open).toBe(true))
+    act(() => mic.say())
+    await waitFor(() => expect(api.phrases).toHaveLength(1))
+    rerender(panel({ onRetry: () => undefined, dictation, threadId: 2 }))
+
+    expect(mic.state.open).toBe(false)
+    late.release()
+    await waitFor(() =>
+      expect(api.calls).toContain("DELETE /llm/transcription/dictations/d1")
+    )
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(
+      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+        .value
+    ).toBe("")
+    expect(dictation.getView().phase).toBe("idle")
   })
 })

@@ -10,6 +10,7 @@ import {
 } from "react"
 import { Streamdown, defaultRehypePlugins } from "streamdown"
 
+import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import {
@@ -256,7 +257,8 @@ function ReplyHeader({
       </span>
       {/* Disabled, not swapped for a plain element, until there is a trace to
           open: swapping would remount the header and restart its motion. */}
-      <button
+      <Button
+        variant="bare"
         type="button"
         id={toggleId}
         disabled={!reasoning}
@@ -266,7 +268,7 @@ function ReplyHeader({
           lockChatScroll()
           setChosen(!open)
         }}
-        className="group/thinking flex h-8 max-w-full items-center gap-2.5 rounded-md text-sm text-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none enabled:hover:text-foreground"
+        className="group/thinking flex h-8 max-w-full items-center gap-2.5 rounded-md text-sm text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring enabled:hover:text-foreground disabled:opacity-100"
       >
         <HeaderLead active={working}>{label}</HeaderLead>
         {reasoning ? (
@@ -279,7 +281,7 @@ function ReplyHeader({
             )}
           />
         ) : null}
-      </button>
+      </Button>
       {reasoning ? (
         // Stays mounted so it can slide shut; inert while folded so the
         // hidden trace is out of reach.

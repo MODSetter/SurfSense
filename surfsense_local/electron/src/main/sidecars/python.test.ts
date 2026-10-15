@@ -128,3 +128,34 @@ test("without a staged opencode the API is told of no agent", () => {
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_URL, undefined)
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_PASSWORD, undefined)
 })
+
+/** The context boot builds on a host where audio.cpp is staged. */
+function withTranscription(): SidecarContext {
+  return {
+    ...withAudio(),
+    transcriptionPort: 9997,
+    transcriptionUrl: "http://127.0.0.1:9997",
+  }
+}
+
+test("the API is told where the speech recognition server is", () => {
+  const api = apiSpec(withTranscription()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, "http://127.0.0.1:9997")
+})
+
+test("a worker is never told where the speech recognition server is", () => {
+  // Every request goes through the API's gate, which puts dictation first.
+  for (const queue of ["ingest", "studio"] as const) {
+    const worker = workerSpec(withTranscription(), queue).env
+
+    assert.equal(worker.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined, queue)
+  }
+})
+
+test("without a staged audio.cpp the API is told of no speech recognition server", () => {
+  const ctx = withTranscription()
+  const api = apiSpec({ ...ctx, audioBinariesDir: join(ctx.binariesDir, "absent") }).env
+
+  assert.equal(api.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined)
+})

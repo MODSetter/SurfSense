@@ -6,7 +6,8 @@ export const COMMIT = "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58" // pragma: allo
 export const SOURCE = "https://github.com/0xShug0/audio.cpp.git"
 
 // The families the app curates: the only ones built, and their specs ship.
-export const FAMILIES = ["kokoro_tts", "supertonic", "kitten_tts"]
+// The voices', then Nemotron's for speech recognition.
+export const FAMILIES = ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr"]
 
 // macOS takes upstream's archive, which meets the app's floor there.
 export const MAC_ARCHIVE = {
@@ -16,6 +17,7 @@ export const MAC_ARCHIVE = {
 
 // eSpeak-ng 1.52.0 as the espeakng-loader wheel packages it, GPL-3.0-or-later.
 // Kokoro and Kitten phonemise through it, and audio.cpp does not ship it.
+export const ESPEAK_VERSION = "1.52.0"
 const WHEELS = "https://files.pythonhosted.org/packages"
 export const ESPEAK = {
   darwin: {
@@ -37,6 +39,6 @@ export const ESPEAK = {
 
 // The wheel carries no licence text, and the GPL requires it beside the library.
 export const ESPEAK_LICENCE = {
-  url: "https://raw.githubusercontent.com/espeak-ng/espeak-ng/1.52.0/COPYING",
+  url: `https://raw.githubusercontent.com/espeak-ng/espeak-ng/${ESPEAK_VERSION}/COPYING`,
   sha256: "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903", // pragma: allowlist secret
 }

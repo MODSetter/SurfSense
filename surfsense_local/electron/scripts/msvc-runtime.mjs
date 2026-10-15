@@ -31,6 +31,34 @@ export function visualStudio() {
   return path || null
 }
 
+/** CMake's generator for that Visual Studio, such as "Visual Studio 17 2022", or null. */
+export function visualStudioGenerator() {
+  if (!existsSync(VSWHERE)) return null
+  const [found] = JSON.parse(
+    execFileSync(
+      VSWHERE,
+      [
+        "-latest",
+        "-products",
+        "*",
+        "-requires",
+        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-format",
+        "json",
+        "-utf8",
+      ],
+      { encoding: "utf8" }
+    )
+  )
+  const year = found?.catalog?.productLineVersion
+  return found && year ? generatorName(found.installationVersion, year) : null
+}
+
+/** CMake names a Visual Studio by its major version and its year. */
+export function generatorName(installationVersion, productLineVersion) {
+  return `Visual Studio ${installationVersion.split(".")[0]} ${productLineVersion}`
+}
+
 const byVersion = (a, b) => {
   const [x, y] = [a, b].map((v) => v.split(".").map(Number))
   for (let i = 0; i < Math.max(x.length, y.length); i++) {

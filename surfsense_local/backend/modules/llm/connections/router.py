@@ -26,6 +26,7 @@ from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
     OpenAICompatibleImageProvider,
 )
+from modules.llm.providers.openai_compatible.chat import StreamedError
 from modules.llm.providers.openai_compatible.speech import (
     NonRetryableSpeechError,
     RemoteSpeech,
@@ -319,6 +320,10 @@ async def test_connection_chat(
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             detail={"code": "plan_limit", "message": str(error)},
+        ) from error
+    except StreamedError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"chat request failed: {error}"
         ) from error
     except httpx.HTTPError as error:
         raise HTTPException(

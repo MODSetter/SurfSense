@@ -28,8 +28,12 @@ Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/
 its types (for an image model, the `tasks` its entry names: `generate` is `image_gen`, `edit` is `image_edit`), to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
 run it and why not, the `engine` that offered it, its builds, the build it leads
-with and why, and the star. An audio row adds `voicing`: the memory measured while
-voicing, the voice count and the languages, from its manifest entry. Each build is a set of files with roles, and carries
+with and why, and the star. A voice model's row adds `voicing`: the memory measured while
+voicing, the voice count and the languages, from its manifest entry. A speech
+recogniser's adds `transcription` instead: `peak_mb`, the memory of a first
+request with the load; `window_s`, the longest window a request carries;
+`detects_language`; and `languages`, the ISO 639-1 codes it is listed for, best
+first. Each build is a set of files with roles, and carries
 its fit, badge, whether it is installed, whether it is recommended, and whether it
 reads images. An image or audio build's `fit` and `badge` are `null`: neither
 sd.cpp nor audio.cpp has a fit estimate, so the row states the download size and
@@ -40,8 +44,9 @@ of them.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
-audio.cpp's are the three curated audio models, only when Electron handed the API
-an audio folder, which it does only when it staged audio.cpp's server.
+audio.cpp's are the three curated voice models and the one speech recogniser,
+Nemotron 3.5 ASR Streaming 0.6B, only when Electron handed the API an audio
+folder, which it does only when it staged audio.cpp's server.
 onnxruntime's are the curated embedders, then any Hugging Face embedder
 downloaded and checked ([embedding](../embedding.md)), always: they run in the API and the
 workers, so no runtime has to be staged. An embedder row adds `description`, what
@@ -78,21 +83,25 @@ file of a build lands in it (`landing`), its rows, whether it `holds` an install
 `after_install` (llama.cpp rewrites the preset, waits for the router and warms
 the model; sd.cpp has nothing to do, since sd-server takes its model at launch,
 for the Studio job that needs it;
-audio.cpp rewrites `server.json`), what to settle `after_remove` (audio.cpp
-rewrites `server.json`), and what to do `on_startup` (llama.cpp writes the
-preset; sd.cpp records legacy downloads; audio.cpp writes `server.json`).
+audio.cpp rewrites `server.json` for a voice model, and writes
+`transcription.json` for either), what to settle `after_remove` (audio.cpp
+rewrites `server.json` and writes `transcription.json`), and what to do
+`on_startup` (llama.cpp writes the preset; sd.cpp records legacy downloads;
+audio.cpp writes both).
 When a catalog read finds a readable llama.cpp model copied into the folder
 that the preset does not name, it rewrites the preset once; later reads with no
 new model leave it alone, so Electron does not restart the router repeatedly.
-The selection an install fills is the engine's `model_type` and `provider`.
+The selection an install fills is the row's first slot, or the type the request
+names, under the engine's `provider`; audio.cpp fills `audio_gen` with a voice
+model and `speech_to_text` with a recogniser.
 
 | | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) | [`engines/onnxruntime/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/onnxruntime/) |
 |---|---|---|---|---|
 | Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) | the repo config's `model_type`, and its pipeline tag |
-| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio`: voices, languages, sample rate, measured memory (required) | `embedding`: width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`, `batch`, and `parity` for a converted build (required) |
+| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio` for a voice model: voices, languages, sample rate, measured memory; or `transcription` for a recogniser: languages, locales, request options, window, measured memory (one of them, required) | `embedding`: width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`, `batch`, and `parity` for a converted build (required) |
 | Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) | the ONNX weights the entry names, with the repo's `tokenizer.json`, which every build must carry |
 | Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | its only build: another would be another vector space |
-| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed models, `server.json` | `embeddings/<id>/` under the data directory, not the models pack, which a packaged app ships read-only; bge-small is read in place from the pack |
+| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed voice models and recognisers, `server.json` and `transcription.json` | `embeddings/<id>/` under the data directory, not the models pack, which a packaged app ships read-only; bge-small is read in place from the pack |
 | Also | support, pricing, the recommended build, the lead build, the star, search | | | `spec_for`: an entry as the spec an index stores |
 
 A slice holds what the catalog knows about a runtime. Running it stays outside
@@ -151,8 +160,9 @@ preferred first, and nothing in it is a score.
 - **An entry carries its engine's fields and no others.** The classifier reads
   `evidence`, the registry names the engine, and the engine names the fields it
   reads and the ones it needs. A text model needs `context`; an image model
-  needs `image` defaults, a video model `video` ones, never both, and an audio
-  model needs `audio`, and none of them carries
+  needs `image` defaults, a video model `video` ones, never both; an audio.cpp
+  voice model needs `audio` and a recogniser `transcription`, never both, the
+  one its type names; and none of them carries
   `context`, `shape`, `template` or `sampling`, because sd.cpp and audio.cpp read
   none of them. A field no engine reads would be reviewed and trusted while doing
   nothing. `validated` records `llama_cpp`, `sd_cpp` or `audio_cpp`, the runtime
@@ -167,12 +177,28 @@ preferred first, and nothing in it is a score.
   a request's longest chunk, with `chunk_steps`, smaller chunk sizes and their
   peaks, where one was measured. A model needs at least two voices, since a podcast has two
   speakers; ids do not repeat, and a voice speaks only listed languages.
+- **A recogniser commits its languages and its memory**, which the server states
+  neither. `transcription` holds the sample rate windows are sent at; `peak_mb`,
+  measured on the first request with the load; `window_s`, the longest window a
+  request carries; `detects_language`; `languages`, the ISO 639-1 codes the
+  screen lists, those measured usable, best first; `family_codes`, the locale
+  the family takes for each (Nemotron takes `ja-JP`); `detected_only`, locales
+  it may detect without being listed for them; and `request_options`, written
+  as the server entry's `default_request_options`, since the multipart routes
+  take none. The schema refuses a language listed twice, a `family_codes` key
+  outside `languages`, a `detected_only` key inside it, a listed language with
+  no `family_codes` locale for a family that takes locales, since pinning it
+  would send the bare code, and a locale or request
+  option the family does not take at the pinned server: `RECOGNISER_FAMILIES`
+  in [`manifest_fields.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/manifest_fields.py)
+  copies each family's locales from its model spec and its options from its
+  `loader.cpp`, audio.cpp v0.8.2's.
 - **`aliases` fold a download into its curated row.** A downloaded file shows as
   a curated build when its install record names the model's `source_repo`, an
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped nineteen, most preferred first within each type. Eight
+The shipped twenty, most preferred first within each type. Eight
 chat models, all from `unsloth/*-GGUF`: Qwen3.8 27B (8 builds, reads images)
 leads, as the one local model whose remote runs passed the agent ladder; then,
 with 18 builds each, Qwen3 32B, 14B, 8B, 4B, Gemma 3 4B (reads images), Qwen3
@@ -195,8 +221,12 @@ not cite) leads while no clip is measured, then Wan2.2 TI2V 5B (`Q4_0` then
 yet. Three audio models, one file per build from their folders of
 `audio-cpp/audio.cpp-gguf`: Kokoro 82M (`Q8_0`, then `BF16`), Supertonic 3 (`F16`,
 then `orig`; its `q8_0` file is the `orig` file under another name) and KittenTTS
-Mini 0.8 (`orig`). Only the three audio defaults are validated, each voiced on
-audio.cpp v0.8.2. Each engine's catalog offers its own entries and skips the rest. `LocalManifest` rejects a wrong version, a repeated id or
+Mini 0.8 (`orig`). One speech recogniser from the same repo, Nemotron 3.5 ASR
+Streaming 0.6B (`Q8_0` alone, 930.6 MB), listed for 26 languages, measured at
+1,776 MiB on its first request and transcribing 28 s windows
+([proposal](../../proposals/local-speech-to-text.md#measurements)); its licence,
+OpenMDW-1.1, is `other` on the card. Only the three voice defaults and
+Nemotron's `Q8_0` are validated, each run on audio.cpp v0.8.2. Each engine's catalog offers its own entries and skips the rest. `LocalManifest` rejects a wrong version, a repeated id or
 quantization, an unpinned or unhashed file, a build without weights or with two
 projectors, an entry no bundled engine runs, and any field it does not declare. A manifest that fails is replaced
 at startup by an empty one, so downloaded models and search still work.
@@ -229,7 +259,10 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/`,
 - **An audio entry's evidence is its family**, read from the default build's first
   64 KiB: audio.cpp writes it before the files it embeds, which make Kokoro's
   header 38.6 MB and Supertonic's 57 MB. The entry names the model's folder in
-  the shared repo, its builds most preferred first, and the reviewed `audio` block.
+  the shared repo, its builds most preferred first, and the reviewed `audio`
+  block, or a recogniser's `transcription` one. The shared repo is tagged
+  `text-to-speech`, so Nemotron's evidence carries that tag too; its family,
+  read first, is what types it.
 - **An embedder entry pins the weights it names with the repo's tokenizer**, and
   the reviewed `embedding` block: the ranking weight the retrieval eval measured
   for that model, and for a build converted by someone else, how close its
@@ -245,7 +278,9 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/`,
   anything: every entry's licence tag must be on the reviewed allowlist in
   [`local_manifest/licence.py`](../../../surfsense_local/backend/scripts/local_manifest/licence.py).
   An OpenRAIL or Gemma licence passes, since its use restrictions pass on to the
-  user rather than limit commercial use. A unit test holds the committed
+  user rather than limit commercial use. A custom licence, tagged `other` on
+  Hugging Face, is listed by its card's `license_name`, with the clause that
+  passes it quoted beside it, as `openmdw-1.1` is. A unit test holds the committed
   manifest to the same rule, so a hand edit cannot slip one in.
 - **It refuses to write** a build without a hash or size, a projector that does not
   see images or is not as wide as the model, and a refresh that drops a model or
@@ -253,7 +288,7 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/`,
 - **`VALIDATED`**, one in each engine's `refresh.py`, names builds somebody ran,
   with the runtime build they ran it on: a chat build downloaded, chatted with
   and its citations confirmed to resolve. llama.cpp's and sd.cpp's are empty;
-  audio.cpp's names the three default builds.
+  audio.cpp's names the three default voice builds and Nemotron's `Q8_0`.
 
 The script's assembly is tested over recorded input, with no network
 ([`test_local_manifest.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest.py),
@@ -307,9 +342,11 @@ screen states that size until the build is on disk.
 
 An audio row leads the same way, with the first build its entry pins as the
 default. Its builds are installed only by the record: the audio folder's
-`installs.json` must name the build's own file, still on disk. All three audio
+`installs.json` must name the build's own file, still on disk. All four audio
 models share one repo, and Supertonic and Kitten both have an `orig` build, so a
-repo and a label would mark the wrong model installed.
+repo and a label would mark the wrong model installed. audio.cpp fills two
+slots, so its rows lead as in use by every name chosen for either: the voice
+podcasts use and the speech model each lead their own row.
 
 **The star** goes to the first curated model, in manifest order, with a
 recommended build, so a machine short of the preferred model's default gets a
@@ -337,7 +374,9 @@ recognisers, labellers, OCR, drafters and projectors are known and typeless,
 except embedders, which are `EMBEDDING`, a type onnxruntime runs and no slot holds;
 diffusion architectures are `IMAGE_GEN`, video `VIDEO_GEN`, text to speech
 `AUDIO_GEN`, audio.cpp's voice families among them (`kokoro_tts`, `supertonic`,
-`kitten_tts`). Every audio.cpp file declares `general.architecture = audiocpp`,
+`kitten_tts`). A curated recogniser's family, `nemotron_asr` alone, is
+`SPEECH_TO_TEXT`, with the speech recognisers' sentence and code; other
+recognisers stay typeless until one is curated. Every audio.cpp file declares `general.architecture = audiocpp`,
 speech recognisers included, so that name alone has its own typeless group,
 "This model runs on audio.cpp. SurfSense runs only the voices in its list.", even
 beside a text-to-speech tag. The tag only refuses or refines, never admits, and the tags that
@@ -567,16 +606,31 @@ does, and without it looks for a system eSpeak most computers lack. Electron
 hands the API those paths as `SURFSENSE_LOCAL_AUDIO_ESPEAK_LIBRARY` and
 `SURFSENSE_LOCAL_AUDIO_ESPEAK_DATA`, the same ones it gives the server.
 
+A recogniser lands in the same folder and is named in `transcription.json`
+instead, which Electron starts the second, speech recognition server from
+([packaging](../packaging.md)): `lazy_load`, then per installed recogniser its
+`id`, `family`, `path`, `task: "asr"`, `mode: "offline"` and the entry's
+`request_options` as `default_request_options`, which the server merges under
+every request, since its multipart routes take no options; Nemotron's,
+`keep_language_tags`, makes the text carry the detected locale. The file is
+written only when its bytes change, so an API start, a voice install or a
+delete never restarts that server and cuts off a transcription; it is gone when
+no recogniser is installed. A recogniser's install leaves `server.json` alone,
+which a podcast may be voicing from
+([`transcription_config.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/audio_folder/transcription_config.py)).
+With `select`, a voice model becomes the `audio_gen` selection and a recogniser
+the `speech_to_text` one.
+
 Deleting a model removes every file its install record names that no other
 installed build's record still names, every part of a split build and its
 projector included, and forgets it: a shared VAE or text encoder goes with the
 last model that uses it, worked out from the records at delete time. A file with no record, one copied
 in by hand, loses only `<id>.gguf` and `mmproj-<id>.gguf`. `DELETE /llm/models/{name}`
 finds the name in any engine's folder, and clears the selection of that engine's
-type that named it. Deleting an audio model rewrites `server.json`; deleting the
-last removes the file, since the server refuses an empty model list, and Electron
-stops the server. At startup `warm()` rewrites `server.json` from the install
-records, so a stale or missing file heals.
+type that named it. Deleting an audio model rewrites `server.json` and
+`transcription.json`; deleting the last of a kind removes its file, since the
+server refuses an empty model list, and Electron stops that server. At startup
+`warm()` writes both from the install records, so a stale or missing file heals.
 
 The files go before the record. Windows refuses to delete a file a server still
 has open, so there deleting the model in use can fail at the file. The API then
@@ -585,8 +639,10 @@ delete again in a few seconds. What lets go differs by server:
 
 - **sd-server** runs from the image selection, so the API clears the slots that
   named the model and Electron stops the server on its next poll.
-- **audiocpp_server** is restarted only when `server.json` is rewritten, so the
-  API rewrites it unchanged. The new server opens a model on its first request.
+- **audiocpp_server** is restarted only when its config is rewritten, so the
+  API rewrites it unchanged: `server.json` for a voice model, and
+  `transcription.json`, whose bytes have not changed, for a recogniser. The new
+  server opens a model on its first request.
 - **llama-server** never unloads a model on its own and is restarted only by a
   changed preset, so the API asks the router to unload the model.
 - **The embedding encoder** is not a server: ONNX Runtime holds a model's files
@@ -631,7 +687,7 @@ on search and repo reads, and the job's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat**, **Image**, **Image editing**, **Video** and **Audio** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models** or **Audio generation models** on its own page.
+Settings has one section per model type, **Text gen**, **Image gen**, **Image edit**, **Video**, **Audio** and **Speech recognition** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models**, **Audio generation models** or **Speech recognition models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
@@ -642,7 +698,7 @@ ChatGPT plan** where a plan fills the slot ([ChatGPT subscription](../chatgpt-su
 both short, then **On this computer**, the catalog below. Both sections read the
 one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image and image
 editing and video take sd.cpp's that can fill their slot (`selectable_for`), and audio
-takes only audio.cpp's, each curated model with its size and a
+takes only audio.cpp's voice models, the rows with `voicing`, each curated model with its size and a
 Download. Once a chat or image model is on disk its row offers Delete after
 confirmation, the same as **This computer**'s list; an audio row reads
 Downloaded. An audio row reads on one line: its build, its size, the memory it
@@ -715,6 +771,30 @@ Rules the screen holds:
   audiocpp_server on its next poll. The voice the app ships is the exception:
   it is part of the install, read in place from the models pack, so it has no
   Delete, and the API refuses one.
+- The speech recognition section is local only: no server can fill
+  `speech_to_text`, so neither its list nor its Add model page offers one
+  (`ModelSlotSettings`' `localOnly`). It takes every row whose
+  `selectable_for` names the slot, described by the row's `transcription`, so
+  recognisers never reach the Audio page, which drops rows without `voicing`.
+  A row reads its build, its size, the memory it takes while transcribing, and
+  "Detects the language" when it does ("Q8_0 · 931 MB · 1.8 GB while
+  transcribing · Detects the language"), then its languages, counted, which
+  open to their names in the interface's language, alphabetically
+  (`Intl.DisplayNames`). A download installs with `select: true`: one speech
+  model serves recordings and voice input, so downloading one is choosing it.
+  Under the model in use, **Spoken language** reads and writes
+  `/llm/selection/speech_to_text/language`: "Detect automatically", only when
+  the model detects the language, then each language it lists.
+- The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/))
+  is the same download where speech is needed, for the mic and a recording
+  waiting for a model to open: one card per curated recogniser with its size,
+  its memory while transcribing and "Works well in:" its listed languages.
+  **Download and set up** starts the same install job with `select: true`, so
+  egress consent is the usual refused-request prompt, nested in the popover;
+  the card then shows the job's progress, and once the catalog marks the model
+  in use the popover reads "Speech recognition is ready", with **Start
+  talking** where its opener can listen. **More choices** opens this section.
+  `useSpeechSetup()` holds that state, so an opener can show the download too.
 
 ## How it is tested
 
@@ -724,14 +804,15 @@ cover the manifest, builds, the build choice and lead, the classifier, support,
 pricing through the catalog (the badge matches the load on every budget shape; a
 recommended build never warns), reprice, search against mocked transports, and
 the service's installs, install jobs (`test_install_jobs.py`), the audio.cpp slice's evidence and rows, and each
-engine's refresh assembly; the routes, audio's `server.json` included, are
-covered in
+engine's refresh assembly; the routes, audio's `server.json` and
+`transcription.json` included (`test_audio_catalog_routes.py`,
+`test_speech_catalog_routes.py`), are covered in
 [`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/), the feed over a real socket in `test_install_feed.py`,
-and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
+and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx`, `install-text.test.ts`, the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx`, `audio-models-settings.test.tsx` and `speech-models-settings.test.tsx`, and the speech set-up in `speech-setup-popover.test.tsx`.
 
 ## Known gaps
 
-- Only the three audio defaults are validated; `validated` is empty on every other build.
+- Only the three voice defaults and Nemotron's `Q8_0` are validated; `validated` is empty on every other build.
 - Qwen3.8 27B is a hybrid model (`qwen35`): the fit estimate charges a KV cache on all 65 layers where 16 keep one, about four times too much, and does not size its recurrent state ([runtime](runtime.md)).
 - Qwen3.8 27B commits no `sampling`: its repo has no `params` file, so it runs on llama-server's defaults rather than the model card's.
 - `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.

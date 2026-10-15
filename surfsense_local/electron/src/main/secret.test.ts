@@ -5,6 +5,7 @@ import { join } from "node:path"
 import test from "node:test"
 
 import { loadSecret } from "./secret.ts"
+import { isWindows } from "./sidecars/platform.ts"
 
 // Reverses bytes so the file never holds the secret verbatim.
 const cipher = {
@@ -18,7 +19,8 @@ test("creates the secret once and reads the same one back", () => {
   assert.equal(first.length, 64)
   assert.equal(loadSecret(path, cipher), first)
   assert.ok(!readFileSync(path).includes(first))
-  assert.equal(statSync(path).mode & 0o777, 0o600)
+  // Windows has no POSIX file mode.
+  if (!isWindows) assert.equal(statSync(path).mode & 0o777, 0o600)
 })
 
 test("mints a new secret when safeStorage cannot decrypt the file", () => {

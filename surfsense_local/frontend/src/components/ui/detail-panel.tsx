@@ -15,6 +15,7 @@ export function DetailPanel({
   closeLabel,
   bodyRef,
   flush = false,
+  side = "right",
   children,
 }: {
   title: string
@@ -25,11 +26,16 @@ export function DetailPanel({
   closeLabel: string
   bodyRef?: Ref<HTMLDivElement>
   flush?: boolean
+  /** The window edge it opens against; its border faces the content. */
+  side?: "left" | "right"
   children: ReactNode
 }) {
   return (
     <aside
-      className="flex h-full min-w-0 flex-col border-l bg-background"
+      className={cn(
+        "flex h-full min-w-0 flex-col bg-background",
+        side === "left" ? "border-r" : "border-l"
+      )}
       aria-label={ariaLabel}
     >
       <div className="grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3">

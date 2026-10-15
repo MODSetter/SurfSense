@@ -11,6 +11,11 @@ import { binaryPath as audiocppBinary, espeakPaths } from "./audiocpp.ts"
 import { exe, isWindows } from "./platform.ts"
 import type { SidecarContext, SidecarSpec } from "./types.ts"
 
+/** Whether audio.cpp's server is staged; without it there are no voices and no speech recognition. */
+function audiocppStaged(ctx: SidecarContext): boolean {
+  return ctx.audioBinariesDir != null && existsSync(audiocppBinary(ctx))
+}
+
 function pythonEnv(ctx: SidecarContext): Record<string, string> {
   return {
     PYTHONUNBUFFERED: "1", // unbuffered: startup + crash logs show immediately
@@ -40,7 +45,7 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     ...(ctx.audioModelsDir &&
       ctx.audioUrl &&
       ctx.audioBinariesDir &&
-      existsSync(audiocppBinary(ctx)) && {
+      audiocppStaged(ctx) && {
         SURFSENSE_LOCAL_AUDIO_MODELS_DIR: ctx.audioModelsDir,
         SURFSENSE_LOCAL_AUDIO_BASE_URL: ctx.audioUrl,
         SURFSENSE_LOCAL_AUDIO_ESPEAK_LIBRARY: espeakPaths(ctx.audioBinariesDir).library,
@@ -83,6 +88,11 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
       }),
       // The API alone checks it: only Electron may print the agent's Word previews.
       ...(ctx.docxSnapshotKey && { SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY: ctx.docxSnapshotKey }),
+      // The API alone calls the speech recognition server; workers go through its gate.
+      ...(ctx.transcriptionUrl &&
+        audiocppStaged(ctx) && {
+          SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL: ctx.transcriptionUrl,
+        }),
     },
   }
 }

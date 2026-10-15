@@ -241,7 +241,9 @@ async def test_a_model_the_manifest_marks_unusable_is_neither_offered_nor_chosen
         ).json()
     }
     assert catalog["claude-opus-5"]["availability"] == "unusable"
-    assert catalog["claude-opus-5"]["reason"] == listed["claude-opus-5"]["unusable_reason"]
+    assert (
+        catalog["claude-opus-5"]["reason"] == listed["claude-opus-5"]["unusable_reason"]
+    )
 
     choice = {
         "provider": "openai_compatible",
@@ -461,6 +463,34 @@ async def test_a_thinking_model_on_a_connection_is_not_called_broken(
 
     assert tested.status_code == 200
     assert tested.json() == {"reply": "Hello"}
+
+
+async def test_an_error_the_model_sends_mid_reply_fails_the_chat_test(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 502 with the provider's reason, as a refused request gets, not a 500."""
+    monkeypatch.setattr(conftest, "CHAT_DELTAS", ["Hel"])
+    monkeypatch.setattr(
+        conftest,
+        "STREAM_ERROR",
+        {
+            "id": "gen-1",
+            "object": "chat.completion.chunk",
+            "error": {"code": "server_error", "message": "Provider disconnected"},
+            "choices": [
+                {"index": 0, "delta": {"content": ""}, "finish_reason": "error"}
+            ],
+        },
+    )
+    connection = await _connect(client, openai_server)
+
+    tested = await client.post(
+        f"/llm/connections/{connection['id']}/chat-test",
+        json={"model": "anthropic/claude-3.5-sonnet"},
+    )
+
+    assert tested.status_code == 502
+    assert tested.json() == {"detail": "chat request failed: Provider disconnected"}
 
 
 SD15 = "v1-5-pruned_Q4_0"
@@ -745,3 +775,24 @@ async def test_a_speech_model_only_the_full_listing_holds_fills_the_audio_slot(
     }
 
     assert models["hexgrad/kokoro-82m"]["selectable_for"] == ["audio_gen"]
+
+
+async def test_no_connection_fills_speech_recognition_even_when_confirmed(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """No remote speech client exists, so the slot is local only; confirming an
+    unlisted model must not get round that."""
+    connection = await _connect(client, openai_server)
+
+    refused = await client.put(
+        "/llm/selection/speech_to_text",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": connection["id"],
+            "name": "whisper-1",
+            "allow_unlisted": True,
+        },
+    )
+
+    assert refused.status_code == 422, refused.text
+    assert (await client.get("/llm/selection/speech_to_text")).status_code == 404

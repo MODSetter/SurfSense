@@ -49,6 +49,18 @@ export default defineConfig([
           message:
             'Write each formatMessage value out in the literal; a spread hides it from enforce-placeholders.',
         },
+        // Buttons share one look and one press motion, from components/ui/button.tsx.
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message:
+            'Use Button from @/components/ui/button; variant="bare" for an element with its own layout.',
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Button'] JSXAttribute[name.name='className'] Literal[value=/active:\\S*(scale|translate)/]",
+          message:
+            'Press motion comes from Button itself; pass static to turn it off.',
+        },
       ],
       'formatjs/enforce-id': [
         'error',

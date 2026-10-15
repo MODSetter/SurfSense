@@ -89,6 +89,13 @@ function spawnOne(
     note(`crashed (code=${code} signal=${signal})`)
     onCrash?.(spec.name, code)
   })
+  // An executable that cannot start emits `error` and never `exit`. A child
+  // that did start can still emit it for a failed kill, which is no crash.
+  child.on("error", (error) => {
+    if (child.pid !== undefined) return
+    note(`failed to start (${error.message})`)
+    onCrash?.(spec.name, null)
+  })
   return child
 }
 
@@ -131,8 +138,8 @@ export async function stopNamed(
  */
 export interface SidecarControl {
   readonly running: Sidecars
-  /** Start `spec`, replacing any child under its name. */
-  start(spec: SidecarSpec): void
+  /** Start `spec`, replacing any child under its name; `onCrash` overrides the control's. */
+  start(spec: SidecarSpec, onCrash?: CrashHandler): void
   /** Stop the child under `name`, leaving the rest running. */
   stop(name: string): Promise<void>
 }
@@ -144,7 +151,7 @@ export function sidecarControl(
 ): SidecarControl {
   return {
     running: children,
-    start: (spec) => startOne(children, spec, onCrash),
+    start: (spec, own) => startOne(children, spec, own ?? onCrash),
     stop: (name) => stopNamed(children, name),
   }
 }

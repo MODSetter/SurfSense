@@ -2,6 +2,9 @@ import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 
 export type ToolApproval = "ask" | "always"
 
+/** One write can switch a tool on and set how it asks, so a pick is never half applied. */
+export type ToolChange = { enabled?: boolean; approval?: ToolApproval }
+
 export type PluginTool = {
   name: string
   title: string | null
@@ -199,7 +202,7 @@ export function setPluginEnabled(
 export function setTool(
   id: string,
   tool: string,
-  change: { enabled: boolean } | { approval: ToolApproval }
+  change: ToolChange
 ): Promise<Plugin> {
   return requestJson<Plugin>(
     `/plugins/${id}/tools/${encodeURIComponent(tool)}`,

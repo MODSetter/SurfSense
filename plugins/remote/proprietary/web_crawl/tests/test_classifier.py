@@ -2,7 +2,12 @@
 
 import pytest
 
-from proprietary.web_crawl.classifier import BlockType, classify_block
+from proprietary.web_crawl.classifier import (
+    CHALLENGE_TYPES,
+    BlockType,
+    classify_block,
+    is_interstitial,
+)
 
 
 class TestClassifyBlock:
@@ -71,3 +76,25 @@ class TestClassifyBlock:
             classify_block(403, "<title>Just a moment...</title>")
             is BlockType.CLOUDFLARE
         )
+
+
+class TestIsInterstitial:
+    """The wall itself, not a widget or tag that also sits on healthy pages."""
+
+    def test_cloudflare_wall(self):
+        assert is_interstitial("<title>Just a moment...</title>")
+        assert is_interstitial("<p>Verify you are human by completing the action</p>")
+
+    def test_datadome_block_page(self):
+        assert is_interstitial('<iframe src="https://geo.captcha-delivery.com/x">')
+
+    def test_widgets_and_tags_on_healthy_pages(self):
+        assert not is_interstitial('<div class="cf-turnstile"></div>')
+        assert not is_interstitial('<script src="https://js.datadome.co/tags.js">')
+        assert not is_interstitial('<div class="g-recaptcha"></div>')
+        assert not is_interstitial(None)
+
+    def test_challenge_types_are_the_walls_only_stealth_passes(self):
+        assert BlockType.CLOUDFLARE in CHALLENGE_TYPES
+        assert BlockType.RATE_LIMITED not in CHALLENGE_TYPES
+        assert BlockType.UNKNOWN not in CHALLENGE_TYPES

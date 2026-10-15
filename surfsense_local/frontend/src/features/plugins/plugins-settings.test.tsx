@@ -671,13 +671,13 @@ describe("plugins settings", () => {
     )
   })
 
-  it("switches a tool off, and lets only a read-only one skip asking", async () => {
+  it("blocks a tool, and lets only a read-only one be always allowed", async () => {
     const calls = api({ allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
-    await user.click(within(plugin).getByRole("switch", { name: "Use count" }))
+    await user.click(within(plugin).getByRole("radio", { name: "Block count" }))
     await user.click(
       within(plugin).getByRole("radio", { name: "Always allow Search notes" })
     )
@@ -692,14 +692,178 @@ describe("plugins settings", () => {
         {
           method: "PUT",
           path: "/plugins/notes/tools/search",
-          body: { approval: "always" },
+          body: { enabled: true, approval: "always" },
         },
       ])
     )
     expect(
-      within(plugin).queryByRole("radio", { name: "Always allow count" })
-    ).toBeNull()
-    expect(within(plugin).getByText("Always asks")).toBeTruthy()
+      (
+        within(plugin).getByRole("radio", {
+          name: "Always allow count",
+        }) as HTMLInputElement
+      ).disabled
+    ).toBe(true)
+  })
+
+  it("sets every tool in a group from its menu", async () => {
+    const calls = api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    const readOnly = within(plugin).getByRole("group", { name: "Read-only" })
+    await user.click(
+      within(readOnly).getByRole("button", {
+        name: "Permission for every Read-only tool",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Blocked" })
+    )
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/search",
+          body: { enabled: false },
+        },
+      ])
+    )
+  })
+
+  it("closes a group choice no tool in it can take", async () => {
+    const plugin = notes({ source: "first_party" })
+    const calls = api({
+      plugins: [
+        {
+          ...plugin,
+          tools: plugin.tools.map((tool) =>
+            tool.name === "search" ? { ...tool, enabled: false } : tool
+          ),
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const readOnly = within(card).getByRole("group", { name: "Read-only" })
+    await user.click(
+      within(readOnly).getByRole("button", {
+        name: "Permission for every Read-only tool",
+      })
+    )
+    const ask = await screen.findByRole("menuitemradio", {
+      name: "Needs approval",
+    })
+    expect(ask.getAttribute("aria-disabled")).toBe("true")
+    await user.click(ask)
+    expect(changes(calls)).toEqual([])
+  })
+
+  it("leaves a tool that cannot take a group choice as it is", async () => {
+    const plugin = notes()
+    const calls = api({
+      plugins: [
+        {
+          ...plugin,
+          tools: [
+            ...plugin.tools.map((tool) =>
+              tool.name === "count" ? { ...tool, enabled: false } : tool
+            ),
+            {
+              name: "rename",
+              title: "Rename note",
+              description: "Rename a note.",
+              annotations: { destructiveHint: false },
+              enabled: false,
+              approval: "ask",
+              change: null,
+            },
+          ],
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const others = within(card).getByRole("group", {
+      name: "Can make changes",
+    })
+    await user.click(
+      within(others).getByRole("button", {
+        name: "Permission for every Can make changes tool",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Always allow" })
+    )
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/rename",
+          body: { enabled: true, approval: "always" },
+        },
+      ])
+    )
+  })
+
+  it("says Custom when a group's tools differ", async () => {
+    const plugin = notes()
+    api({
+      plugins: [
+        {
+          ...plugin,
+          tools: [
+            ...plugin.tools,
+            {
+              name: "recent",
+              title: "Recent notes",
+              description: "List the latest notes.",
+              annotations: { readOnlyHint: true },
+              enabled: false,
+              approval: "ask",
+              change: null,
+            },
+          ],
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const readOnly = within(card).getByRole("group", { name: "Read-only" })
+    const menu = within(readOnly).getByRole("button", {
+      name: "Permission for every Read-only tool",
+    })
+    expect(menu.textContent).toContain("Custom")
+    await user.click(menu)
+    expect(
+      (
+        await screen.findByRole("menuitemradio", { name: "Custom" })
+      ).getAttribute("aria-checked")
+    ).toBe("true")
+  })
+
+  it("folds a group away and back", async () => {
+    api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    const fold = within(plugin).getByRole("button", { name: /^Read-only/ })
+    await user.click(fold)
+    expect(within(plugin).queryByText("Search notes")).toBeNull()
+    await user.click(fold)
+    expect(within(plugin).getByText("Search notes")).toBeTruthy()
   })
 
   it("says a plugin switched off is off, and leaves on and off to the composer", async () => {
@@ -1239,7 +1403,7 @@ describe("plugins settings", () => {
 
     const plugin = await details(user, "Notes")
     expect(
-      within(plugin).getByRole("switch", { name: /Search notes/ })
+      within(plugin).getByRole("radiogroup", { name: /Search notes/ })
     ).toBeTruthy()
     expect(screen.queryByRole("region", { name: "About" })).toBeNull()
     expect(screen.queryByRole("region", { name: "Details" })).toBeNull()

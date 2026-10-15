@@ -18,6 +18,7 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  Mic01Icon,
   PlugIcon,
   Settings2Icon,
   EmbeddingIcon,
@@ -52,6 +53,7 @@ import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
+import { SpeechModelsSettings } from "./models/speech-models-settings"
 import { VideoModelsSettings } from "./models/video-models-settings"
 import { SettingsSection } from "./settings-section"
 
@@ -67,6 +69,7 @@ export type SettingsSectionId =
   | "image-models"
   | "image-edit-models"
   | "audio-models"
+  | "speech-models"
   | "video-models"
   | "embedding-model"
   | "resources"
@@ -152,9 +155,10 @@ function GeneralSettings({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
-                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:inset-[-10px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    variant="bare"
+                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground before:absolute before:-inset-2.5 hover:text-foreground focus-visible:ring-2"
                     aria-label={intl.formatMessage({
                       id: "settings_general_cloud_import_info_aria",
                       defaultMessage:
@@ -165,7 +169,7 @@ function GeneralSettings({
                       className="size-3.5"
                       strokeWidth={1.5}
                     />
-                  </button>
+                  </Button>
                 }
               />
               <TooltipContent
@@ -216,6 +220,7 @@ const SETTINGS_SECTIONS = [
   { id: "image-models", group: "models", icon: Image01Icon },
   { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
   { id: "audio-models", group: "models", icon: AudioWaveformIcon },
+  { id: "speech-models", group: "models", icon: Mic01Icon },
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
@@ -278,6 +283,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_audio_label",
       defaultMessage: "Audio",
+    }),
+  "speech-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_speech_label",
+      defaultMessage: "Speech recognition",
     }),
   "embedding-model": () =>
     intl.formatMessage({
@@ -350,7 +360,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[640px] min-h-0 w-[1000px] max-w-none gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-none">
+      <DialogContent className="h-192 max-h-[calc(100vh-2rem)] min-h-0 w-5xl gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-[calc(100%-2rem)]">
         <DialogHeader className="sr-only">
           <DialogTitle>
             {intl.formatMessage({
@@ -366,8 +376,8 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid h-full min-h-0 grid-cols-[184px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
+        <div className="grid h-full min-h-0 grid-cols-[auto_minmax(0,1fr)]">
+          <aside className="min-h-0 w-50 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
             {(Object.keys(GROUP_LABELS) as SettingsNavItem["group"][]).map(
               (group, index) => (
                 <div key={group} className={cn(index > 0 && "mt-3")}>
@@ -391,6 +401,7 @@ export function SettingsDialog({
                       const selected = section.id === activeSection.id
                       return (
                         <Button
+                          static
                           key={section.id}
                           type="button"
                           variant="ghost"
@@ -436,6 +447,9 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />
+            ) : null}
+            {activeSection.id === "speech-models" ? (
+              <SpeechModelsSettings />
             ) : null}
             {activeSection.id === "embedding-model" ? (
               <EmbeddingSettings />

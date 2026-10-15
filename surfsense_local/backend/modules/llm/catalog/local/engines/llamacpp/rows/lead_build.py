@@ -7,7 +7,7 @@ build that installs, and only when nothing installs the default, to say how big
 the model is and that it will not fit.
 """
 
-from collections.abc import Sequence
+from collections.abc import Sequence, Set
 from typing import Protocol
 
 from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import (
@@ -44,7 +44,7 @@ class _Row(Protocol):
 
 
 def lead_build(
-    builds: Sequence[_Row], default_quantization: str | None, *, selected: str | None
+    builds: Sequence[_Row], default_quantization: str | None, *, selected: Set[str]
 ) -> Lead | None:
     if not builds:
         return None
@@ -53,7 +53,7 @@ def lead_build(
         return Lead(row.build.quantization, why)
 
     for row in builds:
-        if selected is not None and row.installed_as == selected:
+        if row.installed_as is not None and row.installed_as in selected:
             return lead(row, LeadReason.IN_USE)
     installed = [row for row in builds if row.installed_as]
     if installed:

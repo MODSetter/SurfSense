@@ -1,4 +1,4 @@
-"""Labels what a fetched page is (content, a challenge wall, a rate limit); telemetry only, never gates success.
+"""Labels what a fetched page is (content, a challenge wall, a rate limit); the ladder routes on the label.
 
 Markers mirror the FlareSolverr alternative trawl-dev's detect.ts, plus DataDome and Kasada.
 """
@@ -45,10 +45,32 @@ _RECAPTCHA = re.compile(
     re.IGNORECASE,
 )
 _DATADOME = re.compile(r"datadome|geo\.captcha-delivery\.com", re.IGNORECASE)
+# DataDome's block page frames its captcha; its tag alone also sits on healthy pages.
+_DATADOME_WALL = re.compile(r"captcha-delivery\.com", re.IGNORECASE)
 _KASADA = re.compile(r"kpsdk|x-kpsdk|kasada", re.IGNORECASE)
 
 # Statuses some CDNs use as a bot-gate before the real response (detect.ts:isBlocked).
 _BOT_GATE_STATUSES = frozenset({202, 403})
+
+# Anti-bot walls a plain browser meets too: only the stealth tier gets past them.
+CHALLENGE_TYPES = frozenset(
+    {
+        BlockType.CLOUDFLARE,
+        BlockType.DATADOME,
+        BlockType.KASADA,
+        BlockType.CAPTCHA_RECAPTCHA,
+        BlockType.CAPTCHA_HCAPTCHA,
+    }
+)
+
+
+def is_interstitial(html: str | None) -> bool:
+    """True when the page reads like a challenge wall rather than content behind it.
+
+    Narrower than ``classify_block``: a Turnstile or reCAPTCHA widget on a
+    signup form, or a DataDome tag, also sits on healthy pages.
+    """
+    return bool(html and (_CLOUDFLARE.search(html) or _DATADOME_WALL.search(html)))
 
 
 def classify_block(status: int | None, html: str | None) -> BlockType:

@@ -16,6 +16,10 @@ COMMERCIAL = frozenset(
         "openrail",
         "openrail++",
         "creativeml-openrail-m",
+        # A card's `license_name` under `other`. OpenMDW-1.1: "permission is
+        # hereby granted ... to deal in the Model Materials without
+        # restriction"; redistribution keeps its text and notices.
+        "openmdw-1.1",
     }
 )
 

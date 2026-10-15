@@ -17,16 +17,22 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import re
 import time
+from collections import OrderedDict
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
+from contextlib import aclosing, asynccontextmanager, contextmanager, nullcontext
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urljoin, urlsplit
 
-from scrapling.fetchers import AsyncFetcher
-
+from proprietary.scraping import http, sessions
+from proprietary.scraping.concurrency import hedged, ordered_map
 from proprietary.scraping.proxy import get_proxy_url
 
-from .parsers import brace_match_json
+from .parsers import _reviews_tags, brace_match_json, dig
 from .url_resolver import ResolvedUrl, extract_fid
 
 try:  # browser tier is optional (needs patchright browsers installed)
@@ -51,24 +57,113 @@ def now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-async def gather_bounded(coro_factories, *, concurrency: int) -> list:
-    """Run zero-arg async callables with bounded concurrency, results in order.
+class GoogleRefusedError(RuntimeError):
+    """Google refused a request, or never answered it, on every exit tried.
 
-    Takes callables (``() -> awaitable``), not live coroutines, so nothing
-    starts until a semaphore slot frees up — lets callers queue far more work
-    than ``concurrency`` without opening every socket at once. Every RPC here
-    is ~2s of proxy round-trip, so overlapping independent ones is the single
-    biggest lever on wall-clock time.
+    A refusal is a 403, a 429 or a sorry page. Callers turn the error into an
+    item naming the input, so one refused place does not cost the call the
+    others.
     """
-    if not coro_factories:
-        return []
-    sem = asyncio.Semaphore(concurrency)
 
-    async def _run(factory):
-        async with sem:
-            return await factory()
 
-    return await asyncio.gather(*(_run(f) for f in coro_factories))
+def error_item(error: Exception, source: str) -> dict[str, Any]:
+    """The item that stands for a source that failed on every exit, naming it."""
+    return {"error": str(error), "input": source}
+
+
+_PLUGIN = "google-maps"
+
+# Payloads are 200 KB or less and come back in 3.4 s or less, so a dead exit
+# is dropped after 5 s to connect or 15 s in all, not Scrapling's 30 s (GMP-1).
+_TIMEOUT = (5, 10)
+
+# The first try and two rotations to a fresh exit (GMP-7).
+_ATTEMPTS = 3
+
+# A request still unanswered after this long is sent again on a fresh exit and
+# the first answer wins (GMP-8); 0 turns hedging off.
+_HEDGE_AFTER_S = float(os.getenv("GOOGLE_MAPS_HEDGE_AFTER_S", "2.5"))
+# A 100-review page takes 1.6-2.0 s alone and 2-4 s when 8 streams share one
+# exit, so a reviews request is only slow well past the other stages' delay;
+# 0 turns hedging off for reviews alone.
+_REVIEWS_HEDGE_AFTER_S = float(os.getenv("GOOGLE_MAPS_REVIEWS_HEDGE_AFTER_S", "4"))
+
+# One keep-alive session per place or search job (GMP-7): every request after
+# the first skips the proxy CONNECT and TLS. GOOGLE_MAPS_KEEP_ALIVE=0 sends each
+# request on its own fresh exit, as before. GOOGLE_MAPS_KEEP_IDLE=1 also lends a
+# job's warm session to the next call (GMP-10); off until prod shows no blocks.
+_KEEP_ALIVE = os.getenv("GOOGLE_MAPS_KEEP_ALIVE", "1") != "0"
+_KEEP_IDLE = os.getenv("GOOGLE_MAPS_KEEP_IDLE", "0") == "1"
+_MAX_USES = 30
+_MAX_STREAMS = 8
+
+# Requests one tool call has in flight across all its sources, hedges aside: 6
+# sources of 8 streams would take the host's whole SCRAPING_MAX_HTTP by themselves
+# and queue every other call behind this one.
+_CALL_MAX_IN_FLIGHT = 16
+_call_slots: ContextVar[asyncio.Semaphore | None] = ContextVar(
+    "google_maps_call_slots", default=None
+)
+
+# The tool's progress reporter for this call, inherited by the tasks it starts,
+# so the flows report stage boundaries without threading it through each call.
+_reporter: ContextVar[Callable[[str], Awaitable[None]] | None] = ContextVar(
+    "google_maps_reporter", default=None
+)
+
+
+@contextmanager
+def reporting(hear: Callable[[str], Awaitable[None]] | None) -> Iterator[None]:
+    """Send the stage messages of the block (and its tasks) to ``hear``."""
+    token = _reporter.set(hear)
+    try:
+        yield
+    finally:
+        _reporter.reset(token)
+
+
+@contextmanager
+def call_bound() -> Iterator[None]:
+    """Hold the requests of the block (and its tasks) to the per-call bound."""
+    token = _call_slots.set(asyncio.Semaphore(_CALL_MAX_IN_FLIGHT))
+    try:
+        yield
+    finally:
+        _call_slots.reset(token)
+
+
+async def report(message: str) -> None:
+    """Tell the caller a stage of the call finished, when it listens."""
+    if (hear := _reporter.get()) is not None:
+        await hear(message)
+
+
+async def together[A, B](
+    first: Coroutine[Any, Any, A], second: Coroutine[Any, Any, B]
+) -> tuple[A, B]:
+    """Run two of a job's fetches at once; when one fails, cancel the other.
+
+    Unlike ``gather``, no fetch outlives the job's session when its sibling
+    raised: the error is the first one, unwrapped from the task group's.
+    """
+    try:
+        async with asyncio.TaskGroup() as tg:
+            a, b = tg.create_task(first), tg.create_task(second)
+    except ExceptionGroup as group:
+        raise group.exceptions[0] from None
+    return a.result(), b.result()
+
+
+@asynccontextmanager
+async def job_session() -> AsyncIterator[None]:
+    """Bind one keep-alive session to a place or search job, for its requests."""
+    if not _KEEP_ALIVE:
+        yield
+        return
+    async with sessions.bound(
+        _PLUGIN, max_uses=_MAX_USES, max_streams=_MAX_STREAMS, keep_idle=_KEEP_IDLE
+    ):
+        yield
 
 
 # XSSI guard Google prepends to its RPC JSON responses.
@@ -116,16 +211,74 @@ def strip_xssi(text: str) -> str:
     return text[nl + 1 :] if nl != -1 else text[idx + len(_XSSI_PREFIX) :]
 
 
-async def resolve_fid(resolved: ResolvedUrl) -> str | None:
-    """Get a place's feature ID: from the URL if present, else from its HTML.
+# placeId -> fid. The pair never changes, so entries never expire; the bound
+# only caps memory (~100 B an entry). Filled from every darray the RPCs return,
+# so the common search-then-reviews pattern skips the place_id page GET.
+_FID_CACHE_SIZE = 10_000
+_fid_by_place_id: OrderedDict[str, str] = OrderedDict()
 
-    A ``/maps/place/...`` URL usually embeds the fid in its ``data=`` blob. A
-    ``?q=place_id:...`` URL or a shortlink does not, so we fetch the page once
-    and pull the fid out of the returned HTML. Raises :class:`SignInRequiredError`
-    if Google serves a consent/sign-in wall instead of the page.
+_PLACE_ID_RE = re.compile(r"place_id:([\w-]+)")
+_AT_LATLNG_RE = re.compile(r"/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)")
+
+
+def remember_fid(place_id: Any, fid: Any) -> None:
+    """Cache one placeId -> fid pair, evicting the least recently used."""
+    if not (isinstance(place_id, str) and place_id and isinstance(fid, str) and fid):
+        return
+    _fid_by_place_id[place_id] = fid
+    _fid_by_place_id.move_to_end(place_id)
+    while len(_fid_by_place_id) > _FID_CACHE_SIZE:
+        _fid_by_place_id.popitem(last=False)
+
+
+def remember_place(darray: Any) -> None:
+    """Cache the placeId -> fid pair a place darray carries ([78] and [10])."""
+    remember_fid(dig(darray, 78), dig(darray, 10))
+
+
+def cached_fid(place_id: str) -> str | None:
+    fid = _fid_by_place_id.get(place_id)
+    if fid:
+        _fid_by_place_id.move_to_end(place_id)
+    return fid
+
+
+def _is_name_only(resolved: ResolvedUrl) -> bool:
+    """A ``/maps/place/<name>/`` URL with neither a fid nor a place_id in it."""
+    return (
+        resolved.kind == "place"
+        and not resolved.fid
+        and bool(resolved.value)
+        and resolved.value != resolved.url
+        and "place_id:" not in resolved.url
+    )
+
+
+async def resolve_fid(resolved: ResolvedUrl, *, language: str = "en") -> str | None:
+    """Get a place's feature ID (see :func:`resolve_place`)."""
+    fid, _ = await resolve_place(resolved, language=language)
+    return fid
+
+
+async def resolve_place(
+    resolved: ResolvedUrl, *, language: str = "en"
+) -> tuple[str | None, list | None]:
+    """Get a place's feature ID: from the URL, the cache, a search or its HTML.
+
+    Returns ``(fid, darray)``; ``darray`` is the place's search-result darray
+    when a name lookup found it (its header fields equal the place RPC's), else
+    ``None``. A ``/maps/place/...`` URL usually embeds the fid in its ``data=``
+    blob. A ``?q=place_id:...`` URL or a shortlink does not, so we fetch the
+    page once (unless the placeId is cached) and pull the fid out of the
+    returned HTML. Raises :class:`SignInRequiredError` if Google serves a
+    consent/sign-in wall instead of the page.
     """
     if resolved.fid:
-        return resolved.fid
+        return resolved.fid, None
+    match = _PLACE_ID_RE.search(resolved.url)
+    place_id = match.group(1) if match else None
+    if place_id and (fid := cached_fid(place_id)):
+        return fid, None
     # Short links (maps.app.goo.gl / goo.gl) are Firebase Dynamic Links: a plain
     # GET only returns a JS interstitial, so render it — the JS follows the
     # redirect to the real /maps/place/… URL, from which we read the fid.
@@ -133,7 +286,23 @@ async def resolve_fid(resolved: ResolvedUrl) -> str | None:
     # links resolve; they're rare and cached downstream by fid.
     if resolved.kind == "shortlink":
         rendered = await _fetch_html_stealthy(resolved.url, dict(CONSENT_COOKIES))
-        return extract_fid(rendered) if rendered else None
+        return (extract_fid(rendered) if rendered else None), None
+    # Name-only place URLs (e.g. /maps/place/Eiffel+Tower/) serve a JS-only
+    # shell whose static HTML never contains the fid (even a headless render
+    # won't navigate to the place), so that GET is skipped: one structured
+    # search RPC gives the top result's fid and darray. The lite ``tbm=map``
+    # page, which embeds fids in plain HTML, stays as the fallback.
+    if _is_name_only(resolved):
+        at = _AT_LATLNG_RE.search(resolved.url)
+        fid, darray = await place_from_search(
+            resolved.value,
+            lat=float(at.group(1)) if at else None,
+            lng=float(at.group(2)) if at else None,
+            language=language,
+        )
+        if fid:
+            return fid, darray
+        return await fid_from_search(resolved.value, language=language), None
     html = await fetch_html(resolved.url)
     if html is not None:
         if looks_like_signin_wall(html):
@@ -142,14 +311,33 @@ async def resolve_fid(resolved: ResolvedUrl) -> str | None:
             )
         fid = extract_fid(html)
         if fid:
-            return fid
-    # Name-only place URLs (e.g. /maps/place/Eiffel+Tower/) serve a JS-only
-    # shell whose static HTML never contains the fid (even a headless render
-    # won't navigate to the place). The lite ``tbm=map`` search endpoint DOES
-    # embed fids in plain HTML, so look the name up there instead.
+            return fid, None
     if resolved.kind == "place" and resolved.value and resolved.value != resolved.url:
-        return await fid_from_search(resolved.value)
-    return None
+        return await fid_from_search(resolved.value, language=language), None
+    return None, None
+
+
+async def place_from_search(
+    name: str,
+    *,
+    lat: float | None = None,
+    lng: float | None = None,
+    language: str = "en",
+) -> tuple[str | None, list | None]:
+    """Resolve a place name to ``(fid, darray)`` with one map-search RPC.
+
+    Takes the top-ranked result, as the lite lookup did; ``lat``/``lng`` (a
+    URL's ``@lat,lng``) centre the search there, to pick the right branch.
+    """
+    jd = await fetch_rpc_json(
+        build_search_url(name, language=language, lat=lat, lng=lng), stage="search"
+    )
+    darrays = _search_darrays(jd)
+    fid = dig(darrays[0], 10) if darrays else None
+    if not isinstance(fid, str):
+        return None, None
+    remember_place(darrays[0])
+    return fid, darrays[0]
 
 
 async def fid_from_search(query: str, *, language: str = "en") -> str | None:
@@ -172,35 +360,126 @@ async def fid_from_search(query: str, *, language: str = "en") -> str | None:
     return extract_fid(html)
 
 
-async def fetch_html(url: str, *, cookies: dict[str, str] | None = None) -> str | None:
-    """GET a Google Maps page and return raw HTML (proxy, stealthy fallback)."""
+def _wall_url(url: str) -> bool:
+    """Is this Google's consent page or sorry page? Host and path, not the query."""
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    if host == "consent.google.com":
+        return True
+    google = host == "google.com" or host.endswith(".google.com")
+    return google and parts.path.startswith("/sorry")
+
+
+def _refused(response: http.RawResponse) -> bool:
+    """Did Google refuse this exit: a 403/429, a sorry page or a sign-in wall?"""
+    if response.status in http.BLOCK_STATUSES:
+        return True
+    location = response.location()
+    if _wall_url(response.url) or (
+        location and _wall_url(urljoin(response.url, location))
+    ):
+        return True
+    # An RPC answer is JSON, never a wall, and its review text may quote one.
+    if response.body[:16].lstrip().startswith(_XSSI_PREFIX.encode()):
+        return False
+    return looks_like_signin_wall(response.body[:5000].decode("utf-8", "replace"))
+
+
+async def _send(
+    url: str, *, stage: str, cookies: dict[str, str], attempt: int
+) -> http.RawResponse:
+    """One GET on the job's session, or on a fresh exit outside a job (or in a hedge)."""
+    h = sessions.current()
+    kw: dict[str, Any] = {
+        "stage": stage,
+        "headers": _HEADERS,
+        "cookies": cookies,
+        "timeout": _TIMEOUT,
+        "attempt": attempt,
+        "is_blocked": _refused,
+    }
+    if h is None:
+        return await http.request(
+            "GET", url, plugin=_PLUGIN, proxy=sessions.Exit().proxy_url(), **kw
+        )
+    return await h.request("GET", url, **kw)
+
+
+async def _hedged_send(
+    url: str, *, stage: str, cookies: dict[str, str], attempt: int
+) -> http.RawResponse:
+    after_s = _REVIEWS_HEDGE_AFTER_S if stage == "reviews" else _HEDGE_AFTER_S
+    if _HEDGE_AFTER_S <= 0 or after_s <= 0:
+        return await _send(url, stage=stage, cookies=cookies, attempt=attempt)
+    # A hedge runs with no session bound, so it goes out on a fresh exit.
+    return await hedged(
+        lambda _: _send(url, stage=stage, cookies=cookies, attempt=attempt),
+        after_s=after_s,
+        accept=lambda r: not r.blocked,
+        plugin=_PLUGIN,
+        stage=stage,
+    )
+
+
+async def _get(
+    url: str, *, stage: str, cookies: dict[str, str] | None = None
+) -> http.RawResponse | None:
+    """GET a Maps URL: rotate the exit on a refusal or a dead exit, then raise.
+
+    Returns the 200 response, or ``None`` for another status Google answered
+    with (a 404 means no such page: no new exit changes that). A refusal on
+    every exit raises :class:`SignInRequiredError` for a sign-in wall, else
+    :class:`GoogleRefusedError`: a 429 no longer reads as "no data".
+    """
     merged = {**CONSENT_COOKIES, **(cookies or {})}
-    try:
-        started = time.perf_counter()
-        page = await AsyncFetcher.get(
-            url,
-            headers=_HEADERS,
-            cookies=merged,
-            proxy=get_proxy_url(),
-            stealthy_headers=True,
-        )
-        fetch_ms = (time.perf_counter() - started) * 1000
-        logger.info(
-            "[google_maps][perf] source=html url=%s status=%s fetch_ms=%.1f",
-            url,
-            page.status,
-            fetch_ms,
-        )
-        if page.status == 200:
-            return page.html_content
-        logger.warning("Maps HTML GET %s returned %s", url, page.status)
-    except Exception as e:
-        logger.warning("Maps HTML GET %s failed: %s", url, e)
-    return await _fetch_html_stealthy(url, merged)
+    h = sessions.current()
+    slots = _call_slots.get()
+    refusal = "no answer"
+    last: http.RawResponse | None = None
+    for attempt in range(_ATTEMPTS):
+        seen = h.rotations if h is not None else 0
+        try:
+            # The slot is taken before the hedge clock starts: a request that
+            # waits for one is queued, not slow.
+            async with slots if slots is not None else nullcontext():
+                r = await _hedged_send(
+                    url, stage=stage, cookies=merged, attempt=attempt
+                )
+        except http.TransportError as e:
+            refusal = f"{e.kind}: {e.detail}"
+            if h is not None:
+                await h.rotate(e.kind, seen=seen)
+            continue
+        if not r.blocked:
+            await report(f"{stage} fetched")
+            if r.status == 200:
+                return r
+            logger.warning("Maps GET %s returned %s", url, r.status)
+            return None
+        last, refusal = r, f"status {r.status}"
+        await report(f"{stage} refused; trying a new exit")
+        if h is not None:
+            await h.rotate(refusal, seen=seen)
+    if last is not None and last.status == 200:
+        raise SignInRequiredError(f"Google returned a sign-in/consent wall for {url}")
+    raise GoogleRefusedError(
+        f"Google refused or did not answer the {stage} request on {_ATTEMPTS} "
+        f"exits ({refusal})"
+    )
+
+
+async def fetch_html(url: str, *, stage: str = "page") -> str | None:
+    """GET a Google Maps page and return its HTML.
+
+    No browser fallback on a refusal (GMP-9): a new exit is what clears a 403
+    or 429, and a headless render cost 10-30 s and a Chromium process.
+    """
+    r = await _get(url, stage=stage)
+    return r.text() if r is not None else None
 
 
 async def _fetch_html_stealthy(url: str, cookies: dict[str, str]) -> str | None:
-    """Last-resort browser fetch for anti-bot walls (mirrors the YouTube tier)."""
+    """Render a page in a browser: only shortlinks need it, their redirect runs in JS."""
     if StealthyFetcher is None:
         return None
     try:
@@ -234,7 +513,7 @@ async def _fetch_html_stealthy(url: str, cookies: dict[str, str]) -> str | None:
 # genericized: the free-text ``!2s`` name and per-place ``!15m2…!4s/g/…`` kgmid
 # hint dropped with counts adjusted, coords zeroed, and the ``!14m3!1s<EI>``
 # session token replaced with a filler — verified the token value is not
-# checked). Combined with an NID session cookie it returns the FULL payload:
+# checked). It returns the FULL payload:
 # reviewsCount, reviews distribution, popular times, image galleries, review
 # tags, and every about section. The returned ``jd[6]`` is the ``darray``
 # parsers read.
@@ -264,13 +543,18 @@ _PLACE_DETAIL_PB = (
     "!34m5!7b1!10b1!14b1!15m1!1b0!37i785"
 )
 
-# NID session cookie pool. Google trims the rich detail fields (counts,
+# NID session cookie pool. Google once trimmed the rich detail fields (counts,
 # distribution, popular times, galleries, tags, most about sections) from
-# responses that carry no session cookie; a plain GET to /maps mints an NID
-# that unlocks them — no login, no browser. A small pool is rotated
-# round-robin (mirrors the YouTube fetcher's ``_RotatingSession``) so no
-# single session accumulates the whole request volume; each expires after a
-# TTL and is re-minted lazily.
+# responses that carried no session cookie; a plain GET to /maps mints an NID
+# that unlocked them — no login, no browser. A small pool is rotated
+# round-robin (mirrors the YouTube fetcher's ``_RotatingSession``); each
+# expires after a TTL and is re-minted lazily.
+#
+# Off by default: on 2026-10-14 the place RPC parsed identically with and
+# without an NID (two places), and a cold slot's mint held the RPC back by
+# 1.1-3.7 s. GOOGLE_MAPS_SKIP_NID_MINT=0 brings the mint back should Google
+# re-gate the fields; delete the pool once prod shows no field loss.
+_SKIP_NID_MINT = os.getenv("GOOGLE_MAPS_SKIP_NID_MINT", "1") != "0"
 _NID_TTL_S = 30 * 60
 _NID_POOL_SIZE = 3
 _nid_pool: list[dict[str, Any]] = [
@@ -284,15 +568,18 @@ _nid_inflight: asyncio.Future | None = None
 async def _mint_nid() -> str | None:
     """Mint a fresh NID session cookie with a plain GET to /maps."""
     try:
-        page = await AsyncFetcher.get(
+        r = await http.request(
+            "GET",
             "https://www.google.com/maps?hl=en",
+            plugin=_PLUGIN,
+            stage="nid",
+            proxy=sessions.Exit().proxy_url(),
             headers=_HEADERS,
             cookies=CONSENT_COOKIES,
-            proxy=get_proxy_url(),
-            stealthy_headers=True,
+            timeout=_TIMEOUT,
         )
-        return (page.cookies or {}).get("NID")
-    except Exception as e:
+        return r.cookies.get("NID")
+    except http.TransportError as e:
         logger.warning("NID mint failed: %s", e)
         return None
 
@@ -326,17 +613,48 @@ async def fetch_place_darray(fid: str, *, language: str = "en") -> list | None:
     """Fetch a place's detail ``darray`` via the ``/maps/preview/place`` RPC.
 
     ``fid`` is the feature ID (``0x..:0x..``). Returns ``jd[6]`` (the array all
-    place-field paths index into), or ``None`` on failure. Sent with an NID
-    session cookie so Google returns the full payload (see ``_PLACE_DETAIL_PB``).
+    place-field paths index into), or ``None`` on failure. The full-page pb
+    selector (``_PLACE_DETAIL_PB``) is what brings the full payload.
     """
     pb = _PLACE_DETAIL_PB.format(fid=fid)
     url = (
         "https://www.google.com/maps/preview/place"
         f"?authuser=0&hl={language}&gl=us&pb={quote(pb, safe='!')}"
     )
-    jd = await fetch_rpc_json(url, cookies=await get_session_cookies())
+    cookies = None if _SKIP_NID_MINT else await get_session_cookies()
+    jd = await fetch_rpc_json(url, stage="place", cookies=cookies)
     darray = jd[6] if isinstance(jd, list) and len(jd) > 6 else None
-    return darray if isinstance(darray, list) else None
+    if not isinstance(darray, list):
+        return None
+    remember_place(darray)
+    _watch_field_loss(darray)
+    return darray
+
+
+# Detail answers that came back without the review fields the NID once unlocked.
+# The GMP-3 prod watch greps for this warning before the NID pool is deleted.
+_field_loss = 0
+
+
+def _watch_field_loss(darray: list) -> None:
+    """Warn, counted, when a place with reviews lacks its distribution or tags."""
+    global _field_loss
+    count = dig(darray, 4, 8)
+    if not isinstance(count, int | float) or count <= 0:
+        return
+    missing = [] if isinstance(dig(darray, 175, 3), list) else ["distribution"]
+    # Only a well-reviewed place is sure to have tags.
+    if count >= 100 and not _reviews_tags(darray):
+        missing.append("tags")
+    if missing:
+        _field_loss += 1
+        logger.warning(
+            "[google_maps] detail field loss #%d: %s has %d reviews but no %s",
+            _field_loss,
+            dig(darray, 10),
+            int(count),
+            " or ".join(missing),
+        )
 
 
 # Map-search RPC (``search?tbm=map``) field selector. Viewport block first
@@ -448,14 +766,18 @@ async def iter_search_pages(
             )
             for i in range(wave)
         ]
-        pages = await gather_bounded(
-            [lambda u=u: fetch_rpc_json(u) for u in urls], concurrency=wave
-        )
-        for jd in pages:
-            darrays = _search_darrays(jd)
-            if not darrays:
-                return
-            yield darrays
+        async with aclosing(
+            ordered_map(
+                urls, lambda u: fetch_rpc_json(u, stage="search"), concurrency=wave
+            )
+        ) as pages:
+            async for jd in pages:
+                darrays = _search_darrays(jd)
+                if not darrays:
+                    return
+                for darray in darrays:
+                    remember_place(darray)
+                yield darrays
         page += wave
 
 
@@ -537,7 +859,7 @@ async def iter_reviews_pages(
         url = build_reviews_url(
             fid, sort_code=sort_code, page_token=page_token, language=language
         )
-        node = _reviews_node(await fetch_rpc_json(url))
+        node = _reviews_node(await fetch_rpc_json(url, stage="reviews"))
         if not node or len(node) < 3 or not isinstance(node[2], list):
             return
         yield node[2]
@@ -552,51 +874,41 @@ async def iter_reviews_pages(
 
 
 async def fetch_rpc_json(
-    url: str, *, cookies: dict[str, str] | None = None
+    url: str, *, stage: str = "rpc", cookies: dict[str, str] | None = None
 ) -> Any | None:
     """GET a Maps ``/maps/preview/*`` RPC URL and return parsed JSON.
 
     These endpoints return an XSSI-guarded JSON array (not HTML). Returns the
-    decoded structure, or ``None`` on failure / non-JSON (e.g. a sign-in wall).
+    decoded structure, or ``None`` for a non-200 answer or a non-JSON body.
+    Raises as :func:`_get` does when Google refuses every exit.
     """
-    try:
-        started = time.perf_counter()
-        page = await AsyncFetcher.get(
-            url,
-            headers=_HEADERS,
-            cookies=cookies or CONSENT_COOKIES,
-            proxy=get_proxy_url(),
-            stealthy_headers=True,
-        )
-        fetch_ms = (time.perf_counter() - started) * 1000
-        logger.info(
-            "[google_maps][perf] source=rpc url=%s status=%s fetch_ms=%.1f",
-            url,
-            page.status,
-            fetch_ms,
-        )
-        if page.status != 200:
-            logger.warning("Maps RPC GET %s returned %s", url, page.status)
-            return None
-        text = page.html_content
-        if looks_like_signin_wall(text):
-            logger.warning("Maps RPC GET %s hit a sign-in/consent wall", url)
-            return None
-        # brace_match_json is a pure-Python scan and review payloads reach
-        # ~1MB; decode off-loop so it can't stall concurrent requests.
-        return await asyncio.to_thread(_decode_rpc_body, text)
-    except Exception as e:
-        logger.warning("Maps RPC GET %s failed: %s", url, e)
+    r = await _get(url, stage=stage, cookies=cookies)
+    if r is None:
         return None
+    # Review pages reach ~1 MB: decode off the loop.
+    return await asyncio.to_thread(_decode_rpc_body, r.body)
 
 
-def _decode_rpc_body(text: str) -> Any | None:
-    """Strip the XSSI guard and decode the balanced top-level JSON blob."""
-    body = strip_xssi(text)
-    # The proxy/HTML fetcher may wrap the JSON in <html><body><p>…</p>…,
-    # so extract just the balanced top-level array/object.
-    start = next((i for i, c in enumerate(body) if c in "[{"), -1)
+_decoder = json.JSONDecoder()
+
+
+def _decode_rpc_body(body: bytes | str) -> Any | None:
+    """Strip the XSSI guard and decode the top-level JSON blob after it.
+
+    ``raw_decode`` reads the blob and ignores whatever trails it, at C speed
+    (0.1-1.2 ms against 40-64 ms for the pure-Python brace scan, which stays as
+    the fallback for a body it cannot read).
+    """
+    text = body.decode("utf-8", "replace") if isinstance(body, bytes) else body
+    text = strip_xssi(text)
+    start = next((i for i, c in enumerate(text) if c in "[{"), -1)
     if start == -1:
         return None
-    blob = brace_match_json(body, start)
-    return json.loads(blob) if blob else None
+    try:
+        return _decoder.raw_decode(text, start)[0]
+    except ValueError:
+        blob = brace_match_json(text, start)
+        try:
+            return json.loads(blob) if blob else None
+        except ValueError:
+            return None
