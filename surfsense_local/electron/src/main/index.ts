@@ -58,6 +58,10 @@ import { apiQuitConfirmation } from "./quit/api-quit-confirmation.ts"
 import { confirmQuit } from "./quit/confirm-running-replies.ts"
 import { installPermissionHandlers } from "./permissions/handlers.ts"
 import { registerMicrophoneHandlers } from "./microphone/ipc.ts"
+import { backendCommands } from "./going-back/backend-commands.ts"
+import { NEWER_DATABASE_EXIT } from "./going-back/exit-code.ts"
+import { askAboutGoingBack } from "./going-back/going-back-dialog.ts"
+import { offerGoingBack } from "./going-back/offer-going-back.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 // The main window's page when packaged: the built SPA, loaded from disk.
@@ -104,6 +108,21 @@ function onSidecarCrash(name: string, code: number | null): void {
     name,
     code,
   })
+}
+
+/**
+ * The API refused a database a newer release upgraded. Stop every sidecar so
+ * nothing holds the database, ask, and start again only once it has gone back.
+ */
+async function goBackAfterNewerDatabase(ctx: SidecarContext): Promise<void> {
+  warnMain(sessionLog, "the database was upgraded by a newer release; offering to go back")
+  await shutdown()
+  const outcome = await offerGoingBack({
+    ...backendCommands(ctx, (text) => warnMain(sessionLog, text)),
+    ask: askAboutGoingBack,
+  })
+  if (outcome === "restart") app.relaunch()
+  app.exit(0)
 }
 
 // The agent looks at the pages of a Word document or deck it made or was given,
@@ -520,7 +539,13 @@ function main(): void {
       sidecars = boot.sidecars
       stopSidecarWatchers = boot.stopWatching
       serveWordPreviews(boot.ctx)
-      await boot.waitHealthy()
+      try {
+        await boot.waitHealthy()
+      } catch (err) {
+        if (boot.sidecars.get("api")?.exitCode !== NEWER_DATABASE_EXIT) throw err
+        await goBackAfterNewerDatabase(boot.ctx)
+        return
+      }
       announceApiUrl(boot.dataDir, boot.apiUrl)
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({
