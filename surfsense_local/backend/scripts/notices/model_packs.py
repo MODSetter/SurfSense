@@ -1,15 +1,21 @@
 """Notices for the model packs the installer bundles, named from their pins.
 
-No pack ships a licence file upstream, so each entry carries the licence id its
+Most packs ship no licence file upstream, so each carries the licence id its
 model card declares and says plainly that no text ships, rather than invent one.
+Silero VAD stages its own LICENSE beside the weights, so its text ships.
 """
 
 from importlib.metadata import version
+from pathlib import Path
 
 from fetch_bundled_voice import shipped_build
 
 from modules.embedding.bundled import BGE
 from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.transcription.voice_activity.model_file import (
+    SILERO_VAD,
+    VAD_DIR_NAME,
+)
 from worker.ingestion.parser_pack import PARSER_FOLDERS
 
 NO_TEXT = "Only the licence id is known; no licence text ships with the weights."
@@ -63,5 +69,20 @@ def _parser() -> list[dict[str, str]]:
     return entries
 
 
-def model_notices() -> list[dict[str, str]]:
-    return [_embedder(), _voice(), *_parser()]
+def _vad(models_root: Path) -> dict[str, str]:
+    """The staged LICENSE, which fetch_silero_vad.py checks by its pinned hash."""
+    source = f"{SILERO_VAD.weights.path} from {SILERO_VAD.repo} at {SILERO_VAD.commit}"
+    licence = models_root / VAD_DIR_NAME / SILERO_VAD.licence.name
+    if not licence.is_file():
+        entry = _entry("Silero VAD", SILERO_VAD.commit, "mit", source)
+        entry["note"] = f"{source}. Its LICENSE is not staged in {models_root}."
+        return entry
+    entry = _entry("Silero VAD", SILERO_VAD.commit, "mit", source)
+    entry["text"] = licence.read_text(encoding="utf-8")
+    entry["note"] = f"{source}, with its LICENSE."
+    return entry
+
+
+def model_notices(models_root: Path = Path("models")) -> list[dict[str, str]]:
+    """`models_root` is where build:vad stages the packs: backend/models."""
+    return [_embedder(), _voice(), *_parser(), _vad(models_root)]
