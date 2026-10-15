@@ -4,53 +4,17 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
-import type { Plugin, PluginTool, ToolApproval } from "../api"
+import type { Plugin, ToolChange } from "../api"
 import { ConnectPluginButton } from "./connect-plugin-button"
 import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
-import { PluginToolRow } from "./plugin-tool-row"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
-
-function ToolGroup({
-  plugin,
-  label,
-  tools,
-  onTool,
-}: {
-  plugin: Plugin
-  label: string
-  tools: PluginTool[]
-  onTool: (
-    tool: string,
-    change: { enabled: boolean } | { approval: ToolApproval }
-  ) => void
-}) {
-  const labelId = useId()
-  if (tools.length === 0) return null
-  return (
-    <div role="group" aria-labelledby={labelId} className="mt-5">
-      <p id={labelId} className="text-xs font-medium text-muted-foreground">
-        {label}
-      </p>
-      <ul className="divide-y">
-        {tools.map((tool) => (
-          <PluginToolRow
-            key={tool.name}
-            plugin={plugin}
-            tool={tool}
-            onEnabled={(enabled) => onTool(tool.name, { enabled })}
-            onApproval={(approval) => onTool(tool.name, { approval })}
-          />
-        ))}
-      </ul>
-    </div>
-  )
-}
+import { ToolGroup } from "./tool-group"
 
 function checkLabel(plugin: Plugin) {
   if (plugin.check_failure === "unreachable") {
@@ -133,10 +97,7 @@ export function PluginDetailsCard({
   removing: boolean
   checking: boolean
   onCheck: () => void
-  onTool: (
-    tool: string,
-    change: { enabled: boolean } | { approval: ToolApproval }
-  ) => void
+  onTool: (tool: string, change: ToolChange) => void
   onDisconnect: () => void
   onRemove: () => void
   onOpenLicense?: () => void
