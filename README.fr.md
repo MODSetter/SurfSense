@@ -26,6 +26,7 @@
     <a href="#ce-que-surfsense-fait-avec-chaque-format">Formats</a> ·
     <a href="#démarrage-rapide">Démarrage rapide</a> ·
     <a href="#comparaison">Comparaison</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Tarifs</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -85,6 +86,25 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 | Open source | Non | **Apache-2.0** |
 | Modèles | Gemini seulement | Toute API compatible OpenAI, ou un modèle local |
 
+## Plugins
+
+Connectez-les dans **Paramètres › Plugins**.
+
+**Par SurfSense.** Ils lisent des pages publiques sans passer par vos propres comptes et nécessitent une licence SurfSense : [téléchargez l'application](https://www.surfsense.com/downloads) et saisissez-y votre adresse e-mail pour recevoir une licence gratuite de 30 jours.
+
+| Plugin | Ce qu'il fait |
+|---|---|
+| **Google Search** | Rechercher sur Google et lire ses résultats, ses annonces et les questions associées |
+| **Web Crawl** | Lire une page web, ou explorer un site entier et le convertir en texte propre |
+| **YouTube** | Lire le contenu des vidéos et des chaînes YouTube, avec leurs commentaires |
+| **TikTok** | Lire le contenu des vidéos TikTok et leurs commentaires, rechercher des utilisateurs et voir ce qui est tendance |
+| **Google Maps** | Trouver des lieux sur Google Maps et lire leurs avis |
+| **Amazon** | Lire les produits et les résultats de recherche d'Amazon |
+| **Walmart** | Lire les produits, les résultats de recherche et les avis de Walmart |
+| **Indeed** | Lire les offres d'emploi sur Indeed |
+
+**Tiers.** Des serveurs MCP issus du [registre de plugins](plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Aucune licence n'est nécessaire ; ils restent désactivés tant que vous ne les autorisez pas.
+
 ## Communauté
 
 - [Discord](https://discord.gg/ejRNvftDp9) pour l'aide, [Issues](https://github.com/MODSetter/SurfSense/issues) pour les bugs, [Discussions](https://github.com/MODSetter/SurfSense/discussions) pour les idées.
@@ -92,18 +112,6 @@ Les modifications, les conversions et les outils PDF créent toujours un nouveau
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Contributeurs de SurfSense" /></a>
 
-## Historique des étoiles
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
-
 ## Licence
 
-Apache-2.0. Voir [LICENSE](LICENSE).
+Apache-2.0. Voir [LICENSE](LICENSE). Deux dossiers relèvent toutefois de la Business Source License 1.1, comme l'indique le fichier `LICENSE` de chacun : [`plugins/remote/proprietary/`](plugins/remote/proprietary/), les plugins de SurfSense, et [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
