@@ -184,6 +184,9 @@
   }
   #root {
     height: 100svh;
+    /* Base UI's setup: the app's own z-indexes stay below every portaled popup,
+       which then stack by the order they opened. */
+    isolation: isolate;
   }
 }
 
