@@ -514,6 +514,37 @@ ENTRIES: tuple[Entry, ...] = (
             "request_options": {"keep_language_tags": True},
         },
     ),
+    # The light one, for English: 7.12% average error on the Open ASR
+    # leaderboard against Parakeet v3's 6.34, at a quarter of Nemotron's file.
+    AudioEntry(
+        id="canary-180m-flash",
+        name="Canary 180M Flash",
+        family="Canary",
+        publisher="NVIDIA",
+        description="Accurate English with little memory. Also German and French.",
+        license="cc-by-4.0",
+        source_repo="nvidia/canary-180m-flash",
+        repo="audio-cpp/audio.cpp-gguf",
+        aliases=("nvidia/canary-180m-flash",),
+        folder="Canary-180M-Flash-GGUF",
+        # The build measured; its F32 file (757.9 MB) is unmeasured.
+        builds=("Q8_0",),
+        transcription={
+            "origin": (
+                "nvidia/canary-180m-flash card; memory measured on audio.cpp "
+                "v0.8.2, Apple M2, 4 threads, 16 Oct 2026"
+            ),
+            "sample_rate": 16000,
+            # The first request, the load included, on a 25 s clip.
+            "peak_mb": 783,
+            "window_s": 28,
+            # Told no language, it translates into English instead.
+            "detects_language": False,
+            # Spanish is in the family but v0.8.2 drops every "ñ" it writes.
+            "languages": ["en", "de", "fr"],
+            "family_codes": {"en": "en", "de": "de", "fr": "fr"},
+        },
+    ),
     # Embedders: bge ships with the app and is the default; the rest are chosen
     # once, at onboarding. Each semantic_weight is the middle of the retrieval
     # eval's plateau for that model (1 Oct 2026, 266 queries): both granites

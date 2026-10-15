@@ -37,6 +37,13 @@ RECOGNISER_FAMILIES: dict[str, RecogniserFamily] = {
         }),
         frozenset({"language", "lookahead_tokens", "max_tokens", "keep_language_tags"}),
     ),
+    "canary_asr": RecogniserFamily(
+        frozenset({"en", "de", "es", "fr"}),
+        frozenset({
+            "language", "target_language", "pnc", "max_tokens",
+            "audio_chunk_mode", "audio_chunk_duration_sec",
+        }),
+    ),
 }
 # fmt: on
 _NOTHING_KNOWN = RecogniserFamily(frozenset(), frozenset())

@@ -49,9 +49,9 @@ for (const platform of ["linux", "win32"]) {
     assert.equal(defs.get("AUDIOCPP_MODELS"), FAMILIES.join(","))
   })
 
-  test(`${platform}: builds Nemotron's family beside the voices, for speech recognition`, () => {
+  test(`${platform}: builds the speech recognisers' families beside the voices`, () => {
     const families = definitions(configureArgs(platform, VISUAL_STUDIO)).get("AUDIOCPP_MODELS").split(",")
-    for (const family of ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr"]) {
+    for (const family of ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr", "canary_asr"]) {
       assert.ok(families.includes(family), family)
     }
   })

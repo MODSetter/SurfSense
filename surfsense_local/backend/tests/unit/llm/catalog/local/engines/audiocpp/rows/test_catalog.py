@@ -39,6 +39,7 @@ def test_every_curated_audio_model_is_a_runnable_unpriced_row() -> None:
         "supertonic-3",
         "kitten-tts-mini-0.8",
         "nemotron-3.5-asr-streaming-0.6b",
+        "canary-180m-flash",
     }
     kokoro = result["kokoro-82m"]
     assert kokoro.engine == "audiocpp"

@@ -20,6 +20,7 @@ VALIDATED: dict[str, str] = {
     "Nemotron-3.5-ASR-Streaming-0.6B-GGUF/nemotron-3.5-asr-streaming-0.6b-q8_0.gguf": (
         "v0.8.2"
     ),
+    "Canary-180M-Flash-GGUF/canary-180m-flash-q8_0.gguf": "v0.8.2",
 }
 
 # The family sits in the first 400 bytes; the header runs to tens of megabytes.

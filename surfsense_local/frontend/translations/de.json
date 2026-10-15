@@ -667,8 +667,6 @@
   "models_speech_language_title": "Gesprochene Sprache",
   "models_speech_model_detects_language_label": "Erkennt die Sprache",
   "models_speech_model_languages_button": "{count, plural, one {# Sprache} other {# Sprachen}}",
-  "models_speech_model_peak_memory_gigabytes_label": "{size, number, ::unit/gigabyte .#} beim Transkribieren",
-  "models_speech_model_peak_memory_megabytes_label": "{size, number, ::unit/megabyte .} beim Transkribieren",
   "models_try_dialog_cancel_button": "Abbrechen",
   "models_try_dialog_chat_confirmed_body": "Chat-Unterstützung ist bestätigt. Der Test sendet einen kurzen Prompt und kann Kosten verursachen.",
   "models_try_dialog_chat_unconfirmed_body": "Dieser Endpunkt veröffentlicht keine Fähigkeiten, daher ist Chat-Unterstützung nicht bestätigt. Der Test sendet einen kurzen Prompt und kann Kosten verursachen.",

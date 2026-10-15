@@ -6,8 +6,8 @@ export const COMMIT = "4d88768fbcae4e6eb3352c6ab1422dabb7d90b58" // pragma: allo
 export const SOURCE = "https://github.com/0xShug0/audio.cpp.git"
 
 // The families the app curates: the only ones built, and their specs ship.
-// The voices', then Nemotron's for speech recognition.
-export const FAMILIES = ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr"]
+// The voices', then the speech recognisers': Nemotron's, and Canary's for English.
+export const FAMILIES = ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr", "canary_asr"]
 
 // macOS takes upstream's archive, which meets the app's floor there.
 export const MAC_ARCHIVE = {

@@ -61,7 +61,8 @@ ESPEAK = {
 }
 
 MODELS = {m.id: m for m in load_local_manifest().models}
-(RECOGNISER,) = [m for m in MODELS.values() if m.transcription]
+# Its language tags and six languages are Nemotron's.
+RECOGNISER = MODELS["nemotron-3.5-asr-streaming-0.6b"]
 KOKORO = MODELS["kokoro-82m"]
 
 

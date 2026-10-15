@@ -47,7 +47,11 @@ def read_language(session: SessionDep) -> LanguageRead:
 @router.put("", response_model=LanguageRead)
 def set_language(payload: LanguageWrite, session: SessionDep) -> LanguageRead:
     chosen = _speech_model(session)
-    if payload.language not in (AUTO, *chosen.recogniser.transcription.languages):
+    transcription = chosen.recogniser.transcription
+    offered = [*transcription.languages]
+    if transcription.detects_language:
+        offered.append(AUTO)
+    if payload.language not in offered:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             {

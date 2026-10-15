@@ -1,19 +1,16 @@
 import { useId } from "react"
 
 import { Button } from "@/components/ui/button"
-import { DotIcon, DownloadIcon } from "@/components/ui/icons"
+import { DownloadIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { InstallProgress } from "@/features/models/local/chat/install-progress"
 import type { InstallJob } from "@/features/models/local/installs/api"
 import type { LocalSpeechModel } from "@/features/models/local/transcription/api"
-import {
-  speechModelMemory,
-  speechModelSize,
-} from "@/features/models/local/transcription/describe-speech-model"
+import { speechModelSize } from "@/features/models/local/transcription/describe-speech-model"
 import { listLanguages } from "@/features/models/local/transcription/language-names"
 import { intl } from "@/i18n/intl"
 
-/** One curated model: what it downloads, what it takes, where it works well. */
+/** One curated model: what it downloads and where it works well. */
 export function SpeechModelCard({
   model,
   download,
@@ -40,10 +37,8 @@ export function SpeechModelCard({
         <p id={nameId} className="text-sm font-medium">
           {model.label}
         </p>
-        <p className="flex flex-wrap items-center text-xs text-muted-foreground tabular-nums">
-          <span>{speechModelSize(model)}</span>
-          <DotIcon aria-hidden="true" className="size-3 shrink-0" />
-          <span>{speechModelMemory(model)}</span>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {speechModelSize(model)}
         </p>
       </div>
       {model.languages.length > 0 ? (

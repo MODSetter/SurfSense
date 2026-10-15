@@ -25,6 +25,9 @@ _MAX_CHARS_PER_SECOND = 40
 # Whisper's own threshold for a looping decode; shorter text says nothing.
 _MAX_COMPRESSION_RATIO = 2.4
 _RATIO_MIN_CHARS = 50
+# A comma or full stop standing alone, as Canary writes German; French keeps
+# its space before ? ! : ; and a decimal or an ellipsis is not alone.
+_PUNCTUATION_APART = re.compile(r"\s+([,.])(?=\s|$)")
 
 
 def cleaned(text: str, language: str | None, seconds: float) -> str:
@@ -36,7 +39,7 @@ def cleaned(text: str, language: str | None, seconds: float) -> str:
 
 
 def _cleaned(text: str, language: str | None, seconds: float) -> str:
-    text = text.strip()
+    text = _PUNCTUATION_APART.sub(r"\1", text.strip())
     if language in _UNSPACED:
         text = "".join(_collapsed(_UNSPACED_UNIT.findall(text)))
     else:

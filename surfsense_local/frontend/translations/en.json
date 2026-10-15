@@ -667,8 +667,6 @@
   "models_speech_language_title": "Spoken language",
   "models_speech_model_detects_language_label": "Detects the language",
   "models_speech_model_languages_button": "{count, plural, one {# language} other {# languages}}",
-  "models_speech_model_peak_memory_gigabytes_label": "{size, number, ::unit/gigabyte .#} while transcribing",
-  "models_speech_model_peak_memory_megabytes_label": "{size, number, ::unit/megabyte .} while transcribing",
   "models_try_dialog_cancel_button": "Cancel",
   "models_try_dialog_chat_confirmed_body": "Chat support is confirmed. Testing sends one short prompt and may cost money.",
   "models_try_dialog_chat_unconfirmed_body": "This endpoint does not publish capabilities, so chat support is unconfirmed. Testing sends one short prompt and may cost money.",
