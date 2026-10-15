@@ -2,8 +2,9 @@ name: Plugins Registry
 
 # plugins/registry/: the third-party plugin list, its icons, its check and the
 # OAuth files the registry container serves.
-# - Pull requests: check the entry rules and icons. A maintainer connects each
-#   new listing on dev and reviews its tools before it reaches main.
+# - Pull requests: check the entry rules and icons, then connect to each plugin
+#   the pull request adds or changes. A maintainer connects each new listing on
+#   dev, signing in where it needs it, and reviews its tools before it reaches main.
 # - Dev: write plugins/registry/published/, a copy of plugins.json stamped with
 #   generated_at and each icon's SHA-256, and plugins.json.sig, its signature.
 #   The release pull request from dev carries it to main, which the registry
@@ -32,7 +33,7 @@ permissions:
 
 env:
   # The app compiles in the same key.
-  REGISTRY_PUBLIC_KEY: e75ba1bddb3124497e37072c87bddfcedf42f7f44650ddfda877e39cb1ec9769
+  REGISTRY_PUBLIC_KEY: 9498a1606105a625feeaa655648df03885410421a387478a72ec763188f10395
   SIGN_MESSAGE: 'chore(registry): sign the plugin list'
 
 jobs:
@@ -92,6 +93,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          # The merge's first parent is the list this pull request is based on.
+          fetch-depth: 2
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.2.0
@@ -119,6 +123,18 @@ jobs:
       - name: Check the entry rules and icons
         working-directory: plugins/registry/check
         run: uv run python -m registry_check static
+
+      # Connects to each plugin the pull request adds or changes, after the entry
+      # rules refused loopback and credentials. Pull requests only: a third-party
+      # server down for a minute must never hold up signing the list.
+      - name: Connect to each new or changed plugin
+        if: github.event_name == 'pull_request'
+        working-directory: plugins/registry/check
+        run: |
+          base="$RUNNER_TEMP/base-plugins.json"
+          git show HEAD^1:plugins/registry/plugins.json > "$base" 2>/dev/null \
+            || echo '{"schema_version": 1, "plugins": []}' > "$base"
+          uv run python -m registry_check live --base "$base"
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

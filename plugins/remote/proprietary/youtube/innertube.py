@@ -2,126 +2,66 @@
 
 All network I/O for the scraper flows through :func:`fetch_html` and
 :func:`post_innertube`, and always egresses through the residential proxy (never
-a direct connection — that would expose and risk-block the server IP). Within a
-continuation chain, :func:`proxy_session` opens ONE reused keep-alive session so
-sequential pages share a connection and a sticky exit IP (roughly halving warm
-latency vs a fresh rotating IP per request). HTML pages fall back to a
-``StealthyFetcher`` browser tier for anti-bot walls. Parsers and the orchestrator
-never see which tier served the bytes.
-
-The ``AsyncFetcher.post(..., json=...)`` + ``page.json()`` / ``page.html_content``
-pattern is already proven in ``app/routes/youtube_routes.py``.
+a direct connection — that would expose and risk-block the server IP). Each job
+runs on one keep-alive :mod:`proprietary.scraping.sessions` holder
+(:func:`job_session`), so sequential pages share a connection and an exit IP
+(roughly halving warm latency vs a fresh rotating IP per request). A block
+(403/429 or the ``google.com/sorry`` redirect) rotates the holder at once, and a
+request still unanswered after the hedge delay races a second one on a fresh
+exit. Parsers and the orchestrator never see which exit served the bytes.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import time
-from contextlib import asynccontextmanager, suppress
+import os
+from collections.abc import Awaitable, Callable
+from contextlib import AbstractAsyncContextManager
 from contextvars import ContextVar
+from functools import partial
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
-from scrapling.fetchers import AsyncFetcher, FetcherSession
-
-from proprietary.scraping.proxy import get_proxy_url
-
-try:  # browser tier is optional (needs patchright browsers installed)
-    from scrapling.fetchers import StealthyFetcher
-except Exception:  # pragma: no cover - import guard
-    StealthyFetcher = None  # type: ignore[assignment]
+from proprietary.scraping import http, sessions
+from proprietary.scraping.concurrency import hedged
 
 logger = logging.getLogger(__name__)
 
-# Per-flow proxy session (set by ``proxy_session`` around one continuation
-# chain). Reusing one keep-alive connection halves warm latency AND pins a
-# single sticky exit IP on the rotating gateway, instead of paying a fresh
-# TCP+TLS handshake and drawing a new (often slow) residential node per request.
-# A ContextVar keeps each concurrent fan-out flow on its own session/IP without
-# threading a param through every parser call.
-_current_session: ContextVar[_RotatingSession | None] = ContextVar(
-    "yt_proxy_session", default=None
-)
+PLUGIN = "youtube"
 
-# Statuses that mean "this IP is throttled/blocked" -> rotate to a fresh one.
+# One attempt fails fast: connect (TCP, proxy CONNECT, TLS) within 4 s, the whole
+# request within 16 s. The rotation loop below is the only retry layer.
+_TIMEOUT = (4, 12)
+
 # A probe of 120 sequential requests on one sticky IP saw zero blocks, so we
-# stay sticky for speed and rotate only *reactively*, up to this many times per
-# request. ponytail upgrade path: also rotate proactively every N requests if a
-# future run ever trips these.
-_BLOCK_STATUSES = frozenset({403, 429})
+# stay on one exit for speed and rotate only *reactively*, up to this many times
+# per request.
 _MAX_ROTATIONS = 3
 
+# Race a second request on a fresh exit once the first is this slow (about 1 in
+# 6 new exits took over 5 s). Watch pages are 1-2 MB; InnerTube answers are small.
+# The HTML delay sits below the cold p75 (2.7 s), so a cold page fetch often pays
+# for a second 1-2 MB download that loses. That proxy bandwidth buys the slow
+# tail: a 4 s delay would leave a stuck page about 1.5 s slower.
+# YOUTUBE_HEDGE=0 (or SCRAPING_HEDGE=0 for every plugin) turns it off.
+_HEDGE_HTML_S = 2.5
+_HEDGE_API_S = 1.5
+_MAX_HEDGES = 1 if os.getenv("YOUTUBE_HEDGE", "1") != "0" else 0
 
-class _RotatingSession:
-    """Owns one live ``FetcherSession`` (sticky IP) and can swap it for a fresh one.
+# YOUTUBE_KEEP_IDLE=1 keeps warm holders between calls (skips 0.5-1.4 s of CONNECT
+# and TLS on a warm call); one exit then serves at most _MAX_USES requests, across
+# calls, and a block burns it. Off by default, as Google Maps' is: it concentrates
+# calls on fewer exits, and its block-rate check ran on only 12 fetches.
+_KEEP_IDLE = os.getenv("YOUTUBE_KEEP_IDLE", "0") == "1"
+_MAX_USES = 100
 
-    ``rotate()`` closes the current keep-alive connection and opens a new one, so
-    the rotating gateway hands out a different residential exit IP. Used
-    sequentially within a single flow (never shared across concurrent tasks), so
-    no locking is needed. ``session`` is ``None`` only when no proxy is configured.
-    """
+_SORRY = "google.com/sorry"
 
-    def __init__(self) -> None:
-        self._cm: Any | None = None
-        self.session: Any | None = None
-        self.rotations = 0
-
-    async def _open(self) -> None:
-        proxy = get_proxy_url()
-        if proxy is None:
-            self._cm = self.session = None
-            return
-        self._cm = FetcherSession(
-            proxy=proxy, stealthy_headers=True, impersonate="chrome"
-        )
-        self.session = await self._cm.__aenter__()
-
-    async def close(self) -> None:
-        if self._cm is not None:
-            with suppress(Exception):  # best-effort teardown
-                await self._cm.__aexit__(None, None, None)
-        self._cm = self.session = None
-
-    async def rotate(self) -> Any | None:
-        """Drop the current IP and connect through a fresh one. Returns new session."""
-        await self.close()
-        self.rotations += 1
-        await self._open()
-        logger.info("[youtube] rotated proxy session (rotation #%d)", self.rotations)
-        return self.session
-
-
-async def open_proxy_holder() -> _RotatingSession:
-    """Open a warm rotate-on-block session holder (caller owns ``close()``)."""
-    holder = _RotatingSession()
-    await holder._open()
-    return holder
-
-
-@asynccontextmanager
-async def bind_proxy_holder(holder: _RotatingSession):
-    """Route this task's fetches through ``holder`` for the enclosed block.
-
-    Does NOT close the holder — enables pooling warm sessions across sequential
-    jobs so each job skips the ~2s proxy TCP+TLS handshake.
-    """
-    token = _current_session.set(holder)
-    try:
-        yield holder
-    finally:
-        _current_session.reset(token)
-
-
-@asynccontextmanager
-async def proxy_session():
-    """Open one reused, rotate-on-block proxy session for a continuation chain."""
-    holder = await open_proxy_holder()
-    try:
-        async with bind_proxy_holder(holder):
-            yield holder
-    finally:
-        await holder.close()
-
+# The tool call's progress hook (server.py sets it): told as each request starts
+# and lands, so a long call keeps reporting between items.
+on_stage: ContextVar[Callable[[str], Awaitable[None]] | None] = ContextVar(
+    "youtube_on_stage", default=None
+)
 
 # Consent cookies to dodge the EU consent interstitial that otherwise returns a
 # page with no ``ytInitialData``. Mirrors app/routes/youtube_routes.py.
@@ -129,6 +69,7 @@ CONSENT_COOKIES = {
     "CONSENT": "PENDING+999",
     "SOCS": "CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiADGgYIgOa_pgY",  # pragma: allowlist secret
 }
+_HTML_HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
 
 # Public InnerTube "WEB" client block. The web API key below is YouTube's
 # long-standing public key; ``search``/``next`` may reject a keyless POST where
@@ -140,6 +81,12 @@ INNERTUBE_PUBLIC_API_KEY = (
 INNERTUBE_BROWSE_URL = "https://www.youtube.com/youtubei/v1/browse"
 INNERTUBE_SEARCH_URL = "https://www.youtube.com/youtubei/v1/search"
 INNERTUBE_NEXT_URL = "https://www.youtube.com/youtubei/v1/next"
+INNERTUBE_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player"
+
+
+def job_session() -> AbstractAsyncContextManager[sessions.SessionHolder]:
+    """One job's (or fan-out worker's) holder, bound so the fetch helpers find it."""
+    return sessions.bound(PLUGIN, keep_idle=_KEEP_IDLE, max_uses=_MAX_USES)
 
 
 def build_innertube_payload(
@@ -190,131 +137,164 @@ def build_innertube_payload(
     return payload
 
 
+def is_blocked(response: http.RawResponse) -> bool:
+    """403/429/444, or the redirect to Google's "unusual traffic" page."""
+    return (
+        response.status in http.BLOCK_STATUSES
+        or _SORRY in (response.location() or "")
+        or _SORRY in response.url
+    )
+
+
+async def _send(
+    method: str, url: str, hedge_index: int, *, stage: str, **kw: Any
+) -> http.RawResponse:
+    """One attempt: on the job's holder, or on a fresh exit inside a hedge.
+
+    ``hedged`` unbinds the holder for its hedges, so ``current()`` is ``None``
+    there and the hedge pays its own CONNECT on a new IP. A redirect that is not
+    the sorry page is followed once, on the same exit.
+    """
+    h = sessions.current()
+    opts = {
+        "stage": stage,
+        "timeout": _TIMEOUT,
+        "allow_redirects": False,
+        "is_blocked": is_blocked,
+    }
+
+    async def once(method: str, url: str, **more: Any) -> http.RawResponse:
+        if h is None:
+            proxy = sessions.Exit().proxy_url()
+            return await http.request(
+                method, url, plugin=PLUGIN, proxy=proxy, **opts, **more
+            )
+        return await h.request(method, url, **opts, **more)
+
+    seen = h.rotations if h is not None else 0
+    r = await once(method, url, **kw)
+    location = r.location()
+    if not r.blocked and 300 <= r.status < 400 and location:
+        more = {k: v for k, v in kw.items() if k != "json"}
+        r = await once("GET", urljoin(r.url, location), **more)
+    if r.blocked and h is not None and h.rotations == seen:
+        # Rotated by the loop below; if a hedge answered instead, the next
+        # request on this holder rotates first (and it is never kept idle).
+        # A refusal that lands after another task rotated is about the old
+        # exit: burning now would throw away the fresh one.
+        h.burn(f"status {r.status}")
+    return r
+
+
+async def _fetch(
+    method: str,
+    url: str,
+    *,
+    stage: str,
+    after_s: float,
+    rotations: int = _MAX_ROTATIONS,
+    **kw: Any,
+) -> http.RawResponse | None:
+    """Send with rotate-on-block and hedging; the last answer, or ``None``.
+
+    Tries up to ``rotations + 1`` exits. Returns a blocked response only when
+    every exit tried was blocked.
+    """
+    h = sessions.current()
+    hook = on_stage.get()
+    last: http.RawResponse | None = None
+    for attempt in range(rotations + 1):
+        seen = h.rotations if h is not None else 0  # other tasks may share h
+        if hook is not None:
+            await hook(f"{stage}: attempt {attempt + 1}")
+        try:
+            last = await hedged(
+                partial(_send, method, url, stage=stage, attempt=attempt, **kw),
+                after_s=after_s,
+                accept=lambda r: not r.blocked,
+                max_extra=_MAX_HEDGES,
+                plugin=PLUGIN,
+                stage=stage,
+            )
+        except http.TransportError as e:
+            logger.warning("[youtube] %s %s failed: %s", stage, url, e.kind)
+            if e.kind == "SessionClosed":  # the job ended under us
+                return last
+            if h is not None:
+                await h.rotate(e.kind, seen=seen)
+            continue
+        if not last.blocked:
+            if hook is not None:
+                await hook(f"{stage}: fetched")
+            return last
+        logger.warning("[youtube] %s %s blocked (status %s)", stage, url, last.status)
+        if h is not None:
+            await h.rotate(f"status {last.status}", seen=seen)
+    return last
+
+
+def _stage(url: str) -> str:
+    return urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1] or "html"
+
+
 async def post_innertube(
     base_url: str,
     payload: dict[str, Any],
     *,
-    api_key: str | None = None,
+    api_key: str | None = INNERTUBE_PUBLIC_API_KEY,
 ) -> dict[str, Any] | None:
     """POST an InnerTube payload and return parsed JSON (or ``None`` on failure).
 
-    Always egresses through the proxy (a reused per-flow session when one is
-    open, else a one-shot ``AsyncFetcher``). Never connects directly — a direct
-    hit would expose and risk-block the server IP.
+    Always egresses through the proxy (the job's holder, else a one-off exit).
+    Never connects directly — a direct hit would expose and risk-block the
+    server IP. The public key goes on the first try; a 400 or 403 to the keyed
+    call tries once more without it (``browse`` accepts keyless calls).
     """
+    stage = _stage(base_url)
     url = f"{base_url}?key={api_key}" if api_key else base_url
-    holder = _current_session.get()
-    for attempt in range(_MAX_ROTATIONS + 1):
-        session = holder.session if holder else None
-        try:
-            started = time.perf_counter()
-            if session is not None:
-                page = await session.post(url, json=payload)
-            else:
-                page = await AsyncFetcher.post(
-                    url, json=payload, proxy=get_proxy_url(), stealthy_headers=True
-                )
-            fetch_ms = (time.perf_counter() - started) * 1000
-            logger.info(
-                "[youtube][perf] source=innertube reused=%s url=%s status=%s fetch_ms=%.1f",
-                session is not None,
-                base_url,
-                page.status,
-                fetch_ms,
-            )
-            if page.status == 200:
-                return page.json()
-            logger.warning("InnerTube POST %s returned %s", base_url, page.status)
-            if not (
-                holder and page.status in _BLOCK_STATUSES and attempt < _MAX_ROTATIONS
-            ):
-                return None
-        except Exception as e:
-            logger.warning("InnerTube POST %s failed: %s", base_url, e)
-            if not (holder and attempt < _MAX_ROTATIONS):
-                return None
-        await holder.rotate()  # blocked/errored on a proxy session: try a fresh IP
-    return None
-
-
-async def fetch_html(url: str, *, cookies: dict[str, str] | None = None) -> str | None:
-    """GET a YouTube page and return raw HTML (or ``None`` on failure).
-
-    Fetches through the proxy (reused per-flow session when open, else a one-shot
-    ``AsyncFetcher``); falls back to the ``StealthyFetcher`` browser tier for
-    anti-bot walls. Sets consent cookies by default so EU-egress fetches don't
-    hit the consent wall and return a page without ``ytInitialData``.
-    """
-    merged = {**CONSENT_COOKIES, **(cookies or {})}
-    headers = {"Accept-Language": "en-US,en;q=0.9"}
-    holder = _current_session.get()
-    for attempt in range(_MAX_ROTATIONS + 1):
-        session = holder.session if holder else None
-        try:
-            started = time.perf_counter()
-            if session is not None:
-                page = await session.get(url, headers=headers, cookies=merged)
-            else:
-                page = await AsyncFetcher.get(
-                    url,
-                    headers=headers,
-                    cookies=merged,
-                    proxy=get_proxy_url(),
-                    stealthy_headers=True,
-                )
-            fetch_ms = (time.perf_counter() - started) * 1000
-            logger.info(
-                "[youtube][perf] source=html reused=%s url=%s status=%s fetch_ms=%.1f",
-                session is not None,
-                url,
-                page.status,
-                fetch_ms,
-            )
-            if page.status == 200:
-                return page.html_content
-            logger.warning("HTML GET %s returned %s", url, page.status)
-            if not (
-                holder and page.status in _BLOCK_STATUSES and attempt < _MAX_ROTATIONS
-            ):
-                break
-        except Exception as e:
-            logger.warning("HTML GET %s failed: %s", url, e)
-            if not (holder and attempt < _MAX_ROTATIONS):
-                break
-        await holder.rotate()  # blocked/errored on a proxy session: try a fresh IP
-    # All proxy attempts blocked/failed -> last-resort browser tier.
-    return await _fetch_html_stealthy(url)
-
-
-async def _fetch_html_stealthy(url: str) -> str | None:
-    """Last-resort browser fetch for anti-bot walls (mirrors the crawler tier).
-
-    ``StealthyFetcher.fetch`` is synchronous, so it runs in a worker thread to
-    keep the event loop free. Returns ``None`` when the browser tier is
-    unavailable or still blocked.
-    """
-    if StealthyFetcher is None:
+    r = await _fetch("POST", url, stage=stage, after_s=_HEDGE_API_S, json=payload)
+    if r is not None and api_key and r.status in (400, 403):
+        # A 403 is also a block, so the keyed call has already swept every
+        # rotation: one keyless exit tells a refused key from a blocked IP.
+        r = await _fetch(
+            "POST",
+            base_url,
+            stage=stage,
+            after_s=_HEDGE_API_S,
+            rotations=_MAX_ROTATIONS if r.status == 400 else 0,
+            json=payload,
+        )
+    if r is None or r.status != 200:
+        logger.warning(
+            "InnerTube POST %s returned %s", base_url, r.status if r else "nothing"
+        )
         return None
     try:
-        started = time.perf_counter()
-        page = await asyncio.to_thread(
-            StealthyFetcher.fetch,
-            url,
-            headless=True,
-            network_idle=True,
-            solve_cloudflare=True,
-            proxy=get_proxy_url(),
-        )
-        fetch_ms = (time.perf_counter() - started) * 1000
-        logger.info(
-            "[youtube][perf] source=html tier=stealthy url=%s status=%s fetch_ms=%.1f",
-            url,
-            page.status,
-            fetch_ms,
-        )
-        if page.status == 200:
-            return page.html_content
-        logger.warning("HTML GET %s tier=stealthy returned %s", url, page.status)
-    except Exception as e:
-        logger.warning("HTML GET %s tier=stealthy failed: %s", url, e)
-    return None
+        return r.json()
+    except ValueError as e:
+        logger.warning("InnerTube POST %s: not JSON (%s)", base_url, e)
+        return None
+
+
+async def fetch_html(
+    url: str, *, cookies: dict[str, str] | None = None, stage: str = "html"
+) -> str | None:
+    """GET a YouTube page and return raw HTML (or ``None`` on failure).
+
+    Fetches through the proxy (the job's holder, else a one-off exit). Sets
+    consent cookies by default so EU-egress fetches don't hit the consent wall
+    and return a page without ``ytInitialData``. No browser fallback: YouTube's
+    blocks are per IP, so a fresh exit is the cure, at a fraction of the cost.
+    """
+    r = await _fetch(
+        "GET",
+        url,
+        stage=stage,
+        after_s=_HEDGE_HTML_S,
+        headers=_HTML_HEADERS,
+        cookies={**CONSENT_COOKIES, **(cookies or {})},
+    )
+    if r is None or r.status != 200:
+        logger.warning("HTML GET %s returned %s", url, r.status if r else "nothing")
+        return None
+    return r.text()

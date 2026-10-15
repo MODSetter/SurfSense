@@ -24,9 +24,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
+import type { Dictation } from "@/features/dictation/dictation-adapter"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
@@ -113,11 +115,23 @@ function ThreadWelcome({ composer }: { composer: ReactNode }) {
   )
 }
 
-function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
+function ComposerDraftLifecycle({
+  view,
+  dictation,
+}: {
+  view: ConversationView
+  dictation?: Dictation
+}) {
   const aui = useAui()
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
   const returned = view.status === "new" ? view.returned : undefined
+
+  // Voice input outlives the composer, so it is cancelled, never stopped: no
+  // late phrase lands in the thread opened next.
+  useEffect(() => {
+    dictation?.cancel()
+  }, [dictation, conversationId])
 
   useEffect(() => {
     if (conversationId === "creating") {
@@ -164,6 +178,9 @@ export function ThreadPanel({
   onDelete,
   onUploadSources,
   isUploadingSources,
+  onOpenPlugins,
+  dictation,
+  onOpenSpeechSettings,
 }: {
   live: LiveThreadSource
   thread: ChatThread | null
@@ -187,6 +204,12 @@ export function ThreadPanel({
   onDelete: (id: number) => Promise<void>
   onUploadSources?: (files: File[]) => void
   isUploadingSources?: boolean
+  // Opens Settings › Plugins, from the composer's add menu.
+  onOpenPlugins?: (start?: PluginsStart) => void
+  // The runtime's dictation adapter, for the composer's mic.
+  dictation?: Dictation
+  // Opens Settings › Speech recognition, from the mic's set-up.
+  onOpenSpeechSettings?: () => void
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const headingId = useId()
@@ -224,6 +247,9 @@ export function ThreadPanel({
         thread == null ? null : thread.uses_agent ? "agentic" : "basic"
       }
       onNewChat={onNewChat}
+      onOpenPlugins={onOpenPlugins}
+      dictation={dictation}
+      onOpenSpeechSettings={onOpenSpeechSettings}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined
@@ -266,7 +292,7 @@ export function ThreadPanel({
   // runtime alone, which hands React these same elements, so it skips them.
   return (
     <LiveThreadRuntime {...live}>
-      <ComposerDraftLifecycle view={view} />
+      <ComposerDraftLifecycle view={view} dictation={dictation} />
       <section
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label={intl.formatMessage({

@@ -116,7 +116,6 @@ def _draft(plugin: InstalledPlugin) -> PluginDraft | None:
         name=plugin.entry.get("name", plugin.id),
         url=plugin.url,
         source=plugin.source,
-        publisher=plugin.publisher,
         entry=plugin.entry,
         scopes=auth.get("scopes"),
         client_id=auth.get("client_id"),

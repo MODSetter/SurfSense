@@ -1,36 +1,33 @@
+import { HomeBadge } from "@/components/homepage/home/home-badge";
 import { HOME_FAQ } from "@/components/homepage/home/home-content";
+import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
 import { FAQJsonLd } from "@/components/seo/json-ld";
+import { SiteFaqItem } from "@/components/site/site-faq-item";
+import { siteText } from "@/components/site/site-text";
+import { cn } from "@/lib/utils";
 
 /**
- * FAQ block. Rendered as native `details`/`summary` so it needs no client
- * JavaScript, stays keyboard operable for free, and is readable by a crawler
- * with the answers in the markup rather than behind a state toggle.
+ * FAQ block, one `SiteFaqItem` per question.
  *
- * Each question is a cell in the reference's ruled grid, so an open answer
- * pushes the rule below it down rather than overlapping anything.
+ * Headed like the features section (a centred badge and headline). An open
+ * answer pushes the rule below it down rather than overlapping anything.
  *
  * Emits `FAQPage` schema from the same array, so the structured data and the
  * visible answers can never drift apart.
  */
 export function HomeQuestions() {
 	return (
-		<section className="ss-home-rule">
-			<div className="ss-home-head">
-				<p className="ss-home-eyebrow">FAQ</p>
-				<h2 className="ss-home-h2 mt-2">Questions people ask</h2>
+		<section className={sectionSpacing.foot}>
+			<div className={cn("text-center", sectionSpacing.head)}>
+				<HomeBadge>FAQ</HomeBadge>
+				<h2 className={cn(siteText.h2, "mt-4")}>Questions people ask</h2>
 			</div>
 
-			<div className="ss-home-grid">
+			<div className="ss-home-grid mt-10 border-t border-border lg:mt-14">
 				{HOME_FAQ.map((item) => (
-					<details key={item.question} className="ss-home-faq">
-						<summary className="ss-home-faq-summary">
-							<span className="ss-home-h3">{item.question}</span>
-							<span aria-hidden="true" className="ss-home-faq-marker" />
-						</summary>
-						<div className="ss-home-faq-answer">
-							<p className="ss-home-body">{item.answer}</p>
-						</div>
-					</details>
+					<SiteFaqItem key={item.question} question={item.question}>
+						<p className={siteText.body}>{item.answer}</p>
+					</SiteFaqItem>
 				))}
 			</div>
 

@@ -9,6 +9,7 @@ import {
   nativeTheme,
   safeStorage,
   shell,
+  systemPreferences,
 } from "electron"
 // Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
 // a getter, which `await import()` cannot see (named export comes back
@@ -23,7 +24,8 @@ import {
 import { managedOriginalPath } from "./document-files.ts"
 import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
 import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
-import { allowedExternalUrl } from "./external-url.ts"
+import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
+import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
 import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
 import { stopAll, type Sidecars } from "./sidecars/supervisor.ts"
@@ -54,8 +56,18 @@ import { appMenu } from "./menu/app-menu.ts"
 import { helpMenu } from "./menu/help-menu.ts"
 import { apiQuitConfirmation } from "./quit/api-quit-confirmation.ts"
 import { confirmQuit } from "./quit/confirm-running-replies.ts"
+import { installPermissionHandlers } from "./permissions/handlers.ts"
+import { registerMicrophoneHandlers } from "./microphone/ipc.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
+// The main window's page when packaged: the built SPA, loaded from disk.
+const PACKAGED_PAGE = join(
+  app.getAppPath(),
+  "..",
+  "frontend",
+  "dist",
+  "index.html"
+)
 
 function openAllowedExternal(url: string): void {
   const allowed = allowedExternalUrl(url)
@@ -200,6 +212,34 @@ function registerDocumentHandlers(dataDir: string): void {
     }
     const allowed = allowedExternalUrl(url)
     if (allowed) await shell.openExternal(allowed)
+  })
+
+  // A link from content the user confirmed in the link popup, which named its host.
+  ipcMain.handle("shell:open-confirmed-link", async (event, url) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof url !== "string"
+    ) {
+      return
+    }
+    const confirmed = confirmedExternalUrl(url)
+    if (confirmed) await shell.openExternal(confirmed)
+  })
+
+  // A listed plugin's page by its id: the address comes from the registry, not the page.
+  ipcMain.handle("shell:open-plugin-page", async (event, pluginId, page) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof pluginId !== "string" ||
+      typeof page !== "string" ||
+      apiUrl === null
+    ) {
+      return
+    }
+    const address = await pluginPageUrl(apiUrl, pluginId, page as PluginPage)
+    if (address) await shell.openExternal(address)
   })
 
   ipcMain.handle("documents:reveal", async (event, workspaceId, documentId) => {
@@ -404,9 +444,7 @@ function createWindow(apiUrl: string): void {
   })
 
   if (app.isPackaged) {
-    void win.loadFile(
-      join(app.getAppPath(), "..", "frontend", "dist", "index.html")
-    )
+    void win.loadFile(PACKAGED_PAGE)
   } else {
     void win.loadURL(DEV_RENDERER_URL)
   }
@@ -494,6 +532,16 @@ function main(): void {
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
+      registerMicrophoneHandlers({
+        ipc: ipcMain,
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        system: {
+          platform: process.platform,
+          preferences: systemPreferences,
+          openExternal: (url) => shell.openExternal(url),
+        },
+      })
       installMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
@@ -531,6 +579,13 @@ app.commandLine.appendSwitch(
 
 // Also before whenReady(): the default session is created with the app.
 refuseSpellcheckDownloads(app)
+installPermissionHandlers(app, {
+  appPage: app.isPackaged
+    ? pathToFileURL(PACKAGED_PAGE)
+    : new URL(DEV_RENDERER_URL),
+  isMainWindow: (contents) =>
+    mainWindow !== null && contents === mainWindow.webContents,
+})
 
 // one app, one set of sidecars: a second instance would fight over the SQLite
 // file and the port, so hand off to the primary window and quit

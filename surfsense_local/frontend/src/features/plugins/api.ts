@@ -17,12 +17,13 @@ export type Plugin = {
   id: string
   name: string
   source: "first_party" | "registry" | "custom"
-  publisher: string
   url: string
   hosts: string[]
   /** How it signs in; an `oauth` plugin signs in again rather than taking a new key. */
   auth_type: "none" | "token" | "license" | "oauth"
   enabled: boolean
+  /** Disconnected by the user: kept with its tool settings, signed out, never offered. */
+  disconnected: boolean
   connected_at: string
   /** When SurfSense last listed the server, and why that failed; null when it answered. */
   checked_at: string | null
@@ -71,17 +72,23 @@ export type FirstPartyEntry = {
   /** `license` when it needs the SurfSense license. */
   access: "free" | "license"
   hosts: string[]
+  /** What its public page says of it; its card shows `description`. */
+  about: string
+  tools: string[]
+  /** `YYYY-MM`, the month it joined the list. */
+  added: string
+  has_icon: boolean
   connected: boolean
 }
 
-/** A partner's or community plugin, from the signed registry. */
+/** A third-party plugin from the signed registry, verified or community. */
 export type RegistryEntry = {
   id: string
   name: string
   description: string
   author: string
-  publisher: "partner" | "community"
-  /** A partner's listing, reviewed as speaking for the company. */
+  verification: "verified" | "community"
+  /** A maintainer judged that its author runs the server that receives its calls. */
   verified: boolean
   access: "free" | "external"
   /** What the user must have, when `access` is `external`. */
@@ -91,8 +98,16 @@ export type RegistryEntry = {
   auth_title: string | null
   auth_description: string | null
   hosts: string[]
+  /** The host every call goes to; an OAuth plugin's other hosts see only the sign-in. */
+  server_host: string
+  sign_in_hosts: string[]
   homepage: string | null
   privacy_policy: string | null
+  /** What its page shows before it is connected; `tools` is null when the entry lists none. */
+  about: string | null
+  tools: string[] | null
+  /** `YYYY-MM`, the month it joined the registry; null in an older entry. */
+  added: string | null
   has_icon: boolean
   connected: boolean
 }
@@ -150,6 +165,11 @@ export function connectRegistryPlugin(
 
 export function registryIconUrl(id: string): string {
   return apiUrl(`/plugins/registry/icons/${id}`)
+}
+
+/** Packaged with the app beside SurfSense's list, so it needs no network. */
+export function firstPartyIconUrl(id: string): string {
+  return apiUrl(`/plugins/first-party/icons/${id}`)
 }
 
 /** A server asking for OAuth answers with a sign-in to finish in the browser. */
@@ -226,7 +246,18 @@ export function savePluginStep(
   )
 }
 
-export function disconnectPlugin(id: string): Promise<void> {
+/** Drops the key or sign-in; the plugin stays, with its tool settings. */
+export function disconnectPlugin(id: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/${id}/disconnect`, { method: "POST" })
+}
+
+/** Connects a disconnected plugin that needs nothing entered; a key or a sign-in has its own call. */
+export function connectPlugin(id: string): Promise<Plugin> {
+  return requestJson<Plugin>(`/plugins/${id}/connect`, { method: "POST" })
+}
+
+/** Deletes the plugin with its key and tool settings. */
+export function removePlugin(id: string): Promise<void> {
   return requestVoid(`/plugins/${id}`, { method: "DELETE" })
 }
 

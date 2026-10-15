@@ -298,7 +298,10 @@ async def test_the_agents_documents_are_refined_in_its_chat_not_here(
     response = await _refine(client, session, script.id, "Halve the timeline")
 
     assert response.status_code == 409
-    assert "chat" in response.json()["detail"]
+    assert response.json()["detail"] == {
+        "message": "The agent made this document: ask for changes in its chat.",
+        "code": "agent_made",
+    }
     assert _count(session) == before
     assert studio_queue.pending_count() == 0
 
@@ -407,7 +410,10 @@ async def test_an_artifact_without_a_spec_cannot_be_refined(
     response = await _refine(client, session, summary.id, "Shorter")
 
     assert response.status_code == 409
-    assert "Word document or PDF" in response.json()["detail"]
+    assert response.json()["detail"] == {
+        "message": "Only a Word document or PDF made in Studio can be refined.",
+        "code": "not_refinable",
+    }
 
 
 async def test_a_version_still_being_made_cannot_be_refined(
@@ -425,6 +431,10 @@ async def test_a_version_still_being_made_cannot_be_refined(
     response = await _refine(client, session, pending.json()["id"], "Shorter still")
 
     assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "message": "already generating",
+        "code": "already_generating",
+    }
 
 
 @pytest.mark.parametrize("instruction", ["", "   ", "x" * 2001])
@@ -618,7 +628,10 @@ async def test_a_version_whose_retry_did_not_finish_is_not_refined(
 
     assert shown.json()["refinable"] is False
     assert response.status_code == 409, response.text
-    assert "did not finish" in response.json()["detail"]
+    assert response.json()["detail"] == {
+        "message": "This version did not finish: retry it, or refine another version.",
+        "code": "version_unfinished",
+    }
     assert _count(session) == before
 
 
@@ -673,5 +686,8 @@ async def test_the_agents_decks_and_workbooks_are_not_refinable_either(
     assert shown.json()["spec_kind"] == "python"
     assert shown.json()["refinable"] is False
     assert response.status_code == 409
-    assert "chat" in response.json()["detail"]
+    assert response.json()["detail"] == {
+        "message": "The agent made this document: ask for changes in its chat.",
+        "code": "agent_made",
+    }
     assert _count(session) == before

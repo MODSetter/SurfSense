@@ -14,7 +14,7 @@ from modules.llm.hardware import system_memory
 from modules.llm.providers.audiocpp.memory import (
     NotEnoughMemoryError,
     OtherModel,
-    check_voicing_memory,
+    check_memory,
 )
 from modules.llm.providers.episode_audio.joined_wav import joined_wav
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
@@ -114,8 +114,11 @@ class AudioCppSpeech:
         deadline = time.monotonic() + seconds
         while True:
             try:
-                return check_voicing_memory(
-                    self._model.audio.peak_mb, self._available(), self._model.others
+                return check_memory(
+                    "Voicing",
+                    self._model.audio.peak_mb,
+                    self._available(),
+                    self._model.others,
                 )
             except NotEnoughMemoryError:
                 if time.monotonic() >= deadline:

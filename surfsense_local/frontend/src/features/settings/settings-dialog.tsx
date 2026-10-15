@@ -18,6 +18,7 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  Mic01Icon,
   PlugIcon,
   Settings2Icon,
   EmbeddingIcon,
@@ -32,7 +33,10 @@ import {
 import { AboutSettings } from "@/features/about/about-settings"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { OfficeSupportSettings } from "@/features/office-support/office-support-settings"
-import { PluginsSettings } from "@/features/plugins/plugins-settings"
+import {
+  PluginsSettings,
+  type PluginsStart,
+} from "@/features/plugins/plugins-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
@@ -49,6 +53,7 @@ import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
+import { SpeechModelsSettings } from "./models/speech-models-settings"
 import { VideoModelsSettings } from "./models/video-models-settings"
 import { SettingsSection } from "./settings-section"
 
@@ -64,6 +69,7 @@ export type SettingsSectionId =
   | "image-models"
   | "image-edit-models"
   | "audio-models"
+  | "speech-models"
   | "video-models"
   | "embedding-model"
   | "resources"
@@ -208,16 +214,17 @@ function GeneralSettings({
 const SETTINGS_SECTIONS = [
   { id: "general", group: "settings", icon: Settings2Icon },
   { id: "license", group: "settings", icon: LicenseIcon },
+  { id: "plugins", group: "settings", icon: PlugIcon },
   { id: "chat-models", group: "models", icon: Chat01Icon },
   { id: "image-models", group: "models", icon: Image01Icon },
   { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
   { id: "audio-models", group: "models", icon: AudioWaveformIcon },
+  { id: "speech-models", group: "models", icon: Mic01Icon },
   { id: "video-models", group: "models", icon: Video01Icon },
   { id: "embedding-model", group: "models", icon: EmbeddingIcon },
   { id: "resources", group: "system", icon: CpuIcon },
   { id: "office-support", group: "system", icon: File02Icon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
-  { id: "plugins", group: "system", icon: PlugIcon },
   { id: "report-issue", group: "app", icon: BugIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
@@ -276,6 +283,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
       id: "settings_nav_audio_label",
       defaultMessage: "Audio",
     }),
+  "speech-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_speech_label",
+      defaultMessage: "Speech recognition",
+    }),
   "embedding-model": () =>
     intl.formatMessage({
       id: "settings_nav_embedding_label",
@@ -322,6 +334,7 @@ export function SettingsDialog({
   open,
   section,
   askOfficeConsent = false,
+  pluginsStart,
   onOpenChange,
   onSectionChange,
   onModelUnavailable = () => undefined,
@@ -332,6 +345,8 @@ export function SettingsDialog({
   section: SettingsSectionId
   /** Opens Office support's download consent with the section. */
   askOfficeConsent?: boolean
+  /** Opens Plugins on Browse or on Add custom plugin. */
+  pluginsStart?: PluginsStart
   onOpenChange: (open: boolean) => void
   onSectionChange: (section: SettingsSectionId) => void
   onModelUnavailable?: () => void
@@ -431,6 +446,9 @@ export function SettingsDialog({
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
+            {activeSection.id === "speech-models" ? (
+              <SpeechModelsSettings />
+            ) : null}
             {activeSection.id === "embedding-model" ? (
               <EmbeddingSettings />
             ) : null}
@@ -441,6 +459,7 @@ export function SettingsDialog({
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "plugins" ? (
               <PluginsSettings
+                start={pluginsStart}
                 onOpenLicense={() => onSectionChange("license")}
               />
             ) : null}

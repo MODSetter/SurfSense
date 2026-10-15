@@ -1,8 +1,8 @@
 """The Google Maps plugin as the app reaches it: its MCP server on the host, behind the license.
 
-Google is faked at the scraper's network seam, scrapling's `AsyncFetcher.get`, and the
-browser tier is switched off; the host, the license check, the tools and Maps' parsing
-are real.
+Google is faked at the scraper's network seam, the shared transport's `http.request`,
+and the browser tier is switched off; the host, the license check, the tools and Maps'
+parsing are real.
 """
 
 import json
@@ -18,9 +18,12 @@ from mcp.client.streamable_http import streamable_http_client
 from host.app import host_app
 from host.tests.mcp_calls import call
 from host.tests.serving import serving
-from proprietary.google_maps import fetch
-from proprietary.license_check import keygen
-from proprietary.license_check.tests.stand_in_keygen import ACCOUNT, StandInKeygen
+from proprietary.google_maps.tests.google_seam import Page, answer_with
+from proprietary.license_check.tests.stand_in_keygen import (
+    ACCOUNT,
+    StandInKeygen,
+    accounts_url,
+)
 
 LICENSE = {"Authorization": "License k-1"}
 FID = "0x89c3ca9c11f90c25:0x6cc8dba851799f09"
@@ -30,8 +33,8 @@ FID = "0x89c3ca9c11f90c25:0x6cc8dba851799f09"
 def maps(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """The real Google Maps plugin on the host, its license checked by a stand-in Keygen."""
     with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
-        monkeypatch.setattr(keygen, "KEYGEN_API_URL", keygen_url)
-        monkeypatch.setattr(keygen, "SURFSENSE_ACCOUNT_ID", ACCOUNT)
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
         with serving(host_app(plugins={"google-maps"})) as base:
             yield f"{base}/google-maps/mcp"
 
@@ -60,15 +63,6 @@ def review(number: int) -> list[Any]:
     return raw
 
 
-@dataclass
-class Page:
-    """What scrapling hands back for one GET."""
-
-    html_content: str
-    status: int = 200
-    cookies: dict[str, str] = field(default_factory=dict)
-
-
 def rpc(body: Any) -> Page:
     return Page(")]}'\n" + json.dumps(body))
 
@@ -79,9 +73,12 @@ class Google:
 
     place_page: str = f"<html>window.APP_INITIALIZATION_STATE=[{FID}]</html>"
     asked: list[str] = field(default_factory=list)
+    refused: str = "never asked"  # a URL part Google answers with a 429
 
     async def get(self, url: str, **_: Any) -> Page:
         self.asked.append(url)
+        if self.refused in url:
+            return Page("<html>Too many requests</html>", status=429)
         if "tbm=map" in url and "pb=" in url:
             first_page = "!8i0!" in url
             entries = [[None, 0], *([None] * 14 + [place(n)] for n in (1, 2, 3))]
@@ -99,15 +96,11 @@ class Google:
 @pytest.fixture
 def google(monkeypatch: pytest.MonkeyPatch) -> Google:
     answers = Google()
-
-    class Fetcher:
-        get = staticmethod(answers.get)
-
-    monkeypatch.setattr(fetch, "AsyncFetcher", Fetcher)
-    monkeypatch.setattr(fetch, "StealthyFetcher", None)
+    answer_with(monkeypatch, answers.get)
     return answers
 
 
+@pytest.mark.asyncio
 async def test_it_offers_read_only_tools_that_reach_the_web(maps: str) -> None:
     """Read-only and open-world, so the app lets a first-party read skip asking."""
     async with (
@@ -125,6 +118,7 @@ async def test_it_offers_read_only_tools_that_reach_the_web(maps: str) -> None:
         )
 
 
+@pytest.mark.asyncio
 async def test_a_search_returns_its_places_with_a_summary_and_progress(
     maps: str, google: Google
 ) -> None:
@@ -142,12 +136,20 @@ async def test_a_search_returns_its_places_with_a_summary_and_progress(
     items = result.structured_content["items"]
     assert [item["title"] for item in items] == ["Cafe 1", "Cafe 2"]
     assert items[0]["placeId"] == "ChIJplace1"
-    assert result.content[0].text.startswith("2 Google Maps places")
-    assert "Cafe 1 4.5 stars" in result.content[0].text
+    # The model reads the places themselves, one line each, after the count.
+    header, *lines = result.content[0].text.splitlines()
+    assert header == "2 Google Maps places"
+    first = json.loads(lines[0])
+    assert (first["title"], first["rating"], first["address"]) == (
+        "Cafe 1",
+        4.5,
+        "1 Main St",
+    )
     assert progress[-1] == 2
     assert "q=coffee%20in%20Austin" in google.asked[0]
 
 
+@pytest.mark.asyncio
 async def test_a_place_s_reviews_return_with_a_summary_and_progress(
     maps: str, google: Google
 ) -> None:
@@ -162,10 +164,39 @@ async def test_a_place_s_reviews_return_with_a_summary_and_progress(
     assert [item["reviewId"] for item in items] == ["r1", "r2"]
     assert {item["title"] for item in items} == {"Cafe 7"}
     assert items[0]["inputPlaceId"] == "ChIJplace7"
-    assert result.content[0].text.startswith("2 Google Maps reviews")
-    assert progress[-1] == 2
+    header, *lines = result.content[0].text.splitlines()
+    assert header == "2 Google Maps reviews"
+    assert [json.loads(line)["text"] for line in lines] == [
+        "Good coffee 1",
+        "Good coffee 2",
+    ]
+    # Stages are reported at most once a second, so a fast call's last items
+    # may go unreported; what is sent rises.
+    assert progress and progress == sorted(progress)
 
 
+@pytest.mark.asyncio
+async def test_a_place_google_refuses_is_an_error_naming_it(
+    maps: str, google: Google
+) -> None:
+    """The other places still come back; a 429 no longer reads as no data."""
+    google.refused = "ChIJplace8"
+
+    result = await call(
+        maps, "reviews", {"place_ids": ["ChIJplace7", "ChIJplace8"]}, LICENSE
+    )
+
+    assert not result.is_error
+    items = result.structured_content["items"]
+    assert [item.get("reviewId") for item in items] == ["r1", "r2", None]
+    assert items[2]["input"] == "ChIJplace8"
+    assert "429" in items[2]["error"]
+    header, *lines = result.content[0].text.splitlines()
+    assert header == "2 Google Maps reviews, 1 source failed"
+    assert json.loads(lines[-1])["input"] == "ChIJplace8"
+
+
+@pytest.mark.asyncio
 async def test_a_sign_in_wall_reads_as_the_tool_s_error(
     maps: str, google: Google
 ) -> None:
@@ -178,6 +209,7 @@ async def test_a_sign_in_wall_reads_as_the_tool_s_error(
     assert "Google sign in required" in result.content[0].text
 
 
+@pytest.mark.asyncio
 async def test_a_call_naming_nothing_to_scrape_is_refused(maps: str) -> None:
     result = await call(maps, "scrape", {}, LICENSE)
 
@@ -185,6 +217,7 @@ async def test_a_call_naming_nothing_to_scrape_is_refused(maps: str) -> None:
     assert "search_queries" in result.content[0].text
 
 
+@pytest.mark.asyncio
 async def test_a_url_that_is_not_http_is_refused(maps: str) -> None:
     result = await call(maps, "reviews", {"urls": ["maps/place/x"]}, LICENSE)
 
@@ -196,3 +229,18 @@ def test_without_a_license_the_plugin_answers_nothing(maps: str) -> None:
     refused = httpx2.post(maps, json={})
 
     assert (refused.status_code, refused.json()) == (401, {"reason": "missing_license"})
+
+
+@pytest.mark.asyncio
+async def test_the_lifespan_holds_the_shared_pools_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The host enters it at startup: the last plugin out closes the kept sessions."""
+    monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+    from proprietary.google_maps import server
+    from proprietary.scraping import lifecycle
+
+    before = lifecycle._entered
+    async with server.lifespan():
+        assert lifecycle._entered == before + 1
+    assert lifecycle._entered == before

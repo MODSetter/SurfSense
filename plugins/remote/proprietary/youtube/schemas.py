@@ -138,6 +138,8 @@ class VideoItem(BaseModel):
     descriptionLinks: list[DescriptionLink] | None = None
     subtitles: list[SubtitleTrack] | None = None
     hashtags: list[str] = Field(default_factory=list)
+    # The uploader's hidden SEO tags (watch pages only), kept apart from hashtags.
+    keywords: list[str] = Field(default_factory=list)
     location: str | None = None
 
     # Translations

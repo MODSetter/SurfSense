@@ -29,12 +29,28 @@ declare global {
         symbolColor: string
       }) => Promise<void>
       openExternal?: (url: string) => Promise<void>
+      // A content link the user confirmed in the link popup: any https page.
+      openConfirmedLink?: (url: string) => Promise<void>
+      // A listed plugin's homepage or privacy policy, found by its id.
+      openPluginPage?: (
+        pluginId: string,
+        page: "homepage" | "privacy_policy"
+      ) => Promise<void>
       about?: {
         details: () => Promise<AppDetails>
       }
       // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
       sessionLog?: {
         read: () => Promise<string[]>
+      }
+      // The system's switch for SurfSense's microphone; Electron decides the
+      // page's own permission. Mirrors electron/src/preload/index.ts.
+      microphone?: {
+        status: () => Promise<MicrophoneAccess>
+        // macOS prompts the first time; call it before getUserMedia.
+        request: () => Promise<MicrophoneAccess>
+        // False where the system has no microphone settings to open (Linux).
+        openSettings: () => Promise<boolean>
       }
       // Unexpected sidecar exits pushed by main. Mirrors electron/src/preload/index.ts.
       sidecars?: {
@@ -86,6 +102,11 @@ export type SidecarCrash = {
   name: string
   code: number | null
 }
+
+// Mirrors electron/src/main/microphone/system-access.ts. Linux has no switch
+// and reports "granted"; getUserMedia's own error says the rest there.
+export type MicrophoneAccess =
+  "not-determined" | "granted" | "denied" | "restricted" | "unknown"
 
 // Packaged (Electron) exposes the sidecar's dynamic origin. A browser build
 // with no bridge (Docker) reaches the API under VITE_API_BASE. A bare dev

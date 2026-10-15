@@ -94,6 +94,13 @@ datas.append(
     (str(BACKEND / "bundling" / "licenses" / "lameenc"), "lameenc-licenses")
 )
 
+# The decode child (worker.py --decode-audio) reads recordings with miniaudio,
+# whose compiled half is a cffi extension: the C code imports _cffi_backend,
+# which the analyser cannot see. Its metadata carries the MIT notice, which
+# asks to travel with every copy.
+hiddenimports += ["miniaudio", "_miniaudio", "_cffi_backend"]
+datas += copy_metadata("miniaudio")
+
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += [
     "modules.documents.tasks",

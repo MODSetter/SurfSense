@@ -24,6 +24,11 @@ if __name__ == "__main__":
         from worker.document_script.child import main
 
         main(sys.argv[2])
+    elif len(sys.argv) == 4 and sys.argv[1] == "--decode-audio":
+        # Ahead of the consumer's imports too: a decode needs only miniaudio.
+        from worker.audio_decode.child import main
+
+        main(sys.argv[2], sys.argv[3])
     elif len(sys.argv) == 2:
         from worker.consumer import consume
 

@@ -87,16 +87,17 @@ describe("SettingsDialog", () => {
     render(<SettingsHarness />)
 
     const groups = {
-      Settings: ["General", "License"],
+      Settings: ["General", "License", "Plugins"],
       Models: [
         "Text gen",
         "Image gen",
         "Image edit",
         "Audio",
+        "Speech recognition",
         "Video",
         "Embedding",
       ],
-      System: ["Resources", "Office support", "Network", "Plugins"],
+      System: ["Resources", "Office support", "Network"],
       App: ["Report issue", "About"],
     }
     for (const [group, sections] of Object.entries(groups)) {
@@ -376,6 +377,15 @@ describe("SettingsDialog", () => {
       name: "audio model in use",
     })
     await waitFor(() => expect(audio.textContent).toContain("tts-1"))
+
+    await user.click(screen.getByRole("button", { name: "Speech recognition" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Speech recognition models" })
+    ).toBeTruthy()
+    expect(
+      await screen.findByText("No speech recognition model yet")
+    ).toBeTruthy()
   })
 
   it("shows nothing half-loaded while model data loads", async () => {

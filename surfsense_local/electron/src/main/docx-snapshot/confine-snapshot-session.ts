@@ -1,5 +1,8 @@
-/** The part of Electron's Session the snapshot windows' request filter needs. */
-export type SnapshotSession = {
+/** The part of Electron's Session the snapshot windows' confinement needs. */
+export type SnapshotSession = Pick<
+  Electron.Session,
+  "setPermissionRequestHandler" | "setPermissionCheckHandler"
+> & {
   webRequest: {
     onBeforeRequest(
       listener: (
@@ -14,7 +17,8 @@ export type SnapshotSession = {
  * Let the snapshot windows load only the snapshot page's own files and the
  * documents being printed. The document is untrusted, and a script that got into
  * the page would otherwise read local files and the whole API: a file:// page
- * sends no Origin, so the API cannot tell it from Electron's main process.
+ * sends no Origin, so the API cannot tell it from Electron's main process. It
+ * gets no permission either, the microphone and the clipboard among them.
  *
  * Returns `allow(fileUrl)`, which lets that file through until its release is called.
  */
@@ -38,6 +42,11 @@ export function confineSnapshotSession(
   session.webRequest.onBeforeRequest((details, callback) =>
     callback({ cancel: !allowed(details.url) }),
   )
+  // These replace the handlers every new session gets (permissions/handlers.ts).
+  session.setPermissionRequestHandler((_contents, _permission, callback) =>
+    callback(false),
+  )
+  session.setPermissionCheckHandler(() => false)
 
   return (fileUrl) => {
     printing.push(fileUrl)

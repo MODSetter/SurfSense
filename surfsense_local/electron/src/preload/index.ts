@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
+import type { MicrophoneAccess } from "../main/microphone/system-access.ts"
+
 // main passes the API base URL via additionalArguments; read it back off argv
 const FLAG = "--surfsense-api-url="
 const arg = process.argv.find((a) => a.startsWith(FLAG))
@@ -63,11 +65,30 @@ contextBridge.exposeInMainWorld("surfsense", {
   }): Promise<void> => ipcRenderer.invoke("shell:titlebar-overlay", overlay),
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("shell:open-external", url),
+  // A content link the user confirmed in the link popup: any https page.
+  openConfirmedLink: (url: string): Promise<void> =>
+    ipcRenderer.invoke("shell:open-confirmed-link", url),
+  // A listed plugin's homepage or privacy policy, named by its id.
+  openPluginPage: (
+    pluginId: string,
+    page: "homepage" | "privacy_policy"
+  ): Promise<void> =>
+    ipcRenderer.invoke("shell:open-plugin-page", pluginId, page),
   about: {
     details: () => ipcRenderer.invoke("about:details"),
   },
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
+  // The system's switch for SurfSense's microphone; the page's own permission is main's.
+  microphone: {
+    status: (): Promise<MicrophoneAccess> =>
+      ipcRenderer.invoke("microphone:status"),
+    // macOS shows its prompt the first time; call it before getUserMedia.
+    request: (): Promise<MicrophoneAccess> =>
+      ipcRenderer.invoke("microphone:request"),
+    openSettings: (): Promise<boolean> =>
+      ipcRenderer.invoke("microphone:open-settings"),
   },
   sidecars: {
     onCrash: (listener: (crash: SidecarCrash) => void): (() => void) => {

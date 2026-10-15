@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { siteText } from "@/components/site/site-text";
 
 /**
  * Privacy Policy. Plain long-form prose, laid out like a blog post: the
- * `ss-home-pad` + `max-w-3xl` + Tailwind `prose` wrapper is copied from
+ * padded `max-w-3xl` + Tailwind `prose` wrapper is copied from
  * `app/(home)/blog/[slug]/page.tsx` so a legal page reads like body text
  * rather than like a landing page. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, which is what supplies the dark palette
- * that `prose-invert` assumes, plus the navigation and footer.
+ * `components/site/site-shell.tsx`, which supplies the light palette, the
+ * navigation and the footer.
  *
  * Every factual claim here was checked against the code, not against the
  * previous policy or the marketing copy. The version this replaced described
@@ -53,6 +54,7 @@ export const metadata: Metadata = {
 		url: canonicalUrl,
 		siteName: "SurfSense",
 		type: "website",
+		images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SurfSense privacy policy" }],
 	},
 };
 
@@ -65,14 +67,14 @@ const LAST_UPDATED = "September 18, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
-	"prose prose-invert max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-a:no-underline";
+	"prose max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-a:no-underline";
 
 export default function PrivacyPolicy() {
 	return (
-		<div className="ss-home-pad pt-16 pb-20">
+		<div className="pt-16 pb-20">
 			<div className="mx-auto max-w-3xl">
-				<div className="mb-10 space-y-4">
-					<h1 className="ss-home-h2">Privacy Policy</h1>
+				<div className="mb-10 space-y-4 text-center">
+					<h1 className={siteText.h2}>Privacy Policy</h1>
 					<p className="text-muted-foreground text-sm">Last updated: {LAST_UPDATED}</p>
 				</div>
 
@@ -143,9 +145,9 @@ export default function PrivacyPolicy() {
 							you enable it, and you can check manually instead.
 						</li>
 						<li>
-							<strong>Model downloads, to registry.ollama.ai and huggingface.co.</strong> Sends the
-							name of the model you asked to download, along with your IP address as any download
-							does. No document content and no prompts are involved.
+							<strong>Model downloads, to huggingface.co.</strong> Sends the name of the model you
+							asked to download, along with your IP address as any download does. No document
+							content and no prompts are involved.
 						</li>
 						<li>
 							<strong>A model provider you configure.</strong> Sends your prompts, excerpts of the

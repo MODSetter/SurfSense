@@ -448,7 +448,6 @@ describe("an agent thread", () => {
           id: "wiki",
           name: "Wiki",
           source: "custom",
-          publisher: "custom",
           url: "https://wiki.example/mcp",
           hosts: ["wiki.example"],
           enabled: true,
@@ -489,7 +488,6 @@ describe("an agent thread", () => {
       id,
       name,
       source: "custom",
-      publisher: "custom",
       url: `https://${id}.example/mcp`,
       hosts: [`${id}.example`],
       enabled,
@@ -525,6 +523,47 @@ describe("an agent thread", () => {
     expect(state.sent[0].text).toContain("@notes")
   })
 
+  it("leaves a paid plugin out of @ once its license was refused", async () => {
+    const plugin = (id: string, name: string, failure: string | null) => ({
+      id,
+      name,
+      source: "first_party",
+      url: `https://plugins.example/${id}/mcp`,
+      hosts: ["plugins.example"],
+      enabled: true,
+      connected_at: "2026-10-01T00:00:00Z",
+      checked_at: "2026-10-01T00:00:00Z",
+      check_failure: failure,
+      tools: [
+        {
+          name: "scrape",
+          title: null,
+          description: "Scrape.",
+          annotations: { readOnlyHint: true },
+          enabled: true,
+          approval: "ask",
+          change: null,
+        },
+      ],
+    })
+    backend({
+      plugins: [plugin("amazon", "Amazon", "needs_license")],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    const user = userEvent.setup()
+    const composer = await screen.findByRole("textbox", { name: "Message" })
+
+    await user.type(composer, "@")
+
+    expect(
+      await screen.findByText(
+        "Your SurfSense license doesn’t unlock these plugins. Check Settings › License."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("Amazon")).toBeNull()
+  })
+
   it("says where to connect a plugin when none is ready", async () => {
     backend({ waitFor: ["never"] })
     renderAgentThread()
@@ -549,6 +588,7 @@ describe("an agent thread", () => {
           plugins: [
             { title: "Notion", reason: "unreachable" },
             { title: "Linear", reason: "sign_in" },
+            { title: "Amazon", reason: "license" },
           ],
         },
       ],
@@ -559,6 +599,7 @@ describe("an agent thread", () => {
 
     expect(await screen.findByText("Couldn’t reach Notion")).toBeTruthy()
     expect(screen.getByText("Sign in to Linear again")).toBeTruthy()
+    expect(screen.getByText("Amazon needs a SurfSense license")).toBeTruthy()
   })
 
   it("shows the sources a stored turn worked from", async () => {

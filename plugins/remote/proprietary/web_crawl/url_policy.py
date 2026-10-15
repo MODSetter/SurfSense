@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import unquote, urldefrag, urljoin, urlsplit
+from urllib.parse import unquote, urldefrag, urljoin, urlsplit, urlunsplit
 
 from lxml import html as lxml_html
 from lxml.etree import ParserError
 
-from proprietary.web_crawl.contacts import is_social_host
+from proprietary.web_crawl.contacts import is_social_url
 
 _WHITESPACE_RE = re.compile(r"\s+")
 
@@ -64,93 +64,167 @@ def _anchor_context(anchor: Any) -> str:
     return ""
 
 
-def extract_link_records(page_html: str | None, base_url: str) -> list[dict[str, str]]:
+# When a page has more links than the cap, the site's own pages are kept
+# first, then profile, email and phone links (they carry the entity labels),
+# then everything else. A release-notes page links hundreds of contributor
+# profiles, which would otherwise crowd out the site's pages.
+_KIND_PRIORITY = {"internal": 0, "social": 1, "email": 1, "tel": 1, "external": 2}
+
+
+def _tree(page: Any) -> Any:
+    """``page`` parsed, or as-is when the caller already parsed it."""
+    if not isinstance(page, str):
+        return page
+    if not page.strip():
+        return None
+    try:
+        return lxml_html.fromstring(page)
+    except (ParserError, ValueError):
+        return None
+
+
+def _join_base(root: Any, page_url: str) -> str:
+    """What relative hrefs resolve against: ``<base href>`` when the page sets one."""
+    for href in root.xpath("//base/@href")[:1]:
+        href = str(href).strip()
+        if href:
+            return urljoin(page_url, href)
+    return page_url
+
+
+def _target(
+    href: str, join_base: str, self_url: str, base_host: str
+) -> tuple[str, str]:
+    """``(target, kind)`` for one href; an empty target means skip it."""
+    low = href.lower()
+    # unquote: hrefs URL-encode spaces etc. ("tel:+1%20408-629-1770")
+    if low.startswith("mailto:"):
+        return unquote(urlsplit(href).path.split("?")[0]).strip(), "email"
+    if low.startswith("tel:"):
+        return unquote(urlsplit(href).path).strip(), "tel"
+    target, _ = urldefrag(urljoin(join_base, href))
+    if urlsplit(target).scheme not in ("http", "https") or target == self_url:
+        return "", ""
+    if is_social_url(target):
+        return target, "social"
+    if host_of(target) == base_host:
+        return target, "internal"
+    return target, "external"
+
+
+def _record(target: str, kind: str, anchors: list[Any]) -> dict[str, str]:
+    """One target's record: the first non-empty label among its anchors."""
+    text = ""
+    for anchor in anchors:
+        text = _anchor_label(anchor)[:_MAX_ANCHOR_TEXT]
+        if text:
+            break
+    record = {
+        "url": target,
+        "text": text,
+        "rel": str(anchors[0].get("rel", "")).strip(),
+        "kind": kind,
+    }
+    # Context only where entity attribution matters; internal/external nav
+    # context is boilerplate that would bloat every item.
+    if kind in ("social", "email", "tel"):
+        record["context"] = "" if text else _anchor_context(anchors[0])
+    return record
+
+
+def link_inventory(
+    page: Any, base_url: str, max_records: int | None = None
+) -> tuple[list[dict[str, str]], int]:
+    """``extract_link_records`` capped at ``max_records``, plus the uncapped count.
+
+    ``page`` is HTML or an already parsed tree. Over the cap, records are kept
+    by ``_KIND_PRIORITY`` and returned in page order; labels and context, the
+    costly part, are computed only for the records kept.
+    """
+    root = _tree(page)
+    if root is None:
+        return [], 0
+
+    self_url, _ = urldefrag(base_url)
+    base_host = host_of(base_url)
+    join_base = _join_base(root, base_url)
+    found: dict[str, tuple[str, list[Any]]] = {}
+    for anchor in root.xpath("//a[@href]"):
+        target, kind = _target(
+            str(anchor.get("href", "")).strip(), join_base, self_url, base_host
+        )
+        if not target:
+            continue
+        entry = found.get(target)
+        if entry is None:
+            found[target] = (kind, [anchor])
+        else:
+            entry[1].append(anchor)
+
+    targets = list(found)
+    total = len(targets)
+    if max_records is not None and total > max_records:
+        ranked = sorted(
+            range(total), key=lambda i: _KIND_PRIORITY[found[targets[i]][0]]
+        )
+        targets = [targets[i] for i in sorted(ranked[:max_records])]
+    return [_record(target, *found[target]) for target in targets], total
+
+
+def extract_link_records(page_html: Any, base_url: str) -> list[dict[str, str]]:
     """Structured ``<a>`` inventory: ``{url, text, context, rel, kind}`` per target.
 
     ``kind`` is one of ``internal`` (same site as ``base_url``), ``external``,
-    ``social`` (known profile host), ``email`` (``mailto:``), or ``tel``. http(s)
-    targets are absolutized against ``base_url`` and fragment-stripped; the
-    page's own URL is dropped. De-duplicated by target URL (first-seen order),
-    keeping the first non-empty anchor text so a nav logo link doesn't shadow
-    the labeled one.
+    ``social`` (a profile on a known host), ``email`` (``mailto:``), or ``tel``.
+    http(s) targets are absolutized against ``base_url`` (or the page's
+    ``<base href>``) and fragment-stripped; the page's own URL is dropped.
+    De-duplicated by target URL (first-seen order), keeping the first non-empty
+    anchor text so a nav logo link doesn't shadow the labeled one.
 
     ``text`` falls back to aria-label/title/img-alt for icon-only anchors.
     ``context`` (social/email/tel only) is the nearest ancestor's text — team
     pages label a person *next to* their LinkedIn icon, not inside it, so this
     is what ties a profile URL to its entity.
     """
-    if not page_html or not page_html.strip():
-        return []
-    try:
-        root = lxml_html.fromstring(page_html)
-    except (ParserError, ValueError):
-        return []
-
-    self_url, _ = urldefrag(base_url)
-    base_host = host_of(base_url)
-    records: dict[str, dict[str, str]] = {}
-
-    for anchor in root.xpath("//a[@href]"):
-        href = str(anchor.get("href", "")).strip()
-        low = href.lower()
-        # unquote: hrefs URL-encode spaces etc. ("tel:+1%20408-629-1770")
-        if low.startswith("mailto:"):
-            target = unquote(urlsplit(href).path.split("?")[0]).strip()
-            kind = "email"
-        elif low.startswith("tel:"):
-            target = unquote(urlsplit(href).path).strip()
-            kind = "tel"
-        else:
-            target, _ = urldefrag(urljoin(base_url, href))
-            if urlsplit(target).scheme not in ("http", "https"):
-                continue
-            if target == self_url:
-                continue
-            host = (urlsplit(target).hostname or "").lower()
-            if is_social_host(host):
-                kind = "social"
-            elif host_of(target) == base_host:
-                kind = "internal"
-            else:
-                kind = "external"
-        if not target:
-            continue
-
-        text = _anchor_label(anchor)[:_MAX_ANCHOR_TEXT]
-        record = {
-            "url": target,
-            "text": text,
-            "rel": str(anchor.get("rel", "")).strip(),
-            "kind": kind,
-        }
-        # Context only where entity attribution matters; internal/external nav
-        # context is boilerplate that would bloat every item.
-        if kind in ("social", "email", "tel"):
-            record["context"] = _anchor_context(anchor) if not text else ""
-        existing = records.get(target)
-        if existing is None:
-            records[target] = record
-        elif not existing["text"] and text:
-            existing["text"] = text
-            if "context" in existing:
-                existing["context"] = ""
-    return list(records.values())
+    return link_inventory(page_html, base_url)[0]
 
 
-def extract_links(page_html: str | None, base_url: str) -> list[str]:
+def extract_links(page_html: Any, base_url: str) -> list[str]:
     """Absolute, http(s), fragment-free, de-duplicated ``<a href>`` targets.
 
-    URL-only view of ``extract_link_records`` for callers that just need the
-    frontier; first-seen order is preserved to keep it stable.
+    The crawl frontier: no labels, so it stays cheap over a whole large page.
+    First-seen order is preserved to keep it stable.
     """
-    return [
-        record["url"]
-        for record in extract_link_records(page_html, base_url)
-        if record["kind"] not in ("email", "tel")
-    ]
+    root = _tree(page_html)
+    if root is None:
+        return []
+    self_url, _ = urldefrag(base_url)
+    join_base = _join_base(root, base_url)
+    links: dict[str, None] = {}
+    # A changelog has 30,000 hrefs: skip repeats and in-page anchors before
+    # the per-href URL work, which is most of the cost.
+    in_page = join_base == base_url
+    seen: set[str] = set()
+    for raw in root.xpath("//a/@href"):
+        href = str(raw).strip()
+        if href in seen or (in_page and href.startswith("#")):
+            continue
+        seen.add(href)
+        target, _ = urldefrag(urljoin(join_base, href))
+        if urlsplit(target).scheme in ("http", "https") and target != self_url:
+            links.setdefault(target)
+    return list(links)
 
 
 def host_of(url: str) -> str:
     """Lowercased host with a leading ``www.`` removed, for same-site matching."""
     host = (urlsplit(url).hostname or "").lower()
     return host[4:] if host.startswith("www.") else host
+
+
+def canonical_url(url: str) -> str:
+    """``url`` as a crawl visits it: no fragment, lowercased scheme and host, ``/`` for no path."""
+    parts = urlsplit(urldefrag(url)[0])
+    return urlunsplit(
+        (parts.scheme.lower(), parts.netloc.lower(), parts.path or "/", parts.query, "")
+    )

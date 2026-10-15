@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
@@ -25,11 +26,18 @@ from shared.config import get_storage_settings
 logger = logging.getLogger(__name__)
 
 
-def find_or_create_workspaces(
-    session: Session, manifest: Manifest
-) -> list[tuple[Workspace, bool]]:
+def _same_instant(stored: datetime, exported: datetime) -> bool:
+    """Compare SQLite's naive UTC timestamps with the export's zoned values."""
+    if stored.tzinfo is None:
+        stored = stored.replace(tzinfo=UTC)
+    if exported.tzinfo is None:
+        exported = exported.replace(tzinfo=UTC)
+    return stored.astimezone(UTC) == exported.astimezone(UTC)
+
+
+def find_or_create_workspaces(session: Session, manifest: Manifest) -> list[Workspace]:
     """One local workspace per exported one, keyed by cloud id across re-imports."""
-    found: list[tuple[Workspace, bool]] = []
+    found: list[Workspace] = []
     for exported in manifest.workspaces:
         workspace = session.scalar(
             select(Workspace).where(Workspace.cloud_id == exported.id)
@@ -39,9 +47,7 @@ def find_or_create_workspaces(
             session.add(workspace)
             session.flush()
             ensure_managed_root(session, workspace.id)
-            found.append((workspace, True))
-        else:
-            found.append((workspace, False))
+        found.append(workspace)
     return found
 
 
@@ -49,26 +55,31 @@ def import_bundle(
     session_factory: sessionmaker[Session],
     bundle_path: Path,
     manifest: Manifest,
-    workspace_ids: dict[int, tuple[int, bool]],
+    workspace_ids: dict[int, int],
 ) -> None:
     """The slow half, after the 202: documents to disk and queue, threads to rows."""
     try:
         with ZipFile(bundle_path) as archive, session_factory() as session:
             for exported in manifest.workspaces:
-                workspace_id, created = workspace_ids[exported.id]
+                workspace_id = workspace_ids[exported.id]
                 for document in exported.documents:
                     _import_document(
                         session, archive, workspace_id, exported.id, document
                     )
-                # ponytail: threads have no dedup key, so they travel only with
-                # a workspace's first import. A later export's new threads are
-                # lost; the upgrade is a cloud thread id column on chat_threads.
-                if not created:
-                    continue
+                has_unkeyed_imported_threads = session.scalar(
+                    select(Workspace.has_unkeyed_imported_threads).where(
+                        Workspace.id == workspace_id
+                    )
+                )
                 for thread in ExportedThreads.validate_json(
                     archive.read(exported.chats)
                 ):
-                    _import_thread(session, workspace_id, thread)
+                    _import_thread(
+                        session,
+                        workspace_id,
+                        thread,
+                        claim_unkeyed=bool(has_unkeyed_imported_threads),
+                    )
                 session.commit()
     finally:
         bundle_path.unlink(missing_ok=True)
@@ -148,10 +159,38 @@ def _import_document(
 
 
 def _import_thread(
-    session: Session, workspace_id: int, exported: ExportedThread
+    session: Session,
+    workspace_id: int,
+    exported: ExportedThread,
+    *,
+    claim_unkeyed: bool = False,
 ) -> None:
+    """Create a hosted thread or claim its unique legacy row by creation time."""
+    thread = session.scalar(
+        select(ChatThread).where(ChatThread.cloud_id == exported.id)
+    )
+    if thread is not None:
+        return
+    if claim_unkeyed:
+        unkeyed = session.scalars(
+            select(ChatThread).where(
+                ChatThread.workspace_id == workspace_id,
+                ChatThread.cloud_id.is_(None),
+            )
+        ).all()
+        candidates = [
+            thread
+            for thread in unkeyed
+            if _same_instant(thread.created_at, exported.created_at)
+        ]
+        if len(candidates) == 1:
+            candidates[0].cloud_id = exported.id
+        return
     thread = ChatThread(
-        workspace_id=workspace_id, title=exported.title, created_at=exported.created_at
+        workspace_id=workspace_id,
+        cloud_id=exported.id,
+        title=exported.title,
+        created_at=exported.created_at,
     )
     session.add(thread)
     session.flush()

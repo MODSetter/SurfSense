@@ -36,11 +36,14 @@ from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from pydantic import ValidationError
+
 from proprietary.google_search.schemas import GoogleSearchScrapeInput
 from proprietary.google_search.scraper import scrape_serps
 
 from .fetch import (
     InstagramAccessBlockedError,
+    InstagramLoginRequiredError,
     bind_proxy_holder,
     fetch_html,
     fetch_json,
@@ -48,7 +51,7 @@ from .fetch import (
     open_proxy_holder,
 )
 from .parsers import parse_media, parse_post, parse_profile
-from .schemas import InstagramScrapeInput
+from .schemas import InstagramMediaItem, InstagramProfile, InstagramScrapeInput
 from .url_resolver import ResolvedUrl, resolve_url
 
 logger = logging.getLogger(__name__)
@@ -128,9 +131,10 @@ async def fan_out(
     failed target yields nothing rather than aborting the batch — Instagram is
     an aggregation, not an atomic transaction, so 4/5 good targets beat 0/5. But
     if EVERY target was refused (zero items AND a hard block seen), the whole run
-    couldn't reach anonymous data, so we surface ``InstagramAccessBlockedError``
-    (the tool's error) instead of a misleading empty success. Workers are cancelled and
-    their sessions closed if the consumer stops early.
+    couldn't reach anonymous data, so we re-raise the refusal (a login wall in
+    preference, since it says what still works) as the tool's error instead of a
+    misleading empty success. Workers are cancelled and their sessions closed if
+    the consumer stops early.
     """
     if not jobs:
         return
@@ -138,7 +142,7 @@ async def fan_out(
     for job in jobs:
         job_queue.put_nowait(job)
     results: asyncio.Queue[list[dict[str, Any]]] = asyncio.Queue()
-    blocked = False  # set if any target hit a hard login/auth wall
+    blocked: InstagramAccessBlockedError | None = None  # a hard login/auth wall
 
     async def worker() -> None:
         nonlocal blocked
@@ -163,7 +167,8 @@ async def fan_out(
                 except InstagramAccessBlockedError as e:
                     # Partial results: a blocked target must not kill the batch.
                     # Record it so a fully-blocked run can still surface the refusal.
-                    blocked = True
+                    if not isinstance(blocked, InstagramLoginRequiredError):
+                        blocked = e
                     logger.warning("[instagram] target blocked: %s", e)
                 except Exception as e:  # one bad target must not kill the run
                     logger.warning("[instagram] fan-out job failed: %s", e)
@@ -187,18 +192,29 @@ async def fan_out(
     # Reached only on natural exhaustion (an early-stop close raises GeneratorExit
     # inside the loop and skips this). Nothing came back AND a wall was hit ->
     # the run was fully refused, so fail loud rather than return empty.
-    if emitted == 0 and blocked:
-        raise InstagramAccessBlockedError(
-            "Instagram refused anonymous access to every target"
-        )
+    if emitted == 0 and blocked is not None:
+        raise blocked
 
 
-def _emit(partial: dict[str, Any], *, input_url: str | None) -> dict[str, Any]:
-    """Stamp provenance and serialize (parsers return plain dicts)."""
+def _emit(
+    partial: dict[str, Any],
+    *,
+    input_url: str | None,
+    model: type[InstagramMediaItem | InstagramProfile] = InstagramMediaItem,
+) -> dict[str, Any]:
+    """Stamp provenance and serialize through the output model.
+
+    Parsers return plain dicts that omit the fields their source lacks; the
+    model emits every documented field (``None`` when unsourced).
+    """
     out = {**partial, "scrapedAt": now_iso()}
     if input_url is not None:
         out.setdefault("inputUrl", input_url)
-    return out
+    try:
+        return model(**out).to_output()
+    except ValidationError as e:  # an unexpected shape must not drop the item
+        logger.warning("[instagram] item does not fit %s: %s", model.__name__, e)
+        return out
 
 
 async def _profile_user(username: str) -> dict[str, Any] | None:
@@ -280,7 +296,9 @@ async def _details_flow(
     if resolved.kind == "profile":
         user = await _profile_user(resolved.value)
         if user is not None:
-            yield _emit(parse_profile(user), input_url=resolved.url)
+            yield _emit(
+                parse_profile(user), input_url=resolved.url, model=InstagramProfile
+            )
 
 
 def _kind_matches(resolved: ResolvedUrl, search_type: str) -> bool:

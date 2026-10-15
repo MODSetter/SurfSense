@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.models import Artifact
+from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
 from modules.artifacts.tasks import studio_job
@@ -106,7 +107,9 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     """
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
-        raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
+        raise refused(
+            status.HTTP_409_CONFLICT, "already generating", "already_generating"
+        )
     meta = artifact.artifact_metadata
     # A document script runs as stored: its format's models are never asked.
     if not renders_as_stored(meta):
@@ -134,8 +137,14 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
 def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
     """Stop a queued or running generation. The worker exits without writing ready."""
     if not cancel_studio_job(session, artifact.document, artifact.id):
-        raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
+        raise refused(status.HTTP_409_CONFLICT, "nothing is running", "nothing_running")
     return artifact
+
+
+def _no_sources() -> HTTPException:
+    return refused(
+        status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source", "no_sources"
+    )
 
 
 def _resolve_sources(
@@ -144,20 +153,18 @@ def _resolve_sources(
     """The job's source ids, and what the artifact records of the scope."""
     if payload.source_scope is None:
         if not payload.document_ids:
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
-            )
+            raise _no_sources()
         documents = load_selected_sources(session, workspace_id, payload.document_ids)
         return [doc.id for doc in documents], {}
     resolved = resolve_scope(session, workspace_id, payload.source_scope)
     if not resolved.ids:
         if resolved.counts.indexing:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, "the chosen sources are still indexing"
+            raise refused(
+                status.HTTP_409_CONFLICT,
+                "the chosen sources are still indexing",
+                "sources_indexing",
             )
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
-        )
+        raise _no_sources()
     scope = pruned(payload.source_scope, resolved)
     return resolved.ids, {"source_scope": scope.model_dump()}
 
@@ -187,8 +194,10 @@ def _replayed_sources(session: Session, artifact: Artifact) -> list[int]:
         )
         ids = [i for i in recorded if i in existing]
     if not ids:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "None of this artifact's sources are left."
+        raise refused(
+            status.HTTP_409_CONFLICT,
+            "None of this artifact's sources are left.",
+            "sources_gone",
         )
     return ids
 

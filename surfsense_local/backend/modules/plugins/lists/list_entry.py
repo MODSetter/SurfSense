@@ -1,10 +1,13 @@
 """One plugin as a list describes it: the schema the first-party list and the registry share."""
 
 import ipaddress
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+# MCP's own rule for a tool name.
+ToolName = Annotated[str, Field(pattern=r"^[A-Za-z0-9_.-]{1,128}$")]
 
 
 class EntryAuth(BaseModel):
@@ -25,7 +28,9 @@ class ListEntry(BaseModel):
 
     id: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
     kind: Literal["remote"]
-    publisher: Literal["surfsense", "partner", "community"]
+    # Registry only: `verified` when a maintainer judged in review that its author runs
+    # the server. A first-party entry has none: it is SurfSense's by its list.
+    verification: Literal["verified", "community"] | None = None
     name: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1, max_length=200)
     author: str = Field(min_length=1, max_length=80)
@@ -37,6 +42,12 @@ class ListEntry(BaseModel):
     privacy_policy: str | None = None
     homepage: str | None = None
     icon: str | None = None
+    # What the plugin's page shows before it is connected.
+    about: str | None = Field(default=None, min_length=1, max_length=600)
+    # The server's tool names, shown before it is connected; never given to a model.
+    tools: list[ToolName] | None = None
+    # The month the plugin joined its list, as `YYYY-MM`.
+    added: str | None = Field(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
 
     @model_validator(mode="after")
     def _reachable_as_listed(self) -> Self:
@@ -51,6 +62,8 @@ class ListEntry(BaseModel):
             raise ValueError("hosts must not be loopback")
         if self.access == "external" and not self.access_note:
             raise ValueError("access_note is required when access is external")
+        if self.tools and len(set(self.tools)) != len(self.tools):
+            raise ValueError("tools lists a tool twice")
         return self
 
 

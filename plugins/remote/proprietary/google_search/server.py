@@ -1,25 +1,67 @@
 """SurfSense's Google Search plugin: Google's results pages, behind the license."""
 
+import asyncio
+import logging
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp_types import CallToolResult, TextContent, ToolAnnotations
+from mcp_types import CallToolResult, ToolAnnotations
 from pydantic import Field
 
+from mcp_server.progress import stage
+from mcp_server.results import ELLIPSIS, tool_result, wants_text_only
 from proprietary.google_search import searxng
+from proprietary.google_search.fetch import warm_browser
 from proprietary.google_search.query_builder import is_page_url
 from proprietary.google_search.schemas import GoogleSearchScrapeInput
 from proprietary.google_search.scraper import scrape_serps
-from proprietary.license_check.license_access import LicenseAccess
+from proprietary.license_check.license_access import shared_access
+from proprietary.scraping import lifecycle
+
+logger = logging.getLogger(__name__)
 
 # Bounds one call's fan-out, as the scraper API's did.
 MAX_QUERIES = 20
 MAX_PAGES_PER_QUERY = 10
-# Organic results the summary lists per page; every one is in the structured result.
-SUMMARY_RESULTS = 10
+# A page's AI Overview runs to 2-3k characters; keep it about whole.
+CLIP_CHARS = 2500
+# A page-1 line ran 9-15 KB, its People Also Ask answers alone 4.5-6 KB, so
+# the 32 KB text lost a call's third query. Each answer keeps its opening.
+PAA_ANSWER_CHARS = 400
+# Past this many pages each is listed in about 3 KB (its results in rank
+# order, the overview's opening, the questions), so ten or more fit.
+FULL_PAGES = 3
+COMPACT_OVERVIEW_CHARS = 300
 
-access = LicenseAccess()
+access = shared_access()
+
+
+@asynccontextmanager
+async def lifespan() -> AsyncIterator[None]:
+    """Launches the desktop browser in the background (GS-8): about 0.5 s on a
+    desktop and 5 s in prod off the first call. It opens no page, so it spends
+    no proxy or captcha credit; GOOGLE_SEARCH_WARM_BROWSER=0 skips it."""
+    async with lifecycle.lifespan():
+        warming = None
+        if os.getenv("GOOGLE_SEARCH_WARM_BROWSER", "1") != "0":
+            warming = asyncio.create_task(_warm())
+        try:
+            yield
+        finally:
+            if warming is not None:
+                warming.cancel()
+
+
+async def _warm() -> None:
+    try:
+        await warm_browser()
+    except Exception:
+        # The first call launches it instead.
+        logger.warning("[google_search] browser warm-up failed", exc_info=True)
 
 
 def server() -> MCPServer:
@@ -52,12 +94,20 @@ def server() -> MCPServer:
         ] = 1,
         country_code: Annotated[
             str | None,
-            Field(description="Two-letter country to search from, such as 'us'."),
+            Field(
+                description=(
+                    "Two-letter country to search from, such as 'us'; blank with "
+                    "no language_code means US English."
+                )
+            ),
         ] = None,
         language_code: Annotated[
             str,
             Field(
-                description="Results language code, such as 'en'; blank for Google's."
+                description=(
+                    "Results language code, such as 'en'; blank with no "
+                    "country_code means US English."
+                )
             ),
         ] = "",
         site: Annotated[
@@ -76,9 +126,13 @@ def server() -> MCPServer:
                 "https://www.google.com/search?q=..."
             )
         total = len(queries) * max_pages_per_query
+        await stage(ctx, f"searching {total} results pages", total=total)
 
         async def heard(count: int) -> None:
-            await ctx.report_progress(count, total)
+            await stage(ctx, f"{count} of {total} pages", done=count, total=total)
+
+        async def attempt(message: str) -> None:
+            await stage(ctx, message)
 
         request = GoogleSearchScrapeInput(
             queries="\n".join(query.strip() for query in queries),
@@ -87,39 +141,98 @@ def server() -> MCPServer:
             languageCode=language_code,
             site=site,
         )
-        items = await scrape_serps(request, limit=total, on_item=heard)
+        items = await scrape_serps(
+            request, limit=total, on_item=heard, on_stage=attempt
+        )
         if not items:
             # Every address walled and no fallback answered: not the same as no results.
             raise ToolError(
                 "Google refused every address tried, and no fallback answered. "
                 "Try again in a few minutes."
             )
-        return CallToolResult(
-            content=[TextContent(type="text", text=_summary(items))],
-            structured_content={"items": items},
+        compact = len(items) > FULL_PAGES
+        return tool_result(
+            _summary(items, compact=compact),
+            items,
+            project=_projected_compact if compact else _projected,
+            clip_chars=CLIP_CHARS,
+            text_only=wants_text_only(ctx),
         )
 
     return google_search
 
 
-def _summary(items: list[dict[str, Any]]) -> str:
-    """What the agent reads first; each page whole is in the structured result."""
-    lines = [f"{len(items)} Google results pages"]
-    for item in items:
-        query = item.get("searchQuery") or {}
-        where = query.get("term") or query.get("url") or ""
-        source = (
-            ", from SearXNG, not Google's ranking"
+def _summary(items: list[dict[str, Any]], *, compact: bool = False) -> str:
+    """The header the agent reads above one JSON line per results page."""
+    if compact:
+        return (
+            f"{len(items)} Google results pages, one per line: the query, its "
+            "organic results, People Also Ask questions, the AI Overview's "
+            "opening and related searches"
+        )
+    return (
+        f"{len(items)} Google results pages, one per line: the query, its organic "
+        "results, People Also Ask answers, AI Overview, ads and related searches"
+    )
+
+
+def _projected(item: dict[str, Any]) -> dict[str, Any]:
+    """What an agent needs from a page to answer without another call."""
+    query = item.get("searchQuery") or {}
+    aio = item.get("aiOverview") or {}
+    return {
+        "query": query.get("term") or query.get("url"),
+        "page": query.get("page"),
+        "source": (
+            "SearXNG, not Google's ranking"
             if item.get("resultsProvider") == searxng.PROVIDER
-            else ""
-        )
-        organic = item.get("organicResults") or []
-        lines.append(
-            f"{where}, page {query.get('page', 1)}{source}: {len(organic)} results"
-        )
-        for result in organic[:SUMMARY_RESULTS]:
-            lines.append(
-                f"  {result.get('position') or ''}. {result.get('title')} "
-                f"{result.get('url') or ''}"
-            )
-    return "\n".join(lines)
+            else None
+        ),
+        "resultsTotal": item.get("resultsTotal"),
+        "aiOverview": {
+            "text": aio.get("content"),
+            "sources": [_pick(s, "title", "url") for s in aio.get("sources") or []],
+        },
+        "organic": [
+            _pick(r, "position", "title", "url", "description", "date")
+            for r in item.get("organicResults") or []
+        ],
+        "peopleAlsoAsk": [
+            {
+                **_pick(q, "question", "url"),
+                "answer": _clip(q.get("answer"), PAA_ANSWER_CHARS),
+            }
+            for q in item.get("peopleAlsoAsk") or []
+        ],
+        "ads": [
+            _pick(r, "title", "url", "description")
+            for r in item.get("paidResults") or []
+        ],
+        "products": [
+            _pick(p, "title", "url", "prices") for p in item.get("paidProducts") or []
+        ],
+        "related": [r.get("title") for r in item.get("relatedQueries") or []],
+    }
+
+
+def _projected_compact(item: dict[str, Any]) -> dict[str, Any]:
+    """A page of a many-page call: what answers most questions in about 3 KB."""
+    page = _projected(item)
+    return {
+        **page,
+        "aiOverview": _clip(page["aiOverview"]["text"], COMPACT_OVERVIEW_CHARS),
+        "organic": [_pick(r, "title", "url", "description") for r in page["organic"]],
+        "peopleAlsoAsk": [q["question"] for q in page["peopleAlsoAsk"]],
+        "ads": None,
+        "products": None,
+    }
+
+
+def _pick(record: dict[str, Any], *keys: str) -> dict[str, Any]:
+    return {key: record.get(key) for key in keys}
+
+
+def _clip(text: str | None, chars: int) -> str | None:
+    if text is None or len(text) <= chars:
+        return text
+    return text[:chars] + ELLIPSIS

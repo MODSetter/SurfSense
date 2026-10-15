@@ -1,6 +1,7 @@
-"""The registry as Settings > Plugins lists it: each entry, its publisher, and whether it is connected."""
+"""The registry as Settings > Plugins lists it: each entry, whether it is verified, and whether it is connected."""
 
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.registry.current_registry import CurrentRegistry
 from modules.plugins.lists.registry.registry_icons import icon_file
 
-PARTNER = "partner"
+VERIFIED = "verified"
 
 
 class RegistryEntryRead(BaseModel):
@@ -17,8 +18,8 @@ class RegistryEntryRead(BaseModel):
     name: str
     description: str
     author: str
-    # `partner` or `community`; a partner's listing is shown as verified.
-    publisher: str
+    # `verified` (a maintainer judged that its author runs the server) or `community`.
+    verification: str
     verified: bool
     access: str
     access_note: str | None
@@ -27,8 +28,16 @@ class RegistryEntryRead(BaseModel):
     auth_title: str | None
     auth_description: str | None
     hosts: list[str]
+    # The host every call goes to; the rest, an OAuth plugin's, see only the sign-in.
+    server_host: str
+    sign_in_hosts: list[str]
     homepage: str | None
     privacy_policy: str | None
+    # What its page shows before it is connected; `tools` is None when the entry lists none.
+    about: str | None
+    tools: list[str] | None
+    # `YYYY-MM`, the month it joined the registry; None in an older entry.
+    added: str | None
     has_icon: bool
     connected: bool
 
@@ -57,16 +66,23 @@ def read_registry(session: Session, current: CurrentRegistry) -> RegistryRead:
                 name=entry.name,
                 description=entry.description,
                 author=entry.author,
-                publisher=entry.publisher,
-                verified=entry.publisher == PARTNER,
+                verification=entry.verification,
+                verified=entry.verification == VERIFIED,
                 access=entry.access,
                 access_note=entry.access_note,
                 auth_type=entry.auth.type,
                 auth_title=entry.auth.title,
                 auth_description=entry.auth.description,
                 hosts=entry.hosts,
+                server_host=_server_host(entry.url),
+                sign_in_hosts=[
+                    host for host in entry.hosts if host != _server_host(entry.url)
+                ],
                 homepage=entry.homepage,
                 privacy_policy=entry.privacy_policy,
+                about=entry.about,
+                tools=entry.tools,
+                added=entry.added,
                 has_icon=icon_file(entry) is not None,
                 connected=session.get(InstalledPlugin, entry.id) is not None,
             )
@@ -77,3 +93,7 @@ def read_registry(session: Session, current: CurrentRegistry) -> RegistryRead:
             for item in current.document.removed
         ],
     )
+
+
+def _server_host(url: str) -> str:
+    return urlsplit(url).hostname or ""

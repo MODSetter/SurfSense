@@ -9,6 +9,7 @@ import {
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
+  ArrowUpRight01Icon as ArrowUpRight01IconData,
   ArrowUp02Icon as ArrowUp02IconData,
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
@@ -18,7 +19,9 @@ import {
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
   Chat01Icon as Chat01IconData,
+  ChatGptIcon as ChatGptIconData,
   CheckIcon as CheckIconData,
+  CheckmarkBadge02Icon as CheckmarkBadge02IconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
@@ -46,11 +49,12 @@ import {
   FolderUploadIcon as FolderUploadIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
+  GridViewIcon as GridViewIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
-  LinkSquare02Icon as LinkSquare02IconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
+  Mic01Icon as Mic01IconData,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
   NoteAddIcon as NoteAddIconData,
@@ -136,8 +140,10 @@ export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
 export const Chat01Icon = createIcon(Chat01IconData)
+export const ChatGptIcon = createIcon(ChatGptIconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
+export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const ClockIcon = createIcon(Clock01IconData)
@@ -169,10 +175,12 @@ export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
+export const GridViewIcon = createIcon(GridViewIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
-export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
+export const ExternalLinkIcon = createIcon(ArrowUpRight01IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
+export const Mic01Icon = createIcon(Mic01IconData)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
 export const NoteAddIcon = createIcon(NoteAddIconData)

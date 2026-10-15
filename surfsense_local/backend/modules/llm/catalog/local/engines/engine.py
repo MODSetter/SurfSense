@@ -1,7 +1,7 @@
 """The seam every local engine answers at: rows, its folder, install and delete steps."""
 
-from collections.abc import AsyncIterator, Callable, Sequence
-from dataclasses import dataclass
+from collections.abc import AsyncIterator, Callable, Sequence, Set
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -16,12 +16,14 @@ from modules.llm.model_type import ModelType
 @dataclass(frozen=True)
 class InstallStep:
     """One frame of what an engine does after the files land. `complete` ends it,
-    and its message is the one the install finishes with."""
+    and its message is the one the install finishes with. `values` are the raw
+    numbers an `error`'s words take, sent beside its code."""
 
     kind: str
     message: str
     progress: float | None = None
     code: InstallCode | None = None
+    values: dict[str, int] = field(default_factory=dict)
 
 
 class LocalEngine(Protocol):
@@ -43,8 +45,10 @@ class LocalEngine(Protocol):
         models: Sequence[CuratedModel],
         mint: Callable[[Build], str],
         *,
-        selected: str | None,
-    ) -> tuple[LocalRow, ...]: ...
+        selected: Set[str],
+    ) -> tuple[LocalRow, ...]:
+        """`selected` names the installed models chosen for any of its types."""
+        ...
 
     def landing(self, file: BuildFile, model_id: str) -> str:
         """Where one file of `model_id`'s build lands, relative to `folder`."""

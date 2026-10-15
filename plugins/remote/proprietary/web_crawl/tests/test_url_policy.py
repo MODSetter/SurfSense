@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
+from proprietary.web_crawl import url_policy
 from proprietary.web_crawl.url_policy import (
+    canonical_url,
     extract_link_records,
     extract_links,
     host_of,
+    link_inventory,
 )
 
 _HTML = """
@@ -124,3 +129,73 @@ def test_extract_link_records_dedupes_keeping_first_nonempty_text() -> None:
 def test_host_of_strips_www_and_lowercases() -> None:
     assert host_of("https://www.Example.com/x") == "example.com"
     assert host_of("https://Example.com/x") == "example.com"
+
+
+def test_links_resolve_against_base_href() -> None:
+    html = '<head><base href="/en/latest/"></head><a href="user/install/">Install</a>'
+    links = extract_links(html, "https://requests.readthedocs.io/")
+    assert links == ["https://requests.readthedocs.io/en/latest/user/install/"]
+    (record,) = extract_link_records(html, "https://requests.readthedocs.io/")
+    assert record["url"] == "https://requests.readthedocs.io/en/latest/user/install/"
+
+
+def test_code_host_repo_links_are_external_not_social() -> None:
+    html = """
+    <a href="https://github.com/jane">Jane</a>
+    <a href="https://github.com/python/cpython/issues/1">gh-1</a>
+    <a href="https://github.com/features">Features</a>
+    """
+    kinds = {r["url"]: r["kind"] for r in extract_link_records(html, "https://e.com/")}
+    assert kinds == {
+        "https://github.com/jane": "social",
+        "https://github.com/python/cpython/issues/1": "external",
+        "https://github.com/features": "external",
+    }
+
+
+def test_link_inventory_caps_records_site_pages_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """13k anchors (the changelog page): 200 records kept, the rest counted.
+
+    Labels are computed only for kept records; they were most of the cost.
+    """
+    anchors = [f'<a href="https://other{i}.com/">o{i}</a>' for i in range(6000)]
+    anchors += [f'<a href="/p{i}">p{i}</a>' for i in range(7000)]
+    anchors.append('<a href="https://www.linkedin.com/in/jane">Jane</a>')
+    html = "<html><body>" + "".join(anchors) + "</body></html>"
+    labels = {"n": 0}
+    real_label = url_policy._anchor_label
+
+    def counting_label(anchor):
+        labels["n"] += 1
+        return real_label(anchor)
+
+    monkeypatch.setattr(url_policy, "_anchor_label", counting_label)
+
+    records, total = link_inventory(html, "https://e.com/", max_records=200)
+
+    assert total == 13001
+    assert len(records) == 200
+    assert {r["kind"] for r in records} == {"internal"}
+    assert records[0]["url"] == "https://e.com/p0"  # page order kept
+    assert labels["n"] == 200
+    # The frontier is never capped.
+    assert len(extract_links(html, "https://e.com/")) == 13001
+
+
+def test_link_inventory_keeps_profiles_ahead_of_external_links() -> None:
+    html = (
+        '<a href="https://a.com/">a</a><a href="https://b.com/">b</a>'
+        '<a href="https://x.com/acme">X</a><a href="/home">Home</a>'
+    )
+    records, total = link_inventory(html, "https://e.com/", max_records=2)
+    assert total == 4
+    assert [r["url"] for r in records] == ["https://x.com/acme", "https://e.com/home"]
+
+
+def test_canonical_url_matches_a_crawl_visit() -> None:
+    assert canonical_url("HTTPS://Requests.ReadTheDocs.io#top") == (
+        "https://requests.readthedocs.io/"
+    )
+    assert canonical_url("https://e.com/a?b=1#c") == "https://e.com/a?b=1"

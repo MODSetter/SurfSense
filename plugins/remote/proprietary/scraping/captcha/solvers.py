@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 
 import httpx2
 
+from proprietary.scraping.api_clients import api_client
 from proprietary.scraping.captcha.config import CaptchaConfig
 
 logger = logging.getLogger(__name__)
@@ -48,10 +49,12 @@ class SolverUnsupportedError(SolverError):
 # --- 2captcha (legacy in.php/res.php) --------------------------------------
 
 # HTTPS: the key travels in every request.
-_2CAP_IN = "https://2captcha.com/in.php"
-_2CAP_RES = "https://2captcha.com/res.php"
+_2CAP_BASE = "https://2captcha.com"
+_2CAP_IN = f"{_2CAP_BASE}/in.php"
+_2CAP_RES = f"{_2CAP_BASE}/res.php"
 # Historical captchatools soft_id, kept so solves stay attributed on 2captcha.
 _2CAP_SOFT_ID = 4782723
+# 2captcha asks for 5 s between polls.
 _2CAP_POLL_SECONDS = 5.0
 
 
@@ -127,9 +130,10 @@ async def _twocaptcha(
     if user_agent:
         payload["userAgent"] = user_agent
 
+    # A kept client: a new one paid a TLS handshake on every poll.
+    http = api_client(_2CAP_BASE)
     try:
-        async with httpx2.AsyncClient(timeout=30) as http:
-            submit = (await http.post(_2CAP_IN, data=payload)).json()
+        submit = (await http.post(_2CAP_IN, data=payload)).json()
     except (httpx2.HTTPError, ValueError) as e:
         logger.warning("%s 2captcha submit request failed: %s", _LOG, e)
         return None
@@ -143,8 +147,7 @@ async def _twocaptcha(
         await asyncio.sleep(_2CAP_POLL_SECONDS)
         params = {"key": cfg.api_key, "action": "get", "id": task_id, "json": 1}
         try:
-            async with httpx2.AsyncClient(timeout=30) as http:
-                got = (await http.get(_2CAP_RES, params=params)).json()
+            got = (await http.get(_2CAP_RES, params=params)).json()
         except (httpx2.HTTPError, ValueError):
             continue
         if got.get("status") == 1:
@@ -159,10 +162,12 @@ async def _twocaptcha(
 
 # --- capsolver (createTask / getTaskResult) --------------------------------
 
-_CAPSOLVER_CREATE = "https://api.capsolver.com/createTask"
-_CAPSOLVER_RESULT = "https://api.capsolver.com/getTaskResult"
-# The AI solver is fast, so it is polled tighter than 2captcha.
-_CAPSOLVER_POLL_SECONDS = 2.0
+_CAPSOLVER_BASE = "https://api.capsolver.com"
+_CAPSOLVER_CREATE = f"{_CAPSOLVER_BASE}/createTask"
+_CAPSOLVER_RESULT = f"{_CAPSOLVER_BASE}/getTaskResult"
+# The AI solver is fast, so it is polled tighter than 2captcha: every second, so
+# a ready token waits under 1 s.
+_CAPSOLVER_POLL_SECONDS = 1.0
 
 
 def capsolver_proxy(proxy_url: str | None) -> str | None:
@@ -234,13 +239,13 @@ async def _capsolver(
     if user_agent:
         task["userAgent"] = user_agent
 
+    http = api_client(_CAPSOLVER_BASE)
     try:
-        async with httpx2.AsyncClient(timeout=30) as http:
-            created = (
-                await http.post(
-                    _CAPSOLVER_CREATE, json={"clientKey": cfg.api_key, "task": task}
-                )
-            ).json()
+        created = (
+            await http.post(
+                _CAPSOLVER_CREATE, json={"clientKey": cfg.api_key, "task": task}
+            )
+        ).json()
     except (httpx2.HTTPError, ValueError) as e:
         logger.warning("%s capsolver createTask failed: %s", _LOG, e)
         return None
@@ -257,13 +262,12 @@ async def _capsolver(
     while time.monotonic() < deadline:
         await asyncio.sleep(_CAPSOLVER_POLL_SECONDS)
         try:
-            async with httpx2.AsyncClient(timeout=30) as http:
-                got = (
-                    await http.post(
-                        _CAPSOLVER_RESULT,
-                        json={"clientKey": cfg.api_key, "taskId": task_id},
-                    )
-                ).json()
+            got = (
+                await http.post(
+                    _CAPSOLVER_RESULT,
+                    json={"clientKey": cfg.api_key, "taskId": task_id},
+                )
+            ).json()
         except (httpx2.HTTPError, ValueError):
             continue
         if got.get("errorId"):

@@ -6,7 +6,7 @@ index names. bge is shipped in the read-only models pack and never downloaded.
 
 import asyncio
 import shutil
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence, Set
 from pathlib import Path
 
 from modules.embedding.bundled import BGE, bundled_dir
@@ -68,7 +68,7 @@ class OnnxRuntimeEngine:
         models: Sequence[CuratedModel],
         mint: Callable[[Build], str],
         *,
-        selected: str | None,
+        selected: Set[str],
     ) -> tuple[LocalRow, ...]:
         installs = read_installs(self._folder) if self._folder.is_dir() else {}
         picked = [
@@ -117,7 +117,12 @@ class OnnxRuntimeEngine:
             width, refusal = await asyncio.to_thread(verify, offered)
             if refusal is not None:
                 self._discard(model_id)
-                yield InstallStep("error", refusal)
+                yield InstallStep(
+                    "error",
+                    refusal.message,
+                    code=InstallCode.RETRIEVAL_CHECK_FAILED,
+                    values={"found": refusal.found, "asked": refusal.asked},
+                )
                 return
             checked = offered.model_copy(update={"dimension": width})
             (self._folder / model_id / SPEC_FILE).write_text(checked.model_dump_json())

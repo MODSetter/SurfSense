@@ -1,11 +1,11 @@
 """The Amazon plugin as the app reaches it: its MCP server on the host, behind the license.
 
-Amazon itself is faked at the scraper's network seam, Scrapling's `AsyncFetcher`, and
+Amazon itself is faked at the scraper's network seam, the shared `http.request`, and
 its proxy URLs; the host, the license check, the tool and Amazon's parsing are real.
 """
 
+import json
 from collections.abc import Iterator
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -17,9 +17,12 @@ from mcp.client.streamable_http import streamable_http_client
 from host.app import host_app
 from host.tests.mcp_calls import call
 from host.tests.serving import serving
-from proprietary.amazon import fetch
-from proprietary.license_check import keygen
-from proprietary.license_check.tests.stand_in_keygen import ACCOUNT, StandInKeygen
+from proprietary.amazon.tests._fake_http import answering, raw
+from proprietary.license_check.tests.stand_in_keygen import (
+    ACCOUNT,
+    StandInKeygen,
+    accounts_url,
+)
 
 LICENSE = {"Authorization": "License k-1"}
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -29,21 +32,10 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def amazon(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """The real Amazon plugin on the host, its license checked by a stand-in Keygen."""
     with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
-        monkeypatch.setattr(keygen, "KEYGEN_API_URL", keygen_url)
-        monkeypatch.setattr(keygen, "SURFSENSE_ACCOUNT_ID", ACCOUNT)
+        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
+        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
         with serving(host_app(plugins={"amazon"})) as base:
             yield f"{base}/amazon/mcp"
-
-
-@dataclass
-class Page:
-    """What Scrapling hands back for one request."""
-
-    url: str
-    html_content: str
-    status: int = 200
-    cookies: dict[str, str] = field(default_factory=dict)
-    headers: dict[str, str] = field(default_factory=dict)
 
 
 def amazon_answering(
@@ -52,21 +44,13 @@ def amazon_answering(
     """Amazon serving the fixture named for the first URL fragment it matches."""
     asked: list[str] = []
 
-    class Fetcher:
-        @staticmethod
-        async def get(url: str, **_kwargs: Any) -> Page:
-            asked.append(url)
-            name = next((answer[key] for key in answer if key in url), default)
-            html = (FIXTURES / name).read_text(encoding="utf-8") if name else ""
-            return Page(url=url, html_content=html)
+    async def reply(url: str, _kwargs: dict[str, Any]) -> Any:
+        asked.append(url)
+        name = next((answer[key] for key in answer if key in url), default)
+        html = (FIXTURES / name).read_text(encoding="utf-8") if name else ""
+        return raw(url, html)
 
-        post = get
-
-    monkeypatch.setattr(fetch, "AsyncFetcher", Fetcher)
-    monkeypatch.setattr(fetch, "get_geo_proxy_url", lambda country=None: None)
-    monkeypatch.setattr(
-        fetch, "get_sticky_proxy_url", lambda session_id, country=None: None
-    )
+    answering(monkeypatch, reply)
     return asked
 
 
@@ -120,8 +104,15 @@ async def test_a_product_url_returns_its_details(
     (item,) = result.structured_content["items"]
     assert item["title"] == "Example Wireless Headphones"
     assert item["price"] == {"value": 49.99, "currency": "USD"}
-    assert "Example Wireless Headphones (B09V3KXJPB) 49.99 USD" in (
-        result.content[0].text
+    # The text carries each item as a JSON line (SW-8), not a title list, so an
+    # agent that reads only the text still sees the price.
+    header, line = result.content[0].text.split("\n")
+    assert header == "1 Amazon products, 0 errors"
+    shown = json.loads(line)
+    assert (shown["title"], shown["asin"], shown["price"]) == (
+        "Example Wireless Headphones",
+        "B09V3KXJPB",
+        "49.99 USD",
     )
 
 

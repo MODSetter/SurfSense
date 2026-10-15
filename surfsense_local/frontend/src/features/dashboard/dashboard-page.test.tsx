@@ -1453,6 +1453,31 @@ describe("dashboard chat", () => {
     delete window.surfsense?.help
   })
 
+  it("opens Settings on Plugins from the sidebar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: /^Plugins/ }))
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Plugins" })
+    ).toBeTruthy()
+  })
+
   it("leaves the Help menu to the popup when there is no workspace", async () => {
     vi.stubGlobal(
       "fetch",

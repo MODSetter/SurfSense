@@ -36,6 +36,12 @@ def test_an_apache_licence_passes() -> None:
     assert refused([_entry("apache-2.0")]) == []
 
 
+def test_openmdw_passes() -> None:
+    """Nemotron's weights: leave to deal in them without restriction, its text
+    and notices kept on redistribution, which the app does not do."""
+    assert refused([_entry("openmdw-1.1")]) == []
+
+
 def test_every_entry_the_refresh_reads_passes() -> None:
     """The refresh refuses to start otherwise."""
     assert refused(ENTRIES) == []

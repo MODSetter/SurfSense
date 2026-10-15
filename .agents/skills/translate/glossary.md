@@ -41,6 +41,10 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every 
 | study guide | 学習ガイド | 학습 가이드 | 学习指南 | स्टडी गाइड | Lernzettel † | guía de estudio | Guide de révision | Guia de estudos | конспект |
 | podcast | ポッドキャスト | 팟캐스트 | 播客 | पॉडकास्ट | Podcast | podcast | Podcast | Podcast | подкаст |
 | speech (a model reading text aloud) | 音声合成 | 음성 | 语音 | वॉइस | Sprache | voz | voix | voz | речь |
+| speech recognition (turning recordings and the voice into text, on this computer) | 音声認識 | 음성 인식 | 语音识别 | स्पीच रिकग्निशन | Spracherkennung | reconocimiento de voz | reconnaissance vocale | reconhecimento de voz | распознавание речи |
+| voice input (dictating into the chat composer) | 音声入力 | 음성 입력 | 语音输入 | वॉइस इनपुट | Spracheingabe | entrada de voz | saisie vocale | entrada de voz | голосовой ввод |
+| transcript (a recording’s text) | 文字起こし | 스크립트 | 文字稿 | ट्रांसक्रिप्ट | Transkript | transcripción | transcription | transcrição | расшифровка |
+| recording (an audio file added as a source) | 録音 | 녹음 | 录音 | रिकॉर्डिंग | Aufnahme | grabación | enregistrement | gravação | запись |
 | sidebar (the workspace’s left column) | サイドバー | 사이드바 | 侧边栏 | साइडबार | Seitenleiste | barra lateral | barre latérale | barra lateral | боковая панель |
 | workspace | ワークスペース | 워크스페이스 | 工作区 | वर्कस्पेस | Workspace | espacio de trabajo | espace de travail | Workspace | рабочая область |
 | artifact (a Studio output) | 生成物 | 생성물 | 产物 | आर्टिफ़ैक्ट | Artefakt | artefacto | artefact | artefato | артефакт |
@@ -60,6 +64,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, and every 
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
 | plugin (an MCP server whose tools the agent can use) | プラグイン | 플러그인 | 插件 | प्लगइन | Plugin | plugin | plugin | plugin | плагин |
 | third-party (a plugin SurfSense does not publish) | サードパーティ | 서드파티 | 第三方 | थर्ड-पार्टी | Drittanbieter- | de terceros | tiers | de terceiros | сторонний |
+| custom (a plugin added by its URL) | カスタム | 사용자 지정 | 自定义 | कस्टम | Eigenes | personalizado | personnalisé | personalizado | свой |
 | tool (one action a plugin offers the agent) | ツール | 도구 | 工具 | टूल | Tool | herramienta | outil | ferramenta | инструмент |
 | View (menu) | 表示 | 보기 | 视图 | देखें | Darstellung | Ver | Affichage | Exibir | Вид |
 | report an issue | 問題を報告 | 문제 신고 | 报告问题 | समस्या रिपोर्ट करें | Problem melden | informar de un problema | signaler un problème | relatar um problema | сообщить о проблеме |

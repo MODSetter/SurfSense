@@ -11,11 +11,15 @@ from local_manifest.unreadable import UnreadableBuildError
 from modules.llm.catalog.local.engines.audiocpp.evidence import audio_family
 from modules.llm.gguf import TruncatedHeaderError
 
-# weights path -> the audio.cpp release a person voiced a podcast turn with
+# weights path -> the audio.cpp release a person voiced a podcast turn with, or
+# transcribed speech with
 VALIDATED: dict[str, str] = {
     "Kokoro-82M-GGUF/kokoro-82m-q8_0.gguf": "v0.8.2",
     "Supertonic-3-GGUF/supertonic-3-f16.gguf": "v0.8.2",
     "KittenTTS-GGUF/kitten-tts-mini-0.8-orig.gguf": "v0.8.2",
+    "Nemotron-3.5-ASR-Streaming-0.6B-GGUF/nemotron-3.5-asr-streaming-0.6b-q8_0.gguf": (
+        "v0.8.2"
+    ),
 }
 
 # The family sits in the first 400 bytes; the header runs to tens of megabytes.

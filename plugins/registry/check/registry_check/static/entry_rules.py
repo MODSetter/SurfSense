@@ -1,4 +1,4 @@
-"""What one registry entry must say, per docs/proposals/plugins/core/02-registry.md.
+"""What one registry entry must say, per docs/architecture/plugin-registry.md.
 
 Each problem is `field: message`; unknown fields are allowed so newer apps can add them.
 """
@@ -18,9 +18,15 @@ SEMVER_PATTERN = re.compile(
 )
 DISPLAY_LENGTHS = {"name": 80, "description": 200, "author": 80}
 # license is the first-party list's alone: a fetched file never receives the key.
-REGISTRY_PUBLISHERS = {"partner", "community"}
+# `verified`: a maintainer's judgement that the author runs the server, set in review.
+VERIFICATIONS = {"verified", "community"}
 REGISTRY_ACCESS = {"free", "external"}
 TOKEN_LABEL_LENGTHS = {"title": 80, "description": 200}
+# MCP's own rule for a tool name.
+TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+ABOUT_LENGTH = 600
+# The month the plugin joined the list.
+ADDED_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def entry_problems(entry: dict[str, Any]) -> list[str]:
@@ -32,6 +38,7 @@ def entry_problems(entry: dict[str, Any]) -> list[str]:
     problems += _host_problems(entry)
     problems += _access_problems(entry)
     problems += _page_problems(entry)
+    problems += _listing_problems(entry)
     version = entry.get("min_app_version")
     if version is not None and not (
         isinstance(version, str) and SEMVER_PATTERN.match(version)
@@ -47,8 +54,8 @@ def _identity_problems(entry: dict[str, Any]) -> list[str]:
         problems.append(f"id: must match {ID_PATTERN.pattern}")
     if entry.get("kind") != "remote":
         problems.append("kind: must be remote")
-    if entry.get("publisher") not in REGISTRY_PUBLISHERS:
-        problems.append("publisher: must be partner or community")
+    if entry.get("verification") not in VERIFICATIONS:
+        problems.append("verification: must be verified or community")
     return problems
 
 
@@ -137,6 +144,34 @@ def _page_problems(entry: dict[str, Any]) -> list[str]:
         if page is not None and not _is_https_page(page):
             problems.append(f"{field}: must be an https URL")
     return problems
+
+
+def _listing_problems(entry: dict[str, Any]) -> list[str]:
+    """`about`, `tools` and `added`, what the plugin's public page shows."""
+    problems = []
+    about = entry.get("about")
+    if about is not None and not _is_text(about, ABOUT_LENGTH):
+        problems.append(f"about: must be 1 to {ABOUT_LENGTH} characters")
+    tools = entry.get("tools")
+    if tools is not None:
+        problems += _tool_list_problems(tools)
+    added = entry.get("added")
+    if added is not None and not (
+        isinstance(added, str) and ADDED_PATTERN.match(added)
+    ):
+        problems.append("added: must be a month like 2026-10")
+    return problems
+
+
+def _tool_list_problems(tools: Any) -> list[str]:
+    if not isinstance(tools, list):
+        return ["tools: must be a list of tool names"]
+    for tool in tools:
+        if not (isinstance(tool, str) and TOOL_NAME_PATTERN.match(tool)):
+            return [f"tools: {tool!r} is not an MCP tool name"]
+    if len(set(tools)) != len(tools):
+        return ["tools: lists a tool twice"]
+    return []
 
 
 def _is_text(value: Any, longest: int) -> bool:

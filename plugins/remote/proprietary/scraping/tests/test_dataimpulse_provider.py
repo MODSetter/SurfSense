@@ -137,3 +137,13 @@ def test_playwright_proxy_from_base_parse(monkeypatch: pytest.MonkeyPatch) -> No
         "username": "tok123__cr.us",
         "password": "secret",
     }
+
+
+def test_sticky_slot_is_the_sticky_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Leases keep live ports distinct, so the slot must be the port itself."""
+    monkeypatch.setattr(Config, "PROXY_URL", _URL)
+    provider = DataImpulseProvider()
+
+    url = provider.get_sticky_proxy_url("abc123", "gb")
+
+    assert provider.sticky_slot("abc123") == urlsplit(url).port

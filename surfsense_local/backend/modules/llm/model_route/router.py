@@ -115,12 +115,14 @@ async def give_up_runtime(request: Request) -> StreamingResponse:
 
     Held open for as long as local image generation needs the graphics card.
     Local text sent meanwhile waits in line; a caller that dies drops the
-    connection, which releases the hold.
+    connection, which releases the hold. Speech recognition gives its memory
+    back too, and starts no recording's window until then.
     """
     admission = request.app.state.local_admission
+    transcription = request.app.state.transcription_gate
 
     async def frames() -> AsyncIterator[bytes]:
-        async with admission.given_up():
+        async with transcription.text_runtime_held(), admission.given_up():
             await unload_text_models(RouterClient(get_llm_settings().llamacpp_base_url))
             yield _frame({"type": "yielded"})
             await asyncio.Event().wait()

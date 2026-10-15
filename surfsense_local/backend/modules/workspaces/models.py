@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.db import Base
@@ -18,6 +18,8 @@ class Workspace(Base):
     name: Mapped[str]
     # The hosted workspace this one was imported from, so a re-import finds it.
     cloud_id: Mapped[int | None] = mapped_column(unique=True)
+    # Protect history imported before chat threads kept their hosted ids.
+    has_unkeyed_imported_threads: Mapped[bool] = mapped_column(server_default=false())
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

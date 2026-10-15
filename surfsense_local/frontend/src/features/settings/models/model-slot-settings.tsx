@@ -29,6 +29,37 @@ import { SettingsSection } from "../settings-section"
 
 type Page = "list" | "add"
 
+/** How an empty slot is filled: from this computer, a server, or both. */
+function emptyBody({
+  localOnly,
+  canDownload,
+}: {
+  localOnly: boolean
+  canDownload: boolean
+}) {
+  if (localOnly) {
+    return canDownload
+      ? intl.formatMessage({
+          id: "settings_models_empty_local_body",
+          defaultMessage: "Download one to run on this computer.",
+        })
+      : intl.formatMessage({
+          id: "settings_models_empty_unsupported_body",
+          defaultMessage: "This computer can’t run one.",
+        })
+  }
+  return canDownload
+    ? intl.formatMessage({
+        id: "settings_models_empty_download_body",
+        defaultMessage:
+          "Download one to run on this computer, or use one from a server you already run.",
+      })
+    : intl.formatMessage({
+        id: "settings_models_empty_server_body",
+        defaultMessage: "Use one from a server you already run.",
+      })
+}
+
 /**
  * One slot's settings: the model in use, then every source as a group. Adding
  * a model and editing a server are pages with a way back, never dialogs.
@@ -46,6 +77,7 @@ export function ModelSlotSettings({
   onSelected,
   onChatCleared,
   inUseDetail,
+  localOnly = false,
 }: {
   title: string
   description: string
@@ -60,9 +92,11 @@ export function ModelSlotSettings({
   onChatCleared?: () => void
   /** Said under the model in use, such as what the chat model can do. */
   inUseDetail?: ReactNode
+  /** No server can fill the slot, so none is offered or listed. */
+  localOnly?: boolean
 }) {
   // Only servers that can fill this slot count, so an empty slot still says so.
-  const connections = useConnectionsServing(modelType)
+  const connections = useConnectionsServing(localOnly ? null : modelType)
   const [page, setPage] = useState<Page>("list")
   // Edited in a dialog over the list; saving leaves the list as it was.
   const [editing, setEditing] = useState<Connection | null>(null)
@@ -83,22 +117,29 @@ export function ModelSlotSettings({
           {
             id: "settings_models_add_page_title",
             defaultMessage:
-              "{slot, select, audio {Add an audio model} chat {Add a chat model} image {Add an image model} image_edit {Add an image editing model} video {Add a video model} other {Add a model}}",
+              "{slot, select, audio {Add an audio model} chat {Add a chat model} image {Add an image model} image_edit {Add an image editing model} video {Add a video model} speech {Add a speech recognition model} other {Add a model}}",
           },
           { slot }
         )}
-        description={intl.formatMessage({
-          id: "settings_models_add_page_body",
-          defaultMessage:
-            "Run one on this computer, or use one from a server you already run.",
-        })}
+        description={
+          localOnly
+            ? intl.formatMessage({
+                id: "settings_models_add_page_local_body",
+                defaultMessage: "Download one to run on this computer.",
+              })
+            : intl.formatMessage({
+                id: "settings_models_add_page_body",
+                defaultMessage:
+                  "Run one on this computer, or use one from a server you already run.",
+              })
+        }
         back={back}
         scrollable="all"
       >
         <AddModelOptions
           download={download}
           modelType={modelType}
-          onConnected={showNewServer}
+          onConnected={localOnly ? undefined : showNewServer}
         />
       </SettingsSection>
     )
@@ -106,7 +147,7 @@ export function ModelSlotSettings({
 
   const empty =
     !models.isPending &&
-    connections.data?.length === 0 &&
+    (localOnly || connections.data?.length === 0) &&
     models.local.length === 0 &&
     !pending &&
     models.inUse === null
@@ -140,22 +181,13 @@ export function ModelSlotSettings({
                 {
                   id: "settings_models_empty",
                   defaultMessage:
-                    "{slot, select, audio {No audio model yet} chat {No chat model yet} image {No image model yet} image_edit {No image editing model yet} video {No video model yet} other {No model yet}}",
+                    "{slot, select, audio {No audio model yet} chat {No chat model yet} image {No image model yet} image_edit {No image editing model yet} video {No video model yet} speech {No speech recognition model yet} other {No model yet}}",
                 },
                 { slot }
               )}
             </EmptyTitle>
             <EmptyDescription>
-              {models.canDownload
-                ? intl.formatMessage({
-                    id: "settings_models_empty_download_body",
-                    defaultMessage:
-                      "Download one to run on this computer, or use one from a server you already run.",
-                  })
-                : intl.formatMessage({
-                    id: "settings_models_empty_server_body",
-                    defaultMessage: "Use one from a server you already run.",
-                  })}
+              {emptyBody({ localOnly, canDownload: models.canDownload })}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>{add}</EmptyContent>
@@ -179,21 +211,22 @@ export function ModelSlotSettings({
             />
           ) : null}
 
-          <ServerModelPicker
-            modelType={modelType}
-            openServerId={openServerId}
-            onEdit={(connection) => {
-              setEditing(connection)
-              setEditOpen(true)
-            }}
-            onSelected={onSelected}
-            onChatCleared={onChatCleared}
-          />
+          {localOnly ? null : (
+            <ServerModelPicker
+              modelType={modelType}
+              openServerId={openServerId}
+              onEdit={(connection) => {
+                setEditing(connection)
+                setEditOpen(true)
+              }}
+              onSelected={onSelected}
+              onChatCleared={onChatCleared}
+            />
+          )}
         </div>
       )}
       <ConnectionDialog
         open={editOpen}
-        modelType={modelType}
         connection={editing ?? undefined}
         onOpenChange={setEditOpen}
         onOpenChangeComplete={(open) => {

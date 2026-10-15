@@ -14,7 +14,7 @@ def valid_entry(**overrides: Any) -> dict[str, Any]:
     entry = {
         "id": "acme",
         "kind": "remote",
-        "publisher": "community",
+        "verification": "community",
         "name": "Acme",
         "description": "Search Acme.",
         "author": "Jane Doe",
