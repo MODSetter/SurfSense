@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { ArrowRightIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
@@ -102,10 +103,11 @@ function OnboardingProgress({ screen }: { screen: Step }) {
  */
 function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="bare"
       onClick={onClick}
-      className="group relative inline-flex h-11 cursor-pointer items-center overflow-hidden rounded-full border-[1.5px] border-primary/40 bg-transparent pr-11 pl-6 text-sm font-semibold text-primary [--circle-inset-y:calc((100%-var(--icon-circle))/2)] [--icon-circle:2rem] [--icon-right:0.375rem]"
+      className="group relative inline-flex h-11 items-center overflow-hidden rounded-full border-[1.5px] border-primary/40 bg-transparent pr-11 pl-6 text-sm font-semibold text-primary [--circle-inset-y:calc((100%-var(--icon-circle))/2)] [--icon-circle:2rem] [--icon-right:0.375rem]"
     >
       <span className="relative z-1 pb-px">{text}</span>
 
@@ -128,7 +130,7 @@ function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
         <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center translate-x-[-170%] -translate-y-1/2 scale-0 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:-translate-x-1/2 group-hover:scale-100 motion-reduce:transition-none" />
         <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center -translate-x-1/2 -translate-y-1/2 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:translate-x-[70%] group-hover:scale-0 motion-reduce:transition-none" />
       </span>
-    </button>
+    </Button>
   )
 }
 
@@ -225,7 +227,7 @@ export function OnboardingPage({
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
       <OnboardingDither visible={screen === "welcome"} />
-      <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
+      <div className="mx-auto flex h-full max-h-190 min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         {screen === "welcome" ? (
           // The dots' height, kept so the hero sits exactly where it did.

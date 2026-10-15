@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -52,10 +53,12 @@ export function FlashcardSurface({
         <div className="h-full overflow-y-auto px-6 py-8 sm:px-10 sm:py-12">
           {revealed ? back : front}
         </div>
-        <button
+        <Button
           type="button"
+          variant="bare"
+          static
           onClick={onFlip}
-          className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="absolute inset-0 rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label={
             revealed
               ? intl.formatMessage({
@@ -73,20 +76,22 @@ export function FlashcardSurface({
   }
 
   return (
-    <div className="relative h-full [perspective:2000px]">
+    <div className="relative h-full perspective-[2000px]">
       <div
-        className="relative h-full rounded-2xl shadow-lg transition-transform duration-[450ms] ease-in-out [transform-style:preserve-3d]"
+        className="relative h-full rounded-2xl shadow-lg transition-transform duration-450 ease-in-out transform-3d"
         style={{ transform: revealed ? "rotateY(180deg)" : "rotateY(0deg)" }}
       >
         <Face hidden={revealed}>{front}</Face>
-        <Face hidden={!revealed} className="[transform:rotateY(180deg)]">
+        <Face hidden={!revealed} className="transform-[rotateY(180deg)]">
           {back}
         </Face>
       </div>
-      <button
+      <Button
         type="button"
+        variant="bare"
+        static
         onClick={onFlip}
-        className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="absolute inset-0 rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={
           revealed
             ? intl.formatMessage({

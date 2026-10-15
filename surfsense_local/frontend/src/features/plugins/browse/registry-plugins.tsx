@@ -42,14 +42,16 @@ export function RegistryEntryRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           {/* Stretched over the row, so the whole entry opens its page. */}
-          <button
+          <Button
             id={nameId}
             type="button"
-            className="text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            variant="bare"
+            static
+            className="text-left text-sm font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:ring-0 focus-visible:after:ring-2 focus-visible:after:ring-ring"
             onClick={onOpen}
           >
             {entry.name}
-          </button>
+          </Button>
           <PublisherMark entry={entry} />
         </div>
         <p className={cn("text-xs text-muted-foreground", row && "truncate")}>
