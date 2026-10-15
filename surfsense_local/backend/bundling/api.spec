@@ -106,6 +106,8 @@ a = Analysis(
         "onnxruntime.transformers",
         "onnxruntime.quantization",
         "onnxruntime.tools",
+        # Only the worker encodes a podcast; the API's voice check keeps its WAV.
+        "lameenc",
     ],
 )
 pyz = PYZ(a.pure)

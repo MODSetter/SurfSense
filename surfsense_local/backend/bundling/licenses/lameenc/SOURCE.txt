@@ -1,0 +1,23 @@
+lameenc and LAME in this application
+====================================
+
+The worker encodes podcast episodes to MP3 with lameenc, a Python extension
+module that statically links the LAME MP3 encoder. The module ships as its own
+file beside this folder, and may be replaced with a build of your own.
+
+lameenc 1.8.4, LGPL-3.0
+  Source: https://github.com/chrisstaite/lameenc/tree/v1.8.4
+  Licence: lameenc-LGPL-3.0.txt, with GPL-3.0.txt, which LGPL-3.0 builds on.
+
+LAME 3.100, LGPL (GNU Library General Public License, version 2)
+  Source: the official release, lame-3.100.tar.gz,
+  https://sourceforge.net/projects/lame/files/lame/3.100/
+  Licence: LAME-COPYING. Copyright notice: LAME-README.
+
+Where each text was taken from, unchanged:
+  lameenc-LGPL-3.0.txt  https://www.gnu.org/licenses/lgpl-3.0.txt
+  GPL-3.0.txt           https://www.gnu.org/licenses/gpl-3.0.txt
+  LAME-COPYING          COPYING in lame-3.100.tar.gz
+  LAME-README           README in lame-3.100.tar.gz
+  lame-3.100.tar.gz SHA-256:
+  ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e

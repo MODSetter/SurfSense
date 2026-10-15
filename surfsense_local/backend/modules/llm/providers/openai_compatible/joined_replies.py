@@ -9,7 +9,7 @@ need the episode's encoder settings, which no reply states.
 import struct
 from collections.abc import Sequence
 
-from modules.llm.providers.audiocpp.joined_wav import joined_wav
+from modules.llm.providers.episode_audio.joined_wav import joined_wav
 from modules.llm.providers.protocols import SynthesizedAudio
 
 __all__ = ["joined_replies"]
