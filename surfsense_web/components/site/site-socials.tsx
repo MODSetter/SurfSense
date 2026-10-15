@@ -22,7 +22,7 @@ const SOCIALS: Social[] = [
 	{ title: "GitHub", href: REPO_URL, Logo: GithubLogo },
 	{ title: "Discord", href: "https://discord.gg/ejRNvftDp9", Logo: DiscordLogo },
 	{ title: "X", href: "https://x.com/mod_setter", Logo: XLogo },
-	{ title: "Reddit", href: "https://www.reddit.com/r/SurfSense/", Logo: RedditLogo },
+	{ title: "Reddit", href: "https://www.reddit.com/r/SurfSenseAI/", Logo: RedditLogo },
 	{ title: "LinkedIn", href: "https://www.linkedin.com/company/surfsense/", Logo: LinkedinLogo },
 ];
 
