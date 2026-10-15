@@ -388,7 +388,7 @@ function MessageActions({
 
 export function UserMessage() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl flex-col items-end px-6 py-3">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl flex-col items-end px-6 py-3">
       <div className="mb-2 flex max-w-[78%] flex-wrap justify-end gap-2 empty:hidden">
         <MessagePrimitive.Attachments
           components={{ Image: MessageImage, Attachment: MessageImage }}
@@ -419,7 +419,7 @@ export function AssistantMessage({
   onNewChat: () => void
 }) {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl min-w-0 flex-col items-start px-6 py-4">
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessageThinking />

@@ -107,7 +107,7 @@ function useMessageRenderer({
 function ThreadWelcome({ composer }: { composer: ReactNode }) {
   return (
     <div className="flex min-h-0 flex-1">
-      <div className="mx-auto grid h-full w-full max-w-2xl grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="mx-auto grid h-full w-full max-w-3xl grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <div />
         {composer}
       </div>
@@ -422,7 +422,7 @@ export function ThreadPanel({
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
           <ChatViewport footer={bottomFooter} footerHasNotice={notice != null}>
             {isLoading ? (
-              <div className="mx-auto flex w-full max-w-xl flex-col">
+              <div className="mx-auto flex w-full max-w-2xl flex-col">
                 <div className="flex flex-col items-end px-6 py-3">
                   <Skeleton className="h-10 w-[42%] rounded-2xl rounded-br-md" />
                 </div>

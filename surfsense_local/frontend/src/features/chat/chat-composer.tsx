@@ -234,7 +234,7 @@ export function ChatComposer({
   )
   return (
     <div
-      className="relative mx-auto w-full max-w-xl"
+      className="relative mx-auto w-full max-w-2xl"
       data-composer-placement={placement}
     >
       {notice ? (
