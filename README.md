@@ -84,16 +84,6 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 
 Edits, conversions and PDF tools always make a new file; your original is never changed. PDF, Word and Excel do the most today, and support for the other formats keeps improving.
 
-## How it compares
-
-| | NotebookLM (now Gemini Notebook) | SurfSense |
-|---|---|---|
-| Runs offline / air-gapped | No | **Yes** |
-| Your documents leave your machine | Yes | **No**, unless you pick a remote model |
-| Can edit your files | No | **Yes** |
-| Open source | No | **Apache-2.0** |
-| Models | Gemini only | Any OpenAI-compatible API, or a local one |
-
 ## Plugins
 
 Connect them in **Settings › Plugins**.
@@ -112,6 +102,16 @@ Connect them in **Settings › Plugins**.
 | **Indeed** | Read job listings on Indeed |
 
 **Third-party.** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+
+## How it compares
+
+| | NotebookLM (now Gemini Notebook) | SurfSense |
+|---|---|---|
+| Runs offline / air-gapped | No | **Yes** |
+| Your documents leave your machine | Yes | **No**, unless you pick a remote model |
+| Can edit your files | No | **Yes** |
+| Open source | No | **Apache-2.0** |
+| Models | Gemini only | Any OpenAI-compatible API, or a local one |
 
 ## Community
 
