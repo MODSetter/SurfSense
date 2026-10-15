@@ -341,10 +341,11 @@ export function ThreadPanel({
               className="max-w-lg min-w-0"
             >
               <Button
+                static
                 type="button"
                 variant="ghost"
                 disabled={!canRename}
-                className="h-auto max-w-full min-w-0 px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
+                className="h-auto max-w-full min-w-0 px-1.5 py-0 font-heading text-base font-medium"
                 onClick={startEditing}
               >
                 <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">

@@ -209,12 +209,14 @@ export function ServerModels({
             <ServerVoices />
           </div>
         ) : null}
-        <button
+        <Button
           type="button"
+          variant="bare"
+          static
           aria-expanded={open}
           aria-controls={listId}
           disabled={disabled}
-          className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-50"
+          className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm text-muted-foreground hover:bg-muted/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           onClick={() => setOpen((value) => !value)}
         >
           <ChevronRightIcon
@@ -241,7 +243,7 @@ export function ServerModels({
                 },
                 { slot: modelType }
               )}
-        </button>
+        </Button>
 
         {open ? (
           <div id={listId} className="flex flex-col gap-3 border-t px-3 py-3">

@@ -155,9 +155,10 @@ function GeneralSettings({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <button
+                  <Button
                     type="button"
-                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:-inset-2.5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    variant="bare"
+                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground before:absolute before:-inset-2.5 hover:text-foreground focus-visible:ring-2"
                     aria-label={intl.formatMessage({
                       id: "settings_general_cloud_import_info_aria",
                       defaultMessage:
@@ -168,7 +169,7 @@ function GeneralSettings({
                       className="size-3.5"
                       strokeWidth={1.5}
                     />
-                  </button>
+                  </Button>
                 }
               />
               <TooltipContent
@@ -400,6 +401,7 @@ export function SettingsDialog({
                       const selected = section.id === activeSection.id
                       return (
                         <Button
+                          static
                           key={section.id}
                           type="button"
                           variant="ghost"

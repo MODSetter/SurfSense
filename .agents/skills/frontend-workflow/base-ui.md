@@ -15,6 +15,16 @@ These are the rules that compile fine and still break. Check
 - A link styled as a button is a real `<a>` with `buttonVariants(...)`. Base
   UI's `Button` gives whatever it renders `role="button"`.
 
+## Buttons
+
+- Every button is `Button` from `components/ui/button.tsx`; ESLint rejects a raw
+  `<button>`. An element with its own layout (a card, a stretched row link, a
+  flip surface) is `variant="bare"`: the focus ring and transition, no looks.
+- Press feedback lives only in `Button`: a 0.95 scale on every button, popup
+  triggers included, in 150ms and back over 250ms on a no-overshoot curve. A
+  wide button or a row passes `static` and presses by colour instead. No
+  `active:` scale or translate in a className; ESLint rejects that too.
+
 ## Menus
 
 - Items act on `onClick`. `onSelect` still typechecks (it is a DOM prop) and

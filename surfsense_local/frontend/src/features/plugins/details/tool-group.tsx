@@ -1,6 +1,7 @@
 import { useId, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ChevronDownIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -46,12 +47,13 @@ export function ToolGroup({
   return (
     <div role="group" aria-labelledby={labelId} className="mt-5">
       <div className="flex items-center justify-between gap-4">
-        <button
+        <Button
           type="button"
+          variant="bare"
           aria-expanded={open}
           aria-controls={listId}
           onClick={() => setOpen((value) => !value)}
-          className="-ml-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="-ml-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm font-medium focus-visible:ring-2"
         >
           <ChevronDownIcon
             className={cn(
@@ -63,7 +65,7 @@ export function ToolGroup({
           <Badge variant="secondary" className="tabular-nums">
             {intl.formatNumber(tools.length)}
           </Badge>
-        </button>
+        </Button>
         <GroupPermissionMenu
           group={label}
           current={groupPermission(plugin, tools)}

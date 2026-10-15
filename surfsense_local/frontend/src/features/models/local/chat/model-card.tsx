@@ -70,19 +70,20 @@ export function ModelCard({
                 {/* A button, so the tooltip also opens from the keyboard. */}
                 <TooltipTrigger
                   render={
-                    <button
+                    <Button
                       type="button"
+                      variant="bare"
                       aria-label={intl.formatMessage({
                         id: "models_model_card_recommended_aria",
                         defaultMessage: "Recommended for your computer",
                       })}
-                      className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex shrink-0 cursor-default rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <StarAward02Icon
                         aria-hidden="true"
                         className="size-5 text-recommended"
                       />
-                    </button>
+                    </Button>
                   }
                 />
                 <TooltipContent side="top">

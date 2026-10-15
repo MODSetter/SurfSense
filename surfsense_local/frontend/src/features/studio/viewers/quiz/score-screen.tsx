@@ -39,8 +39,10 @@ function QuestionSection({
         <ol className="mt-2 space-y-1">
           {indices.map((index) => (
             <li key={index}>
-              <button
+              <Button
                 type="button"
+                variant="bare"
+                static
                 onClick={() => onReview(index)}
                 aria-label={intl.formatMessage(
                   {
@@ -51,7 +53,7 @@ function QuestionSection({
                     number: index + 1,
                   }
                 )}
-                className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <span className="font-medium text-foreground">
                   {intl.formatNumber(index + 1)}.
@@ -60,7 +62,7 @@ function QuestionSection({
                   <StudyText content={quiz.questions[index].question_text} />
                 </span>
                 <ChevronRightIcon className="mt-0.5 size-4 shrink-0" />
-              </button>
+              </Button>
             </li>
           ))}
         </ol>
@@ -148,8 +150,10 @@ export function QuizScoreScreen({
             defaultMessage: "Score breakdown",
           })}
         </legend>
-        <button
+        <Button
           type="button"
+          variant="bare"
+          static
           aria-label={intl.formatMessage(
             {
               id: "studio_quiz_score_show_correct_aria",
@@ -162,14 +166,16 @@ export function QuizScoreScreen({
           )}
           onClick={() => setCategory("correct")}
           className={cn(
-            "rounded-l-full border-2 border-transparent bg-emerald-600 transition-opacity hover:opacity-90",
+            "rounded-l-full border-2 border-transparent bg-emerald-600 hover:opacity-90",
             missed.length === 0 && skipped.length === 0 && "rounded-r-full",
             category === "correct" && "border-white"
           )}
           style={{ width: `${(correct / questionCount) * 100}%` }}
         />
-        <button
+        <Button
           type="button"
+          variant="bare"
+          static
           aria-label={intl.formatMessage(
             {
               id: "studio_quiz_score_show_missed_aria",
@@ -182,15 +188,17 @@ export function QuizScoreScreen({
           )}
           onClick={() => setCategory("missed")}
           className={cn(
-            "border-2 border-transparent bg-red-600/40 transition-colors hover:bg-red-600/55",
+            "border-2 border-transparent bg-red-600/40 hover:bg-red-600/55",
             correct === 0 && "rounded-l-full",
             skipped.length === 0 && "rounded-r-full",
             category === "missed" && "border-white"
           )}
           style={{ width: `${(missed.length / questionCount) * 100}%` }}
         />
-        <button
+        <Button
           type="button"
+          variant="bare"
+          static
           aria-label={intl.formatMessage(
             {
               id: "studio_quiz_score_show_skipped_aria",
@@ -203,7 +211,7 @@ export function QuizScoreScreen({
           )}
           onClick={() => setCategory("skipped")}
           className={cn(
-            "min-w-0 flex-1 rounded-r-full border-2 border-transparent bg-muted-foreground/20 transition-colors hover:bg-muted-foreground/30",
+            "min-w-0 flex-1 rounded-r-full border-2 border-transparent bg-muted-foreground/20 hover:bg-muted-foreground/30",
             correct === 0 && missed.length === 0 && "rounded-l-full",
             category === "skipped" && "border-white"
           )}
