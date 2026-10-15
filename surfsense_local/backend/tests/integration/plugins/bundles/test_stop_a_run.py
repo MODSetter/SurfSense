@@ -1,5 +1,6 @@
 """A run the plugin does not end itself: cancelled, or out of time."""
 
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -103,6 +104,10 @@ def test_a_run_out_of_time_is_stopped_and_fails_with_timeout(
     assert all(gone(pid) for pid in pids_once_running())
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="terminate() is kill() on Windows, so there is no grace period",
+)
 def test_a_plugin_that_ignores_being_asked_to_stop_is_killed(
     session: Session,
     install: Callable[..., Path],

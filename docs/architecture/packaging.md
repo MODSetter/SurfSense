@@ -166,7 +166,6 @@ Seven run in CI: `test_license_key.py` inside the release workflow, `test_frozen
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
 - On macOS `nemotron_asr` is checked only for a loader: the `macos-archive` job stages upstream's archive and transcribes nothing, so a macOS server that cannot transcribe would still ship.
 - No packaging test checks that the frozen API carries the agent's `SKILL.md`; `api.spec` collects it, and it was checked by hand.
-- [`desktop-tests.yml`](../../.github/workflows/desktop-tests.yml) runs on pull requests and by hand (`workflow_dispatch`), never on a push to `dev`, and only on Linux, so a break that lands on `dev`, or shows only on Windows or macOS, shows first in a release build ([#2226](https://github.com/MODSetter/SurfSense/issues/2226)).
 - The packaged `llama-server`, `audiocpp_server` and `sd-server` are started only on the Linux runner ([#1986](https://github.com/MODSetter/SurfSense/issues/1986)).
 - A dry run's Windows build is signed with the macOS certificate through signtool, not through Azure Trusted Signing, so only a tag's build exercises Windows signing as it ships, and a lapsed Azure client secret shows there first ([#2223](https://github.com/MODSetter/SurfSense/issues/2223)).
 - No notarized macOS build has shown the microphone prompt yet: the entitlement and the usage sentence are checked only as configuration, and the Privacy › Microphone address `openSettings()` opens is unchecked on macOS 13 to 15.
