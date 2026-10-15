@@ -667,8 +667,6 @@
   "models_speech_language_title": "Idioma hablado",
   "models_speech_model_detects_language_label": "Detecta el idioma",
   "models_speech_model_languages_button": "{count, plural, one {# idioma} many {# idiomas} other {# idiomas}}",
-  "models_speech_model_peak_memory_gigabytes_label": "{size, number, ::unit/gigabyte .#} al transcribir",
-  "models_speech_model_peak_memory_megabytes_label": "{size, number, ::unit/megabyte .} al transcribir",
   "models_try_dialog_cancel_button": "Cancelar",
   "models_try_dialog_chat_confirmed_body": "La compatibilidad con chat está confirmada. La prueba envía un prompt corto y puede costar dinero.",
   "models_try_dialog_chat_unconfirmed_body": "Este endpoint no publica sus capacidades, así que la compatibilidad con chat no está confirmada. La prueba envía un prompt corto y puede costar dinero.",

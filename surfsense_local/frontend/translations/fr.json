@@ -667,8 +667,6 @@
   "models_speech_language_title": "Langue parlée",
   "models_speech_model_detects_language_label": "Détecte la langue",
   "models_speech_model_languages_button": "{count, plural, one {# langue} many {# langues} other {# langues}}",
-  "models_speech_model_peak_memory_gigabytes_label": "{size, number, ::unit/gigabyte .#} pendant la transcription",
-  "models_speech_model_peak_memory_megabytes_label": "{size, number, ::unit/megabyte .} pendant la transcription",
   "models_try_dialog_cancel_button": "Annuler",
   "models_try_dialog_chat_confirmed_body": "La prise en charge du chat est confirmée. Le test envoie un prompt court et peut être facturé.",
   "models_try_dialog_chat_unconfirmed_body": "Cet endpoint ne publie pas ses capacités, la prise en charge du chat n’est donc pas confirmée. Le test envoie un prompt court et peut être facturé.",

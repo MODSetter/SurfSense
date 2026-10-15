@@ -667,8 +667,6 @@
   "models_speech_language_title": "話す言語",
   "models_speech_model_detects_language_label": "言語を自動検出",
   "models_speech_model_languages_button": "{count, plural, other {#言語}}",
-  "models_speech_model_peak_memory_gigabytes_label": "文字起こし時{size, number, ::unit/gigabyte .#}",
-  "models_speech_model_peak_memory_megabytes_label": "文字起こし時{size, number, ::unit/megabyte .}",
   "models_try_dialog_cancel_button": "キャンセル",
   "models_try_dialog_chat_confirmed_body": "チャットへの対応は確認済みです。テストでは短いプロンプトを1回送信するため、料金が発生する場合があります。",
   "models_try_dialog_chat_unconfirmed_body": "このエンドポイントは機能を公開していないため、チャットへの対応は未確認です。テストでは短いプロンプトを1回送信するため、料金が発生する場合があります。",

@@ -21,27 +21,6 @@ export function speechModelSize(model: LocalSpeechModel): string {
   return bytes(model.size_bytes)
 }
 
-/** The measured peak, the load included, which admission also reads. */
-export function speechModelMemory(model: LocalSpeechModel): string {
-  return model.peak_mb >= 1000
-    ? intl.formatMessage(
-        {
-          id: "models_speech_model_peak_memory_gigabytes_label",
-          defaultMessage:
-            "{size, number, ::unit/gigabyte .#} while transcribing",
-        },
-        { size: model.peak_mb / 1000 }
-      )
-    : intl.formatMessage(
-        {
-          id: "models_speech_model_peak_memory_megabytes_label",
-          defaultMessage:
-            "{size, number, ::unit/megabyte .} while transcribing",
-        },
-        { size: model.peak_mb }
-      )
-}
-
 /**
  * Build, download, language detection, and the one language when there is
  * only one; more are counted apart, where they expand.

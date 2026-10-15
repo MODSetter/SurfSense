@@ -792,8 +792,8 @@ Rules the screen holds:
   the model detects the language, then each language it lists.
 - The speech set-up popover ([`speech-setup/`](../../../surfsense_local/frontend/src/features/speech-setup/))
   is the same download where speech is needed, for the mic and a recording
-  waiting for a model to open: one card per curated recogniser with its size,
-  its memory while transcribing and "Works well in:" its listed languages.
+  waiting for a model to open: one card per curated recogniser with its size
+  and "Works well in:" its listed languages.
   **Download and set up** starts the same install job with `select: true`, so
   egress consent is the usual refused-request prompt, nested in the popover;
   the card then shows the job's progress, and once the catalog marks the model
