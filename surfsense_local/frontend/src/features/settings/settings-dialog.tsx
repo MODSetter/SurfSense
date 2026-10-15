@@ -360,7 +360,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-192 max-h-[calc(100vh-2rem)] min-h-0 w-268 gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-[calc(100%-2rem)]">
+      <DialogContent className="h-192 max-h-[calc(100vh-2rem)] min-h-0 w-5xl gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-[calc(100%-2rem)]">
         <DialogHeader className="sr-only">
           <DialogTitle>
             {intl.formatMessage({
