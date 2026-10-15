@@ -43,14 +43,13 @@ export function speechModelMemory(model: LocalSpeechModel): string {
 }
 
 /**
- * Build, download, memory while transcribing, language detection, and the one
- * language when there is only one; more are counted apart, where they expand.
+ * Build, download, language detection, and the one language when there is
+ * only one; more are counted apart, where they expand.
  */
 export function describeSpeechModel(model: LocalSpeechModel): string[] {
   return [
     model.quantization,
     speechModelSize(model),
-    speechModelMemory(model),
     ...(model.detects_language
       ? [
           intl.formatMessage({

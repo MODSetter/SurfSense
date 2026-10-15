@@ -2,7 +2,7 @@
 `transcription.json` the app writes, request options included.
 
 Opt-in, like the other packaging tests, and skipped unless
-SURFSENSE_TEST_AUDIO_MODELS names a folder holding the curated recogniser's
+SURFSENSE_TEST_AUDIO_MODELS names a folder holding a curated recogniser's
 default file under its published name, checked against the manifest's sha256.
 Once it does, a missing server (`pnpm build:audiocpp`, or
 SURFSENSE_TEST_AUDIOCPP_DIR) fails the run.
@@ -36,12 +36,25 @@ SERVER = STAGED / (
     "audiocpp_server.exe" if sys.platform == "win32" else "audiocpp_server"
 )
 
-(RECOGNISER,) = [m for m in load_local_manifest().models if m.transcription]
-PINNED = RECOGNISER.builds[0].files[0]
-NAME = PINNED.path.rsplit("/", 1)[-1]
 
-if MODELS_DIR is None or not (Path(MODELS_DIR) / NAME).is_file():
-    pytest.skip(f"needs {NAME} in SURFSENSE_TEST_AUDIO_MODELS", allow_module_level=True)
+def _published(model) -> str:
+    return model.builds[0].files[0].path.rsplit("/", 1)[-1]
+
+
+# Each curated recogniser whose default file is in the folder.
+RECOGNISERS = [
+    m
+    for m in load_local_manifest().models
+    if m.transcription
+    and MODELS_DIR is not None
+    and (Path(MODELS_DIR) / _published(m)).is_file()
+]
+
+if not RECOGNISERS:
+    pytest.skip(
+        "needs a curated recogniser's file in SURFSENSE_TEST_AUDIO_MODELS",
+        allow_module_level=True,
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -52,28 +65,33 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-@pytest.fixture(scope="module")
-def installed(tmp_path_factory: pytest.TempPathFactory) -> AudioCppEngine:
+@pytest.fixture(scope="module", params=RECOGNISERS, ids=lambda m: m.id)
+def installed(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> AudioCppEngine:
     """The recogniser linked into an audio folder and recorded, as an install
     leaves it; the engine's startup writes `transcription.json` from that."""
+    recogniser = request.param
+    pinned = recogniser.builds[0].files[0]
+    name = _published(recogniser)
     audio = tmp_path_factory.mktemp("audio")
-    source = Path(MODELS_DIR) / NAME  # type: ignore[arg-type]
-    assert _sha256(source) == PINNED.sha256, f"{NAME} is not the pinned file"
+    source = Path(MODELS_DIR) / name  # type: ignore[arg-type]
+    assert _sha256(source) == pinned.sha256, f"{name} is not the pinned file"
     try:
-        (audio / NAME).symlink_to(source)
+        (audio / name).symlink_to(source)
     except OSError:  # Windows without the symlink privilege
-        shutil.copyfile(source, audio / NAME)
+        shutil.copyfile(source, audio / name)
     record_install(
         audio,
         InstalledBuild(
-            model_id=NAME.removesuffix(".gguf"),
-            repo=PINNED.repo,
-            revision=PINNED.revision,
-            quantization=RECOGNISER.builds[0].quantization,
-            weights=(NAME,),
+            model_id=name.removesuffix(".gguf"),
+            repo=pinned.repo,
+            revision=pinned.revision,
+            quantization=recogniser.builds[0].quantization,
+            weights=(name,),
         ),
     )
-    engine = AudioCppEngine(audio, [RECOGNISER])
+    engine = AudioCppEngine(audio, [recogniser])
     engine.on_startup()
     return engine
 

@@ -133,12 +133,13 @@ def test_audio_cpps_voice_families_read_text_aloud() -> None:
         assert classify(family).types == (ModelType.AUDIO_GEN,), family
 
 
-def test_audio_cpps_curated_recogniser_writes_down_speech() -> None:
-    """Nemotron's family fills the speech recognition slot. Recognisers no
-    curated entry runs stay typeless, so nothing offers them."""
-    nemotron = classify("nemotron_asr", "text-to-speech")
-    assert nemotron.types == (ModelType.SPEECH_TO_TEXT,)
-    assert nemotron.code is NotRunnableCode.SPEECH_IN
+def test_audio_cpps_curated_recognisers_write_down_speech() -> None:
+    """Nemotron's and Canary's families fill the speech recognition slot.
+    Recognisers no curated entry runs stay typeless, so nothing offers them."""
+    for family in ("nemotron_asr", "canary_asr"):
+        recogniser = classify(family, "text-to-speech")
+        assert recogniser.types == (ModelType.SPEECH_TO_TEXT,), family
+        assert recogniser.code is NotRunnableCode.SPEECH_IN, family
     for family in ("qwen3_asr", "whisper", "automatic-speech-recognition"):
         assert classify(family).types == (), family
 

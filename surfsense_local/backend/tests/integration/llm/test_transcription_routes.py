@@ -23,6 +23,8 @@ from tests.integration.llm.transcription_stand_in import MODEL, TranscriptionSer
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 NEMOTRON = "nemotron-3.5-asr-streaming-0.6b"
+CANARY = "canary-180m-flash"
+CANARY_MODEL = "canary-180m-flash-q8_0"
 NEEDED = 1776 * 2**20 + 2**30
 
 
@@ -264,6 +266,29 @@ async def test_a_language_the_user_set_reaches_the_model_as_its_locale(
 
     assert reply.json() == {"text": "こんにちは", "language": "ja", "no_speech": False}
     assert transcription_server.requests[0]["language"] == "ja-JP"
+
+
+async def test_a_model_that_cannot_detect_is_always_told_the_language(
+    client: AsyncClient,
+    audio_dir,
+    fake_hub,
+    transcription_server: TranscriptionServer,
+) -> None:
+    """Canary told nothing translates German speech into English."""
+    await install_curated(client, CANARY, "Q8_0", select=True)
+    transcription_server.models = [CANARY_MODEL]
+    transcription_server.loaded = True
+    transcription_server.text = "The report is due."
+    dictation = await open_dictation(client)
+
+    reply = await phrase(client, dictation, wav(1.0))
+
+    assert reply.json() == {
+        "text": "The report is due.",
+        "language": "en",
+        "no_speech": False,
+    }
+    assert transcription_server.requests[0]["language"] == "en"
 
 
 async def test_a_quiet_phrase_never_reaches_the_model(

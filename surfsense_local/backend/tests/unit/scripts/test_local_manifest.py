@@ -215,7 +215,8 @@ def test_the_list_is_most_preferred_first() -> None:
         "Supertonic 3",
         "KittenTTS Mini 0.8",
     ]
-    # One recogniser serves recordings and dictation.
+    # Nemotron first: the most languages, and it detects them. Canary is the
+    # light one, for English.
     assert [
         e.name for e in ENTRIES if isinstance(e, AudioEntry) and e.transcription
-    ] == ["Nemotron 3.5 ASR Streaming 0.6B"]
+    ] == ["Nemotron 3.5 ASR Streaming 0.6B", "Canary 180M Flash"]

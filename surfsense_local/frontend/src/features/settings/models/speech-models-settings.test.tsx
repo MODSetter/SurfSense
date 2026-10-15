@@ -181,12 +181,7 @@ describe("speech recognition settings", () => {
       [...(line?.querySelectorAll(":scope > span") ?? [])].map(
         (part) => part.textContent
       )
-    ).toEqual([
-      "Q8_0",
-      "931 MB",
-      "1.8 GB while transcribing",
-      "Detects the language",
-    ])
+    ).toEqual(["Q8_0", "931 MB", "Detects the language"])
 
     // Counted, then named in the interface's language on request.
     const count = screen.getByRole("button", { name: "26 languages" })

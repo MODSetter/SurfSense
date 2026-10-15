@@ -44,8 +44,8 @@ of them.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`sidecars/boot.ts`](../../../surfsense_local/electron/src/main/sidecars/boot.ts); [packaging](../packaging.md)).
-audio.cpp's are the three curated voice models and the one speech recogniser,
-Nemotron 3.5 ASR Streaming 0.6B, only when Electron handed the API an audio
+audio.cpp's are the three curated voice models and the two speech recognisers,
+Nemotron 3.5 ASR Streaming 0.6B and Canary 180M Flash, only when Electron handed the API an audio
 folder, which it does only when it staged audio.cpp's server.
 onnxruntime's are the curated embedders, then any Hugging Face embedder
 downloaded and checked ([embedding](../embedding.md)), always: they run in the API and the
@@ -225,8 +225,12 @@ Mini 0.8 (`orig`). One speech recogniser from the same repo, Nemotron 3.5 ASR
 Streaming 0.6B (`Q8_0` alone, 930.6 MB), listed for 26 languages, measured at
 1,776 MiB on its first request and transcribing 28 s windows
 ([proposal](../../proposals/local-speech-to-text.md#measurements)); its licence,
-OpenMDW-1.1, is `other` on the card. Only the three voice defaults and
-Nemotron's `Q8_0` are validated, each run on audio.cpp v0.8.2. Each engine's catalog offers its own entries and skips the rest. `LocalManifest` rejects a wrong version, a repeated id or
+OpenMDW-1.1, is `other` on the card. Then Canary 180M Flash (`Q8_0` alone,
+249.5 MB), the light one for English, listed for English, German and French,
+measured at 783 MiB on its first request on an Apple M2; it cannot detect the
+language, and its licence is CC-BY-4.0. Spanish is in its family but not
+listed: v0.8.2 drops every "ñ" it writes. Only the three voice defaults and
+the two recognisers' `Q8_0` are validated, each run on audio.cpp v0.8.2. Each engine's catalog offers its own entries and skips the rest. `LocalManifest` rejects a wrong version, a repeated id or
 quantization, an unpinned or unhashed file, a build without weights or with two
 projectors, an entry no bundled engine runs, and any field it does not declare. A manifest that fails is replaced
 at startup by an empty one, so downloaded models and search still work.
@@ -280,7 +284,9 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/`,
   An OpenRAIL or Gemma licence passes, since its use restrictions pass on to the
   user rather than limit commercial use. A custom licence, tagged `other` on
   Hugging Face, is listed by its card's `license_name`, with the clause that
-  passes it quoted beside it, as `openmdw-1.1` is. A unit test holds the committed
+  passes it quoted beside it, as `openmdw-1.1` is. `cc-by-4.0` passes because it
+  allows any use, even commercial, with credit, and the app downloads the file
+  from its repo rather than redistributing it. A unit test holds the committed
   manifest to the same rule, so a hand edit cannot slip one in.
 - **It refuses to write** a build without a hash or size, a projector that does not
   see images or is not as wide as the model, and a refresh that drops a model or
@@ -374,7 +380,7 @@ recognisers, labellers, OCR, drafters and projectors are known and typeless,
 except embedders, which are `EMBEDDING`, a type onnxruntime runs and no slot holds;
 diffusion architectures are `IMAGE_GEN`, video `VIDEO_GEN`, text to speech
 `AUDIO_GEN`, audio.cpp's voice families among them (`kokoro_tts`, `supertonic`,
-`kitten_tts`). A curated recogniser's family, `nemotron_asr` alone, is
+`kitten_tts`). A curated recogniser's family, `nemotron_asr` or `canary_asr`, is
 `SPEECH_TO_TEXT`, with the speech recognisers' sentence and code; other
 recognisers stay typeless until one is curated. Every audio.cpp file declares `general.architecture = audiocpp`,
 speech recognisers included, so that name alone has its own typeless group,
@@ -776,9 +782,8 @@ Rules the screen holds:
   (`ModelSlotSettings`' `localOnly`). It takes every row whose
   `selectable_for` names the slot, described by the row's `transcription`, so
   recognisers never reach the Audio page, which drops rows without `voicing`.
-  A row reads its build, its size, the memory it takes while transcribing, and
-  "Detects the language" when it does ("Q8_0 · 931 MB · 1.8 GB while
-  transcribing · Detects the language"), then its languages, counted, which
+  A row reads its build, its size, and "Detects the language" when it does
+  ("Q8_0 · 931 MB · Detects the language"), then its languages, counted, which
   open to their names in the interface's language, alphabetically
   (`Intl.DisplayNames`). A download installs with `select: true`: one speech
   model serves recordings and voice input, so downloading one is choosing it.

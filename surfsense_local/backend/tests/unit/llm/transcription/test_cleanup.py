@@ -15,6 +15,26 @@ def test_plain_speech_comes_through_trimmed() -> None:
     )
 
 
+def test_a_comma_or_full_stop_written_apart_joins_its_word() -> None:
+    """Canary writes German with a space before them."""
+    assert cleaned("Der Bericht zeigt , dass er steigt .", "de", 3.0) == (
+        "Der Bericht zeigt, dass er steigt."
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("Il a dit : pourquoi pas ?", id="French spacing"),
+        pytest.param("It costs .5 dollars", id="a decimal"),
+        pytest.param("Wait ... what", id="an ellipsis"),
+    ],
+)
+def test_other_spacing_around_punctuation_is_kept(text: str) -> None:
+    """Only a lone comma or full stop moves."""
+    assert cleaned(text, "fr", 3.0) == text
+
+
 @pytest.mark.parametrize(
     ("text", "kept"),
     [

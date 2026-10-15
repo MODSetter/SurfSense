@@ -20,6 +20,9 @@ COMMERCIAL = frozenset(
         # hereby granted ... to deal in the Model Materials without
         # restriction"; redistribution keeps its text and notices.
         "openmdw-1.1",
+        # CC-BY-4.0: "for any purpose, even commercially", with credit. The app
+        # downloads the file from its repo and never redistributes it.
+        "cc-by-4.0",
     }
 )
 
