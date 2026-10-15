@@ -15,8 +15,11 @@ from modules.llm.fit.sliding_window import sliding_layers
 from modules.llm.fit.types import KvPrecision, ModelShape
 
 
-def kv_cache_bytes(shape: ModelShape, n_ctx: int, precision: KvPrecision) -> int:
-    """Bytes the KV cache occupies for a window of `n_ctx` tokens.
+def kv_cache_bytes(
+    shape: ModelShape, n_ctx: int, precision: KvPrecision, slots: int = 1
+) -> int:
+    """Bytes the KV cache occupies for a window of `n_ctx` tokens, shared by
+    `slots` replies in one unified cache.
 
     A sum over layers rather than one layer's cost times a count, because
     llama.cpp sizes each layer from its own `n_embd_k_gqa(il)`: that layer's
@@ -35,7 +38,7 @@ def kv_cache_bytes(shape: ModelShape, n_ctx: int, precision: KvPrecision) -> int
     # over-stating memory is the only direction it is safe to be wrong in.
     sliding = sliding_layers(shape) if shape.sliding_window > 0 else None
     full_cells = global_cells(n_ctx)
-    local = local_cells(shape.sliding_window, n_ctx) if sliding else full_cells
+    local = local_cells(shape.sliding_window, n_ctx, slots) if sliding else full_cells
 
     # The header's pattern describes the model's layers; the ones that cache are
     # a prefix of those, since shared layers reuse an earlier layer's cache.

@@ -1,0 +1,11 @@
+# Only what the server serves; the check, tests and caches stay out of the image.
+*
+!Caddyfile
+# The README keeps published/ in the context before CI has signed anything.
+!published/README.md
+!published/plugins.json
+!published/plugins.json.sig
+!icons/*.svg
+!icons/*.png
+!oauth/client.json
+!oauth/callback.html

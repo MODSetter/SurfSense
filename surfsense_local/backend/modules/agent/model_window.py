@@ -11,6 +11,8 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.providers import get_provider, llamacpp
 from modules.llm.resolution import ModelResolutionError
+from modules.llm.subscriptions.chatgpt.account import CHATGPT
+from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +24,22 @@ FALLBACK_WINDOW = 32_768
 async def selected_model_window(session: Session) -> tuple[str, int]:
     """The selected model's name and the window it answers within.
 
-    A local model's is the window llama-server loaded it with; a remote one's is
-    what the remote catalog records for it.
+    A local model's is the window llama-server loaded it with; a ChatGPT plan's
+    is what the plan states, which can be smaller than the API's; any other
+    remote one's is what the remote catalog records for it.
     """
-    selected, catalog_provider = await transact(session, _selected)
+    selected, catalog_provider = await transact(session, selected_text_model)
     if selected.provider == llamacpp.PROVIDER:
         window = await _local_window(selected.name)
     else:
-        window = _catalog_window(selected.name, catalog_provider)
+        plan = await transact(session, _plan_connection, selected.connection_id)
+        window = (
+            await _plan_window(session, plan, selected.name) if plan else None
+        ) or _catalog_window(selected.name, catalog_provider)
     return selected.name, window or FALLBACK_WINDOW
 
 
-def _selected(session: Session) -> tuple[SelectedModel, str | None]:
+def selected_text_model(session: Session) -> tuple[SelectedModel, str | None]:
     """The selected text model, and the catalog provider its connection names."""
     selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     if selected is None:
@@ -44,6 +50,26 @@ def _selected(session: Session) -> tuple[SelectedModel, str | None]:
         else None
     )
     return selected, connection.catalog_provider if connection else None
+
+
+def _plan_connection(
+    session: Session, connection_id: int | None
+) -> ProviderConnection | None:
+    connection = (
+        session.get(ProviderConnection, connection_id) if connection_id else None
+    )
+    return connection if connection and connection.auth_kind == CHATGPT else None
+
+
+async def _plan_window(
+    session: Session, connection: ProviderConnection, name: str
+) -> int | None:
+    """The plan's stated window; unreadable counts as unstated, so the catalog's stands."""
+    try:
+        return await plan_generator(session.get_bind(), connection).context_tokens(name)
+    except Exception:
+        logger.warning("could not read the plan's window for %s", name, exc_info=True)
+        return None
 
 
 async def _local_window(name: str) -> int | None:

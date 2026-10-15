@@ -9,13 +9,15 @@ from collections.abc import AsyncIterator
 import httpx
 
 from modules.llm.catalog.local.engines.engine import InstallStep
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.providers.llamacpp import RouterClient, warm_model
 
 # The runtime names its load stages; these are what a person reads.
+_LOADING = ("Loading the model", InstallCode.LOADING_MODEL)
 _LOADING_MESSAGES = {
-    "text_model": "Loading the model",
-    "mmproj_model": "Loading image support",
-    "spec_model": "Loading the draft model",
+    "text_model": _LOADING,
+    "mmproj_model": ("Loading image support", InstallCode.LOADING_IMAGE_SUPPORT),
+    "spec_model": ("Loading the draft model", InstallCode.LOADING_DRAFT_MODEL),
 }
 NOT_YET = "Downloaded. It becomes available once the runtime restarts."
 
@@ -38,14 +40,13 @@ async def wait_until_servable(
 
 
 async def become_ready(runtime_url: str, model_id: str) -> AsyncIterator[InstallStep]:
-    yield InstallStep("preparing", "Preparing the model runtime")
+    yield InstallStep(
+        "preparing", "Preparing the model runtime", code=InstallCode.PREPARING_RUNTIME
+    )
     if not await wait_until_servable(runtime_url, model_id):
-        yield InstallStep("complete", NOT_YET)
+        yield InstallStep("complete", NOT_YET, code=InstallCode.READY_AFTER_RESTART)
         return
     async for step in warm_model(runtime_url, model_id):
-        yield InstallStep(
-            "preparing",
-            _LOADING_MESSAGES.get(step.stage or "", "Loading the model"),
-            step.value,
-        )
-    yield InstallStep("complete", "Model is ready")
+        message, code = _LOADING_MESSAGES.get(step.stage or "", _LOADING)
+        yield InstallStep("preparing", message, step.value, code)
+    yield InstallStep("complete", "Model is ready", code=InstallCode.READY)

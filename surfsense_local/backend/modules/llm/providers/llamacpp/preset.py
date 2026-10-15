@@ -33,7 +33,11 @@ class ModelPreset:
     # The margin the fitter must leave, in MiB. No default: the badge was drawn
     # against a specific number and the caller always knows which.
     fit_target_mib: int
+    # Host memory for prompts saved when their slot goes to another request, in MiB.
+    prompt_cache_mib: int
     mmproj_path: str | None = None
+    # Replies served at once. One is what the runtime served before slots.
+    slots: int = 1
 
 
 def render_presets(presets: list[ModelPreset]) -> str:
@@ -51,9 +55,7 @@ def _section(preset: ModelPreset) -> str:
         f"[{preset.model_id}]",
         f"model = {preset.path}",
         f"ctx-size = {preset.n_ctx}",
-        # One user, one question. The default of four sizes the KV cache for
-        # concurrency this app never uses.
-        "parallel = 1",
+        f"parallel = {preset.slots}",
         # Pinned rather than inherited. The badge subtracted this margin, so
         # passing it makes the two agree by construction instead of by assuming
         # a default read from the source once.
@@ -63,7 +65,14 @@ def _section(preset: ModelPreset) -> str:
         # the fitter would look for one, so a later change to how the window is
         # set cannot quietly hand that floor back to llama.cpp's own 4096.
         f"fit-ctx = {preset.n_ctx}",
+        # Pinned rather than inherited: at llama.cpp's own 8 GiB, a 1.7B model's
+        # server grew to 7.4 GB, unbudgeted, and a pin bump could change it unseen.
+        f"cache-ram = {preset.prompt_cache_mib}",
     ]
+    if preset.slots > 1:
+        # One cache the size of the window, shared by every slot, so a reply
+        # alone keeps the whole window. Off, each slot would get a fraction.
+        lines.append("kv-unified = on")
     if preset.mmproj_path is not None:
         # `--fit` does not count the projector, so a vision model the fitter
         # calls resident can still fail to allocate. The margin above carries

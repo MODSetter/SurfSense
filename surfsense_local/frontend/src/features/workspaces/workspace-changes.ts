@@ -1,8 +1,17 @@
 import { followWorkspaceEvents } from "./api"
+import type { ChangeProgress } from "./read-sse"
 
-export type WorkspaceChangeKind = "documents" | "artifacts"
+export type WorkspaceChangeKind =
+  "documents" | "artifacts" | "chat-runs" | "folders"
 
-type Listener = () => void
+/** Which rows changed and to what; absent when a dropped stream came back. */
+export type WorkspaceChange = {
+  ids: number[]
+  status: string
+  progress?: ChangeProgress
+}
+
+type Listener = (change?: WorkspaceChange) => void
 
 type Subscription = {
   controller: AbortController
@@ -30,8 +39,11 @@ function wait(milliseconds: number, signal: AbortSignal) {
   })
 }
 
-function notify(listeners: Iterable<Listener> | undefined) {
-  for (const listener of [...(listeners ?? [])]) listener()
+function notify(
+  listeners: Iterable<Listener> | undefined,
+  change?: WorkspaceChange
+) {
+  for (const listener of [...(listeners ?? [])]) listener(change)
 }
 
 async function follow(workspaceId: number, subscription: Subscription) {
@@ -51,7 +63,11 @@ async function follow(workspaceId: number, subscription: Subscription) {
           }
           listenedBefore = true
         } else {
-          notify(subscription.listeners.get(event.type))
+          notify(subscription.listeners.get(event.type), {
+            ids: event.ids,
+            status: event.status,
+            ...(event.progress ? { progress: event.progress } : {}),
+          })
         }
       }
     } catch {

@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import Engine, select
 
 from modules.egress.models import EgressDestination
+from modules.egress.service import BUILT_IN
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
@@ -68,7 +69,7 @@ async def test_loopback_connections_are_not_egress(
     )
     assert created.status_code == 201, created.text
     # huggingface.co is always listed; the connection adds no second row.
-    assert set(await _destinations(client)) == {"host:huggingface.co"}
+    assert set(await _destinations(client)) == set(BUILT_IN)
 
 
 async def test_unknown_destination_is_rejected(client: AsyncClient) -> None:
@@ -136,7 +137,7 @@ async def test_deleting_the_last_connection_to_a_host_withdraws_its_grant(
 
     assert (await client.delete("/llm/connections/1")).status_code == 204
 
-    assert set(await _destinations(client)) == {"host:huggingface.co"}
+    assert set(await _destinations(client)) == set(BUILT_IN)
     refused = await client.post("/llm/connections", json=REMOTE)
     assert refused.status_code == 403
     assert refused.json()["detail"]["destination"] == "host:api.provider.example"
@@ -155,7 +156,7 @@ async def test_deleting_a_loopback_connection_touches_no_grant(
     deleted = await client.delete(f"/llm/connections/{created.json()['id']}")
 
     assert deleted.status_code == 204
-    assert set(await _destinations(client)) == {"host:huggingface.co"}
+    assert set(await _destinations(client)) == set(BUILT_IN)
 
 
 async def test_deleting_a_connection_to_huggingface_keeps_the_built_in_grant(

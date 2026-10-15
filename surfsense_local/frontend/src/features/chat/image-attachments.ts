@@ -1,6 +1,7 @@
 import {
   SimpleImageAttachmentAdapter,
   type AppendMessage,
+  type CreateAttachment,
   type ThreadMessageLike,
 } from "@assistant-ui/react"
 
@@ -69,4 +70,17 @@ export function attachmentsOf(
 /** A data URL for a previewed upload, which is what the thread shows first. */
 export function previewOf(upload: ImageUpload): string {
   return `data:${upload.mime ?? "image/png"};base64,${upload.data}`
+}
+
+/** An image a refused send hands back, attached to the composer again as it was. */
+export function composerAttachmentOf(
+  upload: ImageUpload,
+  index: number
+): CreateAttachment {
+  return {
+    type: "image",
+    name: `image-${index + 1}`,
+    contentType: upload.mime ?? "image/png",
+    content: [{ type: "image", image: previewOf(upload) }],
+  }
 }

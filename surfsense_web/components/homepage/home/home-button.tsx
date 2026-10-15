@@ -2,6 +2,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
+import { siteText } from "@/components/site/site-text";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,7 +40,7 @@ const homeButtonVariants = cva(
 				outline: "border-border bg-transparent hover:bg-accent hover:text-accent-foreground",
 				secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
 				ghost: "hover:bg-accent hover:text-accent-foreground",
-				link: "ss-home-forward underline-offset-4 hover:underline",
+				link: cn(siteText.forward, "underline-offset-4 hover:underline"),
 			},
 			size: {
 				default: "h-8 gap-1.5 px-2.5",

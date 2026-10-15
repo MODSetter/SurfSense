@@ -1,0 +1,158 @@
+[
+  {
+    "tree": "electron",
+    "name": "lazy-val",
+    "version": "1.0.5",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by Vladimir Krivosheev."
+  },
+  {
+    "tree": "frontend",
+    "name": "@hugeicons/core-free-icons",
+    "version": "4.3.0",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by Hugeicons."
+  },
+  {
+    "tree": "frontend",
+    "name": "@napi-rs/canvas-darwin-arm64",
+    "version": "1.0.9",
+    "reason": "A platform binary of @napi-rs/canvas, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own."
+  },
+  {
+    "tree": "frontend",
+    "name": "@napi-rs/canvas-linux-x64-gnu",
+    "version": "1.0.9",
+    "reason": "A platform binary of @napi-rs/canvas, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own."
+  },
+  {
+    "tree": "frontend",
+    "name": "@napi-rs/canvas-win32-x64-msvc",
+    "version": "1.0.9",
+    "reason": "A platform binary of @napi-rs/canvas, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own."
+  },
+  {
+    "tree": "frontend",
+    "name": "@rolldown/binding-darwin-arm64",
+    "version": "1.2.7",
+    "reason": "A platform binary of rolldown, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own. A build tool, reached through @tailwindcss/vite, so none of it is in the bundle."
+  },
+  {
+    "tree": "frontend",
+    "name": "@rolldown/binding-linux-x64-gnu",
+    "version": "1.2.7",
+    "reason": "A platform binary of rolldown, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own. A build tool, reached through @tailwindcss/vite, so none of it is in the bundle."
+  },
+  {
+    "tree": "frontend",
+    "name": "@rolldown/binding-win32-x64-msvc",
+    "version": "1.2.7",
+    "reason": "A platform binary of rolldown, which carries the MIT licence text listed under its own entry; this package ships no licence file of its own. A build tool, reached through @tailwindcss/vite, so none of it is in the bundle."
+  },
+  {
+    "tree": "frontend",
+    "name": "binary",
+    "version": "0.3.0",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by James Halliday."
+  },
+  {
+    "tree": "frontend",
+    "name": "boolbase",
+    "version": "1.0.0",
+    "reason": "The package ships no licence file. Its package.json declares ISC, by Felix Boehm."
+  },
+  {
+    "tree": "frontend",
+    "name": "chainsaw",
+    "version": "0.1.0",
+    "reason": "The package ships no licence file. Its package.json declares MIT/X11, by James Halliday."
+  },
+  {
+    "tree": "frontend",
+    "name": "isarray",
+    "version": "1.0.0",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by Julian Gruber."
+  },
+  {
+    "tree": "frontend",
+    "name": "react-remove-scroll-bar",
+    "version": "2.3.8",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by Anton Korzunov."
+  },
+  {
+    "tree": "frontend",
+    "name": "rehype-katex",
+    "version": "7.0.1",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by Junyoung Choi."
+  },
+  {
+    "tree": "frontend",
+    "name": "remark-math",
+    "version": "6.0.0",
+    "reason": "The package ships no licence file. Its package.json declares MIT, by Junyoung Choi."
+  },
+  {
+    "tree": "frontend",
+    "name": "saxes",
+    "version": "5.0.1",
+    "reason": "The package ships no licence file. Its package.json declares ISC, by Louis-Dominique Dubeau."
+  },
+  {
+    "tree": "frontend",
+    "name": "use-composed-ref",
+    "version": "1.4.0",
+    "reason": "The package ships no licence file. Its package.json declares MIT."
+  },
+  {
+    "tree": "python",
+    "name": "antlr4-python3-runtime",
+    "version": "4.9.3",
+    "reason": "The wheel ships no licence file. Its metadata declares BSD, by Eric Vergnaud, Terence Parr and Sam Harwell."
+  },
+  {
+    "tree": "python",
+    "name": "chonkie-core",
+    "version": "0.10.2",
+    "reason": "The wheel ships no licence file. Its metadata declares MIT OR Apache-2.0, by Bhavnick Minhas."
+  },
+  {
+    "tree": "python",
+    "name": "docling",
+    "version": "2.125.0",
+    "reason": "The wheel ships no licence file. Its metadata declares MIT, by IBM Research Zurich."
+  },
+  {
+    "tree": "python",
+    "name": "flatbuffers",
+    "version": "25.12.19",
+    "reason": "The wheel ships no licence file. Its metadata declares Apache-2.0, by Derek Bailey."
+  },
+  {
+    "tree": "python",
+    "name": "latex2mathml",
+    "version": "3.81.0",
+    "reason": "The wheel ships no licence file. Its metadata declares MIT, by Ronie Martinez."
+  },
+  {
+    "tree": "python",
+    "name": "rapidocr",
+    "version": "3.9.2",
+    "reason": "The wheel ships no licence file. Its metadata declares Apache-2.0, by SWHL."
+  },
+  {
+    "tree": "python",
+    "name": "sqlite-vec",
+    "version": "0.1.9",
+    "reason": "The wheel ships no licence file. Its metadata declares MIT or Apache-2.0, by Alex Garcia."
+  },
+  {
+    "tree": "python",
+    "name": "tokenizers",
+    "version": "0.23.2",
+    "reason": "The wheel ships no licence file. Its metadata declares Apache-2.0, by Hugging Face."
+  },
+  {
+    "tree": "python",
+    "name": "tokie",
+    "version": "0.1.4",
+    "reason": "The wheel ships no licence file. Its metadata declares MIT OR Apache-2.0."
+  }
+]

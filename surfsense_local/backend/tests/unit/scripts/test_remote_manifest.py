@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from remote_manifest.endpoints import ENDPOINTS, Fixed, stale_endpoints
-from remote_manifest.guard import shrinkage
+from remote_manifest.guard import reclassified, shrinkage
 from remote_manifest.render import render
 from remote_manifest.translate import translate
 
@@ -118,6 +118,33 @@ def test_a_refresh_that_loses_a_provider_or_a_fifth_of_its_models_is_refused(
     assert any("neon" in problem for problem in problems)
     assert any("models" in problem for problem in problems)
     assert shrinkage(previous, translate(api)) == []
+
+
+def test_a_refresh_lists_each_model_the_app_would_read_differently(
+    api: dict,
+) -> None:
+    """Upstream's word is kept, but a flipped image flag or a model gone unknown is read before it ships."""
+    previous = translate(api)
+    changed = json.loads(json.dumps(api))
+    # One gateway of two now lists the model as text only, so they disagree.
+    changed["neon"]["models"]["gpt-5-5"]["modalities"]["input"] = ["text"]
+    changed["openai"]["models"]["gpt-5-nano"]["tool_call"] = False
+    changed["openai"]["models"]["gpt-5.5"]["provider"] = {"npm": "@ai-sdk/anthropic"}
+    del changed["anthropic"]["models"]["claude-sonnet-5"]
+
+    lines = reclassified(previous, translate(changed))
+
+    assert lines == [
+        "anthropic claude-sonnet-5: known -> unknown",
+        "neon gpt-5-5: reads images True -> False",
+        "openai gpt-5-nano: tool calls True -> False",
+        "openai gpt-5.5: usable -> Served through the anthropic protocol, "
+        "which SurfSense does not speak",
+        "any connection claude-sonnet-5: known -> unknown",
+        "any connection gpt-5-5: reads images True -> None",
+        "any connection gpt-5-nano: tool calls True -> False",
+    ]
+    assert reclassified(previous, translate(api)) == []
 
 
 def test_each_model_is_one_line_so_a_refresh_diff_names_what_changed(

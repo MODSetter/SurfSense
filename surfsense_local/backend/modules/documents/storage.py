@@ -38,8 +38,20 @@ UPLOAD_MIME_BY_SUFFIX = {
     ".tiff": "image/tiff",
     ".bmp": "image/bmp",
     ".webp": "image/webp",
+    # Recordings the worker's decoder reads; transcribed, never parsed.
+    ".wav": "audio/wav",
+    ".mp3": "audio/mpeg",
+    ".flac": "audio/flac",
+    ".ogg": "audio/ogg",
+    ".oga": "audio/ogg",
 }
 SUPPORTED_UPLOAD_SUFFIXES = frozenset(UPLOAD_MIME_BY_SUFFIX)
+
+_AUDIO_SUFFIXES = frozenset({".wav", ".mp3", ".flac", ".ogg", ".oga"})
+# An Ogg file's first packet names its codec.
+_VORBIS_HEADER = b"\x01vorbis"
+_OPUS_HEADER = b"OpusHead"
+OPUS_LATER = "Opus support comes in a later update"
 
 _OOXML_MEMBER_BY_SUFFIX = {
     ".docx": "word/document.xml",
@@ -58,6 +70,8 @@ def validate_upload(path: Path, suffix: str) -> str:
         valid = _is_utf8_text(path)
     elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}:
         valid = _is_image(path, suffix)
+    elif suffix in _AUDIO_SUFFIXES:
+        valid = _is_audio(path, suffix)
     else:
         raise ValueError(f"{suffix or 'extensionless files'} are not supported")
 
@@ -119,6 +133,40 @@ def _is_image(path: Path, suffix: str) -> bool:
     return header.startswith(b"RIFF") and header[8:12] == b"WEBP"
 
 
+def _is_audio(path: Path, suffix: str) -> bool:
+    """Raises for Ogg Opus, which the decoder cannot read yet, with the reason."""
+    with path.open("rb") as source:
+        header = source.read(512)
+    if suffix == ".wav":
+        return header.startswith(b"RIFF") and header[8:12] == b"WAVE"
+    if suffix == ".mp3":
+        return header.startswith(b"ID3") or _is_mpeg_audio_frame(header)
+    if suffix == ".flac":
+        return header.startswith(b"fLaC")
+    packet = _first_ogg_packet(header)
+    if packet.startswith(_OPUS_HEADER):
+        raise ValueError(OPUS_LATER)
+    return packet.startswith(_VORBIS_HEADER)
+
+
+def _is_mpeg_audio_frame(header: bytes) -> bool:
+    # Eleven sync bits, a known MPEG version and a layer: ADTS AAC's layer is 0.
+    return (
+        len(header) >= 2
+        and header[0] == 0xFF
+        and header[1] & 0xE0 == 0xE0
+        and (header[1] >> 3) & 0b11 != 0b01
+        and (header[1] >> 1) & 0b11 != 0b00
+    )
+
+
+def _first_ogg_packet(header: bytes) -> bytes:
+    # A page is 27 bytes, then one length byte per segment, then the packet.
+    if not header.startswith(b"OggS") or len(header) < 27:
+        return b""
+    return header[27 + header[26] :]
+
+
 def title_of(upload: UploadFile) -> str:
     name = Path(upload.filename or "").name.strip()
     return name[:500] or "untitled"
@@ -145,9 +193,10 @@ def stream_upload(upload: UploadFile, directory: Path) -> StreamedUpload:
     digest = hashlib.sha256()
     written = 0
 
-    with NamedTemporaryFile(dir=directory, delete=False) as temporary:
-        path = Path(temporary.name)
-        try:
+    path: Path | None = None
+    try:
+        with NamedTemporaryFile(dir=directory, delete=False) as temporary:
+            path = Path(temporary.name)
             while chunk := upload.file.read(READ_SIZE):
                 written += len(chunk)
                 if written > MAX_UPLOAD_BYTES:
@@ -158,8 +207,10 @@ def stream_upload(upload: UploadFile, directory: Path) -> StreamedUpload:
                     )
                 digest.update(chunk)
                 temporary.write(chunk)
-        except BaseException:
+    except BaseException:
+        # Removed once closed: Windows cannot delete a file that is still open.
+        if path is not None:
             path.unlink(missing_ok=True)
-            raise
+        raise
 
     return StreamedUpload(path, digest.hexdigest(), written)

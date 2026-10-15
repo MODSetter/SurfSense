@@ -148,6 +148,34 @@ describe("chat model settings", () => {
     ).toBeTruthy()
   })
 
+  it("offers a ChatGPT plan below Use a server, where one can serve chat", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [row()],
+        extra: (path) =>
+          path === "/llm/connections/chatgpt"
+            ? Response.json({ serves: ["text_gen"], hosts: [] })
+            : null,
+      })
+    )
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+
+    const plan = await screen.findByRole("region", {
+      name: "Use your ChatGPT plan",
+    })
+    const server = screen.getByRole("region", { name: "Use a server" })
+    expect(
+      within(plan).getByRole("button", { name: "Sign in with ChatGPT" })
+    ).toBeTruthy()
+    expect(
+      server.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
   it("opens a new server's models once it is saved", async () => {
     let saved = false
     const server = {
@@ -242,6 +270,39 @@ describe("chat model settings", () => {
       provider: "llamacpp",
       name: "some-searched-model",
     })
+  })
+
+  it("says why a model on disk cannot run in the interface's own words", async () => {
+    // The API's sentence is English in every language; its code is what the
+    // interface has words for.
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [
+          row(
+            {
+              id: "an-embedder",
+              origin: "downloaded",
+              name: "an-embedder",
+              family: "",
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "embedder",
+            },
+            [build({ catalog_id: "", installed_as: "an-embedder" })]
+          ),
+        ],
+      })
+    )
+
+    renderSettings()
+
+    expect(
+      await screen.findByText(
+        "This model turns text into numbers for search. It cannot answer questions, and SurfSense already has its own."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
   })
 
   it("explains how to pair a hand-copied projector without guessing", async () => {

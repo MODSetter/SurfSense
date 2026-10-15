@@ -226,7 +226,6 @@
 		"forever": "हमेशा के लिए",
 		"contact_us": "हमसे संपर्क करें",
 		"feature_llms": "100+ LLM का समर्थन",
-		"feature_ollama": "स्थानीय Ollama या vLLM सेटअप का समर्थन",
 		"feature_embeddings": "6000+ एम्बेडिंग मॉडल",
 		"feature_files": "50+ फ़ाइल एक्सटेंशन समर्थित",
 		"feature_podcasts": "स्थानीय TTS प्रदाताओं के साथ पॉडकास्ट समर्थन",

@@ -1,0 +1,99 @@
+[
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": [
+   {
+    "name": "glob"
+   },
+   {
+    "name": "glob"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "Morph",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": [
+   {
+    "name": "skill"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": [
+   {
+    "name": "surfsense_render_document"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": [
+   {
+    "name": "read"
+   },
+   {
+    "name": "read"
+   }
+  ]
+ },
+ {
+  "status": 200,
+  "error": null,
+  "served_by": "InferenceNet",
+  "tool_calls": []
+ },
+ {
+  "status": 0,
+  "error": "RemoteProtocolError: Server disconnected without sending a response.",
+  "served_by": null,
+  "tool_calls": []
+ }
+]

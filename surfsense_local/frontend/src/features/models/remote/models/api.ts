@@ -1,5 +1,6 @@
 import { request, requestJson } from "@/lib/api"
 
+import type { CapabilityLevel } from "../../capability/api"
 import type { ModelType } from "../../model-type"
 
 /**
@@ -21,6 +22,8 @@ export type ConnectionModel = {
   reads_images: boolean
   /** Why the manifest says it cannot be called through this provider; it then fills no slot. */
   unusable_reason?: string | null
+  /** Its measured level, for a model that can fill the chat slot. */
+  capability_level?: CapabilityLevel | null
 }
 
 export function getConnectionModels(

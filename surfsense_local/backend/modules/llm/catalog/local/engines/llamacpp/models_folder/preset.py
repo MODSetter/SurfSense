@@ -14,7 +14,7 @@ from modules.llm.catalog.local.engines.llamacpp.support import (
     projector_fits_model,
     projector_reads_images,
 )
-from modules.llm.fit import HardwareBudget, plan_load
+from modules.llm.fit import HardwareBudget, plan_load, prompt_cache_mib
 from modules.llm.hardware import fit_target_mib
 from modules.llm.providers.llamacpp import PRESET_FILE, ModelPreset, write_presets
 
@@ -38,6 +38,7 @@ def write_preset(
     live: HardwareBudget,
 ) -> None:
     presets = []
+    prompt_cache = prompt_cache_mib(budget)
     for model in installed:
         if model.shape is None:
             # Unreadable: skipping costs this model, failing would leave the
@@ -60,7 +61,9 @@ def write_preset(
                 n_ctx=plan.n_ctx,
                 precision=plan.precision,
                 fit_target_mib=fit_target_mib(mmproj_bytes),
+                prompt_cache_mib=prompt_cache,
                 mmproj_path=str(projector) if projector else None,
+                slots=plan.slots,
             )
         )
     write_presets(models_dir / PRESET_FILE, presets)

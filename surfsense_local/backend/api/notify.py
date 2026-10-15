@@ -27,3 +27,17 @@ def _notify(
             status=status,
         )
     )
+
+
+def notify_changed(
+    broker: EventBroker,
+    workspace_id: int,
+    kind: EventKind,
+    ids: list[int],
+    status: str,
+) -> None:
+    """Tell open windows these rows changed, in one event; nothing for no rows."""
+    if ids:
+        broker.publish(
+            InternalEvent(workspace_id=workspace_id, kind=kind, ids=ids, status=status)
+        )

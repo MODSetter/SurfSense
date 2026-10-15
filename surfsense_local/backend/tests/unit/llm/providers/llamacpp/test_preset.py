@@ -22,6 +22,7 @@ def a_preset(**overrides) -> ModelPreset:
         "n_ctx": 16384,
         "precision": KvPrecision.F16,
         "fit_target_mib": 1024,
+        "prompt_cache_mib": 4096,
     }
     return ModelPreset(**{**fields, **overrides})
 
@@ -61,10 +62,21 @@ def test_an_unquantized_cache_names_no_cache_type_at_all() -> None:
     assert "cache-type" not in ini
 
 
-def test_every_model_is_pinned_to_one_slot() -> None:
-    """llama-server defaults to four parallel slots and sizes the KV cache for
-    all of them. This app has one user asking one question."""
-    assert "parallel = 1" in render_presets([a_preset()])
+def test_the_slots_the_plan_chose_share_one_cache() -> None:
+    """Several replies at once, each able to use the whole window: one unified
+    cache rather than the window split between slots."""
+    ini = render_presets([a_preset(slots=4)])
+
+    assert "parallel = 4" in ini
+    assert "kv-unified = on" in ini
+
+
+def test_one_slot_needs_no_shared_cache() -> None:
+    """A single slot has the whole window to itself already."""
+    ini = render_presets([a_preset(slots=1)])
+
+    assert "parallel = 1" in ini
+    assert "kv-unified" not in ini
 
 
 def test_several_models_each_get_their_own_section() -> None:

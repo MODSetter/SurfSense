@@ -11,6 +11,7 @@ from app.config import Config
 from app.utils.proxy.base import ProxyProvider
 from app.utils.proxy.providers.custom import CustomProxyProvider
 from app.utils.proxy.providers.dataimpulse import DataImpulseProvider
+from app.utils.proxy.providers.nodemaven import NodeMavenProvider
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 _PROVIDERS: dict[str, type[ProxyProvider]] = {
     CustomProxyProvider.name: CustomProxyProvider,
     DataImpulseProvider.name: DataImpulseProvider,
+    NodeMavenProvider.name: NodeMavenProvider,
 }
 
 # BYO ``custom`` is the neutral default: it needs no vendor and returns no proxy

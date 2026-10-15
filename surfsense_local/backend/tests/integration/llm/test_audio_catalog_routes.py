@@ -10,7 +10,12 @@ from tests.integration.llm.installs import install_to_end
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
-AUDIO_IDS = {"kokoro-82m", "supertonic-3", "kitten-tts-mini-0.8"}
+AUDIO_IDS = {
+    "kokoro-82m",
+    "supertonic-3",
+    "kitten-tts-mini-0.8",
+    "nemotron-3.5-asr-streaming-0.6b",
+}
 
 
 def audio_rows(body: dict) -> dict[str, dict]:
@@ -63,6 +68,7 @@ async def test_an_audio_build_installs_into_its_folder_and_names_itself_in_the_c
     job = await install(client, "kokoro-82m", "Q8_0")
 
     assert job["event"]["type"] == "complete", job
+    assert job["event"]["code"] == "ready"
     assert (audio_dir / "kokoro-82m-q8_0.gguf").exists()
     config = json.loads((audio_dir / "server.json").read_text())
     assert config == {

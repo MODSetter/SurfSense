@@ -4,7 +4,8 @@ Run by hand, never in CI and never at packaging:
 
     uv run scripts/refresh_remote_manifest.py [--accept-shrink]
 
-A person reads the diff and commits it. Packaging bundles the committed file,
+A person reads the diff, and the models it reports the app would read
+differently, and commits it. Packaging bundles the committed file,
 so an unreviewed upstream change never ships and an old tag rebuilds the same
 app. Nothing fetches models.dev at runtime.
 
@@ -21,7 +22,7 @@ from pathlib import Path
 
 import httpx
 from remote_manifest.endpoints import stale_endpoints
-from remote_manifest.guard import shrinkage
+from remote_manifest.guard import reclassified, shrinkage
 from remote_manifest.render import render
 from remote_manifest.translate import translate
 
@@ -66,8 +67,9 @@ def main() -> int:
         print(f"warning: reviewed endpoint for {provider} has no provider in models.dev")
 
     proposed = _sorted(translate(api))
-    if TARGET.exists():
-        problems = shrinkage(json.loads(TARGET.read_text()), proposed)
+    previous = json.loads(TARGET.read_text()) if TARGET.exists() else None
+    if previous is not None:
+        problems = shrinkage(previous, proposed)
         if problems and not accept_shrink:
             for problem in problems:
                 print(f"refused: {problem}", file=sys.stderr)
@@ -87,6 +89,12 @@ def main() -> int:
     providers = manifest["providers"]
     models = sum(len(provider["models"]) for provider in providers.values())
     print(f"wrote {len(providers)} providers and {models} models to {TARGET}")
+    # Upstream's word stands, but what the app now decides differently is read before committing.
+    changes = reclassified(previous, proposed) if previous is not None else []
+    for change in changes:
+        print(f"reads differently: {change}")
+    if changes:
+        print(f"{len(changes)} lookups read differently; check them before committing")
     return 0
 
 

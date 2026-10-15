@@ -1,6 +1,9 @@
-from modules.llm.providers.openai_responses.chat import (
+from modules.llm.providers.openai_responses.chat import ResponsesChatProvider
+from modules.llm.providers.openai_responses.credentials import (
     AccessToken,
-    ResponsesChatProvider,
+    ApiKey,
+    Credential,
+    PlanToken,
 )
 from modules.llm.providers.openai_responses.errors import (
     PlanLimitError,
@@ -9,7 +12,10 @@ from modules.llm.providers.openai_responses.errors import (
 
 __all__ = [
     "AccessToken",
+    "ApiKey",
+    "Credential",
     "PlanLimitError",
+    "PlanToken",
     "ResponsesChatProvider",
     "SignInRequiredError",
 ]

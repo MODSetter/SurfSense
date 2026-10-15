@@ -91,7 +91,7 @@ async def search(
     """Absent rather than degraded when egress is off."""
     await transact(session, egress.require, egress.HUGGINGFACE)
     try:
-        hits = await service.llamacpp.search(q, limit=limit)
+        hits = await service.search(q, limit=limit)
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
     return {
@@ -167,6 +167,7 @@ def row_read(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
         },
         "runnable": row.runnable,
         "not_runnable_reason": row.not_runnable_reason,
+        "not_runnable_code": row.not_runnable_code,
         "builds": [_build(build, in_use) for build in row.builds],
         "default_quantization": row.default_quantization,
         "recommended": row.recommended,
@@ -184,6 +185,16 @@ def row_read(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
                 "languages": list(row.voicing.languages),
             }
             if row.voicing
+            else None
+        ),
+        "transcription": (
+            {
+                "peak_mb": row.transcription.peak_mb,
+                "window_s": row.transcription.window_s,
+                "detects_language": row.transcription.detects_language,
+                "languages": list(row.transcription.languages),
+            }
+            if row.transcription
             else None
         ),
     }
@@ -216,6 +227,8 @@ def _build(build: BuildRow, in_use: Mapping[str, list[ModelType]]) -> dict:
                 "level": badge.level.value,
                 "verdict": badge.verdict,
                 "reason": badge.reason,
+                "code": badge.code or None,
+                "uma": badge.uma,
             }
             if badge
             else None

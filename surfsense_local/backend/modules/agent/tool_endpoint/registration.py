@@ -1,8 +1,10 @@
-"""Telling opencode where one workspace's tools are, before each turn there.
+"""Telling a thread's opencode instance where its tools are, before each of its turns.
 
-opencode names no workspace when it calls a tool, so each workspace's folder is
-given its own address; opencode forgets it on every reload, so it is given again
-before every turn.
+opencode names neither thread nor turn when it calls a tool, so each thread
+registers an address naming it, in the instance its own folder runs; two
+threads' turns at once each keep their own. opencode forgets it on every
+reload, so each turn gives it again unless the instance holds it connected,
+as given: the address and this API process's launch key.
 """
 
 import logging
@@ -12,33 +14,62 @@ import httpx
 
 from api.config import get_settings
 from modules.agent.opencode_client import OpencodeClient
+from modules.agent.plugin_tools.given_servers import (
+    given_as,
+    remember_given,
+    server_digest,
+)
 
 # The tools reach the model as `<server>_<tool>`: surfsense_search_sources.
 SERVER = "surfsense"
+# Unset, a tool call gets the MCP SDK's 60 s (opencode's own 30 s default covers
+# connecting and listing only). A render waits up to 150 s for its job, then up
+# to 30 s for a Word preview, inside render_document.CALL_SECONDS.
+TOOL_CALL_SECONDS = 200
+# A call to a plugin on SurfSense's plugin host: a scrape can run minutes, and opencode
+# ends a call this long without progress.
+PLUGIN_CALL_SECONDS = 300
 
 logger = logging.getLogger(__name__)
 
 
-async def register_workspace_tools(
-    client: OpencodeClient, folder: Path, workspace_id: int, launch_key: str
-) -> None:
-    """Give the folder's opencode this workspace's tools; a turn goes on without them if it cannot."""
+async def register_thread_tools(
+    client: OpencodeClient,
+    folder: Path,
+    workspace_id: int,
+    thread_id: int,
+    launch_key: str,
+    held: str | None = None,
+) -> bool:
+    """Give the thread folder's opencode instance this thread's tools; whether they were given now.
+
+    `held` is the status opencode reports for them, if it holds them. A turn goes
+    on without the tools if they cannot be given.
+    """
     api = get_settings()
-    url = f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
+    url = (
+        f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
+        f"/threads/{thread_id}"
+    )
+    headers = {"Authorization": f"Bearer {launch_key}"}
+    as_given = server_digest(url, headers)
+    if held == "connected" and given_as(folder, SERVER) == as_given:
+        return False
     try:
         status = await client.add_tool_server(
-            folder, SERVER, url, {"Authorization": f"Bearer {launch_key}"}
+            folder, SERVER, url, headers, timeout_seconds=TOOL_CALL_SECONDS
         )
     except httpx.HTTPError:
+        remember_given(folder, SERVER, None)
         logger.warning(
-            "workspace %s's turn runs without SurfSense's tools",
-            workspace_id,
-            exc_info=True,
+            "thread %s's turn runs without SurfSense's tools", thread_id, exc_info=True
         )
-        return
+        return True
+    remember_given(folder, SERVER, as_given)
     if status != "connected":
         logger.warning(
-            "workspace %s's turn runs without SurfSense's tools: opencode reports %s",
-            workspace_id,
+            "thread %s's turn runs without SurfSense's tools: opencode reports %s",
+            thread_id,
             status,
         )
+    return True

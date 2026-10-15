@@ -1,8 +1,17 @@
+/** How far a recording's transcription is, in seconds of its audio. */
+export type ChangeProgress = { done_s: number; total_s: number }
+
 export type WorkspaceEvent =
   | { type: "connected" }
-  | { type: "documents" | "artifacts"; ids: number[]; status: string }
+  | {
+      type: "documents" | "artifacts" | "chat-runs" | "folders"
+      ids: number[]
+      status: string
+      // Sent once per transcribed window and never stored.
+      progress?: ChangeProgress
+    }
 
-const CHANGED = ["documents", "artifacts"] as const
+const CHANGED = ["documents", "artifacts", "chat-runs", "folders"] as const
 
 /** One frame. A heartbeat, or a kind this client does not know, is nothing. */
 function parseFrame(frame: string): WorkspaceEvent | null {
@@ -18,7 +27,11 @@ function parseFrame(frame: string): WorkspaceEvent | null {
   if (!kind || !data) return null
   return {
     type: kind,
-    ...(JSON.parse(data) as { ids: number[]; status: string }),
+    ...(JSON.parse(data) as {
+      ids: number[]
+      status: string
+      progress?: ChangeProgress
+    }),
   }
 }
 

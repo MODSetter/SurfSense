@@ -440,6 +440,86 @@ describe("model catalog", () => {
     ).toBeTruthy()
   })
 
+  it("words a badge that names its tier itself", async () => {
+    // The API's sentences are English in every language; the tier beside them
+    // is what the interface has words for.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({}, [
+              build({
+                fit: fit({ state: "partial", offload_fraction: 0.7 }),
+                badge: {
+                  level: "notice",
+                  verdict: "backend verdict",
+                  reason: "backend reason",
+                  code: "heavy_spill",
+                  uma: true,
+                },
+              }),
+            ]),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText(
+        "Well over the GPU’s memory. Expect it to be slow."
+      )
+    ).toBeTruthy()
+    expect(screen.getByText("Reduced speed")).toBeTruthy()
+    expect(screen.queryByText("backend verdict")).toBeNull()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
+  it("words why a model cannot run itself when the reason has a code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "speech_in",
+            }),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText(
+        "This model writes down what it hears in audio. It cannot answer questions."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
+  })
+
+  it("shows the backend's reason when it has no code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({ runnable: false, not_runnable_reason: "backend reason" }),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(await screen.findByText("backend reason")).toBeTruthy()
+  })
+
   it("blocks install only when physics refuses", async () => {
     vi.stubGlobal(
       "fetch",
@@ -628,6 +708,59 @@ describe("model catalog", () => {
     expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 
+  it("sends one search for a burst of typing, not one per keystroke", async () => {
+    // Typing "qwen" is four keystrokes past the two-character threshold;
+    // the debounce settles them to the one lookup the user meant.
+    const searches: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          searches.push(path)
+          return Response.json({ results: [] })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
+
+    await waitFor(() => expect(searches).toHaveLength(1), { timeout: 2000 })
+    expect(searches[0]).toContain("q=qwen")
+  })
+
+  it("clears the results the moment the box is cleared", async () => {
+    // The old list must not linger under an empty box for the debounce window.
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({ results: [] })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    const search = await screen.findByRole("searchbox", {
+      name: "Search all models",
+    })
+    await user.type(search, "qwen")
+    // Let the debounce settle and the empty results render.
+    await screen.findByText(/no models match/i)
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    // The prompt returns at once; the stale list does not outlive the click.
+    expect(screen.getByText(/type to find a model/i)).toBeTruthy()
+    expect(screen.queryByText(/no models match/i)).toBeNull()
+  })
+
   it("explains that search is unavailable rather than erroring", async () => {
     // With egress off, curated and installed still work. That is the airgapped
     // product, not a degraded one.
@@ -742,7 +875,8 @@ describe("model catalog", () => {
     await user.click(download)
     installs.move({
       type: "error",
-      message: "This build is too big for this computer. Pick a smaller one.",
+      message: "backend prose",
+      code: "too_big",
     })
     expect(
       await within(builds).findByText(
@@ -752,6 +886,88 @@ describe("model catalog", () => {
     expect(
       within(builds).queryByText("Recommended for your computer")
     ).toBeNull()
+  })
+
+  it("says why a searched repo cannot run in the interface's own words", async () => {
+    // One repo lists a build it cannot run, the other lists none at all.
+    const opened = (repo: string) =>
+      repo === "openai/whisper-GGUF"
+        ? row(
+            {
+              id: repo,
+              origin: "search",
+              name: repo,
+              types: [],
+              selectable_for: [],
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "speech_in",
+            },
+            [build({ catalog_id: "", can_install: false })]
+          )
+        : row(
+            {
+              id: repo,
+              origin: "search",
+              name: repo,
+              types: [],
+              selectable_for: [],
+              runnable: false,
+              not_runnable_reason: "backend reason",
+              not_runnable_code: "not_weights",
+            },
+            []
+          )
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({
+            results: ["openai/whisper-GGUF", "someone/steering-GGUF"].map(
+              (repo) => ({
+                repo,
+                downloads: 1000,
+                likes: 20,
+                license: "mit",
+                gated: false,
+                quantized_from: null,
+                last_modified: null,
+                reads_images: false,
+              })
+            ),
+          })
+        }
+        if (path.startsWith("/llm/catalog/local/search/")) {
+          const repo = decodeURIComponent(
+            path.slice("/llm/catalog/local/search/".length)
+          )
+          return Response.json({ repo, gated: false, row: opened(repo) })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "gguf"
+    )
+
+    await user.click(await screen.findByText("openai/whisper-GGUF"))
+    expect(
+      await screen.findByText(
+        "This model writes down what it hears in audio. It cannot answer questions."
+      )
+    ).toBeTruthy()
+
+    await user.click(screen.getByText("someone/steering-GGUF"))
+    expect(
+      await screen.findByText(
+        "This file steers another model. It is not a model on its own."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("backend reason")).toBeNull()
   })
 
   it("explains why builds from a gated repo cannot be downloaded", async () => {
@@ -830,6 +1046,30 @@ describe("model catalog", () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         "Download interrupted",
+        expect.objectContaining({ id: "model-install-error" })
+      )
+    )
+  })
+
+  it("says an install failure in its own words when the failure has a code", async () => {
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(catalog(), installs.handle))
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.click(
+      await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
+    await screen.findByRole("progressbar")
+    installs.move({
+      type: "error",
+      message: "backend prose",
+      code: "checksum_mismatch",
+    })
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "The downloaded file did not match the expected one. Retry the download.",
         expect.objectContaining({ id: "model-install-error" })
       )
     )

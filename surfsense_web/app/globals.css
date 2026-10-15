@@ -6,7 +6,9 @@
 
 @plugin "tailwind-scrollbar-hide";
 
-@custom-variant dark (&:is(.dark *));
+/* Not inside `.ss-home`: the marketing site is light for every visitor even
+ * though the app forces `.dark` on <html>. */
+@custom-variant dark (&:is(.dark *):not(.ss-home, .ss-home *));
 
 @theme {
 	--font-sans: var(--font-roboto);

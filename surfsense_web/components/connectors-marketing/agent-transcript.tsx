@@ -4,18 +4,21 @@ import type { AgentTranscript as AgentTranscriptModel } from "@/lib/connectors-m
 /**
  * The hero's terminal illustration: a static "here is what comes back"
  * artifact — the prompt, the tool call it drives, and the structured rows it
- * returns. A server component with no animation, matching every other page
- * built on `app/(home)/home.css`: the homepage and pricing hero don't type
- * text in or stagger their content into view, and this shouldn't either.
+ * returns. A server component with no animation, matching the rest of the
+ * site: the homepage and pricing hero don't type text in or stagger their
+ * content into view, and this shouldn't either.
  */
 export function AgentTranscript({ transcript }: { transcript: AgentTranscriptModel }) {
 	return (
-		<div className="ss-home-terminal ss-home-mono text-sm">
-			<div className="ss-home-terminal-bar" aria-hidden="true">
+		<div className="border border-border bg-card font-mono text-sm">
+			<div
+				className="flex items-center gap-2 border-b border-border px-4 py-2.5"
+				aria-hidden="true"
+			>
 				<span className="flex gap-1.5">
-					<span className="ss-home-terminal-dot" />
-					<span className="ss-home-terminal-dot" />
-					<span className="ss-home-terminal-dot" />
+					<span className="size-2 rounded-full bg-muted-foreground opacity-35" />
+					<span className="size-2 rounded-full bg-muted-foreground opacity-35" />
+					<span className="size-2 rounded-full bg-muted-foreground opacity-35" />
 				</span>
 				<span className="ml-1 text-xs text-muted-foreground">agent · surfsense</span>
 			</div>
@@ -28,8 +31,10 @@ export function AgentTranscript({ transcript }: { transcript: AgentTranscriptMod
 					<span>{transcript.prompt}</span>
 				</p>
 
-				<pre className="ss-home-code">
-					<code className="whitespace-pre-wrap wrap-break-word">{transcript.toolCall}</code>
+				<pre className="overflow-x-auto border border-border bg-muted px-4 py-3.5 font-mono text-xs leading-relaxed text-muted-foreground">
+					<code className="whitespace-pre-wrap wrap-break-word text-foreground">
+						{transcript.toolCall}
+					</code>
 				</pre>
 
 				<ul className="space-y-2">
@@ -45,7 +50,10 @@ export function AgentTranscript({ transcript }: { transcript: AgentTranscriptMod
 								</span>
 							</span>
 							{row.tag ? (
-								<span className="ss-home-tag shrink-0" data-tone="accent">
+								<span
+									className="inline-flex shrink-0 items-center rounded-full border border-border px-2 py-px text-[10px] font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase data-[tone=accent]:border-primary/40 data-[tone=accent]:text-primary"
+									data-tone="accent"
+								>
 									{row.tag}
 								</span>
 							) : null}
@@ -54,7 +62,7 @@ export function AgentTranscript({ transcript }: { transcript: AgentTranscriptMod
 				</ul>
 
 				<p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-					<CheckIcon aria-hidden="true" className="size-3.5 text-(--home-accent)" />
+					<CheckIcon aria-hidden="true" className="size-3.5 text-primary" />
 					{transcript.resultSummary}
 				</p>
 			</div>

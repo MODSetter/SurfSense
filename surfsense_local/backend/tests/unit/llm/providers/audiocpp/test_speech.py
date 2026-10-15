@@ -4,6 +4,8 @@ import asyncio
 import io
 import json
 import wave
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import httpx
 import pytest
@@ -17,18 +19,36 @@ from modules.llm.providers.audiocpp.speech import (
     VoicedModel,
     VoicingError,
 )
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn
 from shared import cancellation
-from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 from worker.jobs import JobCancelledError
 
 pytestmark = pytest.mark.unit
 
 MODELS = {m.id: m for m in load_local_manifest().models}
 CHAT = "Qwen3-1.7B-UD-Q4_K_XL"
-# A router holding no model, for tests about something else.
-NO_CHAT = RouterClient("http://router", transport=FakeRouter().transport())
+
+
+class TextRuntime:
+    """The local text runtime as voicing gives it up: held or not, and loaded
+    or not. Held, the API has unloaded the chat model and keeps text out."""
+
+    def __init__(self, loaded: bool = False) -> None:
+        self.loaded = loaded
+        self.held = False
+
+    @asynccontextmanager
+    async def given_up(self) -> AsyncIterator[None]:
+        self.held = True
+        self.loaded = False
+        try:
+            yield
+        finally:
+            self.held = False
+
+
+# A runtime holding no model, for tests about something else.
+NO_CHAT = TextRuntime().given_up
 
 
 def voiced(model_id: str, installed_as: str) -> VoicedModel:
@@ -42,10 +62,10 @@ def test_the_voices_are_the_chosen_models_roster() -> None:
     """A Supertonic voice speaks every language the model does; a Kokoro voice
     speaks its own."""
     kokoro = AudioCppSpeech(
-        voiced("kokoro-82m", "kokoro-82m-q8_0"), base_url="", chat_runtime=NO_CHAT
+        voiced("kokoro-82m", "kokoro-82m-q8_0"), base_url="", give_up_text_runtime=NO_CHAT
     )
     supertonic = AudioCppSpeech(
-        voiced("supertonic-3", "supertonic-3-f16"), base_url="", chat_runtime=NO_CHAT
+        voiced("supertonic-3", "supertonic-3-f16"), base_url="", give_up_text_runtime=NO_CHAT
     )
 
     heart = next(v for v in kokoro.voices() if v.id == "af_heart")
@@ -69,7 +89,7 @@ def test_the_voices_are_the_chosen_models_roster() -> None:
 def test_each_voice_says_its_gender(model_id: str, voice_id: str, gender: str) -> None:
     """The form groups a model's voices by it."""
     speech = AudioCppSpeech(
-        voiced(model_id, model_id), base_url="", chat_runtime=NO_CHAT
+        voiced(model_id, model_id), base_url="", give_up_text_runtime=NO_CHAT
     )
     assert next(v for v in speech.voices() if v.id == voice_id).gender == gender
 
@@ -118,7 +138,7 @@ def speak(model: VoicedModel, server: StubServer, turns, language="en-US", free=
     speech = AudioCppSpeech(
         model,
         base_url="http://audio",
-        chat_runtime=NO_CHAT,
+        give_up_text_runtime=NO_CHAT,
         transport=httpx.MockTransport(server),
         available=lambda: free,
     )
@@ -233,49 +253,51 @@ def test_voicing_refuses_before_loading_when_memory_is_short(monkeypatch) -> Non
     assert server.speech() == []
 
 
-def test_the_chat_model_leaves_memory_before_voicing_checks_it() -> None:
+def test_the_text_runtime_is_given_up_for_the_whole_voicing() -> None:
     """Its script is written by then. Measured on 16 GB: unloading Qwen3 1.7B
-    freed 2.1 GB; the router reloads it on its next request."""
-    chat = FakeRouter(models=[CHAT])
-    chat.loaded.add(CHAT)
-    resident_when_checked: list[set[str]] = []
+    freed 2.1 GB. Held until the last turn is voiced, so a chat sent meanwhile
+    waits instead of loading the model back into memory voicing needs."""
+    runtime = TextRuntime(loaded=True)
+    held_when_checked: list[tuple[bool, bool]] = []
 
     def available() -> int:
-        resident_when_checked.append(set(chat.loaded))
+        held_when_checked.append((runtime.held, runtime.loaded))
         return PLENTY
 
     speech = AudioCppSpeech(
         voiced("kokoro-82m", "kokoro-82m-q8_0"),
         base_url="http://audio",
-        chat_runtime=RouterClient("http://router", transport=chat.transport()),
+        give_up_text_runtime=runtime.given_up,
         transport=httpx.MockTransport(StubServer()),
         available=available,
     )
     asyncio.run(speech.synthesize([SpokenTurn("af_heart", "Hello.")], "en-US"))
 
-    assert resident_when_checked == [set()]
+    assert held_when_checked == [(True, False)]
+    assert runtime.held is False
 
 
-def test_a_start_check_short_of_memory_frees_the_chat_model(monkeypatch) -> None:
-    """Voicing unloads it anyway: on 16 GB, Qwen3 1.7B resident left 3.3 GB and
+def test_a_start_check_short_of_memory_gives_up_the_text_runtime(monkeypatch) -> None:
+    """Voicing would anyway: on 16 GB, Qwen3 1.7B resident left 3.3 GB and
     refused Kokoro's 3.5 before a word was drafted. With plenty free it stays
-    loaded for the outline."""
+    loaded for the outline. Let go once checked, since drafting needs it."""
     monkeypatch.setattr(speech_module, "MEMORY_WAIT_SECONDS", 0)
 
-    def resident_after(free_while_loaded: int) -> set[str]:
-        chat = FakeRouter(models=[CHAT])
-        chat.loaded.add(CHAT)
+    def after(free_while_loaded: int) -> TextRuntime:
+        runtime = TextRuntime(loaded=True)
         speech = AudioCppSpeech(
             voiced("kokoro-82m", "kokoro-82m-q8_0"),
             base_url="http://audio",
-            chat_runtime=RouterClient("http://router", transport=chat.transport()),
-            available=lambda: free_while_loaded if chat.loaded else PLENTY,
+            give_up_text_runtime=runtime.given_up,
+            available=lambda: free_while_loaded if runtime.loaded else PLENTY,
         )
         asyncio.run(speech.check_memory())
-        return chat.loaded
+        return runtime
 
-    assert resident_after(3_300_000_000) == set()
-    assert resident_after(PLENTY) == {CHAT}
+    short = after(3_300_000_000)
+    plenty = after(PLENTY)
+    assert (short.loaded, short.held) == (False, False)
+    assert (plenty.loaded, plenty.held) == (True, False)
 
 
 def test_memory_on_its_way_back_is_waited_for(monkeypatch) -> None:
@@ -286,7 +308,7 @@ def test_memory_on_its_way_back_is_waited_for(monkeypatch) -> None:
     speech = AudioCppSpeech(
         voiced("kokoro-82m", "kokoro-82m-q8_0"),
         base_url="http://audio",
-        chat_runtime=NO_CHAT,
+        give_up_text_runtime=NO_CHAT,
         available=lambda: next(readings),
     )
 
@@ -303,7 +325,7 @@ def test_a_refusal_names_the_first_lighter_model_that_would_fit(monkeypatch) -> 
     speech = AudioCppSpeech(
         VoicedModel("kokoro-82m-q8_0", audio, others),
         base_url="http://audio",
-        chat_runtime=NO_CHAT,
+        give_up_text_runtime=NO_CHAT,
         available=lambda: 1_800_000_000,
     )
 

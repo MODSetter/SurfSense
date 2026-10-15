@@ -31,9 +31,12 @@ class Document(Base):
     __tablename__ = "documents"
     __table_args__ = (
         Index("documents_workspace", "workspace_id"),
+        Index("documents_folder", "folder_id"),
+        # Per folder: a copied folder keeps a file that already sits elsewhere.
         Index(
-            "documents_workspace_dedup_key",
+            "documents_folder_dedup_key",
             "workspace_id",
+            "folder_id",
             "dedup_key",
             unique=True,
             sqlite_where=text("dedup_key IS NOT NULL"),
@@ -55,6 +58,11 @@ class Document(Base):
     content_hash: Mapped[str | None]
     dedup_key: Mapped[str | None]
     document_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Every FILE and NOTE is filed; None is an unfiled artifact, or the SET NULL
+    # backstop, which scopes and the tree still treat as the Library's top.
+    # ON DELETE SET NULL is declared by 0025 inline, where SQLAlchemy's SQLite
+    # reflection cannot read it, so declaring it here too would read as drift.
+    folder_id: Mapped[int | None] = mapped_column(ForeignKey("folders.id"))
     # The index its chunks were embedded into; what a re-embed has not reached.
     embedding_index_id: Mapped[int | None] = mapped_column(
         ForeignKey("embedding_indexes.id")

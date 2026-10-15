@@ -1,3 +1,4 @@
+import { ModelCapabilitySummary } from "@/features/models/capability/model-capability"
 import { DownloadChatModels } from "@/features/models/local/chat/download-chat-models"
 import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete-local-chat-model"
 import type { ModelSelection } from "@/features/models/selection/api"
@@ -44,6 +45,7 @@ export function ChatModelsSettings({
       }
       onSelected={onSelected}
       onChatCleared={onModelUnavailable}
+      inUseDetail={<ModelCapabilitySummary />}
       onUse={async (row) => {
         if (!row.target) return
         onSelected(await select.mutateAsync({ target: row.target }))

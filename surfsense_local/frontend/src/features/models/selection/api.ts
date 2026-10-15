@@ -1,5 +1,7 @@
 import { ApiError, requestJson } from "@/lib/api"
 
+import type { ModelCapability } from "../capability/api"
+
 import type { ModelType } from "../model-type"
 
 export type ModelSelection = {
@@ -11,6 +13,8 @@ export type ModelSelection = {
   // Whether this model reads images: llama.cpp's own answer for a local model,
   // the catalog's for a remote one. Absent reads as no.
   reads_images?: boolean
+  // The chat model's measured level and agent trial; absent for other slots.
+  capability?: ModelCapability | null
 }
 
 /** What a selection write names: a model, and where it runs. */

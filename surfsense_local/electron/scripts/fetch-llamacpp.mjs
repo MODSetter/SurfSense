@@ -33,6 +33,7 @@ import { tmpdir } from "node:os"
 import { basename, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { stageLicences } from "./llamacpp/licences.mjs"
 import { renameWhenUnlocked } from "./windows-locks/rename-when-unlocked.mjs"
 
 export const BUILD = "b11050"
@@ -183,8 +184,9 @@ async function main() {
       bytes += lstatSync(from).size
     }
 
-    const licence = find(unpacked, (entry) => entry.toUpperCase().startsWith("LICENSE"))
-    if (licence) copyFileSync(licence, join(stage, "LICENSE"))
+    // Each licence under its own name, and llama.cpp's own on every platform:
+    // the Windows archives carry only LLVM OpenMP's, for their libomp.dll.
+    stageLicences(source, stage)
 
     verifyStage(stage)
 

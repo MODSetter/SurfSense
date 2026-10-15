@@ -1,5 +1,6 @@
 import { intl } from "@/i18n/intl"
 
+import { installMessage } from "../installs/install-text"
 import type { InstallEvent } from "./api"
 
 type Phase =
@@ -96,7 +97,7 @@ export function installView(event: InstallEvent): InstallView {
         defaultMessage: "Downloading…",
       }),
       label:
-        event.message ||
+        installMessage(event) ||
         intl.formatMessage({
           id: "models_install_downloading_status",
           defaultMessage: "Downloading",
@@ -131,7 +132,7 @@ export function installView(event: InstallEvent): InstallView {
         defaultMessage: "Preparing…",
       }),
       label:
-        event.message ||
+        installMessage(event) ||
         intl.formatMessage({
           id: "models_install_preparing_status",
           defaultMessage: "Preparing",
@@ -151,7 +152,7 @@ export function installView(event: InstallEvent): InstallView {
         defaultMessage: "Failed",
       }),
       label:
-        event.message ||
+        installMessage(event) ||
         intl.formatMessage({
           id: "models_install_failed_status",
           defaultMessage: "Install failed",
@@ -163,7 +164,7 @@ export function installView(event: InstallEvent): InstallView {
 
   return {
     short: PHASE_SHORT[event.type](),
-    label: event.message || PHASE_LABEL[event.type](),
+    label: installMessage(event) || PHASE_LABEL[event.type](),
     detail: null,
     percent: event.type === "complete" ? 100 : null,
   }

@@ -9,30 +9,28 @@
 ## Interface
 
 ```python
-retrieve(session, workspace_id, query, top_k=5, document_ids=None) -> list[Hit]
+retrieve(session, workspace_id, query, top_k=5, document_ids=None, scope=None) -> list[Hit]
 ```
 
 - A `Hit` carries `chunk_id`, `document_id`, the document's `title`, the passage `content`, `start_line`, `end_line` and `score`, which is 1 minus the cosine distance. Hits come back best first.
 - The workspace is the scope; chunks are what is searched.
-- `document_ids` narrows the scope to those documents. `None` searches the whole workspace, and an empty list returns nothing. Chat passes the ready documents the user left included in the sources panel ([`chat.md`](chat.md)).
+- `scope` is a source scope the server resolved ([`chat.md`](chat.md#source-scope)): its ready ids narrow the search, and one with none returns nothing. It wins over `document_ids`.
+- `document_ids` narrows the scope to those documents. `None` searches the whole workspace, and an empty list returns nothing. Plugins and the agent pass it.
+- Either list is bound once as JSON and read with `json_each`, so its length costs no bind parameters.
 - A blank query returns nothing before anything is embedded.
 
 ## How it ranks
 
 1. **Embed the query** with the active embedding index's model, the one ingest wrote with, adding the spec's query prefix if it has one (bge-small has none). The import is lazy, so onnxruntime and the model load on the first query rather than when the API starts. With no index chosen yet, `retrieve()` raises the same `embedding_not_chosen` error the routes answer `409` with.
 2. **Keyword leg.** The query is split into terms by the index's own tokenizer, each quoted against FTS5's query grammar and joined with `OR` to keep recall wide. `chunks_fts` is matched, joined to `chunks` and `documents` for the workspace and document filters, and the best 20 by BM25 are kept. Each candidate then scores the fraction of the query's distinct terms it matched, one further lookup per term.
-3. **Vector leg.** A sqlite-vec nearest-neighbour search over the active index's vector table, `chunk_vectors`, takes the 20 closest chunks. It sits in its own CTE, so only `MATCH` and `k` constrain it, as vec0 requires; the workspace and document filters then apply to that set. It proposes those chunks and does not score them.
+3. **Vector leg.** A sqlite-vec nearest-neighbour search over the active index's vector table, `chunk_vectors`, takes the 20 closest chunks of the workspace or the scope. It sits in its own CTE, as vec0 requires, with `rowid IN (the chunks of the workspace or scope)` beside `MATCH` and `k`: sqlite-vec 0.1.9 applies that filter before it takes `k`, so another workspace or an unticked folder can never crowd a scope's chunks out. It proposes those chunks and does not score them.
 4. **Blend.** `w × semantic + (1 − w) × keyword` over the union, where `w` is the active spec's `semantic_weight`, 0.65 for bge-small, cut to `top_k` with cosine breaking a tie. Semantic strength is each candidate's own cosine similarity, floored at zero, measured here for the whole union rather than taken from the vector leg ([ADR 0033](../adr/0033-every-candidate-is-scored-on-its-own-cosine.md)). A candidate the keyword leg is missing contributes nothing from it, that absence being a measurement.
 
 Both legs decide the order, and both score on a scale that means the same thing from one query to the next, so a leg with nothing to say adds nothing. That is what keeps a keyword match honest: a chunk matching one term of five is weak whatever BM25 says about it, so no stopword list is needed. It holds because a term is a word: [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py) states the one rule that splits both the index and the question, and keeps a combining mark inside its word so Devanagari is not cut into letters ([ADR 0032](../adr/0032-one-tokenizer-for-index-and-question.md)). A paraphrase that shares no words with its passage still arrives through the vector leg. There is no reranker.
 
-The two legs are asymmetric on purpose. A chunk the keyword leg omits matched none of the query's terms, so zero is what it measured; a chunk the vector leg omits merely sits outside the nearest 20, which says nothing about it. Scoring the second as zero let a crowded workspace next door decide what a quiet one ranked first.
+The two legs are asymmetric on purpose. A chunk the keyword leg omits matched none of the query's terms, so zero is what it measured; a chunk the vector leg omits merely sits outside the nearest 20 of its scope, which says nothing about it.
 
 `Hit.score` is cosine similarity, so it says how close a passage is, not where it sits.
-
-## Ceiling
-
-The vector leg looks at the 20 nearest chunks across every workspace before it filters. A workspace, or a document selection, whose passages all rank outside that global 20 gets candidates from the keyword leg only. Those candidates are still ranked on their real cosine ([ADR 0033](../adr/0033-every-candidate-is-scored-on-its-own-cosine.md)), so the order holds; what a crowded neighbour still costs is a passage reachable by meaning alone, which is then proposed by nothing. The code accepts this for a few small local workspaces and names a larger `k` as the fix if a workspace's hits start falling outside it.
 
 ## Index
 
@@ -40,7 +38,7 @@ The vector leg looks at the 20 nearest chunks across every workspace before it f
 
 ## Tests
 
-[`tests/integration/search/test_retrieve.py`](../../surfsense_local/backend/tests/integration/search/test_retrieve.py) covers a keyword query, a paraphrase found through meaning, a Hindi question against three notes one word apart, a workspace whose neighbour holds every one of the 20 nearest chunks, the document and lines on a hit, scoping to selected documents and to the workspace, and the empty workspace, query and selection. [`tests/integration/chunks/test_search_index.py`](../../surfsense_local/backend/tests/integration/chunks/test_search_index.py) covers the triggers, the refusal of a vector of the wrong width, and that the index and a question split text the same way — the migration and [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py) state the tokenizer separately, and a drift between them scores a question against terms the index never held.
+[`tests/integration/search/test_retrieve.py`](../../surfsense_local/backend/tests/integration/search/test_retrieve.py) covers a keyword query, a paraphrase found through meaning, a Hindi question against three notes one word apart, a workspace whose neighbour holds every one of the 20 nearest chunks, a paraphrase in my workspace past such a neighbour, a one-document scope among many nearer chunks, the document and lines on a hit, scoping to selected documents and to the workspace, and the empty workspace, query, selection and scope. [`tests/integration/chunks/test_search_index.py`](../../surfsense_local/backend/tests/integration/chunks/test_search_index.py) covers the triggers, the refusal of a vector of the wrong width, and that the index and a question split text the same way — the migration and [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py) state the tokenizer separately, and a drift between them scores a question against terms the index never held.
 
 Ranking itself is measured rather than asserted, by [`scripts/run_retrieval_eval.py`](../../surfsense_local/backend/scripts/run_retrieval_eval.py): it indexes a fixed corpus through the real ingest pipeline and records where each query's answering passage landed. Failures that need a library-sized corpus, a bare identifier among near-duplicate manuals being the one that drove [ADR 0031](../adr/0031-ranking-blends-absolute-leg-scores.md), do not reproduce at the handful of documents an integration test builds.
 

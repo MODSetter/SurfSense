@@ -4,8 +4,13 @@ from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import get_local_catalog
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed_recognisers import (
+    InstalledRecogniser,
+)
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.connections.serves import connection_serves
+from modules.llm.connections.text_generator import connection_generator
+from modules.llm.model_route.runtime_hold import text_runtime_given_up
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
@@ -13,7 +18,6 @@ from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
-    OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.openai_compatible.image import AllowUrlHost
@@ -21,13 +25,14 @@ from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
-from modules.llm.subscriptions.chatgpt.account import CHATGPT
-from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
-from shared.config import get_llm_settings
 
 
 class ModelResolutionError(RuntimeError):
     pass
+
+
+class NoSpeechModelError(ModelResolutionError):
+    """No speech model is chosen, or the chosen one is no longer installed."""
 
 
 @dataclass(frozen=True)
@@ -47,10 +52,24 @@ class ResolvedImageGeneration:
     generator: ImageGenerator
 
 
+@dataclass(frozen=True)
+class ResolvedSpeechToText:
+    selection: SelectedModel
+    # The installed file and the reviewed languages the client is built from.
+    recogniser: InstalledRecogniser
+
+
 def resolve_generation(session: Session) -> ResolvedGeneration:
     selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     if selected is None:
         raise ModelResolutionError("no chat model selected")
+    return resolve_generation_of(session, selected)
+
+
+def resolve_generation_of(
+    session: Session, selected: SelectedModel
+) -> ResolvedGeneration:
+    """A text model reachable as `selected` describes it, selected or not."""
     if selected.provider == llamacpp.PROVIDER:
         provider = get_provider(llamacpp.PROVIDER)
         if provider is None:  # pragma: no cover - fixed registry invariant
@@ -58,15 +77,10 @@ def resolve_generation(session: Session) -> ResolvedGeneration:
         return ResolvedGeneration(selected, provider)
     connection = _connection(session, selected)
     reads_images = remote_reads_images(selected.name, connection.catalog_provider)
-    if connection.auth_kind == CHATGPT:
-        return ResolvedGeneration(
-            selected,
-            plan_generator(session.get_bind(), connection, reads_images=reads_images),
-        )
     return ResolvedGeneration(
         selected,
-        OpenAICompatibleChatProvider(
-            connection.base_url, connection.api_key, reads_images=reads_images
+        connection_generator(
+            session.get_bind(), connection, selected.name, reads_images=reads_images
         ),
     )
 
@@ -93,7 +107,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
                 ),
                 sdcpp.root_url(),
                 image.served_file,
-                llamacpp.RouterClient(get_llm_settings().llamacpp_base_url),
+                text_runtime_given_up,
             ),
         )
     connection = _connection(session, selected)
@@ -171,8 +185,20 @@ def local_speech(selected: SelectedModel) -> AudioCppSpeech:
     return AudioCppSpeech(
         voiced,
         base_url=audiocpp.base_url(),
-        chat_runtime=llamacpp.RouterClient(get_llm_settings().llamacpp_base_url),
+        give_up_text_runtime=text_runtime_given_up,
     )
+
+
+def resolve_speech_to_text(session: Session) -> ResolvedSpeechToText:
+    """The chosen speech model as the transcription server runs it. Local only:
+    no remote speech client exists."""
+    selected = session.get(SelectedModel, ModelType.SPEECH_TO_TEXT)
+    if selected is None or selected.provider != audiocpp.PROVIDER:
+        raise NoSpeechModelError("no speech model selected")
+    recogniser = get_local_catalog().audiocpp.installed_recogniser(selected.name)
+    if recogniser is None:
+        raise NoSpeechModelError("the speech model is not installed")
+    return ResolvedSpeechToText(selected, recogniser)
 
 
 def _require_serves(connection: ProviderConnection, model_type: ModelType) -> None:

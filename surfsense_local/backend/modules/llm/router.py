@@ -9,12 +9,15 @@ from api.dependencies import SessionDep, transact
 from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.embedding.active import active_index
+from modules.events.dependencies import EventBrokerDep
 from modules.llm.activity import (
     ModelBusyError,
     ModelFileHeldError,
     model_activity,
     model_key,
 )
+from modules.llm.capability import capability_of
+from modules.llm.capability.read import capability_read
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
@@ -47,6 +50,8 @@ from modules.llm.schemas import (
 from modules.llm.selectable import SLOTS, selectable_for
 from modules.llm.selection import choose_model, complete_onboarding
 from modules.llm.subscriptions.chatgpt.router import router as chatgpt_router
+from modules.llm.transcription.language_router import router as language_router
+from modules.llm.transcription.router import router as transcription_router
 from modules.llm.voices.router import router as voices_router
 from shared.config import get_llm_settings
 
@@ -58,6 +63,8 @@ router.include_router(remote_catalog_router)
 router.include_router(chatgpt_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
+router.include_router(language_router)
+router.include_router(transcription_router)
 
 
 @router.get(
@@ -117,9 +124,13 @@ async def list_models(provider: ProviderDep) -> list[ModelRead]:
             capabilities=list(model.capabilities),
             display_name=model.display_name or model.name,
             types=list(model.types),
-            selectable_for=selectable_for(model.types, model.known),
+            selectable_for=slots,
+            capability_level=capability_of(model.name, None).level
+            if provider.name == llamacpp.PROVIDER and ModelType.TEXT_GEN in slots
+            else None,
         )
         for model in await provider.models()
+        for slots in [selectable_for(model.types, model.known)]
     ]
 
 
@@ -326,6 +337,7 @@ async def set_selection(
     payload: SelectionWrite,
     session: SessionDep,
     background: BackgroundTasks,
+    broker: EventBrokerDep,
 ) -> SelectionRead:
     chosen = await choose_model(
         session,
@@ -334,6 +346,7 @@ async def set_selection(
         payload.name,
         connection_id=payload.connection_id,
         allow_unlisted=payload.allow_unlisted,
+        broker=broker,
     )
     # After the response, never during it: the load blocks until the model is
     # resident, which is the tens of seconds this exists to move somewhere the
@@ -354,7 +367,8 @@ async def _selection_read(session: Session, selected: SelectedModel) -> Selectio
 def _read_with_provider(
     session: Session, selected: SelectedModel
 ) -> tuple[SelectionRead, str | None]:
-    return (
-        SelectionRead.model_validate(selected),
-        connection_catalog_provider(session, selected),
-    )
+    read = SelectionRead.model_validate(selected)
+    catalog_provider = connection_catalog_provider(session, selected)
+    if selected.model_type is ModelType.TEXT_GEN:
+        read.capability = capability_read(selected, catalog_provider)
+    return read, catalog_provider

@@ -59,6 +59,9 @@ export interface SidecarContext {
   audioUrl?: string
   audioModelsDir?: string
   audioBinariesDir?: string
+  /** The same build run again for speech recognition, on its own port; only the API is told the URL. */
+  transcriptionPort?: number
+  transcriptionUrl?: string
   /** The staged opencode and its ripgrep: `scripts/opencode/stage.mjs` writes it. */
   opencodeBinariesDir?: string
   /**
@@ -68,6 +71,16 @@ export interface SidecarContext {
   opencodePort?: number
   opencodePassword?: string
   opencodeUrl?: string
+  /**
+   * Where the API runs the proxy opencode's connections go through: a tunnel
+   * to a ready plugin's host, and nothing else.
+   */
+  pluginProxyPort?: number
   /** `<dataDir>/agent`: the config the API writes, and opencode's own home. */
   agentDir?: string
+  /**
+   * The key Electron presents on the API's Word snapshot routes, made at boot
+   * beside opencode's password: those routes exist only beside an opencode.
+   */
+  docxSnapshotKey?: string
 }

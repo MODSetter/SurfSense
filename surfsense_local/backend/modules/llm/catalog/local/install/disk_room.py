@@ -3,6 +3,7 @@
 from pathlib import Path
 from shutil import disk_usage
 
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install.plan import InstallRefusedError
 
 # Left free once it lands: a full disk takes the database and the logs with it.
@@ -16,7 +17,10 @@ def refuse_without_room(folder: Path, needed: int) -> None:
     if free < needed + HEADROOM:
         raise InstallRefusedError(
             f"This download needs {_gb(needed + HEADROOM)} free; "
-            f"this computer has {_gb(free)}."
+            f"this computer has {_gb(free)}.",
+            InstallCode.NOT_ENOUGH_DISK,
+            needed_bytes=needed + HEADROOM,
+            free_bytes=free,
         )
 
 

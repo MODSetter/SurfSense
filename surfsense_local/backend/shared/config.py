@@ -55,13 +55,36 @@ class StorageSettings(BaseSettings):
         return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
 
     def agent_working_dir(self, workspace_id: int) -> Path:
-        """The folder the agent works in for one workspace, gone with the workspace."""
+        """The workspace's agent folder: its threads' folders and their text cache.
+
+        Before each thread had its own, every thread worked here; such a thread
+        is legacy, and only its history is still read.
+        """
         return self.workspace_dir(workspace_id) / "agent"
+
+    def agent_threads_dir(self, workspace_id: int) -> Path:
+        return self.agent_working_dir(workspace_id) / "threads"
+
+    def thread_working_dir(self, workspace_id: int, thread_id: int) -> Path:
+        """The folder one agent thread works in: its sources and its outputs."""
+        return self.agent_threads_dir(workspace_id) / str(thread_id)
+
+    def agent_text_dir(self, workspace_id: int) -> Path:
+        """One file per source text version, hard-linked into each thread that uses it."""
+        return self.agent_working_dir(workspace_id) / "text"
 
     @property
     def agent_dir(self) -> Path:
         """Electron watches here for opencode's configuration and keeps opencode's home."""
         return self.data_dir / "agent"
+
+    @property
+    def plugin_registry_dir(self) -> Path:
+        """The last verified copy of the third-party registry, and its icons.
+
+        Beside `plugins/`, not in it, where a plugin with the id `registry` would collide.
+        """
+        return self.data_dir / "plugin-registry"
 
     def plugin_dir(self, plugin_id: str, version: str) -> Path:
         """Where one installed version of a plugin lives."""
@@ -101,6 +124,11 @@ class LLMSettings(BaseSettings):
     audio_espeak_library: Path | None = None
     audio_espeak_data: Path | None = None
 
+    # The same audio.cpp build run again for speech recognition. Electron tells
+    # the API alone, and workers reach it through the API; absent where no
+    # audio.cpp is staged.
+    transcription_base_url: str | None = None
+
 
 class AgentSettings(BaseSettings):
     """Where opencode will listen and its password, chosen by Electron at boot.
@@ -112,13 +140,30 @@ class AgentSettings(BaseSettings):
 
     opencode_url: str | None = None
     opencode_password: str | None = None
-    # The tested list starts empty; while it is, this lets any model run the agent.
-    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1.
+    # Where opencode's proxy variables point: the API tunnels a ready plugin's host there.
+    plugin_proxy_port: int | None = None
+    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1 makes Agentic the
+    # default for every model the user has not picked a mode for, and lifts the
+    # window floor; a stated no on tool calls, or no opencode, still keeps it out.
     agent_untested_models: bool = False
 
     def has_opencode(self) -> bool:
         """Whether Electron runs an opencode beside this API: it passes both only then."""
         return bool(self.opencode_url and self.opencode_password)
+
+
+class PluginHostSettings(BaseSettings):
+    """A developer's switch: SURFSENSE_LOCAL_PLUGIN_HOST_URL points SurfSense's own
+    plugins, and the license key, at a plugin host run locally instead."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    plugin_host_url: str | None = None
+
+
+@lru_cache
+def get_plugin_host_settings() -> PluginHostSettings:
+    return PluginHostSettings()
 
 
 @lru_cache

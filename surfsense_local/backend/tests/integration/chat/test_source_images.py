@@ -104,12 +104,13 @@ async def test_a_model_that_cannot_see_gets_the_text_alone(
     data_dir: Path,
     ocr_text: None,
 ) -> None:
-    """Exactly today's request."""
+    """The turn is text alone, with no picture parts."""
     workspace_id, _ = seed_image_sources(engine, 1)
 
     asked = await last_question(client, workspace_id, llamacpp_server)
 
-    assert asked == {"role": "user", "content": "what did I buy at the cafe?"}
+    assert asked["role"] == "user"
+    assert asked["content"].endswith("what did I buy at the cafe?")
 
 
 async def test_at_most_two_image_sources_ride_along(

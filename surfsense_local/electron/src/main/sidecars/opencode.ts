@@ -50,8 +50,9 @@ const SWITCHED_OFF = [
   "OPENCODE_DISABLE_CLAUDE_CODE",
 ]
 
-// The discard port: nothing a desktop runs listens there, so a fetch this
-// misses fails instead of leaving the machine. Models and tools are on loopback.
+// The discard port: nothing a desktop runs listens there, so a fetch fails
+// instead of leaving the machine. Models and tools are on loopback; plugins go
+// through the API's proxy, which tunnels only a ready plugin's host.
 const NOWHERE = "http://127.0.0.1:9"
 const LOOPBACK = "127.0.0.1,localhost,::1"
 
@@ -82,7 +83,12 @@ export function opencodeSpec(ctx: SidecarContext): SidecarSpec | null {
     cmd: binary,
     args: ["serve", "--hostname", ctx.host, "--port", String(opencodePort)],
     cwd: opencodeFolders(agentDir).home,
-    env: opencodeEnvironment(opencodeBinariesDir, opencodePassword, agentDir),
+    env: opencodeEnvironment(
+      opencodeBinariesDir,
+      opencodePassword,
+      agentDir,
+      ctx.pluginProxyPort == null ? NOWHERE : `http://${ctx.host}:${ctx.pluginProxyPort}`
+    ),
     inheritEnv: false,
   }
 }
@@ -91,7 +97,8 @@ export function opencodeSpec(ctx: SidecarContext): SidecarSpec | null {
 function opencodeEnvironment(
   binariesDir: string,
   password: string,
-  agentDir: string
+  agentDir: string,
+  proxy: string
 ): Record<string, string> {
   const system: Record<string, string> = {}
   for (const name of FROM_THE_SYSTEM) {
@@ -117,12 +124,12 @@ function opencodeEnvironment(
     // A case the npm stub misses fails at once, rather than waiting on retries.
     npm_config_audit: "false",
     npm_config_fetch_retries: "0",
-    HTTP_PROXY: NOWHERE,
-    HTTPS_PROXY: NOWHERE,
-    ALL_PROXY: NOWHERE,
-    http_proxy: NOWHERE,
-    https_proxy: NOWHERE,
-    all_proxy: NOWHERE,
+    HTTP_PROXY: proxy,
+    HTTPS_PROXY: proxy,
+    ALL_PROXY: proxy,
+    http_proxy: proxy,
+    https_proxy: proxy,
+    all_proxy: proxy,
     NO_PROXY: LOOPBACK,
     no_proxy: LOOPBACK,
   }

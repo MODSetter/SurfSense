@@ -75,15 +75,46 @@ describe("install progress", () => {
     expect(installView({ type: "error", message: "x" }).short).toBe("Failed")
   })
 
-  it("prefers the server's own wording for the line under it", () => {
+  it("uses the server's own wording for a stage it has no words for", () => {
     // The server names the stage being loaded, including ones this build has
-    // never seen, so the copy is not duplicated here.
+    // never seen.
     const view = installView({
       type: "preparing",
-      message: "Loading image support",
+      message: "Loading the reranker",
+      code: "loading_reranker",
+      progress: 0.4,
+    })
+
+    expect(view.label).toBe("Loading the reranker")
+  })
+
+  it("uses its own wording for a stage it knows", () => {
+    // The server's sentence is English whatever the interface language; the
+    // code beside it is what gets translated.
+    const view = installView({
+      type: "preparing",
+      message: "server prose",
+      code: "loading_image_support",
       progress: 0.4,
     })
 
     expect(view.label).toBe("Loading image support")
+    expect(
+      installView({ type: "queued", message: "server prose", code: "queued" })
+        .label
+    ).toBe("Waiting for the download ahead of it")
+    expect(
+      installView({
+        type: "downloading",
+        message: "downloading",
+        code: "downloading",
+        completed: 1,
+        total: 2,
+      }).label
+    ).toBe("Downloading")
+    expect(
+      installView({ type: "error", message: "server prose", code: "failed" })
+        .label
+    ).toBe("The model could not be installed. Retry the download.")
   })
 })

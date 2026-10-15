@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { SiteFaqItem } from "@/components/site/site-faq-item";
+import { siteText } from "@/components/site/site-text";
 import { ArrowRightIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
 import { LicenseDownload } from "./license-download";
 
 /**
@@ -20,11 +23,11 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 		question: "How do I install it?",
 		answer: (
 			<>
-				Save <code className="ss-home-mono">surfsense.lic</code> somewhere you can find it, open
+				Save <code className="font-mono">surfsense.lic</code> somewhere you can find it, open
 				SurfSense, go to Settings, then License{" "}
 				<ArrowRightIcon aria-hidden="true" className="inline size-3.5 align-[-0.1em]" />, and drop
 				the file in (or paste its contents). The{" "}
-				<Link className="ss-home-link" href="/license/activate">
+				<Link className={siteText.link} href="/license/activate">
 					activation guide
 				</Link>{" "}
 				shows each step. SurfSense never contacts a license server: the file is checked on your own
@@ -37,7 +40,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 		answer: (
 			<>
 				Get it emailed again at{" "}
-				<a className="ss-home-link" href="/license">
+				<a className={siteText.link} href="/license">
 					surfsense.com/license
 				</a>
 				, using the address you bought with.
@@ -49,43 +52,37 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 export default function LicenseSuccessPage() {
 	return (
 		<>
-			<section className="ss-home-hero ss-home-pad">
+			<section className="py-20 md:py-28">
 				<div className="mx-auto max-w-2xl text-center">
-					<h1 className="ss-home-display">Thanks, you are all set</h1>
-					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
+					<h1 className={siteText.display}>Thanks, you are all set</h1>
+					<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
 						Your license file is below. Save it now: it is the thing that unlocks plugins and
 						priority support, and we have also emailed you a copy.
 					</p>
 				</div>
 			</section>
 
-			<section className="ss-home-rule ss-home-pad py-16">
-				<div className="mx-auto max-w-xl">
+			<section className="border-t border-border py-16">
+				<div className="max-w-xl">
 					<Suspense fallback={null}>
 						<LicenseDownload />
 					</Suspense>
 				</div>
 			</section>
 
-			<section className="ss-home-rule" aria-labelledby="ss-license-success-faq-label">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">Next steps</p>
-					<h2 id="ss-license-success-faq-label" className="ss-home-h2 mt-2">
+			<section className="border-t border-border" aria-labelledby="ss-license-success-faq-label">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<p className={siteText.eyebrow}>Next steps</p>
+					<h2 id="ss-license-success-faq-label" className={cn(siteText.h2, "mt-2")}>
 						Installing it
 					</h2>
 				</div>
 
-				<div className="ss-home-grid border-t border-border">
+				<div className="ss-home-grid">
 					{FAQ.map((item) => (
-						<details key={item.question} className="ss-home-faq">
-							<summary className="ss-home-faq-summary">
-								<span className="ss-home-h3">{item.question}</span>
-								<span aria-hidden="true" className="ss-home-faq-marker" />
-							</summary>
-							<div className="ss-home-faq-answer">
-								<p className="ss-home-body">{item.answer}</p>
-							</div>
-						</details>
+						<SiteFaqItem key={item.question} question={item.question}>
+							<p className={siteText.body}>{item.answer}</p>
+						</SiteFaqItem>
 					))}
 				</div>
 			</section>

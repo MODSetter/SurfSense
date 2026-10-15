@@ -43,6 +43,10 @@ class BadgeRead(BaseModel):
     level: str
     verdict: str
     reason: str
+    # The tier the two sentences describe, for the interface to word in its own
+    # language; null when they are empty. `uma` picks between its wordings.
+    code: str | None = None
+    uma: bool = False
 
 
 class FitRead(BaseModel):
@@ -109,6 +113,15 @@ class VoicingRead(BaseModel):
     languages: list[str]
 
 
+class TranscriptionRead(BaseModel):
+    # The first request, the load included.
+    peak_mb: int
+    window_s: int
+    detects_language: bool
+    # ISO 639-1 codes it is listed for, best first.
+    languages: list[str]
+
+
 class LocalRowRead(BaseModel):
     id: str
     source: str = "local"
@@ -122,6 +135,9 @@ class LocalRowRead(BaseModel):
     support: SupportRead
     runnable: bool
     not_runnable_reason: str | None
+    # The reason as a `NotRunnableCode`, where it has one, so the interface can
+    # say it in its own language.
+    not_runnable_code: str | None = None
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool
@@ -134,6 +150,9 @@ class LocalRowRead(BaseModel):
     lead: LeadRead | None
     # An audio model's memory while voicing, voices and languages; null otherwise.
     voicing: VoicingRead | None = None
+    # A recogniser's memory while transcribing, window and languages; null
+    # otherwise.
+    transcription: TranscriptionRead | None = None
 
 
 class ProjectorNoticeRead(BaseModel):

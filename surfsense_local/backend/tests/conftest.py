@@ -25,6 +25,7 @@ from shared.db import (
 )
 from shared.migrations import upgrade_to_head
 from shared.queue import ingest_queue, plugins_queue, studio_queue
+from tests.office_stand_in import office_off
 
 # A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
@@ -103,6 +104,13 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     plugins_queue.flush()
 
 
+@pytest.fixture(autouse=True)
+def no_office_support(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Office support starts off in every test, whatever LibreOffice this machine has;
+    a test of the Office path turns it on (tests/office_stand_in.py)."""
+    office_off(monkeypatch)
+
+
 @pytest.fixture
 def real_model(monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Point the encoder at the model fetch_embedding_model.py downloaded, or skip."""
@@ -112,3 +120,25 @@ def real_model(monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
 
     monkeypatch.setenv("SURFSENSE_LOCAL_MODELS_DIR", str(REAL_MODELS))
     yield REAL_MODELS
+
+
+@pytest.fixture
+def real_silero_vad(monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point voice activity at the model fetch_silero_vad.py staged, or skip."""
+    from modules.llm.transcription.voice_activity.model_file import (
+        SILERO_VAD,
+        VAD_DIR_NAME,
+    )
+
+    models = next(
+        (
+            candidate
+            for candidate in (_STAGED_MODELS, _DEFAULT_MODELS)
+            if (candidate / VAD_DIR_NAME / SILERO_VAD.weights.name).is_file()
+        ),
+        None,
+    )
+    if models is None:
+        pytest.skip("run scripts/fetch_silero_vad.py to exercise the real detector")
+    monkeypatch.setenv("SURFSENSE_LOCAL_MODELS_DIR", str(models))
+    return models / VAD_DIR_NAME / SILERO_VAD.weights.name

@@ -29,7 +29,7 @@ function Preview({
   artifact: ArtifactDetail
   primary: ArtifactDetail["files"][number]
 }) {
-  const src = fileUrl(artifact.id, primary.role)
+  const src = fileUrl(artifact.id, primary.role, artifact.generation)
   if (primary.mime_type.startsWith("audio/")) {
     // biome-ignore lint/a11y/useMediaCaption: The generated transcript is rendered directly below the player.
     return <audio className="w-full" controls src={src} />

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import {
   ArrowLeftIcon,
   ChevronRightIcon,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { OverflowTooltip } from "@/components/ui/overflow-tooltip"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -25,6 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
+import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -38,7 +40,7 @@ const FORMAT_HINTS: Record<string, () => string> = {
   summary: () =>
     intl.formatMessage({
       id: "studio_format_summary_tooltip",
-      defaultMessage: "Generate an AI summary based on your sources",
+      defaultMessage: "Generate an AI Markdown document based on your sources",
     }),
   docx: () =>
     intl.formatMessage({
@@ -137,6 +139,7 @@ function Composer({
   format,
   documents,
   selectedDocumentIds,
+  sourceScope,
   onSelectionChange,
   onToggleAll,
   isCreating,
@@ -147,6 +150,7 @@ function Composer({
   format: string
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
+  sourceScope?: SourceScope
   onSelectionChange: (documentId: number, included: boolean) => void
   onToggleAll: () => void
   isCreating: boolean
@@ -172,10 +176,12 @@ function Composer({
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
-    <div className="relative">
+    // A taller dialog for every format: Generate stays at the bottom, and the
+    // source list, which takes this same box, shows more rows.
+    <div className="relative flex min-h-80 flex-col">
       <div
         className={cn(
-          "flex flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          "flex flex-1 flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
           view === "main"
             ? "opacity-100 blur-none"
             : "pointer-events-none invisible opacity-0 blur-sm"
@@ -271,6 +277,7 @@ function Composer({
               onGenerate({
                 format,
                 document_ids: [...selected],
+                ...(sourceScope ? { source_scope: sourceScope } : {}),
                 prompt: prompt.trim() || undefined,
                 options: podcast.brief ?? undefined,
               })
@@ -353,9 +360,15 @@ function Composer({
                     checked={on}
                     onCheckedChange={() => toggle(document.id)}
                   />
-                  <span className="min-w-0 flex-1 truncate">
-                    {document.title}
-                  </span>
+                  <OverflowTooltip
+                    label={document.title}
+                    focusOwner="label"
+                    render={
+                      <span className="min-w-0 flex-1 truncate">
+                        {document.title}
+                      </span>
+                    }
+                  />
                 </label>
               )
             })}
@@ -366,14 +379,14 @@ function Composer({
   )
 }
 
-function FormatCard({
+const FormatCard = memo(function FormatCard({
   entry,
   selected,
   onSelect,
 }: {
   entry: StudioFormat
   selected: boolean
-  onSelect: () => void
+  onSelect: (format: string) => void
 }) {
   const Icon = FORMAT_ICONS[entry.key] ?? FileIcon
   return (
@@ -391,7 +404,7 @@ function FormatCard({
                 : "cursor-not-allowed opacity-50",
               selected && "border-primary bg-primary/5"
             )}
-            onClick={entry.available ? onSelect : undefined}
+            onClick={entry.available ? () => onSelect(entry.key) : undefined}
           >
             <Icon />
             <span className="w-full truncate text-[11px] leading-4">
@@ -403,12 +416,15 @@ function FormatCard({
       <TooltipContent side="top">{formatHint(entry)}</TooltipContent>
     </Tooltip>
   )
-}
+})
 
-export function StudioPanel({
+// Memoized, like its cards: the dashboard re-renders for a streamed reply or
+// a column drag, and none of that reaches Studio.
+export const StudioPanel = memo(function StudioPanel({
   workspaceId,
   documents,
   selectedDocumentIds,
+  sourceScope,
   onSelectionChange,
   onToggleAll,
   formats,
@@ -420,6 +436,8 @@ export function StudioPanel({
   workspaceId: number
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
+  // Sent with each job, so the server reads every ticked source.
+  sourceScope?: SourceScope
   onSelectionChange: (documentId: number, included: boolean) => void
   onToggleAll: () => void
   formats: StudioFormat[]
@@ -431,8 +449,12 @@ export function StudioPanel({
 }) {
   const [format, setFormat] = useState<string | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
-  const catalog = catalogFormats(formats)
+  const catalog = useMemo(() => catalogFormats(formats), [formats])
   const selectedFormat = catalog.find((entry) => entry.key === format)
+  const selectFormat = useCallback((key: string) => {
+    setFormat(key)
+    setFormatOpen(true)
+  }, [])
 
   return (
     <>
@@ -461,10 +483,7 @@ export function StudioPanel({
               key={entry.key}
               entry={entry}
               selected={format === entry.key}
-              onSelect={() => {
-                setFormat(entry.key)
-                setFormatOpen(true)
-              }}
+              onSelect={selectFormat}
             />
           ))}
         </div>
@@ -492,6 +511,7 @@ export function StudioPanel({
                 format={selectedFormat.key}
                 documents={documents}
                 selectedDocumentIds={selectedDocumentIds}
+                sourceScope={sourceScope}
                 onSelectionChange={onSelectionChange}
                 onToggleAll={onToggleAll}
                 isCreating={isCreating}
@@ -511,4 +531,4 @@ export function StudioPanel({
       </Dialog>
     </>
   )
-}
+})

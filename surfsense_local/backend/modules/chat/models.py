@@ -17,16 +17,27 @@ class MessageRole(enum.StrEnum):
 
 class ChatThread(Base):
     __tablename__ = "chat_threads"
-    __table_args__ = (Index("chat_threads_workspace", "workspace_id"),)
+    __table_args__ = (
+        Index("chat_threads_workspace", "workspace_id"),
+        Index("chat_threads_cloud_id", "cloud_id", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE")
     )
+    # The hosted thread this one was imported from, so a re-import finds it.
+    cloud_id: Mapped[int | None]
     title: Mapped[str | None]
     # Set when the agent answers this thread: its turns live in that opencode
     # session, not in chat_messages. Chosen when the thread is opened, and kept.
     opencode_session_id: Mapped[str | None]
+    # The sources the user ticked, resolved on the server per turn; None is all.
+    source_scope: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The oldest message the model is still sent once history was trimmed. Kept
+    # so the next turn starts there too: the runtime reuses a prompt only up to
+    # its first changed token.
+    history_start_message_id: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

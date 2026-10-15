@@ -56,6 +56,7 @@ export async function generateMetadata(props: { params: Promise<{ slug?: string[
 			title: `${page.data.title} | SurfSense Docs`,
 			description: page.data.description,
 			type: "article",
+			images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SurfSense docs" }],
 		},
 	};
 }

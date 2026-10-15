@@ -25,12 +25,18 @@ export type Fit = {
 /**
  * A warning when there is one, plus one plain line of why. `none` means there
  * is nothing to flag: the verdict is empty and the reason, if any, is quiet.
- * The API owns this copy.
+ * The API decides which warning and sends it in English; `fit-text.ts` words
+ * it in the interface language.
  */
 export type Badge = {
   level: "none" | "notice" | "refuse"
   verdict: string
   reason: string
+  /** The tier the two sentences describe, which `fit-text.ts` words in the
+   *  interface language; it falls back to them for one it does not know. */
+  code?: string | null
+  /** Unified memory: "the GPU", not "the graphics card". */
+  uma?: boolean
 }
 
 export type BuildFile = {
@@ -89,6 +95,16 @@ export type Voicing = {
   languages: string[]
 }
 
+export type Transcription = {
+  /** Measured on the first request, the load included. */
+  peak_mb: number
+  /** The longest stretch of audio one request carries. */
+  window_s: number
+  detects_language: boolean
+  /** ISO 639-1 codes of the languages the model is listed for. */
+  languages: string[]
+}
+
 export type LocalRow = {
   id: string
   source: "local"
@@ -102,6 +118,11 @@ export type LocalRow = {
   support: LocalSupport
   runnable: boolean
   not_runnable_reason: string | null
+  /**
+   * The reason as a code, which `notRunnableReason()` has a line for in the
+   * interface's language; absent for a reason that has none.
+   */
+  not_runnable_code?: string | null
   builds: LocalBuild[]
   /** Curated models only. */
   default_quantization: string | null
@@ -113,6 +134,8 @@ export type LocalRow = {
   description?: string | null
   /** An audio model's memory while voicing, voices and languages. */
   voicing?: Voicing | null
+  /** A speech recognition model's memory, languages and language detection. */
+  transcription?: Transcription | null
   /**
    * The build the row shows and its Download fetches, and why the server chose
    * it. Absent for a searched repo, which lists every build and leads with none.
@@ -199,11 +222,15 @@ export type RepoDetail = {
   row: LocalRow
 }
 
+// `code` names what `message` says, for the interface to say in its own
+// language; `installMessage()` falls back to `message` for one it has no text
+// for.
 export type InstallEvent =
   | {
       // `queued`: another download runs, and this one starts when it ends.
       type: "queued" | "starting" | "verifying" | "selecting" | "cancelled"
       message?: string
+      code?: string | null
     }
   | {
       // `preparing` covers two waits: the runtime restarting and picking the
@@ -212,17 +239,35 @@ export type InstallEvent =
       // until it has one to give.
       type: "preparing"
       message?: string
+      code?: string | null
       progress?: number | null
     }
   | {
       type: "downloading"
       message?: string
+      code?: string | null
       completed: number
       total: number
     }
   // `selection` is null when the install was asked not to select.
-  | { type: "complete"; message?: string; selection: ModelSelection | null }
-  | { type: "error"; message: string }
+  | {
+      type: "complete"
+      message?: string
+      code?: string | null
+      selection: ModelSelection | null
+    }
+  | {
+      type: "error"
+      message: string
+      code?: string | null
+      // Sent raw with `not_enough_disk`, for the message to format.
+      needed_bytes?: number
+      free_bytes?: number
+      // Sent raw with `retrieval_check_failed`: the answers it ranked first,
+      // and how many it was asked for.
+      found?: number
+      asked?: number
+    }
 
 export type DeleteModelResult = {
   name: string

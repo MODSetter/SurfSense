@@ -2,8 +2,13 @@ from typing import Any
 
 import pytest
 
-from modules.llm.profile import Tier
+from modules.llm.profile import Fingerprint, Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
+
+# The API's speech routes, as a recording's ingest job reaches them.
+from tests.integration.worker.speech_api_stand_in import (
+    speech_api,  # noqa: F401 - a fixture
+)
 
 
 @pytest.fixture
@@ -27,10 +32,18 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Compact is what a bundled local model gets, so that is the path under test.
     selection = type(
-        "Selection", (), {"provider": "fake", "name": "fake", "tier": Tier.COMPACT}
+        "Selection",
+        (),
+        {
+            "provider": "fake",
+            "name": "fake",
+            "connection": None,
+            "tier": Tier.COMPACT,
+            "fingerprint": Fingerprint("fake", "fake"),
+        },
     )()
     monkeypatch.setattr(
-        "worker.studio.job.resolve_generation",
+        "worker.studio.job.resolve_routed_generation",
         lambda _session: ResolvedGeneration(selection, None),
     )
     monkeypatch.setattr(

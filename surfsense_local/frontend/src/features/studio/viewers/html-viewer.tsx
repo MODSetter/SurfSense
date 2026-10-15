@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 import { VIEWER_PADDING } from "./viewer-layout"
+import { studioKeys } from "../query-keys"
 
 export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
   const primary = artifact.files.find((file) => file.role === "primary")
@@ -16,14 +17,20 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["artifact-html", artifact.id],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "html",
+      artifact.generation,
+    ],
     queryFn: async () => {
       if (!primary) throw new Error("This artifact has no file to preview")
       // Content-Disposition on this route is "attachment" for text/html (see
       // the API's _INLINE_UNSAFE), which only affects navigation — fetch()
       // ignores it and returns the body normally, so we render it via
       // srcDoc into a sandboxed iframe instead of pointing src at the URL.
-      const response = await fetch(fileUrl(artifact.id, "primary"))
+      const response = await fetch(
+        fileUrl(artifact.id, "primary", artifact.generation)
+      )
       if (!response.ok) {
         throw new Error(`Could not load page (${response.status})`)
       }

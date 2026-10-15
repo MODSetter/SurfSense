@@ -50,8 +50,13 @@ class Generator(Protocol):
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
-        """The answer text alone; a thinking model's trace is left out."""
+        """The answer text alone; a thinking model's trace is left out.
+
+        `conversation` names the requests that share a prompt's start, so an
+        endpoint that routes by it sends them to the cache that holds it.
+        """
         ...
 
     def chat_deltas(
@@ -63,6 +68,7 @@ class Generator(Protocol):
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
         """The reply as it streams, with the trace marked apart from the answer."""
         ...
@@ -113,3 +119,25 @@ class TextToSpeech(Protocol):
     async def synthesize(
         self, turns: list[SpokenTurn], language: str
     ) -> SynthesizedAudio: ...
+
+
+class TranscriptionUnavailableError(Exception):
+    """The recogniser could not be reached, or failed; the message says how."""
+
+
+class Transcriber(Protocol):
+    """Anything that writes speech down: audio.cpp's server here, transcribe.cpp
+    as the fallback. One model at a time; callers order the requests."""
+
+    async def transcribe(self, model: str, wav: bytes, language: str | None) -> str:
+        """The text as the model wrote it. `wav` is 16 kHz mono s16; `language`
+        a locale the model's family takes, or None to let it detect."""
+        ...
+
+    async def is_loaded(self, model: str) -> bool:
+        """Whether `model` is resident, so a request would not load it."""
+        ...
+
+    async def unload(self, model: str) -> None:
+        """Give `model`'s memory back; best effort."""
+        ...

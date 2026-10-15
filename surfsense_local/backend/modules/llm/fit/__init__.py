@@ -12,6 +12,7 @@ from modules.llm.fit.kv_cache import kv_cache_bytes
 from modules.llm.fit.offload import offload_fraction
 from modules.llm.fit.plan_load import LoadPlan, plan_load
 from modules.llm.fit.precision import planned_precision, resident_precision
+from modules.llm.fit.prompt_cache import prompt_cache_mib
 from modules.llm.fit.speed import RECOMMENDABLE_TIERS, SpeedTier, speed_tier
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
@@ -38,6 +39,7 @@ __all__ = [
     "offload_fraction",
     "plan_load",
     "planned_precision",
+    "prompt_cache_mib",
     "resident_precision",
     "speed_tier",
 ]

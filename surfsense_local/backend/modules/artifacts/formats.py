@@ -29,20 +29,26 @@ class Format:
     # Formats without one take no options.
     validate_options: Callable[[Session, dict | None], dict] | None = None
     grounding: Grounding = Grounding.PASSAGES
+    # What to search a selection too big to share for, when no prompt says.
+    default_focus: str = "the main points, findings, figures and conclusions"
 
 
 # worker/studio/job_router.py must name every key here and nothing else
 # (asserted in tests/unit/worker).
 FORMATS: tuple[Format, ...] = (
-    Format("summary", "Summary", grounding=Grounding.WHOLE),
+    Format("summary", "Markdown", grounding=Grounding.WHOLE),
     Format("docx", "Word"),
     Format("pptx", "Slides"),
     Format("xlsx", "Spreadsheet"),
     Format("html", "Web page"),
     Format("pdf", "PDF"),
     Format("mindmap", "Mind map", grounding=Grounding.WHOLE),
-    Format("flashcards", "Flashcards"),
-    Format("quiz", "Quiz"),
+    Format(
+        "flashcards",
+        "Flashcards",
+        default_focus="key terms, definitions, facts and figures",
+    ),
+    Format("quiz", "Quiz", default_focus="key facts, definitions, figures and causes"),
     Format(
         "podcast",
         "Podcast",

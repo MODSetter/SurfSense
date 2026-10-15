@@ -37,6 +37,7 @@ import { FlashcardSurface } from "./flashcard-surface"
 import { firstUnseenCard, flashcardProgressCounts } from "./state"
 import { StudyText } from "../study-text"
 import { VIEWER_PADDING } from "../viewer-layout"
+import { studioKeys } from "../../query-keys"
 
 // The deck file's shape (schema_version 1).
 export interface FlashcardDeck {
@@ -60,7 +61,11 @@ export function FlashcardsViewer({
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["artifact-file", artifact.id],
+    queryKey: [
+      ...studioKeys.artifact(artifact.id),
+      "file",
+      artifact.generation,
+    ],
     queryFn: ({ signal }) =>
       readArtifactFile<FlashcardDeck>(artifact.id, signal),
   })
@@ -131,7 +136,7 @@ function FlashcardRunner({
   function applyState(next: FlashcardState) {
     setState(next)
     queryClient.setQueryData(
-      ["artifact", artifact.id],
+      studioKeys.artifact(artifact.id),
       (current: ArtifactDetail | undefined) =>
         current && { ...current, flashcard_state: next }
     )

@@ -1,21 +1,35 @@
 """A Studio job waits for sd-server to serve its model: Electron starts it on
 its next poll after the job needs it, a few seconds later."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 import httpx
 import pytest
 
-from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import GeneratedImage
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
 from modules.llm.providers.sdcpp.serving import (
     ImageServerNotReadyError,
     wait_until_serving,
 )
-from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
-CHAT = "Qwen3-1.7B-UD-Q4_K_XL"
+
+class Runtime:
+    """The text runtime as the image job gives it up: held or not."""
+
+    def __init__(self) -> None:
+        self.held = False
+
+    @asynccontextmanager
+    async def given_up(self) -> AsyncIterator[None]:
+        self.held = True
+        try:
+            yield
+        finally:
+            self.held = False
 
 
 def server(*answers: object) -> tuple[httpx.MockTransport, list[str]]:
@@ -68,7 +82,7 @@ async def test_the_local_image_generator_posts_only_once_its_model_is_served() -
         Inner(),
         "http://127.0.0.1:1",
         "klein-Q4_0.gguf",
-        RouterClient("http://router", transport=FakeRouter().transport()),
+        Runtime().given_up,
         interval=0,
         transport=transport,
     )
@@ -79,29 +93,30 @@ async def test_the_local_image_generator_posts_only_once_its_model_is_served() -
     assert image.content == b"png"
 
 
-async def test_the_chat_model_leaves_the_graphics_card_before_the_image() -> None:
-    """They share one card, and Studio's writer is done by now. Measured on a
-    10 GB RTX 3080: with Qwen3 1.7B resident, Z-Image Turbo ran out of memory
-    mid-sampling; with it unloaded, the same image took 19 s."""
+async def test_the_text_runtime_is_given_up_for_as_long_as_the_image_takes() -> None:
+    """They share one card. Measured on a 10 GB RTX 3080: with Qwen3 1.7B
+    resident, Z-Image Turbo ran out of memory mid-sampling; with it unloaded,
+    the same image took 19 s. Held until the image is drawn, so a chat sent
+    meanwhile cannot load the text model back under it."""
     transport, _ = server("klein-Q4_0.gguf")
-    chat = FakeRouter(models=[CHAT])
-    chat.loaded.add(CHAT)
-    resident_at_post: list[set[str]] = []
+    runtime = Runtime()
+    held_at_post: list[bool] = []
 
     class Inner:
         async def generate(self, model: str, prompt: str) -> GeneratedImage:
-            resident_at_post.append(set(chat.loaded))
+            held_at_post.append(runtime.held)
             return GeneratedImage(b"png", "image/png")
 
     generator = LocalImageGenerator(
         Inner(),
         "http://127.0.0.1:1",
         "klein-Q4_0.gguf",
-        RouterClient("http://router", transport=chat.transport()),
+        runtime.given_up,
         interval=0,
         transport=transport,
     )
 
     await generator.generate("klein-Q4_0", "a lighthouse")
 
-    assert resident_at_post == [set()]
+    assert held_at_post == [True]
+    assert runtime.held is False

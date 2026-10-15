@@ -200,7 +200,7 @@ def test_the_list_is_most_preferred_first() -> None:
         if not isinstance(entry, (ImageEntry, AudioEntry, EmbeddingEntry))
     ]
 
-    assert names[0] == "Qwen3 32B"
+    assert names[0] == "Qwen3.8 27B"
     assert names[-1] == "Qwen3 0.6B"
     # bge first: it ships with the app and is the default.
     assert [e.id for e in ENTRIES if isinstance(e, EmbeddingEntry)] == [
@@ -210,8 +210,12 @@ def test_the_list_is_most_preferred_first() -> None:
         "granite-embedding-311m-multilingual-r2",
     ]
     # Kokoro first: the most voices, and the ids podcast briefs store today.
-    assert [e.name for e in ENTRIES if isinstance(e, AudioEntry)] == [
+    assert [e.name for e in ENTRIES if isinstance(e, AudioEntry) and e.audio] == [
         "Kokoro 82M",
         "Supertonic 3",
         "KittenTTS Mini 0.8",
     ]
+    # One recogniser serves recordings and dictation.
+    assert [
+        e.name for e in ENTRIES if isinstance(e, AudioEntry) and e.transcription
+    ] == ["Nemotron 3.5 ASR Streaming 0.6B"]

@@ -13,11 +13,22 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from api.config import Settings, get_settings
 from modules.agent.agent_threads.router import router as agent_threads_router
 from modules.agent.launch_key import mint_launch_key
+from modules.agent.model_endpoint.responses_relay.router import (
+    router as agent_responses_router,
+)
 from modules.agent.model_endpoint.router import router as agent_model_router
+from modules.agent.plugin_proxy.server import serving_plugin_proxy
+from modules.agent.plugin_tools.router import router as plugin_steps_router
+from modules.agent.previews.router import file_router as agent_preview_files_router
+from modules.agent.previews.router import router as agent_previews_router
 from modules.agent.tool_endpoint.router import router as agent_tools_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
+from modules.artifacts.studio_documents.router import router as refine_router
+from modules.chat.interrupted_turns import settle_interrupted_turns
 from modules.chat.router import router as chat_router
+from modules.chat.runs.registry import ChatRuns
+from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
@@ -28,16 +39,32 @@ from modules.embedding.huggingface.router import (
 from modules.embedding.router import router as embedding_router
 from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
+from modules.folders.finish_deletes import finish_interrupted_deletes
+from modules.folders.router import router as folders_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
+from modules.llm.admission.local_runtime import LocalAdmission
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.default_voice import choose_default_voice
+from modules.llm.model_route.router import router as model_route_router
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
+from modules.llm.transcription.gate import TranscriptionGate
+from modules.llm.transcription.internal_router import (
+    router as transcription_windows_router,
+)
+from modules.llm.transcription.server import unload_speech_model
+from modules.llm.transcription.sessions import DictationSessions
 from modules.migration.router import router as migration_router
+from modules.plugins.license_verdict.routes import router as plugin_license_router
+from modules.plugins.lists.registry.routes import router as plugin_registry_router
+from modules.plugins.remote.sign_in.oauth.routes import router as plugin_oauth_router
+from modules.plugins.routes import router as plugins_router
 from modules.resource_usage.router import router as resource_usage_router
+from modules.runtime_packs.office.router import router as office_pack_router
+from modules.source_scope.router import router as source_scope_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
@@ -73,14 +100,24 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """The API owns migrations; the worker only ever reads and writes rows."""
-    engine = create_db_engine(get_storage_settings().database_path)
+    storage = get_storage_settings()
+    engine = create_db_engine(storage.database_path)
     try:
-        upgrade_to_head(engine)
+        upgrade_to_head(engine, backups_dir=storage.data_dir / "backups")
         session_factory = create_session_factory(engine)
         with session_factory() as session:
             ensure_default_workspace(session)
+            settle_interrupted_turns(session)
             session.commit()
         app.state.session_factory = session_factory
+        # A thread too: a large subtree takes a while, and it is out of every
+        # scope and the tree meanwhile.
+        threading.Thread(
+            target=_finish_folder_deletes,
+            args=(session_factory,),
+            name="folder-deletes",
+            daemon=True,
+        ).start()
         # Off the startup path, on a thread. Both halves are slow for the same
         # reason: the preset is priced against the devices, and taking the
         # device probe costs about 19 seconds on a Mac the first time, while
@@ -98,9 +135,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
-        yield
+        async with _plugin_proxy(session_factory):
+            yield
     finally:
         engine.dispose()
+
+
+@asynccontextmanager
+async def _plugin_proxy(session_factory: sessionmaker[Session]) -> AsyncIterator[None]:
+    """opencode's way out, beside an opencode only: without it, opencode reaches no plugin."""
+    agent = get_agent_settings()
+    if not agent.has_opencode() or agent.plugin_proxy_port is None:
+        yield
+        return
+    host = get_settings().host
+    async with serving_plugin_proxy(session_factory, host, agent.plugin_proxy_port):
+        yield
+
+
+def _finish_folder_deletes(session_factory: sessionmaker[Session]) -> None:
+    try:
+        finish_interrupted_deletes(session_factory)
+    except Exception:
+        logger.exception("could not finish the folder deletes left at startup")
 
 
 def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
@@ -155,15 +212,27 @@ def create_app() -> FastAPI:
     app.add_middleware(MarkRequest)
     add_cors(app, get_settings())
     app.state.broker = EventBroker()  # No benefits from lifespan hooks.
+    app.state.chat_runs = ChatRuns()
+    app.state.local_admission = LocalAdmission()
+    app.state.dictations = DictationSessions()
+    app.state.transcription_gate = TranscriptionGate(
+        dictating=app.state.dictations.any_open, unload=unload_speech_model
+    )
     # Written into opencode's configuration; this process's turns only.
     app.state.agent_launch_key = mint_launch_key()
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
+    app.include_router(folders_router)
     app.include_router(llm_router)
+    app.include_router(model_route_router)
+    app.include_router(transcription_windows_router)
     app.include_router(chat_router)
+    app.include_router(chat_runs_router)
+    app.include_router(source_scope_router)
     app.include_router(artifacts_router)
     app.include_router(podcast_router)
+    app.include_router(refine_router)
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
@@ -171,11 +240,21 @@ def create_app() -> FastAPI:
     app.include_router(embedding_router)
     app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
+    app.include_router(office_pack_router)
+    # Before `/plugins/{id}/...`, which would otherwise take `registry` or `license` for an id.
+    app.include_router(plugin_registry_router)
+    app.include_router(plugin_license_router)
+    app.include_router(plugin_oauth_router)
+    app.include_router(plugins_router)
     # Routes only opencode calls, or that answer it, exist only beside one.
     if get_agent_settings().has_opencode():
         app.include_router(agent_model_router)
+        app.include_router(agent_responses_router)
         app.include_router(agent_tools_router)
         app.include_router(agent_threads_router)
+        app.include_router(plugin_steps_router)
+        app.include_router(agent_previews_router)
+        app.include_router(agent_preview_files_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(EmbeddingNotChosenError, embedding_not_chosen)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)
@@ -213,6 +292,8 @@ def egress_denied(_request: Request, error: EgressDeniedError) -> JSONResponse:
                 "message": str(error),
                 "destination": error.destination,
                 "host": error.host,
+                "hosts": error.hosts,
+                "purpose": error.purpose,
             }
         },
         status.HTTP_403_FORBIDDEN,

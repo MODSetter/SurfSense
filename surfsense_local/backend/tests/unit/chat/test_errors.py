@@ -135,3 +135,26 @@ def test_a_reached_plan_limit_is_not_a_moment_to_retry() -> None:
 
     assert kind is ChatErrorKind.SUBSCRIPTION_LIMIT
     assert "limit" in message.casefold()
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "failed to find free space in the KV cache",
+        "failed to find a memory slot for batch of size 512",
+    ],
+)
+def test_a_shared_cache_that_ran_out_of_room_says_so(said: str) -> None:
+    """With several replies sharing one cache, llama.cpp ends every request in
+    an overflow. Admission makes it rare; when it happens it is not a model
+    that cannot run, and a retry with fewer replies running will work."""
+    request = httpx.Request("POST", "http://x/v1/chat/completions")
+    response = _response_with_body(
+        500, {"error": {"code": 500, "type": "server_error", "message": said}}
+    )
+    exc = httpx.HTTPStatusError("500", request=request, response=response)
+
+    kind, message = classify_chat_error(exc, "llamacpp")
+
+    assert kind is ChatErrorKind.RUNTIME_BUSY
+    assert "running together" in message

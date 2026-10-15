@@ -9,17 +9,31 @@ import secrets
 import time
 from collections.abc import AsyncIterator, Callable, Iterable
 
+from modules.llm.catalog.local.install.codes import InstallCode
 from modules.llm.catalog.local.install_jobs.job import InstallJob
 from modules.llm.model_type import ModelType
 
 logger = logging.getLogger(__name__)
 
-QUEUED = {"type": "queued", "message": "Waiting for the download ahead of it"}
-CHECKING = {"type": "starting", "message": "Checking the model"}
-CANCELLED = {"type": "cancelled", "message": "Installation cancelled"}
+QUEUED = {
+    "type": "queued",
+    "message": "Waiting for the download ahead of it",
+    "code": InstallCode.QUEUED,
+}
+CHECKING = {
+    "type": "starting",
+    "message": "Checking the model",
+    "code": InstallCode.CHECKING,
+}
+CANCELLED = {
+    "type": "cancelled",
+    "message": "Installation cancelled",
+    "code": InstallCode.CANCELLED,
+}
 FAILED = {
     "type": "error",
     "message": "The model could not be installed. Retry the download.",
+    "code": InstallCode.FAILED,
 }
 
 # Long enough for a screen that reconnects to learn how a job it watched ended.

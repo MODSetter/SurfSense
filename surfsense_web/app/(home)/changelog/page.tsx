@@ -50,13 +50,10 @@ export default async function ChangelogPage() {
 	});
 
 	return (
-		<div className="min-h-screen relative pt-20">
-			<ChangelogTimeline
-				title="Changelog"
-				description="Stay up to date with the latest updates and improvements to SurfSense."
-				entries={entries}
-				className="pt-12"
-			/>
-		</div>
+		<ChangelogTimeline
+			title="Changelog"
+			description="Stay up to date with the latest updates and improvements to SurfSense."
+			entries={entries}
+		/>
 	);
 }

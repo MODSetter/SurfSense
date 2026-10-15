@@ -4,6 +4,8 @@ The header declares the window size but never the pattern of which layers use
 it, so the pattern is a per-architecture fact we either know or refuse to guess.
 """
 
+from dataclasses import replace
+
 import pytest
 
 from modules.llm.fit import KvPrecision, ModelShape, kv_cache_bytes
@@ -135,3 +137,29 @@ def test_layers_that_share_a_cache_allocate_none_of_their_own() -> None:
         alone, 16384, KvPrecision.F16
     )
 
+
+
+def test_each_slot_widens_a_sliding_layer_by_one_window() -> None:
+    """A unified cache shares the global layers' cells across slots, but a
+    sliding layer holds a window per slot: `pad256(n_swa * slots + n_ubatch)`.
+
+    Worked by hand at 16384, four slots: 8 global layers * 16384 cells, plus 40
+    local layers * pad256(4 * 1024 + 512) = 4608 cells, at 4096 bytes per layer
+    per token: (131072 + 184320) * 4096 = 1232 MiB, against 752 MiB at one.
+    """
+    shape = replace(gemma_like("gemma3"), sliding_window_pattern=6)
+
+    one = kv_cache_bytes(shape, 16384, KvPrecision.F16)
+    four = kv_cache_bytes(shape, 16384, KvPrecision.F16, slots=4)
+
+    assert one == 752 * 1024**2
+    assert four == 1232 * 1024**2
+
+
+def test_slots_cost_a_model_with_no_sliding_layers_nothing() -> None:
+    """Every layer holds the shared window, whatever the slot count."""
+    shape = ModelShape("qwen3", 28, 8, 128, 128, 40960, 151936)
+
+    assert kv_cache_bytes(shape, 16384, KvPrecision.F16, slots=4) == kv_cache_bytes(
+        shape, 16384, KvPrecision.F16
+    )

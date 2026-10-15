@@ -1,10 +1,22 @@
 import { useScrollLock } from "@assistant-ui/react"
-import { useId, useLayoutEffect, useRef, useState } from "react"
+import { tailBoundedRemend } from "@assistant-ui/react-streamdown"
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { Streamdown, defaultRehypePlugins } from "streamdown"
 
 import { ChevronRightIcon } from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
-import { streamdownPlugins } from "@/features/studio/viewers/streamdown-config"
+import {
+  STREAMDOWN_LINK_SAFETY,
+  streamdownPlugins,
+  streamingStreamdownPlugins,
+} from "@/features/studio/viewers/streamdown-config"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -48,6 +60,9 @@ const FOLLOW_SLACK_PX = 16
 // The easing and lengths surfsense_web's trace header uses.
 const EASE_OUT = "ease-[cubic-bezier(0.22,1,0.36,1)]"
 
+// The indicator's fold (duration-200) and a margin, after which it unmounts.
+const INDICATOR_FOLD_MS = 250
+
 // One header from send to answer, so the indicator and shimmer never remount
 // between states; a new state is a new value here, not a new tree. Once a reply
 // can hold several trace segments (tool calls), the header moves between them:
@@ -72,11 +87,17 @@ export function ReplyThinking({
   answerStarted,
   reasoning,
   progress = null,
+  queue = null,
+  preparing = null,
 }: {
   running: boolean
   answerStarted: boolean
   reasoning: ReplyReasoning | null
   progress?: ReplyProgress | null
+  // The reply's place in line for the local runtime, while it waits there.
+  queue?: { position: number } | null
+  // An agent turn's sources being put in its folder, before anything else.
+  preparing?: number | null
 }) {
   const status = replyStatus(running, answerStarted, reasoning)
   if (!status) {
@@ -86,8 +107,24 @@ export function ReplyThinking({
     <ReplyHeader
       status={status}
       reasoning={reasoning}
+      // Not the header's status: an agent reasons again after a tool call,
+      // under a header already done once its answer has started.
+      traceGrowing={running && reasoning?.durationMs === null}
       read={status === "pending" ? readFraction(progress) : null}
+      waiting={status === "pending" ? (queue?.position ?? null) : null}
+      preparing={status === "pending" && preparing ? preparing : null}
     />
+  )
+}
+
+function waitingLabel(position: number) {
+  return intl.formatMessage(
+    {
+      id: "chat_reasoning_waiting_label",
+      defaultMessage:
+        "Waiting for another reply ({position, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} in line)",
+    },
+    { position }
   )
 }
 
@@ -108,15 +145,35 @@ function readingLabel(fraction: number) {
   )
 }
 
+function preparingLabel(count: number) {
+  return intl.formatMessage(
+    {
+      id: "chat_reasoning_preparing_label",
+      defaultMessage:
+        "Preparing {count, plural, one {# source} other {# sources}}…",
+    },
+    { count }
+  )
+}
+
 function ReplyHeader({
   status,
   reasoning,
+  traceGrowing,
   read,
+  waiting = null,
+  preparing,
 }: {
   status: ReplyStatus
   reasoning: ReplyReasoning | null
+  // Whether reasoning still lands in the trace, so its code stays plain.
+  traceGrowing: boolean
   // The fraction of the prompt read so far, or null with no figure to show.
   read: number | null
+  // The place in line while the reply waits for the local runtime.
+  waiting?: number | null
+  // Sources being prepared, or null when none are.
+  preparing: number | null
 }) {
   const working = status !== "done"
   // Open while the trace streams and folded once the answer starts, unless the
@@ -133,27 +190,63 @@ function ReplyHeader({
   // moving the header out from under the click.
   const slideRef = useRef<HTMLDivElement>(null)
   const lockChatScroll = useScrollLock(slideRef, 300) // the slide's duration-300
+  // Reading scrollHeight lays the trace out, so it follows once a frame, not
+  // at every reasoning token, and not while folded.
+  const followFrame = useRef<number | null>(null)
+  // Where the last follow left the trace, until its scroll event comes in.
+  const followedTop = useRef<number | null>(null)
 
   useLayoutEffect(() => {
-    const trace = traceRef.current
-    if (trace && following.current) {
-      trace.scrollTop = trace.scrollHeight
-    }
+    if (!open || followFrame.current !== null) return
+    followFrame.current = requestAnimationFrame(() => {
+      followFrame.current = null
+      const trace = traceRef.current
+      if (trace && following.current) {
+        trace.scrollTop = trace.scrollHeight
+        followedTop.current = trace.scrollTop
+      }
+    })
   }, [reasoning?.text, open])
+  useEffect(
+    () => () => {
+      if (followFrame.current !== null) {
+        cancelAnimationFrame(followFrame.current)
+        followFrame.current = null
+      }
+    },
+    []
+  )
+
+  // Repairs the tail only, as the answer's primitive does, not the whole trace
+  // at every token; a marker left open in an earlier paragraph stays as written.
+  const text = reasoning?.text ?? ""
+  const repaired = useMemo(() => tailBoundedRemend(text), [text])
 
   const thinking = intl.formatMessage({
     id: "chat_reasoning_thinking_label",
     defaultMessage: "Thinking",
   })
+  // Same header from send to answer: waiting, then thinking or reading, so
+  // the indicator never restarts when the reply's turn comes.
   const label = !working
     ? doneLabel(reasoning?.durationMs ?? null)
-    : read === null
-      ? thinking
-      : readingLabel(read)
+    : waiting !== null
+      ? waitingLabel(waiting)
+      : preparing !== null
+        ? preparingLabel(preparing)
+        : read === null
+          ? thinking
+          : readingLabel(read)
   const announcedRead =
     read === null ? 0 : Math.floor(read / ANNOUNCED_STEP) * ANNOUNCED_STEP
   const announcement =
-    announcedRead > 0 ? readingLabel(announcedRead) : thinking
+    waiting !== null
+      ? waitingLabel(waiting)
+      : preparing !== null
+        ? preparingLabel(preparing)
+        : announcedRead > 0
+          ? readingLabel(announcedRead)
+          : thinking
 
   return (
     <div className="mb-3 w-full">
@@ -213,19 +306,32 @@ function ReplyHeader({
               tabIndex={0}
               onScroll={(event) => {
                 const trace = event.currentTarget
+                // Skips the report of the follow's own scroll, a frame later
+                // and perhaps above newer lines; once only, since a reader may
+                // scroll back to that spot.
+                const followed = followedTop.current
+                followedTop.current = null
+                if (
+                  followed !== null &&
+                  Math.abs(trace.scrollTop - followed) < 1
+                )
+                  return
                 following.current =
                   trace.scrollHeight - trace.scrollTop - trace.clientHeight <=
                   FOLLOW_SLACK_PX
               }}
             >
               {/* Default mode: the trace streams in, unlike a viewer's
-                  finished artifact. */}
+                  finished artifact. Repaired above, so not again here. */}
               <Streamdown
-                plugins={streamdownPlugins}
+                parseIncompleteMarkdown={false}
+                plugins={
+                  traceGrowing ? streamingStreamdownPlugins : streamdownPlugins
+                }
                 rehypePlugins={traceRehypePlugins}
-                linkSafety={{ enabled: true }}
+                linkSafety={STREAMDOWN_LINK_SAFETY}
               >
-                {reasoning.text}
+                {repaired}
               </Streamdown>
             </ScrollFade>
           </div>
@@ -243,6 +349,19 @@ function HeaderLead({
   active: boolean
   children: string
 }) {
+  // Dropped once folded away, so a finished reply keeps no animated dots.
+  // Mounted again the moment the header works again, as when a thread switch
+  // gives this header a reply in progress.
+  const [shown, setShown] = useState(active)
+  if (active && !shown) {
+    setShown(true)
+  }
+  useEffect(() => {
+    if (active) return
+    const timer = setTimeout(() => setShown(false), INDICATOR_FOLD_MS)
+    return () => clearTimeout(timer)
+  }, [active])
+
   return (
     <span className="flex min-w-0 items-center">
       <span
@@ -255,7 +374,7 @@ function HeaderLead({
         )}
       >
         <span className="min-w-0 overflow-hidden">
-          <ThinkingIndicator className="mr-2.5" />
+          {shown ? <ThinkingIndicator className="mr-2.5" /> : null}
         </span>
       </span>
       <span

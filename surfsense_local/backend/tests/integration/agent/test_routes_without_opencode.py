@@ -13,7 +13,10 @@ pytestmark = pytest.mark.integration
 # Each with a body its route accepts, so only a missing route can answer 404.
 OPENCODE_ROUTES = [
     ("/agent/model/v1/chat/completions", {"model": "m", "messages": []}),
-    ("/agent/tools/workspaces/1", {"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+    (
+        "/agent/tools/workspaces/1/threads/1",
+        {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+    ),
     ("/chat/threads/1/permissions/request-1", {"reply": "once"}),
 ]
 

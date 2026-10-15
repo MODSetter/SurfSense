@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { buttonVariants } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
@@ -9,10 +9,23 @@ import { intl } from "@/i18n/intl"
 import {
   downloadUrl,
   readArtifact,
+  type Artifact,
   type ArtifactDetail,
   type ArtifactFile,
+  type RevisionDecision,
 } from "./api"
+import {
+  newestReady,
+  versionsOf,
+  type VersionedArtifact,
+} from "./artifact-versions"
+import { canRefine } from "./can-refine"
+import { RefineBox } from "./refine-box"
+import { RevisedCopyBar } from "./revised-copy-bar"
+import { RevisedCopyDownloads } from "./revised-copy-downloads"
+import { VersionSwitcher } from "./version-switcher"
 import { getArtifactViewer } from "./viewers/registry"
+import { studioKeys } from "./query-keys"
 
 const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
   primary: () =>
@@ -27,24 +40,80 @@ const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
     }),
 }
 
+/**
+ * Opens a newer version of the shown document once it is ready, as the agent
+ * makes one. Only a version that appears while the panel is open counts, so
+ * opening an older one on purpose stays put. The highest version seen never
+ * drops, so the newest one being run again is not a new one.
+ */
+function useFollowNewestVersion(
+  versions: VersionedArtifact[],
+  onOpenVersion: (artifactId: number) => void
+) {
+  const rootId = versions[0]?.version.root_id ?? null
+  const newest = newestReady(versions)
+  const seen = useRef<{ rootId: number; highest: number } | null>(null)
+  useEffect(() => {
+    const number = newest?.version.number ?? 0
+    if (rootId === null || seen.current?.rootId !== rootId) {
+      seen.current = rootId === null ? null : { rootId, highest: number }
+      return
+    }
+    if (newest && number > seen.current.highest) {
+      seen.current = { rootId, highest: number }
+      onOpenVersion(newest.id)
+    }
+  }, [rootId, newest, onOpenVersion])
+}
+
 export function ArtifactPanel({
   artifactId,
+  artifacts,
+  onOpenVersion,
+  onRefine,
+  onDecideAll = async () => {},
   onClose,
 }: {
   artifactId: number
+  /** The workspace's artifacts, where the shown one's versions are found. */
+  artifacts: Artifact[]
+  onOpenVersion: (artifactId: number) => void
+  /** Rejects with the reason the next version was refused. */
+  onRefine: (artifactId: number, instruction: string) => Promise<void>
+  /** Accepts or rejects all of a revised copy's changes as its next version;
+   *  rejects with the reason it was refused. */
+  onDecideAll?: (
+    artifactId: number,
+    decision: RevisionDecision
+  ) => Promise<void>
   onClose: () => void
 }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["artifact-panel", artifactId],
+    queryKey: studioKeys.artifact(artifactId),
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
+  const versions = versionsOf(artifacts, artifactId)
+  useFollowNewestVersion(versions, onOpenVersion)
+  // The list follows each run's status; the detail is read once.
+  const shown = artifacts.find((artifact) => artifact.id === artifactId) ?? data
+  const writing = versions.find(
+    (version) => version.status === "pending" || version.status === "processing"
+  )
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
+  const revision = data?.revision ?? null
+  // A decision starts from the newest ready version, so only it offers one.
+  const newestShown = (newestReady(versions)?.id ?? artifactId) === artifactId
+  // A version not ready has no file of its own to download.
+  const shownReady = (shown?.status ?? data?.status) === "ready"
 
   return (
     <DetailPanel
+      // The list names a version before its body arrives, so a switch of
+      // version changes the title without passing through "Loading…".
       title={
         data?.title ??
+        shown?.title ??
         (isLoading
           ? intl.formatMessage({
               id: "studio_artifact_panel_loading_status",
@@ -68,58 +137,96 @@ export function ArtifactPanel({
       flush
       actions={
         <>
+          <VersionSwitcher
+            versions={versions}
+            openId={artifactId}
+            onOpen={onOpenVersion}
+          />
           {/* Where a viewer's own controls (mindmap's fit, pdf's zoom)
               portal in — see ArtifactViewerProps.actionsContainer. */}
           <div ref={setActionsContainer} className="flex items-center gap-1" />
           {/* A flashcard deck's or quiz's only file is its raw JSON —
               nothing a user should download. */}
-          {data?.files.length &&
-          data.format !== "flashcards" &&
-          data.format !== "quiz"
-            ? data.files.map((file) => (
-                // A plain link: Base UI's Button would give it role="button".
-                <a
-                  key={file.role}
-                  href={downloadUrl(data.id, file.role)}
-                  download
-                  aria-label={DOWNLOAD_LABELS[file.role]()}
-                  className={buttonVariants({
-                    variant: "secondary",
-                    size: "icon-sm",
-                  })}
-                >
-                  <Download01Icon />
-                </a>
-              ))
-            : null}
+          {data && revision ? (
+            shownReady ? (
+              <RevisedCopyDownloads artifactId={data.id} revision={revision} />
+            ) : null
+          ) : data?.files.length &&
+            data.format !== "flashcards" &&
+            data.format !== "quiz" ? (
+            data.files.map((file) => (
+              // A plain link: Base UI's Button would give it role="button".
+              <a
+                key={file.role}
+                href={downloadUrl(data.id, file.role)}
+                download
+                aria-label={DOWNLOAD_LABELS[file.role]()}
+                className={buttonVariants({
+                  variant: "secondary",
+                  size: "icon-sm",
+                })}
+              >
+                <Download01Icon />
+              </a>
+            ))
+          ) : null}
         </>
       }
     >
-      {/* The one viewable stage every artifact format renders into: same
-          size and position below the shared header, regardless of format.
-          No padding here — a viewer that wants breathing room (like
-          DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
-          can sit flush against the panel edges. */}
-      <div className="h-full overflow-y-auto">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Spinner />
-          </div>
+      <div className="relative flex h-full flex-col">
+        {!isLoading && !error && data && revision ? (
+          <RevisedCopyBar
+            key={artifactId}
+            artifactId={artifactId}
+            revision={revision}
+            versionRunning={writing !== undefined}
+            newest={newestShown}
+            onDecideAll={onDecideAll}
+          />
         ) : null}
-        {error ? (
-          <div className="flex h-full items-center justify-center px-5 text-center">
-            <p className="text-sm text-destructive">
-              {error instanceof Error
-                ? error.message
-                : intl.formatMessage({
-                    id: "studio_artifact_panel_load_error",
-                    defaultMessage: "Failed to load artifact",
-                  })}
-            </p>
+        {/* The one viewable stage every artifact format renders into: same
+            size and position below the shared header, regardless of format.
+            No padding here — a viewer that wants breathing room (like
+            DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
+            can sit flush against the panel edges. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <Spinner />
+            </div>
+          ) : null}
+          {error ? (
+            <div className="flex h-full items-center justify-center px-5 text-center">
+              <p className="text-sm text-destructive">
+                {error instanceof Error
+                  ? error.message
+                  : intl.formatMessage({
+                      id: "studio_artifact_panel_load_error",
+                      defaultMessage: "Failed to load artifact",
+                    })}
+              </p>
+            </div>
+          ) : null}
+          {!isLoading && !error && data ? (
+            <Viewer artifact={data} actionsContainer={actionsContainer} />
+          ) : null}
+        </div>
+        {/* Floats over the document, so the pages keep the panel's height;
+            their own bottom margin is what it covers at the end. One per
+            document, kept through a switch of version so the version being
+            made turns back into the button in place. */}
+        {!error && shown && canRefine(shown) ? (
+          // Clicks pass through to the document beside the button. The
+          // container is what the refine box measures its open width by.
+          <div className="@container pointer-events-none absolute inset-x-0 bottom-0 flex justify-end px-3 pb-3">
+            <RefineBox
+              key={shown.version?.root_id ?? artifactId}
+              artifactId={artifactId}
+              versionShown={!isLoading}
+              writingVersion={writing?.version.number ?? null}
+              onRefine={onRefine}
+            />
           </div>
-        ) : null}
-        {!isLoading && !error && data ? (
-          <Viewer artifact={data} actionsContainer={actionsContainer} />
         ) : null}
       </div>
     </DetailPanel>

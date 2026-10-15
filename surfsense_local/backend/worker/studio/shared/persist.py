@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.documents.models import Document
-from modules.embedding.active import require_active_index
+from modules.embedding.active import ActiveIndex, require_active_index
 from shared.config import get_storage_settings
 from worker.ingestion import chunking, indexing
+from worker.ingestion.chunking import Passage
 from worker.studio.shared.artifact import Built
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,8 @@ _EXTENSION = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    # A revised copy of a macro workbook stays one.
+    "application/vnd.ms-excel.sheet.macroEnabled.12": ".xlsm",
 }
 
 
@@ -34,19 +37,26 @@ def persist(
     The body is a Document (ADR-0003), so it rides the ingestion index like any
     source; the sidecar's files hold only the deliverable bytes.
     """
+    logger.info("studio: persist artifact %s indexing", artifact.id)
+    index, passages, vectors = _embed(session, built.markdown)
     document.title = built.title
     document.content = built.markdown
-    logger.info("studio: persist artifact %s indexing", artifact.id)
-    _index(session, document, built.markdown)
+    indexing.replace_chunks(session, document, index, passages, vectors)
     logger.info("studio: persist artifact %s writing files", artifact.id)
     _write_files(session, artifact, built)
 
 
-def _index(session: Session, document: Document, markdown: str) -> None:
+def _embed(
+    session: Session, markdown: str
+) -> tuple[ActiveIndex, list[Passage], list[list[float]]]:
+    """The body's passages and vectors, embedded with no transaction open.
+
+    Embedding takes as long as the body is long; every other writer would wait on it.
+    """
     index = require_active_index(session)
+    session.commit()  # the read took the write lock; drop it before embedding
     passages = chunking.chunk(markdown)
-    vectors = indexing.embed_passages(index, passages)
-    indexing.replace_chunks(session, document, index, passages, vectors)
+    return index, passages, indexing.embed_passages(index, passages)
 
 
 def _write_files(session: Session, artifact: Artifact, built: Built) -> None:

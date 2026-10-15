@@ -25,6 +25,7 @@ concern; this adapter answers questions and reports what is on disk.
 import logging
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
@@ -40,11 +41,23 @@ from modules.llm.providers.llamacpp.thinking import THINKING_OFF
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
 from modules.llm.providers.types import Delta, Message, Model
 
+if TYPE_CHECKING:
+    # Typing only: the catalog imports this package for the runtime's name.
+    from modules.llm.catalog.local.engines.llamacpp.manifest_fields import SamplingSet
+
 PROVIDER = "llamacpp"
 # The first part of a split build is listed as a shard; it is the model.
 _MODEL_KINDS = frozenset({FileKind.MODEL, FileKind.SHARD})
 
 logger = logging.getLogger(__name__)
+
+
+def _beyond_temperature(sampling: "SamplingSet | None") -> dict[str, float | int]:
+    """The publisher's top_p, top_k and min_p, as llama-server's fields."""
+    if sampling is None:
+        return {}
+    fields = {"top_p": sampling.top_p, "top_k": sampling.top_k, "min_p": sampling.min_p}
+    return {name: value for name, value in fields.items() if value is not None}
 
 
 class LlamaCppProvider:
@@ -59,12 +72,13 @@ class LlamaCppProvider:
         models_dir: Path | None = None,
         *,
         transport: httpx.BaseTransport | None = None,
-        publisher_temperature: Callable[[str, bool | None], float | None] | None = None,
+        publisher_sampling: Callable[[str, bool | None], "SamplingSet | None"]
+        | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._models_dir = models_dir
-        # A curated model's reviewed setting, for a caller that chose none.
-        self._publisher_temperature = publisher_temperature
+        # A curated model's reviewed sampling for the mode it answers in.
+        self._publisher_sampling = publisher_sampling
         self._router = RouterClient(self._base_url, transport=transport)
         # `/props` describes a resident model and nothing about it changes
         # between turns, so it is read once per load rather than once per
@@ -196,6 +210,13 @@ class LlamaCppProvider:
             raise FileNotFoundError(name)
         path.unlink()
 
+    def _publisher_set(
+        self, model: str, reasoning: bool | None
+    ) -> "SamplingSet | None":
+        if self._publisher_sampling is None:
+            return None
+        return self._publisher_sampling(model, reasoning)
+
     async def chat(
         self,
         model: str,
@@ -205,6 +226,7 @@ class LlamaCppProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[str]:
         """The answer text alone, for callers that have no use for the trace."""
         async for delta in self.chat_deltas(
@@ -214,6 +236,7 @@ class LlamaCppProvider:
             temperature=temperature,
             reasoning=reasoning,
             json_schema=json_schema,
+            conversation=conversation,
         ):
             if not delta.reasoning and delta.progress is None:
                 yield delta.text
@@ -227,12 +250,17 @@ class LlamaCppProvider:
         temperature: float | None = None,
         reasoning: bool | None = None,
         json_schema: dict | None = None,
+        conversation: str | None = None,
     ) -> AsyncIterator[Delta]:
+        # `conversation` routes nothing here: one slot, matched by its prefix.
         # Downgrade at the seam: `modules/chat` assembles one conversation and
         # never learns that templates differ.
         shaped = for_template(messages, await self.capabilities(model))
-        if temperature is None and self._publisher_temperature is not None:
-            temperature = self._publisher_temperature(model, reasoning)
+        sampling = self._publisher_set(model, reasoning)
+        # A caller's own temperature wins, as a title asked for at zero does.
+        if temperature is None and sampling is not None:
+            temperature = sampling.temperature
+        extra = _beyond_temperature(sampling)
         try:
             async for delta in self._chat.chat_deltas(
                 model,
@@ -241,6 +269,7 @@ class LlamaCppProvider:
                 temperature=temperature,
                 reasoning=reasoning,
                 json_schema=json_schema,
+                sampling=extra,
             ):
                 yield delta
         except httpx.HTTPStatusError as error:
@@ -259,5 +288,6 @@ class LlamaCppProvider:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 reasoning=reasoning,
+                sampling=extra,
             ):
                 yield delta

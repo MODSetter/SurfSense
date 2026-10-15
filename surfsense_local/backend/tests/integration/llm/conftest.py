@@ -11,6 +11,11 @@ import pytest
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from shared.config import get_llm_settings
 
+# audio.cpp's transcription server, for the speech recognition routes.
+from tests.integration.llm.transcription_stand_in import (
+    transcription_server,  # noqa: F401 - a fixture
+)
+
 INSTALLED = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
 DELETED: list[str] = []
 UNLOADED: list[str] = []
@@ -259,6 +264,13 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
                 for field, text in deltas
             ]
             frames.append("data: [DONE]\n\n")
+            self._send("".join(frames).encode())
+        elif self.path == "/responses":
+            events = [
+                {"type": "response.output_text.delta", "delta": text}
+                for text in CHAT_DELTAS
+            ] + [{"type": "response.completed", "response": {"status": "completed"}}]
+            frames = [f"data: {json.dumps(event)}\n\n" for event in events]
             self._send("".join(frames).encode())
         elif self.path == "/images/generations" and IMAGE_URL is not None:
             self._json({"data": [{"url": IMAGE_URL}]})

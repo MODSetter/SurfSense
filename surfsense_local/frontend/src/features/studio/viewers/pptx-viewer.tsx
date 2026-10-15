@@ -44,7 +44,7 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
         const [{ PptxViewer: Renderer, RECOMMENDED_ZIP_LIMITS }, response] =
           await Promise.all([
             loadPptxRenderer(),
-            fetch(fileUrl(artifact.id, "primary"), {
+            fetch(fileUrl(artifact.id, "primary", artifact.generation), {
               signal: controller.signal,
             }),
           ])
@@ -97,7 +97,7 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
       controller.abort()
       viewer?.destroy()
     }
-  }, [artifact.id, primary, retryKey])
+  }, [artifact.id, artifact.generation, primary, retryKey])
 
   if (!primary) return null
 

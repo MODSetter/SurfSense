@@ -22,6 +22,12 @@ RECAP_CHARS = 800
 # counts under a planned segment.
 REPLY_TOKENS_PER_WORD = 12
 _JSON_NUDGE = "Your previous reply was not valid JSON. Return only the JSON object."
+# The same for every segment, so the runtime reads the sources once per episode.
+# A segment's instructions follow the sources whole: split, with what it shares
+# left up here, Qwen3 1.7B wrote half the dialogue in long lines.
+_SCRIPTWRITER = (
+    "You script natural podcast dialogue from the sources in the user's message."
+)
 
 
 @dataclass(frozen=True)
@@ -128,7 +134,9 @@ def _draft_one(
     *,
     max_tokens: int,
 ) -> list[Turn]:
-    reply = generate.run_model(model, text, sources, max_tokens=max_tokens)
+    reply = generate.run_model(
+        model, _SCRIPTWRITER, sources, after_sources=text, max_tokens=max_tokens
+    )
     try:
         return parse(reply, brief)
     except ValueError as first:
@@ -137,8 +145,9 @@ def _draft_one(
         )
     retry = generate.run_model(
         model,
-        text,
+        _SCRIPTWRITER,
         sources,
+        after_sources=text,
         repair=generate.Repair(reply, _JSON_NUDGE),
         max_tokens=max_tokens,
     )

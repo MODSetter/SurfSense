@@ -28,9 +28,8 @@ with the window, for the attention mask and the scratch that goes with it.
 
 from modules.llm.fit.types import ModelShape
 
-# llama-server's defaults, and the `parallel = 1` this app pins in every preset.
+# llama-server's default micro batch.
 UBATCH_TOKENS = 512
-SLOTS = 1
 
 # What the allocator keeps beyond the modelled width. Fitted to cover every
 # measured point, not derived: the smallest value at which all three land on the
@@ -73,8 +72,9 @@ def activation_width(shape: ModelShape) -> int:
     return max(widths)
 
 
-def compute_buffer_bytes(shape: ModelShape, n_ctx: int) -> int:
-    """Scratch bytes for a graph over an `n_ctx` window, rounded up.
+def compute_buffer_bytes(shape: ModelShape, n_ctx: int, slots: int = 1) -> int:
+    """Scratch bytes for a graph over an `n_ctx` window, rounded up. A batch
+    holds an output row per slot decoding at once.
 
     Rounding up is the rule the whole estimator runs on: over-stating costs a
     pessimistic badge, under-stating ships a confident badge about a model that
@@ -85,6 +85,6 @@ def compute_buffer_bytes(shape: ModelShape, n_ctx: int) -> int:
         return _FALLBACK_BASE_BYTES + PER_TOKEN_BYTES * n_ctx
 
     activations = width * UBATCH_TOKENS * 4
-    outputs = shape.n_vocab * min(UBATCH_TOKENS, SLOTS) * 4
+    outputs = shape.n_vocab * min(UBATCH_TOKENS, slots) * 4
     flat = int((activations + outputs) * SAFETY)
     return flat + PER_TOKEN_BYTES * n_ctx

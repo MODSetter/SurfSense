@@ -75,8 +75,10 @@ function withAgent(): SidecarContext {
   return {
     ...withAudio(),
     opencodePort: 4321,
-    opencodePassword: "launch-password",
+    opencodePassword: "launch-password", // pragma: allowlist secret
     opencodeUrl: "http://127.0.0.1:4321",
+    pluginProxyPort: 5555,
+    docxSnapshotKey: "snapshot-key",
   }
 }
 
@@ -86,6 +88,12 @@ test("the API is told where the agent will be and its password", () => {
 
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_URL, "http://127.0.0.1:4321")
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_PASSWORD, "launch-password")
+})
+
+test("the API is told where to run the proxy opencode reaches plugins through", () => {
+  const api = apiSpec(withAgent()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_PLUGIN_PROXY_PORT, "5555")
 })
 
 test("a worker is never told the agent's password", () => {
@@ -98,9 +106,56 @@ test("a worker is never told the agent's password", () => {
   }
 })
 
+test("the API is told the key Electron presents when it prints Word previews", () => {
+  // Loopback is open to every local process; only the holder of this key may
+  // take a snapshot request or post the pages the agent checks.
+  const api = apiSpec(withAgent()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY, "snapshot-key")
+})
+
+test("a worker is never told the snapshot key", () => {
+  for (const queue of ["ingest", "studio"] as const) {
+    const worker = workerSpec(withAgent(), queue).env
+
+    assert.equal(worker.SURFSENSE_LOCAL_DOCX_SNAPSHOT_KEY, undefined, queue)
+  }
+})
+
 test("without a staged opencode the API is told of no agent", () => {
   const api = apiSpec(withAudio()).env
 
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_URL, undefined)
   assert.equal(api.SURFSENSE_LOCAL_OPENCODE_PASSWORD, undefined)
+})
+
+/** The context boot builds on a host where audio.cpp is staged. */
+function withTranscription(): SidecarContext {
+  return {
+    ...withAudio(),
+    transcriptionPort: 9997,
+    transcriptionUrl: "http://127.0.0.1:9997",
+  }
+}
+
+test("the API is told where the speech recognition server is", () => {
+  const api = apiSpec(withTranscription()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, "http://127.0.0.1:9997")
+})
+
+test("a worker is never told where the speech recognition server is", () => {
+  // Every request goes through the API's gate, which puts dictation first.
+  for (const queue of ["ingest", "studio"] as const) {
+    const worker = workerSpec(withTranscription(), queue).env
+
+    assert.equal(worker.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined, queue)
+  }
+})
+
+test("without a staged audio.cpp the API is told of no speech recognition server", () => {
+  const ctx = withTranscription()
+  const api = apiSpec({ ...ctx, audioBinariesDir: join(ctx.binariesDir, "absent") }).env
+
+  assert.equal(api.SURFSENSE_LOCAL_TRANSCRIPTION_BASE_URL, undefined)
 })

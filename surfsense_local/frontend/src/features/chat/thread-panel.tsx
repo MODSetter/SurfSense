@@ -1,12 +1,16 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { ChevronDownIcon, PencilIcon, Trash2Icon } from "@/components/ui/icons"
 
-import {
-  AssistantRuntimeProvider,
-  ThreadPrimitive,
-  type AssistantRuntime,
-  useAui,
-} from "@assistant-ui/react"
+import { ThreadPrimitive, useAui, type MessageState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
@@ -20,14 +24,22 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
+import type { Dictation } from "@/features/dictation/dictation-adapter"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { useStableCallback } from "@/hooks/use-stable-callback"
 import { intl } from "@/i18n/intl"
+import type { PluginsStart } from "@/features/plugins/plugins-settings"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
+import { composerAttachmentOf } from "./image-attachments"
+import { LiveThreadRuntime, type LiveThreadSource } from "./live-thread-runtime"
 import { AssistantMessage, UserMessage } from "./message"
 import type { Citation } from "./sse"
 import type { ConversationView } from "./use-chat-runtime"
+
+// Shared, so a reply without citations passes the same props at every render.
+const NO_CITATIONS: Citation[] = []
 
 function citationsFrom(message: {
   metadata?: { custom?: unknown }
@@ -41,7 +53,55 @@ function citationsFrom(message: {
   ) {
     return custom.citations as Citation[]
   }
-  return []
+  return NO_CITATIONS
+}
+
+// Its props hold still between frames, so a reply re-renders only from its own
+// state: the live one by its text, the rest not at all.
+const ThreadAssistantMessage = memo(AssistantMessage)
+
+type MessageHandlers = {
+  onCitation: (chunkId: number) => void
+  onModelSetup: () => void
+  onRetry: (assistantId: string) => void
+  onNewChat: () => void
+}
+
+/**
+ * The thread's message renderer, made once. The handlers are read when a
+ * message calls them, so new ones from the page re-render no message.
+ */
+function useMessageRenderer({
+  onCitation,
+  onModelSetup,
+  onRetry,
+  onNewChat,
+}: MessageHandlers) {
+  const citation = useStableCallback(onCitation)
+  const modelSetup = useStableCallback(onModelSetup)
+  const retry = useStableCallback(onRetry)
+  const newChat = useStableCallback(onNewChat)
+  const stable = useMemo<MessageHandlers>(
+    () => ({
+      onCitation: citation,
+      onModelSetup: modelSetup,
+      onRetry: retry,
+      onNewChat: newChat,
+    }),
+    [citation, modelSetup, retry, newChat]
+  )
+  return useCallback(
+    ({ message }: { message: MessageState }) =>
+      message.role === "user" ? (
+        <UserMessage />
+      ) : (
+        <ThreadAssistantMessage
+          citations={citationsFrom(message)}
+          {...stable}
+        />
+      ),
+    [stable]
+  )
 }
 
 function ThreadWelcome({ composer }: { composer: ReactNode }) {
@@ -55,10 +115,23 @@ function ThreadWelcome({ composer }: { composer: ReactNode }) {
   )
 }
 
-function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
+function ComposerDraftLifecycle({
+  view,
+  dictation,
+}: {
+  view: ConversationView
+  dictation?: Dictation
+}) {
   const aui = useAui()
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
+  const returned = view.status === "new" ? view.returned : undefined
+
+  // Voice input outlives the composer, so it is cancelled, never stopped: no
+  // late phrase lands in the thread opened next.
+  useEffect(() => {
+    dictation?.cancel()
+  }, [dictation, conversationId])
 
   useEffect(() => {
     if (conversationId === "creating") {
@@ -67,11 +140,23 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     void aui.thread.composer().reset()
   }, [aui, conversationId])
 
+  // After the reset above, which empties the composer before it awaits.
+  useEffect(() => {
+    if (!returned) return
+    const composer = aui.thread.composer()
+    composer.setText(returned.text)
+    returned.images.forEach((image, index) => {
+      composer
+        .addAttachment(composerAttachmentOf(image, index))
+        .catch(() => undefined)
+    })
+  }, [aui, returned])
+
   return null
 }
 
 export function ThreadPanel({
-  runtime,
+  live,
   thread,
   view,
   model,
@@ -85,6 +170,7 @@ export function ThreadPanel({
   onModelSetup,
   onModelSelected,
   onRetry,
+  onNewChat,
   sourceCount,
   onTitleAnimationComplete,
   autoNamingThreadId,
@@ -92,8 +178,11 @@ export function ThreadPanel({
   onDelete,
   onUploadSources,
   isUploadingSources,
+  onOpenPlugins,
+  dictation,
+  onOpenSpeechSettings,
 }: {
-  runtime: AssistantRuntime
+  live: LiveThreadSource
   thread: ChatThread | null
   view: ConversationView
   model: ModelSelection | null
@@ -108,12 +197,19 @@ export function ThreadPanel({
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
   onRetry: (assistantId: string) => void
+  onNewChat: () => void
   onTitleAnimationComplete: () => void
   autoNamingThreadId: number | null
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
   onUploadSources?: (files: File[]) => void
   isUploadingSources?: boolean
+  // Opens Settings › Plugins, from the composer's add menu.
+  onOpenPlugins?: (start?: PluginsStart) => void
+  // The runtime's dictation adapter, for the composer's mic.
+  dictation?: Dictation
+  // Opens Settings › Speech recognition, from the mic's set-up.
+  onOpenSpeechSettings?: () => void
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const headingId = useId()
@@ -147,9 +243,22 @@ export function ThreadPanel({
       describedBy={thread == null ? undefined : headingId}
       onUploadSources={onUploadSources}
       isUploadingSources={isUploadingSources}
+      threadMode={
+        thread == null ? null : thread.uses_agent ? "agentic" : "basic"
+      }
+      onNewChat={onNewChat}
+      onOpenPlugins={onOpenPlugins}
+      dictation={dictation}
+      onOpenSpeechSettings={onOpenSpeechSettings}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined
+  const renderMessage = useMessageRenderer({
+    onCitation,
+    onModelSetup,
+    onRetry,
+    onNewChat,
+  })
 
   useEffect(() => {
     if (editing) {
@@ -179,9 +288,11 @@ export function ThreadPanel({
     void onRename(thread.id, next)
   }
 
+  // Built here, once per render of the panel: a streamed token renders the
+  // runtime alone, which hands React these same elements, so it skips them.
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <ComposerDraftLifecycle view={view} />
+    <LiveThreadRuntime {...live}>
+      <ComposerDraftLifecycle view={view} dictation={dictation} />
       <section
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label={intl.formatMessage({
@@ -328,23 +439,12 @@ export function ThreadPanel({
 
             {view.status === "active" && !isLoading ? (
               <ThreadPrimitive.Messages>
-                {({ message }) =>
-                  message.role === "user" ? (
-                    <UserMessage />
-                  ) : (
-                    <AssistantMessage
-                      citations={citationsFrom(message)}
-                      onCitation={onCitation}
-                      onModelSetup={onModelSetup}
-                      onRetry={onRetry}
-                    />
-                  )
-                }
+                {renderMessage}
               </ThreadPrimitive.Messages>
             ) : null}
           </ChatViewport>
         </ThreadPrimitive.Root>
       </section>
-    </AssistantRuntimeProvider>
+    </LiveThreadRuntime>
   )
 }

@@ -4,6 +4,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 
+from modules.agent.agent_threads.stored_step import stored_step
 from modules.agent.opencode_runtime import AgentUnavailableError, connect_opencode
 from modules.chat.dependencies import ThreadDep
 from shared.config import get_storage_settings
@@ -15,6 +16,27 @@ class PermissionReply(BaseModel):
     """The user's answer: allow this one time, or refuse. There is no "always" (ADR 0028)."""
 
     reply: Literal["once", "reject"]
+
+
+class StepResult(BaseModel):
+    """What a step returned, or why it failed, whole."""
+
+    output: str | None
+    error: str | None
+
+
+@router.get(
+    "/chat/threads/{thread_id}/steps/{part_id}/result",
+    response_model=StepResult,
+    summary="Read the whole result of an agent's step",
+)
+async def read_step_result(thread: ThreadDep, part_id: str) -> StepResult:
+    state = (await stored_step(thread, part_id)).get("state") or {}
+    output, error = state.get("output"), state.get("error")
+    return StepResult(
+        output=None if output is None else str(output),
+        error=None if error is None else str(error),
+    )
 
 
 @router.post(
@@ -32,7 +54,7 @@ async def answer_permission(
         client = connect_opencode()
     except AgentUnavailableError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    folder = get_storage_settings().agent_working_dir(thread.workspace_id)
+    folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
     async with client:
         try:
             await client.reply(folder, request_id, payload.reply)

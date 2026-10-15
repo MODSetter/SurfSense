@@ -132,10 +132,10 @@ def test_an_id_nothing_carries_is_unknown() -> None:
 
 def test_a_model_the_manifest_knows_and_cannot_call_says_why(lookup_of) -> None:
     """One rule for the remote catalog and the connection listing: a model on
-    an unreachable provider, or served only on /responses or through another
-    protocol, is unusable with the manifest's own reason. A model no entry
-    describes is unknown, not unusable, and a custom connection, which names
-    no provider, is never told."""
+    an unreachable provider, or served through another protocol, is unusable
+    with the manifest's own reason. A /responses model is called there, so it
+    is usable. A model no entry describes is unknown, not unusable, and a
+    custom connection, which names no provider, is never told."""
     from tests.unit.llm.catalog.remote.conftest import connect, model
 
     lookup = lookup_of(
@@ -155,9 +155,32 @@ def test_a_model_the_manifest_knows_and_cannot_call_says_why(lookup_of) -> None:
     )
 
     assert "anthropic" in (lookup.unusable_reason("opus", "router") or "")
-    assert "/responses" in (lookup.unusable_reason("resp", "router") or "")
+    assert lookup.unusable_reason("resp", "router") is None
     assert lookup.unusable_reason("models/opus", "router") is not None
     assert lookup.unusable_reason("glm", "router") is None
     assert lookup.unusable_reason("gemini", "vertex") == "Needs a Google Cloud sign-in"
     assert lookup.unusable_reason("mystery", "vertex") is None
     assert lookup.unusable_reason("opus", None) is None
+
+
+def test_a_model_is_called_on_the_route_its_provider_records(lookup_of) -> None:
+    """/responses where the manifest says so for the connection's provider;
+    /chat/completions for every other model, and for a custom connection."""
+    from tests.unit.llm.catalog.remote.conftest import model
+
+    lookup = lookup_of(
+        {
+            "router": {
+                "models": {
+                    "resp": model(call={"route": "responses", "protocol": None}),
+                    "glm": model(),
+                }
+            },
+        }
+    )
+
+    assert lookup.call_route("resp", "router") == "responses"
+    assert lookup.call_route("models/resp", "router") == "responses"
+    assert lookup.call_route("glm", "router") == "chat_completions"
+    assert lookup.call_route("mystery", "router") == "chat_completions"
+    assert lookup.call_route("resp", None) == "chat_completions"

@@ -6,6 +6,7 @@ one does once the person has agreed.
 """
 
 import asyncio
+import time
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
@@ -16,7 +17,10 @@ from sqlalchemy import Engine
 from modules.llm.models import ProviderConnection
 from modules.llm.providers.types import Message
 from modules.llm.resolution import resolve_generation
+from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
+from modules.llm.subscriptions.chatgpt.token_set import TokenSet
+from modules.llm.subscriptions.chatgpt.tokens import read_tokens, write_tokens
 from shared.db import create_session_factory
 
 from .fake_openai import EMAIL, ISSUED_CLIENT, FakeOpenAI
@@ -169,6 +173,34 @@ async def test_signing_out_keeps_the_connection_and_signing_in_again_restores_it
     assert (await client.get("/llm/connections")).json()[0]["signed_in"] is True
 
 
+async def test_signing_in_again_while_signed_in_returns_as_the_same_client(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """OpenAI's returning-user path: the issued client and the last ID token, no new registration."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+
+    again = await _sign_in(client, connection_id=connection_id)
+
+    asked = fake_openai.authorized[-1]
+    assert again["status"] == "signed_in", again
+    assert asked["client_id"] == ISSUED_CLIENT
+    assert asked["id_token_hint"]
+
+
+async def test_a_renewal_answered_for_another_client_is_refused(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """The guide says to reject it rather than switch the connection's registration."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    fake_openai.callback_client = "app_someone_else"
+
+    again = await _sign_in(client, connection_id=connection_id)
+
+    assert again["status"] == "failed"
+    listed = (await client.get("/llm/connections")).json()
+    assert listed[0]["signed_in"] is True
+
+
 async def test_signing_out_revokes_the_refresh_token_at_openai(
     client: AsyncClient, fake_openai: FakeOpenAI
 ) -> None:
@@ -265,6 +297,149 @@ async def test_a_sign_in_host_turned_off_is_not_called_to_sign_out(
     assert signed_out.status_code == 204
     assert (await client.get("/llm/connections")).json()[0]["signed_in"] is False
     assert "Could not revoke" not in caplog.text
+
+
+async def test_signing_in_again_as_the_same_client_revokes_nothing(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """The returning path reuses the client, and revoking its old token may end the new grant."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+
+    again = await _sign_in(client, connection_id=connection_id)
+    await asyncio.sleep(0.3)
+
+    assert again["status"] == "signed_in"
+    assert fake_openai.revocations == []
+
+
+async def test_signing_in_again_over_tokens_that_cannot_be_decrypted_settles(
+    client: AsyncClient, engine: Engine, fake_openai: FakeOpenAI
+) -> None:
+    """A lost key must not keep the sign-in that recovers from it from finishing."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    _scramble_tokens(engine, connection_id)
+
+    again = await _sign_in(client, connection_id=connection_id)
+    await asyncio.sleep(0.3)
+
+    assert again["status"] == "signed_in"
+    assert fake_openai.revocations == []
+
+
+def _store_old_client(engine: Engine, connection_id: int) -> None:
+    """Another client's live tokens, as left by a registration this sign-in replaces."""
+    with create_session_factory(engine)() as session:
+        write_tokens(
+            session.get(ProviderConnection, connection_id),
+            TokenSet(
+                client_id="app_old",
+                access_token="at-old",
+                refresh_token="rt-old",
+                id_token="id-old",
+                expires_at=time.time() + 3600,
+                account="user-1",
+            ),
+        )
+        session.commit()
+
+
+async def _sign_in_over_another_client(
+    client: AsyncClient, engine: Engine, connection_id: int
+) -> dict:
+    """Started over unreadable tokens, so it registers anew; another client's
+    tokens land before the browser comes back."""
+    _scramble_tokens(engine, connection_id)
+    started = await client.post(
+        "/llm/connections/chatgpt/sign-in", json={"connection_id": connection_id}
+    )
+    _store_old_client(engine, connection_id)
+    await _browse(started.json()["authorize_url"])
+    return await _settled(client, started.json()["flow_id"])
+
+
+async def _revoked(fake_openai: FakeOpenAI) -> list[str]:
+    """The revoke runs after the sign-in reads signed_in; wait for it."""
+    for _ in range(60):
+        if fake_openai.revocations:
+            break
+        await asyncio.sleep(0.05)
+    return [form["token"] for form in fake_openai.revocations]
+
+
+def _stored_refresh(engine: Engine, connection_id: int) -> str:
+    with create_session_factory(engine)() as session:
+        return read_tokens(session.get(ProviderConnection, connection_id)).refresh_token
+
+
+async def test_a_sign_in_that_replaces_another_clients_tokens_revokes_them(
+    client: AsyncClient, engine: Engine, fake_openai: FakeOpenAI
+) -> None:
+    """A different client's grant is a different grant, so ending it is safe."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+
+    again = await _sign_in_over_another_client(client, engine, connection_id)
+
+    assert again["status"] == "signed_in"
+    assert await _revoked(fake_openai) == ["rt-old"]
+    assert fake_openai.revocations[0]["client_id"] == "app_old"
+
+
+async def test_a_failed_revocation_keeps_the_new_sign_in(
+    client: AsyncClient,
+    engine: Engine,
+    fake_openai: FakeOpenAI,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """OpenAI being down costs the old grant's end, never the new tokens."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    fake_openai.revocation_down = True
+
+    again = await _sign_in_over_another_client(client, engine, connection_id)
+    for _ in range(60):
+        if "Could not revoke" in caplog.text:
+            break
+        await asyncio.sleep(0.05)
+
+    assert again["status"] == "signed_in"
+    assert _stored_refresh(engine, connection_id) == fake_openai.issued_refresh[-1]
+    assert "Could not revoke" in caplog.text
+    assert "rt-old" not in caplog.text
+
+
+async def test_the_old_token_is_revoked_only_once_the_new_one_is_stored(
+    client: AsyncClient,
+    engine: Engine,
+    fake_openai: FakeOpenAI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Revoking first would leave a failed save with neither grant."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    seen: list[str] = []
+    monkeypatch.setattr(
+        revocation,
+        "revoke",
+        lambda tokens: seen.append(_stored_refresh(engine, connection_id)),
+    )
+
+    await _sign_in_over_another_client(client, engine, connection_id)
+    for _ in range(60):
+        if seen:
+            break
+        await asyncio.sleep(0.05)
+
+    assert seen == [fake_openai.issued_refresh[-1]]
+
+
+async def test_signing_in_again_after_signing_out_revokes_nothing_more(
+    client: AsyncClient, fake_openai: FakeOpenAI
+) -> None:
+    """The sign-out already ended that grant; there is nothing left to replace."""
+    connection_id = (await _sign_in(client, label="ChatGPT"))["connection_id"]
+    await client.delete(f"/llm/connections/{connection_id}/sign-in")
+
+    await _sign_in(client, connection_id=connection_id)
+
+    assert len(fake_openai.revocations) == 1
 
 
 async def test_a_label_already_taken_is_refused_before_the_browser_opens(

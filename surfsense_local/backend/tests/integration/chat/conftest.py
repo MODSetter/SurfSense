@@ -24,6 +24,9 @@ _REQUESTS: list[dict] = []
 # starts the server.
 _PROPS_N_CTX: int | None = None
 
+# The slots /props reports, or None to omit it, as a stub that does not care.
+_PROPS_SLOTS: int | None = None
+
 # Tokens per word /tokenize reports, or None to answer 404 (an older build).
 # Set per test before the fixture starts the server.
 _TOKENS_PER_WORD: int | None = None
@@ -80,9 +83,10 @@ class StubRouterChat(BaseHTTPRequestHandler):
             settings = (
                 {"n_ctx": _PROPS_N_CTX} if _PROPS_N_CTX is not None else {}
             )
-            self._send(
-                json.dumps({"default_generation_settings": settings}).encode()
-            )
+            props: dict = {"default_generation_settings": settings}
+            if _PROPS_SLOTS is not None:
+                props["total_slots"] = _PROPS_SLOTS
+            self._send(json.dumps(props).encode())
         else:
             self.send_error(404)
 
@@ -172,8 +176,9 @@ class StubRouterChat(BaseHTTPRequestHandler):
 @pytest.fixture
 def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     """A real llama-server stand-in on a real port; yields the requests it sees."""
-    global _PROPS_N_CTX, _TOKENS_PER_WORD, _SEES, _ANSWER, _STALL
+    global _PROPS_N_CTX, _PROPS_SLOTS, _TOKENS_PER_WORD, _SEES, _ANSWER, _STALL
     _REQUESTS.clear()
+    _PROPS_SLOTS = None
     _SEES = False
     _REASONING.clear()
     _PROMPT_PROGRESS.clear()
@@ -225,6 +230,12 @@ def set_props_n_ctx(n_ctx: int) -> None:
     """Make the next `llamacpp_server` request report this context window."""
     global _PROPS_N_CTX
     _PROPS_N_CTX = n_ctx
+
+
+def set_props_slots(slots: int) -> None:
+    """Make the next `llamacpp_server` report this many slots, as `--parallel` sets."""
+    global _PROPS_SLOTS
+    _PROPS_SLOTS = slots
 
 
 def set_tokens_per_word(tokens_per_word: int) -> None:
@@ -298,5 +309,112 @@ def llamacpp_server_unauthorized(monkeypatch: pytest.MonkeyPatch) -> Iterator[No
 
     yield
 
+    server.shutdown()
+    server.server_close()
+
+
+class RemoteEndpoint:
+    """A remote OpenAI-compatible host, as a connection reaches it.
+
+    `status` answers every chat request with that error instead; `stall`, set,
+    holds each reply open after its answer until the event fires, as a model
+    still generating does. `open_streams` counts replies being written right
+    now, so a test can see two run at once.
+    """
+
+    def __init__(self) -> None:
+        self.status: int | None = None
+        self.stall: threading.Event | None = None
+        self.open_streams = 0
+        self.most_open = 0
+        self.lock = threading.Lock()
+
+
+_REMOTE = RemoteEndpoint()
+
+
+class StubRemoteChat(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        self._send(b'{"object": "list", "data": [{"id": "remote-model"}]}')
+
+    def do_POST(self) -> None:
+        request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        # A thread's title is a short request of its own; only the reply stalls.
+        titling = request.get("max_tokens") == 12
+        if _REMOTE.status is not None:
+            body = b'{"error": {"message": "slow down"}}'
+            self.send_response(_REMOTE.status)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        with _REMOTE.lock:
+            _REMOTE.open_streams += 0 if titling else 1
+            _REMOTE.most_open = max(_REMOTE.most_open, _REMOTE.open_streams)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            for delta in REPLY_DELTAS:
+                chunk = json.dumps({"choices": [{"delta": {"content": delta}}]})
+                self.wfile.write(f"data: {chunk}\n\n".encode())
+                self.wfile.flush()
+            if _REMOTE.stall is not None and not titling:
+                _REMOTE.stall.wait(timeout=10)
+            with contextlib.suppress(OSError):
+                self.wfile.write(b"data: [DONE]\n\n")
+        finally:
+            with _REMOTE.lock:
+                _REMOTE.open_streams -= 0 if titling else 1
+
+    def _send(self, body: bytes) -> None:
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args: object) -> None:
+        """Keep the request log out of the test output."""
+
+
+@pytest.fixture
+def remote_endpoint(engine: Engine) -> Iterator[RemoteEndpoint]:
+    """A remote connection on a real port, selected as the chat model.
+
+    Loopback is not egress, so no host has to be allowed first.
+    """
+    global _REMOTE
+    _REMOTE = RemoteEndpoint()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), StubRemoteChat)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    from modules.llm.model_type import ModelType
+    from modules.llm.models import ProviderConnection, SelectedModel
+
+    with create_session_factory(engine)() as session:
+        connection = ProviderConnection(
+            label="Remote",
+            provider="openai_compatible",
+            base_url=f"http://127.0.0.1:{server.server_port}",
+        )
+        session.add(connection)
+        session.flush()
+        selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+        if selected is not None:
+            session.delete(selected)
+            session.flush()
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="openai_compatible",
+                name="remote-model",
+                connection_id=connection.id,
+            )
+        )
+        session.commit()
+
+    yield _REMOTE
+
+    if _REMOTE.stall is not None:
+        _REMOTE.stall.set()
     server.shutdown()
     server.server_close()
