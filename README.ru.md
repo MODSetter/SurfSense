@@ -26,6 +26,7 @@
     <a href="#что-surfsense-делает-с-каждым-форматом">Форматы</a> ·
     <a href="#быстрый-старт">Быстрый старт</a> ·
     <a href="#сравнение">Сравнение</a> ·
+    <a href="#плагины">Плагины</a> ·
     <a href="https://www.surfsense.com/pricing">Цены</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -86,6 +87,25 @@ SurfSense — бесплатное настольное приложение с 
 | Открытый код | Нет | **Apache-2.0** |
 | Модели | Только Gemini | Любой API, совместимый с OpenAI, или локальная модель |
 
+## Плагины
+
+Подключите их в разделе **Настройки › Плагины**.
+
+**От SurfSense.** Они читают общедоступные страницы без ваших собственных аккаунтов, и для них нужна лицензия SurfSense: [скачайте приложение](https://www.surfsense.com/downloads) и введите в нём свою почту, чтобы получить бесплатную лицензию на 30 дней.
+
+| Плагин | Что делает |
+|---|---|
+| **Google Search** | Ищет в Google и читает результаты, рекламу и похожие вопросы |
+| **Web Crawl** | Читает веб-страницу или обходит весь сайт, превращая его в чистый текст |
+| **YouTube** | Читает видео и каналы YouTube, а также комментарии к ним |
+| **TikTok** | Читает видео TikTok и комментарии к ним, ищет пользователей и показывает, что сейчас в тренде |
+| **Google Maps** | Находит места на Google Maps и читает отзывы о них |
+| **Amazon** | Читает карточки товаров и результаты поиска на Amazon |
+| **Walmart** | Читает карточки товаров, результаты поиска и отзывы на Walmart |
+| **Indeed** | Читает вакансии на Indeed |
+
+**Сторонние.** MCP-серверы из [реестра плагинов](plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Лицензия не нужна; они остаются выключенными, пока вы их не разрешите.
+
 ## Сообщество
 
 - [Discord](https://discord.gg/ejRNvftDp9) — для помощи, [Issues](https://github.com/MODSetter/SurfSense/issues) — для ошибок, [Discussions](https://github.com/MODSetter/SurfSense/discussions) — для идей.
@@ -93,18 +113,6 @@ SurfSense — бесплатное настольное приложение с 
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Участники SurfSense" /></a>
 
-## История звёзд
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
-
 ## Лицензия
 
-Apache-2.0. См. [LICENSE](LICENSE).
+Apache-2.0. См. [LICENSE](LICENSE). Однако две папки распространяются под лицензией Business Source License 1.1, как указано в файле `LICENSE` в каждой из них: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), где находятся собственные плагины SurfSense, и [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).

@@ -27,6 +27,7 @@
     <a href="#qué-hace-con-cada-formato">Formatos</a> ·
     <a href="#inicio-rápido">Inicio rápido</a> ·
     <a href="#cómo-se-compara">Comparativa</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Precios</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -86,6 +87,25 @@ Las ediciones, las conversiones y las herramientas de PDF siempre crean un archi
 | Código abierto | No | **Apache-2.0** |
 | Modelos | Solo Gemini | Cualquier API compatible con OpenAI, o una local |
 
+## Plugins
+
+Conéctalos en **Ajustes › Plugins**.
+
+**De SurfSense.** Leen páginas públicas sin usar tus propias cuentas y necesitan una licencia de SurfSense: [descarga la aplicación](https://www.surfsense.com/downloads) e introduce allí tu correo electrónico para conseguir una gratuita de 30 días.
+
+| Plugin | Qué hace |
+|---|---|
+| **Google Search** | Buscar en Google y leer sus resultados, anuncios y preguntas relacionadas |
+| **Web Crawl** | Leer una página web o rastrear un sitio entero y convertirlo en texto limpio |
+| **YouTube** | Leer videos y canales de YouTube, con sus comentarios |
+| **TikTok** | Leer videos de TikTok y sus comentarios, buscar usuarios y ver qué es tendencia |
+| **Google Maps** | Encontrar lugares en Google Maps y leer sus reseñas |
+| **Amazon** | Leer productos y resultados de búsqueda de Amazon |
+| **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |
+| **Indeed** | Leer ofertas de empleo en Indeed |
+
+**De terceros.** Servidores MCP del [registro de plugins](plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
+
 ## Comunidad
 
 - [Discord](https://discord.gg/ejRNvftDp9) para pedir ayuda, [Issues](https://github.com/MODSetter/SurfSense/issues) para errores y [Discussions](https://github.com/MODSetter/SurfSense/discussions) para ideas.
@@ -93,18 +113,6 @@ Las ediciones, las conversiones y las herramientas de PDF siempre crean un archi
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Personas que contribuyen a SurfSense" /></a>
 
-## Historial de estrellas
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Gráfico del historial de estrellas" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
-
 ## Licencia
 
-Apache-2.0. Consulta el archivo [LICENSE](LICENSE).
+Apache-2.0. Consulta el archivo [LICENSE](LICENSE). En cambio, dos carpetas están bajo la Business Source License 1.1, como indica el archivo `LICENSE` de cada una: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), los plugins de SurfSense, y [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
