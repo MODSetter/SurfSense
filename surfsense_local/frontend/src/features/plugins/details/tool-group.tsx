@@ -34,13 +34,13 @@ export function ToolGroup({
   const [open, setOpen] = useState(true)
   if (tools.length === 0) return null
 
+  // A tool the approval rules keep from this choice stays as it is: switching it
+  // on could leave it asking less than the choice says.
   const pickAll = (permission: ToolPermission) => {
     for (const tool of tools) {
-      // A tool the rules hold to asking, or to never asking, only needs switching on.
-      const unchanged = canPick(plugin, tool, permission)
-        ? permissionOf(plugin, tool) === permission
-        : tool.enabled
-      if (!unchanged) onTool(tool.name, changeFor(plugin, tool, permission))
+      if (!canPick(plugin, tool, permission)) continue
+      if (permissionOf(plugin, tool) === permission) continue
+      onTool(tool.name, changeFor(plugin, tool, permission))
     }
   }
 
@@ -69,6 +69,9 @@ export function ToolGroup({
         <GroupPermissionMenu
           group={label}
           current={groupPermission(plugin, tools)}
+          canTake={(permission) =>
+            tools.some((tool) => canPick(plugin, tool, permission))
+          }
           onPick={pickAll}
         />
       </div>

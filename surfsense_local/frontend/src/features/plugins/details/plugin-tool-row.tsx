@@ -35,7 +35,7 @@ export function PluginToolRow({
           <TooltipTrigger render={<span className="truncate" />}>
             {label}
           </TooltipTrigger>
-          {/* Server text, often long: kept off the row, as Claude does. */}
+          {/* Server text, often long: kept off the row so tools scan as a list. */}
           <TooltipContent
             side="bottom"
             align="start"

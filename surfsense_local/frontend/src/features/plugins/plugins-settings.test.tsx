@@ -724,6 +724,88 @@ describe("plugins settings", () => {
     )
   })
 
+  it("closes a group choice no tool in it can take", async () => {
+    const plugin = notes({ source: "first_party" })
+    const calls = api({
+      plugins: [
+        {
+          ...plugin,
+          tools: plugin.tools.map((tool) =>
+            tool.name === "search" ? { ...tool, enabled: false } : tool
+          ),
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const readOnly = within(card).getByRole("group", { name: "Read-only" })
+    await user.click(
+      within(readOnly).getByRole("button", {
+        name: "Permission for every Read-only tool",
+      })
+    )
+    const ask = await screen.findByRole("menuitemradio", {
+      name: "Needs approval",
+    })
+    expect(ask.getAttribute("aria-disabled")).toBe("true")
+    await user.click(ask)
+    expect(changes(calls)).toEqual([])
+  })
+
+  it("leaves a tool that cannot take a group choice as it is", async () => {
+    const plugin = notes()
+    const calls = api({
+      plugins: [
+        {
+          ...plugin,
+          tools: [
+            ...plugin.tools.map((tool) =>
+              tool.name === "count" ? { ...tool, enabled: false } : tool
+            ),
+            {
+              name: "rename",
+              title: "Rename note",
+              description: "Rename a note.",
+              annotations: { destructiveHint: false },
+              enabled: false,
+              approval: "ask",
+              change: null,
+            },
+          ],
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const others = within(card).getByRole("group", {
+      name: "Can make changes",
+    })
+    await user.click(
+      within(others).getByRole("button", {
+        name: "Permission for every Can make changes tool",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Always allow" })
+    )
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/rename",
+          body: { enabled: true, approval: "always" },
+        },
+      ])
+    )
+  })
+
   it("says Custom when a group's tools differ", async () => {
     const plugin = notes()
     api({

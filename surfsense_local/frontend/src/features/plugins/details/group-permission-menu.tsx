@@ -14,14 +14,17 @@ import { PERMISSIONS, type ToolPermission } from "./tool-permission"
 
 const CUSTOM = "custom"
 
-/** The group's state, as Claude shows it; picking one sets every tool. Custom only reports tools that differ. */
+/** The state a group's tools share; picking one sets every tool that can take it. Custom only reports tools that differ. */
 export function GroupPermissionMenu({
   group,
   current,
+  canTake,
   onPick,
 }: {
   group: string
   current: ToolPermission | null
+  /** False when no tool in the group can take the choice, so it is closed. */
+  canTake: (permission: ToolPermission) => boolean
   onPick: (permission: ToolPermission) => void
 }) {
   const CurrentIcon = current ? PERMISSION_ICON[current] : EllipsisIcon
@@ -64,6 +67,7 @@ export function GroupPermissionMenu({
               <DropdownMenuRadioItem
                 key={permission}
                 value={permission}
+                disabled={!canTake(permission)}
                 closeOnClick
               >
                 <Icon />
