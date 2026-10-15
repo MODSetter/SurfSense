@@ -157,7 +157,7 @@ function GeneralSettings({
                 render={
                   <button
                     type="button"
-                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:inset-[-10px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:-inset-2.5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                     aria-label={intl.formatMessage({
                       id: "settings_general_cloud_import_info_aria",
                       defaultMessage:
@@ -359,7 +359,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[640px] min-h-0 w-[1000px] max-w-none gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-none">
+      <DialogContent className="h-192 max-h-[calc(100vh-2rem)] min-h-0 w-268 gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-[calc(100%-2rem)]">
         <DialogHeader className="sr-only">
           <DialogTitle>
             {intl.formatMessage({
@@ -375,8 +375,8 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid h-full min-h-0 grid-cols-[184px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
+        <div className="grid h-full min-h-0 grid-cols-[auto_minmax(0,1fr)]">
+          <aside className="min-h-0 w-50 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
             {(Object.keys(GROUP_LABELS) as SettingsNavItem["group"][]).map(
               (group, index) => (
                 <div key={group} className={cn(index > 0 && "mt-3")}>
