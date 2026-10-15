@@ -5,11 +5,9 @@ import { sectionSpacing } from "@/components/homepage/home/home-section-spacing"
 import { PlatformsTooltip } from "@/components/pricing/platforms-tooltip";
 import {
 	PLANS,
-	PLUGIN_NOTE,
 	type Plan,
 	PRICING_FAQ,
 	SELF_BUILD_URL,
-	SMALL_GROUP_NOTE,
 } from "@/components/pricing/pricing-content";
 import { FAQJsonLd } from "@/components/seo/json-ld";
 import { SiteFaqItem } from "@/components/site/site-faq-item";
@@ -154,17 +152,6 @@ export function PricingPlans() {
 				{PLANS.map((plan) => (
 					<PlanCard key={plan.name} plan={plan} />
 				))}
-			</div>
-
-			<div className="mt-6 flex flex-col gap-4 rounded-3xl bg-muted p-6 md:p-8">
-				<p className={cn(siteText.body, "text-sm")}>{PLUGIN_NOTE}</p>
-				<p className={cn(siteText.body, "text-sm")}>
-					{SMALL_GROUP_NOTE}{" "}
-					<Link className={siteText.link} href="/contact">
-						Talk to us
-					</Link>
-					.
-				</p>
 			</div>
 		</section>
 	);

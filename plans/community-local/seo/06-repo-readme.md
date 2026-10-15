@@ -45,9 +45,9 @@ In order:
    study tools, and the concession on audio and video overviews went; the
    privacy claims survive as the opening paragraph's last sentence and two rows.
 6. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
-   where to connect them, the eight first-party ones, which need a license, with
-   the free 30-day one claimed on `/downloads`, and third-party ones, which need
-   none. It replaced **Star history**, under the rule that anything added
+   where to connect them, a table of the eight first-party ones with the app's
+   one-line descriptions, which need a license, with the free 30-day one claimed
+   on `/downloads`, and third-party ones, which need none. It replaced **Star history**, under the rule that anything added
    replaces something.
 7. **Community** and **License**. License says Apache-2.0, links `LICENSE`, and
    names the two folders under the BSL 1.1, `plugins/remote/proprietary/` and

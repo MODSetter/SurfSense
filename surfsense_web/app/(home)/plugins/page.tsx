@@ -28,8 +28,7 @@ import { cn } from "@/lib/utils";
  * first-party list, `surfsense_local/backend/modules/plugins/lists/first_party/plugins.json`,
  * in its order and with its one-line descriptions; change them together.
  * Reddit and Instagram are written but left out of that list, because both now
- * close their public pages to readers who are not signed in, so this page says
- * so rather than listing them.
+ * close their public pages to readers who are not signed in.
  *
  * Each tile links to that platform's marketing page under
  * `lib/connectors-marketing`.
@@ -197,11 +196,6 @@ export default function PluginsPage() {
 						</li>
 					))}
 				</ul>
-
-				<p className={cn(siteText.body, "mx-auto mt-6 max-w-2xl text-center text-sm")}>
-					Reddit and Instagram plugins are written but not offered: both platforms now close their
-					public pages to readers who are not signed in.
-				</p>
 			</section>
 
 			<section aria-labelledby="ss-plugins-steps-label" className={sectionSpacing.foot}>
