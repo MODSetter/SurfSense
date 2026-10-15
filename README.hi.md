@@ -114,4 +114,4 @@ SurfSense एक मुफ़्त, ओपन-सोर्स डेस्क�
 
 ## लाइसेंस
 
-Apache-2.0। [LICENSE](LICENSE) देखें। दो फ़ोल्डर इसके बजाय Business Source License 1.1 के तहत हैं, जैसा कि हर एक की `LICENSE` फ़ाइल में लिखा है: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), यानी SurfSense के अपने प्लगइन, और [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/)।
+Apache-2.0। [LICENSE](LICENSE) देखें।

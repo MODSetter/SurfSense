@@ -49,11 +49,12 @@ In order:
    one-line descriptions, which need a license, with the free 30-day one claimed
    on `/downloads`, and third-party ones, which need none. It replaced **Star history**, under the rule that anything added
    replaces something.
-7. **Community** and **License**. License says Apache-2.0, links `LICENSE`, and
-   names the two folders under the BSL 1.1, `plugins/remote/proprietary/` and
-   `surfsense_backend/app/proprietary/`, each with its own `LICENSE`. Since
-   15 Oct 2026 the root `LICENSE` is the plain Apache text with no preamble, so
-   GitHub's About panel names the license instead of showing "View license".
+7. **Community** and **License**. License says Apache-2.0 and links `LICENSE`.
+   Since 15 Oct 2026 the root `LICENSE` is the plain Apache text with no
+   preamble, so GitHub's About panel names the license instead of showing "View
+   license". The two folders under the BSL 1.1, `plugins/remote/proprietary/` and
+   `surfsense_backend/app/proprietary/`, each say so in their own `LICENSE`; the
+   README does not list them.
 
 The repo's About field, read on 11 Oct 2026, follows the header rather than the
 [project description](#project-description) below: "Air-gapped,

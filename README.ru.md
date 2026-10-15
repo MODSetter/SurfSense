@@ -115,4 +115,4 @@ SurfSense — бесплатное настольное приложение с 
 
 ## Лицензия
 
-Apache-2.0. См. [LICENSE](LICENSE). Однако две папки распространяются под лицензией Business Source License 1.1, как указано в файле `LICENSE` в каждой из них: [`plugins/remote/proprietary/`](plugins/remote/proprietary/), где находятся собственные плагины SurfSense, и [`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
+Apache-2.0. См. [LICENSE](LICENSE).

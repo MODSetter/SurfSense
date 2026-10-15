@@ -114,4 +114,4 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 ## الرخصة
 
-مرخّص بموجب Apache-2.0. التفاصيل في [LICENSE](LICENSE). غير أن مجلدين يخضعان بدلًا من ذلك لرخصة Business Source License 1.1، كما يبيّن ملف `LICENSE` في كل منهما: [`plugins/remote/proprietary/`](plugins/remote/proprietary/)، أي إضافات SurfSense نفسها، و[`surfsense_backend/app/proprietary/`](surfsense_backend/app/proprietary/).
+مرخّص بموجب Apache-2.0. التفاصيل في [LICENSE](LICENSE).
