@@ -41,7 +41,7 @@ repos:
             .*/messages/.*\.json$|
             surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json|
             plugins/registry/published/plugins\.json|
-            surfsense_local/backend/scripts/capability_list/sweep/.*
+            surfsense_local/backend/scripts/capability_list/sweep/.*\.(json|jsonl)
           )$
 
   # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting.
