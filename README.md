@@ -96,10 +96,22 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 
 ## Plugins
 
-Plugins give the agent live data from the web, in Agentic chats. Connect them in **Settings › Plugins**, then name one in a chat with `@`, such as `@amazon`.
+Connect them in **Settings › Plugins**.
 
-- **By SurfSense:** Google Search, Web Crawl, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, read without your own accounts. They need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 30-day one.
-- **Third-party:** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+**By SurfSense.** They read public pages without your own accounts and need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 30-day one.
+
+| Plugin | What it does |
+|---|---|
+| **Google Search** | Search Google and read its results, ads and related questions |
+| **Web Crawl** | Read a web page, or crawl a whole site into clean text |
+| **YouTube** | Read YouTube videos, channels and their comments |
+| **TikTok** | Read TikTok videos and their comments, search users, and see what is trending |
+| **Google Maps** | Find places on Google Maps and read their reviews |
+| **Amazon** | Read Amazon products and search results |
+| **Walmart** | Read Walmart products, search results and reviews |
+| **Indeed** | Read job listings on Indeed |
+
+**Third-party.** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
 
 ## Community
 

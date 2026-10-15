@@ -9,7 +9,7 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  *   - title, meta, H1 and the lead-with-free rule: `seo/02-page-briefs.md`
  *     (`/pricing` — B5)
  *
- * The plugin note follows `docs/adr/0025-scraper-client-as-paid-plugin.md`,
+ * The plugin copy follows `docs/adr/0025-scraper-client-as-paid-plugin.md`,
  * which supersedes the plan's plugin section. SurfSense's plugins shipped in
  * 2.2.1 as eight MCP servers on the plugin host; the platform list below
  * follows the app's first-party list
@@ -135,24 +135,6 @@ export const PLANS: Plan[] = [
 		action: [{ label: "Talk to us", href: "/contact" }],
 	},
 ];
-
-/**
- * Removing the Team tier leaves a gap at five to twenty-five people, and this
- * line fills it with the answer that needs no product: buy that many Individual
- * licences. At $120 each that is more per person than the $80 seat it replaces,
- * and the trade is deliberate — nobody manages a seat count, nobody sits a
- * sales call, and the licence file already works this way, so the path needs
- * no code at all.
- */
-export const SMALL_GROUP_NOTE =
-	"A handful of people do not need an enterprise agreement. Buy an Individual licence each: there is no minimum, no seat count to manage, and everyone gets their own file. Enterprise is about how you deploy SurfSense, not how many people use it.";
-
-/**
- * What the licence buys today, and what it does not gate: the brief asks that
- * buyers know exactly which plugins are in the box.
- */
-export const PLUGIN_NOTE =
-	"SurfSense's eight plugins shipped in version 2.2.1: Google Search, Web Crawl, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed. Connect them in Settings › Plugins. Third-party plugins and MCP servers you add yourself work without a licence.";
 
 /**
  * Answers are written as quotable definitions: one plain paragraph an AI
