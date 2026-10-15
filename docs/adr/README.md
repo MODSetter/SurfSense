@@ -84,3 +84,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted |
 | 0055 | [Verified is a maintainer's judgement, and CI contacts each server a pull request adds](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md) | Accepted |
 | 0056 | [Speech recognition runs on a second audio.cpp server that only the API calls](0056-speech-recognition-runs-on-a-second-audiocpp-server.md) | Accepted |
+| 0057 | [An older release goes back by running the undo steps a newer release left in the data folder](0057-an-older-release-goes-back-with-the-newer-releases-undo-steps.md) | Accepted |
