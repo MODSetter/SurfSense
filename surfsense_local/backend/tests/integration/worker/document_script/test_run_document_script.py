@@ -145,6 +145,40 @@ def test_a_traceback_names_the_script_without_its_run_folder(data_dir: Path) -> 
     assert _scripts_root(data_dir).name not in result.traceback_tail
 
 
+def test_a_missing_file_is_named_without_its_run_folder(data_dir: Path) -> None:
+    """An exception message holds the contract's absolute path, on Windows as a
+    repr with its backslashes doubled."""
+    script = (
+        "import os\nopen(os.path.join(os.environ['IMAGES_DIR'], 'nope.png'), 'rb')\n"
+    )
+
+    result = run_document_script(script, output_name="document.docx", images={})
+
+    assert result.error is not None
+    assert result.error.startswith("FileNotFoundError")
+    assert "nope.png" in result.error
+    assert _scripts_root(data_dir).name not in result.error
+    assert result.traceback_tail is not None
+    assert _scripts_root(data_dir).name not in result.traceback_tail
+
+
+def test_a_warning_before_the_traceback_names_the_script_without_its_run_folder(
+    data_dir: Path,
+) -> None:
+    """A warning printed before the raise starts with the script's absolute path."""
+    script = (
+        "import warnings\n"
+        "warnings.warn('old call', FutureWarning)\n"
+        "raise ValueError('no table rows')\n"
+    )
+
+    result = run_document_script(script, output_name="document.docx", images={})
+
+    assert result.traceback_tail is not None
+    assert "script.py:2: FutureWarning: old call" in result.traceback_tail
+    assert _scripts_root(data_dir).name not in result.traceback_tail
+
+
 def test_a_syntax_error_names_itself() -> None:
     """A script that does not compile fails with the SyntaxError, not a crash."""
     result = run_document_script(
