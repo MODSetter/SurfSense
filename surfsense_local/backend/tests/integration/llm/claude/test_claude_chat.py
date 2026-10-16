@@ -23,7 +23,9 @@ SONNET = "claude-sonnet-5-5"
 async def _choose_claude(client: AsyncClient, claude_on_this_machine) -> int:
     claude_on_this_machine()
     for host in ("api.anthropic.com", "platform.claude.com"):
-        await client.put(f"/egress/host:{host}", json={"enabled": True})
+        await client.put(
+            "/egress", json={"destinations": [f"host:{host}"], "enabled": True}
+        )
     connection = (
         await client.post("/llm/connections/claude", json={"label": "Claude"})
     ).json()
@@ -206,7 +208,9 @@ async def test_a_chat_with_a_claude_host_off_is_refused_before_claude_code_runs(
     """Checked with the chat's own egress check, like any remote model."""
     await _choose_claude(client, claude_on_this_machine)
     opened = len(fake_claude.opened)
-    await client.put("/egress/host:platform.claude.com", json={"enabled": False})
+    await client.put(
+        "/egress", json={"destinations": ["host:platform.claude.com"], "enabled": False}
+    )
     thread_id = await _basic_thread(client)
 
     reply = await client.post(

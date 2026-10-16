@@ -40,7 +40,9 @@ async def test_a_basic_chat_is_answered_by_this_machines_claude_code(
     caplog.set_level(logging.INFO)
     async with serving_claude_proxy(create_session_factory(engine), "127.0.0.1"):
         for host in ("api.anthropic.com", "platform.claude.com"):
-            await client.put(f"/egress/host:{host}", json={"enabled": True})
+            await client.put(
+                "/egress", json={"destinations": [f"host:{host}"], "enabled": True}
+            )
         connection = (
             await client.post("/llm/connections/claude", json={"label": "Claude"})
         ).json()

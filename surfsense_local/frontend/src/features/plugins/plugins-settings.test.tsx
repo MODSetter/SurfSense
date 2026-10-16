@@ -150,9 +150,15 @@ function api({
       })
       if (asked) return new Response(null, { status: 204 })
       const [, , id, , tool] = url.pathname.split("/")
-      if (url.pathname === "/egress/host:plugins.surfsense.com") {
+      if (
+        url.pathname === "/egress" &&
+        init?.method === "PUT" &&
+        (body as { destinations?: string[] } | null)?.destinations?.includes(
+          "host:plugins.surfsense.com"
+        )
+      ) {
         hostAllowed = true
-        return Response.json({})
+        return Response.json([])
       }
       if (url.pathname === "/plugins/registry") {
         if (!thirdParty) {
@@ -1648,8 +1654,8 @@ describe("plugins settings", () => {
     expect(changes(calls)).toEqual([
       {
         method: "PUT",
-        path: "/egress/host:plugins.surfsense.com",
-        body: { enabled: true },
+        path: "/egress",
+        body: { destinations: ["host:plugins.surfsense.com"], enabled: true },
       },
     ])
   })

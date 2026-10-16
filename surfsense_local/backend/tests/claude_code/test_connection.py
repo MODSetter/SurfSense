@@ -22,7 +22,9 @@ async def test_this_machines_claude_code_connects_and_lists_its_models(
     assert option["plan"]
 
     for host in ("api.anthropic.com", "platform.claude.com"):
-        await client.put(f"/egress/host:{host}", json={"enabled": True})
+        await client.put(
+            "/egress", json={"destinations": [f"host:{host}"], "enabled": True}
+        )
     connection = (
         await client.post("/llm/connections/claude", json={"label": "Claude"})
     ).json()

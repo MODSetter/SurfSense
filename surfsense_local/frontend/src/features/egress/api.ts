@@ -8,10 +8,15 @@ export type Destination = {
   last_call_at: string | null
 }
 
-/** Switch on a question's destination and every other host it named. */
-export async function allowAll(destination: string, also: string[] = []) {
-  await setDestinationEnabled(destination, true)
-  for (const host of also) await setDestinationEnabled(`host:${host}`, true)
+/**
+ * Switch on a question's destination and every other host it named, in one
+ * request the API commits whole: a failed Allow switches none of them on.
+ */
+export function allowAll(destination: string, also: string[] = []) {
+  return setDestinationsEnabled(
+    [destination, ...also.map((host) => `host:${host}`)],
+    true
+  )
 }
 
 /** Search, model weights and image weights all reach this one host. */
@@ -23,14 +28,15 @@ export function listDestinations(signal?: AbortSignal): Promise<Destination[]> {
   return requestJson<Destination[]>("/egress", { signal })
 }
 
-export function setDestinationEnabled(
-  destination: string,
+/** Switch these destinations on or off together; one row in Settings › Network is a list of one. */
+export function setDestinationsEnabled(
+  destinations: string[],
   enabled: boolean
-): Promise<Destination> {
-  return requestJson<Destination>(`/egress/${destination}`, {
+): Promise<Destination[]> {
+  return requestJson<Destination[]>("/egress", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify({ destinations, enabled }),
   })
 }
 

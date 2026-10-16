@@ -14,7 +14,7 @@ import {
   describeDestination,
   destinationsQueryKey,
   listDestinations,
-  setDestinationEnabled,
+  setDestinationsEnabled,
 } from "./api"
 
 function DestinationRow({
@@ -108,7 +108,7 @@ export function NetworkSettings() {
     }: {
       destination: string
       enabled: boolean
-    }) => setDestinationEnabled(destination, enabled),
+    }) => setDestinationsEnabled([destination], enabled),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: destinationsQueryKey }),
   })

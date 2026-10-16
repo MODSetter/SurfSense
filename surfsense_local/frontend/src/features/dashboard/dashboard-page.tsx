@@ -20,7 +20,7 @@ import {
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
-import { setDestinationEnabled } from "@/features/egress/api"
+import { setDestinationsEnabled } from "@/features/egress/api"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import {
   useBlockAgentic,
@@ -740,7 +740,7 @@ export function DashboardPage({
     void askEgress({
       destination,
       host: issue.host ?? "",
-      allow: () => setDestinationEnabled(destination, true),
+      allow: () => setDestinationsEnabled([destination], true),
     }).then((allowed) => {
       if (allowed) setConsents((count) => count + 1)
     })

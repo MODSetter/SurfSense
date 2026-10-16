@@ -27,9 +27,9 @@ function stubApi() {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
       calls.push(`${init?.method ?? "GET"} ${path}`)
-      if (path.startsWith("/egress/")) {
+      if (path === "/egress" && init?.method === "PUT") {
         allowed = true
-        return Response.json({})
+        return Response.json([])
       }
       return allowed
         ? Response.json({})
@@ -53,9 +53,11 @@ describe("egress prompt", () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
         calls.push(`${init?.method ?? "GET"} ${path}`)
-        if (path.startsWith("/egress/")) {
-          allowed = calls.filter((call) => call.startsWith("PUT")).length === 2
-          return Response.json({})
+        if (path === "/egress" && init?.method === "PUT") {
+          calls[calls.length - 1] +=
+            ` ${JSON.parse(String(init.body)).destinations.join(",")}`
+          allowed = true
+          return Response.json([])
         }
         return allowed
           ? Response.json({})
@@ -93,8 +95,8 @@ describe("egress prompt", () => {
     await expect(pending).resolves.toBeUndefined()
     expect(calls).toEqual([
       "POST /llm/connections/claude",
-      "PUT /egress/host:api.anthropic.com",
-      "PUT /egress/host:platform.claude.com",
+      // One request: Allow switches both on together, or neither.
+      "PUT /egress host:api.anthropic.com,host:platform.claude.com",
       "POST /llm/connections/claude",
     ])
   })
@@ -150,7 +152,7 @@ describe("egress prompt", () => {
     await expect(pending).resolves.toBeUndefined()
     expect(calls).toEqual([
       "POST /chat/threads/1/messages",
-      "PUT /egress/host:api.provider.example",
+      "PUT /egress",
       "POST /chat/threads/1/messages",
     ])
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())

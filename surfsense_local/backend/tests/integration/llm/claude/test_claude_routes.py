@@ -14,7 +14,9 @@ SIGN_IN = "host:platform.claude.com"
 
 async def _allow(client: AsyncClient, *destinations: str) -> None:
     for destination in destinations:
-        reply = await client.put(f"/egress/{destination}", json={"enabled": True})
+        reply = await client.put(
+            "/egress", json={"destinations": [destination], "enabled": True}
+        )
         assert reply.status_code == 200
 
 
@@ -237,7 +239,7 @@ async def test_the_model_list_needs_both_hosts(
     rather than Claude Code failing hours later when its sign-in expires."""
     claude_on_this_machine()
     connection = await _connect(client)
-    await client.put(f"/egress/{SIGN_IN}", json={"enabled": False})
+    await client.put("/egress", json={"destinations": [SIGN_IN], "enabled": False})
 
     reply = await client.get(f"/llm/connections/{connection['id']}/models")
 
