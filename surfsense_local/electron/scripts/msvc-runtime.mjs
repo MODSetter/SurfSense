@@ -50,13 +50,17 @@ export function visualStudioGenerator() {
       { encoding: "utf8" }
     )
   )
-  const year = found?.catalog?.productLineVersion
-  return found && year ? generatorName(found.installationVersion, year) : null
+  return found ? generatorName(found.installationVersion, found.catalog?.productLineVersion) : null
 }
 
-/** CMake names a Visual Studio by its major version and its year. */
+// Visual Studio 2026's vswhere gives "18" as its product line, not the year.
+const YEAR_BY_MAJOR = { 15: "2017", 16: "2019", 17: "2022", 18: "2026" }
+
+/** CMake names a Visual Studio by its major version and its year, or null when the year is unknown. */
 export function generatorName(installationVersion, productLineVersion) {
-  return `Visual Studio ${installationVersion.split(".")[0]} ${productLineVersion}`
+  const major = installationVersion.split(".")[0]
+  const year = /^\d{4}$/.test(productLineVersion ?? "") ? productLineVersion : YEAR_BY_MAJOR[major]
+  return year ? `Visual Studio ${major} ${year}` : null
 }
 
 const byVersion = (a, b) => {
