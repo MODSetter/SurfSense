@@ -84,5 +84,6 @@ The Date is the day the decision was first written down. Source links are permal
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted |
 | 0055 | [Verified is a maintainer's judgement, and CI contacts each server a pull request adds](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md) | Accepted |
 | 0056 | [Speech recognition runs on a second audio.cpp server that only the API calls](0056-speech-recognition-runs-on-a-second-audiocpp-server.md) | Accepted |
-| 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted |
+| 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted, its network decision superseded by 0059 |
 | 0058 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0058-one-consent-question-per-user-action.md) | Accepted |
+| 0059 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0059-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |

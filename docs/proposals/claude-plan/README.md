@@ -64,13 +64,13 @@ Every behaviour of Claude Code stated here was measured on 16 Oct 2026 on macOS 
 | Bundling | None. The SDK's `_bundled/claude` is excluded from the build, and every run names the user's binary in `cli_path` ([`01-connection.md`](01-connection.md#packaging)). |
 | Where the sign-in lives | In Claude Code, in the user's own `~/.claude`. A separate `CLAUDE_CONFIG_DIR` loses it ([Measurements](#measurements)). |
 | Chat | Claude Code with `tools=[]` and one turn, behind the `Generator` protocol. [ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md) holds. |
-| Agent | A second engine beside opencode, behind a new engine interface. Claude Code's file tools on the thread folder; SurfSense's tools and the thread's plugins over MCP; Bash, web and subagents off. |
+| Agent | A second engine beside opencode, behind a new engine interface. Claude Code's file tools on the thread folder; SurfSense's tools and the thread's plugins over MCP, passed in a file only the user can read; SurfSense's skills as a local plugin; Bash, web, subagents and Claude Code's own skills off. Its transcript is mirrored into SurfSense's database, since Claude Code deletes its own after 30 days ([`03-agent.md`](03-agent.md#sessions)). |
 | Permissions | SurfSense's rules decide every tool call in a `PreToolUse` hook, with `can_use_tool` as a second gate and `permission_mode="default"` forced, since Claude Code 2.1.301 defaults to `auto` and then skips `can_use_tool` ([`03-agent.md`](03-agent.md#the-gate)). |
 | Switching models mid-thread | Allowed. Crossing engines writes a handover note ([`04-handover.md`](04-handover.md)). One engine per thread was rejected. |
-| Network | Claude Code's `HTTPS_PROXY` is a proxy the API runs for it, which tunnels `api.anthropic.com` and `platform.claude.com` only, each while the user allows it. No run starts without it. Non-essential traffic is off. |
+| Network | Claude Code's `HTTPS_PROXY` is a proxy the API runs for it, which tunnels `api.anthropic.com` and `platform.claude.com`, each while the user allows it, and for an agent run also the hosts of the turn's ready plugins ([ADR 0059](../../adr/0059-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md)). No run starts without it. Non-essential traffic is off. |
 | Name | "Claude plan" and "Use your Claude plan". Never "Claude Code" in the interface ([branding](https://code.claude.com/docs/en/agent-sdk/overview#branding-guidelines)). |
 
-[ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) records: a Claude plan is offered through the user's own Claude Code and SurfSense holds no Claude credential, replacing ADR 0038's last consequence; and ADR 0050's "SurfSense owns a plan's sign-in for both engines" holds for the ChatGPT plan only.
+[ADR 0059](../../adr/0059-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) records which hosts each run may reach, superseding ADR 0057's network line. [ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) records: a Claude plan is offered through the user's own Claude Code and SurfSense holds no Claude credential, replacing ADR 0038's last consequence; and ADR 0050's "SurfSense owns a plan's sign-in for both engines" holds for the ChatGPT plan only.
 
 ## Anthropic's terms
 
@@ -122,6 +122,15 @@ Scripts kept out of the repo; each line is one run on the machine above.
 | Proxy refusing `api.anthropic.com` | no error: `system` `api_retry` messages, first after about 1 s, up to 10 attempts |
 | Hosts contacted | model calls and the model list: `api.anthropic.com`; sign-in refresh: `platform.claude.com` (from the binary); `claude auth status`: none |
 | A chat through the API's proxy | tunnels to `api.anthropic.com` only, none refused |
+| `mcp_servers` as a dict, then as a file path | the plugin's key in the process's arguments, then not |
+| A remote plugin over MCP | its traffic reaches `HTTPS_PROXY` as `CONNECT` to the plugin's host |
+| `disallowed_tools`, wildcards included | those tools left out of the init message |
+| A tool added to an MCP server mid-session | not seen until `reconnect_mcp_server`, then seen in the same session |
+| SurfSense's skills folder as a local plugin | listed as `surfsense:documents`, loaded through `Skill` and followed, `verbatim_prompts` on and off |
+| A 59,000-character MCP result | written to a file under `~/.claude/projects`, not given to the model |
+| Compaction, window forced to its 100,000-token floor | mid-turn `compact_boundary`, 69,221 to 5,130 tokens; the turn went on; no summary in the reply |
+| `Read` of a PNG | the model saw the image |
+| Transcript retention | `cleanupPeriodDays`, default 30, swept whenever Claude Code starts |
 
 ## Out of scope
 
@@ -132,5 +141,4 @@ A SurfSense sign-in to Claude, reading or storing Claude Code's credentials, `cl
 - Windows and Linux on a real install: whether `claude auth status` prints the same JSON, whether `HTTPS_PROXY` is honoured the same way, and WinGet's `Links` folder. Where installers put `claude` is settled ([`01-connection.md`](01-connection.md#finding-claude-code)) and tested on every system with stand-ins.
 - The lowest Claude Code version to accept, and how often a contract test against the real binary runs.
 - Whether a plan limit reached with Claude Code's extra usage switched on should say so; `overageStatus` is in the `RateLimitEvent`.
-- Whether the agent gives Claude Code each plugin server, so its proxy allows plugin hosts, or only SurfSense's tool endpoint ([`03-agent.md`](03-agent.md#open-questions)).
 - Whether transcripts the agent engine writes under `~/.claude/projects` should be deleted once mirrored ([`03-agent.md`](03-agent.md#sessions)).
