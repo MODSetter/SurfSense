@@ -65,6 +65,7 @@ dependencies = [
     "xlsxwriter>=3.2.9",
     "lameenc>=1.8.4",
     "mcp>=2.3,<2.4",
+    "claude-agent-sdk==0.2.168",
 ]
 
 [dependency-groups]
