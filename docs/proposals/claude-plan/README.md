@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 code:
   - surfsense_local/backend/modules/llm/subscriptions/claude/
   - surfsense_local/backend/modules/llm/connections/
@@ -20,7 +20,7 @@ code:
 
 > A Claude Pro, Max or Team subscriber picks **Use your Claude plan** and gets Claude's models in chat and in the agent, paid for by their plan. SurfSense never signs in to Claude and never holds a Claude credential: it drives the user's own installed, unmodified Claude Code through Anthropic's [Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview), and Claude Code keeps the sign-in. SurfSense ships no copy of Claude Code. Chat runs Claude Code with every tool off. The agent runs it as a second engine beside opencode, with SurfSense's tools over MCP and SurfSense's permission rules enforced in a `PreToolUse` hook.
 
-This reverses one line of [ADR 0038](../../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md), "A Claude subscription is not offered; Claude stays reachable with an API key", and adds an exception to [ADR 0050](../../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md), "SurfSense owns a plan's sign-in". Both get a superseding ADR with this proposal's acceptance ([Decisions](#decisions-this-records)). The ChatGPT plan it sits beside is in [ChatGPT subscription](../../architecture/chatgpt-subscription.md).
+This reverses one line of [ADR 0038](../../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md), "A Claude subscription is not offered; Claude stays reachable with an API key", and adds an exception to [ADR 0050](../../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md), "SurfSense owns a plan's sign-in". [ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) records both ([Decisions](#decisions-this-records)). The ChatGPT plan it sits beside is in [ChatGPT subscription](../../architecture/chatgpt-subscription.md).
 
 Every behaviour of Claude Code stated here was measured on 16 Oct 2026 on macOS arm64, against Claude Code `2.1.301` (native installer) signed in to a Max plan, with the Python `claude-agent-sdk` `0.2.168` ([Measurements](#measurements)). Windows and Linux are untested and listed under [Open questions](#open-questions).
 
@@ -70,7 +70,7 @@ Every behaviour of Claude Code stated here was measured on 16 Oct 2026 on macOS 
 | Network | Claude Code's `HTTPS_PROXY` is SurfSense's proxy, which tunnels `api.anthropic.com` only, after `egress.require()`. Non-essential traffic is off. |
 | Name | "Claude plan" and "Use your Claude plan". Never "Claude Code" in the interface ([branding](https://code.claude.com/docs/en/agent-sdk/overview#branding-guidelines)). |
 
-The superseding ADR records: a Claude plan is offered through the user's own Claude Code and SurfSense holds no Claude credential, replacing ADR 0038's last consequence; and ADR 0050's "SurfSense owns a plan's sign-in for both engines" holds for the ChatGPT plan only.
+[ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) records: a Claude plan is offered through the user's own Claude Code and SurfSense holds no Claude credential, replacing ADR 0038's last consequence; and ADR 0050's "SurfSense owns a plan's sign-in for both engines" holds for the ChatGPT plan only.
 
 ## Anthropic's terms
 
@@ -85,7 +85,7 @@ Anthropic changed this policy in January, February, April and June 2026, and may
 
 ## Build order
 
-1. This proposal and the superseding ADR.
+1. This proposal and [ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md).
 2. **Connection and chat**: [`01-connection.md`](01-connection.md), [`02-chat.md`](02-chat.md), [`05-dialog.md`](05-dialog.md). A Claude plan serves `text_gen` only until step 4.
 3. **The engine interface**, with opencode moved behind it and no change in behaviour ([`03-agent.md`](03-agent.md#the-engine-interface)).
 4. **The Claude engine and the handover** ([`03-agent.md`](03-agent.md), [`04-handover.md`](04-handover.md)); `serves` gains the agent.
