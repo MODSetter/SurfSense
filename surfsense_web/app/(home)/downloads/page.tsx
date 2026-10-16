@@ -28,7 +28,7 @@ export default async function DownloadsPage() {
 		<>
 			<section className={cn("text-center", sectionSpacing.head)}>
 				<HomeBadge>Free desktop app</HomeBadge>
-				<h1 className={cn(siteText.display, "mt-4")}>Download SurfSense</h1>
+				<h1 className={cn(siteText.display, "mt-4")}>Download SurfSense With License</h1>
 				<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
 					One installer, no account, no cloud.
 				</p>
