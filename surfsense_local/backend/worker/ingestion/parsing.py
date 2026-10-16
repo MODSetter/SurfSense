@@ -10,17 +10,20 @@ import psutil
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from modules.documents.recordings.kind import is_recording
+from modules.documents.source_figures.figures_pass import queue_figures_pass
 from modules.documents.source_figures.layout import figures_dir, read_index
-from modules.documents.tasks import PRIORITY_IDLE, extract_figures
+from modules.documents.tasks import PRIORITY_IDLE
 from modules.documents.text_files import TEXT_SUFFIXES
 from shared.config import get_storage_settings
 from worker.ingestion.audio.transcript_job import recording_markdown
 from worker.ingestion.docx_style_cache import cached_style_lookups
 from worker.ingestion.figures.store import keep_figures
+from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 from worker.ingestion.pdf_text_layer import read_text_layer
 from worker.ingestion.slideless_deck import describe_slideless_deck
+from worker.ingestion.word_markdown import markdown_without_docling
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +59,7 @@ def _text_layer(document: Document, path: Path) -> str | None:
         return None
     if layer.images and read_index(figures_dir(path.parent)) is None:
         # Ready without its figures; Docling keeps them once nothing else waits.
-        extract_figures(document.id, priority=PRIORITY_IDLE)
+        queue_figures_pass(document.id, PRIORITY_IDLE)
     return layer.text
 
 
@@ -64,6 +67,10 @@ def _markdown_from(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix in TEXT_SUFFIXES:
         return path.read_text(encoding="utf-8", errors="replace")
+    if suffix == ".docx" and (markdown := markdown_without_docling(path)) is not None:
+        # Its figures come from the figures-only pass, which still asks Docling.
+        leave_figures_to_the_pass(path)
+        return markdown
 
     converted = convert(path)
     keep_figures(path, converted)

@@ -181,6 +181,10 @@ def kept(tmp_path_factory: pytest.TempPathFactory) -> dict[str, dict]:
             "SURFSENSE_LOCAL_MODELS_DIR": str(PACK_ROOT),
             "HF_HOME": str(empty_cache),
             "HF_HUB_OFFLINE": "1",
+            # Docling's own reading of a Word file's pictures. Ingest reads Word
+            # without Docling and leaves them to the figures pass, which asks
+            # Docling: test_ingest_word.py.
+            "SURFSENSE_LOCAL_DOCX_READER": "docling",
         },
         capture_output=True,
         text=True,
