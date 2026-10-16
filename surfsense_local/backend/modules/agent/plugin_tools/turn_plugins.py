@@ -10,10 +10,13 @@ from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.plugin_host import on_plugin_host
-from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
+from modules.plugins.remote.sign_in.plugin_headers import LICENSE, sign_in_headers
 
 # More tools than this crowd the model's choice and its prompt; the plugins connected first win.
 MAX_TOOLS = 24
+# Asks SurfSense's plugin host for a call's items in the text alone: opencode reads
+# only the text when there is any, so the structured copy would be sent for nothing.
+TEXT_ONLY_HEADER = "x-surfsense-text-only"
 
 
 @dataclass(frozen=True)
@@ -26,6 +29,10 @@ class TurnPlugin:
     headers: dict[str, str]
     # `<plugin>_<tool>` to `allow` or `ask`; every other tool of the plugin is denied.
     rules: dict[str, str] = field(default_factory=dict)
+    # On SurfSense's plugin host, whose calls run longer and which Stop can reach.
+    on_plugin_host: bool = False
+    # Signs in with the SurfSense license, so a refusal is the license, not a sign-in.
+    licensed: bool = False
 
 
 def opencode_tool_name(server: str, tool: str) -> str:
@@ -44,7 +51,8 @@ def turn_plugins(
 ) -> list[TurnPlugin]:
     """The first MAX_TOOLS ready tools, and every one past them of a plugin the user mentioned.
 
-    A plugin on SurfSense's plugin host also gets the thread's `calls_token`, so Stop can end its calls.
+    A plugin on SurfSense's plugin host also gets the thread's `calls_token`, so Stop can end its calls,
+    and asks for text-only results; no other server is sent either.
     """
     ready = list_tools(session)
     chosen = ready[:MAX_TOOLS] + [
@@ -55,13 +63,18 @@ def turn_plugins(
         if tool.plugin_id not in plugins:
             row = session.get_one(InstalledPlugin, tool.plugin_id)
             headers = sign_in_headers(session, row)
-            if calls_token and on_plugin_host(row.url):
+            ours = on_plugin_host(row.url)
+            if ours:
+                headers[TEXT_ONLY_HEADER] = "1"
+            if calls_token and ours:
                 headers[CALLS_HEADER] = calls_token
             plugins[tool.plugin_id] = TurnPlugin(
                 name=row.id,
                 title=tool.plugin_name,
                 url=row.url,
                 headers=headers,
+                on_plugin_host=ours,
+                licensed=row.credential_kind == LICENSE,
             )
         rule = "ask" if needs_approval(tool) else "allow"
         name = opencode_tool_name(tool.plugin_id, tool.tool)

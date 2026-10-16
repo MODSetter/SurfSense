@@ -263,7 +263,7 @@ async def send_message(
             runs, request.app.state.session_factory, request.app.state.broker
         )
         return await agent_turn(session, thread, payload, launch_key, place)
-    resolved, history, hits, retried, scope_record = await transact(
+    resolved, history, hits, retried, scope_record, indexing = await transact(
         session, _ground, thread, payload
     )
     selected = resolved.selection
@@ -274,7 +274,7 @@ async def send_message(
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
-    grounding = build_context(hits, resolved.tier)
+    grounding = build_context(hits, resolved.tier, indexing)
     citations = grounding.citations
     logger.info(
         "chat: model %s/%s answering on the %s prompt (%s excerpts)",
@@ -670,11 +670,11 @@ def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]
 def _ground(
     session: Session, thread: ChatThread, payload: MessageCreate
 ) -> tuple[
-    ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage], dict
+    ResolvedGeneration, Sequence[ChatMessage], list[Hit], list[ChatMessage], dict, int
 ]:
     """The model to answer with, the turns so far, the passages to cite, the
-    failed turn a retry replaces, and what the user turn records of the sources
-    it used."""
+    failed turn a retry replaces, what the user turn records of the sources it
+    used, and how many of them are still being read."""
     try:
         resolved = resolve_generation(session)
     except ModelResolutionError as error:
@@ -717,7 +717,9 @@ def _ground(
         document_ids=payload.document_ids,
         scope=scope,
     )
-    return resolved, history, hits, retried, record
+    # An explicit id list never counts any: it is refused above while one is not ready.
+    indexing = scope.counts.indexing if scope is not None else 0
+    return resolved, history, hits, retried, record, indexing
 
 
 # The endings a retry may replace. A stopped or completed reply is the

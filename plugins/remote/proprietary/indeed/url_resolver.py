@@ -53,6 +53,20 @@ def country_domain(country: str) -> str:
     return f"{_DOMAIN_OVERRIDES.get(cc, cc)}.indeed.com"
 
 
+def domain_country(domain: str | None) -> str:
+    """Indeed host -> the country its site serves, e.g. ``uk.indeed.com`` -> ``gb``.
+
+    The reverse of :func:`country_domain`. Hosts that name no country (``www``,
+    ``secure``, the bare domain) read as ``us``, so the result is always a
+    two-letter code: it keys a kept browser context and pins its exit.
+    """
+    sub = (domain or "").lower().split(".")[0]
+    for cc, prefix in _DOMAIN_OVERRIDES.items():
+        if sub == prefix:
+            return cc
+    return sub if len(sub) == 2 and sub.isalpha() else "us"
+
+
 def resolve_url(url: str) -> ResolvedUrl | None:
     """Classify an Indeed URL into a scrape job, or ``None`` if unrecognized."""
     parsed = urlparse(url)

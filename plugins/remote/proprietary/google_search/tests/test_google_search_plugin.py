@@ -4,7 +4,11 @@ Google is faked at the scraper's render seam, `fetch_serp_html`, and SearXNG at
 `search_serp`; the host, the license check, the tool and the SERP parsing are real.
 """
 
+import importlib
+import json
 from collections.abc import Iterator
+from types import ModuleType
+from urllib.parse import parse_qs, urlsplit
 
 import httpx2
 import pytest
@@ -31,6 +35,8 @@ def google_search(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
         monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
         monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+        # The host enters the plugin's lifespan; no Chromium launch in tests.
+        monkeypatch.setenv("GOOGLE_SEARCH_WARM_BROWSER", "0")
         with serving(host_app(plugins={"google-search"})) as base:
             yield f"{base}/google-search/mcp"
 
@@ -86,7 +92,7 @@ async def test_it_offers_one_read_only_tool_that_reaches_the_web(
     assert tools[0].annotations.open_world_hint is True
 
 
-async def test_a_search_returns_its_pages_with_a_summary_and_progress(
+async def test_a_search_returns_its_pages_as_text_and_progress(
     google_search: str, google: list[str]
 ) -> None:
     progress: list[float] = []
@@ -110,10 +116,112 @@ async def test_a_search_returns_its_pages_with_a_summary_and_progress(
         "https://b.example/pie",
     ]
     assert "gl=fr" in google[0]
-    summary = result.content[0].text
-    assert "pie guide https://a.example/pie" in summary
-    assert "cake tips https://b.example/cake" in summary
-    assert progress == [1, 2]
+    # The text carries each page's results, not only titles: opencode keeps
+    # just the text, so the agent reads descriptions and answers from it.
+    header, *lines = result.content[0].text.splitlines()
+    assert header.startswith("2 Google results pages")
+    pie, cake = (json.loads(line) for line in lines)
+    assert pie["query"] == "apple pie"
+    assert pie["organic"][0] == {
+        "position": 1,
+        "title": "pie guide",
+        "url": "https://a.example/pie",
+        "description": "All about pie.",
+    }
+    assert cake["organic"][1]["url"] == "https://b.example/cake"
+    # Stage progress: rising, ending at both pages done (the limiter may drop
+    # the stages in between).
+    assert progress == sorted(set(progress))
+    assert progress[0] < 1 and progress[-1] == 2
+
+
+def _measured_page(term: str) -> dict:
+    """A page-1 item sized as measured live: ten results, six long PAA answers
+    and a 3k-character AI Overview (a 9-15 KB line before the clips)."""
+    return {
+        "searchQuery": {"term": term, "page": 1},
+        "resultsTotal": 1_230_000,
+        "organicResults": [
+            {
+                "position": i,
+                "title": f"{term} result {i}",
+                "url": f"https://site{i}.example/{term}",
+                "description": "d" * 150,
+                "date": "Jul 2, 2026",
+            }
+            for i in range(1, 11)
+        ],
+        "peopleAlsoAsk": [
+            {
+                "question": f"Why {term} {i}?",
+                "answer": "a" * 1500,
+                "url": "https://p.example/",
+            }
+            for i in range(6)
+        ],
+        "aiOverview": {
+            "content": "o" * 2900,
+            "sources": [
+                {"title": f"s{i}", "url": f"https://s{i}.example/"} for i in range(8)
+            ],
+        },
+        "paidResults": [
+            {"title": "ad", "url": "https://ad.example/", "description": "buy"}
+        ],
+        "relatedQueries": [{"title": f"{term} more {i}"} for i in range(8)],
+    }
+
+
+@pytest.fixture
+def measured(google_search: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """Google serving measured pages; returns the plugin's server module."""
+
+    async def fetch_serp_html(url: str, *, mobile: bool = False) -> str:
+        return parse_qs(urlsplit(url).query)["q"][0]  # the "HTML" is the term
+
+    def parse_serp(term: str, **kwargs) -> SerpItem:
+        return SerpItem.model_validate(_measured_page(term))
+
+    monkeypatch.setattr(scraper, "fetch_serp_html", fetch_serp_html)
+    monkeypatch.setattr(scraper, "parse_serp", parse_serp)
+    # Imported once the license env is set: the module reads it on import.
+    return importlib.import_module("proprietary.google_search.server")
+
+
+async def test_a_few_pages_keep_their_answers_opening(
+    google_search: str, measured: ModuleType
+) -> None:
+    result = await call(google_search, "scrape", {"queries": ["pie", "cake"]}, LICENSE)
+
+    _, *lines = result.content[0].text.splitlines()
+    assert len(lines) == 2
+    pie = json.loads(lines[0])
+    assert len(pie["peopleAlsoAsk"]) == 6
+    assert len(pie["peopleAlsoAsk"][0]["answer"]) == measured.PAA_ANSWER_CHARS + 1
+    assert len(pie["aiOverview"]["text"]) == measured.CLIP_CHARS + 1
+    assert pie["ads"] and pie["organic"][0]["date"] == "Jul 2, 2026"
+
+
+async def test_every_page_of_a_many_page_call_reaches_the_text(
+    google_search: str, measured: ModuleType
+) -> None:
+    """A third page-1 line used to fall out of the 32 KB text, so a text-only
+    client lost whole queries; past three pages each is listed compactly."""
+    terms = [f"query {n}" for n in range(10)]
+    result = await call(google_search, "scrape", {"queries": terms}, LICENSE)
+
+    header, *lines = result.content[0].text.splitlines()
+    assert header.startswith("10 Google results pages")
+    assert [json.loads(line)["query"] for line in lines] == terms
+    first = json.loads(lines[0])
+    assert first["peopleAlsoAsk"][0] == "Why query 0 0?"
+    assert len(first["aiOverview"]) == measured.COMPACT_OVERVIEW_CHARS + 1
+    assert first["organic"][0] == {
+        "title": "query 0 result 1",
+        "url": "https://site1.example/query 0",
+        "description": "d" * 150,
+    }
+    assert len(first["organic"]) == 10 and "ads" not in first
 
 
 async def test_more_pages_of_one_query_are_each_an_item(

@@ -5,6 +5,7 @@ from chat_eval.cases import Case, Passage, Turn
 from chat_eval.model import eval_model
 from chat_eval.request import body, conversation
 
+from modules.chat.prompt import build_context
 from modules.llm.profile import Tier
 from modules.llm.prompting import load
 from modules.llm.providers.types import Message
@@ -73,6 +74,20 @@ async def test_a_case_becomes_the_turn_chat_would_send() -> None:
     assert "[1] The X300 is covered for 39 months." in question.content
     assert "[2] The X200 is covered for 27 months." in question.content
     assert question.content.endswith("And the X300?")
+
+
+async def test_a_case_with_sources_still_read_gets_chats_still_reading_turn() -> None:
+    """Nothing to search yet: chat's still-reading instruction, the count ahead of
+    the question."""
+    case = Case(id="still-reading", question="What is in my lease?", indexing=2)
+
+    system, question = await conversation(case, Tier.COMPACT)
+
+    assert system.content == build_context([], Tier.COMPACT, indexing=2).instruction
+    assert "still being read" in system.content
+    assert question.content == (
+        "2 selected sources are still being read.\n\nQuestion: What is in my lease?"
+    )
 
 
 def test_the_answer_is_capped_at_the_reserve_chat_keeps_for_it() -> None:

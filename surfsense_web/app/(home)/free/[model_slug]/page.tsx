@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { HomeBadge } from "@/components/homepage/home/home-badge";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { DOWNLOADS_URL } from "@/components/site/site-content";
-import { Badge } from "@/components/ui/badge";
+import { SiteFaqItem } from "@/components/site/site-faq-item";
+import { siteText } from "@/components/site/site-text";
 import { FlowButton } from "@/components/ui/flow-button";
 import { CheckIcon } from "@/components/ui/icons";
 import { FREE_MODELS, type FreeModel, freeModelLabel, isPublishedSlug } from "@/lib/free-models";
+import { cn } from "@/lib/utils";
 
 /**
  * `/free/<model>` — the page the closed hosted chat left behind.
@@ -208,11 +211,11 @@ export default async function FreeModelPage({ params }: PageProps) {
 			/>
 			<FAQJsonLd questions={faqItems} />
 
-			<section className="ss-home-hero ss-home-pad">
+			<section className="py-20 md:py-28">
 				<div className="mx-auto max-w-3xl text-center">
 					<div className="flex justify-center">
 						<BreadcrumbNav
-							className="ss-home-breadcrumb justify-center"
+							className="flex flex-wrap items-center justify-center gap-1.5 text-sm text-muted-foreground"
 							items={[
 								{ name: "Free AI models", href: "/free" },
 								{ name: label, href: `/free/${model_slug}` },
@@ -220,16 +223,13 @@ export default async function FreeModelPage({ params }: PageProps) {
 						/>
 					</div>
 
-					<Badge variant="secondary" className="mt-6 rounded-full px-3 py-1">
-						Hosted chat closed
-					</Badge>
+					<HomeBadge className="mt-6">Hosted chat closed</HomeBadge>
 
-					<h1 className="ss-home-display mt-4">
-						{label} free chat has moved to{" "}
-						<span className="ss-home-accent">a free desktop app</span>
+					<h1 className={cn(siteText.display, "mt-4")}>
+						{label} free chat has moved to <span className="text-primary">a free desktop app</span>
 					</h1>
 
-					<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
+					<p className={cn(siteText.lede, "mx-auto mt-8 max-w-2xl")}>
 						The hosted chat that used to run on this page is switched off. Everything it did now
 						runs on your own machine instead: still no account, still no login, and no token
 						allowance to run out of.
@@ -239,9 +239,9 @@ export default async function FreeModelPage({ params }: PageProps) {
 						<FlowButton href={DOWNLOADS_URL} text="Download for desktop" />
 					</div>
 
-					<p className="ss-home-body mx-auto mt-6 max-w-xl text-sm">
+					<p className={cn(siteText.body, "mx-auto mt-6 max-w-xl text-sm")}>
 						Windows, macOS and Linux. Free forever, and{" "}
-						<Link className="ss-home-link" href="/pricing">
+						<Link className={siteText.link} href="/pricing">
 							the source is public
 						</Link>
 						.
@@ -249,16 +249,16 @@ export default async function FreeModelPage({ params }: PageProps) {
 				</div>
 			</section>
 
-			<section className="ss-home-rule">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">What changed</p>
-					<h2 className="ss-home-h2 mt-2">
+			<section className="border-t border-border">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<p className={siteText.eyebrow}>What changed</p>
+					<h2 className={cn(siteText.h2, "mt-2")}>
 						We stopped running a hosted free tier, not the free version
 					</h2>
 				</div>
 
-				<div className="ss-home-pad py-12">
-					<div className="ss-home-body flex max-w-3xl flex-col gap-4">
+				<div className="py-12">
+					<div className={cn(siteText.body, "flex max-w-3xl flex-col gap-4")}>
 						<p>
 							The anonymous chat on this page ran on our servers against a shared token pool. That
 							is the part that is gone. SurfSense itself is not going anywhere: it is a desktop app
@@ -274,18 +274,18 @@ export default async function FreeModelPage({ params }: PageProps) {
 				</div>
 			</section>
 
-			<section className="ss-home-rule">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">In the app</p>
-					<h2 className="ss-home-h2 mt-2">How to run {label} on your own machine</h2>
+			<section className="border-t border-border">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<p className={siteText.eyebrow}>In the app</p>
+					<h2 className={cn(siteText.h2, "mt-2")}>How to run {label} on your own machine</h2>
 				</div>
 
-				<div className="ss-home-grid ss-home-grid-3">
-					<div className="ss-home-cell">
-						<h3 className="ss-home-h3">
+				<div className="ss-home-grid md:grid-cols-3">
+					<div className="px-6 py-8 md:px-10">
+						<h3 className={siteText.h3}>
 							{runsOffline ? "Download it and go" : "Bring your own key"}
 						</h3>
-						<p className="ss-home-body mt-2 text-sm">
+						<p className={cn(siteText.body, "mt-2 text-sm")}>
 							{runsOffline
 								? `${label} is in the app's own model catalog. Pick it, let the app download it, and it runs on your hardware from then on, with no key and no network connection.`
 								: `The app connects to any OpenAI-compatible endpoint. Paste the base URL${
@@ -293,19 +293,19 @@ export default async function FreeModelPage({ params }: PageProps) {
 									} and your own key, pick ${label}, and it runs from your machine against your own account.`}
 						</p>
 					</div>
-					<div className="ss-home-cell">
-						<h3 className="ss-home-h3">
+					<div className="px-6 py-8 md:px-10">
+						<h3 className={siteText.h3}>
 							{runsOffline ? "Or add a hosted model" : "Or skip the key entirely"}
 						</h3>
-						<p className="ss-home-body mt-2 text-sm">
+						<p className={cn(siteText.body, "mt-2 text-sm")}>
 							{runsOffline
 								? "If you want a frontier model for the hard questions, add an OpenAI-compatible connection with your own key and switch between the two per chat."
-								: "The app ships a local catalog it downloads through Ollama, so a Qwen3 model runs on your own hardware for nothing. No key, no account, and it works with the network unplugged."}
+								: "The app ships a local catalog run by the built-in llama.cpp, so a Qwen3 model runs on your own hardware for nothing. No key, no account, and it works with the network unplugged."}
 						</p>
 					</div>
-					<div className="ss-home-cell">
-						<h3 className="ss-home-h3">It is a workspace, not a chat box</h3>
-						<p className="ss-home-body mt-2 text-sm">
+					<div className="px-6 py-8 md:px-10">
+						<h3 className={siteText.h3}>It is a workspace, not a chat box</h3>
+						<p className={cn(siteText.body, "mt-2 text-sm")}>
 							Add PDFs, Word files, spreadsheets and pages, ask across all of them with citations,
 							and turn the answers into a deck, a report or a briefing podcast.
 						</p>
@@ -313,10 +313,10 @@ export default async function FreeModelPage({ params }: PageProps) {
 				</div>
 			</section>
 
-			<section className="ss-home-rule ss-home-split">
-				<div className="ss-home-statement">
-					<h2 className="ss-home-h2">Free, and this time without the asterisk</h2>
-					<div className="ss-home-body mt-5 flex flex-col gap-4">
+			<section className="ss-home-grid border-t border-border lg:grid-cols-2">
+				<div className="flex flex-col justify-center px-6 py-12 md:px-10 lg:py-16">
+					<h2 className={siteText.h2}>Free, and this time without the asterisk</h2>
+					<div className={cn(siteText.body, "mt-5 flex flex-col gap-4")}>
 						<p>
 							The hosted chat was free until the shared pool ran out, which is the part nobody
 							liked. The app has no pool to share: it runs on your machine, so the only limits are
@@ -328,7 +328,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 						</p>
 					</div>
 					<p className="mt-6">
-						<Link className="ss-home-forward" href="/pricing">
+						<Link className={siteText.forward} href="/pricing">
 							What a licence adds
 						</Link>
 					</p>
@@ -336,40 +336,34 @@ export default async function FreeModelPage({ params }: PageProps) {
 
 				<ul className="ss-home-grid m-0 list-none p-0">
 					{APP_PROOF.map((point) => (
-						<li key={point} className="flex items-center gap-3 px-(--home-gutter) py-3.5">
-							<CheckIcon aria-hidden="true" className="size-3.5 shrink-0 text-(--home-accent)" />
-							<span className="ss-home-body text-sm">{point}</span>
+						<li key={point} className="flex items-center gap-3 px-6 py-3.5 md:px-10">
+							<CheckIcon aria-hidden="true" className="size-3.5 shrink-0 text-primary" />
+							<span className={cn(siteText.body, "text-sm")}>{point}</span>
 						</li>
 					))}
 				</ul>
 			</section>
 
-			<section className="ss-home-rule" aria-labelledby="ss-free-model-faq">
-				<div className="ss-home-head">
-					<h2 id="ss-free-model-faq" className="ss-home-h2">
+			<section className="border-t border-border" aria-labelledby="ss-free-model-faq">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<h2 id="ss-free-model-faq" className={siteText.h2}>
 						{label} without login: frequently asked questions
 					</h2>
 				</div>
 
 				<div className="ss-home-grid">
 					{faqItems.map((item) => (
-						<details key={item.question} className="ss-home-faq">
-							<summary className="ss-home-faq-summary">
-								<span className="ss-home-h3">{item.question}</span>
-								<span aria-hidden="true" className="ss-home-faq-marker" />
-							</summary>
-							<div className="ss-home-faq-answer">
-								<p className="ss-home-body">{item.answer}</p>
-							</div>
-						</details>
+						<SiteFaqItem key={item.question} question={item.question}>
+							<p className={siteText.body}>{item.answer}</p>
+						</SiteFaqItem>
 					))}
 				</div>
 			</section>
 
-			<section className="ss-home-rule ss-home-pad py-16">
+			<section className="border-t border-border py-16">
 				<div className="mx-auto max-w-2xl text-center">
-					<h2 className="ss-home-h2">Get the app and run {label} locally</h2>
-					<p className="ss-home-body mt-3">
+					<h2 className={siteText.h2}>Get the app and run {label} locally</h2>
+					<p className={cn(siteText.body, "mt-3")}>
 						One installer, no account, and your documents never leave the machine you put them on.
 					</p>
 					<div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -383,8 +377,8 @@ export default async function FreeModelPage({ params }: PageProps) {
 				</div>
 			</section>
 
-			<nav aria-label="Other AI models" className="ss-home-rule ss-home-pad py-12">
-				<h2 className="ss-home-h3">Other models you can run locally</h2>
+			<nav aria-label="Other AI models" className="border-t border-border py-12">
+				<h2 className={siteText.h3}>Other models you can run locally</h2>
 				<ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
 					{FREE_MODELS.filter((other) => other.slug !== model_slug)
 						.slice(0, 6)

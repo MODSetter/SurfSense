@@ -156,7 +156,7 @@ export function AddPluginDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="select-none sm:max-w-md">
+      <DialogContent className="select-none sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {intl.formatMessage({

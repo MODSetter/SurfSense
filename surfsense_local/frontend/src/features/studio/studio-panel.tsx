@@ -229,6 +229,7 @@ function Composer({
             </div>
           ) : (
             <Button
+              static
               type="button"
               variant="secondary"
               onClick={() => setView("sources")}
@@ -271,6 +272,7 @@ function Composer({
 
         <div className="mt-auto pt-3">
           <Button
+            static
             className="w-full"
             disabled={!canGenerate}
             onClick={() => {
@@ -393,12 +395,15 @@ const FormatCard = memo(function FormatCard({
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
+          <Button
             type="button"
+            variant="bare"
+            // An unavailable format does nothing, so it does not press.
+            static={!entry.available}
             aria-disabled={!entry.available || undefined}
             aria-pressed={entry.available ? selected : undefined}
             className={cn(
-              "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+              "flex min-w-0 flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
               entry.available
                 ? "hover:bg-accent"
                 : "cursor-not-allowed opacity-50",
@@ -410,7 +415,7 @@ const FormatCard = memo(function FormatCard({
             <span className="w-full truncate text-[11px] leading-4">
               {formatLabel(entry)}
             </span>
-          </button>
+          </Button>
         }
       />
       <TooltipContent side="top">{formatHint(entry)}</TooltipContent>

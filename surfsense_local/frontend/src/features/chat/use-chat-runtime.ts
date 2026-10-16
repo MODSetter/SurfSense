@@ -17,6 +17,7 @@ import {
 } from "@/features/agent/api"
 import { isOutdatedThreadRefusal } from "@/features/agent/outdated-thread"
 import { isUnsupportedModelRefusal } from "@/features/agent/unsupported-model"
+import { createDictation } from "@/features/dictation/dictation-adapter"
 import { errorToast } from "@/features/feedback/error-toast"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 import { subscribeToWorkspaceChanges } from "@/features/workspaces/workspace-changes"
@@ -918,9 +919,25 @@ export function useChatRuntime({
     }
   }, [messagesQuery.error])
 
+  // One per page, so a recording outlives the composer's remount on a thread
+  // switch; that switch cancels it (thread-panel.tsx), and so do leaving and quitting.
+  const [dictation] = useState(() => createDictation())
+  useEffect(() => {
+    const leave = () => dictation.cancel()
+    window.addEventListener("pagehide", leave)
+    return () => {
+      window.removeEventListener("pagehide", leave)
+      leave()
+    }
+  }, [dictation])
+
+  // Dictated text is plain text, so the mic is there whatever the model reads.
   const adapters = useMemo(
-    () => (readsImages ? { attachments: new ChatImageAdapter() } : undefined),
-    [readsImages]
+    () =>
+      readsImages
+        ? { dictation, attachments: new ChatImageAdapter() }
+        : { dictation },
+    [dictation, readsImages]
   )
 
   const isSendDisabled = !canSend || isLoadingMessages || isLoadingThreads
@@ -953,6 +970,7 @@ export function useChatRuntime({
 
   return {
     liveThread,
+    dictation,
     threads,
     conversationView,
     activeThread,

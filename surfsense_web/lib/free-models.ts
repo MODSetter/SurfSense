@@ -22,9 +22,9 @@
  * `access` is the answer to "so how do I run this in the app?", and it is the
  * one claim on these pages that has to survive contact with the product. The
  * desktop app talks to any OpenAI-compatible endpoint with a key you supply
- * (`surfsense_local/backend/modules/llm/schemas.py`), and ships exactly one
- * family in its own catalog for offline use — Qwen3, via Ollama
- * (`surfsense_local/backend/modules/llm/recommendations/curated-models.json`).
+ * (`surfsense_local/backend/modules/llm/schemas.py`), and ships Qwen3 and
+ * Gemma 3 in its own catalog for offline use, run by the bundled llama.cpp
+ * (`surfsense_local/backend/modules/llm/catalog/local/manifest/models.json`).
  * No row says a model runs offline unless the app can actually do that today.
  */
 

@@ -27,6 +27,7 @@
     <a href="#qué-hace-con-cada-formato">Formatos</a> ·
     <a href="#inicio-rápido">Inicio rápido</a> ·
     <a href="#cómo-se-compara">Comparativa</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Precios</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -69,12 +70,32 @@ SurfSense es una aplicación de escritorio gratuita y de código abierto para lo
 | **Imágenes** PNG, JPEG, TIFF, BMP, WebP | ✓ texto leído por OCR³ | Imágenes e infografías² | — | Insertar en documentos nuevos |
 | **Markdown**, texto sin formato | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ página web | — | — |
+| **Grabaciones** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcritas en tu equipo | — | — | — |
 | **Podcast** (audio) | — | ✓ con transcripción; por defecto, la voz se genera en tu equipo | — | — |
 | **Mapas mentales, tarjetas didácticas, cuestionarios** | — | ✓ en la aplicación | — | — |
 
 <sub>¹ Con la compatibilidad con Office (LibreOffice) activada en Ajustes; nunca viene incluida en el instalador. ² Necesita un modelo de imagen, local o remoto; no hay ninguno elegido por defecto. ³ El OCR lee escritura latina, china y japonesa.</sub>
 
 Las ediciones, las conversiones y las herramientas de PDF siempre crean un archivo nuevo; tu original nunca se modifica. Hoy por hoy, PDF, Word y Excel son los formatos con los que más se puede hacer, y la compatibilidad con el resto de formatos no deja de mejorar.
+
+## Plugins
+
+Conéctalos en **Ajustes › Plugins**.
+
+**De SurfSense.** Leen páginas públicas sin usar tus propias cuentas y necesitan una licencia de SurfSense: [descarga la aplicación](https://www.surfsense.com/downloads) e introduce allí tu correo electrónico para conseguir una gratuita de 30 días.
+
+| Plugin | Qué hace |
+|---|---|
+| **Google Search** | Buscar en Google y leer sus resultados, anuncios y preguntas relacionadas |
+| **Web Crawl** | Leer una página web o rastrear un sitio entero y convertirlo en texto limpio |
+| **YouTube** | Leer videos y canales de YouTube, con sus comentarios |
+| **TikTok** | Leer videos de TikTok y sus comentarios, buscar usuarios y ver qué es tendencia |
+| **Google Maps** | Encontrar lugares en Google Maps y leer sus reseñas |
+| **Amazon** | Leer productos y resultados de búsqueda de Amazon |
+| **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |
+| **Indeed** | Leer ofertas de empleo en Indeed |
+
+**De terceros.** Servidores MCP del [registro de plugins](plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
 
 ## Cómo se compara
 
@@ -92,18 +113,6 @@ Las ediciones, las conversiones y las herramientas de PDF siempre crean un archi
 - **Contribuir:** los PR se abren contra `dev`; consulta [CONTRIBUTING.md](CONTRIBUTING.md) y [`surfsense_local/`](./surfsense_local) para el ciclo de desarrollo. En [`docs/`](docs/README.md) se explica cómo funciona.
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Personas que contribuyen a SurfSense" /></a>
-
-## Historial de estrellas
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Gráfico del historial de estrellas" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## Licencia
 

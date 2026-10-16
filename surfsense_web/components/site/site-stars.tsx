@@ -1,4 +1,5 @@
 import { GithubLogo } from "@/components/homepage/icons/github-logo";
+import { cn } from "@/lib/utils";
 
 /**
  * GitHub star count in the site navigation.
@@ -24,13 +25,24 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
 
 const compact = (value: number) => compactFormatter.format(value).toLowerCase();
 
-export function SiteStars({ count, href }: { count: number | null; href: string }) {
+export function SiteStars({
+	count,
+	href,
+	className,
+}: {
+	count: number | null;
+	href: string;
+	className?: string;
+}) {
 	return (
 		<a
 			href={href}
 			target="_blank"
 			rel="noreferrer noopener"
-			className="ss-home-nav-stars"
+			className={cn(
+				"inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground tabular-nums transition-colors duration-100 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+				className
+			)}
 			// The visible number is decorative next to this; the label is what a
 			// screen reader announces, and it says what the link does either way.
 			aria-label={
@@ -40,7 +52,7 @@ export function SiteStars({ count, href }: { count: number | null; href: string 
 			}
 		>
 			<GithubLogo aria-hidden="true" className="size-4 shrink-0" />
-			<span aria-hidden="true" className="ss-home-nav-stars-count">
+			<span aria-hidden="true" className="min-w-8">
 				{count === null ? "" : compact(count)}
 			</span>
 		</a>

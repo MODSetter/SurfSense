@@ -1,22 +1,39 @@
 """SurfSense's Amazon plugin: public products, search results, offers and sellers, behind the license."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Any
 from urllib.parse import quote_plus, urlsplit
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp_types import CallToolResult, TextContent, ToolAnnotations
+from mcp_types import CallToolResult, ToolAnnotations
 from pydantic import Field
 
+from mcp_server.progress import stage
+from mcp_server.results import tool_result, wants_text_only
 from proprietary.amazon.schemas import AmazonScrapeInput
 from proprietary.amazon.scraper import scrape_products
-from proprietary.license_check.license_access import LicenseAccess
+from proprietary.license_check.license_access import shared_access
+from proprietary.scraping import lifecycle
 
 # Bounds one call's fan-out and its result, as the scraper API's did.
 MAX_SOURCES = 20
 MAX_RESULTS = 1000
+# What an agent reads of a product's lists before it would need a follow-up call.
+_FEATURES_SHOWN = 5
+_REVIEWS_SHOWN = 3
+_OFFERS_SHOWN = 5
+_SPECS_SHOWN = 6
 
-access = LicenseAccess()
+access = shared_access()
+
+
+@asynccontextmanager
+async def lifespan() -> AsyncIterator[None]:
+    """Closes the shared request pools at shutdown; Amazon has nothing to warm."""
+    async with lifecycle.lifespan():
+        yield
 
 
 def server() -> MCPServer:
@@ -118,8 +135,13 @@ def server() -> MCPServer:
             MAX_RESULTS,
         )
 
+        await stage(ctx, "starting", total=expected)
+
         async def heard(count: int) -> None:
-            await ctx.report_progress(count, expected)
+            await stage(ctx, f"{count} of {expected} items", done=count, total=expected)
+
+        async def reached(message: str) -> None:
+            await stage(ctx, message)
 
         search_urls = [
             f"https://{domain}/s?k={quote_plus(term)}" for term in search_terms
@@ -139,33 +161,127 @@ def server() -> MCPServer:
             scrapeProductVariantPrices=include_variant_prices,
         )
         # A blocked or missing page comes back as an error item, not a raise.
-        items = await scrape_products(request, limit=MAX_RESULTS, on_item=heard)
-        return CallToolResult(
-            content=[TextContent(type="text", text=_summary(items))],
-            structured_content={"items": items},
+        notes: list[str] = []
+        items = await scrape_products(
+            request,
+            limit=MAX_RESULTS,
+            on_item=heard,
+            on_stage=reached,
+            notes=notes,
+        )
+        return tool_result(
+            _summary(items, notes),
+            items,
+            project=_projected,
+            text_only=wants_text_only(ctx),
         )
 
     return amazon
 
 
-def _summary(items: list[dict[str, Any]]) -> str:
-    """What the agent reads first; the items themselves are in the structured result."""
+def _summary(items: list[dict[str, Any]], notes: list[str]) -> str:
+    """The header line the agent reads first; one JSON line per item follows it."""
     products = sum("error" not in item for item in items)
-    lines = [f"{products} Amazon products, {len(items) - products} errors"]
-    for item in items:
-        if "error" in item:
-            lines.append(
-                f"- [error: {item['error']}] {item.get('errorDescription') or ''} "
-                f"{item.get('input') or ''}"
-            )
-            continue
-        price = item.get("price") or {}
-        cost = (
-            f" {price.get('value')} {price.get('currency') or ''}".rstrip()
-            if price.get("value") is not None
-            else ""
-        )
-        lines.append(
-            f"- {item.get('title')} ({item.get('asin')}){cost} {item.get('url') or ''}"
-        )
-    return "\n".join(lines)
+    return "\n".join(
+        [f"{products} Amazon products, {len(items) - products} errors", *notes]
+    )
+
+
+def _amount(price: Any) -> str | None:
+    if not isinstance(price, dict) or price.get("value") is None:
+        return None
+    return f"{price['value']} {price.get('currency') or ''}".rstrip()
+
+
+def _seller(seller: Any) -> dict[str, Any] | None:
+    if not isinstance(seller, dict):
+        return None
+    return {
+        "name": seller.get("name"),
+        "rating": seller.get("averageRating"),
+        "reviews": seller.get("reviewsCount"),
+    }
+
+
+def _product_url(item: dict[str, Any]) -> str | None:
+    """The plain /dp/ link: search links carry a few hundred bytes of tracking."""
+    url, asin = item.get("url"), item.get("asin")
+    host = urlsplit(url).netloc if url else ""
+    return f"https://{host}/dp/{asin}" if host and asin else url
+
+
+def _specs(rows: Any) -> dict[str, Any] | None:
+    """The first few product-overview rows ("Brand", "Color"...) as key: value."""
+    specs = {
+        row.get("name"): row.get("value")
+        for row in (rows or [])[:_SPECS_SHOWN]
+        if isinstance(row, dict) and row.get("name")
+    }
+    return specs or None
+
+
+def _projected(item: dict[str, Any]) -> dict[str, Any]:
+    """The fields an agent answers from: price, rating, description, reviews, offers."""
+    if "error" in item:
+        return {
+            "error": item["error"],
+            "description": item.get("errorDescription"),
+            "input": item.get("input"),
+        }
+    card = item.get("categoryPageData") or {}
+    ranked = item.get("bestsellerPageData") or {}
+    return {
+        "title": item.get("title"),
+        "asin": item.get("asin"),
+        # Set on variant items only; a product's own ASIN would just repeat.
+        "originalAsin": (
+            item.get("originalAsin")
+            if item.get("originalAsin") != item.get("asin")
+            else None
+        ),
+        "url": _product_url(item),
+        "brand": item.get("brand"),
+        "author": item.get("author"),
+        "price": _amount(item.get("price")),
+        "listPrice": _amount(item.get("listPrice")),
+        "inStock": item.get("inStock"),
+        "inStockText": item.get("inStockText"),
+        "delivery": item.get("delivery"),
+        "stars": item.get("stars"),
+        "reviewsCount": item.get("reviewsCount"),
+        "monthlyPurchaseVolume": item.get("monthlyPurchaseVolume"),
+        "isAmazonChoice": item.get("isAmazonChoice") or None,
+        "searchPosition": card.get("position"),
+        "bestsellerRank": ranked.get("rank"),
+        "bestsellerRanks": item.get("bestsellerRanks"),
+        "description": item.get("description"),
+        "features": (item.get("features") or [])[:_FEATURES_SHOWN],
+        "specs": _specs(item.get("productOverview")),
+        "reviewsSummary": (item.get("aiReviewsSummary") or {}).get("text"),
+        "reviews": [
+            {
+                "stars": review.get("stars"),
+                "title": review.get("title"),
+                "text": review.get("text"),
+            }
+            for review in (item.get("productPageReviews") or [])[:_REVIEWS_SHOWN]
+            if isinstance(review, dict)
+        ],
+        "seller": _seller(item.get("seller")),
+        "offers": [
+            {
+                "price": _amount(offer.get("price")),
+                "condition": offer.get("condition"),
+                "delivery": offer.get("delivery"),
+                "seller": _seller(offer.get("seller")),
+            }
+            for offer in (item.get("offers") or [])[:_OFFERS_SHOWN]
+            if isinstance(offer, dict)
+        ],
+        "variants": [
+            {"asin": detail.get("asin"), "price": _amount(detail.get("price"))}
+            for detail in item.get("variantDetails") or []
+            if isinstance(detail, dict) and detail.get("price")
+        ],
+        "locationText": item.get("locationText"),
+    }

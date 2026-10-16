@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-plugin-host"
-version = "0.0.0"
+version = "0.1.0"
 description = "The one server that runs every SurfSense plugin, each at /<id>/mcp."
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
@@ -14,7 +14,12 @@ dependencies = [
     # Passes a Stop to the copy of the host running the call.
     "redis>=5.2",
     # The scraper plugins' fetchers and stealth browsers; `scrapling install` adds the browsers.
-    "scrapling[fetchers]>=0.4.11,<0.5",
+    # Exact: the shared browser pool reuses its private context and challenge helpers,
+    # and a contract test fails on an upgrade that moves them.
+    "scrapling[fetchers]==0.4.15",
+    # The shared fail-fast transport speaks curl_cffi directly and reads JSON with orjson.
+    "curl_cffi>=0.16.3",
+    "orjson>=3.13.0",
     # YouTube's subtitles.
     "youtube-transcript-api>=1.0.3",
     "fake-useragent>=2.2.0",

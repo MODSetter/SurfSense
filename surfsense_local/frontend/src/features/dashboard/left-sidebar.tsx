@@ -37,6 +37,7 @@ function SidebarNavButton({
 }: Omit<SidebarNavAction, "key">) {
   return (
     <Button
+      static
       variant="ghost"
       className="w-full justify-start px-2"
       onClick={onClick}

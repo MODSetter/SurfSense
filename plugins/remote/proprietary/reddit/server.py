@@ -1,26 +1,61 @@
 """SurfSense's Reddit plugin: public posts, comments, users and communities, behind the license."""
 
+from collections import Counter
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp_types import CallToolResult, TextContent, ToolAnnotations
+from mcp_types import CallToolResult, ToolAnnotations
 from pydantic import Field
 
-from proprietary.license_check.license_access import LicenseAccess
+from mcp_server.progress import stage
+from mcp_server.results import tool_result, wants_text_only
+from proprietary.license_check.license_access import shared_access
+from proprietary.reddit import fetch
 from proprietary.reddit.fetch import RedditAccessBlockedError
 from proprietary.reddit.schemas import RedditScrapeInput
 from proprietary.reddit.scraper import scrape_reddit
+from proprietary.scraping import lifecycle
 
 # Bounds one call's fan-out and its result, as the scraper API's did.
 MAX_SOURCES = 20
 MAX_ITEMS = 100
 
-access = LicenseAccess()
+access = shared_access()
+
+# What an agent reads of each item; ids, HTML and media URLs stay in the
+# structured result.
+_AGENT_FIELDS = (
+    "dataType",
+    "title",
+    "communityName",
+    "username",
+    "url",
+    "body",
+    "externalUrl",
+    "upVotes",
+    "numberOfComments",
+    "numberOfReplies",
+    "numberOfMembers",
+    "flair",
+    "over18",
+    "createdAt",
+    "postId",
+    "parentId",
+)
 
 Sort = Literal["relevance", "hot", "top", "new", "rising", "comments"]
 Time = Literal["hour", "day", "week", "month", "year", "all"]
+
+
+@asynccontextmanager
+async def lifespan() -> AsyncIterator[None]:
+    """Holds the shared scraping pools open while the plugin is mounted."""
+    async with lifecycle.lifespan():
+        yield
 
 
 def server() -> MCPServer:
@@ -94,8 +129,12 @@ def server() -> MCPServer:
             if parts.scheme not in ("http", "https") or not parts.netloc:
                 raise ToolError(f"Not an http(s) URL: {url}")
 
+        await stage(ctx, "scraping Reddit", total=max_items)
+
         async def heard(count: int) -> None:
-            await ctx.report_progress(count, max_items)
+            await stage(
+                ctx, f"{count} of {max_items} items", done=count, total=max_items
+            )
 
         request = RedditScrapeInput(
             startUrls=[{"url": url.strip()} for url in urls],
@@ -111,26 +150,33 @@ def server() -> MCPServer:
             postDateLimit=post_date_limit,
             commentDateLimit=comment_date_limit,
         )
+        # Warms and fetches report too, so a slow give-up is not a silent stream.
+        token = fetch.on_stage.set(lambda message: stage(ctx, message))
         try:
             items = await scrape_reddit(request, limit=max_items, on_item=heard)
         except RedditAccessBlockedError as error:
             # Anonymous only: a refusal after every address was tried cannot be retried.
             raise ToolError(f"Reddit refused anonymous access: {error}") from error
-        return CallToolResult(
-            content=[TextContent(type="text", text=_summary(items))],
-            structured_content={"items": items},
+        finally:
+            fetch.on_stage.reset(token)
+        return tool_result(
+            _summary(items),
+            items,
+            project=_projected,
+            text_only=wants_text_only(ctx),
         )
 
     return reddit
 
 
 def _summary(items: list[dict[str, Any]]) -> str:
-    """What the agent reads first; the items themselves are in the structured result."""
-    lines = [f"{len(items)} Reddit items"]
-    for item in items:
-        where = item.get("communityName") or item.get("username") or ""
-        title = item.get("title") or (item.get("body") or "")[:120]
-        lines.append(
-            f"- [{item.get('dataType')}] {title} ({where}) {item.get('url') or ''}"
-        )
-    return "\n".join(lines)
+    """The header line: how many items of each kind; the items follow it."""
+    kinds = Counter(item.get("dataType") or "item" for item in items)
+    counts = ", ".join(
+        f"{count} {kind}{'' if count == 1 else 's'}" for kind, count in kinds.items()
+    )
+    return f"{len(items)} Reddit items" + (f": {counts}" if counts else "")
+
+
+def _projected(item: dict[str, Any]) -> dict[str, Any]:
+    return {field: item.get(field) for field in _AGENT_FIELDS}

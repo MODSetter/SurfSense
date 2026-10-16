@@ -1,10 +1,11 @@
-"""`python -m registry_check static|sign|verify`: what CI runs over the registry."""
+"""`python -m registry_check static|live|sign|verify`: what CI runs over the registry."""
 
 import argparse
 import os
 import sys
 from pathlib import Path
 
+from registry_check.live.live_check import live_findings
 from registry_check.signing.sign import sign_registry
 from registry_check.signing.verify import verify_registry
 from registry_check.static.checked_list import problems_in
@@ -25,6 +26,13 @@ def main(argv: list[str] | None = None) -> int:
 
 def _static(args: argparse.Namespace) -> int:
     return _report(problems_in(args.registry, args.first_party), "static check")
+
+
+def _live(args: argparse.Namespace) -> int:
+    found = live_findings(args.registry, args.base)
+    for warning in found.warnings:
+        sys.stderr.write(f"{warning}\n")
+    return _report(found.problems, "live check")
 
 
 def _sign(args: argparse.Namespace) -> int:
@@ -67,6 +75,16 @@ def _parser() -> argparse.ArgumentParser:
     static.add_argument("--first-party", type=Path, default=FIRST_PARTY)
     static.set_defaults(run=_static)
 
+    live = commands.add_parser(
+        "live", help="connect to each new or changed plugin's server"
+    )
+    live.add_argument(
+        "--base",
+        type=Path,
+        help="the list a pull request is based on; without it, every entry is contacted",
+    )
+    live.set_defaults(run=_live)
+
     sign = commands.add_parser("sign", help="stamp and sign with REGISTRY_SIGNING_KEY")
     sign.add_argument("--published", type=Path, default=PUBLISHED)
     sign.set_defaults(run=_sign)
@@ -76,7 +94,7 @@ def _parser() -> argparse.ArgumentParser:
     verify.add_argument("--registry", type=Path, default=PUBLISHED / "plugins.json")
     verify.set_defaults(run=_verify)
 
-    for command in (static, sign):
+    for command in (static, live, sign):
         command.add_argument("--registry", type=Path, default=REGISTRY)
     return parser
 

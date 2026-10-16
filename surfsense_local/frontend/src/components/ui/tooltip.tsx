@@ -51,8 +51,7 @@ function TooltipTrigger({
 }: TooltipPrimitive.Trigger.Props) {
   const tooltipId = React.useContext(TooltipContext)
   const ariaDescribedBy =
-    [ariaDescribedByProp, tooltipId].filter(Boolean).join(" ") ||
-    undefined
+    [ariaDescribedByProp, tooltipId].filter(Boolean).join(" ") || undefined
 
   return (
     <TooltipPrimitive.Trigger
@@ -88,14 +87,14 @@ function TooltipContent({
         side={side}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        className="isolate z-50"
+        className="isolate"
       >
         <TooltipPrimitive.Popup
           id={tooltipId ?? undefined}
           role={role}
           data-slot="tooltip-content"
           className={cn(
-            "pointer-events-none z-50 w-fit origin-(--transform-origin) rounded-md border border-border bg-popover px-3 py-1.5 text-xs font-medium text-pretty text-popover-foreground select-none data-instant:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "pointer-events-none w-fit origin-(--transform-origin) rounded-md border border-border bg-popover px-3 py-1.5 text-xs font-medium text-pretty text-popover-foreground select-none data-instant:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className
           )}
           {...props}

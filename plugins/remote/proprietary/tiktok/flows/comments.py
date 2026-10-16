@@ -1,9 +1,9 @@
 """Comments flow: a video URL -> its public comment thread.
 
-Comments load over a signed ``/api/comment/list`` XHR that TikTok *does* serve to
-anonymous sessions once the comments panel is opened (unlike profile-video/search
-feeds). Records are deduped by comment id, capped, and — when a video has none or
-withholds them — degraded to one ErrorItem, mirroring the listing flow.
+Comments come from ``/api/comment/list``: unsigned over HTTP first, else the XHR
+the video page fires once its comments panel is opened. Records are deduped by
+comment id, capped, and — when a video has none or withholds them — degraded to
+one ErrorItem, mirroring the listing flow.
 """
 
 from __future__ import annotations
@@ -17,9 +17,12 @@ from ..schemas import ErrorItem
 from ..targets.types import TikTokTarget
 from . import FetchCommentsFn
 
+# Every draw came back empty. Live, that is TikTok withholding the thread far more
+# often than a video without comments, so say so first.
 _EMPTY_MESSAGE = (
-    "No comments returned. The video may have none, comments disabled, or TikTok "
-    "withheld them from anonymous access."
+    "TikTok withheld this video's comments from every anonymous exit tried; try "
+    "again later. If the video shows no comments on TikTok either, it has none or "
+    "comments are turned off."
 )
 
 

@@ -4,6 +4,8 @@ Reddit itself is faked at the scraper's network seam, `fetch_json`, and its prox
 sessions; the host, the license check, the tool and Reddit's parsing are real.
 """
 
+import json
+import time
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -16,12 +18,13 @@ from mcp.client.streamable_http import streamable_http_client
 from host.app import host_app
 from host.tests.mcp_calls import call
 from host.tests.serving import serving
+from mcp_server import progress as progress_module
 from proprietary.license_check.tests.stand_in_keygen import (
     ACCOUNT,
     StandInKeygen,
     accounts_url,
 )
-from proprietary.reddit import scraper
+from proprietary.reddit import fetch, scraper
 from proprietary.reddit.fetch import RedditAccessBlockedError
 
 LICENSE = {"Authorization": "License k-1"}
@@ -124,6 +127,90 @@ async def test_a_search_returns_its_posts_with_a_summary_and_progress(
     assert reddit_answers[0][1]["q"] == "asyncio"
 
 
+async def test_each_item_is_a_line_of_its_fields_an_agent_needs(
+    reddit: str, reddit_answers: list[tuple[str, dict]]
+) -> None:
+    """opencode reads only the text, so the items go there, without ids or HTML."""
+    result = await call(
+        reddit,
+        "scrape",
+        {"search_queries": ["asyncio"], "max_items": 2, "skip_comments": True},
+        LICENSE,
+    )
+
+    header, *lines = result.content[0].text.splitlines()
+    assert header == "2 Reddit items: 2 posts"
+    first = json.loads(lines[0])
+    assert first == {
+        "dataType": "post",
+        "title": "Post 1",
+        "communityName": "r/python",
+        "username": "ada",
+        "url": "https://www.reddit.com/r/python/comments/p1/post/",
+        "upVotes": 10,
+        "numberOfComments": 1,
+        "createdAt": first["createdAt"],
+    }
+    # The whole item, ids included, stays in the structured result.
+    assert result.structured_content["items"][0]["id"] == "t3_p1"
+
+
+async def test_a_text_only_client_gets_no_structured_copy(
+    reddit: str, reddit_answers: list[tuple[str, dict]]
+) -> None:
+    result = await call(
+        reddit,
+        "scrape",
+        {"search_queries": ["asyncio"], "max_items": 1, "skip_comments": True},
+        {**LICENSE, "x-surfsense-text-only": "1"},
+    )
+
+    assert not result.is_error
+    assert result.structured_content is None
+    assert '"title":"Post 1"' in result.content[0].text
+
+
+async def test_warms_and_fetches_reach_the_client_as_progress(
+    reddit: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A call spent warming browsers says so, instead of a silent stream."""
+    monkeypatch.setattr(progress_module, "INTERVAL_SECONDS", 0.0)
+
+    async def fetch_json(path: str, params: dict | None = None) -> Any:
+        # What fetch.py reports from inside the fan-out's own tasks.
+        await fetch._stage("warming an anonymous session (us)")
+        await fetch._stage(f"fetching {path}")
+        return {"data": {"children": [post(1)], "after": None}}
+
+    no_proxy_sessions(monkeypatch)
+    monkeypatch.setattr(scraper, "fetch_json", fetch_json)
+    heard: list[tuple[float, str | None]] = []
+
+    async def on_progress(value: float, total: float | None, message: str | None):
+        heard.append((value, message))
+
+    async with (
+        httpx2.AsyncClient(headers=LICENSE) as http,
+        Client(streamable_http_client(reddit, http_client=http)) as client,
+    ):
+        result = await client.call_tool(
+            "scrape",
+            {"search_queries": ["asyncio"], "max_items": 1, "skip_comments": True},
+            progress_callback=on_progress,
+        )
+
+    assert not result.is_error
+    messages = [message for _, message in heard]
+    assert messages == [
+        "scraping Reddit",
+        "warming an anonymous session (us)",
+        "fetching search",
+        "1 of 1 items",
+    ]
+    values = [value for value, _ in heard]
+    assert values == sorted(values) and values[-1] == 1
+
+
 async def test_reddit_refusing_every_address_reads_as_the_tool_s_error(
     reddit: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -139,6 +226,31 @@ async def test_reddit_refusing_every_address_reads_as_the_tool_s_error(
 
     assert result.is_error
     assert "Reddit refused" in result.content[0].text
+
+
+async def test_while_reddit_is_known_closed_the_call_fails_at_once(
+    reddit: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The latch answers before any proxy session or browser warm."""
+
+    async def no_holder() -> Any:
+        raise AssertionError("opened a proxy session while latched")
+
+    no_proxy_sessions(monkeypatch)
+    monkeypatch.setattr(fetch, "open_proxy_holder", no_holder)
+    fetch._closed.sightings = {"gb": time.monotonic(), "us": time.monotonic()}
+    fetch._closed.until = time.monotonic() + 600
+
+    started = time.perf_counter()
+    listing = await call(reddit, "scrape", {"community": "python"}, LICENSE)
+    searched = await call(reddit, "scrape", {"search_queries": ["fastapi"]}, LICENSE)
+
+    assert time.perf_counter() - started < 5
+    for result in (listing, searched):
+        assert result.is_error
+        text = result.content[0].text
+        assert "Reddit refused anonymous access: logged-out reads are closed" in text
+        assert "retrying now fails the same way" in text
 
 
 async def test_a_call_naming_nothing_to_scrape_is_refused(reddit: str) -> None:

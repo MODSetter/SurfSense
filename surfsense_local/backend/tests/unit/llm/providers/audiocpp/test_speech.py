@@ -3,6 +3,7 @@
 import asyncio
 import io
 import json
+import sys
 import wave
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -62,10 +63,14 @@ def test_the_voices_are_the_chosen_models_roster() -> None:
     """A Supertonic voice speaks every language the model does; a Kokoro voice
     speaks its own."""
     kokoro = AudioCppSpeech(
-        voiced("kokoro-82m", "kokoro-82m-q8_0"), base_url="", give_up_text_runtime=NO_CHAT
+        voiced("kokoro-82m", "kokoro-82m-q8_0"),
+        base_url="",
+        give_up_text_runtime=NO_CHAT,
     )
     supertonic = AudioCppSpeech(
-        voiced("supertonic-3", "supertonic-3-f16"), base_url="", give_up_text_runtime=NO_CHAT
+        voiced("supertonic-3", "supertonic-3-f16"),
+        base_url="",
+        give_up_text_runtime=NO_CHAT,
     )
 
     heart = next(v for v in kokoro.voices() if v.id == "af_heart")
@@ -145,8 +150,10 @@ def speak(model: VoicedModel, server: StubServer, turns, language="en-US", free=
     return asyncio.run(speech.synthesize(turns, language))
 
 
-def test_each_turn_is_one_request_and_the_turns_join_with_a_pause() -> None:
-    """0.35 s between speakers, as the podcast has always had, at the model's rate."""
+def test_each_turn_is_one_request_and_the_turns_join_with_a_pause(monkeypatch) -> None:
+    """0.35 s between speakers, as the podcast has always had, at the model's rate.
+    Read from the WAV, which an episode stays when no encoder is installed."""
+    monkeypatch.setitem(sys.modules, "lameenc", None)
     server = StubServer(frames=1000)
     turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
 
@@ -161,6 +168,16 @@ def test_each_turn_is_one_request_and_the_turns_join_with_a_pause() -> None:
         assert joined.getframerate() == 24000
         # Two turns of 1,000 frames around 8,400 frames of silence.
         assert joined.getnframes() == 10_400
+
+
+def test_the_voice_returns_its_joined_wav() -> None:
+    """MP3 is the podcast's own step; Settings' voice check plays this WAV."""
+    turns = [SpokenTurn("am_adam", "Welcome back."), SpokenTurn("af_heart", "Thanks.")]
+
+    audio = speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), StubServer(24000), turns)
+
+    assert audio.media_type == "audio/wav"
+    assert audio.content[:4] == b"RIFF"
 
 
 def test_the_language_is_sent_only_where_the_voice_speaks_several() -> None:

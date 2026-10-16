@@ -8,11 +8,12 @@
  * notice it sends the renderer.
  */
 import { randomBytes } from "node:crypto"
-import { existsSync, mkdirSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 import { getFreePort, waitForHealth } from "../net.ts"
 import { audiocppSpec } from "./audiocpp.ts"
+import { audiocppTranscriptionSpec } from "./audiocpp-transcription.ts"
 import { llamacppSpec } from "./llamacpp.ts"
 import {
   binaryPath as opencodeBinaryPath,
@@ -20,8 +21,10 @@ import {
   opencodeSpec,
   OPENCODE_SIDECAR,
 } from "./opencode.ts"
+import { recordOpencodeFailure } from "./opencode-failure.ts"
 import { prepareOpencodeHome } from "./opencode-home.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./opencode-leftovers.ts"
+import { OpencodeRestarts } from "./opencode-restarts.ts"
 import { apiSpec, workerSpec } from "./python.ts"
 import { binaryPath as sdcppBinaryPath } from "./sdcpp.ts"
 import {
@@ -34,6 +37,7 @@ import type { CrashHandler, SidecarContext, SidecarSpec } from "./types.ts"
 import { watchAudioModels } from "./watch-audio-models.ts"
 import { watchGenerationPreset } from "./watch-generation-preset.ts"
 import { watchImageModel } from "./watch-image-model.ts"
+import { watchTranscriptionModels } from "./watch-transcription-models.ts"
 
 /** What only the host knows: its paths, the packaged flag and the secret. */
 export interface BootContext {
@@ -111,6 +115,9 @@ export async function bootSidecars(
   ctx.audioUrl = `http://${host}:${ctx.audioPort}`
   ctx.audioModelsDir = join(dataDir, "audio")
   mkdirSync(ctx.audioModelsDir, { recursive: true })
+  // The same build again for speech recognition, on a port of its own.
+  ctx.transcriptionPort = await getFreePort(host)
+  ctx.transcriptionUrl = `http://${host}:${ctx.transcriptionPort}`
 
   // Only a host with a staged sd-server gets an images dir: without it the API
   // offers no image models, rather than downloads that can never run.
@@ -151,6 +158,8 @@ export async function bootSidecars(
     llamacppSpec(ctx),
     // Null until the API's config names an audio model.
     audiocppSpec(ctx),
+    // Null until the API's transcription config names a speech model.
+    audiocppTranscriptionSpec(ctx),
   ].filter((s): s is SidecarSpec => s !== null)
   const sidecars = startAll(specs, onCrash)
   const control = sidecarControl(sidecars, onCrash)
@@ -160,7 +169,8 @@ export async function bootSidecars(
     watchImageModel({ ctx, control, stopping: () => stopping }),
     watchGenerationPreset({ ctx, control, stopping: () => stopping }),
     watchAudioModels({ ctx, control, stopping: () => stopping }),
-    watchAgentConfig({ ctx, control, stopping: () => stopping }),
+    watchTranscriptionModels({ ctx, control, stopping: () => stopping }),
+    watchAgentConfig({ ctx, control, onCrash, stopping: () => stopping }),
   ]
 
   return {
@@ -183,26 +193,40 @@ export async function bootSidecars(
 // by writing its configuration. A rewrite is not a restart: opencode reads the
 // file per folder, and the API makes it read it again (`POST /global/dispose`),
 // so no turn is cut off by a restart it did not ask for. Removing the file stops
-// opencode; a crash restarts it, at most once per AGENT_RESTART_MS.
-const AGENT_RESTART_MS = 10_000
+// opencode. A crash restarts it with a growing delay, and after a few quick
+// exits Electron stops until the API writes the file again (OpencodeRestarts),
+// telling the API why so its turn fails at once.
 
 /** Follow the agent config file: start opencode when it appears, stop it when it is gone. */
 function watchAgentConfig(options: {
   ctx: SidecarContext
   control: SidecarControl
+  onCrash: CrashHandler
   stopping: () => boolean
 }): () => void {
-  const { ctx, control, stopping } = options
+  const { ctx, control, onCrash, stopping } = options
   if (ctx.agentDir == null || ctx.opencodeBinariesDir == null) return () => {}
   const agentDir = ctx.agentDir
   const config = opencodeConfigPath(agentDir)
-  let lastStart = 0
+  const restarts = new OpencodeRestarts()
+
+  // Only giving up reaches the user: each exit before it is retried.
+  const onAgentCrash: CrashHandler = (name, code) => {
+    const reason =
+      code === null ? "opencode could not be started" : `opencode exited with code ${code}`
+    const after = restarts.exited(Date.now(), reason)
+    if (!("gaveUp" in after)) return
+    recordOpencodeFailure(agentDir, after.gaveUp)
+    onCrash(name, code)
+  }
 
   /** Bring the running opencode in line with whether the config file exists. */
   const reconcile = async () => {
     if (stopping()) return
     const child = control.running.get(OPENCODE_SIDECAR)
-    const running = child != null && child.exitCode === null && child.signalCode === null
+    // A child that never spawned has no pid, and no exit code ever comes.
+    const running =
+      child?.pid != null && child.exitCode === null && child.signalCode === null
     const wanted = existsSync(config)
     if (wanted === running) return
 
@@ -210,12 +234,12 @@ function watchAgentConfig(options: {
       await control.stop(OPENCODE_SIDECAR)
       return
     }
-    if (Date.now() - lastStart < AGENT_RESTART_MS) return
+    if (!restarts.mayStart(Date.now(), statSync(config).mtimeMs)) return
     const spec = opencodeSpec(ctx)
     if (!spec) return
     prepareOpencodeHome(agentDir)
-    control.start(spec)
-    lastStart = Date.now()
+    control.start(spec, onAgentCrash)
+    restarts.started(Date.now())
     const pid = control.running.get(OPENCODE_SIDECAR)?.pid
     if (pid != null && ctx.opencodePort != null && ctx.opencodePassword != null) {
       recordOpencode(agentDir, {

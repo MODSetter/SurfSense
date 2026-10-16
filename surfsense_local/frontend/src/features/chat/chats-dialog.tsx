@@ -269,7 +269,7 @@ export const ChatsDialog = memo(function ChatsDialog({
             ) : null}
           </InputGroup>
           <ScrollFade
-            className="h-[32rem] min-w-0"
+            className="h-128 min-w-0"
             viewportClassName="overflow-x-hidden"
           >
             <ChatList
@@ -303,6 +303,7 @@ export const ChatsDialog = memo(function ChatsDialog({
           </ScrollFade>
           <DialogFooter className="-mt-4">
             <Button
+              static
               type="button"
               variant="ghost"
               className="w-full justify-start px-2"
@@ -443,9 +444,10 @@ function ChatList({
               />
             ) : null}
             <Button
+              static
               variant="ghost"
               className={cn(
-                "h-10 w-full min-w-0 justify-start gap-3 overflow-hidden rounded-lg px-2 py-2 text-sm font-normal group-hover:bg-muted active:translate-y-0! dark:group-hover:bg-muted/50",
+                "h-10 w-full min-w-0 justify-start gap-3 overflow-hidden rounded-lg px-2 py-2 text-sm font-normal group-hover:bg-muted dark:group-hover:bg-muted/50",
                 selected &&
                   "bg-sidebar-accent text-foreground group-hover:text-foreground hover:text-foreground",
                 openDropdownId === thread.id && "bg-muted dark:bg-muted/50"
@@ -561,7 +563,7 @@ function ChatList({
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                      className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent data-popup-open:bg-accent data-popup-open:opacity-100"
                       aria-label={intl.formatMessage(
                         {
                           id: "chat_chats_dialog_row_actions_aria",

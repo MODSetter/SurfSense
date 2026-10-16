@@ -69,7 +69,6 @@ export function ServerPath({
       </Button>
       <ConnectionDialog
         open={dialogOpen}
-        modelType={modelType}
         connection={dialog !== null && dialog !== "new" ? dialog : undefined}
         onOpenChange={setDialogOpen}
         onOpenChangeComplete={(open) => {

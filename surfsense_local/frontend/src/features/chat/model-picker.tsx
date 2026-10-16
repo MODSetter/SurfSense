@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,7 @@ const installedModelsQueryKey = [
   "chat-candidates",
 ] as const
 export const modelControlButtonClassName =
-  "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
+  "flex shrink-0 select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20"
 
 export function ModelPicker({
   model,
@@ -102,7 +103,8 @@ export function ModelPicker({
     >
       <DropdownMenuTrigger
         render={
-          <button
+          <Button
+            variant="bare"
             type="button"
             // Shares the row with the disclaimer, truncating the model name
             // rather than forcing a long translation onto more lines.
@@ -127,7 +129,7 @@ export function ModelPicker({
           >
             <span className="max-w-48 truncate">{selectedLabel}</span>
             <ChevronDownIcon className="size-3" />
-          </button>
+          </Button>
         }
       />
 

@@ -2,6 +2,9 @@ import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 
 export type ToolApproval = "ask" | "always"
 
+/** One write can switch a tool on and set how it asks, so a pick is never half applied. */
+export type ToolChange = { enabled?: boolean; approval?: ToolApproval }
+
 export type PluginTool = {
   name: string
   title: string | null
@@ -88,7 +91,7 @@ export type RegistryEntry = {
   description: string
   author: string
   verification: "verified" | "community"
-  /** Its author was proven, by its domain, to run the server that receives its calls. */
+  /** A maintainer judged that its author runs the server that receives its calls. */
   verified: boolean
   access: "free" | "external"
   /** What the user must have, when `access` is `external`. */
@@ -197,7 +200,7 @@ export function setPluginEnabled(
 export function setTool(
   id: string,
   tool: string,
-  change: { enabled: boolean } | { approval: ToolApproval }
+  change: ToolChange
 ): Promise<Plugin> {
   return requestJson<Plugin>(
     `/plugins/${id}/tools/${encodeURIComponent(tool)}`,

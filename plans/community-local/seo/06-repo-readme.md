@@ -39,14 +39,23 @@ In order:
    from with citations, creates, edits as a copy and transforms, with three
    footnotes. It replaced "What SurfSense makes", the table of Studio outputs,
    because what the agent does to the user's own files is now the pitch.
-5. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
+5. **Plugins**, added on 15 Oct 2026 once SurfSense's plugins shipped (2.2.1):
+   where to connect them, a table of the eight first-party ones with the app's
+   one-line descriptions, which need a license, with the free 30-day one claimed
+   on `/downloads`, and third-party ones, which need none. It replaced **Star
+   history**, under the rule that anything added replaces something, and sits
+   above the comparison, as the maintainer asked.
+6. **How it compares**, against NotebookLM (now Gemini Notebook) alone: offline
    use, whether documents leave the machine, editing files, licence and models.
    "Everything stays on your machine", the comparisons with local chat apps and
    study tools, and the concession on audio and video overviews went; the
    privacy claims survive as the opening paragraph's last sentence and two rows.
-6. **Community**, **Star history** and **License**. License says Apache-2.0 and
-   links `LICENSE`, which names the BSL 1.1 exception for
-   `surfsense_backend/app/proprietary/`.
+7. **Community** and **License**. License says Apache-2.0 and links `LICENSE`.
+   Since 15 Oct 2026 the root `LICENSE` is the plain Apache text with no
+   preamble, so GitHub's About panel names the license instead of showing "View
+   license". The two folders under the BSL 1.1, `plugins/remote/proprietary/` and
+   `surfsense_backend/app/proprietary/`, each say so in their own `LICENSE`; the
+   README does not list them.
 
 The repo's About field, read on 11 Oct 2026, follows the header rather than the
 [project description](#project-description) below: "Air-gapped,

@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef, useState } from "react"
+import { memo, useCallback, useId, useRef, useState } from "react"
 import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
@@ -8,6 +8,7 @@ import {
   ExternalLinkIcon,
   FolderOpenIcon,
   FolderTransferIcon,
+  Mic01Icon,
   PencilIcon,
   RefreshCwIcon,
   SquareDashedMousePointerIcon,
@@ -37,6 +38,8 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { WorkspaceDocument } from "../api"
+import type { TranscriptionPace } from "../transcription/pace"
+import { RecordingLine } from "../transcription/recording-line"
 import type { MoveTarget } from "./move-to-dialog"
 import type { FolderKey } from "./source-index"
 import type { DocumentRowActions } from "./source-tree"
@@ -61,6 +64,7 @@ export const DocumentRow = memo(function DocumentRow({
   events,
   actions,
   onMoveRequest,
+  pace,
 }: TreePlace & {
   document: WorkspaceDocument
   // The folder the row sits in, where a drop on it files.
@@ -76,13 +80,19 @@ export const DocumentRow = memo(function DocumentRow({
   actions: DocumentRowActions
   // Absent with no folders to move to.
   onMoveRequest?: (target: MoveTarget) => void
+  // A running transcription's speed, for the time it has left.
+  pace?: TranscriptionPace
 }) {
   const ready = document.status === "ready"
-  const failed = document.status === "failed"
+  // A recording waiting for a speech recognition model has not failed:
+  // choosing one queues it again.
+  const awaiting = document.transcription?.awaiting === true
+  const failed = document.status === "failed" && !awaiting
   const cancelled = document.status === "cancelled"
   const retryable = failed || cancelled
   const ingesting =
-    document.status === "pending" || document.status === "processing"
+    (document.status === "pending" || document.status === "processing") &&
+    !awaiting
   const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
   const previewable = getFileViewer(document.mime_type) !== null
@@ -93,6 +103,7 @@ export const DocumentRow = memo(function DocumentRow({
   // row (not just the retry icon) surfaces the actual error above the row.
   const [modifierHeld, seedModifier] = useModifierHeld(retryable && rowHovered)
   const element = useRef<HTMLLIElement | null>(null)
+  const lineId = useId()
   const { register } = events
   // Stable, so React never detaches and attaches the row again on a render.
   const ref = useCallback(
@@ -146,8 +157,9 @@ export const DocumentRow = memo(function DocumentRow({
             )}
             ref={ref}
             aria-current={highlighted ? "true" : undefined}
+            aria-describedby={document.transcription ? lineId : undefined}
             className={cn(
-              "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
+              "group group/source relative flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
               highlighted && "border-ring",
               dropdownOpen && "bg-muted dark:bg-muted/50"
             )}
@@ -157,115 +169,132 @@ export const DocumentRow = memo(function DocumentRow({
             }}
             onMouseLeave={() => setRowHovered(false)}
           >
-            <span className="relative flex size-7 shrink-0 items-center justify-center">
-              {ready ? (
-                <Checkbox
-                  checked={selected}
-                  aria-label={intl.formatMessage(
-                    {
-                      id: "sources_row_select_aria",
-                      defaultMessage: "Select {title}",
-                    },
-                    {
-                      title: document.title,
-                    }
-                  )}
-                  onClick={(event) => event.stopPropagation()}
-                  onCheckedChange={(checked) =>
-                    onSelectedChange(checked === true)
-                  }
-                />
-              ) : null}
-              {ingesting ? (
-                <Spinner
-                  className="size-4.5 text-muted-foreground"
-                  aria-label={intl.formatMessage(
-                    {
-                      id: "sources_row_processing_aria",
-                      defaultMessage: "Processing {title}",
-                    },
-                    {
-                      title: document.title,
-                    }
-                  )}
-                />
-              ) : null}
-              {retryable ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label={
-                          cancelled
-                            ? intl.formatMessage(
-                                {
-                                  id: "sources_row_retry_cancelled_aria",
-                                  defaultMessage: "Cancelled. Retry {title}",
-                                },
-                                {
-                                  title: document.title,
-                                }
-                              )
-                            : intl.formatMessage(
-                                {
-                                  id: "sources_row_retry_failed_aria",
-                                  defaultMessage:
-                                    "Ingestion failed. Retry {title}",
-                                },
-                                {
-                                  title: document.title,
-                                }
-                              )
-                        }
-                        className="relative hover:bg-transparent"
-                        onClick={onRetry}
-                      >
-                        <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                        <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
-                      </Button>
+            {/* The row's own height, with a recording's line below it. */}
+            <div className="flex h-7.5 min-w-0 items-center gap-1.5">
+              <span className="relative flex size-7 shrink-0 items-center justify-center">
+                {ready ? (
+                  <Checkbox
+                    checked={selected}
+                    aria-label={intl.formatMessage(
+                      {
+                        id: "sources_row_select_aria",
+                        defaultMessage: "Select {title}",
+                      },
+                      {
+                        title: document.title,
+                      }
+                    )}
+                    onClick={(event) => event.stopPropagation()}
+                    onCheckedChange={(checked) =>
+                      onSelectedChange(checked === true)
                     }
                   />
-                  <TooltipContent side="top" collisionPadding={8}>
-                    {cancelled
-                      ? intl.formatMessage({
-                          id: "sources_row_retry_cancelled_tooltip",
-                          defaultMessage: "Cancelled. Retry again.",
-                        })
-                      : intl.formatMessage({
-                          id: "sources_row_retry_failed_tooltip",
-                          defaultMessage: "Ingestion failed. Retry again.",
-                        })}
-                  </TooltipContent>
-                </Tooltip>
-              ) : null}
-            </span>
-            <OverflowTooltip
-              label={document.title}
-              focusOwner='[role="treeitem"]'
-              render={
-                <button
-                  type="button"
-                  disabled={!titleActionable}
-                  className={cn(
-                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
-                    dropdownOpen && "sidebar-row-title-fade-actions"
-                  )}
-                  onClick={
-                    titleActionable
-                      ? previewable
-                        ? onPreview
-                        : onOpen
-                      : undefined
-                  }
-                >
-                  {document.title}
-                </button>
-              }
+                ) : null}
+                {ingesting ? (
+                  <Spinner
+                    className="size-4.5 text-muted-foreground"
+                    aria-label={intl.formatMessage(
+                      {
+                        id: "sources_row_processing_aria",
+                        defaultMessage: "Processing {title}",
+                      },
+                      {
+                        title: document.title,
+                      }
+                    )}
+                  />
+                ) : null}
+                {retryable ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label={
+                            cancelled
+                              ? intl.formatMessage(
+                                  {
+                                    id: "sources_row_retry_cancelled_aria",
+                                    defaultMessage: "Cancelled. Retry {title}",
+                                  },
+                                  {
+                                    title: document.title,
+                                  }
+                                )
+                              : intl.formatMessage(
+                                  {
+                                    id: "sources_row_retry_failed_aria",
+                                    defaultMessage:
+                                      "Ingestion failed. Retry {title}",
+                                  },
+                                  {
+                                    title: document.title,
+                                  }
+                                )
+                          }
+                          className="relative hover:bg-transparent"
+                          onClick={onRetry}
+                        >
+                          <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
+                          <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent side="top" collisionPadding={8}>
+                      {cancelled
+                        ? intl.formatMessage({
+                            id: "sources_row_retry_cancelled_tooltip",
+                            defaultMessage: "Cancelled. Retry again.",
+                          })
+                        : intl.formatMessage({
+                            id: "sources_row_retry_failed_tooltip",
+                            defaultMessage: "Ingestion failed. Retry again.",
+                          })}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
+                {awaiting ? (
+                  <Mic01Icon
+                    aria-hidden
+                    className="size-4.5 text-muted-foreground"
+                  />
+                ) : null}
+              </span>
+              <OverflowTooltip
+                label={document.title}
+                focusOwner='[role="treeitem"]'
+                render={
+                  <Button
+                    variant="bare"
+                    static
+                    type="button"
+                    disabled={!titleActionable}
+                    className={cn(
+                      "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-default disabled:opacity-100",
+                      dropdownOpen && "sidebar-row-title-fade-actions"
+                    )}
+                    onClick={
+                      titleActionable
+                        ? previewable
+                          ? onPreview
+                          : onOpen
+                        : undefined
+                    }
+                  >
+                    {document.title}
+                  </Button>
+                }
+              />
+            </div>
+            <RecordingLine
+              id={lineId}
+              document={document}
+              pace={pace}
+              onOpenSpeechSettings={actions.onOpenSpeechSettings}
             />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-1">
+            <div className="absolute top-0 right-0 flex h-7.5 items-center pr-1">
               <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                 <DropdownMenuTrigger
                   render={
@@ -273,7 +302,7 @@ export const DocumentRow = memo(function DocumentRow({
                       type="button"
                       size="icon-sm"
                       variant="ghost"
-                      className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                      className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 data-popup-open:bg-accent data-popup-open:opacity-100"
                       aria-label={intl.formatMessage(
                         {
                           id: "sources_row_actions_aria",

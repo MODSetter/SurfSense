@@ -141,7 +141,14 @@ function api({
       const url = new URL(String(input), "http://api.test")
       const method = (init?.method ?? "GET").toUpperCase()
       const body = init?.body ? JSON.parse(String(init.body)) : null
-      calls.push({ method, path: url.pathname, body })
+      // A verdict request keeps its query, which says whether it asked only if stale.
+      const asked = url.pathname === LICENSE_CHECK
+      calls.push({
+        method,
+        path: asked ? url.pathname + url.search : url.pathname,
+        body,
+      })
+      if (asked) return new Response(null, { status: 204 })
       const [, , id, , tool] = url.pathname.split("/")
       if (url.pathname === "/egress/host:plugins.surfsense.com") {
         hostAllowed = true
@@ -319,7 +326,13 @@ function api({
   return calls
 }
 
-const changes = (calls: Call[]) => calls.filter((call) => call.method !== "GET")
+const LICENSE_CHECK = "/plugins/license/check"
+
+/** What the user changed: asking the license verdict changes nothing of theirs. */
+const changes = (calls: Call[]) =>
+  calls.filter(
+    (call) => call.method !== "GET" && !call.path.startsWith(LICENSE_CHECK)
+  )
 
 /** The Electron bridge's way to the user's browser. */
 function browser() {
@@ -370,6 +383,19 @@ afterEach(() => {
 })
 
 describe("plugins settings", () => {
+  it("asks for the paid plugins' license verdict when opened, if the last is stale", async () => {
+    const calls = api()
+    render(<PluginsSettings />)
+
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        method: "POST",
+        path: `${LICENSE_CHECK}?if_stale=true`,
+        body: null,
+      })
+    )
+  })
+
   it("opens on Yours when a plugin is connected", async () => {
     api()
     render(<PluginsSettings />)
@@ -637,13 +663,13 @@ describe("plugins settings", () => {
     )
   })
 
-  it("switches a tool off, and lets only a read-only one skip asking", async () => {
+  it("blocks a tool, and lets only a read-only one be always allowed", async () => {
     const calls = api({ allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
-    await user.click(within(plugin).getByRole("switch", { name: "Use count" }))
+    await user.click(within(plugin).getByRole("radio", { name: "Block count" }))
     await user.click(
       within(plugin).getByRole("radio", { name: "Always allow Search notes" })
     )
@@ -658,14 +684,178 @@ describe("plugins settings", () => {
         {
           method: "PUT",
           path: "/plugins/notes/tools/search",
-          body: { approval: "always" },
+          body: { enabled: true, approval: "always" },
         },
       ])
     )
     expect(
-      within(plugin).queryByRole("radio", { name: "Always allow count" })
-    ).toBeNull()
-    expect(within(plugin).getByText("Always asks")).toBeTruthy()
+      (
+        within(plugin).getByRole("radio", {
+          name: "Always allow count",
+        }) as HTMLInputElement
+      ).disabled
+    ).toBe(true)
+  })
+
+  it("sets every tool in a group from its menu", async () => {
+    const calls = api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    const readOnly = within(plugin).getByRole("group", { name: "Read-only" })
+    await user.click(
+      within(readOnly).getByRole("button", {
+        name: "Permission for every Read-only tool",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Blocked" })
+    )
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/search",
+          body: { enabled: false },
+        },
+      ])
+    )
+  })
+
+  it("closes a group choice no tool in it can take", async () => {
+    const plugin = notes({ source: "first_party" })
+    const calls = api({
+      plugins: [
+        {
+          ...plugin,
+          tools: plugin.tools.map((tool) =>
+            tool.name === "search" ? { ...tool, enabled: false } : tool
+          ),
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const readOnly = within(card).getByRole("group", { name: "Read-only" })
+    await user.click(
+      within(readOnly).getByRole("button", {
+        name: "Permission for every Read-only tool",
+      })
+    )
+    const ask = await screen.findByRole("menuitemradio", {
+      name: "Needs approval",
+    })
+    expect(ask.getAttribute("aria-disabled")).toBe("true")
+    await user.click(ask)
+    expect(changes(calls)).toEqual([])
+  })
+
+  it("leaves a tool that cannot take a group choice as it is", async () => {
+    const plugin = notes()
+    const calls = api({
+      plugins: [
+        {
+          ...plugin,
+          tools: [
+            ...plugin.tools.map((tool) =>
+              tool.name === "count" ? { ...tool, enabled: false } : tool
+            ),
+            {
+              name: "rename",
+              title: "Rename note",
+              description: "Rename a note.",
+              annotations: { destructiveHint: false },
+              enabled: false,
+              approval: "ask",
+              change: null,
+            },
+          ],
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const others = within(card).getByRole("group", {
+      name: "Can make changes",
+    })
+    await user.click(
+      within(others).getByRole("button", {
+        name: "Permission for every Can make changes tool",
+      })
+    )
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "Always allow" })
+    )
+
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        {
+          method: "PUT",
+          path: "/plugins/notes/tools/rename",
+          body: { enabled: true, approval: "always" },
+        },
+      ])
+    )
+  })
+
+  it("says Custom when a group's tools differ", async () => {
+    const plugin = notes()
+    api({
+      plugins: [
+        {
+          ...plugin,
+          tools: [
+            ...plugin.tools,
+            {
+              name: "recent",
+              title: "Recent notes",
+              description: "List the latest notes.",
+              annotations: { readOnlyHint: true },
+              enabled: false,
+              approval: "ask",
+              change: null,
+            },
+          ],
+        },
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const card = await details(user, "Notes")
+    const readOnly = within(card).getByRole("group", { name: "Read-only" })
+    const menu = within(readOnly).getByRole("button", {
+      name: "Permission for every Read-only tool",
+    })
+    expect(menu.textContent).toContain("Custom")
+    await user.click(menu)
+    expect(
+      (
+        await screen.findByRole("menuitemradio", { name: "Custom" })
+      ).getAttribute("aria-checked")
+    ).toBe("true")
+  })
+
+  it("folds a group away and back", async () => {
+    api({ allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    const fold = within(plugin).getByRole("button", { name: /^Read-only/ })
+    await user.click(fold)
+    expect(within(plugin).queryByText("Search notes")).toBeNull()
+    await user.click(fold)
+    expect(within(plugin).getByText("Search notes")).toBeTruthy()
   })
 
   it("says a plugin switched off is off, and leaves on and off to the composer", async () => {
@@ -1205,7 +1395,7 @@ describe("plugins settings", () => {
 
     const plugin = await details(user, "Notes")
     expect(
-      within(plugin).getByRole("switch", { name: /Search notes/ })
+      within(plugin).getByRole("radiogroup", { name: /Search notes/ })
     ).toBeTruthy()
     expect(screen.queryByRole("region", { name: "About" })).toBeNull()
     expect(screen.queryByRole("region", { name: "Details" })).toBeNull()
@@ -1478,5 +1668,141 @@ describe("plugins settings", () => {
     expect(
       within(plugin).getByText("No longer listed: The service shut down.")
     ).toBeTruthy()
+  })
+})
+
+/** Types into the search beside the tabs. */
+async function search(user: User, text: string) {
+  await user.type(
+    await screen.findByRole("searchbox", { name: "Search plugins" }),
+    text
+  )
+}
+
+const tabHeld = (name: string) => {
+  const tab = screen.getByRole("tab", { name })
+  return (
+    tab.hasAttribute("disabled") || tab.getAttribute("aria-disabled") === "true"
+  )
+}
+
+describe("searching plugins", () => {
+  it("lists connected plugins first, then the ones to add, from both lists", async () => {
+    api({
+      allowed: true,
+      plugins: [
+        notes(),
+        notes({ id: "reddit", name: "Reddit", source: "first_party" }),
+      ],
+      registry: [listed({ id: "redwood", name: "Redwood" })],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "red")
+
+    const connected = await screen.findByRole("region", { name: "Yours" })
+    const available = await screen.findByRole("region", { name: "Available" })
+    expect(within(connected).getByRole("row", { name: /Reddit/ })).toBeTruthy()
+    expect(within(connected).queryByRole("row", { name: /Notes/ })).toBeNull()
+    expect(
+      await within(available).findByRole("listitem", { name: "Redwood" })
+    ).toBeTruthy()
+    expect(
+      within(available).queryByRole("listitem", { name: "Reddit" })
+    ).toBeNull()
+    expect(
+      connected.compareDocumentPosition(available) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it("holds the tabs while searching, and gives them back once cleared", async () => {
+    api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+    await screen.findByRole("row", { name: /Notes/ })
+
+    await search(user, "notes")
+    expect(tabHeld("Yours")).toBe(true)
+    expect(tabHeld("Browse")).toBe(true)
+
+    await user.keyboard("{Escape}")
+    expect(
+      screen.getByRole<HTMLInputElement>("searchbox", {
+        name: "Search plugins",
+      }).value
+    ).toBe("")
+    expect(tabHeld("Yours")).toBe(false)
+    expect(
+      screen.getByRole("tab", { name: "Yours" }).getAttribute("aria-selected")
+    ).toBe("true")
+    expect(screen.getByRole("row", { name: /Notes/ })).toBeTruthy()
+  })
+
+  it("shows a skeleton, not a spinner, while the search settles", async () => {
+    api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "notes")
+
+    const results = screen.getByRole("region", { name: "Search results" })
+    expect(results.querySelector('[data-slot="skeleton"]')).not.toBeNull()
+    expect(within(results).queryByRole("status")).toBeNull()
+    expect(
+      await within(results).findByRole("region", { name: "Yours" })
+    ).toBeTruthy()
+    expect(results.querySelector('[data-slot="skeleton"]')).toBeNull()
+  })
+
+  it("says when nothing matches", async () => {
+    api()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "zzz")
+
+    expect(await screen.findByText("No plugins match “zzz”.")).toBeTruthy()
+  })
+
+  it("leaves third-party plugins out while they are off, and fetches nothing", async () => {
+    const calls = api({ allowed: false, registry: [listed()] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "wiki")
+
+    expect(
+      await screen.findByText(
+        "Third-party plugins aren’t searched until you allow them in Browse."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("listitem", { name: "Wiki" })).toBeNull()
+    expect(calls.some((call) => call.path === "/plugins/registry")).toBe(false)
+  })
+
+  it("opens a result's page, and goes back to the results", async () => {
+    api({ plugins: [] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    await search(user, "red")
+    const available = await screen.findByRole("region", { name: "Available" })
+    await user.click(
+      await within(available).findByRole("button", { name: "Reddit" })
+    )
+
+    const page = await screen.findByRole("region", { name: "Reddit" })
+    expect(within(page).getByText(REDDIT.about)).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("region", { name: "Available" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole<HTMLInputElement>("searchbox", {
+        name: "Search plugins",
+      }).value
+    ).toBe("red")
   })
 })

@@ -1,5 +1,6 @@
 """A real MCP server, from the official SDK, served on loopback for the client's tests."""
 
+import asyncio
 import json
 import socket
 import threading
@@ -183,6 +184,45 @@ class RecordingMethods:
         await self.app(scope, replay, send)
 
 
+class Delaying:
+    """Holds each request for a JSON-RPC method `seconds` before passing it on, once `on`.
+
+    Keeps when each one arrived and when it was passed on, by the clock of `time.monotonic`.
+    """
+
+    def __init__(self, app: ASGIApp, method: str, seconds: float) -> None:
+        self.app = app
+        self.method = method
+        self.seconds = seconds
+        self.on = True
+        self.held: list[tuple[float, float]] = []
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "POST":
+            await self.app(scope, receive, send)
+            return
+        body = b""
+        while True:
+            event = await receive()
+            body += event.get("body", b"")
+            if not event.get("more_body"):
+                break
+        if self.on and json.loads(body).get("method") == self.method:
+            arrived = time.monotonic()
+            await asyncio.sleep(self.seconds)
+            self.held.append((arrived, time.monotonic()))
+        replayed = False
+
+        async def replay():
+            nonlocal replayed
+            if replayed:
+                return await receive()
+            replayed = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay, send)
+
+
 def notes_server() -> MCPServer:
     """A plugin with two tools: a read-only search and a word count."""
     server = MCPServer("notes")
@@ -261,15 +301,34 @@ class RequiringLicense:
             await self.app(scope, receive, send)
 
 
+class _Recorded:
+    """Keeps each request's sign-in, then lets `app` answer it."""
+
+    def __init__(self, app: ASGIApp, seen: list[str | None] | None) -> None:
+        self.app = app
+        self.seen = seen
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if self.seen is not None:
+            found = dict(scope["headers"]).get(b"authorization")
+            self.seen.append(found.decode() if found else None)
+        await self.app(scope, receive, send)
+
+
 def plugin_host(
     plugin_id: str,
     server: MCPServer,
     around=lambda app: app,
     cancels: list[dict[str, str | None]] | None = None,
+    license_asks: list[str | None] | None = None,
+    license_route: str = "served",
 ) -> Starlette:
     """A plugin host serving one plugin at `/<id>/mcp`, as SurfSense's does.
 
     `cancels` keeps the sign-in and thread token of each `POST /cancel` it gets.
+    `GET /license` runs `around`'s check, as the host's runs a paid plugin's;
+    `license_route` is "missing" for a host built before it, or "down" for a 503.
+    `license_asks` keeps each one's sign-in.
     """
 
     @asynccontextmanager
@@ -288,10 +347,19 @@ def plugin_host(
         return Response(status_code=202)
 
     app = around(server.streamable_http_app())
-    return Starlette(
-        routes=[
-            Route("/cancel", cancel, methods=["POST"]),
-            Mount(f"/{plugin_id}", app=app),
-        ],
-        lifespan=lifespan,
-    )
+    routes = [
+        Route("/cancel", cancel, methods=["POST"]),
+        Mount(f"/{plugin_id}", app=app),
+    ]
+    if license_route != "missing":
+        valid = JSONResponse({"status": "valid"})
+        answer = (
+            JSONResponse({"reason": "license_service_unavailable"}, 503)
+            if license_route == "down"
+            else around(valid)
+        )
+
+        routes.append(
+            Route("/license", _Recorded(answer, license_asks), methods=["GET"])
+        )
+    return Starlette(routes=routes, lifespan=lifespan)

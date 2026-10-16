@@ -34,5 +34,7 @@ class EventBroker:
         # Handed to the loop, not put directly: a `def` route publishes from a
         # threadpool thread, and asyncio queues are not thread-safe.
         event = {"kind": notice.kind, "ids": notice.ids, "status": notice.status}
+        if notice.progress is not None:
+            event["progress"] = notice.progress.model_dump()
         for queue in tuple(self._subscribers.get(notice.workspace_id, ())):
             self._loop.call_soon_threadsafe(queue.put_nowait, event)

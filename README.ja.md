@@ -26,6 +26,7 @@
     <a href="#形式ごとにできること">形式</a> ·
     <a href="#クイックスタート">クイックスタート</a> ·
     <a href="#surfsenseの比較">比較</a> ·
+    <a href="#プラグイン">プラグイン</a> ·
     <a href="https://www.surfsense.com/pricing">料金</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -68,12 +69,32 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **画像** PNG、JPEG、TIFF、BMP、WebP | ✓ 文字は OCR で読み取る³ | 画像とインフォグラフィック² | — | 新しい文書に配置する |
 | **Markdown**、プレーンテキスト | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webページ | — | — |
+| **録音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 自分のマシン上で文字起こし | — | — | — |
 | **ポッドキャスト**（音声） | — | ✓ 文字起こし付き。初期状態では自分のマシン上で読み上げる | — | — |
 | **マインドマップ、フラッシュカード、クイズ** | — | ✓ アプリ内で | — | — |
 
 <sub>¹ 設定で Officeサポート（LibreOffice）をオンにすると使えます。LibreOffice がインストーラーに含まれることはありません。² ローカルまたはリモートの画像モデルが必要です。初期状態ではどれも選ばれていません。³ OCR が読めるのは、ラテン文字、中国語、日本語の文字です。</sub>
 
 編集、変換、PDF ツールは、いつも新しいファイルを作ります。元のファイルが変更されることはありません。現時点でいちばん多くのことができるのは PDF、Word、Excel で、ほかの形式への対応も改善を続けています。
+
+## プラグイン
+
+**設定 › プラグイン**で接続します。
+
+**SurfSense提供。** 自分のアカウントを使わずに公開ページを読み取ります。利用には SurfSense ライセンスが必要です。[アプリをダウンロード](https://www.surfsense.com/downloads)し、アプリでメールアドレスを入力すると、30 日間の無料ライセンスを受け取れます。
+
+| プラグイン | できること |
+|---|---|
+| **Google Search** | Google で検索し、検索結果、広告、関連する質問を読み取る |
+| **Web Crawl** | Webページを読み取るか、サイト全体をクロールしてクリーンなテキストにする |
+| **YouTube** | YouTube の動画、チャンネル、それらのコメントを読み取る |
+| **TikTok** | TikTok の動画とそのコメントを読み取り、ユーザーを検索し、トレンドを確認する |
+| **Google Maps** | Google Maps で場所を探し、そのレビューを読み取る |
+| **Amazon** | Amazon の商品と検索結果を読み取る |
+| **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
+| **Indeed** | Indeed の求人情報を読み取る |
+
+**サードパーティ。** [プラグインレジストリ](plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
 
 ## SurfSenseの比較
 
@@ -91,18 +112,6 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 - **開発への参加：** PR は `dev` に向けて出してください。開発の流れは [CONTRIBUTING.md](CONTRIBUTING.md) と [`surfsense_local/`](./surfsense_local) にあります。仕組みの説明は [`docs/`](docs/README.md) にあります。
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense のコントリビューター" /></a>
-
-## スター履歴
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## ライセンス
 

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { type GuideStep, GuideSteps } from "@/components/site/guide-steps";
+import { SiteFaqItem } from "@/components/site/site-faq-item";
+import { siteText } from "@/components/site/site-text";
+import { cn } from "@/lib/utils";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and
- * footer all come from `app/(home)/layout.tsx`, and every style resolves from
- * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
+ * footer all come from `app/(home)/layout.tsx`; the page itself is Tailwind
+ * plus the shared `siteText` styles. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
  * The one place the activation steps live. All three license emails link here
@@ -65,7 +68,7 @@ const STEPS: GuideStep[] = [
 		title: "Save the license file",
 		body: (
 			<>
-				It arrived as an email attachment named <code className="ss-home-mono">surfsense.lic</code>.
+				It arrived as an email attachment named <code className="font-mono">surfsense.lic</code>.
 				Save it somewhere you can find it again.
 			</>
 		),
@@ -108,7 +111,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 		answer: (
 			<>
 				We will email it again to the address it was issued to, at{" "}
-				<Link className="ss-home-link" href="/license">
+				<Link className={siteText.link} href="/license">
 					surfsense.com/license
 				</Link>
 				. Nothing about your license changes when you ask for another copy.
@@ -131,7 +134,7 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 			<>
 				One file covers everyone on the plan, and it is emailed only to the address that paid, so
 				ask whoever bought it to forward it to you. If that inbox is gone, email{" "}
-				<a className="ss-home-link" href="mailto:rohan@surfsense.com?subject=License%20recovery">
+				<a className={siteText.link} href="mailto:rohan@surfsense.com?subject=License%20recovery">
 					rohan@surfsense.com
 				</a>{" "}
 				with your payment details.
@@ -143,20 +146,20 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 export default function LicenseActivatePage() {
 	return (
 		<>
-			<section className="ss-home-hero ss-home-pad">
+			<section className="py-20 md:py-28">
 				<div className="mx-auto max-w-2xl text-center">
-					<h1 className="ss-home-display">Activate your license</h1>
-					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
+					<h1 className={siteText.display}>Activate your license</h1>
+					<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
 						Your license is a file, not an account. SurfSense checks it on your own machine, so it
 						works offline and on every computer you install the app on.
 					</p>
 				</div>
 			</section>
 
-			<section className="ss-home-rule" aria-labelledby="ss-activate-steps">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">Activation</p>
-					<h2 id="ss-activate-steps" className="ss-home-h2 mt-2">
+			<section className="border-t border-border" aria-labelledby="ss-activate-steps">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<p className={siteText.eyebrow}>Activation</p>
+					<h2 id="ss-activate-steps" className={cn(siteText.h2, "mt-2")}>
 						Five steps to an active license
 					</h2>
 				</div>
@@ -164,25 +167,19 @@ export default function LicenseActivatePage() {
 				<GuideSteps steps={STEPS} />
 			</section>
 
-			<section className="ss-home-rule" aria-labelledby="ss-activate-faq">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">FAQ</p>
-					<h2 id="ss-activate-faq" className="ss-home-h2 mt-2">
+			<section className="border-t border-border" aria-labelledby="ss-activate-faq">
+				<div className="border-b border-border pt-10 pb-8 md:pt-40">
+					<p className={siteText.eyebrow}>FAQ</p>
+					<h2 id="ss-activate-faq" className={cn(siteText.h2, "mt-2")}>
 						If something is wrong
 					</h2>
 				</div>
 
-				<div className="ss-home-grid border-t border-border">
+				<div className="ss-home-grid">
 					{FAQ.map((item) => (
-						<details key={item.question} className="ss-home-faq">
-							<summary className="ss-home-faq-summary">
-								<span className="ss-home-h3">{item.question}</span>
-								<span aria-hidden="true" className="ss-home-faq-marker" />
-							</summary>
-							<div className="ss-home-faq-answer">
-								<p className="ss-home-body">{item.answer}</p>
-							</div>
-						</details>
+						<SiteFaqItem key={item.question} question={item.question}>
+							<p className={siteText.body}>{item.answer}</p>
+						</SiteFaqItem>
 					))}
 				</div>
 			</section>

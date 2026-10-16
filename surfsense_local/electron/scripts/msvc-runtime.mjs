@@ -31,6 +31,38 @@ export function visualStudio() {
   return path || null
 }
 
+/** CMake's generator for that Visual Studio, such as "Visual Studio 17 2022", or null. */
+export function visualStudioGenerator() {
+  if (!existsSync(VSWHERE)) return null
+  const [found] = JSON.parse(
+    execFileSync(
+      VSWHERE,
+      [
+        "-latest",
+        "-products",
+        "*",
+        "-requires",
+        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-format",
+        "json",
+        "-utf8",
+      ],
+      { encoding: "utf8" }
+    )
+  )
+  return found ? generatorName(found.installationVersion, found.catalog?.productLineVersion) : null
+}
+
+// Visual Studio 2026's vswhere gives "18" as its product line, not the year.
+const YEAR_BY_MAJOR = { 15: "2017", 16: "2019", 17: "2022", 18: "2026" }
+
+/** CMake names a Visual Studio by its major version and its year, or null when the year is unknown. */
+export function generatorName(installationVersion, productLineVersion) {
+  const major = installationVersion.split(".")[0]
+  const year = /^\d{4}$/.test(productLineVersion ?? "") ? productLineVersion : YEAR_BY_MAJOR[major]
+  return year ? `Visual Studio ${major} ${year}` : null
+}
+
 const byVersion = (a, b) => {
   const [x, y] = [a, b].map((v) => v.split(".").map(Number))
   for (let i = 0; i < Math.max(x.length, y.length); i++) {

@@ -229,8 +229,8 @@ const SAMPLES: { value: string; label: string; build: (api: ApiSample) => string
 
 function CodeBlock({ code }: { code: string }) {
 	return (
-		<pre className="ss-home-code ss-home-mono">
-			<code>{code}</code>
+		<pre className="overflow-x-auto border border-border bg-muted px-4 py-3.5 font-mono text-xs leading-relaxed text-muted-foreground">
+			<code className="text-foreground">{code}</code>
 		</pre>
 	);
 }
@@ -238,12 +238,12 @@ function CodeBlock({ code }: { code: string }) {
 export function ApiMcpTabs({ api }: { api: ApiSample }) {
 	return (
 		<Tabs defaultValue="curl" className="w-full">
-			<TabsList className="ss-home-tabs-list h-auto justify-start rounded-none bg-transparent p-0">
+			<TabsList className="flex h-auto flex-wrap justify-start gap-5 rounded-none border-b border-border bg-transparent p-0">
 				{SAMPLES.map((sample) => (
 					<TabsTrigger
 						key={sample.value}
 						value={sample.value}
-						className="ss-home-tab rounded-none px-0 py-2.5 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+						className="-mb-px rounded-none border-b-2 border-transparent px-0 py-2.5 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground focus-visible:rounded-xs focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:ring-0 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
 					>
 						{sample.label}
 					</TabsTrigger>

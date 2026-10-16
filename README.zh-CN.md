@@ -26,6 +26,7 @@
     <a href="#每种格式能做什么">格式</a> ·
     <a href="#快速开始">快速开始</a> ·
     <a href="#surfsense-与同类工具对比">对比</a> ·
+    <a href="#插件">插件</a> ·
     <a href="https://www.surfsense.com/pricing">定价</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -68,12 +69,32 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **图像** PNG、JPEG、TIFF、BMP、WebP | ✓ 通过 OCR 识别其中的文字³ | 图像和信息图² | — | 放入新文档 |
 | **Markdown**、纯文本 | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ 网页 | — | — |
+| **录音** WAV、MP3、FLAC、Ogg Vorbis | ✓ 在你的电脑上转写 | — | — | — |
 | **播客**（音频） | — | ✓ 附文字稿，默认在你的电脑上配音 | — | — |
 | **思维导图、记忆卡片、测验** | — | ✓ 在应用内 | — | — |
 
 <sub>¹ 需要在设置中开启 Office 支持（LibreOffice）；安装程序中从不包含它。² 需要一个图像模型，本地或远程均可；默认不选择任何模型。³ OCR 可识别拉丁字母、中文和日文。</sub>
 
 编辑、转换和 PDF 工具总是生成一个新文件，你的原文件永远不会被改动。目前 PDF、Word 和 Excel 能做的事最多，对其他格式的支持也在不断改进。
+
+## 插件
+
+在**设置 › 插件**中连接它们。
+
+**SurfSense 提供：** 这些插件读取公开网页，不需要你自己的账号，但需要 SurfSense 许可证。[下载应用](https://www.surfsense.com/downloads)并在应用里填写你的邮箱，即可免费获得 30 天的许可证。
+
+| 插件 | 功能 |
+|---|---|
+| **Google Search** | 在 Google 上搜索，并读取搜索结果、广告和相关问题 |
+| **Web Crawl** | 读取单个网页，或把整个网站抓取为干净的文本 |
+| **YouTube** | 读取 YouTube 视频、频道及其评论 |
+| **TikTok** | 读取 TikTok 视频及其评论，搜索用户，查看当前的热门内容 |
+| **Google Maps** | 在 Google Maps 上查找地点，并读取这些地点的评价 |
+| **Amazon** | 读取 Amazon 商品和搜索结果 |
+| **Walmart** | 读取 Walmart 商品、搜索结果和评价 |
+| **Indeed** | 读取 Indeed 上的职位信息 |
+
+**第三方：** 来自[插件注册表](plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
 
 ## SurfSense 与同类工具对比
 
@@ -91,18 +112,6 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 - **参与贡献：** PR 请提交到 `dev` 分支；开发流程见 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [`surfsense_local/`](./surfsense_local)。工作原理见 [`docs/`](docs/README.md)。
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="为 SurfSense 做出贡献的人" /></a>
-
-## Star 历史
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## 许可证
 

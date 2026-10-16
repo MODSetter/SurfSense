@@ -210,8 +210,13 @@ def test_the_list_is_most_preferred_first() -> None:
         "granite-embedding-311m-multilingual-r2",
     ]
     # Kokoro first: the most voices, and the ids podcast briefs store today.
-    assert [e.name for e in ENTRIES if isinstance(e, AudioEntry)] == [
+    assert [e.name for e in ENTRIES if isinstance(e, AudioEntry) and e.audio] == [
         "Kokoro 82M",
         "Supertonic 3",
         "KittenTTS Mini 0.8",
     ]
+    # Nemotron first: the most languages, and it detects them. Canary is the
+    # light one, for English.
+    assert [
+        e.name for e in ENTRIES if isinstance(e, AudioEntry) and e.transcription
+    ] == ["Nemotron 3.5 ASR Streaming 0.6B", "Canary 180M Flash"]

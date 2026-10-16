@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { siteText } from "@/components/site/site-text";
 
 /**
  * Terms of Service. Plain long-form prose, laid out like a blog post: the
- * `ss-home-pad` + `max-w-3xl` + Tailwind `prose` wrapper is copied from
+ * padded `max-w-3xl` + Tailwind `prose` wrapper is copied from
  * `app/(home)/blog/[slug]/page.tsx`. Listed in `SITE_DESIGN_ROUTES` in
- * `components/site/site-shell.tsx`, which supplies the dark palette that
- * `prose-invert` assumes, plus the navigation and footer.
+ * `components/site/site-shell.tsx`, which supplies the light palette, the
+ * navigation and the footer.
  *
  * Substantive changes from the version this replaces, all because the product
  * changed shape:
@@ -27,8 +28,10 @@ import Link from "next/link";
  *   assignment and force majeure.
  *
  * The licence description is deliberately precise: the repository is Apache-2.0
- * *except* `surfsense_backend/app/proprietary/`, which is BUSL-1.1 (see the
- * root LICENSE). Calling the whole thing Apache-2.0 would be wrong.
+ * *except* `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/`,
+ * which are BUSL-1.1. The root LICENSE is the plain Apache text, so GitHub
+ * recognises it; each of those folders carries its own LICENSE naming its scope.
+ * Calling the whole thing Apache-2.0 would be wrong.
  *
  * Sections 12 and 13 stay in capitals. That is not shouting for its own sake: a
  * disclaimer of implied warranties has to be conspicuous to be effective, so
@@ -52,11 +55,12 @@ export const metadata: Metadata = {
 		url: canonicalUrl,
 		siteName: "SurfSense",
 		type: "website",
+		images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SurfSense terms of service" }],
 	},
 };
 
 /** Update on every material change, for the reasons in the header note. */
-const LAST_UPDATED = "September 18, 2026";
+const LAST_UPDATED = "October 15, 2026";
 
 /**
  * The governing law and the seat of arbitration.
@@ -74,14 +78,14 @@ const forum = GOVERNING_LAW ?? "the jurisdiction in which SurfSense is establish
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
-	"prose prose-invert max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-a:no-underline";
+	"prose max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-a:no-underline";
 
 export default function TermsOfService() {
 	return (
-		<div className="ss-home-pad pt-16 pb-20">
+		<div className="pt-16 pb-20">
 			<div className="mx-auto max-w-3xl">
-				<div className="mb-10 space-y-4">
-					<h1 className="ss-home-h2">Terms of Service</h1>
+				<div className="mb-10 space-y-4 text-center">
+					<h1 className={siteText.h2}>Terms of Service</h1>
 					<p className="text-muted-foreground text-sm">Last updated: {LAST_UPDATED}</p>
 				</div>
 
@@ -114,12 +118,14 @@ export default function TermsOfService() {
 					<h2>2. The software and your rights in it</h2>
 					<p>
 						Most of SurfSense is open source under the Apache License 2.0, which lets you run,
-						modify, redistribute and build on it commercially, subject to that licence's terms. One
-						directory is not: <code>surfsense_backend/app/proprietary/</code> is licensed under the
-						Business Source License 1.1. The{" "}
-						<a href="https://github.com/MODSetter/SurfSense/blob/main/LICENSE">LICENSE file</a> in
-						the repository is the authority on which terms apply to which files, and it wins over
-						this page wherever the two disagree.
+						modify, redistribute and build on it commercially, subject to that licence's terms. Two
+						directories are not: <code>plugins/remote/proprietary/</code> and{" "}
+						<code>surfsense_backend/app/proprietary/</code> are licensed under the Business Source
+						License 1.1. The LICENSE files in the repository are the authority on which terms apply
+						to which files: the{" "}
+						<a href="https://github.com/MODSetter/SurfSense/blob/main/LICENSE">root LICENSE</a>, and
+						the one in each directory that has its own. They win over this page wherever the two
+						disagree.
 					</p>
 					<p>
 						Third-party components keep the licences their own authors gave them. That includes the

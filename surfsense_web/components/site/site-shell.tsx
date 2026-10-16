@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { GlobalAnnouncement } from "@/components/homepage/global-announcement";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteNav } from "@/components/site/site-nav";
+import { SiteSmoothScroll } from "@/components/site/site-smooth-scroll";
 import { getAllConnectorSlugs } from "@/lib/connectors-marketing";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +18,12 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * Routes that have been moved onto the site design in `home.css`.
+ * Routes that have been moved onto the site design.
  *
- * They share one palette, one ruled column and one set of section primitives.
- * Every other route under `(home)` still renders against `globals.css`; moving
- * one over is a matter of adding its path here and rebuilding its page with the
- * `ss-home-*` classes.
+ * They share the `.ss-home` palette from `home.css` and one ruled column, and
+ * are styled with Tailwind plus the shared `siteText` styles. Every other route
+ * under `(home)` still renders against `globals.css`; moving one over is a
+ * matter of adding its path here and rebuilding its page on that design.
  *
  * The connector slugs (`/reddit`, `/amazon`, ...) are read from the registry
  * rather than listed by hand, so a page added to `lib/connectors-marketing`
@@ -45,6 +46,8 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/announcements",
 	"/login",
 	"/sunset",
+	"/external-mcp-connectors",
+	"/mcp-server",
 	"/privacy",
 	"/terms",
 	...getAllConnectorSlugs().map((slug) => `/${slug}`),
@@ -52,14 +55,15 @@ const SITE_DESIGN_ROUTES = new Set([
 
 /**
  * Prefixes for site-design routes with their own dynamic children, e.g. every
- * `/blog/<slug>` post under the `/blog` index.
+ * `/blog/<slug>` post under the `/blog` index and every
+ * `/announcements/<id>` page under `/announcements`.
  *
  * `/free/` covers every model page. Those used to bypass this shell entirely so
  * the anonymous chat could own the viewport; the hosted chat is closed and the
  * route is an ordinary marketing page now, so it takes the same chrome and
  * ruled column as the `/free` index above it.
  */
-const SITE_DESIGN_PREFIXES = ["/blog/", "/free/"];
+const SITE_DESIGN_PREFIXES = ["/blog/", "/announcements/", "/free/"];
 
 export function SiteShell({
 	children,
@@ -93,15 +97,15 @@ export function SiteShell({
 
 			{/* Above every branch, so it is one element in one slot for every route.
 			    React keeps it mounted across navigations and only the content below
-			    changes. The announcement bar renders inside SiteNav's sticky header
-			    rather than here, so the two stick together as one unit. */}
+			    changes. SiteNav also renders the announcement bar, just above its
+			    sticky header. */}
 			<SiteNav starCount={starCount} starsHref={starsHref} />
+			{!isAuthPage ? <SiteSmoothScroll /> : null}
 
 			{usesSiteDesign ? (
-				// The footer is part of the page, not chrome around it: it sits inside
-				// the same ruled column as every section above, so the side borders run
-				// unbroken from the top of the page to the footer panel.
-				<div className="ss-home-shell">
+				// Full width, so backgrounds can bleed; `.ss-home-page` (home.css) holds
+				// each section to the column instead, and the footer caps its own content.
+				<div className="ss-home-page">
 					{children}
 					{!isAuthPage ? <SiteFooter /> : null}
 				</div>
@@ -114,15 +118,8 @@ export function SiteShell({
 					    the viewport. */}
 					<div className="overflow-x-hidden">{children}</div>
 
-					{/* The same footer, held to the same column width. It is not wrapped
-					    in `ss-home-shell` here: that draws the ruled side borders, which
-					    would frame a footer sitting under content that has no such
-					    frame. */}
-					{!isAuthPage ? (
-						<div className="mx-auto w-full max-w-[var(--home-max)]">
-							<SiteFooter />
-						</div>
-					) : null}
+					{/* The footer caps its own content, so its image can run full width. */}
+					{!isAuthPage ? <SiteFooter /> : null}
 				</>
 			)}
 		</main>

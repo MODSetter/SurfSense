@@ -1,6 +1,7 @@
 "use client";
 
 import { Megaphone } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import type { Announcement } from "@/contracts/types/announcement.types";
@@ -10,7 +11,7 @@ import {
 	markAnnouncementRead,
 	markAnnouncementToasted,
 } from "@/lib/announcements/announcements-storage";
-import { getActiveAnnouncements } from "@/lib/announcements/announcements-utils";
+import { announcementPath, getActiveAnnouncements } from "@/lib/announcements/announcements-utils";
 import { isAuthenticated } from "@/lib/auth-utils";
 
 /** Map announcement category to the Sonner toast method */
@@ -24,9 +25,25 @@ const categoryToVariant: Record<string, "info" | "warning" | "success"> = {
 /** Show a single announcement as a toast */
 function showAnnouncementToast(announcement: Announcement) {
 	const variant = categoryToVariant[announcement.category] ?? "info";
+	const toastId = `announcement-${announcement.id}`;
 
 	const options = {
-		description: truncateText(announcement.description, 120),
+		id: toastId,
+		description: (
+			<>
+				{truncateText(announcement.description, 120)}{" "}
+				<Link
+					href={announcementPath(announcement.id)}
+					onClick={() => {
+						markAnnouncementRead(announcement.id);
+						toast.dismiss(toastId);
+					}}
+					className="font-medium underline underline-offset-2"
+				>
+					Read more
+				</Link>
+			</>
+		),
 		duration: 12000,
 		icon: <Megaphone className="h-4 w-4" />,
 		action: announcement.link
@@ -71,9 +88,14 @@ export function AnnouncementToastProvider() {
 			const authed = isAuthenticated();
 			const active = getActiveAnnouncements(announcements, authed);
 			// Spotlight announcements are handled by the blocking spotlight dialog,
-			// so skip them here to avoid double-notifying the user.
+			// so skip them here to avoid double-notifying the user. So is the one
+			// whose page is already open: the visitor is reading it.
 			const importantUntoasted = active.filter(
-				(a) => a.isImportant && !a.spotlight && !isAnnouncementToasted(a.id)
+				(a) =>
+					a.isImportant &&
+					!a.spotlight &&
+					!isAnnouncementToasted(a.id) &&
+					window.location.pathname !== announcementPath(a.id)
 			);
 
 			for (let i = 0; i < importantUntoasted.length; i++) {

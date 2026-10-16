@@ -1,9 +1,10 @@
 """User-search flow: keyword -> public account records.
 
-Unlike video/general search (login-walled for anonymous sessions), the Users tab
-hits ``/api/search/user`` and returns account records without a redirect. Each
-query's results are deduped by uid, capped, and — when a query returns nothing —
-degraded to one ErrorItem, mirroring the listing flow.
+The Users tab hits ``/api/search/user`` and returns account records to anonymous
+sessions (video search works anonymously too, through the listing flow). The
+first body sometimes comes back empty; the browser seam retries it in the page.
+Each query's results are deduped by uid, capped, and — when a query returns
+nothing — degraded to one ErrorItem, mirroring the listing flow.
 """
 
 from __future__ import annotations

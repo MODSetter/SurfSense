@@ -70,7 +70,7 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={waiting || connect.isPending}
           // A community plugin's author is not proven: say so before anything is sent.
           onClick={() =>

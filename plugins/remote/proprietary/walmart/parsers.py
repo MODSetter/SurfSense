@@ -49,6 +49,14 @@ def _absolute(url: str | None) -> str | None:
     return urljoin(_WALMART_ORIGIN, url) if url else None
 
 
+def _nonzero(*values: Any) -> Any:
+    """The first non-zero value, else the first that is not ``None`` (a real 0)."""
+    return next(
+        (value for value in values if value),
+        next((value for value in values if value is not None), None),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Listing / search cards.                                                     #
 # --------------------------------------------------------------------------- #
@@ -71,6 +79,8 @@ def _listing_card(raw: dict[str, Any]) -> dict[str, Any] | None:
         "price": _price(price_info.get("currentPrice"))
         or ({"value": raw.get("price")} if raw.get("price") is not None else None),
         "listPrice": _price(price_info.get("wasPrice")),
+        # Variant cards carry None here and a {0, 0} ``rating`` node; that node
+        # is never read, so a variant shows as unknown (None), not as unrated.
         "stars": raw.get("averageRating"),
         "reviewsCount": raw.get("numberOfReviews"),
         "seller": _seller(raw),
@@ -153,6 +163,51 @@ def _reviews_sample(
     }
 
 
+def _specifications(idml: Any) -> dict[str, Any] | None:
+    """``idml.specifications`` (a list of ``{name, value}``) as one name→value dict."""
+    specs = idml.get("specifications") if isinstance(idml, dict) else None
+    if not isinstance(specs, list):
+        return None
+    out = {
+        spec["name"]: spec.get("value")
+        for spec in specs
+        if isinstance(spec, dict) and spec.get("name")
+    }
+    return out or None
+
+
+def _fulfillment(options: Any) -> dict[str, Any] | None:
+    """``product.fulfillmentOptions`` keyed by type (shipping, pickup, delivery).
+
+    Only the fields a shopper reads off the page are kept; the raw nodes carry
+    dozens of UI flags per option.
+    """
+    if not isinstance(options, list):
+        return None
+    out: dict[str, Any] = {}
+    for option in options:
+        if not isinstance(option, dict) or not option.get("type"):
+            continue
+        speed = option.get("speedDetails") or {}
+        compact = {
+            "availabilityStatus": option.get("availabilityStatus"),
+            "availabilityType": option.get("availabilityType"),
+            "isLowInStock": option.get("isLowInStock"),
+            "maxOrderQuantity": option.get("maxOrderQuantity"),
+            "location": option.get("locationText"),
+            "badge": speed.get("fulfillmentBadge"),
+            "deliveryDate": speed.get("deliveryDate")
+            or speed.get("storeDeliveryDate")
+            or speed.get("maxDeliveryDate"),
+            "price": dig(speed, "fulfillmentPrice", "price"),
+            "selected": option.get("selected"),
+        }
+        out[str(option["type"]).lower()] = {
+            key: value for key, value in compact.items() if value is not None
+        }
+    return out or None
+
+
 def parse_product(
     next_data: dict[str, Any], *, url: str, include_reviews_sample: bool = True
 ) -> dict[str, Any]:
@@ -163,6 +218,7 @@ def parse_product(
         return {}
     idml = dig(data, "data", "idml") if data else None
     reviews = dig(data, "data", "reviews") if data else None
+    rv = reviews if isinstance(reviews, dict) else {}
     price_info = product.get("priceInfo") or {}
     image_info = product.get("imageInfo") or {}
     availability = product.get("availabilityStatus")
@@ -178,8 +234,12 @@ def parse_product(
         "currency": dig(price_info, "currentPrice", "currencyUnit"),
         "availabilityStatus": availability,
         "inStock": availability == "IN_STOCK" if availability else None,
-        "stars": product.get("averageRating"),
-        "reviewsCount": product.get("numberOfReviews"),
+        # VARIANT products carry 0/0 on the product node; the reviews node has
+        # the real figures, so a 0 never wins over it.
+        "stars": _nonzero(product.get("averageRating"), rv.get("averageOverallRating")),
+        "reviewsCount": _nonzero(
+            product.get("numberOfReviews"), rv.get("totalReviewCount")
+        ),
         "seller": _seller(product),
         "manufacturerName": product.get("manufacturerName"),
         "shortDescription": product.get("shortDescription"),
@@ -191,6 +251,8 @@ def parse_product(
         "category": breadcrumbs[-1] if breadcrumbs else None,
         "breadCrumbs": breadcrumbs,
         "variants": product.get("variantCriteria") or [],
+        "specifications": _specifications(idml),
+        "fulfillment": _fulfillment(product.get("fulfillmentOptions")),
     }
     if include_reviews_sample:
         fields["reviewsSample"] = _reviews_sample(reviews)
@@ -235,6 +297,10 @@ def normalize_review(raw: dict[str, Any]) -> dict[str, Any]:
         "images": images,
         "syndicated": bool(raw.get("syndicationSource")),
         "sellerResponse": seller_response,
+        # The reviews page mixes in reviews of sibling variants; these say which
+        # product each one is really about (``usItemId`` stays the one asked for).
+        "reviewedItemId": raw.get("itemId"),
+        "reviewedItemName": raw.get("itemName"),
     }
 
 
@@ -246,3 +312,25 @@ def parse_reviews_page(next_data: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(customer, list):
         return []
     return [normalize_review(r) for r in customer if isinstance(r, dict)]
+
+
+def parse_reviews_meta(next_data: dict[str, Any]) -> dict[str, Any]:
+    """Paging facts from one reviews page: ``lastPage`` and ``filteredCount``.
+
+    ``lastPage`` is the highest page number the pagination links to (the list
+    elides the middle but always names the last page); ``None`` when absent.
+    """
+    data = initial_data(next_data)
+    reviews = dig(data, "data", "reviews") if data else None
+    reviews = reviews if isinstance(reviews, dict) else {}
+    pages = dig(reviews, "pagination", "pages")
+    numbers = [
+        page["num"]
+        for page in (pages if isinstance(pages, list) else [])
+        if isinstance(page, dict) and isinstance(page.get("num"), int)
+    ]
+    count = reviews.get("filteredReviewsCount")
+    return {
+        "lastPage": max(numbers) if numbers else None,
+        "filteredCount": count if isinstance(count, int) else None,
+    }

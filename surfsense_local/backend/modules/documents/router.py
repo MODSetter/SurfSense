@@ -24,8 +24,14 @@ from api.notify import (
 )
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
+from modules.documents.docling_batches import ended_in_queue as docling_batches
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.documents.original_file import original_path, stored_name
+from modules.documents.original_file import (
+    emptied_document_dir,
+    original_path,
+    stored_name,
+)
+from modules.documents.recordings.ended_run import drop_when_cancelled_in_queue
 from modules.documents.schemas import (
     DocumentByChunkRead,
     DocumentDetail,
@@ -50,6 +56,7 @@ from modules.documents.tasks import (
     PRIORITY_INTERACTIVE,
     ingest_document,
 )
+from modules.documents.upload_order import cheapest_first
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import EventKind
@@ -315,8 +322,7 @@ def upload_documents(
         raise
 
     for document, streamed, suffix in accepted:
-        destination = storage.document_dir(workspace.id, document.id)
-        destination.mkdir(parents=True, exist_ok=True)
+        destination = emptied_document_dir(workspace.id, document.id)
         streamed.path.replace(destination / stored_name(document.title, suffix))
 
     made = list(
@@ -331,7 +337,7 @@ def upload_documents(
     session.commit()
 
     notify_changed(broker, workspace.id, EventKind.FOLDERS, made, "created")
-    for document, _, _ in accepted:
+    for document in cheapest_first(document for document, _, _ in accepted):
         ingest_document(document.id, priority=priority)
         notify_document_updates(broker, document)
 
@@ -448,8 +454,11 @@ def retry_document(
 def cancel_ingest(
     document: DocumentDep, session: SessionDep, broker: EventBrokerDep
 ) -> Document:
+    was = document.status
     if not cancel_ingest_job(session, document):
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
+    drop_when_cancelled_in_queue(document, was)
+    docling_batches.drop_when_cancelled_in_queue(document, was)
     notify_document_updates(broker, document)
     return document
 

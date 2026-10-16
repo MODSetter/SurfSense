@@ -42,7 +42,7 @@ function publisherNote(entry: RegistryEntry) {
 }
 
 /**
- * Beside a third-party plugin's name: a checkmark when SurfSense proved by its domain
+ * Beside a third-party plugin's name: a checkmark when SurfSense's maintainers judged
  * that its author runs the server, else a Community badge. Raised above a Browse
  * card's stretched button (`z-10`), so hovering it shows its tooltip, not the card's.
  */
@@ -60,7 +60,7 @@ export function PublisherMark({ entry }: { entry: ListedEntry }) {
           </span>
         ) : (
           // As the sidebar's "New" badge (components/feature-badge.tsx), a shade apart
-          // from a Browse card's own secondary fill and its muted hover.
+          // from a Browse card's own muted fill and its hover.
           <Badge
             variant="secondary"
             className="h-4 rounded-md bg-accent px-1.5 text-[10px] text-accent-foreground"

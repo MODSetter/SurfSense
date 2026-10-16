@@ -13,6 +13,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { announcementPath } from "@/lib/announcements/announcements-utils";
 
 /**
  * Proactively shows important "spotlight" announcements in a blocking dialog.
@@ -67,7 +68,11 @@ export function AnnouncementSpotlight() {
 					<DialogDescription className="text-sm leading-relaxed text-muted-foreground">
 						{current.description}
 					</DialogDescription>
-					<DialogFooter className="mt-2">
+					{/* Wraps, so a long CTA label cannot push "Read more" out of the dialog. */}
+					<DialogFooter className="mt-2 sm:flex-wrap">
+						<Button variant="outline" asChild onClick={handleAcknowledge}>
+							<Link href={announcementPath(current.id)}>Read more</Link>
+						</Button>
 						{current.link && (
 							<Button variant="secondary" asChild className="gap-1.5" onClick={handleAcknowledge}>
 								<Link
