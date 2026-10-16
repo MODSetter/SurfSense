@@ -51,6 +51,7 @@ from modules.documents.tasks import (
     PRIORITY_INTERACTIVE,
     ingest_document,
 )
+from modules.documents.upload_order import cheapest_first
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import EventKind
@@ -332,7 +333,7 @@ def upload_documents(
     session.commit()
 
     notify_changed(broker, workspace.id, EventKind.FOLDERS, made, "created")
-    for document, _, _ in accepted:
+    for document in cheapest_first(document for document, _, _ in accepted):
         ingest_document(document.id, priority=priority)
         notify_document_updates(broker, document)
 

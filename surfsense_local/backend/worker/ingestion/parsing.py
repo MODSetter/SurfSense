@@ -1,4 +1,5 @@
 import os
+from contextlib import nullcontext
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -8,15 +9,14 @@ import psutil
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from modules.documents.recordings.kind import is_recording
+from modules.documents.text_files import TEXT_SUFFIXES
 from shared.config import get_storage_settings
 from worker.ingestion.audio.transcript_job import recording_markdown
+from worker.ingestion.docx_style_cache import cached_style_lookups
 from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 from worker.ingestion.slideless_deck import describe_slideless_deck
-
-# Already text: read off disk rather than round-trip through Docling.
-TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
 
 
 class UnreadableFileError(Exception):
@@ -61,9 +61,12 @@ def convert(path: Path) -> Any:
     converter = _converter()
     from docling.exceptions import ConversionError, DocumentLoadError
 
-    source = as_page(path) if path.suffix.lower() in IMAGE_SUFFIXES else path
+    suffix = path.suffix.lower()
+    source = as_page(path) if suffix in IMAGE_SUFFIXES else path
+    reading = cached_style_lookups() if suffix == ".docx" else nullcontext()
     try:
-        return converter.convert(source).document
+        with reading:
+            return converter.convert(source).document
     except ConversionError as refused:
         # Docling also reports a file it cannot open yet and a model that ran
         # out of memory this way; only bytes it cannot load fail the same again.

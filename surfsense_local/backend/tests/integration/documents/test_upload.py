@@ -12,6 +12,7 @@ from modules.documents.recordings.progress_file import (
     TranscriptionProgress,
     write_progress,
 )
+from modules.documents.tasks import PRIORITY_INTERACTIVE
 from shared.config import get_storage_settings
 from shared.queue import ingest_queue
 
@@ -183,6 +184,43 @@ async def test_a_recording_is_queued_and_an_opus_voice_note_is_turned_away(
         {"filename": "voice.ogg", "reason": "Opus support comes in a later update"}
     ]
     assert len(ingest_queue.pending()) == 2
+
+
+async def test_a_batch_is_queued_cheapest_first(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Huey runs equal priorities in the order queued, so a dropped batch
+    becomes usable text first, then smallest first, recordings last."""
+    tone = Path(__file__).resolve().parents[2] / "fixtures" / "audio" / "tone.mp3"
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("standup.mp3", tone.read_bytes(), "audio/mpeg")),
+            ("files", ("big.pdf", b"%PDF-" + b"x" * 20_000, "application/pdf")),
+            ("files", ("notes.md", b"# notes\n" + b"y" * 50_000, "text/markdown")),
+            ("files", ("small.pdf", b"%PDF-1.7 small", "application/pdf")),
+            ("files", ("todo.txt", b"call Ann", "text/plain")),
+        ],
+    )
+
+    created = response.json()["created"]
+    assert [document["title"] for document in created] == [
+        "standup.mp3",
+        "big.pdf",
+        "notes.md",
+        "small.pdf",
+        "todo.txt",
+    ]
+    title_of = {document["id"]: document["title"] for document in created}
+    queued = ingest_queue.pending()
+    assert [title_of[job.args[0]] for job in queued] == [
+        "todo.txt",
+        "notes.md",
+        "small.pdf",
+        "big.pdf",
+        "standup.mp3",
+    ]
+    assert {job.priority for job in queued} == {PRIORITY_INTERACTIVE}
 
 
 async def test_a_queued_recording_reports_how_far_its_transcription_came(
