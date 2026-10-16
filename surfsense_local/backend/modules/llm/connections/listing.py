@@ -8,6 +8,7 @@ from modules.llm.subscriptions.chatgpt.plan_models import plan_models
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
 from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.models import claude_models
+from modules.llm.subscriptions.claude.proxy import required_claude_proxy_url
 
 
 async def connection_models(
@@ -21,5 +22,5 @@ async def connection_models(
         binary = this_machines_claude()
         if binary is None:
             raise SignInRequiredError("Claude Code is not installed")
-        return await claude_models(binary)
+        return await claude_models(binary, required_claude_proxy_url())
     return await discover_models(connection)

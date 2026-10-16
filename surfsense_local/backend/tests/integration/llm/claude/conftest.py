@@ -5,6 +5,7 @@ import pytest
 
 from modules.llm.subscriptions.claude import models as claude_models
 from modules.llm.subscriptions.claude import plan_generator
+from modules.llm.subscriptions.claude import proxy as claude_proxy
 from tests.claude_run_stand_in import ScriptedRun, answer
 from tests.claude_stand_in import claude_stand_in
 
@@ -69,4 +70,6 @@ def fake_claude(monkeypatch: pytest.MonkeyPatch) -> FakeClaude:
     monkeypatch.setattr(plan_generator, "open_run", fake.open)
     # The API's one pool of warm chat runs, fresh for each test.
     monkeypatch.setattr(plan_generator, "_runs", None)
+    # A serving API's proxy address; scripted runs never connect to it.
+    monkeypatch.setattr(claude_proxy, "_url", "http://127.0.0.1:9")
     return fake

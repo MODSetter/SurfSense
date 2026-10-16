@@ -1,10 +1,11 @@
 import asyncio
 import json
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
-from claude_agent_sdk import ResultMessage, StreamEvent
+from claude_agent_sdk import ResultMessage, StreamEvent, SystemMessage
 
+from modules.egress.service import EgressDeniedError
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.model_type import ModelType
@@ -29,6 +30,12 @@ from modules.llm.subscriptions.claude.status import ClaudeState, read_status
 # a second turn; measured, one call in four used a third.
 _TURNS_FOR_A_SCHEMA = 3
 
+ProxyRefusal = Callable[[], Awaitable[EgressDeniedError | None]]
+
+
+async def _no_refusal() -> EgressDeniedError | None:
+    return None
+
 
 class ClaudePlanProvider:
     """A Generator over the user's own Claude Code with every tool off (ADR 0052).
@@ -45,13 +52,17 @@ class ClaudePlanProvider:
         runs: ChatRuns,
         work_dir: Path,
         find_claude: Callable[[], Path | None] = this_machines_claude,
-        proxy_url: str | None = None,
+        proxy_url: Callable[[], str | None] = lambda: None,
+        proxy_refusal: ProxyRefusal = _no_refusal,
     ) -> None:
         self._runs = runs
         # Empty, so no project file is near the run.
         self._work_dir = work_dir
         self._find_claude = find_claude
+        # Read when a run starts, so a missing proxy refuses that run, not the resolver.
         self._proxy_url = proxy_url
+        # Asked only when Claude Code retries, whether a Claude host is off.
+        self._proxy_refusal = proxy_refusal
 
     def _binary(self) -> Path:
         binary = self._find_claude()
@@ -66,7 +77,7 @@ class ClaudePlanProvider:
     async def models(self) -> list[Model]:
         return [
             Model(m.name, installed=True, types=(ModelType.TEXT_GEN,))
-            for m in await claude_models(self._binary())
+            for m in await claude_models(self._binary(), self._proxy_url())
         ]
 
     async def context_tokens(self, model: str) -> int | None:
@@ -113,7 +124,7 @@ class ClaudePlanProvider:
     ) -> AsyncIterator[Delta]:
         options = launch_options(
             self._binary(),
-            proxy_url=self._proxy_url,
+            proxy_url=self._proxy_url(),
             model=model,
             tools=[],
             max_turns=_TURNS_FOR_A_SCHEMA if json_schema is not None else 1,
@@ -135,7 +146,12 @@ class ClaudePlanProvider:
             prompt,
         ):
             async for delta in with_deadlines(
-                _answer(run, prompt, structured=json_schema is not None),
+                _answer(
+                    run,
+                    prompt,
+                    structured=json_schema is not None,
+                    proxy_refusal=self._proxy_refusal,
+                ),
                 first_item_seconds=FIRST_TOKEN_SECONDS,
                 between_items_seconds=BETWEEN_TOKENS_SECONDS,
                 subject="Claude Code",
@@ -144,10 +160,12 @@ class ClaudePlanProvider:
 
 
 async def _answer(
-    run: ClaudeRun, prompt: Prompt, *, structured: bool
+    run: ClaudeRun, prompt: Prompt, *, structured: bool, proxy_refusal: ProxyRefusal
 ) -> AsyncIterator[Delta]:
     async for message in run.send(prompt):
-        if (failure := failure_of(message)) is not None:
+        retrying = isinstance(message, SystemMessage) and message.subtype == "api_retry"
+        refusal = await proxy_refusal() if retrying else None
+        if (failure := failure_of(message, proxy_refusal=refusal)) is not None:
             raise failure
         if isinstance(message, ResultMessage):
             if structured:

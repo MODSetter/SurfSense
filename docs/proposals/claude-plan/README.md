@@ -45,14 +45,14 @@ Every behaviour of Claude Code stated here was measured on 16 Oct 2026 on macOS 
 | Agent engines | opencode | opencode, and Claude Code for a thread on a Claude plan model |
 | Engine choice | a thread is the agent's or the chat's | an agent thread also records which engine runs it, set by the selected model's connection |
 | Model switch in an agent thread | opencode carries the session | the same, unless the switch crosses engines: then a handover note |
-| Network | `host:api.anthropic.com` for a key connection | the same destination; Claude Code reaches it only through SurfSense's proxy |
+| Network | `host:api.anthropic.com` for a key connection | also `host:platform.claude.com`, where Claude Code refreshes its sign-in; Claude Code reaches both only through a proxy the API runs for it |
 | Installer | unchanged | unchanged: the SDK's bundled Claude Code (241 MB) is excluded |
 
 ## How the user sees it
 
 1. In **Settings › Add model** or onboarding's model step, the user picks **Use your Claude plan**. A nested dialog opens ([`05-dialog.md`](05-dialog.md)).
 2. The dialog shows what SurfSense found: Claude Code not installed, too old, signed out, or ready with the account's email and plan. Each state says the one thing to do, and **Check again** re-reads it. Signing in happens in the user's terminal, in Claude Code.
-3. **Add Claude models** asks for `api.anthropic.com` through the usual egress prompt, closes the dialog, and lists Claude Code's models in every picker.
+3. **Add Claude models** asks for `api.anthropic.com` and `platform.claude.com` in one egress prompt, closes the dialog, and lists Claude Code's models in every picker.
 4. A Claude plan model then works in Basic and Agentic threads like any other model. The user never picks an engine.
 5. A used-up plan, a signed-out Claude Code or a missing install shows the existing `subscription_limit` and `subscription_sign_in` notices, or the connection's not-found state.
 
@@ -67,7 +67,7 @@ Every behaviour of Claude Code stated here was measured on 16 Oct 2026 on macOS 
 | Agent | A second engine beside opencode, behind a new engine interface. Claude Code's file tools on the thread folder; SurfSense's tools and the thread's plugins over MCP; Bash, web and subagents off. |
 | Permissions | SurfSense's rules decide every tool call in a `PreToolUse` hook, with `can_use_tool` as a second gate and `permission_mode="default"` forced, since Claude Code 2.1.301 defaults to `auto` and then skips `can_use_tool` ([`03-agent.md`](03-agent.md#the-gate)). |
 | Switching models mid-thread | Allowed. Crossing engines writes a handover note ([`04-handover.md`](04-handover.md)). One engine per thread was rejected. |
-| Network | Claude Code's `HTTPS_PROXY` is SurfSense's proxy, which tunnels `api.anthropic.com` only, after `egress.require()`. Non-essential traffic is off. |
+| Network | Claude Code's `HTTPS_PROXY` is a proxy the API runs for it, which tunnels `api.anthropic.com` and `platform.claude.com` only, each while the user allows it. No run starts without it. Non-essential traffic is off. |
 | Name | "Claude plan" and "Use your Claude plan". Never "Claude Code" in the interface ([branding](https://code.claude.com/docs/en/agent-sdk/overview#branding-guidelines)). |
 
 [ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) records: a Claude plan is offered through the user's own Claude Code and SurfSense holds no Claude credential, replacing ADR 0038's last consequence; and ADR 0050's "SurfSense owns a plan's sign-in for both engines" holds for the ChatGPT plan only.
@@ -120,6 +120,8 @@ Scripts kept out of the repo; each line is one run on the machine above.
 | Resume from a `SessionStore` after deleting the local transcript | works; with `--no-session-persistence` it does not |
 | Proxy tunnelling only `api.anthropic.com` | works; with non-essential traffic off, nothing else is attempted (without it, `http-intake.logs.us5.datadoghq.com`) |
 | Proxy refusing `api.anthropic.com` | no error: `system` `api_retry` messages, first after about 1 s, up to 10 attempts |
+| Hosts contacted | model calls and the model list: `api.anthropic.com`; sign-in refresh: `platform.claude.com` (from the binary); `claude auth status`: none |
+| A chat through the API's proxy | tunnels to `api.anthropic.com` only, none refused |
 
 ## Out of scope
 
@@ -130,4 +132,5 @@ A SurfSense sign-in to Claude, reading or storing Claude Code's credentials, `cl
 - Windows and Linux on a real install: whether `claude auth status` prints the same JSON, whether `HTTPS_PROXY` is honoured the same way, and WinGet's `Links` folder. Where installers put `claude` is settled ([`01-connection.md`](01-connection.md#finding-claude-code)) and tested on every system with stand-ins.
 - The lowest Claude Code version to accept, and how often a contract test against the real binary runs.
 - Whether a plan limit reached with Claude Code's extra usage switched on should say so; `overageStatus` is in the `RateLimitEvent`.
+- A host turned off while a reply streams ends the run at once, but the chat shows `unknown`: chat has no error kind for an egress refusal mid-reply, only before it. A Known gap until one is added.
 - Whether transcripts the agent engine writes under `~/.claude/projects` should be deleted once mirrored ([`03-agent.md`](03-agent.md#sessions)).

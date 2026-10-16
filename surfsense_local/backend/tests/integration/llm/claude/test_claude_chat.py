@@ -9,6 +9,7 @@ from sqlalchemy import Engine
 from modules.llm.resolution import resolve_generation
 from modules.llm.subscriptions.claude import plan_generator
 from modules.llm.subscriptions.claude.chat import ClaudePlanProvider
+from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
 from shared.db import create_session_factory
 from tests.claude_run_stand_in import answer
 from tests.claude_stand_in import SIGNED_OUT
@@ -21,7 +22,8 @@ SONNET = "claude-sonnet-5-5"
 
 async def _choose_claude(client: AsyncClient, claude_on_this_machine) -> int:
     claude_on_this_machine()
-    await client.put("/egress/host:api.anthropic.com", json={"enabled": True})
+    for host in ("api.anthropic.com", "platform.claude.com"):
+        await client.put(f"/egress/host:{host}", json={"enabled": True})
     connection = (
         await client.post("/llm/connections/claude", json={"label": "Claude"})
     ).json()
@@ -173,3 +175,64 @@ async def test_closing_the_api_closes_every_warm_run(
     await plan_generator.close_claude_runs()
 
     assert all(run.closed for run in fake_claude.opened)
+
+
+@pytest.mark.usefixtures("real_model")
+async def test_every_claude_code_run_goes_through_the_proxy(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """The model list and the chat alike, so egress consent holds for Claude Code."""
+    async with serving_claude_proxy(
+        create_session_factory(engine), "127.0.0.1"
+    ) as port:
+        await _choose_claude(client, claude_on_this_machine)
+        fake_claude.replies.append(answer("ok"))
+        await _send(client, await _basic_thread(client), "Hi")
+
+    proxy = f"http://127.0.0.1:{port}"
+    assert fake_claude.opened
+    assert all(run.options.env["HTTPS_PROXY"] == proxy for run in fake_claude.opened)
+
+
+@pytest.mark.usefixtures("real_model")
+async def test_a_chat_with_a_claude_host_off_is_refused_before_claude_code_runs(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """Checked with the chat's own egress check, like any remote model."""
+    await _choose_claude(client, claude_on_this_machine)
+    opened = len(fake_claude.opened)
+    await client.put("/egress/host:platform.claude.com", json={"enabled": False})
+    thread_id = await _basic_thread(client)
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "Hi"}
+    )
+
+    assert reply.status_code == 403
+    assert reply.json()["detail"]["destination"] == "host:platform.claude.com"
+    assert len(fake_claude.opened) == opened
+
+
+@pytest.mark.usefixtures("real_model")
+async def test_no_claude_code_runs_without_the_proxy(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fails closed: a Claude Code run that skipped the proxy would skip egress consent."""
+    from modules.llm.subscriptions.claude import proxy as claude_proxy
+
+    await _choose_claude(client, claude_on_this_machine)
+    monkeypatch.setattr(claude_proxy, "_url", None)
+    opened = len(fake_claude.opened)
+
+    frames = await _send(client, await _basic_thread(client), "Hi")
+
+    assert [f["type"] for f in frames if f.get("type") == "error"] == ["error"]
+    assert len(fake_claude.opened) == opened

@@ -23,7 +23,7 @@ def connection_generator(
     if connection.auth_kind == CHATGPT:
         return plan_generator(engine, connection, reads_images=reads_images)
     if connection.auth_kind == CLAUDE_PLAN:
-        return claude_generator()
+        return claude_generator(engine)
     if connection_route(connection, model) == "responses":
         return ResponsesChatProvider(
             connection.base_url, ApiKey(connection.api_key), reads_images=reads_images

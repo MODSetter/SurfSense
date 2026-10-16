@@ -49,6 +49,7 @@ from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
 from modules.llm.subscriptions.chatgpt.tokens import read_tokens
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
+from modules.llm.subscriptions.claude.hosts import SIGN_IN_HOST, require_claude_hosts
 
 router = APIRouter(prefix="/connections")
 
@@ -136,6 +137,9 @@ def allowed_connection(session: Session, connection_id: int) -> ProviderConnecti
     """The stored connection, once egress to its host is allowed."""
     connection = _stored(session, connection_id)
     egress.require(session, egress.host_destination(connection.base_url))
+    if connection.auth_kind == CLAUDE_PLAN:
+        # Claude Code also refreshes its sign-in on a host of its own.
+        require_claude_hosts(session)
     return connection
 
 
@@ -249,6 +253,9 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
     session.delete(connection)
     session.flush()
     egress.forget_if_unused(session, egress.host_destination(connection.base_url))
+    if connection.auth_kind == CLAUDE_PLAN:
+        # No connection names the sign-in host, so nothing else would clear it.
+        egress.forget_if_unused(session, f"host:{SIGN_IN_HOST}")
     # Committed first: the delete stands even if OpenAI never answers.
     session.commit()
     if revoke:

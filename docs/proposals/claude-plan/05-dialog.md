@@ -30,7 +30,9 @@ The dialog opens on the status read when it opens. Every view has the same openi
 
 **Check again** reads the status and moves to the view it returns. Nothing polls: nothing changes on SurfSense's side until the user acts in their terminal.
 
-**Add Claude models** posts the connection. Refused with `egress_disabled`, it raises the usual egress prompt for `api.anthropic.com` nested over the dialog ([egress](../../architecture/egress.md#asking-for-consent)), and posts again on Allow. On success the dialog closes and the models appear in every picker.
+**Add Claude models** first asks about every host still off, `api.anthropic.com` for chats and `platform.claude.com` for the sign-in's refresh ([`01-connection.md`](01-connection.md#network)), in one egress prompt nested over the dialog ([egress](../../architecture/egress.md#asking-for-consent)), then posts the connection. Allow switches each host on as its own row; Cancel creates nothing. On success the dialog closes and the models appear in every picker.
+
+The prompt asks about several hosts at once, which `EgressPrompt` cannot yet: it reads only `destination`, and asks about one host at a time though the refusal names them all ([egress](../../architecture/egress.md#known-gaps)). It is taught to read `hosts` and to word each by `purpose: "claude_plan"`: the API host gets what the model is sent, chats and sources; the sign-in host gets the sign-in's refresh, never a chat. That closes the gap for ChatGPT's sign-in and plugins with several hosts too. In Settings › Network the sign-in host's row says that turning it off stops Claude once the sign-in expires.
 
 **Opened again** once connected, the dialog shows the `ready` view with **Remove** in place of **Add Claude models**, or the state that now applies, such as `signed_out` after the user signed out in Claude Code.
 

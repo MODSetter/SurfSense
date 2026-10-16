@@ -9,11 +9,17 @@ from .conftest import ClaudeOnThisMachine, FakeClaude
 
 pytestmark = pytest.mark.integration
 ANTHROPIC = "host:api.anthropic.com"
+SIGN_IN = "host:platform.claude.com"
+
+
+async def _allow(client: AsyncClient, *destinations: str) -> None:
+    for destination in destinations:
+        reply = await client.put(f"/egress/{destination}", json={"enabled": True})
+        assert reply.status_code == 200
 
 
 async def _allow_anthropic(client: AsyncClient) -> None:
-    reply = await client.put(f"/egress/{ANTHROPIC}", json={"enabled": True})
-    assert reply.status_code == 200
+    await _allow(client, ANTHROPIC, SIGN_IN)
 
 
 async def _connect(client: AsyncClient) -> dict:
@@ -33,7 +39,10 @@ async def test_a_machine_without_claude_code_says_so(
 
     assert option["state"] == "not_installed"
     assert option["serves"] == ["text_gen"]
-    assert option["hosts"] == [{"destination": ANTHROPIC, "host": "api.anthropic.com"}]
+    assert option["hosts"] == [
+        {"destination": ANTHROPIC, "host": "api.anthropic.com"},
+        {"destination": SIGN_IN, "host": "platform.claude.com"},
+    ]
 
 
 async def test_a_signed_in_claude_code_is_ready_with_its_account(
@@ -94,16 +103,31 @@ async def test_a_ready_claude_code_makes_a_claude_plan_connection(
     assert connection["serves"] == ["text_gen"]
 
 
-async def test_connecting_asks_for_anthropic_first(
+async def test_connecting_asks_for_both_anthropic_hosts_first(
     client: AsyncClient, claude_on_this_machine: ClaudeOnThisMachine
 ) -> None:
-    """Every model call goes to api.anthropic.com, so its egress comes first."""
+    """Model calls and the sign-in's refresh go to two hosts, named in one refusal."""
     claude_on_this_machine()
 
     reply = await client.post("/llm/connections/claude", json={"label": "Claude"})
 
     assert reply.status_code == 403
-    assert reply.json()["detail"]["destination"] == ANTHROPIC
+    detail = reply.json()["detail"]
+    assert detail["destination"] == ANTHROPIC
+    assert detail["hosts"] == ["api.anthropic.com", "platform.claude.com"]
+    assert detail["purpose"] == "claude_plan"
+
+
+async def test_one_host_allowed_still_asks_for_the_other(
+    client: AsyncClient, claude_on_this_machine: ClaudeOnThisMachine
+) -> None:
+    """Each host is its own consent; only the one still off is asked about."""
+    claude_on_this_machine()
+    await _allow(client, ANTHROPIC)
+
+    option = (await client.get("/llm/connections/claude")).json()
+
+    assert option["hosts"] == [{"destination": SIGN_IN, "host": "platform.claude.com"}]
 
 
 async def test_a_claude_code_that_is_not_ready_cannot_connect(
@@ -202,3 +226,33 @@ async def test_a_plan_whose_claude_code_is_gone_asks_to_set_it_up_again(
 
     assert reply.status_code == 409
     assert reply.json()["detail"]["code"] == "sign_in_required"
+
+
+async def test_the_model_list_needs_both_hosts(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """With the sign-in host off, the chat's model check asks for it at once,
+    rather than Claude Code failing hours later when its sign-in expires."""
+    claude_on_this_machine()
+    connection = await _connect(client)
+    await client.put(f"/egress/{SIGN_IN}", json={"enabled": False})
+
+    reply = await client.get(f"/llm/connections/{connection['id']}/models")
+
+    assert reply.status_code == 403
+    assert reply.json()["detail"]["destination"] == SIGN_IN
+
+
+async def test_removing_the_plan_forgets_its_sign_in_host(
+    client: AsyncClient, claude_on_this_machine: ClaudeOnThisMachine
+) -> None:
+    """No connection names platform.claude.com, so nothing else would clear it."""
+    claude_on_this_machine()
+    connection = await _connect(client)
+
+    await client.delete(f"/llm/connections/{connection['id']}")
+
+    listed = [row["destination"] for row in (await client.get("/egress")).json()]
+    assert SIGN_IN not in listed

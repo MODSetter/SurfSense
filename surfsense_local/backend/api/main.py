@@ -52,6 +52,7 @@ from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.llm.subscriptions.claude.plan_generator import close_claude_runs
+from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
 from modules.llm.transcription.gate import TranscriptionGate
 from modules.llm.transcription.internal_router import (
     router as transcription_windows_router,
@@ -136,7 +137,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
-        async with _plugin_proxy(session_factory):
+        async with (
+            _plugin_proxy(session_factory),
+            serving_claude_proxy(session_factory, get_settings().host),
+        ):
             yield
     finally:
         await close_claude_runs()

@@ -31,10 +31,16 @@ logger = logging.getLogger(__name__)
 
 @contextlib.asynccontextmanager
 async def serving_plugin_proxy(
-    sessions: sessionmaker[Session], host: str, port: int
+    sessions: sessionmaker[Session],
+    host: str,
+    port: int,
+    allowed: AllowedHosts | None = None,
 ) -> AsyncIterator[int]:
-    """The proxy on `host`, yielding the port it listens on."""
-    allowed = AllowedHosts(sessions)
+    """The proxy on `host`, yielding the port it listens on.
+
+    `allowed` decides which hosts pass: a ready plugin's by default.
+    """
+    allowed = allowed if allowed is not None else AllowedHosts(sessions)
     # Last-call records in flight, held so none is collected before it ran.
     recording: set[asyncio.Task[None]] = set()
 

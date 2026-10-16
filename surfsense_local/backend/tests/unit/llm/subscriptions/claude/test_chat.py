@@ -2,8 +2,15 @@ import json
 from pathlib import Path
 
 import pytest
-from claude_agent_sdk import AssistantMessage, RateLimitEvent, RateLimitInfo, TextBlock
+from claude_agent_sdk import (
+    AssistantMessage,
+    RateLimitEvent,
+    RateLimitInfo,
+    SystemMessage,
+    TextBlock,
+)
 
+from modules.egress.service import EgressDeniedError
 from modules.llm.providers.openai_responses.errors import (
     PlanLimitError,
     SignInRequiredError,
@@ -286,3 +293,25 @@ async def test_a_message_sent_while_its_run_is_busy_gets_a_run_of_its_own(
     assert [d.text for d in second] == ["2"]
     assert other.closed
     assert other.sent[0].rstrip().endswith("b")
+
+
+async def test_a_host_turned_off_mid_reply_stops_the_run_at_its_first_retry(
+    tmp_path: Path,
+) -> None:
+    """Rather than after Claude Code's ten retries."""
+    retry = SystemMessage(subtype="api_retry", data={"attempt": 1})
+    refusal = EgressDeniedError("host:api.anthropic.com")
+    run = ScriptedRun([[retry, *answer("never")]])
+
+    async def host_off() -> EgressDeniedError | None:
+        return refusal
+
+    provider = ClaudePlanProvider(
+        runs=ChatRuns(Opener(run)),
+        find_claude=lambda: Path("/home/ada/.local/bin/claude"),
+        work_dir=tmp_path,
+        proxy_refusal=host_off,
+    )
+
+    with pytest.raises(EgressDeniedError):
+        await _deltas(provider, [SYSTEM, Message("user", "Hi")])

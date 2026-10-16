@@ -4,12 +4,16 @@ from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import Engine
+
+from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
+from shared.db import create_session_factory
 
 pytestmark = pytest.mark.claude_code
 
 
 async def test_this_machines_claude_code_connects_and_lists_its_models(
-    client: AsyncClient, claude_binary: Path
+    client: AsyncClient, engine: Engine, claude_binary: Path
 ) -> None:
     """End to end on a real install: ready, connected, and the plan's models listed."""
     option = (await client.get("/llm/connections/claude")).json()
@@ -17,11 +21,15 @@ async def test_this_machines_claude_code_connects_and_lists_its_models(
     assert option["email"]
     assert option["plan"]
 
-    await client.put("/egress/host:api.anthropic.com", json={"enabled": True})
+    for host in ("api.anthropic.com", "platform.claude.com"):
+        await client.put(f"/egress/host:{host}", json={"enabled": True})
     connection = (
         await client.post("/llm/connections/claude", json={"label": "Claude"})
     ).json()
-    models = (await client.get(f"/llm/connections/{connection['id']}/models")).json()
+    async with serving_claude_proxy(create_session_factory(engine), "127.0.0.1"):
+        models = (
+            await client.get(f"/llm/connections/{connection['id']}/models")
+        ).json()
 
     names = {m["name"] for m in models}
     assert {"claude-opus-5-5", "claude-sonnet-5-5"} <= names

@@ -72,15 +72,14 @@ def test_a_plan_with_room_left_is_no_failure(status: str) -> None:
 
 def test_a_retry_after_the_proxy_refused_is_the_egress_refusal() -> None:
     """Claude Code retries a refused tunnel ten times rather than failing."""
-    failure = failure_of(_api_retry(), proxy_refused=True)
+    refusal = EgressDeniedError("host:platform.claude.com")
 
-    assert isinstance(failure, EgressDeniedError)
-    assert failure.destination == "host:api.anthropic.com"
+    assert failure_of(_api_retry(), proxy_refusal=refusal) is refusal
 
 
 def test_a_retry_the_proxy_did_not_cause_is_no_failure() -> None:
     """An ordinary retry is Claude Code's own business."""
-    assert failure_of(_api_retry(), proxy_refused=False) is None
+    assert failure_of(_api_retry(), proxy_refusal=None) is None
 
 
 def test_any_other_failed_run_is_a_run_error() -> None:

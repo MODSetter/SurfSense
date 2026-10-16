@@ -25,6 +25,8 @@ from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
+from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
+from modules.llm.subscriptions.claude.hosts import require_claude_hosts
 
 
 class ModelResolutionError(RuntimeError):
@@ -210,6 +212,9 @@ def _connection(session: Session, selected: SelectedModel) -> ProviderConnection
     """The selection's connection, once egress to its host is allowed."""
     connection = stored_connection(session, selected)
     egress.require(session, egress.host_destination(connection.base_url))
+    if connection.auth_kind == CLAUDE_PLAN:
+        # Claude Code also refreshes its sign-in on a host of its own.
+        require_claude_hosts(session)
     return connection
 
 

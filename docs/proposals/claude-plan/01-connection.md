@@ -45,8 +45,8 @@ Mounted beside the ChatGPT routes, before the connections router:
 
 | Route | Does |
 |---|---|
-| `GET /llm/connections/claude` | the status, read live on every call, the `serves` a plan would fill, and `hosts` still to allow (`api.anthropic.com` until allowed). **Check again** calls it again: nothing is stored, so there is nothing else to refresh |
-| `POST /llm/connections/claude` | creates the connection; `409` when one exists, `422` with the state when not `ready`; refused with `egress_disabled` until `host:api.anthropic.com` is on |
+| `GET /llm/connections/claude` | the status, read live on every call, the `serves` a plan would fill, and `hosts` still to allow, of `api.anthropic.com` and `platform.claude.com` ([Network](#network)). **Check again** calls it again: nothing is stored, so there is nothing else to refresh |
+| `POST /llm/connections/claude` | creates the connection; `409` when one exists, `422` with the state when not `ready`; refused with `egress_disabled` naming every [host](#network) still off |
 
 Listing, renaming and deleting go through the existing connection routes, made public as `connection_read`. Renaming is all a Claude plan allows, as for a ChatGPT one. The connection list does not run Claude Code: it would block about 0.13 s per Claude plan on every list, so the account's email and plan come from `GET /llm/connections/claude`.
 
@@ -74,11 +74,22 @@ Listing, renaming and deleting go through the existing connection routes, made p
 
 ## Network
 
-Claude Code makes its own HTTPS calls, which no `egress.require()` in the API would see. So every run's proxy variables point at the API's [plugin proxy](../../../surfsense_local/backend/modules/agent/plugin_proxy/), which tunnels `CONNECT api.anthropic.com:443` only when `host:api.anthropic.com` is enabled and refuses every other host. Measured, Claude Code honours `HTTPS_PROXY` and, with non-essential traffic off, asks for nothing but `api.anthropic.com`.
+Claude Code makes its own HTTPS calls, which no `egress.require()` in the API would see, so each one goes through a proxy the API runs for it. Measured against Claude Code 2.1.301, with non-essential traffic off:
 
-A refused tunnel does not fail the request: Claude Code retries up to 10 times, the first after about a second, reporting each as a `system` message of subtype `api_retry`. The proxy records each refusal against the run it was opened for, and on the first `api_retry` after one the run is interrupted and ends with `egress_disabled` naming `api.anthropic.com`, the same refusal every other model call gives ([egress](../../architecture/egress.md#asking-for-consent)).
+| Host | Reached for | Egress destination |
+|---|---|---|
+| `api.anthropic.com` | every model call, and the model list | `host:api.anthropic.com` |
+| `platform.claude.com` | refreshing its sign-in: `TOKEN_URL:"https://platform.claude.com/v1/oauth/token"` in the binary | `host:platform.claude.com` |
 
-Electron starts the plugin proxy only where opencode is staged. Whether that becomes "always" or the chat path gets a proxy of its own is decided in step 2.
+`claude auth status`, the [status](#status) check, contacts nothing, so it runs without the proxy. Each host is its own destination ([ADR 0027](../../adr/0027-egress-consent-per-host.md)): Settings › Network lists two rows, each switched on and off alone. With the sign-in host off, chat keeps answering until the token expires, so every check that admits a Claude plan's call requires both, and the user is asked at once rather than signed out hours later.
+
+**The proxy.** [`proxy.py`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/proxy.py) serves the plugin proxy's tunnel on a loopback port the API picks itself, from its lifespan: the API starts every Claude Code run, so, unlike opencode, nothing outside it needs the port. Its hosts are [`ClaudeHosts`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/proxy_hosts.py): the two above, each only while its destination is on, and nothing else. It is not the plugin proxy's list: opencode must never reach Anthropic directly ([ADR 0050](../../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md)), and Claude Code must never reach a plugin. Each host called is recorded as called, as every egress is.
+
+**Failing closed.** A run reads the proxy's address when it starts, and refuses to start without one (`ProxyNotServingError`): a Claude Code run around the proxy would be a run around egress consent. Outside a serving API, as in a script, no run starts.
+
+**Where both hosts are required.** `allowed_connection()`, which the model list, choosing a model, the chat check and the catalog go through; `_connection()` in `resolution.py`, before chat, titles and Studio generate; and creating the connection. Each raises one refusal naming every host still off, with `purpose: "claude_plan"`, which the prompt words its question by. Deleting the connection forgets `host:platform.claude.com` too, since no connection's address names it.
+
+**A host turned off mid-reply.** A refused tunnel does not fail the request: Claude Code retries up to 10 times, the first after about a second, each reported as a `system` message of subtype `api_retry`. On the first, the provider reads the two destinations again, and when one is off the run ends at once with that refusal.
 
 ## Errors
 

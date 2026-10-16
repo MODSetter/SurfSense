@@ -1,12 +1,11 @@
 from fastapi import APIRouter, HTTPException, status
 
 from api.dependencies import SessionDep
-from modules.egress import service as egress
-from modules.egress.models import EgressDestination
 from modules.llm.connections.router import connection_read
 from modules.llm.connections.serves import served_by
 from modules.llm.schemas import ConnectionRead
 from modules.llm.subscriptions.claude import account
+from modules.llm.subscriptions.claude.hosts import hosts_still_off, require_claude_hosts
 from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.schemas import (
     ClaudeConnectionWrite,
@@ -23,13 +22,10 @@ def claude_option(session: SessionDep) -> ClaudeOption:
     """Claude Code's state on this machine, read live, so signing in or out in a
     terminal shows on the next look."""
     found = read_status(this_machines_claude())
-    destination = egress.host_destination(account.API_URL)
-    row = session.get(EgressDestination, destination)
-    hosts = (
-        []
-        if row is not None and row.enabled
-        else [ClaudeHost(destination=destination, host=egress.host_of(destination))]
-    )
+    hosts = [
+        ClaudeHost(destination=f"host:{host}", host=host)
+        for host in hosts_still_off(session)
+    ]
     return ClaudeOption(
         state=found.state,
         version=found.version,
@@ -50,7 +46,7 @@ def connect_claude(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "label must not be empty"
         )
-    egress.require(session, egress.host_destination(account.API_URL))
+    require_claude_hosts(session)
     found = read_status(this_machines_claude())
     if found.state is not ClaudeState.READY:
         raise HTTPException(
