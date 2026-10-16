@@ -17,44 +17,24 @@ import type { Announcement } from "@/contracts/types/announcement.types";
  */
 export const announcements: Announcement[] = [
 	{
-		id: "2026-07-05-competitive-intelligence-direction",
-		title: "SurfSense's Next Chapter: Open Web Research for AI Agents",
+		id: "2026-09-18-surfsense-2-desktop-app",
+		title: "SurfSense 2.0: a free desktop app that keeps your documents on your computer",
 		description:
-			"SurfSense is now the open-source open web research platform for AI agents. Your agents research the live web with structured data from Reddit, YouTube, Google Maps, Google Search, and any page on the open web, through one REST API or MCP server. Everything you rely on today keeps working, and self-hosting stays free.",
+			"SurfSense is now a free, open-source desktop app for Windows, macOS and Linux. Your index stays on your disk, you choose the model, local or remote, and there is no account. The hosted app is export-only until 18 October 2026.",
 		category: "update",
-		date: "2026-07-05T00:00:00Z",
-		startTime: "2026-07-05T00:00:00Z",
-		endTime: "2026-08-31T00:00:00Z",
+		date: "2026-09-18T00:00:00Z",
+		startTime: "2026-09-18T00:00:00Z",
+		endTime: "2026-10-18T00:00:00Z",
 		audience: "all",
-		isImportant: true,
-		spotlight: true,
-		image: {
-			src: "/announcements/competitive-intelligence.png",
-			alt: "Platform data tiles for social, video, maps, search, and the web flowing into a central AI core that outputs research briefs and alerts.",
-		},
-		link: {
-			label: "Browse the plugins",
-			url: "/plugins",
-		},
-	},
-	{
-		id: "2026-05-31-ai-automations",
-		title: "Introducing AI Automations",
-		description:
-			"Turn prompts into hands-off AI agent workflows. Describe an automation in plain English and SurfSense builds it, run it on a schedule, or trigger it the moment a document lands in a folder. Automations work across Notion, Slack, Google Drive, Gmail, GitHub, Linear, Jira and more.",
-		category: "feature",
-		date: "2026-05-31T00:00:00Z",
-		startTime: "2026-05-31T00:00:00Z",
-		endTime: "2026-07-15T00:00:00Z",
-		audience: "users",
 		isImportant: false,
 		image: {
-			src: "/announcements/automations.png",
-			alt: "Connector tiles flowing into a central AI core that triggers scheduled and event-driven automations.",
+			src: "/announcements/surfsense-2-desktop-app.jpg",
+			og: "/announcements/surfsense-2-desktop-app-og.jpg",
+			alt: "The SurfSense desktop app: sources on the left, a cited answer in the chat, and Studio's formats on the right.",
 		},
 		link: {
-			label: "See the changelog",
-			url: "/changelog",
+			label: "Download SurfSense",
+			url: "/downloads",
 		},
 	},
 	// {

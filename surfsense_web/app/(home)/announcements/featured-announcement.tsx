@@ -15,7 +15,9 @@ export function FeaturedAnnouncement({ announcement }: { announcement: Announcem
 			href={announcementPath(announcement.id)}
 			className="group flex flex-col overflow-hidden rounded-3xl bg-muted p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:flex-row"
 		>
-			<div className="relative aspect-16/10 shrink-0 overflow-hidden rounded-2xl md:aspect-auto md:min-h-80 md:w-1/2">
+			{/* Held at 16:9 rather than stretched to the card's height as the blog's is:
+			    announcement images are wide app screenshots, and a tall box crops their sides. */}
+			<div className="relative aspect-16/10 shrink-0 overflow-hidden rounded-2xl md:aspect-video md:w-1/2 md:self-center">
 				<Image
 					src={announcement.image?.src ?? "/og-image.png"}
 					alt=""

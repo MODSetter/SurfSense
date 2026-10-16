@@ -43,7 +43,8 @@ export async function generateMetadata(props: {
 	if (!post) return {};
 
 	const url = `${BASE_URL}${announcementPath(post.id)}`;
-	const image = post.image?.src ?? "/og-image.png";
+	// The 1200x630 preview when there is one: link previews crop anything else.
+	const image = post.image?.og ?? post.image?.src ?? "/og-image.png";
 
 	return {
 		title: `${post.title} | SurfSense`,
