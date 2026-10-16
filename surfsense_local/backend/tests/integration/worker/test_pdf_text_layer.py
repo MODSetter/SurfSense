@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.source_figures import FiguresPending, list_figures
-from modules.documents.tasks import PRIORITY_IDLE
+from modules.documents.tasks import PRIORITY_IDLE, PRIORITY_INTERACTIVE
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -159,7 +159,7 @@ def test_a_text_read_pdf_with_a_photo_has_its_figures_kept_once_the_queue_is_idl
     with pytest.raises(FiguresPending):
         list_figures(session, source.workspace_id, source.id)
     assert [(t.args, t.priority or 0) for t in ingest_queue.pending()] == [
-        ((source.id,), 0),
+        ((source.id,), PRIORITY_INTERACTIVE),
         ((source.id,), PRIORITY_IDLE),
     ]
 

@@ -9,6 +9,7 @@ from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.ingestion import chunking, indexing, parsing
 from worker.ingestion.audio.failures import RecordingFailedError
+from worker.ingestion.figures.word_figures_pass import queue_figures_pass_once_ready
 from worker.jobs import (
     JobCancelledError,
     JobYieldedError,
@@ -64,6 +65,7 @@ def _ingest(session: Session, document: Document) -> None:
         if not finish_job(session, document, DocumentStatus.READY, **produced):
             return
         notify_document_updates(document)
+        queue_figures_pass_once_ready(document)
     except JobCancelledError:
         session.rollback()
     except JobYieldedError:
