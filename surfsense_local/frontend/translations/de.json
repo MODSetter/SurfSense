@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "Dein Claude-Plan braucht {host}. Erlaube die Verbindung.",
   "models_claude_dialog_install_body": "Installiere Claude Code auf diesem Computer.",
   "models_claude_dialog_install_guide_button": "Installationsanleitung öffnen",
-  "models_claude_dialog_ready_body": "Verbunden als {email}, {plan, select, pro {Pro-Plan} max {Max-Plan} team {Team-Plan} other {Claude-Plan}}. Claude-Modelle funktionieren dann im Chat, in Titeln und in Studio.",
+  "models_claude_dialog_ready_body": "Verbunden als {email}, {plan, select, pro {Pro-Plan} max {Max-Plan} team {Team-Plan} other {Claude-Plan}}. Claude-Modelle funktionieren dann im Chat, im agentischen Modus, in Titeln und in Studio.",
   "models_claude_dialog_sign_in_body": "Öffne ein Terminal, führe claude aus und melde dich mit deinem Claude-Konto an.",
   "models_claude_dialog_signed_out_body": "Claude Code ist installiert, aber nicht bei einem Claude-Plan angemeldet. Öffne ein Terminal, führe claude aus und melde dich an.",
   "models_claude_dialog_title": "Deinen Claude-Plan nutzen",

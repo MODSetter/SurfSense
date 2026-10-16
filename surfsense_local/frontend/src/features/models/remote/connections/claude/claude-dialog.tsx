@@ -87,7 +87,7 @@ function StateBody({ option }: { option: ClaudeOption }) {
             {
               id: "models_claude_dialog_ready_body",
               defaultMessage:
-                "Connected as {email}, {plan, select, pro {Pro plan} max {Max plan} team {Team plan} other {Claude plan}}. Claude models then work in chat, titles and Studio.",
+                "Connected as {email}, {plan, select, pro {Pro plan} max {Max plan} team {Team plan} other {Claude plan}}. Claude models then work in chat, Agentic mode, titles and Studio.",
             },
             { email: option.email ?? "", plan: option.plan ?? "other" }
           )}

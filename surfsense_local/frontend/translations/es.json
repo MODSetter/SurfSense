@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "Tu plan de Claude necesita {host}. Permite que se conecte.",
   "models_claude_dialog_install_body": "Instala Claude Code en este equipo.",
   "models_claude_dialog_install_guide_button": "Abrir guía de instalación",
-  "models_claude_dialog_ready_body": "Conectado como {email}, {plan, select, pro {plan Pro} max {plan Max} team {plan Team} other {plan de Claude}}. Así, los modelos de Claude funcionan en el chat, los títulos y Studio.",
+  "models_claude_dialog_ready_body": "Conectado como {email}, {plan, select, pro {plan Pro} max {plan Max} team {plan Team} other {plan de Claude}}. Así, los modelos de Claude funcionan en el chat, el modo agéntico, los títulos y Studio.",
   "models_claude_dialog_sign_in_body": "Abre una terminal, ejecuta claude e inicia sesión con tu cuenta de Claude.",
   "models_claude_dialog_signed_out_body": "Claude Code está instalado, pero no ha iniciado sesión en un plan de Claude. Abre una terminal, ejecuta claude e inicia sesión.",
   "models_claude_dialog_title": "Usar tu plan de Claude",

@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "Votre forfait Claude a besoin de {host}. Autorisez-le à se connecter.",
   "models_claude_dialog_install_body": "Installez Claude Code sur cet ordinateur.",
   "models_claude_dialog_install_guide_button": "Ouvrir le guide d’installation",
-  "models_claude_dialog_ready_body": "Connecté en tant que {email}, {plan, select, pro {forfait Pro} max {forfait Max} team {forfait Team} other {forfait Claude}}. Les modèles Claude fonctionnent alors dans le chat, les titres et Studio.",
+  "models_claude_dialog_ready_body": "Connecté en tant que {email}, {plan, select, pro {forfait Pro} max {forfait Max} team {forfait Team} other {forfait Claude}}. Les modèles Claude fonctionnent alors dans le chat, le mode agentique, les titres et Studio.",
   "models_claude_dialog_sign_in_body": "Ouvrez un terminal, exécutez claude et connectez-vous avec votre compte Claude.",
   "models_claude_dialog_signed_out_body": "Claude Code est installé, mais n’est connecté à aucun forfait Claude. Ouvrez un terminal, exécutez claude et connectez-vous.",
   "models_claude_dialog_title": "Utiliser votre forfait Claude",

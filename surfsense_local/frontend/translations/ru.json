@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "Вашему плану Claude нужен {host}. Разрешите подключение.",
   "models_claude_dialog_install_body": "Установите Claude Code на этот компьютер.",
   "models_claude_dialog_install_guide_button": "Открыть инструкцию",
-  "models_claude_dialog_ready_body": "Подключено: {email}, {plan, select, pro {план Pro} max {план Max} team {план Team} other {план Claude}}. Теперь модели Claude работают в чате, заголовках и Studio.",
+  "models_claude_dialog_ready_body": "Подключено: {email}, {plan, select, pro {план Pro} max {план Max} team {план Team} other {план Claude}}. Теперь модели Claude работают в чате, агентном режиме, заголовках и Studio.",
   "models_claude_dialog_sign_in_body": "Откройте терминал, запустите claude и войдите в аккаунт Claude.",
   "models_claude_dialog_signed_out_body": "Claude Code установлен, но не подключён к плану Claude. Откройте терминал, запустите claude и войдите.",
   "models_claude_dialog_title": "Использовать план Claude",

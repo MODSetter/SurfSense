@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "你的 Claude 套餐需要 {host}。请允许它连接。",
   "models_claude_dialog_install_body": "在这台电脑上安装 Claude Code。",
   "models_claude_dialog_install_guide_button": "打开安装指南",
-  "models_claude_dialog_ready_body": "已连接为 {email}，{plan, select, pro {Pro 套餐} max {Max 套餐} team {Team 套餐} other {Claude 套餐}}。之后 Claude 模型可用于对话、标题和 Studio。",
+  "models_claude_dialog_ready_body": "已连接为 {email}，{plan, select, pro {Pro 套餐} max {Max 套餐} team {Team 套餐} other {Claude 套餐}}。之后 Claude 模型可用于对话、智能体、标题和 Studio。",
   "models_claude_dialog_sign_in_body": "打开终端，运行 claude，然后用你的 Claude 账号登录。",
   "models_claude_dialog_signed_out_body": "Claude Code 已安装，但未登录 Claude 套餐。打开终端，运行 claude 并登录。",
   "models_claude_dialog_title": "使用你的 Claude 套餐",

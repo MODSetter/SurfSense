@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "Claude 플랜에는 {host}이(가) 필요합니다. 연결을 허용하세요.",
   "models_claude_dialog_install_body": "이 컴퓨터에 Claude Code를 설치하세요.",
   "models_claude_dialog_install_guide_button": "설치 가이드 열기",
-  "models_claude_dialog_ready_body": "{email}(으)로 연결되었습니다({plan, select, pro {Pro 플랜} max {Max 플랜} team {Team 플랜} other {Claude 플랜}}). 추가하면 채팅, 제목, Studio에서 Claude 모델을 사용할 수 있습니다.",
+  "models_claude_dialog_ready_body": "{email}(으)로 연결되었습니다({plan, select, pro {Pro 플랜} max {Max 플랜} team {Team 플랜} other {Claude 플랜}}). 추가하면 채팅, 에이전트, 제목, Studio에서 Claude 모델을 사용할 수 있습니다.",
   "models_claude_dialog_sign_in_body": "터미널을 열고 claude를 실행한 다음 Claude 계정으로 로그인하세요.",
   "models_claude_dialog_signed_out_body": "Claude Code는 설치되어 있지만 Claude 플랜에 로그인되어 있지 않습니다. 터미널을 열고 claude를 실행한 다음 로그인하세요.",
   "models_claude_dialog_title": "Claude 플랜 사용",

@@ -444,7 +444,7 @@
   "models_claude_dialog_host_declined_error": "आपके Claude प्लान के लिए {host} ज़रूरी है। इसे कनेक्ट करने की अनुमति दें।",
   "models_claude_dialog_install_body": "इस कंप्यूटर पर Claude Code इंस्टॉल करें।",
   "models_claude_dialog_install_guide_button": "इंस्टॉल गाइड खोलें",
-  "models_claude_dialog_ready_body": "{email} के रूप में कनेक्टेड, {plan, select, pro {Pro प्लान} max {Max प्लान} team {Team प्लान} other {Claude प्लान}}। जोड़ने के बाद Claude मॉडल चैट, शीर्षकों और Studio में काम करेंगे।",
+  "models_claude_dialog_ready_body": "{email} के रूप में कनेक्टेड, {plan, select, pro {Pro प्लान} max {Max प्लान} team {Team प्लान} other {Claude प्लान}}। जोड़ने के बाद Claude मॉडल चैट, एजेंटिक मोड, शीर्षकों और Studio में काम करेंगे।",
   "models_claude_dialog_sign_in_body": "एक टर्मिनल खोलें, claude चलाएं, और अपने Claude खाते से साइन इन करें।",
   "models_claude_dialog_signed_out_body": "Claude Code इंस्टॉल है, लेकिन किसी Claude प्लान में साइन इन नहीं है। एक टर्मिनल खोलें, claude चलाएं, और साइन इन करें।",
   "models_claude_dialog_title": "अपना Claude प्लान इस्तेमाल करें",
