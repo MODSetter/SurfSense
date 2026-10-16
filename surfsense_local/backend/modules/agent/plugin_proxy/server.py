@@ -68,6 +68,18 @@ async def serving_plugin_proxy(
         yield server.sockets[0].getsockname()[1]
 
 
+async def _connect(
+    host: str, port: int
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    """asyncio's own loop takes the next address after a delay; uvloop, which the
+    API runs on macOS and Linux, has no such option and refuses the call."""
+    if isinstance(asyncio.get_running_loop(), asyncio.BaseEventLoop):
+        return await asyncio.open_connection(
+            host, port, happy_eyeballs_delay=_NEXT_ADDRESS_SECONDS
+        )
+    return await asyncio.open_connection(host, port)
+
+
 async def _tunnel(
     allowed: AllowedHosts,
     recording: set[asyncio.Task[None]],
@@ -102,12 +114,11 @@ async def _tunnel(
         return
     try:
         upstream_reader, upstream_writer = await asyncio.wait_for(
-            asyncio.open_connection(
-                host, int(port), happy_eyeballs_delay=_NEXT_ADDRESS_SECONDS
-            ),
-            CONNECT_SECONDS,
+            _connect(host, int(port)), CONNECT_SECONDS
         )
-    except (OSError, TimeoutError):
+    # Any failure, not only the network's: a socket closed unanswered reads as a
+    # blip, and Claude Code retries it ten times.
+    except Exception:
         logger.warning("could not reach %s for %s", target, client, exc_info=True)
         await _answer(writer, b"502 Bad Gateway")
         return
