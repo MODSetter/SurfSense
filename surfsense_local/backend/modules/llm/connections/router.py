@@ -49,6 +49,7 @@ from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
 from modules.llm.subscriptions.chatgpt.tokens import read_tokens
 from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
+from modules.llm.subscriptions.claude.errors import ClaudeSignInRequiredError
 from modules.llm.subscriptions.claude.hosts import SIGN_IN_HOST, require_claude_hosts
 
 router = APIRouter(prefix="/connections")
@@ -416,7 +417,13 @@ async def test_connection_speech(
 
 def _sign_in_required(error: SignInRequiredError) -> HTTPException:
     """409 like `unreadable_secret`: the request is fine, the stored sign-in is not."""
+    # A Claude plan's sign-in is Claude Code's, fixed in a terminal.
+    code = (
+        "claude_sign_in_required"
+        if isinstance(error, ClaudeSignInRequiredError)
+        else "sign_in_required"
+    )
     return HTTPException(
         status.HTTP_409_CONFLICT,
-        detail={"code": "sign_in_required", "message": str(error)},
+        detail={"code": code, "message": str(error)},
     )

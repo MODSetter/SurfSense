@@ -13,7 +13,12 @@ from modules.llm.providers.openai_responses.errors import (
     PlanLimitError,
     SignInRequiredError,
 )
-from modules.llm.subscriptions.claude.errors import ClaudeRunError, failure_of
+from modules.llm.subscriptions.claude.errors import (
+    ClaudePlanLimitError,
+    ClaudeRunError,
+    ClaudeSignInRequiredError,
+    failure_of,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -52,6 +57,9 @@ def test_a_signed_out_claude_code_asks_to_sign_in() -> None:
     assert isinstance(
         failure_of(_assistant("authentication_failed")), SignInRequiredError
     )
+    assert isinstance(
+        failure_of(_assistant("authentication_failed")), ClaudeSignInRequiredError
+    )
 
 
 @pytest.mark.parametrize(
@@ -62,6 +70,7 @@ def test_a_signed_out_claude_code_asks_to_sign_in() -> None:
 def test_a_used_up_plan_is_the_plan_limit(message: object) -> None:
     """Claude Code reports a used-up plan as an event or on the reply itself."""
     assert isinstance(failure_of(message), PlanLimitError)
+    assert isinstance(failure_of(message), ClaudePlanLimitError)
 
 
 @pytest.mark.parametrize("status", ["allowed", "allowed_warning"])

@@ -225,7 +225,7 @@ async def test_a_plan_whose_claude_code_is_gone_asks_to_set_it_up_again(
     reply = await client.get(f"/llm/connections/{connection['id']}/models")
 
     assert reply.status_code == 409
-    assert reply.json()["detail"]["code"] == "sign_in_required"
+    assert reply.json()["detail"]["code"] == "claude_sign_in_required"
 
 
 async def test_the_model_list_needs_both_hosts(

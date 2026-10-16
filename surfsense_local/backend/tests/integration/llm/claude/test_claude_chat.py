@@ -158,7 +158,7 @@ async def test_a_signed_out_claude_code_shows_the_sign_in_notice(
     frames = await _send(client, thread_id, "Hi")
 
     errors = [f for f in frames if f.get("type") == "error"]
-    assert errors and errors[0]["kind"] == "subscription_sign_in"
+    assert errors and errors[0]["kind"] == "claude_sign_in"
 
 
 @pytest.mark.usefixtures("real_model")

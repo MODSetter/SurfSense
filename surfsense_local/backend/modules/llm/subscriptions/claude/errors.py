@@ -13,15 +13,25 @@ from modules.llm.providers.openai_responses.errors import (
 )
 
 
+class ClaudeSignInRequiredError(SignInRequiredError):
+    """Claude Code is gone or signed out: fixed in a terminal, not in SurfSense."""
+
+
+class ClaudePlanLimitError(PlanLimitError):
+    """The Claude plan's usage limit is reached; it resets on its own."""
+
+
 class ClaudeRunError(Exception):
     """Claude Code ended a run with an error that is not the plan's or the sign-in's."""
 
 
-def _limit_reached(resets_at: int | None) -> PlanLimitError:
+def _limit_reached(resets_at: int | None) -> ClaudePlanLimitError:
     if resets_at is None:
-        return PlanLimitError("the Claude plan's usage limit is reached")
+        return ClaudePlanLimitError("the Claude plan's usage limit is reached")
     when = datetime.fromtimestamp(resets_at, UTC).isoformat()
-    return PlanLimitError(f"the Claude plan's usage limit is reached until {when}")
+    return ClaudePlanLimitError(
+        f"the Claude plan's usage limit is reached until {when}"
+    )
 
 
 def failure_of(
@@ -35,7 +45,7 @@ def failure_of(
     """
     if isinstance(message, AssistantMessage):
         if message.error == "authentication_failed":
-            return SignInRequiredError("Claude Code has to sign in again")
+            return ClaudeSignInRequiredError("Claude Code has to sign in again")
         if message.error == "rate_limit":
             return _limit_reached(None)
     if (

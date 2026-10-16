@@ -3,6 +3,10 @@ import enum
 import httpx
 
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
+from modules.llm.subscriptions.claude.errors import (
+    ClaudePlanLimitError,
+    ClaudeSignInRequiredError,
+)
 from shared.secrets import UnreadableSecretError
 
 
@@ -21,6 +25,8 @@ class ChatErrorKind(enum.StrEnum):
     CONTEXT_TOO_LONG = "context_too_long"
     SUBSCRIPTION_SIGN_IN = "subscription_sign_in"
     SUBSCRIPTION_LIMIT = "subscription_limit"
+    CLAUDE_SIGN_IN = "claude_sign_in"
+    CLAUDE_LIMIT = "claude_limit"
     RUNTIME_BUSY = "runtime_busy"
     NETWORK = "network"
     TIMEOUT = "timeout"
@@ -51,6 +57,13 @@ _MESSAGES: dict[ChatErrorKind, str] = {
     ChatErrorKind.SUBSCRIPTION_LIMIT: (
         "Your ChatGPT plan's usage limit is reached. "
         "It resets on its own; check your usage in ChatGPT's settings."
+    ),
+    ChatErrorKind.CLAUDE_SIGN_IN: (
+        "Claude Code on this computer needs to sign in again: run claude in a "
+        "terminal and sign in."
+    ),
+    ChatErrorKind.CLAUDE_LIMIT: (
+        "Your Claude plan's usage limit is reached. It resets on its own."
     ),
     ChatErrorKind.RUNTIME_BUSY: (
         "The replies running together ran out of room in the local model's "
@@ -104,6 +117,13 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         # key is unrecoverable once this install's secret changes, so the only
         # useful answer names the key rather than reporting a fault.
         return ChatErrorKind.PROVIDER_AUTH, _MESSAGES[ChatErrorKind.PROVIDER_AUTH]
+    # The Claude plan's first: they are the ChatGPT plan's errors too.
+    if isinstance(exc, ClaudeSignInRequiredError):
+        kind = ChatErrorKind.CLAUDE_SIGN_IN
+        return kind, _MESSAGES[kind]
+    if isinstance(exc, ClaudePlanLimitError):
+        kind = ChatErrorKind.CLAUDE_LIMIT
+        return kind, _MESSAGES[kind]
     if isinstance(exc, SignInRequiredError):
         kind = ChatErrorKind.SUBSCRIPTION_SIGN_IN
         return kind, _MESSAGES[kind]

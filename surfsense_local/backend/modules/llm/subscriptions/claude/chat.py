@@ -13,13 +13,15 @@ from modules.llm.providers.openai_compatible.chat import (
     BETWEEN_TOKENS_SECONDS,
     FIRST_TOKEN_SECONDS,
 )
-from modules.llm.providers.openai_responses.errors import SignInRequiredError
 from modules.llm.providers.stream_deadline import with_deadlines
 from modules.llm.providers.types import Delta, Message, Model
 from modules.llm.subscriptions.claude.account import CATALOG_PROVIDER
 from modules.llm.subscriptions.claude.chat_prompt import system_prompt
 from modules.llm.subscriptions.claude.chat_runs import ChatRuns
-from modules.llm.subscriptions.claude.errors import failure_of
+from modules.llm.subscriptions.claude.errors import (
+    ClaudeSignInRequiredError,
+    failure_of,
+)
 from modules.llm.subscriptions.claude.launch import launch_options
 from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.models import claude_models
@@ -67,7 +69,7 @@ class ClaudePlanProvider:
     def _binary(self) -> Path:
         binary = self._find_claude()
         if binary is None:
-            raise SignInRequiredError("Claude Code is not installed")
+            raise ClaudeSignInRequiredError("Claude Code is not installed")
         return binary
 
     async def health(self) -> bool:
