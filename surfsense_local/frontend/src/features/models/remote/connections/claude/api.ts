@@ -10,15 +10,19 @@ export type ClaudeState = "not_installed" | "too_old" | "signed_out" | "ready"
 
 type RefusedHost = { destination: string; host: string }
 
+/** Whether a slot offers a Claude plan: answered at once, without running Claude Code. */
 export type ClaudeOption = {
+  serves: ModelType[]
+  /** The hosts a Claude plan reaches that are still off, model calls first. */
+  hosts: RefusedHost[]
+}
+
+export type ClaudeStatus = {
   state: ClaudeState
   version: string | null
   email: string | null
   /** As Claude Code reports it: `pro`, `max`, `team`. */
   plan: string | null
-  serves: ModelType[]
-  /** The hosts a Claude plan reaches that are still off, model calls first. */
-  hosts: RefusedHost[]
 }
 
 /** Anthropic's own install guide, the one outside page the dialog opens. */
@@ -28,6 +32,13 @@ export const claudeOptionQueryKey = ["claude-plan-option"] as const
 
 export function getClaudeOption(signal?: AbortSignal): Promise<ClaudeOption> {
   return requestJson<ClaudeOption>("/llm/connections/claude", { signal })
+}
+
+export const claudeStatusQueryKey = ["claude-plan-status"] as const
+
+/** Runs the user's Claude Code, so only the dialog asks. */
+export function getClaudeStatus(signal?: AbortSignal): Promise<ClaudeStatus> {
+  return requestJson<ClaudeStatus>("/llm/connections/claude/status", { signal })
 }
 
 /** Nothing was made: the user kept a host the plan needs switched off. */

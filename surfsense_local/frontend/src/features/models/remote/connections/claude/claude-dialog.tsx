@@ -18,10 +18,10 @@ import type { Connection } from "../api"
 import {
   CLAUDE_INSTALL_URL,
   ClaudeHostDeclinedError,
-  claudeOptionQueryKey,
+  claudeStatusQueryKey,
   connectClaude,
-  getClaudeOption,
-  type ClaudeOption,
+  getClaudeStatus,
+  type ClaudeStatus,
 } from "./api"
 
 function openInstallGuide() {
@@ -31,7 +31,7 @@ function openInstallGuide() {
 }
 
 /** What to do next, for each state Claude Code can be in. */
-function StateBody({ option }: { option: ClaudeOption }) {
+function StateBody({ option }: { option: ClaudeStatus }) {
   switch (option.state) {
     case "not_installed":
       return (
@@ -47,6 +47,12 @@ function StateBody({ option }: { option: ClaudeOption }) {
               id: "models_claude_dialog_sign_in_body",
               defaultMessage:
                 "Open a terminal, run claude, and sign in with your Claude account.",
+            })}
+          </li>
+          <li>
+            {intl.formatMessage({
+              id: "models_claude_dialog_come_back_body",
+              defaultMessage: "Then come back here and click Check again.",
             })}
           </li>
         </ol>
@@ -112,8 +118,8 @@ export function ClaudeDialog({
   onConnected: (connection: Connection) => void
 }) {
   const option = useQuery({
-    queryKey: claudeOptionQueryKey,
-    queryFn: ({ signal }) => getClaudeOption(signal),
+    queryKey: claudeStatusQueryKey,
+    queryFn: ({ signal }) => getClaudeStatus(signal),
     enabled: open,
     // Read again on each opening: the user may have just signed in.
     refetchOnMount: "always",

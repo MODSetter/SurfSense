@@ -441,6 +441,7 @@
   "models_claude_dialog_check_again_button": "Vérifier à nouveau",
   "models_claude_dialog_check_error": "Impossible de vérifier Claude Code sur cet ordinateur.",
   "models_claude_dialog_checking_status": "Vérification de Claude Code",
+  "models_claude_dialog_come_back_body": "Revenez ensuite ici et cliquez sur Vérifier à nouveau.",
   "models_claude_dialog_host_declined_error": "Votre forfait Claude a besoin de {host}. Autorisez-le à se connecter.",
   "models_claude_dialog_install_body": "Installez Claude Code sur cet ordinateur.",
   "models_claude_dialog_install_guide_button": "Ouvrir le guide d’installation",

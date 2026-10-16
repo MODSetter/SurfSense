@@ -16,10 +16,10 @@ async def test_this_machines_claude_code_connects_and_lists_its_models(
     client: AsyncClient, engine: Engine, claude_binary: Path
 ) -> None:
     """End to end on a real install: ready, connected, and the plan's models listed."""
-    option = (await client.get("/llm/connections/claude")).json()
-    assert option["state"] == "ready", option
-    assert option["email"]
-    assert option["plan"]
+    found = (await client.get("/llm/connections/claude/status")).json()
+    assert found["state"] == "ready", found
+    assert found["email"]
+    assert found["plan"]
 
     for host in ("api.anthropic.com", "platform.claude.com"):
         await client.put(

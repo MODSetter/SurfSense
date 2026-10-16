@@ -45,7 +45,8 @@ Mounted beside the ChatGPT routes, before the connections router:
 
 | Route | Does |
 |---|---|
-| `GET /llm/connections/claude` | the status, read live on every call, the `serves` a plan would fill, and `hosts` still to allow, of `api.anthropic.com` and `platform.claude.com` ([Network](#network)). **Check again** calls it again: nothing is stored, so there is nothing else to refresh |
+| `GET /llm/connections/claude` | the `serves` a plan would fill and the `hosts` still to allow, of `api.anthropic.com` and `platform.claude.com` ([Network](#network)). It runs no Claude Code, so a picker shows the row at once, installed or not |
+| `GET /llm/connections/claude/status` | Claude Code's status, read live on every call by running it. Only the dialog asks; **Check again** calls it again: nothing is stored, so there is nothing else to refresh |
 | `POST /llm/connections/claude` | creates the connection; `409` when one exists, `422` with the state when not `ready`; refused with `egress_disabled` naming every [host](#network) still off |
 
 Listing, renaming and deleting go through the existing connection routes, made public as `connection_read`. Renaming is all a Claude plan allows, as for a ChatGPT one. The connection list does not run Claude Code: it would block about 0.13 s per Claude plan on every list, so the account's email and plan come from `GET /llm/connections/claude`.

@@ -441,6 +441,7 @@
   "models_claude_dialog_check_again_button": "फिर से जांचें",
   "models_claude_dialog_check_error": "इस कंप्यूटर पर Claude Code की जांच नहीं हो सकी।",
   "models_claude_dialog_checking_status": "Claude Code की जांच हो रही है",
+  "models_claude_dialog_come_back_body": "फिर यहां वापस आएं और फिर से जांचें पर क्लिक करें।",
   "models_claude_dialog_host_declined_error": "आपके Claude प्लान के लिए {host} ज़रूरी है। इसे कनेक्ट करने की अनुमति दें।",
   "models_claude_dialog_install_body": "इस कंप्यूटर पर Claude Code इंस्टॉल करें।",
   "models_claude_dialog_install_guide_button": "इंस्टॉल गाइड खोलें",

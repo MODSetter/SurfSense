@@ -441,6 +441,7 @@
   "models_claude_dialog_check_again_button": "Проверить снова",
   "models_claude_dialog_check_error": "Не удалось проверить Claude Code на этом компьютере.",
   "models_claude_dialog_checking_status": "Проверка Claude Code",
+  "models_claude_dialog_come_back_body": "Затем вернитесь сюда и нажмите «Проверить снова».",
   "models_claude_dialog_host_declined_error": "Вашему плану Claude нужен {host}. Разрешите подключение.",
   "models_claude_dialog_install_body": "Установите Claude Code на этот компьютер.",
   "models_claude_dialog_install_guide_button": "Открыть инструкцию",

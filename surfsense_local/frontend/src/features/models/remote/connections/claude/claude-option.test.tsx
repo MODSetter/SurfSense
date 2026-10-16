@@ -5,8 +5,10 @@ import userEvent from "@testing-library/user-event"
 import { render } from "@/test-utils"
 
 import type { Connection } from "../api"
-import { CLAUDE_INSTALL_URL, type ClaudeOption as Option } from "./api"
-import { ClaudeOption } from "./claude-option"
+import { CLAUDE_INSTALL_URL, type ClaudeOption, type ClaudeStatus } from "./api"
+import { ClaudeOption as ClaudeRow } from "./claude-option"
+
+type Option = ClaudeOption & ClaudeStatus
 
 const READY: Option = {
   state: "ready",
@@ -32,8 +34,11 @@ const CONNECTED: Connection = {
   updated_at: "2026-10-16T00:00:00",
 }
 
-/** The API as the dialog sees it: each status read takes the next of `states`. */
-function serve(states: Partial<Option>[], { connected = false } = {}) {
+/** The API as the row and dialog see it: each status read takes the next of `states`. */
+function serve(
+  states: Partial<Option>[],
+  { connected = false, checking = false } = {}
+) {
   let made = connected
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -42,11 +47,19 @@ function serve(states: Partial<Option>[], { connected = false } = {}) {
         made = true
         return Response.json(CONNECTED, { status: 201 })
       }
-      if (path === "/llm/connections/claude")
-        return Response.json({
+      if (path === "/llm/connections/claude") {
+        const { serves, hosts } = { ...READY, ...states[0] }
+        return Response.json({ serves, hosts })
+      }
+      if (path === "/llm/connections/claude/status") {
+        // Claude Code is still being run: the answer never comes in this test.
+        if (checking) return new Promise<Response>(() => {})
+        const { state, version, email, plan } = {
           ...READY,
           ...(states.length > 1 ? states.shift() : states[0]),
-        })
+        }
+        return Response.json({ state, version, email, plan })
+      }
       if (path === "/llm/connections")
         return Response.json(made ? [CONNECTED] : [])
       return Response.json({ detail: "not found" }, { status: 404 })
@@ -68,9 +81,16 @@ afterEach(() => {
 })
 
 describe("the Claude plan option beside the ChatGPT one", () => {
+  it("is shown before Claude Code is checked, installed or not", async () => {
+    serve([{}], { checking: true })
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
+
+    expect(await setUp()).toBeTruthy()
+  })
+
   it("is offered only where a Claude plan can fill the slot", async () => {
     serve([{}])
-    render(<ClaudeOption modelType="video_gen" onConnected={vi.fn()} />)
+    render(<ClaudeRow modelType="video_gen" onConnected={vi.fn()} />)
 
     await waitFor(() =>
       expect(
@@ -82,11 +102,14 @@ describe("the Claude plan option beside the ChatGPT one", () => {
   it("says to install Claude Code, and opens Anthropic’s guide", async () => {
     serve([{ state: "not_installed", version: null, email: null, plan: null }])
     const user = userEvent.setup()
-    render(<ClaudeOption modelType="text_gen" onConnected={vi.fn()} />)
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
 
     await user.click(await setUp())
     expect(
       await screen.findByText("Install Claude Code on this computer.")
+    ).toBeTruthy()
+    expect(
+      screen.getByText("Then come back here and click Check again.")
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Open install guide" }))
 
@@ -98,7 +121,7 @@ describe("the Claude plan option beside the ChatGPT one", () => {
   it("checks again after the user signs in in a terminal", async () => {
     serve([{ state: "signed_out", email: null, plan: null }, {}])
     const user = userEvent.setup()
-    render(<ClaudeOption modelType="text_gen" onConnected={vi.fn()} />)
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
 
     await user.click(await setUp())
     expect(
@@ -117,7 +140,7 @@ describe("the Claude plan option beside the ChatGPT one", () => {
   it("names the version when Claude Code is too old", async () => {
     serve([{ state: "too_old", version: "2.0.12", email: null, plan: null }])
     const user = userEvent.setup()
-    render(<ClaudeOption modelType="text_gen" onConnected={vi.fn()} />)
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
 
     await user.click(await setUp())
 
@@ -130,7 +153,7 @@ describe("the Claude plan option beside the ChatGPT one", () => {
     const fetchMock = serve([{}])
     const onConnected = vi.fn()
     const user = userEvent.setup()
-    render(<ClaudeOption modelType="text_gen" onConnected={onConnected} />)
+    render(<ClaudeRow modelType="text_gen" onConnected={onConnected} />)
 
     await user.click(await setUp())
     await user.click(
@@ -156,7 +179,7 @@ describe("the Claude plan option beside the ChatGPT one", () => {
       },
     ])
     const user = userEvent.setup()
-    render(<ClaudeOption modelType="text_gen" onConnected={vi.fn()} />)
+    render(<ClaudeRow modelType="text_gen" onConnected={vi.fn()} />)
 
     await user.click(await setUp())
     await user.click(
@@ -180,7 +203,7 @@ describe("the Claude plan option beside the ChatGPT one", () => {
     serve([{}], { connected: true })
     const onConnected = vi.fn()
     const user = userEvent.setup()
-    render(<ClaudeOption modelType="text_gen" onConnected={onConnected} />)
+    render(<ClaudeRow modelType="text_gen" onConnected={onConnected} />)
 
     await user.click(await screen.findByRole("button", { name: "Show models" }))
 

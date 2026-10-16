@@ -441,6 +441,7 @@
   "models_claude_dialog_check_again_button": "다시 확인",
   "models_claude_dialog_check_error": "이 컴퓨터의 Claude Code를 확인할 수 없습니다.",
   "models_claude_dialog_checking_status": "Claude Code 확인 중",
+  "models_claude_dialog_come_back_body": "그런 다음 여기로 돌아와 다시 확인을 클릭하세요.",
   "models_claude_dialog_host_declined_error": "Claude 플랜에는 {host}이(가) 필요합니다. 연결을 허용하세요.",
   "models_claude_dialog_install_body": "이 컴퓨터에 Claude Code를 설치하세요.",
   "models_claude_dialog_install_guide_button": "설치 가이드 열기",

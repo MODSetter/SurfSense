@@ -12,6 +12,7 @@ from modules.llm.subscriptions.claude.schemas import (
     ClaudeConnectionWrite,
     ClaudeHost,
     ClaudeOption,
+    ClaudeStatusRead,
 )
 from modules.llm.subscriptions.claude.status import ClaudeState, read_status
 
@@ -20,20 +21,21 @@ router = APIRouter(prefix="/connections")
 
 @router.get("/claude")
 def claude_option(session: SessionDep) -> ClaudeOption:
-    """Claude Code's state on this machine, read live, so signing in or out in a
-    terminal shows on the next look."""
-    found = read_status(this_machines_claude(), proxy_url=claude_proxy_url())
+    """What a picker needs to offer the plan, at once: it runs no Claude Code."""
     hosts = [
         ClaudeHost(destination=f"host:{host}", host=host)
         for host in hosts_still_off(session)
     ]
-    return ClaudeOption(
-        state=found.state,
-        version=found.version,
-        email=found.email,
-        plan=found.plan,
-        serves=list(served_by(account.CLAUDE_PLAN)),
-        hosts=hosts,
+    return ClaudeOption(serves=list(served_by(account.CLAUDE_PLAN)), hosts=hosts)
+
+
+@router.get("/claude/status")
+def claude_status() -> ClaudeStatusRead:
+    """Claude Code's state on this machine, read live, so signing in or out in a
+    terminal shows on the next look."""
+    found = read_status(this_machines_claude(), proxy_url=claude_proxy_url())
+    return ClaudeStatusRead(
+        state=found.state, version=found.version, email=found.email, plan=found.plan
     )
 
 

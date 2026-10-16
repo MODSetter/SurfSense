@@ -441,6 +441,7 @@
   "models_claude_dialog_check_again_button": "重新检查",
   "models_claude_dialog_check_error": "无法检查这台电脑上的 Claude Code。",
   "models_claude_dialog_checking_status": "正在检查 Claude Code",
+  "models_claude_dialog_come_back_body": "然后回到这里，点击“重新检查”。",
   "models_claude_dialog_host_declined_error": "你的 Claude 套餐需要 {host}。请允许它连接。",
   "models_claude_dialog_install_body": "在这台电脑上安装 Claude Code。",
   "models_claude_dialog_install_guide_button": "打开安装指南",

@@ -31,20 +31,34 @@ async def _connect(client: AsyncClient) -> dict:
     return reply.json()
 
 
+async def test_the_option_is_offered_without_running_claude_code(
+    client: AsyncClient, claude_on_this_machine: ClaudeOnThisMachine, tmp_path
+) -> None:
+    """The row shows at once, installed or not: what a plan fills is not Claude Code's to say."""
+    runs = tmp_path / "claude-runs.json"
+    claude_on_this_machine(env_log=runs)
+
+    option = (await client.get("/llm/connections/claude")).json()
+
+    assert option == {
+        "serves": ["text_gen"],
+        "hosts": [
+            {"destination": ANTHROPIC, "host": "api.anthropic.com"},
+            {"destination": SIGN_IN, "host": "platform.claude.com"},
+        ],
+    }
+    assert not runs.exists()
+
+
 async def test_a_machine_without_claude_code_says_so(
     client: AsyncClient, claude_on_this_machine: ClaudeOnThisMachine
 ) -> None:
     """The dialog's first view: install Claude Code."""
     claude_on_this_machine(installed=False)
 
-    option = (await client.get("/llm/connections/claude")).json()
+    found = (await client.get("/llm/connections/claude/status")).json()
 
-    assert option["state"] == "not_installed"
-    assert option["serves"] == ["text_gen"]
-    assert option["hosts"] == [
-        {"destination": ANTHROPIC, "host": "api.anthropic.com"},
-        {"destination": SIGN_IN, "host": "platform.claude.com"},
-    ]
+    assert found["state"] == "not_installed"
 
 
 async def test_a_signed_in_claude_code_is_ready_with_its_account(
@@ -53,12 +67,14 @@ async def test_a_signed_in_claude_code_is_ready_with_its_account(
     """Read live each time, so signing in or out in a terminal shows on the next look."""
     claude_on_this_machine()
 
-    option = (await client.get("/llm/connections/claude")).json()
+    found = (await client.get("/llm/connections/claude/status")).json()
 
-    assert option["state"] == "ready"
-    assert option["email"] == "ada@example.com"
-    assert option["plan"] == "max"
-    assert option["version"] == "2.1.301"
+    assert found == {
+        "state": "ready",
+        "version": "2.1.301",
+        "email": "ada@example.com",
+        "plan": "max",
+    }
 
 
 @pytest.mark.parametrize(
@@ -77,7 +93,8 @@ async def test_a_claude_code_that_is_not_ready_says_what_to_do(
     """Each state is one thing the user does in their terminal."""
     claude_on_this_machine(**stand_in)
 
-    assert (await client.get("/llm/connections/claude")).json()["state"] == state
+    found = await client.get("/llm/connections/claude/status")
+    assert found.json()["state"] == state
 
 
 async def test_an_allowed_host_is_not_asked_about_again(

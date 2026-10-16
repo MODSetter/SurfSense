@@ -13,7 +13,7 @@ Part of [Use your Claude plan](README.md).
 | `claude-option.tsx` | the row: the Claude icon, title and one-line body; **Set up** opens the dialog, or once connected "Connected through Claude Code on this computer" with **Show models** |
 | `claude-dialog.tsx` | the nested dialog, one view per state, read live each time it opens |
 | `claude-plan-edit.tsx` | the connection form for a Claude plan: rename only, no URL, key or sign-in |
-| `api.ts` | `GET /llm/connections/claude`, and connecting after one egress question for every host still off |
+| `api.ts` | `GET /llm/connections/claude` for the row, `GET /llm/connections/claude/status` for the dialog, and connecting after one egress question for every host still off |
 
 The row is mounted where the ChatGPT row is: [`add-model-options.tsx`](../../../surfsense_local/frontend/src/features/models/add-model/add-model-options.tsx) and [`model-step.tsx`](../../../surfsense_local/frontend/src/features/onboarding/model-step/model-step.tsx). The dialog uses the app's dialog component, nested in the open one, and the shared button; every string is a message, translated into every language in `LOCALES`.
 
