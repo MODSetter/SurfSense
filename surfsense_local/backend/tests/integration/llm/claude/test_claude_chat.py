@@ -1,6 +1,7 @@
 """A Claude plan model answers the app's chat, its chat check, and every resolver."""
 
 import json
+import threading
 
 import pytest
 from httpx import AsyncClient
@@ -240,3 +241,37 @@ async def test_no_claude_code_runs_without_the_proxy(
 
     assert [f["type"] for f in frames if f.get("type") == "error"] == ["error"]
     assert len(fake_claude.opened) == opened
+
+
+@pytest.mark.usefixtures("real_model")
+async def test_a_host_turned_off_during_a_reply_says_so(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """Checked before the reply and passed; switched off while Claude Code runs."""
+    from claude_agent_sdk import SystemMessage
+
+    from modules.egress.service import set_enabled
+
+    await _choose_claude(client, claude_on_this_machine)
+
+    def switch_off() -> None:
+        with create_session_factory(engine)() as session:
+            set_enabled(session, "host:api.anthropic.com", False)
+            session.commit()
+
+    def switched_off_mid_run() -> list:
+        # Off the event loop, as Settings > Network's own request would be.
+        flip = threading.Thread(target=switch_off)
+        flip.start()
+        flip.join()
+        return [SystemMessage(subtype="api_retry", data={"attempt": 1}), *answer("x")]
+
+    fake_claude.replies.append(switched_off_mid_run)
+
+    frames = await _send(client, await _basic_thread(client), "Hi")
+
+    errors = [f for f in frames if f.get("type") == "error"]
+    assert [e["kind"] for e in errors] == ["egress_disabled"]

@@ -53,7 +53,9 @@ class FakeClaude:
         text = prompt if isinstance(prompt, str) else prompt[-1]["text"]
         if text.startswith("Write a 2-5 word"):
             return answer("A title")
-        return self.replies.pop(0)
+        reply = self.replies.pop(0)
+        # A reply can act when it is sent, as something changing mid-run.
+        return reply() if callable(reply) else reply
 
     async def open(self, options: object) -> ScriptedRun:
         run = self.runs.pop(0) if self.runs else ScriptedRun(respond=self._respond)

@@ -89,7 +89,7 @@ Claude Code makes its own HTTPS calls, which no `egress.require()` in the API wo
 
 **Where both hosts are required.** `allowed_connection()`, which the model list, choosing a model, the chat check and the catalog go through; `_connection()` in `resolution.py`, before chat, titles and Studio generate; and creating the connection. Each raises one refusal naming every host still off, with `purpose: "claude_plan"`, which the prompt words its question by. Deleting the connection forgets `host:platform.claude.com` too, since no connection's address names it.
 
-**A host turned off mid-reply.** A refused tunnel does not fail the request: Claude Code retries up to 10 times, the first after about a second, each reported as a `system` message of subtype `api_retry`. On the first, the provider reads the two destinations again, and when one is off the run ends at once with that refusal.
+**A host turned off mid-reply.** A refused tunnel does not fail the request: Claude Code retries up to 10 times, the first after about a second, each reported as a `system` message of subtype `api_retry`. On the first, the provider reads the two destinations again, and when one is off the run ends at once with that refusal, which the chat shows as `egress_disabled`: turned off in Settings › Network, allow it there and try again.
 
 ## Errors
 

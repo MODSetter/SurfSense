@@ -184,3 +184,15 @@ def test_a_used_up_claude_plan_says_whose_limit_it_is() -> None:
     assert kind is ChatErrorKind.CLAUDE_LIMIT
     assert "Claude" in message
     assert "ChatGPT" not in message
+
+
+def test_a_host_turned_off_during_a_reply_says_where_to_allow_it() -> None:
+    """Not `unknown`: the fix is a switch in Settings, which the user can flip."""
+    from modules.egress.service import EgressDeniedError
+
+    kind, message = classify_chat_error(
+        EgressDeniedError("host:api.anthropic.com"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.EGRESS_DISABLED
+    assert "Settings > Network" in message

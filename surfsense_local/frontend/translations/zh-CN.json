@@ -136,6 +136,7 @@
   "chat_error_claude_limit": "你的 Claude 套餐已达到使用上限。上限会自动重置。",
   "chat_error_claude_sign_in": "这台电脑上的 Claude Code 需要重新登录：在终端中运行 claude 并登录。",
   "chat_error_context_too_long": "这段对话太长，超出了模型的上下文窗口。请开始新对话，或选择上下文窗口更大的模型。",
+  "chat_error_egress_disabled": "这个模型需要的一个主机已在“设置 › 网络”中关闭。请在那里允许它，然后重试。",
   "chat_error_interrupted": "应用关闭时已中断。",
   "chat_error_model_cannot_run": "SurfSense 无法运行这个模型。请选择其他模型。",
   "chat_error_network": "无法连接模型提供商，请在“模型设置”中检查连接的 URL。",

@@ -136,6 +136,7 @@
   "chat_error_claude_limit": "Claude 플랜의 사용 한도에 도달했습니다. 한도는 자동으로 초기화됩니다.",
   "chat_error_claude_sign_in": "이 컴퓨터의 Claude Code에 다시 로그인해야 합니다. 터미널에서 claude를 실행하고 로그인하세요.",
   "chat_error_context_too_long": "이 대화는 모델의 컨텍스트 창에 담기에 너무 깁니다. 새 채팅을 시작하거나 더 큰 창을 가진 모델을 선택하세요.",
+  "chat_error_egress_disabled": "이 모델에 필요한 호스트가 설정 › 네트워크에서 꺼졌습니다. 그곳에서 허용한 후 다시 시도하세요.",
   "chat_error_interrupted": "앱이 종료되어 중단되었습니다.",
   "chat_error_model_cannot_run": "SurfSense는 이 모델을 실행할 수 없습니다. 다른 모델을 선택하세요.",
   "chat_error_network": "모델 제공업체에 연결할 수 없습니다 — 모델 설정에서 연결 URL을 확인하세요.",

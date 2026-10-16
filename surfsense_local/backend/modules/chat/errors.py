@@ -2,6 +2,7 @@ import enum
 
 import httpx
 
+from modules.egress.service import EgressDeniedError
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from modules.llm.subscriptions.claude.errors import (
     ClaudePlanLimitError,
@@ -27,6 +28,7 @@ class ChatErrorKind(enum.StrEnum):
     SUBSCRIPTION_LIMIT = "subscription_limit"
     CLAUDE_SIGN_IN = "claude_sign_in"
     CLAUDE_LIMIT = "claude_limit"
+    EGRESS_DISABLED = "egress_disabled"
     RUNTIME_BUSY = "runtime_busy"
     NETWORK = "network"
     TIMEOUT = "timeout"
@@ -64,6 +66,10 @@ _MESSAGES: dict[ChatErrorKind, str] = {
     ),
     ChatErrorKind.CLAUDE_LIMIT: (
         "Your Claude plan's usage limit is reached. It resets on its own."
+    ),
+    ChatErrorKind.EGRESS_DISABLED: (
+        "A host this model needs was turned off in Settings > Network. "
+        "Allow it there, then try again."
     ),
     ChatErrorKind.RUNTIME_BUSY: (
         "The replies running together ran out of room in the local model's "
@@ -117,6 +123,11 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         # key is unrecoverable once this install's secret changes, so the only
         # useful answer names the key rather than reporting a fault.
         return ChatErrorKind.PROVIDER_AUTH, _MESSAGES[ChatErrorKind.PROVIDER_AUTH]
+    # Refused before a reply, this is a 403 the egress prompt answers; refused
+    # during one, as a Claude Code run is when a host is turned off, it is here.
+    if isinstance(exc, EgressDeniedError):
+        kind = ChatErrorKind.EGRESS_DISABLED
+        return kind, _MESSAGES[kind]
     # The Claude plan's first: they are the ChatGPT plan's errors too.
     if isinstance(exc, ClaudeSignInRequiredError):
         kind = ChatErrorKind.CLAUDE_SIGN_IN

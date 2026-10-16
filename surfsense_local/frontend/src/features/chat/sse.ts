@@ -67,6 +67,7 @@ export type ChatErrorKind =
   | "subscription_limit"
   | "claude_sign_in"
   | "claude_limit"
+  | "egress_disabled"
   | "runtime_busy"
   | "network"
   | "timeout"

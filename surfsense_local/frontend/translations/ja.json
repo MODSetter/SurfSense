@@ -136,6 +136,7 @@
   "chat_error_claude_limit": "Claudeプランの利用上限に達しました。上限は自動的にリセットされます。",
   "chat_error_claude_sign_in": "このコンピューターのClaude Codeで再度サインインする必要があります。ターミナルでclaudeを実行してサインインしてください。",
   "chat_error_context_too_long": "この会話はモデルのコンテキストウィンドウに収まらない長さです。新しいチャットを始めるか、より大きなウィンドウのモデルを選んでください。",
+  "chat_error_egress_disabled": "このモデルに必要なホストが設定 › ネットワークでオフにされました。そこで許可してから、もう一度お試しください。",
   "chat_error_interrupted": "アプリが閉じられたため中断されました。",
   "chat_error_model_cannot_run": "SurfSenseではこのモデルを実行できません。別のモデルを選んでください。",
   "chat_error_network": "モデルプロバイダーに接続できませんでした。モデル設定で接続先のURLを確認してください。",

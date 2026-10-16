@@ -62,6 +62,12 @@ const chatErrorText: Record<ChatTurnErrorKind, () => string> = {
       defaultMessage:
         "Your Claude plan’s usage limit is reached. It resets on its own.",
     }),
+  egress_disabled: () =>
+    intl.formatMessage({
+      id: "chat_error_egress_disabled",
+      defaultMessage:
+        "A host this model needs was turned off in Settings › Network. Allow it there, then try again.",
+    }),
   network: () =>
     intl.formatMessage({
       id: "chat_error_network",

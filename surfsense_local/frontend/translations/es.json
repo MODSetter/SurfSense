@@ -136,6 +136,7 @@
   "chat_error_claude_limit": "Has alcanzado el límite de uso de tu plan de Claude. Se restablece solo.",
   "chat_error_claude_sign_in": "Claude Code en este equipo tiene que volver a iniciar sesión: ejecuta claude en una terminal e inicia sesión.",
   "chat_error_context_too_long": "Esta conversación es demasiado larga para la ventana de contexto del modelo. Inicia un chat nuevo o elige un modelo con una ventana más grande.",
+  "chat_error_egress_disabled": "Se desactivó en Ajustes › Red un host que necesita este modelo. Permítelo ahí e inténtalo de nuevo.",
   "chat_error_interrupted": "Se interrumpió al cerrarse la aplicación.",
   "chat_error_model_cannot_run": "SurfSense no puede ejecutar este modelo. Elige otro modelo.",
   "chat_error_network": "No se pudo conectar con el proveedor de modelos: comprueba la URL de la conexión en Ajustes del modelo.",
