@@ -1,0 +1,22 @@
+Automations arrive in SurfSense v0.0.26. An automation is an agent that runs on its own: you describe the job once, and SurfSense runs it on a schedule or when something happens in your knowledge base.
+
+## Describe it, review it, save it
+
+Tell SurfSense in chat what you want done, in plain English. It drafts the automation and shows it to you in an approval card, where you can change it before you save. There are no config files to write and no code. If you want full control, you can also create or edit an automation as raw JSON.
+
+## Two ways to start a run
+
+- **On a schedule.** Run an agent on a cron schedule for daily briefs, weekly digests and recurring reports. SurfSense works out the next run time and starts the run in the background.
+- **When a document arrives.** Start an agent the moment a document enters a folder, so new files are handled as soon as they land.
+
+## Every run is a full agent turn
+
+A run has the same reasoning, search and tools as a live chat, and approves its own steps so it can finish without you. That means an automation can search and act across your connected sources, including Notion, Slack, Google Drive, Gmail, GitHub, Linear, Jira, Confluence and your Obsidian vault.
+
+## Keeping track
+
+Automations have their own list in the sidebar, under Inbox, showing each one's status with one-click pause, resume and delete. Open an automation to see its definition, edit its triggers, and browse its run history: the inputs, the outputs and any errors.
+
+Who can create, run and manage automations is set by SurfSense's role-based access control, which has a dedicated group of permissions for them.
+
+The same release also added @-mentions for connectors in chat, so you can point a question at one source, and a reworked anonymous chat.

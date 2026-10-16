@@ -35,6 +35,16 @@ export const blog = defineDocs({
 	},
 });
 
+// Announcement bodies, one `<id>.mdx` per entry in
+// `lib/announcements/announcements-data.ts`. The page reads the title, date,
+// category, image and link from that entry, so frontmatter is optional here.
+export const announcements = defineDocs({
+	dir: "announcements/content",
+	docs: {
+		schema: frontmatterSchema.omit({ title: true, description: true }),
+	},
+});
+
 export default defineConfig({
 	plugins: [lastModified()],
 	mdxOptions: {

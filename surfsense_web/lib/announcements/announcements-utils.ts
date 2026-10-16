@@ -1,6 +1,14 @@
 import type { Announcement } from "@/contracts/types/announcement.types";
 
 /**
+ * The announcement's own page. Every announcement has one:
+ * `tests/unit/announcements-content.test.ts` fails when a body is missing.
+ */
+export function announcementPath(id: string): string {
+	return `/announcements/${id}`;
+}
+
+/**
  * Returns true when the current time falls within the announcement's
  * [startTime, endTime] window. Returns false for invalid windows
  * (endTime before startTime) or when now is outside the range.
