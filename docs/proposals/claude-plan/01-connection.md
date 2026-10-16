@@ -108,10 +108,11 @@ Claude Code makes its own HTTPS calls, which no `egress.require()` in the API wo
 
 ## Packaging
 
-The Python `claude-agent-sdk` wheel carries Claude Code as `claude_agent_sdk/_bundled/claude`, 241 MB, and the SDK prefers it over `PATH` whenever `cli_path` is unset. SurfSense ships none:
+The Agent SDK's wheels carry Claude Code as `claude_agent_sdk/_bundled/claude`, 241 MB, and the SDK prefers it over `PATH` whenever `cli_path` is unset. Its source package, 0.4 MB, carries none: `_bundled/` holds only a `.gitignore`, and its build is plain `hatchling` with no step that downloads anything. SurfSense ships none and installs none:
 
-- PyInstaller packs the SDK's Python and not that file. Measured in a frozen API on macOS, the SDK and `sniffio` are 26 compiled modules, 0.22 MB compressed, in a 228 MB bundle holding no `claude` file: it copies a package's data only when a spec asks, and neither [`bundling/api.spec`](../../../surfsense_local/backend/bundling/api.spec), the SDK, nor PyInstaller's community hooks ask for this one. `excludes` could not hold it anyway, since it drops modules, not files. The SDK's one new dependency is `sniffio`, 28 KB; `anyio`, `jsonschema` and `mcp` were already shipped.
-- [`test_no_claude_code_shipped.py`](../../../surfsense_local/backend/tests/packaging/test_no_claude_code_shipped.py) reads every spec and fails when any collector names the SDK, so one `collect_all("claude_agent_sdk")` cannot ship it silently; a mutation of `api.spec` confirmed it fails. After a real freeze, `test_real_binaries.py` fails when any `claude` or `_bundled` file is in the bundle.
-- `launch_options()` takes the located binary as `cli_path` on every run, so a development venv, which does carry `_bundled`, behaves as the packaged app does.
+- `[tool.uv] no-binary-package = ["claude-agent-sdk"]` in [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml) makes uv build the SDK from source, in about a second, whenever it installs it, so no developer's venv, CI cache or frozen app holds that copy. `pnpm dev`'s `predev` runs its scripts through `uv run`, which syncs the venv first, so nothing is done by hand. `uv.lock` is unchanged by it.
+- [`test_sdk_install.py`](../../../surfsense_local/backend/tests/unit/llm/subscriptions/claude/test_sdk_install.py), a unit test, so CI runs it on all three systems, fails when the installed SDK carries anything in `_bundled`: the day that line is lost.
+- After a real freeze, `test_real_binaries.py` fails when any `claude` or `_bundled` file is in the bundle. Measured in a frozen API on macOS, the SDK and `sniffio` are 26 compiled modules, 0.22 MB compressed, in a 228 MB bundle.
+- `launch_options()` takes the located binary as `cli_path` on every run, so the SDK never looks for its own.
 
 `claude-agent-sdk` is pinned exactly in [`pyproject.toml`](../../../surfsense_local/backend/pyproject.toml): it and the user's Claude Code move independently, and the contract test runs the pinned SDK against the oldest and newest Claude Code accepted.
