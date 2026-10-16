@@ -11,7 +11,6 @@ from urllib.parse import urlsplit
 
 import pytest
 import pytest_asyncio
-import uvloop
 from sqlalchemy import Engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -456,6 +455,8 @@ async def test_the_api_runs_the_proxy_where_electron_points_opencode(
 
 def test_a_ready_plugins_host_is_tunnelled_to_under_uvloop(engine: Engine) -> None:
     """The real app runs on uvloop on macOS and Linux; the tests' loop is asyncio's."""
+    # uvloop has no Windows build, and the app runs on asyncio's own loop there.
+    uvloop = pytest.importorskip("uvloop")
 
     async def tunnelled() -> tuple[bytes, bytes]:
         async def answer(
