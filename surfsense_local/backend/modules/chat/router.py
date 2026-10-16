@@ -16,16 +16,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
-from modules.agent.agent_threads.forget_sessions import forget_thread
-from modules.agent.agent_threads.open_session import open_agent_session
-from modules.agent.agent_threads.thread_messages import agent_thread_messages
-from modules.agent.agent_threads.turn import RunPlace, agent_turn
+from modules.agent.agent_threads.turn import RunPlace
 from modules.agent.dependencies import LaunchKeyDep
 from modules.agent.engine_choice import (
     AgenticRefusedError,
     new_thread_mode,
     remember_thread_mode,
 )
+from modules.agent.engines.thread_engine import thread_engine
 from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import (
     IMAGE_TOKENS,
@@ -115,10 +113,8 @@ async def create_thread(
         session, _new_thread, workspace.id, payload.title, payload.source_scope
     )
     if opening.mode is ChatMode.AGENTIC:
-        session_id = await open_agent_session(session, thread, launch_key)
-        if session_id is not None:
-            await transact(session, _give_to_agent, thread, session_id)
-        elif payload.mode is ChatMode.AGENTIC:
+        opened = await thread_engine(thread).open_session(session, thread, launch_key)
+        if not opened and payload.mode is ChatMode.AGENTIC:
             await transact(session, _delete_thread, thread)
             raise HTTPException(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -182,7 +178,9 @@ async def list_messages(
 ) -> Sequence[ChatMessage] | list[dict]:
     if thread.uses_agent:
         answering = runs.get(thread.id) is not None
-        return await agent_thread_messages(session, thread, launch_key, answering)
+        return await thread_engine(thread).thread_messages(
+            session, thread, launch_key, answering
+        )
     return await transact(session, _stored_turns, thread)
 
 
@@ -200,10 +198,8 @@ async def delete_thread(
     await run_in_threadpool(session.commit)
     await runs.stop(thread_id, STOP_SETTLE_SECONDS)
     folder = None
-    if thread.opencode_session_id is not None:
-        folder = await forget_thread(
-            workspace_id, thread_id, thread.opencode_session_id
-        )
+    if thread.uses_agent:
+        folder = await thread_engine(thread).forget_thread(thread)
     await transact(session, _delete_thread, thread)
     store.remove_thread(workspace_id, thread_id)
     if folder is not None:
@@ -262,7 +258,9 @@ async def send_message(
         place = RunPlace(
             runs, request.app.state.session_factory, request.app.state.broker
         )
-        return await agent_turn(session, thread, payload, launch_key, place)
+        return await thread_engine(thread).run_turn(
+            session, thread, payload, launch_key, place
+        )
     resolved, history, hits, retried, scope_record = await transact(
         session, _ground, thread, payload
     )
@@ -645,17 +643,6 @@ def _new_thread(
         store_thread_scope(session, thread, scope)
     session.refresh(thread)
     return thread
-
-
-def _give_to_agent(session: Session, thread: ChatThread, session_id: str) -> None:
-    """Record the opencode session that will hold the thread's turns.
-
-    Reloaded here, off the event loop: the write moves `updated_at`, which the
-    response reads.
-    """
-    thread.opencode_session_id = session_id
-    session.flush()
-    session.refresh(thread)
 
 
 def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]:

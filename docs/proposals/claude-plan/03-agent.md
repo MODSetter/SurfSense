@@ -10,15 +10,18 @@ opencode reaches a model through an HTTP provider, and every model reaches it th
 
 ## The engine interface
 
-`modules/agent/engines/` gets a protocol with the five things the chat router asks of the agent today, and opencode's existing code becomes its first implementation with no change in behaviour (step 3 of the [build order](README.md#build-order)):
+[`modules/agent/engines/`](../../../surfsense_local/backend/modules/agent/engines/) holds a protocol, [`AgentEngine`](../../../surfsense_local/backend/modules/agent/engines/agent_engine.py), with what the chat, permission, step and workspace routes ask of the agent, and opencode's existing code is its first implementation, [`OpencodeEngine`](../../../surfsense_local/backend/modules/agent/engines/opencode_engine.py), with no change in behaviour (step 3 of the [build order](README.md#build-order), built). The routes reach an engine only through [`thread_engine()`](../../../surfsense_local/backend/modules/agent/engines/thread_engine.py):
 
-| Method | opencode today |
+| Method | opencode |
 |---|---|
-| `open_session(thread)` | [`open_session.py`](../../../surfsense_local/backend/modules/agent/agent_threads/open_session.py) |
-| `run_turn(thread, message, model, scope) -> frames` | `agent_turn` in [`turn.py`](../../../surfsense_local/backend/modules/agent/agent_threads/turn.py) |
-| `thread_messages(thread)` | `agent_thread_messages` |
-| `answer_permission(thread, request_id, verdict)` | the `/chat/threads/{id}/permissions/{request_id}` route |
-| `stop(thread)`, `forget(thread)` | the run's abort and `forget_thread` |
+| `open_session(session, thread, launch_key) -> bool` | [`open_session.py`](../../../surfsense_local/backend/modules/agent/agent_threads/open_session.py), then records `opencode_session_id` |
+| `run_turn(session, thread, payload, launch_key, place)` | `agent_turn` in [`turn.py`](../../../surfsense_local/backend/modules/agent/agent_threads/turn.py) |
+| `thread_messages(session, thread, launch_key, answering)` | `agent_thread_messages` |
+| `answer_permission(thread, request_id, reply)` | opencode's `reply` |
+| `stored_step(thread, part_id)` | a step whole, for its result and Save to Sources |
+| `forget_thread(thread)`, `forget_workspace(session, workspace_id)` | `forget_sessions.py` |
+
+Stop is not a method: the stop route stops the thread's run, and the engine's turn, which watches its run, ends itself, as opencode's aborts its session.
 
 [`ChatThread`](../../../surfsense_local/backend/modules/chat/models.py) gains `agent_engine` (`opencode` or `claude_code`, `NULL` for a chat thread), `claude_session_id`, and `claude_account`, the Claude Code account that session was made under. `opencode_session_id` stays. A thread that has switched engines holds both ids ([`04-handover.md`](04-handover.md)).
 

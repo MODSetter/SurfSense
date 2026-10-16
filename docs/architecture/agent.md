@@ -22,6 +22,7 @@ A chat thread can be the agent's. opencode, started by Electron, then answers it
 | Plugins | `plugin_tools/`, `plugin_proxy/` | the connected plugins each turn gives opencode, a rule for each of their tools, and the proxy opencode reaches their hosts through ([plugins](#plugins)) |
 | Client | `opencode_client/` | the only code that knows opencode 1.x's HTTP API |
 | Threads | `agent_threads/`, and the chat routes that hand over to it | opening, sending to, reading and deleting an agent thread ([chat](chat.md#agent-threads)) |
+| Engines | `engines/` | the one interface the chat, permission, step and workspace routes call for an agent thread: open it, run a turn, list it, answer a permission, read a step whole, forget it or its workspace. opencode is its only engine; `thread_engine()` picks it |
 | Ticked sources | `agent_threads/turn_sources.py`, `agent_threads/scope_note.py`, `tool_endpoint/turn_scope.py` | the sources a thread may use, mirrored into its folder, told to the model and held to by the tools |
 | Screen | `frontend/src/features/agent/` | a reply's steps, the versions it made, the sources a turn works from, and the approvals asked on them |
 
