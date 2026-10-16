@@ -1,6 +1,8 @@
 """The figures-only pass: keep a ready source's figures, leaving its text and chunks."""
 
+import logging
 from pathlib import Path
+from typing import Any
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.original_file import original_path
@@ -12,8 +14,12 @@ from modules.documents.source_figures.layout import (
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.ingestion import parsing
+from worker.ingestion.figures import pictures_reading
+from worker.ingestion.figures.scanned_pages import scanned_pages
 from worker.ingestion.figures.store import keep_figures, record_figures_failure
 from worker.ingestion.image_page import IMAGE_SUFFIXES
+
+logger = logging.getLogger(__name__)
 
 
 def run(document_id: int) -> None:
@@ -24,16 +30,28 @@ def run(document_id: int) -> None:
         return  # a copy of this pass queued twice, or ingest got there first
 
     try:
-        # An image is its own figure, so only a document needs reading again.
-        converted = (
-            None
-            if original.suffix.lower() in IMAGE_SUFFIXES
-            else parsing.convert(original)
-        )
+        converted = reading_for_figures(original)
     except Exception as failure:
         record_figures_failure(original, failure)
         return
     keep_figures(original, converted)
+
+
+def reading_for_figures(original: Path) -> Any:
+    """Docling's reading of the original, as little of it as its figures need."""
+    suffix = original.suffix.lower()
+    if suffix in IMAGE_SUFFIXES:
+        return None  # an image is its own figure
+    if suffix == ".pdf":
+        try:
+            scanned = scanned_pages(original)
+            if scanned is not None and not all(scanned):
+                return pictures_reading.read_for_pictures(original, scanned)
+        except Exception:
+            # A failure is recorded for good, so it must be the full reading's.
+            logger.warning("read %s in full for its figures", original, exc_info=True)
+    # Docling reads Word and PowerPoint without models; a scan's captions need OCR.
+    return parsing.convert(original)
 
 
 def _ready_original(document_id: int) -> Path | None:
