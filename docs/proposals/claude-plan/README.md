@@ -127,7 +127,7 @@ Scripts kept out of the repo; each line is one run on the machine above.
 | `disallowed_tools`, wildcards included | those tools left out of the init message |
 | A tool added to an MCP server mid-session | not seen until `reconnect_mcp_server`, then seen in the same session |
 | SurfSense's skills folder as a local plugin | listed as `surfsense:documents`, loaded through `Skill` and followed, `verbatim_prompts` on and off |
-| A 59,000-character MCP result | written to a file under `~/.claude/projects`, not given to the model |
+| A large MCP result | over `MAX_MCP_OUTPUT_TOKENS` refused; past Claude Code's own size, 80.7 KB here, saved under the session's `tool-results/` with a 2 KB preview, which the model reads with `Read` or `Grep` |
 | Compaction, window forced to its 100,000-token floor | mid-turn `compact_boundary`, 69,221 to 5,130 tokens; the turn went on; no summary in the reply |
 | `Read` of a PNG | the model saw the image |
 | Transcript retention | `cleanupPeriodDays`, default 30, swept whenever Claude Code starts |
@@ -139,6 +139,7 @@ A SurfSense sign-in to Claude, reading or storing Claude Code's credentials, `cl
 ## Open questions
 
 - Windows and Linux on a real install: whether `claude auth status` prints the same JSON, whether `HTTPS_PROXY` is honoured the same way, and WinGet's `Links` folder. Where installers put `claude` is settled ([`01-connection.md`](01-connection.md#finding-claude-code)) and tested on every system with stand-ins.
-- The lowest Claude Code version to accept, and how often a contract test against the real binary runs.
+- The lowest Claude Code version to accept.
+- The tests under `claude_code`, which run the developer's own Claude Code on their plan, will be removed. What then catches a Claude Code update that breaks an assumption the engines rely on ([`03-agent.md`](03-agent.md#keeping-up-with-claude-code)): a release checklist, a version pin, or a check the app runs itself.
 - Whether a plan limit reached with Claude Code's extra usage switched on should say so; `overageStatus` is in the `RateLimitEvent`.
 - Whether transcripts the agent engine writes under `~/.claude/projects` should be deleted once mirrored ([`03-agent.md`](03-agent.md#sessions)).

@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Any, Literal
 
+from modules.agent.engines.claude_code.saved_results import is_saved_result
+
 Action = Literal["allow", "ask", "deny"]
 
 _READING = {"Read": "file_path", "Glob": "path", "Grep": "path"}
@@ -39,6 +41,9 @@ class Gate:
     skill_names: frozenset[str] = frozenset()
     # By Claude Code's name for the tool; a plugin tool absent here is denied.
     plugin_rules: Mapping[str, Action] = field(default_factory=dict)
+    # Where Claude Code saved this session's long tool results, readable alone.
+    claude_home: Path | None = None
+    session_id: str | None = None
 
     def decide(self, tool: str, tool_input: dict[str, Any]) -> Verdict:
         if tool in _READING:
@@ -80,8 +85,14 @@ class Gate:
         return (self.folder / path).resolve()
 
     def _readable(self, path: Path) -> bool:
-        return path.is_relative_to(self.folder.resolve()) or path.is_relative_to(
+        if path.is_relative_to(self.folder.resolve()) or path.is_relative_to(
             self.skills.resolve()
+        ):
+            return True
+        return (
+            self.claude_home is not None
+            and self.session_id is not None
+            and is_saved_result(path, self.claude_home, self.session_id)
         )
 
     def _pattern_stays_in(self, base: Path, pattern: str) -> bool:

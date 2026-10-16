@@ -51,6 +51,7 @@ from modules.agent.engines.claude_code.mcp_config import write_mcp_config
 from modules.agent.engines.claude_code.models import ClaudeSessionEntry
 from modules.agent.engines.claude_code.opencode_shape import OpencodeShape
 from modules.agent.engines.claude_code.plugin_statuses import unavailable_plugins
+from modules.agent.engines.claude_code.saved_results import claude_home
 from modules.agent.engines.claude_code.session_store import ThreadSessionStore
 from modules.agent.engines.claude_code.skills_plugin import SkillsPlugin
 from modules.agent.engines.claude_code.tool_names import claude_tool, for_claude
@@ -253,6 +254,8 @@ async def _stream(
                 for plugin in tools.plugins
                 for tool, rule in plugin.tools.items()
             },
+            claude_home=claude_home(),
+            session_id=session_id,
         )
         digest = _digest(sending, servers, tools.hidden, setup.skills)
         proxy_url = required_agent_proxy_url()

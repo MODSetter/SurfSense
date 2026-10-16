@@ -41,7 +41,7 @@ The thread's folder is synced to its sources and the scope note written exactly 
 | `mcp_servers` | the path of a file only the user can read, removed when the client closes, holding `surfsense`: the thread's [tool endpoint](../../../surfsense_local/backend/modules/agent/tool_endpoint/) as `{"type": "http", "url": …, "headers": {"Authorization": "Bearer <launch key>"}}`, the same endpoint opencode calls; and each ready plugin under its id, with its sign-in header, as [`give_plugins.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/give_plugins.py) builds them. Given as a dict, the SDK puts it on Claude Code's command line, where any process on the machine can read the headers |
 | `disallowed_tools` | every tool of a given plugin that the gate denies, so the model is never offered it, as opencode's `deny` leaves a tool out |
 | `plugins`, `skills` | SurfSense's skills folder as a local plugin, `surfsense`, and `skills` naming its skills (`surfsense:documents`, …), which hides Claude Code's own skills from the model |
-| `env` | `MAX_MCP_OUTPUT_TOKENS` above the largest result SurfSense's tools return: over Claude Code's default of 25,000 tokens, a result is written to a file under `~/.claude/projects` and the model told to read it, which the gate refuses |
+| `env` | `MAX_MCP_OUTPUT_TOKENS` above the largest result SurfSense's tools return: over Claude Code's default of 25,000 tokens, a result is refused as too large. A result larger than Claude Code gives the model whole is still saved, to `<config home>/projects/<project>/<session id>/tool-results/`, with a preview and the path, which the gate lets the model read ([The gate](#the-gate)) |
 | `system_prompt` | SurfSense's agent prompt. The scope note and any handover note travel beside the user's message ([`04-handover.md`](04-handover.md#where-the-note-goes)) |
 | `hooks` | `PreToolUse`: [the gate](#the-gate) |
 | `can_use_tool` | the gate again |
@@ -58,7 +58,7 @@ The plugin steps before a turn (sign-ins, the license, changed tools, the server
 
 **Clients.** `mcp_servers`, `disallowed_tools` and the skills are fixed when Claude Code starts. Each turn's are digested, as [`given_servers.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/given_servers.py) digests opencode's servers: a thread's running client is reused while the digest matches, and otherwise closed and its session resumed with the new ones. A plugin whose tools changed is reconnected (`reconnect_mcp_server`), which starts a new MCP session, as giving it to opencode again does. The gate reads the rules on every call, so a client launched under older rules still cannot run a tool now denied.
 
-Measured: Claude Code connected to an HTTP MCP endpoint behind a bearer key and every call carried it; the init message listed only the passed tools. With `mcp_servers` as a dict, the plugin's key was in the process's arguments; as a file path, it was not. `disallowed_tools`, wildcards included, left those tools out of the init message. A remote plugin's MCP traffic reached the proxy as `CONNECT plugin.example.com:443`. A tool added to a server mid-session was not seen until `reconnect_mcp_server`, then seen in the same session. SurfSense's skills folder given as a local plugin was listed as `surfsense:documents`, loaded through `Skill` and followed, with `verbatim_prompts` on and off. A 59,000-character MCP result was written to a file under `~/.claude/projects` instead of reaching the model.
+Measured: Claude Code connected to an HTTP MCP endpoint behind a bearer key and every call carried it; the init message listed only the passed tools. With `mcp_servers` as a dict, the plugin's key was in the process's arguments; as a file path, it was not. `disallowed_tools`, wildcards included, left those tools out of the init message. A remote plugin's MCP traffic reached the proxy as `CONNECT plugin.example.com:443`. A tool added to a server mid-session was not seen until `reconnect_mcp_server`, then seen in the same session. SurfSense's skills folder given as a local plugin was listed as `surfsense:documents`, loaded through `Skill` and followed, with `verbatim_prompts` on and off. A 59,000-character MCP result was refused as too large under the default `MAX_MCP_OUTPUT_TOKENS`; with it raised, an 80.7 KB result was still saved under the session with a 2 KB preview, and once the gate allowed that folder the model read the end of a 120 KB result from it.
 
 ## Same as opencode
 
@@ -90,7 +90,7 @@ The rules are opencode's ([`opencode_config.py`](../../../surfsense_local/backen
 
 | Tool | Rule |
 |---|---|
-| `Read`, `Glob`, `Grep` | allow inside the thread's folder and the skills folder; deny `AGENTS.md`, `CLAUDE.md`, `.opencode/` and anything outside |
+| `Read`, `Glob`, `Grep` | allow inside the thread's folder, the skills folder, and this session's saved tool results, as opencode's rules leave its tool-output folder open ([`saved_results.py`](../../../surfsense_local/backend/modules/agent/engines/claude_code/saved_results.py)); deny `AGENTS.md`, `CLAUDE.md`, `.opencode/` and anything outside, another session's results and Claude Code's settings included |
 | `Write`, `Edit` | allow under the thread's `outputs/`; deny everything else |
 | `mcp__surfsense__*` | allow |
 | `Skill` | allow a `surfsense:` skill; deny any other |
@@ -147,6 +147,8 @@ Claude Code compacts a full window itself, mid-turn included. Its compaction bou
 ## Keeping up with Claude Code
 
 Claude Code updates itself on the user's machine, so each behaviour this engine relies on is a test under `claude_code` against the installed binary: the gate in `default` mode, `disallowed_tools` hiding a tool, the MCP file kept off the command line, plugin traffic through the proxy, skills through `plugins`, the result size limit, and `compact_boundary`'s shape. The engine refuses a Claude Code older than the lowest version those tests passed on, as the connection does ([`01-connection.md`](01-connection.md#status)).
+
+These tests are temporary and will be removed. They run only on a developer's machine, opted into with `SURFSENSE_CLAUDE_CODE_TESTS=1`, and use that developer's own Claude plan; CI never selects the `claude_code` marker, and without it they skip. The stand-in tests, which replay what the measured Claude Code sent, stay. What checks a new Claude Code once they are gone is [open](README.md#open-questions).
 
 ## Open questions
 

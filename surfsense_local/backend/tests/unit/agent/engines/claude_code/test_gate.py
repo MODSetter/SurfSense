@@ -140,3 +140,50 @@ def test_tools_surfsense_never_gives_are_refused(gate: Gate) -> None:
         verdict = gate.decide(tool, {})
         assert verdict.action == "deny", tool
         assert verdict.reason
+
+
+def test_a_long_result_claude_code_saved_for_this_session_can_be_read(
+    tmp_path: Path,
+) -> None:
+    """Claude Code saves a large tool result and tells the model to read it there,
+    as opencode does with its tool-output folder."""
+    home = tmp_path / "claude-home"
+    saved = home / "projects" / "-threads-7" / "session-7" / "tool-results"
+    saved.mkdir(parents=True)
+    (saved / "toolu_1.txt").write_text("{}")
+    gate = Gate(
+        folder=tmp_path / "threads" / "7",
+        skills=tmp_path / "skills",
+        claude_home=home,
+        session_id="session-7",
+    )
+
+    assert gate.decide("Read", {"file_path": str(saved / "toolu_1.txt")}).action == (
+        "allow"
+    )
+    assert gate.decide("Grep", {"pattern": "title", "path": str(saved)}).action == (
+        "allow"
+    )
+
+
+def test_only_this_sessions_saved_results_and_never_to_write(tmp_path: Path) -> None:
+    """Not another session's results, nor Claude Code's own settings and sign-in."""
+    home = tmp_path / "claude-home"
+    gate = Gate(
+        folder=tmp_path / "threads" / "7",
+        skills=tmp_path / "skills",
+        claude_home=home,
+        session_id="session-7",
+    )
+    projects = home / "projects" / "-threads-7"
+
+    for path in [
+        projects / "session-8" / "tool-results" / "toolu_1.txt",
+        projects / "session-7.jsonl",
+        projects / "session-7" / "subagents" / "x.txt",
+        home / "settings.json",
+        home / ".credentials.json",
+    ]:
+        assert gate.decide("Read", {"file_path": str(path)}).action == "deny", path
+    saved = projects / "session-7" / "tool-results" / "toolu_1.txt"
+    assert gate.decide("Write", {"file_path": str(saved)}).action == "deny"

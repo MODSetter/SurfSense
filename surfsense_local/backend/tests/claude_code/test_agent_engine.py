@@ -31,6 +31,7 @@ from modules.agent.engines.claude_code.approvals import Approvals
 from modules.agent.engines.claude_code.gate import Gate
 from modules.agent.engines.claude_code.mcp_config import write_mcp_config
 from modules.agent.engines.claude_code.plugin_statuses import unavailable_plugins
+from modules.agent.engines.claude_code.saved_results import claude_home
 from modules.agent.engines.claude_code.skills_plugin import build_skills_plugin
 from modules.agent.engines.claude_code.turn_link import TurnLink
 from modules.agent.opencode_config import skills_folder
@@ -40,7 +41,9 @@ from tests.claude_code.connect_recorder import recording_proxy
 
 pytestmark = pytest.mark.claude_code
 SECRET = "plugin-sign-in-7731"
-LONG_RESULT_CHARS = 59_000
+# Past the size Claude Code gives the model whole; it saved an 80.7 KB result to a file.
+LONG_RESULT_CHARS = 120_000
+MARKER = "MARKER-4417"
 
 
 @pytest.fixture(scope="module")
@@ -56,7 +59,7 @@ def notes_server() -> Iterator[str]:
     @server.tool()
     def long_page() -> str:
         """Return one long page of the ledger."""
-        return "ledger line\n" * (LONG_RESULT_CHARS // 12)
+        return "ledger line\n" * (LONG_RESULT_CHARS // 12) + MARKER
 
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -88,15 +91,22 @@ def _setup(
     approvals = Approvals()
     link = TurnLink(7, approvals)
     events: asyncio.Queue = asyncio.Queue()
-    link.begin(
-        Gate(folder, skills.skills, skills.names, rules or {}), events, "session"
+    session_id = str(uuid.uuid4())
+    gate = Gate(
+        folder,
+        skills.skills,
+        skills.names,
+        rules or {},
+        claude_home=claude_home(),
+        session_id=session_id,
     )
+    link.begin(gate, events, session_id)
     launch = AgentLaunch(
         binary=binary,
         proxy_url=proxy_url,
         folder=folder,
         model="haiku",
-        session_id=str(uuid.uuid4()),
+        session_id=session_id,
         resumed=False,
         mcp_file=write_mcp_config(tmp_path / "mcp", servers),
         disallowed=hidden or [],
@@ -194,10 +204,10 @@ async def test_the_launch_hides_tools_keeps_headers_off_the_command_line_and_use
     assert ("plugin.example.com:443", False) in proxy.connects
 
 
-async def test_a_long_tool_result_reaches_the_model(
+async def test_the_model_reads_a_long_result_claude_code_saved_for_it(
     claude_binary: Path, tmp_path: Path, notes_server: str
 ) -> None:
-    """Never written to a file under ~/.claude, which the gate would not let it read."""
+    """Too large to give whole, it is saved under the session; the gate lets the model read it."""
     async with recording_proxy() as proxy:
         launch, _, _ = _setup(
             claude_binary,
@@ -206,11 +216,27 @@ async def test_a_long_tool_result_reaches_the_model(
             {"notes": {"type": "http", "url": notes_server}},
             rules={"mcp__notes__long_page": "allow"},
         )
-        messages = await _turn(launch, "Call long_page once, then reply OK.")
+        messages = await _turn(
+            launch,
+            "Call long_page once. Its output ends with a line that starts with "
+            "MARKER-. Find that line in the full output and reply with it alone.",
+        )
 
-    result = _results(messages)["mcp__notes__long_page"]
-    assert not result.is_error
-    assert "ledger line" in json.dumps(result.content)
+    results = _results(messages)
+    assert "Full output saved to" in json.dumps(
+        results["mcp__notes__long_page"].content
+    )
+    reads = [results[tool] for tool in ("Read", "Grep") if tool in results]
+    assert reads
+    assert not any(result.is_error for result in reads)
+    replies = [
+        block.text
+        for message in messages
+        if isinstance(message, AssistantMessage)
+        for block in message.content
+        if hasattr(block, "text")
+    ]
+    assert MARKER in " ".join(replies)
 
 
 async def test_an_approval_can_wait_longer_than_a_hooks_timeout(

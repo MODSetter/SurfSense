@@ -366,3 +366,32 @@ async def test_a_plugin_that_failed_to_connect_is_named(
 
     (notice,) = _of(frames, "agent-plugins-unavailable")
     assert notice["plugins"] == [{"title": "Notes", "reason": "unreachable"}]
+
+
+async def test_the_model_reads_a_long_result_claude_code_saved_for_it(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A large plugin result is saved under the session; reading it is not refused."""
+    home = tmp_path / "claude-home"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(home))
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    with create_session_factory(engine)() as session:
+        session_id = session.get(ChatThread, thread["id"]).claude_session_id
+    saved = home / "projects" / "-threads" / session_id / "tool-results" / "toolu_9.txt"
+    claude_agent.turns = [
+        [
+            Call("Grep", {"pattern": "title", "path": str(saved)}, "title: Q3"),
+            Say("Q3."),
+        ]
+    ]
+
+    frames = await _send(client, thread["id"], "Search the web")
+
+    (step,) = _of(frames, "agent-step")[-1:]
+    assert step["status"] == "completed"
+    assert step["output"] == "title: Q3"

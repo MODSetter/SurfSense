@@ -15,8 +15,9 @@ from modules.llm.subscriptions.claude.launch import launch_options
 
 # opencode's tools in Claude Code's names: no Bash (ADR 0039), web, subagents or notebooks.
 TOOLS = ["Read", "Glob", "Grep", "Write", "Edit", "Skill"]
-# Over Claude Code's 25,000, a result is written under ~/.claude and the model told
-# to read it there, which the gate refuses; opencode gives its model the result.
+# Over Claude Code's 25,000, a result is refused as too large. One larger than
+# Claude Code gives whole (an 80.7 KB one was) is still saved under the session,
+# which the gate lets the model read, as opencode's tool-output folder.
 MAX_RESULT_TOKENS = 100_000
 # A scrape on SurfSense's plugin host can run minutes; opencode allows it 300 s.
 TOOL_CALL_MS = 300_000
