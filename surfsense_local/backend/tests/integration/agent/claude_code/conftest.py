@@ -26,9 +26,11 @@ class ClaudeAgent:
     def __init__(self) -> None:
         self.turns: list[list[Step]] = []
         self.started: list[ScriptedAgentRun] = []
+        # Each MCP server's settled status, by name; connected unless named.
+        self.statuses: dict[str, str] = {}
 
     async def open(self, options: ClaudeAgentOptions) -> ScriptedAgentRun:
-        run = ScriptedAgentRun(options, self.turns)
+        run = ScriptedAgentRun(options, self.turns, self.statuses)
         self.started.append(run)
         return run
 

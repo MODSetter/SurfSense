@@ -332,3 +332,37 @@ async def test_after_stop_the_next_message_is_answered(
     frames = await _send(client, thread["id"], "Try again")
 
     assert _of(frames, "completed")[0]["text"] == "Fresh answer."
+
+
+async def test_a_plugin_still_connecting_at_start_is_not_called_unreachable(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """Claude Code connects plugins in the background; its turn's init says how they ended."""
+    connect_plugin(engine, "https://localhost:1/mcp")
+    claude_agent.turns = [[Say("Done.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    frames = await _send(client, thread["id"], "Search my notes")
+
+    assert _of(frames, "agent-plugins-unavailable") == []
+
+
+async def test_a_plugin_that_failed_to_connect_is_named(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """As opencode's turn names one: the plugin, and why it cannot be used."""
+    connect_plugin(engine, "https://localhost:1/mcp")
+    claude_agent.statuses = {"notes": "failed"}
+    claude_agent.turns = [[Say("Done.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    frames = await _send(client, thread["id"], "Search my notes")
+
+    (notice,) = _of(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "unreachable"}]

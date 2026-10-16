@@ -6,9 +6,11 @@ session store, as the SDK mirrors the transcript.
 """
 
 import asyncio
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from claude_agent_sdk import (
@@ -17,6 +19,7 @@ from claude_agent_sdk import (
     Message,
     PermissionResultAllow,
     ResultMessage,
+    SystemMessage,
     TextBlock,
     ToolPermissionContext,
     ToolResultBlock,
@@ -59,10 +62,17 @@ Step = Say | Call | Fail | Hang
 
 
 class ScriptedAgentRun(ScriptedRun):
-    def __init__(self, options: ClaudeAgentOptions, turns: list[list[Step]]) -> None:
+    def __init__(
+        self,
+        options: ClaudeAgentOptions,
+        turns: list[list[Step]],
+        statuses: dict[str, str] | None = None,
+    ) -> None:
         super().__init__()
         self.options = options
         self._turns = turns
+        # Each MCP server's settled status, as the turn's init reports it; connected unless named.
+        self._statuses = statuses or {}
         self._interrupted = asyncio.Event()
         # Set once a Hang step has written, so a test can stop the turn mid-reply.
         self.hanging = asyncio.Event()
@@ -93,6 +103,7 @@ class ScriptedAgentRun(ScriptedRun):
                 "message": {"role": "user", "content": prompt},
             }
         )
+        yield self._init()
         for step in self._turns.pop(0):
             async for message in self._play(step):
                 yield message
@@ -188,6 +199,15 @@ class ScriptedAgentRun(ScriptedRun):
             **entry,
         }
         await store.append({"project_key": "p", "session_id": session_id}, [entry])
+
+    def _init(self) -> SystemMessage:
+        """The turn's opening message, once every MCP server has connected or failed."""
+        given = json.loads(Path(self.options.mcp_servers).read_text())["mcpServers"]
+        servers = [
+            {"name": name, "status": self._statuses.get(name, "connected")}
+            for name in given
+        ]
+        return SystemMessage(subtype="init", data={"mcp_servers": servers})
 
     def _next(self, kind: str) -> str:
         self._made += 1

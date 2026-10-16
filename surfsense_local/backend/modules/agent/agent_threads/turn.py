@@ -42,7 +42,6 @@ from modules.agent.plugin_tools.changed_tools import (
     check_changed_tools,
 )
 from modules.agent.plugin_tools.give_plugins import (
-    UnavailablePlugin,
     give_plugins,
     servers,
     set_plugin_rules,
@@ -59,6 +58,7 @@ from modules.agent.plugin_tools.stop_plugin_calls import (
 )
 from modules.agent.plugin_tools.thread_calls import thread_calls_token
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import SERVER, register_thread_tools

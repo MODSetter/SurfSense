@@ -30,9 +30,11 @@ from modules.agent.engines.claude_code.agent_options import AgentLaunch, agent_o
 from modules.agent.engines.claude_code.approvals import Approvals
 from modules.agent.engines.claude_code.gate import Gate
 from modules.agent.engines.claude_code.mcp_config import write_mcp_config
+from modules.agent.engines.claude_code.plugin_statuses import unavailable_plugins
 from modules.agent.engines.claude_code.skills_plugin import build_skills_plugin
 from modules.agent.engines.claude_code.turn_link import TurnLink
 from modules.agent.opencode_config import skills_folder
+from modules.agent.plugin_tools.turn_plugins import TurnPlugin
 from modules.llm.subscriptions.claude.run import open_run
 from tests.claude_code.connect_recorder import recording_proxy
 
@@ -266,3 +268,55 @@ async def test_after_an_interrupt_the_same_claude_code_answers_the_next_message(
             if hasattr(b, "text")
         ]
     )
+
+
+@pytest.fixture(scope="module")
+def slow_server() -> Iterator[str]:
+    """A plugin a few seconds away, as a remote one is: each request takes 1.5 s."""
+    server = MCPServer("slow")
+
+    @server.tool()
+    def ping() -> str:
+        """Answer pong."""
+        return "pong"
+
+    app = server.streamable_http_app(stateless_http=True, json_response=True)
+
+    async def slow(scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] == "http":
+            await asyncio.sleep(1.5)
+        await app(scope, receive, send)
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    runner = uvicorn.Server(
+        uvicorn.Config(slow, host="127.0.0.1", port=port, log_level="warning")
+    )
+    threading.Thread(target=runner.run, daemon=True).start()
+    while not runner.started:
+        time.sleep(0.05)
+    yield f"http://127.0.0.1:{port}/mcp"
+    runner.should_exit = True
+
+
+async def test_a_plugin_slow_to_connect_is_settled_in_the_turns_init(
+    claude_binary: Path, tmp_path: Path, slow_server: str
+) -> None:
+    """Claude Code holds a turn's init until its plugins connect; the engine reads them there."""
+    async with recording_proxy() as proxy:
+        launch, _, _ = _setup(
+            claude_binary,
+            tmp_path,
+            proxy.url,
+            {"slow": {"type": "http", "url": slow_server}},
+            rules={"mcp__slow__ping": "allow"},
+        )
+        messages = await _turn(launch, "Reply OK.")
+
+    init = next(
+        m for m in messages if isinstance(m, SystemMessage) and m.subtype == "init"
+    )
+    plugin = TurnPlugin(name="slow", title="Slow", url=slow_server, headers={})
+    assert unavailable_plugins(init.data["mcp_servers"], [plugin]) == []
+    assert "mcp__slow__ping" in init.data["tools"]

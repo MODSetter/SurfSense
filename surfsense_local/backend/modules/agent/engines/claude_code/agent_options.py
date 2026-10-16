@@ -10,6 +10,7 @@ from modules.agent.engines.claude_code.skills_plugin import SkillsPlugin
 from modules.agent.engines.claude_code.tool_names import for_claude
 from modules.agent.engines.claude_code.turn_link import TurnLink
 from modules.agent.opencode_config import agent_prompt
+from modules.agent.plugin_tools.connect_limit import CONNECT_SECONDS
 from modules.llm.subscriptions.claude.launch import launch_options
 
 # opencode's tools in Claude Code's names: no Bash (ADR 0039), web, subagents or notebooks.
@@ -71,6 +72,7 @@ def agent_options(launch: AgentLaunch) -> ClaudeAgentOptions:
         env={
             "MAX_MCP_OUTPUT_TOKENS": str(MAX_RESULT_TOKENS),
             "MCP_TOOL_TIMEOUT": str(TOOL_CALL_MS),
+            "MCP_TIMEOUT": str(CONNECT_SECONDS * 1000),
         },
         **session,
     )

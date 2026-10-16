@@ -50,6 +50,7 @@ from modules.agent.engines.claude_code.gate import Gate
 from modules.agent.engines.claude_code.mcp_config import write_mcp_config
 from modules.agent.engines.claude_code.models import ClaudeSessionEntry
 from modules.agent.engines.claude_code.opencode_shape import OpencodeShape
+from modules.agent.engines.claude_code.plugin_statuses import unavailable_plugins
 from modules.agent.engines.claude_code.session_store import ThreadSessionStore
 from modules.agent.engines.claude_code.skills_plugin import SkillsPlugin
 from modules.agent.engines.claude_code.tool_names import claude_tool, for_claude
@@ -59,12 +60,12 @@ from modules.agent.plugin_tools.changed_tools import (
     check_after_turn,
     check_changed_tools,
 )
-from modules.agent.plugin_tools.give_plugins import UnavailablePlugin
 from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
 from modules.agent.plugin_tools.stop_plugin_calls import HostCalls, stop_plugin_calls
 from modules.agent.plugin_tools.thread_calls import thread_calls_token
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import SERVER, thread_tools_url
@@ -283,16 +284,6 @@ async def _stream(
                 raise
 
         held = await setup.runs.acquire(thread_id, digest, start)
-        unavailable = tools.unavailable + await _unreachable(held.run, tools.plugins)
-        if unavailable:
-            yield _frame(
-                {
-                    "type": "agent-plugins-unavailable",
-                    "plugins": [
-                        {"title": p.title, "reason": p.reason} for p in unavailable
-                    ],
-                }
-            )
         begin_turn(thread_id)
         if sending.shown is not None:
             yield _frame({"type": "agent-scope", "scope": sending.shown})
@@ -316,6 +307,15 @@ async def _stream(
                 raise item
             if isinstance(item, Event):
                 read = [item]
+            elif isinstance(item, SystemMessage) and item.subtype == "init":
+                # Sent once Claude Code's plugins have connected or failed: settled
+                # here, as opencode's are once their add returns, and not before.
+                unavailable = tools.unavailable + unavailable_plugins(
+                    item.data.get("mcp_servers") or [], tools.plugins
+                )
+                if unavailable:
+                    yield _frame(_unavailable_frame(unavailable))
+                continue
             else:
                 refusal = (
                     await transact(session, claude_refusal)
@@ -475,23 +475,11 @@ def _digest(
     return hashlib.sha256(json.dumps(given, sort_keys=True).encode()).hexdigest()
 
 
-async def _unreachable(
-    run: ClaudeRun, plugins: list[TurnPlugin]
-) -> list[UnavailablePlugin]:
-    """The plugins Claude Code could not connect to, named as opencode's turn names them."""
-    titles = {plugin.name: plugin for plugin in plugins}
-    unavailable = []
-    for server in await run.mcp_servers():
-        plugin = titles.get(server.get("name", ""))
-        state = server.get("status")
-        if plugin is None or state == "connected":
-            continue
-        if state == "needs-auth":
-            reason = "license" if plugin.licensed else "sign_in"
-        else:
-            reason = "unreachable"
-        unavailable.append(UnavailablePlugin(plugin.title, reason))
-    return unavailable
+def _unavailable_frame(unavailable: list[UnavailablePlugin]) -> dict[str, Any]:
+    return {
+        "type": "agent-plugins-unavailable",
+        "plugins": [{"title": p.title, "reason": p.reason} for p in unavailable],
+    }
 
 
 async def _finish_reading(

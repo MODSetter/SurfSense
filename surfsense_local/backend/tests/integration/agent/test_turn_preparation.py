@@ -52,7 +52,7 @@ async def test_plugins_are_given_at_once_and_one_that_hangs_is_named_alone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Two slow servers connect side by side; a hung one costs the turn its own wait, not the others."""
-    monkeypatch.setattr(give_plugins, "ADD_SECONDS", 4)
+    monkeypatch.setattr(give_plugins, "CONNECT_SECONDS", 4)
     caplog.set_level(logging.INFO, logger="modules.agent.agent_threads.turn")
     slow = [
         Delaying(notes_server().streamable_http_app(), "initialize", 2) for _ in "ab"
@@ -87,7 +87,7 @@ async def test_the_rules_are_set_even_when_a_plugin_cannot_be_given(
     agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A tool switched off since the last turn is not offered, though another plugin's connect fails."""
-    monkeypatch.setattr(give_plugins, "ADD_SECONDS", 2)
+    monkeypatch.setattr(give_plugins, "CONNECT_SECONDS", 2)
     hung = Delaying(notes_server().streamable_http_app(), "initialize", 3600)
     with serving(notes_server().streamable_http_app()) as notes, serving(hung) as base:
         await connect_notes(agent_api, f"{notes}/mcp")

@@ -8,6 +8,7 @@ from modules.agent.engines.claude_code.agent_options import AgentLaunch, agent_o
 from modules.agent.engines.claude_code.approvals import Approvals
 from modules.agent.engines.claude_code.skills_plugin import SkillsPlugin
 from modules.agent.engines.claude_code.turn_link import TurnLink
+from modules.agent.plugin_tools.connect_limit import CONNECT_SECONDS
 
 pytestmark = pytest.mark.unit
 BINARY = Path("/home/ada/.local/bin/claude")
@@ -83,3 +84,10 @@ def test_traffic_goes_through_the_agent_proxy_and_results_reach_the_model(
     assert env["ANTHROPIC_API_KEY"] == ""
     assert int(env["MAX_MCP_OUTPUT_TOKENS"]) > 25_000
     assert int(env["MCP_TOOL_TIMEOUT"]) >= 300_000
+
+
+def test_claude_code_gives_up_on_a_plugin_when_opencode_does(tmp_path: Path) -> None:
+    """One limit, so a slow plugin is reported alike whichever engine runs the thread."""
+    env = agent_options(_launch(tmp_path)).env
+
+    assert int(env["MCP_TIMEOUT"]) == CONNECT_SECONDS * 1000

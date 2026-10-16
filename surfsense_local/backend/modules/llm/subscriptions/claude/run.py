@@ -24,10 +24,6 @@ class ClaudeRun(Protocol):
 
     async def models(self) -> list[dict[str, Any]]: ...
 
-    async def mcp_servers(self) -> list[dict[str, Any]]:
-        """Each MCP server given, with its `status`: `connected`, `failed`, `needs-auth`."""
-        ...
-
     async def close(self) -> None: ...
 
 
@@ -63,9 +59,6 @@ class _SdkRun:
     async def models(self) -> list[dict[str, Any]]:
         info = await self._client.get_server_info()
         return list((info or {}).get("models", []))
-
-    async def mcp_servers(self) -> list[dict[str, Any]]:
-        return list((await self._client.get_mcp_status()).get("mcpServers", []))
 
     async def close(self) -> None:
         await self._client.disconnect()
