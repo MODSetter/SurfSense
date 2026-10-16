@@ -894,7 +894,7 @@
   "plugins_list_license_invalid_status": "Лицензия не распознана",
   "plugins_list_license_revoked_status": "Лицензия отозвана",
   "plugins_list_needs_license_status": "Нужна лицензия",
-  "plugins_list_new_tools_status": "Новые инструменты",
+  "plugins_list_new_tools_status": "Новое",
   "plugins_list_on_status": "Включён",
   "plugins_list_paused_status": "Выключен",
   "plugins_list_plugin_label": "Плагин",

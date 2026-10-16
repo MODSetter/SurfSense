@@ -453,7 +453,7 @@ describe("plugins settings", () => {
       "Reddit By SurfSense Needs a license",
       "Wiki Third-party Off",
       "Acme Third-party No longer listed",
-      "Docs Custom New tools",
+      "Docs Custom On New tools",
     ]) {
       expect(within(table).getByRole("row", { name })).toBeTruthy()
     }

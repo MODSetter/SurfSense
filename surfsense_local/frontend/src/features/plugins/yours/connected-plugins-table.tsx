@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
 import {
@@ -124,7 +125,16 @@ export function ConnectedPluginsTable({
                         />
                       </span>
                     ) : (
-                      <span className="truncate">{status.label}</span>
+                      <>
+                        <span className="truncate">{status.label}</span>
+                        {/* The space keeps a screen reader from saying "OnNew tools". */}
+                        {status.badge && (
+                          <>
+                            {" "}
+                            <Badge variant="secondary">{status.badge}</Badge>
+                          </>
+                        )}
+                      </>
                     )}
                   </span>
                   <ChevronRightIcon
