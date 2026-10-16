@@ -1,7 +1,7 @@
 """What the Claude agent engine relies on, checked against the installed Claude Code.
 
 Claude Code updates itself, so each behaviour the engine assumes is a test here
-(docs/proposals/claude-plan/03-agent.md, Keeping up with Claude Code).
+(docs/architecture/claude-plan.md, Tests).
 """
 
 import asyncio

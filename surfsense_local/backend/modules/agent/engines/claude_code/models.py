@@ -1,7 +1,7 @@
 """SurfSense's copy of a thread's Claude Code session, and how its replies ended.
 
 Claude Code deletes its own transcripts after 30 days, and the user owns
-~/.claude, so the thread lives here (docs/proposals/claude-plan/03-agent.md, Sessions).
+~/.claude, so the thread lives here (docs/architecture/claude-plan.md, Sessions).
 """
 
 from typing import Any

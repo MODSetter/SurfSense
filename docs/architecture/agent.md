@@ -22,7 +22,7 @@ A chat thread can be the agent's. opencode, started by Electron, then answers it
 | Plugins | `plugin_tools/`, `plugin_proxy/` | the connected plugins each turn gives opencode, a rule for each of their tools, and the proxy opencode reaches their hosts through ([plugins](#plugins)) |
 | Client | `opencode_client/` | the only code that knows opencode 1.x's HTTP API |
 | Threads | `agent_threads/`, and the chat routes that hand over to it | opening, sending to, reading and deleting an agent thread ([chat](chat.md#agent-threads)) |
-| Engines | `engines/` | the one interface the chat, permission, step and workspace routes call for an agent thread: open it, run a turn, list it, answer a permission, read a step whole, forget it or its workspace. Two engines: opencode, and for a thread on a Claude plan model the user's Claude Code (`engines/claude_code/`, [Claude plan agent](../proposals/claude-plan/03-agent.md)). `thread_engine()` picks by the thread's `agent_engine`, and a new thread's by the selected model's connection |
+| Engines | `engines/` | the one interface the chat, permission, step and workspace routes call for an agent thread: open it, run a turn, list it, answer a permission, read a step whole, forget it or its workspace. Two engines: opencode, and for a thread on a Claude plan model the user's Claude Code (`engines/claude_code/`, [Claude plan agent](claude-plan.md#agentic-mode)). `thread_engine()` picks by the thread's `agent_engine`, and a new thread's by the selected model's connection |
 | Ticked sources | `agent_threads/turn_sources.py`, `agent_threads/scope_note.py`, `tool_endpoint/turn_scope.py` | the sources a thread may use, mirrored into its folder, told to the model and held to by the tools |
 | Screen | `frontend/src/features/agent/` | a reply's steps, the versions it made, the sources a turn works from, and the approvals asked on them |
 
@@ -32,7 +32,7 @@ A new thread is the agent's when it is opened in Agentic mode: the mode the user
 
 ## Two engines
 
-A thread runs on the engine its turns live in, `agent_engine` on the thread: opencode for every model but a Claude plan's, which runs on the user's own Claude Code ([Claude plan agent](../proposals/claude-plan/03-agent.md)). Before each turn the selected model's connection names the engine. When it is the other one, that engine resumes its own session, or opens one in the thread's folder, and the turn carries a note of the turns it did not see, beside the user's words as the scope note is ([handover](../proposals/claude-plan/04-handover.md)). Reading the thread merges both sessions' turns by time, so it reads as one thread.
+A thread runs on the engine its turns live in, `agent_engine` on the thread: opencode for every model but a Claude plan's, which runs on the user's own Claude Code ([Claude plan agent](claude-plan.md#agentic-mode)). Before each turn the selected model's connection names the engine. When it is the other one, that engine resumes its own session, or opens one in the thread's folder, and the turn carries a note of the turns it did not see, beside the user's words as the scope note is ([handover](claude-plan.md#switching-engines)). Reading the thread merges both sessions' turns by time, so it reads as one thread.
 
 ## From a thread to a running opencode
 

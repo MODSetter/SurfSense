@@ -1,4 +1,4 @@
-"""What an agent run's Claude Code starts with (docs/proposals/claude-plan/03-agent.md, A turn)."""
+"""What an agent run's Claude Code starts with (docs/architecture/claude-plan.md, A turn)."""
 
 from dataclasses import dataclass
 from pathlib import Path

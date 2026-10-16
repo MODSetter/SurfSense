@@ -3,7 +3,7 @@
 The turn is prepared as opencode's is (the folder synced, the plugins checked),
 then the thread's Claude Code runs it. Its messages, and the approvals its
 calls wait on, are read as opencode's events, so the thread shows the same
-frames whichever engine answers (docs/proposals/claude-plan/03-agent.md).
+frames whichever engine answers (docs/architecture/claude-plan.md).
 """
 
 import asyncio

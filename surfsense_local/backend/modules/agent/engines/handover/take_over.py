@@ -1,6 +1,6 @@
 """An engine taking a thread over from the other: its session, and the note of what it missed.
 
-docs/proposals/claude-plan/04-handover.md. Each engine keeps its own session and
+docs/architecture/claude-plan.md, Switching engines. Each engine keeps its own session and
 resumes it; the note covers only the turns since it last answered, and goes
 beside the user's message, so its session keeps it as it keeps the scope note.
 """

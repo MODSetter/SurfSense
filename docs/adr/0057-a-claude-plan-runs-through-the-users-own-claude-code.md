@@ -33,4 +33,4 @@ A Claude plan has no HTTP endpoint SurfSense may call, so opencode cannot reach 
 
 ## Where the code stands
 
-Not built. The work is laid out in the [Use your Claude plan](../proposals/claude-plan/README.md) proposal.
+Built: chat, titles, Studio and Agentic mode ([Claude plan](../architecture/claude-plan.md)). It is untested on Windows and Linux on a real install. The contract tests against the real binary that the consequences name run only on a developer's machine, opted in, and are to be removed; nothing yet replaces them ([Known gaps](../architecture/claude-plan.md#known-gaps)).

@@ -1,6 +1,6 @@
 """What Claude Code may do in a thread: opencode's permission rules, applied to Claude Code's tool names.
 
-docs/proposals/claude-plan/03-agent.md, The gate.
+docs/architecture/claude-plan.md, The gate.
 """
 
 from collections.abc import Mapping

@@ -2,7 +2,7 @@
 
 The thread's turns live in its Claude Code session, which SurfSense keeps a
 copy of; read back, they are shaped as opencode's, so the thread shows both
-engines' turns alike (docs/proposals/claude-plan/03-agent.md).
+engines' turns alike (docs/architecture/claude-plan.md).
 """
 
 import asyncio

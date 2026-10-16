@@ -1,6 +1,6 @@
 """The note an engine taking over a thread is given: the turns it did not see.
 
-docs/proposals/claude-plan/04-handover.md, The note. Fitted to a budget: the
+docs/architecture/claude-plan.md, Switching engines. Fitted to a budget: the
 newest turns stay whole, older tool outputs go first, then older replies are
 cut to their first paragraph, then the oldest turns are one line each.
 """
