@@ -7,6 +7,7 @@ from modules.llm.schemas import ConnectionRead
 from modules.llm.subscriptions.claude import account
 from modules.llm.subscriptions.claude.hosts import hosts_still_off, require_claude_hosts
 from modules.llm.subscriptions.claude.locate import this_machines_claude
+from modules.llm.subscriptions.claude.proxy import claude_proxy_url
 from modules.llm.subscriptions.claude.schemas import (
     ClaudeConnectionWrite,
     ClaudeHost,
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/connections")
 def claude_option(session: SessionDep) -> ClaudeOption:
     """Claude Code's state on this machine, read live, so signing in or out in a
     terminal shows on the next look."""
-    found = read_status(this_machines_claude())
+    found = read_status(this_machines_claude(), proxy_url=claude_proxy_url())
     hosts = [
         ClaudeHost(destination=f"host:{host}", host=host)
         for host in hosts_still_off(session)
@@ -47,7 +48,7 @@ def connect_claude(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "label must not be empty"
         )
     require_claude_hosts(session)
-    found = read_status(this_machines_claude())
+    found = read_status(this_machines_claude(), proxy_url=claude_proxy_url())
     if found.state is not ClaudeState.READY:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

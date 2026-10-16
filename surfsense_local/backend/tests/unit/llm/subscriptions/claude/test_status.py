@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -73,3 +74,17 @@ def test_a_claude_code_that_hangs_is_too_old(tmp_path: Path) -> None:
     status = read_status(claude_stand_in(tmp_path, hang_seconds=3), timeout=0.5)
 
     assert status.state is ClaudeState.TOO_OLD
+
+
+def test_the_status_check_runs_through_surfsenses_proxy(tmp_path: Path) -> None:
+    """It contacts nothing today; were a later Claude Code to, egress still holds."""
+    env_log = tmp_path / "env.json"
+
+    read_status(
+        claude_stand_in(tmp_path, env_log=env_log), proxy_url="http://127.0.0.1:9"
+    )
+
+    started_with = json.loads(env_log.read_text())
+    assert started_with["HTTPS_PROXY"] == "http://127.0.0.1:9"
+    assert started_with["ANTHROPIC_API_KEY"] == ""
+    assert started_with["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] == "1"

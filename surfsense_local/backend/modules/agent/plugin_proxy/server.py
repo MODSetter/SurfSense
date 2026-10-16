@@ -35,10 +35,12 @@ async def serving_plugin_proxy(
     host: str,
     port: int,
     allowed: AllowedHosts | None = None,
+    client: str = "opencode",
 ) -> AsyncIterator[int]:
     """The proxy on `host`, yielding the port it listens on.
 
-    `allowed` decides which hosts pass: a ready plugin's by default.
+    `allowed` decides which hosts pass: a ready plugin's by default. `client`
+    names the program it serves in the log, so a refusal says whose it was.
     """
     allowed = allowed if allowed is not None else AllowedHosts(sessions)
     # Last-call records in flight, held so none is collected before it ran.
@@ -48,7 +50,7 @@ async def serving_plugin_proxy(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         try:
-            await _tunnel(allowed, recording, reader, writer)
+            await _tunnel(allowed, recording, reader, writer, client)
         except (
             OSError,
             asyncio.IncompleteReadError,
@@ -71,6 +73,7 @@ async def _tunnel(
     recording: set[asyncio.Task[None]],
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
+    client: str,
 ) -> None:
     head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), _HEAD_SECONDS)
     method, target, *_ = head.split(b"\r\n", 1)[0].decode("latin-1").split(" ")
@@ -88,13 +91,13 @@ async def _tunnel(
             ready = (host, int(port)) in hosts
     except Exception:
         logger.warning(
-            "could not check opencode's %s %s", method, target, exc_info=True
+            "could not check %s's %s %s", client, method, target, exc_info=True
         )
         await _answer(writer, b"502 Bad Gateway")
         return
     checked = time.perf_counter()
     if not ready:
-        logger.info("refused opencode's %s %s", method, target)
+        logger.info("refused %s's %s %s", client, method, target)
         await _answer(writer, b"403 Forbidden")
         return
     try:
@@ -105,7 +108,7 @@ async def _tunnel(
             CONNECT_SECONDS,
         )
     except (OSError, TimeoutError):
-        logger.warning("could not reach %s for opencode", target, exc_info=True)
+        logger.warning("could not reach %s for %s", target, client, exc_info=True)
         await _answer(writer, b"502 Bad Gateway")
         return
     connected = time.perf_counter()

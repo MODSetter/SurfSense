@@ -73,7 +73,13 @@ class ClaudePlanProvider:
         return binary
 
     async def health(self) -> bool:
-        found = await asyncio.to_thread(read_status, self._find_claude())
+        try:
+            proxy_url = self._proxy_url()
+        except RuntimeError:
+            return False
+        found = await asyncio.to_thread(
+            read_status, self._find_claude(), proxy_url=proxy_url
+        )
         return found.state is ClaudeState.READY
 
     async def models(self) -> list[Model]:

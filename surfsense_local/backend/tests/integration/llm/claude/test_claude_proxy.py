@@ -1,6 +1,7 @@
 """The proxy Claude Code's traffic goes through: Anthropic's two hosts, only while allowed."""
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 
 import pytest
@@ -107,3 +108,17 @@ async def test_runs_know_the_proxys_address_only_while_it_serves(
         assert claude_proxy.claude_proxy_url() == f"http://127.0.0.1:{port}"
 
     assert claude_proxy.claude_proxy_url() is None
+
+
+async def test_a_refused_host_is_logged_as_claude_codes(
+    engine: Engine, proxy: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A host a future Claude Code tries on its own shows in the log at once."""
+    caplog.set_level(logging.INFO)
+
+    await through(proxy, b"CONNECT console.anthropic.com:443 HTTP/1.1\r\n\r\n")
+
+    refused = [
+        r.getMessage() for r in caplog.records if r.getMessage().startswith("refused")
+    ]
+    assert refused == ["refused Claude Code's CONNECT console.anthropic.com:443"]

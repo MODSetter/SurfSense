@@ -21,12 +21,15 @@ def launch_options(
     }
     if clash := sorted(fixed.keys() & per_run.keys()):
         raise ValueError(f"a run cannot set {', '.join(clash)}")
-    env = {**per_run.pop("env", {}), **_fixed_env(proxy_url)}
+    env = {**per_run.pop("env", {}), **claude_env(proxy_url)}
     return ClaudeAgentOptions(**fixed, env=env, **per_run)
 
 
-def _fixed_env(proxy_url: str | None) -> dict[str, str]:
-    # A key in the API's environment would silently replace the plan.
+def claude_env(proxy_url: str | None) -> dict[str, str]:
+    """What every Claude Code process gets, a run or the status check alike.
+
+    A key in the API's environment would silently replace the plan.
+    """
     env = {"ANTHROPIC_API_KEY": "", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
     if proxy_url is not None:
         env |= {

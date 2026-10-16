@@ -20,7 +20,10 @@ SIGNED_IN = {
 SIGNED_OUT = {"loggedIn": False, "authMethod": "none", "apiProvider": "firstParty"}
 
 _PROGRAM = """\
-import sys, time
+import json, os, sys, time
+if {env_log!r}:
+    with open({env_log!r}, "w") as log:
+        json.dump(dict(os.environ), log)
 time.sleep({hang_seconds!r})
 if sys.argv[1:] == ["--version"]:
     print({version!r})
@@ -37,12 +40,17 @@ def claude_stand_in(
     version: str = "2.1.301 (Claude Code)",
     auth: dict | str = SIGNED_IN,
     hang_seconds: float = 0,
+    env_log: Path | None = None,
 ) -> Path:
-    """Write the stand-in into `directory`; a string `auth` is printed as is."""
+    """Write the stand-in into `directory`; a string `auth` is printed as is.
+
+    With `env_log`, each run writes the environment it was started with there.
+    """
     program = directory / "claude_stand_in_program.py"
     program.write_text(
         _PROGRAM.format(
             hang_seconds=hang_seconds,
+            env_log=str(env_log) if env_log else "",
             version=version,
             auth=auth if isinstance(auth, str) else json.dumps(auth),
         )

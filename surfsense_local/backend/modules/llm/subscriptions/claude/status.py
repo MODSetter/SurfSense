@@ -1,10 +1,13 @@
 import json
+import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+
+from modules.llm.subscriptions.claude.launch import claude_env
 
 # The oldest Claude Code the Claude plan was measured against (16 Oct 2026).
 MIN_VERSION = (2, 1, 300)
@@ -31,11 +34,12 @@ class ClaudeStatus:
 _NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
-def _run(binary: Path, *args: str, timeout: float) -> str:
+def _run(binary: Path, *args: str, timeout: float, env: dict[str, str]) -> str:
     """Its answer, or nothing when it fails to give one in time."""
     try:
         return subprocess.run(
             [str(binary), *args],
+            env=env,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -53,17 +57,24 @@ def _sign_in(text: str) -> dict:
     return answer if isinstance(answer, dict) else {}
 
 
-def read_status(binary: Path | None, *, timeout: float = 15) -> ClaudeStatus:
-    """What the user's Claude Code reports about itself and its sign-in."""
+def read_status(
+    binary: Path | None, *, timeout: float = 15, proxy_url: str | None = None
+) -> ClaudeStatus:
+    """What the user's Claude Code reports about itself and its sign-in.
+
+    Through SurfSense's proxy like every run: it contacts nothing today, and a
+    later Claude Code that does is held to egress consent all the same.
+    """
     if binary is None:
         return ClaudeStatus(ClaudeState.NOT_INSTALLED)
+    env = {**os.environ, **claude_env(proxy_url)}
     match = re.search(
-        r"(\d+)\.(\d+)\.(\d+)", _run(binary, "--version", timeout=timeout)
+        r"(\d+)\.(\d+)\.(\d+)", _run(binary, "--version", timeout=timeout, env=env)
     )
     version = match.group() if match else None
     if match is None or tuple(int(n) for n in match.groups()) < MIN_VERSION:
         return ClaudeStatus(ClaudeState.TOO_OLD, version=version)
-    auth = _sign_in(_run(binary, "auth", "status", timeout=timeout))
+    auth = _sign_in(_run(binary, "auth", "status", timeout=timeout, env=env))
     if not auth.get("loggedIn") or auth.get("authMethod") != _PLAN_LOGIN:
         return ClaudeStatus(ClaudeState.SIGNED_OUT, version=version)
     return ClaudeStatus(

@@ -42,7 +42,11 @@ async def serving_claude_proxy(
 ) -> AsyncIterator[int]:
     global _url
     async with serving_plugin_proxy(
-        sessions, host, 0, allowed=ClaudeHosts(sessions, hosts)
+        sessions,
+        host,
+        0,
+        allowed=ClaudeHosts(sessions, hosts),
+        client="Claude Code",
     ) as port:
         _url = f"http://{host}:{port}"
         try:
