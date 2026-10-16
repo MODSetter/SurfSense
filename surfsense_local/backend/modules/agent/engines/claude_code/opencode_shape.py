@@ -43,11 +43,21 @@ class OpencodeShape:
         self._begun: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self._finished: dict[tuple[str, str], int] = {}
         self._tools: dict[str, dict[str, Any]] = {}
+        # The turn as opencode stores one, so its reply is stated from what streamed.
+        self._messages: list[dict[str, Any]] = []
+        self._by_id: dict[str, dict[str, Any]] = {}
+        self._user = ""
 
     def user(self, message_id: str, created_ms: int) -> list[Event]:
         """The turn's own user message, which opens the reply."""
+        self._user = message_id
         info = {"id": message_id, "role": "user", "time": {"created": created_ms}}
+        self._messages.append({"info": info, "parts": []})
         return [self._event("message.updated", info=info)]
+
+    def messages(self) -> list[dict[str, Any]]:
+        """The turn read so far, as opencode's messages."""
+        return self._messages
 
     def read(self, message: Any) -> list[Event]:
         if getattr(message, "parent_tool_use_id", None):
@@ -59,6 +69,8 @@ class OpencodeShape:
         if isinstance(message, UserMessage):
             return self._results(message)
         if isinstance(message, ResultMessage):
+            if self._message in self._by_id:
+                self._by_id[self._message]["info"]["time"]["completed"] = _now_ms()
             return [self._event("session.idle")]
         return []
 
@@ -155,16 +167,17 @@ class OpencodeShape:
     def _tool(
         self, call_id: str, name: str, tool_input: dict[str, Any], status: str
     ) -> Event:
-        part = self._tools.setdefault(
-            call_id,
-            {
+        part = self._tools.get(call_id)
+        if part is None:
+            part = {
                 "id": call_id,
                 "messageID": self._message,
                 "type": "tool",
                 "callID": call_id,
                 "tool": step_tool(name),
-            },
-        )
+            }
+            self._tools[call_id] = part
+            self._add(part)
         part["state"] = {"status": status, "input": tool_input}
         return self._part(part)
 
@@ -173,6 +186,17 @@ class OpencodeShape:
         if message_id in self._announced:
             return []
         self._announced.add(message_id)
+        message = {
+            "info": {
+                "id": message_id,
+                "role": "assistant",
+                "parentID": self._user,
+                "time": {"created": _now_ms()},
+            },
+            "parts": [],
+        }
+        self._by_id[message_id] = message
+        self._messages.append(message)
         return [
             self._event("message.updated", info={"id": message_id, "role": "assistant"})
         ]
@@ -187,7 +211,14 @@ class OpencodeShape:
         if kind == "reasoning":
             part["time"] = {"start": _now_ms()}
         self._begun.setdefault((self._message, kind), []).append(part)
+        self._add(part)
         return part
+
+    def _add(self, part: dict[str, Any]) -> None:
+        message = self._by_id.get(self._message)
+        if message is not None:
+            message["parts"].append(part)
+            message["info"]["time"]["completed"] = _now_ms()
 
     def _part(self, part: dict[str, Any]) -> Event:
         return self._event("message.part.updated", part=dict(part))

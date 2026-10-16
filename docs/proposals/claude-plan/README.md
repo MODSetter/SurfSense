@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/subscriptions/claude/
   - surfsense_local/backend/modules/llm/connections/

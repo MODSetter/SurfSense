@@ -25,8 +25,8 @@ Before the first turn on an engine, `engines/handover.py` picks one of three, in
 A session is **not fit** when:
 
 - **resuming fails**: opencode no longer has it, or Claude Code answers "No conversation found";
-- **the account changed**: the Claude Code account `claude auth status` reports now is not the one the session was made under, which is stored with `claude_session_id`. OpenClaw "drops stored CLI session reuse when the selected auth identity changes" for the same reason;
-- **it is stale**: the thread has left that engine three times or more since its session last ran a turn, so its own memory is mostly notes.
+- **the account changed**: the Claude Code account `claude auth status` reports now is not the one the session was made under, which is stored with `claude_session_id`. OpenClaw "drops stored CLI session reuse when the selected auth identity changes" for the same reason. Not built: it needs the account stored beside the session, a column no other part needs, and SurfSense's copy of the session resumes under any account;
+- **it is stale**: the thread has left that engine three times or more since its session last ran a turn, so its own memory is mostly notes. Not built: the note already covers every turn since the engine last answered.
 
 ## The note
 
@@ -57,7 +57,7 @@ Measured: Claude Code given a note of an opencode thread answered "Revenue grew 
 
 ## Keeping the note
 
-Each note is stored with the turn that used it: the turn's id, the engine it was for, the turns it covers, whether it went to a new or resumed session, and its text. A later note never edits an earlier one. This is what support reads when a model "forgot" something, and what a later "Continued from another model" marker in the thread would read.
+Each note is kept in the session of the engine it was for, as a block of the user message it went with, so it needs no table: reading the thread back leaves it out of the user's words, as it leaves out the scope note, and support reads it in that session. A later note never edits an earlier one. The note is fitted to 24,000 characters, about 6,000 tokens, which leaves room for the turn in the smallest window the agent runs in.
 
 ## Rejected: a history tool
 
@@ -69,4 +69,4 @@ Nothing to do. The first message after a switch takes a little longer and uses a
 
 ## The thread record
 
-`agent_engine` names the engine the thread runs on now. `opencode_session_id` and `claude_session_id` stay set once made, with the Claude account beside the latter. `thread_messages` merges both sessions' turns by time, so the screen shows one thread.
+`agent_engine` names the engine the thread runs on now. `opencode_session_id` and `claude_session_id` stay set once made. Reading the thread merges both sessions' turns by time ([`both_sessions.py`](../../../surfsense_local/backend/modules/agent/engines/both_sessions.py)), so the screen shows one thread, and a step's whole result is found in whichever session holds it.

@@ -23,7 +23,7 @@ opencode reaches a model through an HTTP provider, and every model reaches it th
 
 Stop is not a method: the stop route stops the thread's run, and the engine's turn, which watches its run, ends itself, as opencode's aborts its session.
 
-[`ChatThread`](../../../surfsense_local/backend/modules/chat/models.py) gains `agent_engine` (`opencode` or `claude_code`, `NULL` for a chat thread), `claude_session_id`, and `claude_account`, the Claude Code account that session was made under. `opencode_session_id` stays. A thread that has switched engines holds both ids ([`04-handover.md`](04-handover.md)).
+[`ChatThread`](../../../surfsense_local/backend/modules/chat/models.py) gains, in revision `0032`, `agent_engine` (`opencode` or `claude_code`, `NULL` for a chat thread; every existing agent thread is `opencode`) and `claude_session_id`, which SurfSense chooses when the thread first needs Claude Code and Claude Code then uses. `opencode_session_id` stays. A thread that has switched engines holds both ids ([`04-handover.md`](04-handover.md)).
 
 Before each turn, the selected model's connection picks the engine: `claude_plan` is `claude_code`, anything else `opencode`. When it differs from `agent_engine`, the handover runs and `agent_engine` changes.
 
@@ -97,7 +97,7 @@ The rules are opencode's ([`opencode_config.py`](../../../surfsense_local/backen
 
 A path is resolved against `cwd` with symlinks followed before it is compared. Measured with these rules: `sources/plan.txt` read and `outputs/summary.md` written; `../escaped.txt` and `/tmp/escaped2.txt` refused; a `CLAUDE.md` placed in the folder not loaded, since `setting_sources` is `[]`. An `allow` ran a plugin tool, an `ask` reached `can_use_tool` before the call, and a `deny` stopped it with the hook's reason given to the model. A PNG in the folder read with `Read` reached the model as an image, and `/etc/hosts` was refused.
 
-**Ask.** The hook emits a `permission-request` frame (`id`, `permission` as the tool's display name, `patterns`, `call_id` from the hook's `tool_use_id`), sets the run to `needs-approval`, and awaits the answer from `answer_permission`: `once` returns `permissionDecision: "allow"`, `reject` returns `deny` with "The user rejected this action." Never "always" ([ADR 0028](../../adr/0028-model-written-code-runs-with-approval.md)). Measured: a hook that awaited an answer 1 to 1.5 s later held the call, and a rejected call never reached the server.
+**Ask.** A hook has a timeout, 60 s unless set, so the hook only decides and returns `ask` at once. Claude Code then calls `can_use_tool`, which emits a `permission-request` frame (`id`, `permission` as opencode names the tool, `patterns`, `call_id` from the call's `tool_use_id`), sets the run to `needs-approval`, and awaits the answer from `answer_permission`: `once` allows the call, `reject` refuses it with "The user rejected this action." Never "always" ([ADR 0028](../../adr/0028-model-written-code-runs-with-approval.md)). Stop refuses every approval still waiting. Measured: an answer given 65 s after the ask let the call run ([`test_agent_engine.py`](../../../surfsense_local/backend/tests/claude_code/test_agent_engine.py)); a rejected call never reached the server.
 
 ## Frames
 

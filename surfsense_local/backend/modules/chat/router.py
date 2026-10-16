@@ -23,7 +23,9 @@ from modules.agent.engine_choice import (
     new_thread_mode,
     remember_thread_mode,
 )
-from modules.agent.engines.thread_engine import thread_engine
+from modules.agent.engines.both_sessions import thread_turns_of
+from modules.agent.engines.handover.take_over import take_over
+from modules.agent.engines.thread_engine import selected_engine, thread_engine
 from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import (
     IMAGE_TOKENS,
@@ -113,7 +115,8 @@ async def create_thread(
         session, _new_thread, workspace.id, payload.title, payload.source_scope
     )
     if opening.mode is ChatMode.AGENTIC:
-        opened = await thread_engine(thread).open_session(session, thread, launch_key)
+        engine = await transact(session, selected_engine)
+        opened = await engine.open_session(session, thread, launch_key)
         if not opened and payload.mode is ChatMode.AGENTIC:
             await transact(session, _delete_thread, thread)
             raise HTTPException(
@@ -178,9 +181,7 @@ async def list_messages(
 ) -> Sequence[ChatMessage] | list[dict]:
     if thread.uses_agent:
         answering = runs.get(thread.id) is not None
-        return await thread_engine(thread).thread_messages(
-            session, thread, launch_key, answering
-        )
+        return await thread_turns_of(session, thread, launch_key, answering)
     return await transact(session, _stored_turns, thread)
 
 
@@ -258,8 +259,14 @@ async def send_message(
         place = RunPlace(
             runs, request.app.state.session_factory, request.app.state.broker
         )
-        return await thread_engine(thread).run_turn(
-            session, thread, payload, launch_key, place
+        # The selected model decides the engine; crossing to the other hands over.
+        taking = await transact(session, selected_engine)
+        handover = None
+        if taking.kind is not thread.agent_engine:
+            leaving = thread_engine(thread)
+            handover = await take_over(session, thread, leaving, taking, launch_key)
+        return await taking.run_turn(
+            session, thread, payload, launch_key, place, handover
         )
     resolved, history, hits, retried, scope_record = await transact(
         session, _ground, thread, payload

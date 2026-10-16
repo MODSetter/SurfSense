@@ -10,32 +10,49 @@ Prompt = str | list[dict[str, Any]]
 class ClaudeRun(Protocol):
     """One running Claude Code. Everything else talks to Claude Code through this."""
 
-    def send(self, prompt: Prompt) -> AsyncIterator[Message]:
-        """Send a user message and yield what follows, up to its `ResultMessage`."""
+    def send(
+        self, prompt: Prompt, *, uuid: str | None = None
+    ) -> AsyncIterator[Message]:
+        """Send a user message and yield what follows, up to its `ResultMessage`.
+
+        `uuid` names the message in the transcript, so a turn read back keeps the
+        id its live frames used.
+        """
         ...
 
     async def interrupt(self) -> None: ...
 
     async def models(self) -> list[dict[str, Any]]: ...
 
+    async def mcp_servers(self) -> list[dict[str, Any]]:
+        """Each MCP server given, with its `status`: `connected`, `failed`, `needs-auth`."""
+        ...
+
     async def close(self) -> None: ...
 
 
-async def _as_user_message(blocks: list[dict[str, Any]]) -> AsyncIterator[dict]:
-    yield {
+async def _as_user_message(
+    blocks: list[dict[str, Any]], uuid: str | None
+) -> AsyncIterator[dict]:
+    message = {
         "type": "user",
         "message": {"role": "user", "content": blocks},
         "parent_tool_use_id": None,
     }
+    yield message if uuid is None else {**message, "uuid": uuid}
 
 
 class _SdkRun:
     def __init__(self, client: ClaudeSDKClient) -> None:
         self._client = client
 
-    async def send(self, prompt: Prompt) -> AsyncIterator[Message]:
+    async def send(
+        self, prompt: Prompt, *, uuid: str | None = None
+    ) -> AsyncIterator[Message]:
+        if isinstance(prompt, str):
+            prompt = [{"type": "text", "text": prompt}] if uuid else prompt
         await self._client.query(
-            prompt if isinstance(prompt, str) else _as_user_message(prompt)
+            prompt if isinstance(prompt, str) else _as_user_message(prompt, uuid)
         )
         async for message in self._client.receive_response():
             yield message
@@ -46,6 +63,9 @@ class _SdkRun:
     async def models(self) -> list[dict[str, Any]]:
         info = await self._client.get_server_info()
         return list((info or {}).get("models", []))
+
+    async def mcp_servers(self) -> list[dict[str, Any]]:
+        return list((await self._client.get_mcp_status()).get("mcpServers", []))
 
     async def close(self) -> None:
         await self._client.disconnect()

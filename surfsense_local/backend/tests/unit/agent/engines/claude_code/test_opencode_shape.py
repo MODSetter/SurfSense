@@ -14,6 +14,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
+from modules.agent.agent_threads.replies import turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.engines.claude_code.opencode_shape import OpencodeShape
 
@@ -184,3 +185,24 @@ def test_words_after_a_tool_open_a_new_paragraph() -> None:
     assert "".join(f["text"] for f in frames if f["type"] == "delta") == (
         "Let me check.\n\nFound a.md."
     )
+
+
+def test_the_turn_read_live_is_the_reply_it_stores() -> None:
+    """The reply is stated from what streamed: the transcript lands in batches, after."""
+    shape = OpencodeShape(SESSION)
+    shape.user("turn-1", created_ms=1_000)
+    for message in [
+        _assistant("msg_1", ToolUseBlock("toolu_1", "Glob", {"pattern": "*.md"})),
+        UserMessage(content=[ToolResultBlock("toolu_1", "a.md")]),
+        _assistant("msg_2", TextBlock("Found a.md.")),
+        _done(),
+    ]:
+        shape.read(message)
+
+    reply = turn_reply(shape.messages(), "turn-1", [])
+
+    assert reply is not None
+    assert reply["id"] == "turn-1:reply"
+    assert reply["content"]["text"] == "Found a.md."
+    assert [step["status"] for step in reply["content"]["steps"]] == ["completed"]
+    assert reply["completed_at"] is not None

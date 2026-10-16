@@ -36,13 +36,19 @@ class ScriptedRun:
         # Answers what the script does not, from what was sent.
         self._respond = respond
         self.sent: list[Any] = []
+        self.uuids: list[str | None] = []
+        # Each MCP server's status, as Claude Code reports it once connected.
+        self.servers: list[dict[str, Any]] = []
         self.interrupted = False
         self.closed = False
         self._models = MAX_PLAN_MODELS if models is None else models
 
-    async def send(self, prompt: Any) -> AsyncIterator[Message]:
+    async def send(
+        self, prompt: Any, *, uuid: str | None = None
+    ) -> AsyncIterator[Message]:
         """Yield the next scripted reply."""
         self.sent.append(prompt)
+        self.uuids.append(uuid)
         reply = (
             self.replies.pop(0)
             if self.replies or not self._respond
@@ -58,6 +64,10 @@ class ScriptedRun:
     async def models(self) -> list[dict[str, Any]]:
         """The scripted model list."""
         return self._models
+
+    async def mcp_servers(self) -> list[dict[str, Any]]:
+        """The scripted MCP servers."""
+        return self.servers
 
     async def close(self) -> None:
         """Record that the run was closed."""

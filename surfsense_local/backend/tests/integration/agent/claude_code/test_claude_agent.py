@@ -1,0 +1,334 @@
+"""An Agentic thread on a Claude plan model runs on the user's Claude Code, as opencode's do."""
+
+import asyncio
+import json
+from pathlib import Path
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import Engine
+
+from modules.chat.models import AgentEngineKind, ChatThread
+from shared.config import get_storage_settings
+from shared.db import create_session_factory
+from tests.claude_agent_stand_in import Call, Fail, Hang, Say
+from tests.integration.agent.claude_code.conftest import ClaudeAgent
+from tests.integration.agent.test_plugin_proxy import connect_plugin
+
+pytestmark = pytest.mark.integration
+SONNET = "claude-sonnet-5-5"
+
+
+async def _agentic_thread(client: AsyncClient, claude_on_this_machine) -> dict:
+    """A Claude plan model chosen, both its hosts allowed, and an Agentic thread opened."""
+    claude_on_this_machine()
+    await client.put(
+        "/egress",
+        json={
+            "destinations": ["host:api.anthropic.com", "host:platform.claude.com"],
+            "enabled": True,
+        },
+    )
+    connection = (
+        await client.post("/llm/connections/claude", json={"label": "Claude"})
+    ).json()
+    chosen = await client.put(
+        "/llm/selection/text_gen",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": connection["id"],
+            "name": SONNET,
+        },
+    )
+    assert chosen.status_code == 200, chosen.text
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    opened = await client.post(
+        f"/workspaces/{workspace['id']}/chat/threads", json={"mode": "agentic"}
+    )
+    assert opened.status_code == 201, opened.text
+    return opened.json()
+
+
+async def _send(client: AsyncClient, thread_id: int, text: str, on_frame=None) -> list:
+    frames: list[dict] = []
+    async with client.stream(
+        "POST", f"/chat/threads/{thread_id}/messages", json={"text": text}
+    ) as reply:
+        assert reply.status_code == 200, await reply.aread()
+        async for line in reply.aiter_lines():
+            if not line.startswith("data: ") or line == "data: [DONE]":
+                continue
+            frame = json.loads(line.removeprefix("data: "))
+            frames.append(frame)
+            if on_frame is not None:
+                await on_frame(frame)
+    return frames
+
+
+def _of(frames: list[dict], kind: str) -> list[dict]:
+    return [frame for frame in frames if frame["type"] == kind]
+
+
+async def test_an_agentic_thread_on_a_claude_plan_model_runs_on_claude_code(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """No opencode is needed: the user's Claude Code is the agent."""
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    assert thread["uses_agent"] is True
+    with create_session_factory(engine)() as session:
+        stored = session.get(ChatThread, thread["id"])
+        assert stored.agent_engine is AgentEngineKind.CLAUDE_CODE
+        assert stored.claude_session_id is not None
+
+
+async def test_a_turn_streams_its_steps_and_reply_as_an_opencode_turn_does(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """The same frames the thread already shows: accepted, steps, words, completed."""
+    claude_agent.turns = [
+        [
+            Call("mcp__surfsense__search_sources", {"query": "Q3"}, "No passages."),
+            Call("Write", {"file_path": "outputs/q3.md", "content": "x"}),
+            Say("Revenue grew 12%."),
+        ]
+    ]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    frames = await _send(client, thread["id"], "What grew in Q3?")
+
+    assert frames[0]["type"] == "agent-preparing"
+    assert _of(frames, "accepted")[0]["user_message_id"]
+    ended = [s for s in _of(frames, "agent-step") if s["status"] == "completed"]
+    assert [s["tool"] for s in ended] == ["surfsense_search_sources", "write"]
+    assert ended[1]["input"]["filePath"] == "outputs/q3.md"
+    assert _of(frames, "completed")[0]["text"] == "Revenue grew 12%."
+
+
+async def test_claude_code_works_in_the_threads_folder_with_surfsenses_tools(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """The tool endpoint is given with the launch key in a file, never on the command line."""
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    await _send(client, thread["id"], "Hello")
+
+    (run,) = claude_agent.started
+    folder = get_storage_settings().thread_working_dir(
+        thread["workspace_id"], thread["id"]
+    )
+    assert run.options.cwd == str(folder)
+    assert run.options.model == SONNET
+    servers = json.loads(Path(run.options.mcp_servers).read_text())["mcpServers"]
+    assert servers["surfsense"]["url"].endswith(
+        f"/agent/tools/workspaces/{thread['workspace_id']}/threads/{thread['id']}"
+    )
+    assert servers["surfsense"]["headers"]["Authorization"].startswith("Bearer ")
+
+
+async def test_the_thread_reads_back_as_it_streamed(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """From SurfSense's copy of the session, under the ids the live frames used."""
+    claude_agent.turns = [
+        [Call("Glob", {"pattern": "sources/*"}, "a.md"), Say("Found a.md.")]
+    ]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    frames = await _send(client, thread["id"], "List the sources")
+
+    listed = (await client.get(f"/chat/threads/{thread['id']}/messages")).json()
+
+    accepted = _of(frames, "accepted")[0]
+    assert [turn["id"] for turn in listed] == [
+        accepted["user_message_id"],
+        accepted["assistant_message_id"],
+    ]
+    assert listed[0]["content"]["text"] == "List the sources"
+    assert listed[1]["content"]["text"] == "Found a.md."
+    assert [step["tool"] for step in listed[1]["content"]["steps"]] == ["glob"]
+
+
+async def test_the_next_turn_resumes_the_same_claude_code(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """Set up alike, the second turn reuses the running Claude Code and its session."""
+    claude_agent.turns = [[Say("One.")], [Say("Two.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    await _send(client, thread["id"], "First")
+    await _send(client, thread["id"], "Second")
+
+    (run,) = claude_agent.started
+    assert len(run.sent) == 2
+    listed = (await client.get(f"/chat/threads/{thread['id']}/messages")).json()
+    assert [turn["content"]["text"] for turn in listed] == [
+        "First",
+        "One.",
+        "Second",
+        "Two.",
+    ]
+
+
+async def test_a_refused_call_is_an_error_step_and_the_turn_goes_on(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """The gate refuses outside the folder, as opencode's rules do, and says why."""
+    claude_agent.turns = [
+        [Call("Read", {"file_path": "/etc/hosts"}), Say("I can't read that.")]
+    ]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    frames = await _send(client, thread["id"], "Read /etc/hosts")
+
+    step = _of(frames, "agent-step")[-1]
+    assert step["status"] == "error"
+    assert "thread's folder" in step["error"]
+    assert _of(frames, "completed")[0]["text"] == "I can't read that."
+
+
+async def test_a_signed_out_claude_code_shows_the_sign_in_notice(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """The same notice a chat on the plan shows, and the reply reads back failed."""
+    claude_agent.turns = [[Fail("authentication_failed")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    frames = await _send(client, thread["id"], "Hello")
+
+    (error,) = _of(frames, "error")
+    assert error["kind"] == "claude_sign_in"
+
+
+async def test_stop_interrupts_claude_code_and_the_reply_reads_back_stopped(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """After a reload the thread still says the user cut this reply short."""
+    claude_agent.turns = [[Hang("Thinking about")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    sending = asyncio.create_task(_send(client, thread["id"], "Go"))
+    while not claude_agent.started:
+        await asyncio.sleep(0.01)
+    await asyncio.wait_for(claude_agent.started[0].hanging.wait(), 5)
+    stopped = await client.post(f"/chat/threads/{thread['id']}/run/stop")
+    await asyncio.wait_for(sending, 5)
+
+    assert stopped.status_code == 204
+    assert claude_agent.started[0].interrupted
+    reply = (await client.get(f"/chat/threads/{thread['id']}/messages")).json()[-1]
+    assert reply["content"]["text"] == "Thinking about"
+    assert reply["content"]["ending"] == {"type": "stopped"}
+
+
+async def test_deleting_the_thread_ends_its_claude_code(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """Its running Claude Code, its config file and SurfSense's copy all go."""
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    await _send(client, thread["id"], "Hello")
+    (run,) = claude_agent.started
+    config = Path(run.options.mcp_servers)
+
+    deleted = await client.delete(f"/chat/threads/{thread['id']}")
+
+    assert deleted.status_code == 204
+    assert run.closed
+    assert not config.exists()
+
+
+async def test_a_plugin_call_waits_for_the_users_yes(
+    base_url: str, engine: Engine, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """A tool the gateway asks about holds Claude Code's call until Allow once arrives."""
+    connect_plugin(engine, "https://localhost:1/mcp")
+    claude_agent.turns = [
+        [Call("mcp__notes__search", {"query": "Q3"}, "Q3 notes."), Say("Found them.")]
+    ]
+    asked: list[dict] = []
+    async with AsyncClient(base_url=base_url, timeout=30) as live:
+        thread = await _agentic_thread(live, claude_on_this_machine)
+
+        async def approve(frame: dict) -> None:
+            if frame["type"] == "permission-request":
+                asked.append(frame)
+                reply = await live.post(
+                    f"/chat/threads/{thread['id']}/permissions/{frame['id']}",
+                    json={"reply": "once"},
+                )
+                assert reply.status_code == 204
+
+        frames = await _send(live, thread["id"], "Search my notes", approve)
+
+    (request,) = asked
+    assert request["permission"] == "notes_search"
+    step = [s for s in _of(frames, "agent-step") if s["call_id"] == request["call_id"]]
+    assert step[-1]["status"] == "completed"
+    assert step[-1]["output"] == "Q3 notes."
+    assert _of(frames, "completed")[0]["text"] == "Found them."
+
+
+async def test_a_rejected_plugin_call_never_runs(
+    base_url: str, engine: Engine, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """Reject reaches Claude Code as a refusal, and the step fails with it."""
+    connect_plugin(engine, "https://localhost:1/mcp")
+    claude_agent.turns = [[Call("mcp__notes__search", {"query": "Q3"}), Say("Okay.")]]
+    async with AsyncClient(base_url=base_url, timeout=30) as live:
+        thread = await _agentic_thread(live, claude_on_this_machine)
+
+        async def reject(frame: dict) -> None:
+            if frame["type"] == "permission-request":
+                await live.post(
+                    f"/chat/threads/{thread['id']}/permissions/{frame['id']}",
+                    json={"reply": "reject"},
+                )
+
+        frames = await _send(live, thread["id"], "Search my notes", reject)
+
+    assert _of(frames, "permission-replied")[0]["reply"] == "reject"
+    assert _of(frames, "agent-step")[-1]["error"] == "The user rejected this action."
+
+
+async def test_a_steps_whole_result_is_read_from_surfsenses_copy(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """Show full result reads the step as stored, past what its frame carried."""
+    long = "x" * 5000
+    claude_agent.turns = [
+        [Call("Read", {"file_path": "sources/a.md"}, long), Say("Read.")]
+    ]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    frames = await _send(client, thread["id"], "Read a.md")
+    step = _of(frames, "agent-step")[-1]
+
+    whole = await client.get(f"/chat/threads/{thread['id']}/steps/{step['id']}/result")
+
+    assert len(step["output"]) < len(long)
+    assert whole.status_code == 200
+    assert whole.json() == {"output": long, "error": None}
+
+
+async def test_after_stop_the_next_message_is_answered(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """The stopped turn's end is read, so it never stands in for the next turn's reply."""
+    claude_agent.turns = [[Hang("Thinking about")], [Say("Fresh answer.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    sending = asyncio.create_task(_send(client, thread["id"], "Go"))
+    while not claude_agent.started:
+        await asyncio.sleep(0.01)
+    await asyncio.wait_for(claude_agent.started[0].hanging.wait(), 5)
+    await client.post(f"/chat/threads/{thread['id']}/run/stop")
+    await asyncio.wait_for(sending, 5)
+
+    frames = await _send(client, thread["id"], "Try again")
+
+    assert _of(frames, "completed")[0]["text"] == "Fresh answer."

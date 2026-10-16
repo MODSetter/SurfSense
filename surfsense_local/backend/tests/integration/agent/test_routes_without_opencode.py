@@ -1,4 +1,7 @@
-"""An API that Electron started without opencode serves none of opencode's routes."""
+"""An API that Electron started without opencode serves none of opencode's own routes.
+
+The tool endpoint serves a Claude Code thread too, so it stays, behind the launch key.
+"""
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -13,11 +16,6 @@ pytestmark = pytest.mark.integration
 # Each with a body its route accepts, so only a missing route can answer 404.
 OPENCODE_ROUTES = [
     ("/agent/model/v1/chat/completions", {"model": "m", "messages": []}),
-    (
-        "/agent/tools/workspaces/1/threads/1",
-        {"jsonrpc": "2.0", "id": 1, "method": "ping"},
-    ),
-    ("/chat/threads/1/permissions/request-1", {"reply": "once"}),
 ]
 
 
@@ -38,3 +36,24 @@ async def test_an_api_without_opencode_has_none_of_its_routes(
 
     assert reply.status_code == 404
     assert reply.json() == {"detail": "Not Found"}
+
+
+async def test_without_opencode_the_tool_endpoint_still_wants_the_launch_key(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Loopback is open to every process; only an engine SurfSense launched holds the key."""
+    monkeypatch.setattr(get_agent_settings(), "opencode_url", None)
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", None)
+    app = create_app()
+    app.state.session_factory = create_session_factory(engine)
+    app.state.agent_launch_key = "the-launch-key"
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        reply = await client.post(
+            "/agent/tools/workspaces/1/threads/1",
+            json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+        )
+
+    assert reply.status_code == 401

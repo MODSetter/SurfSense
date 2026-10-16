@@ -7,12 +7,24 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from modules.agent.agent_threads.turn import RunPlace
-from modules.chat.models import ChatThread
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.chat.schemas import MessageCreate
 
 
 class AgentEngine(Protocol):
     """An engine refuses a request the way its route answers, with an HTTPException."""
+
+    kind: AgentEngineKind
+
+    def has_session(self, thread: ChatThread) -> bool:
+        """Whether this engine has run, or was given, the thread."""
+        ...
+
+    async def ensure_session(
+        self, session: Session, thread: ChatThread, launch_key: str
+    ) -> None:
+        """Give a thread another engine opened a session of this engine's, in its own folder."""
+        ...
 
     async def open_session(
         self, session: Session, thread: ChatThread, launch_key: str
@@ -27,7 +39,10 @@ class AgentEngine(Protocol):
         payload: MessageCreate,
         launch_key: str,
         place: RunPlace,
-    ) -> StreamingResponse: ...
+        handover: str | None = None,
+    ) -> StreamingResponse:
+        """`handover` is what the other engine did while this one was away."""
+        ...
 
     async def thread_messages(
         self, session: Session, thread: ChatThread, launch_key: str, answering: bool
@@ -37,7 +52,9 @@ class AgentEngine(Protocol):
         self, thread: ChatThread, request_id: str, reply: Literal["once", "reject"]
     ) -> None: ...
 
-    async def stored_step(self, thread: ChatThread, part_id: str) -> dict[str, Any]:
+    async def stored_step(
+        self, session: Session, thread: ChatThread, part_id: str
+    ) -> dict[str, Any]:
         """A tool step whole, as the engine stored it: a turn's frames carry only its start."""
         ...
 

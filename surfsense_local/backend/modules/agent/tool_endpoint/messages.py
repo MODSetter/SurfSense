@@ -21,7 +21,7 @@ async def answer(
 ) -> dict[str, Any] | None:
     """The reply to one message; None for a notification, which gets none.
 
-    `scope` is read only for a tool call.
+    `scope` is read for a listing and a tool call.
     """
     if "id" not in message:
         return None
@@ -30,7 +30,7 @@ async def answer(
     if method == "initialize":
         return replies.result(message, initialized(params))
     if method == "tools/list":
-        return replies.result(message, {"tools": offered_tools.listings()})
+        return replies.result(message, {"tools": offered_tools.listings(await scope())})
     if method == "tools/call":
         return await offered_tools.call(message, params, session, await scope())
     if method == "ping":
