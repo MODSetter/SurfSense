@@ -121,7 +121,7 @@ def test_a_scanned_page_between_born_digital_ones_is_all_docling_reads(
             pdf_samples.set_text(REPORT[3:6]),
         ]
     )
-    assert "Docling reads pages 2 of report.pdf: page 2 is ocr:no-text" in caplog.text
+    assert "Docling reads page 2 of report.pdf: page 2 is ocr:no-text" in caplog.text
 
 
 def test_a_turned_landscape_page_is_read_by_docling_alone(
@@ -146,13 +146,41 @@ def test_a_turned_landscape_page_is_read_by_docling_alone(
     )
 
 
-def test_runs_of_flagged_pages_are_each_read_in_one_go(
+def test_a_picture_on_a_turned_page_alone_queues_the_idle_pass(
     session: Session, stub_model: None, paged_docling: PagedDocling
+) -> None:
+    """Its images count, though its text is Docling's."""
+    pdf = pdf_samples.turned(
+        pdf_samples.joined(
+            pdf_samples.text_pages(REPORT[:3]),
+            pdf_samples.illustrated(REPORT[3:6]),
+            pdf_samples.text_pages(REPORT[6:]),
+        ),
+        1,
+        90,
+    )
+    source = upload(session, pdf)
+
+    run(source.id)
+
+    session.expire_all()
+    assert paged_docling.asked == [(2, 2)]
+    assert [(t.name, t.args, t.priority) for t in ingest_queue.pending()] == [
+        ("extract_figures", (source.id,), PRIORITY_IDLE)
+    ]
+
+
+def test_runs_of_flagged_pages_are_each_read_in_one_go(
+    session: Session,
+    stub_model: None,
+    paged_docling: PagedDocling,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A run of consecutive pages is one reading; the pages between stay text."""
     text = pdf_samples.text_pages(REPORT[:3])
     pdf = pdf_samples.joined(scans(1), text, text, scans(2), text, text, text)
     source = upload(session, pdf)
+    caplog.set_level(logging.INFO, logger="worker.ingestion.pdf_reading.route")
 
     run(source.id)
 
@@ -169,6 +197,9 @@ def test_runs_of_flagged_pages_are_each_read_in_one_go(
             page,
             page,
         ]
+    )
+    assert "Docling reads pages 1, 4-5 of report.pdf: page 1 is ocr:no-text" in (
+        caplog.text
     )
 
 

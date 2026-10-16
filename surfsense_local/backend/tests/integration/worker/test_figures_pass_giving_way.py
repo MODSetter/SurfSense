@@ -1,9 +1,11 @@
-"""The figures-only pass gives the queue up to any source that waits, once it has
-had some 20 s, keeping the runs it has read, and carries on at the priority it
-was queued with; ingest queues it at idle for a PDF with drawn charts too."""
+"""The figures-only pass gives the queue up to a source whose ingest waits at the
+pass's priority or above, once it has had some 20 s, keeping the runs it has
+read, and carries on at the priority it was queued with; ingest queues it at
+idle for a PDF with image objects, and not for drawing alone."""
 
 import io
 import json
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,7 +21,13 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.documents.tasks import PRIORITY_IDLE, extract_figures
+from modules.documents.tasks import (
+    PRIORITY_BULK,
+    PRIORITY_IDLE,
+    PRIORITY_INTERACTIVE,
+    extract_figures,
+    ingest_document,
+)
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -27,7 +35,7 @@ from shared.queue import ingest_queue
 from tests import pdf_samples
 from tests.integration.worker.docling_stand_in import provenance
 from worker.ingestion import run
-from worker.ingestion.figures import queue_turn
+from worker.ingestion.figures import queue_turn, run_reading
 from worker.ingestion.figures.idle_pass import IDLE_PASS_PAGES
 from worker.ingestion.figures.run_reading import LayoutReading
 
@@ -121,7 +129,8 @@ def add_source(
 
 
 def add_waiting_note(session: Session) -> Document:
-    """A note written while the pass runs, waiting for the queue."""
+    """A note written while the pass runs, waiting for the queue; its job is
+    queued by `pass_turn`, or not at all."""
     note = Document(
         workspace_id=session.query(Workspace).first().id,
         title="Berth plan",
@@ -149,19 +158,50 @@ def run_queued() -> None:
     ingest_queue.execute(ingest_queue.dequeue())
 
 
-@pytest.mark.parametrize("priority", [PRIORITY_IDLE, 0], ids=["idle", "asked"])
+def drain() -> None:
+    """The ingest worker takes every job left."""
+    while ingest_queue.pending_count():
+        run_queued()
+
+
+def pass_turn(source: Document, priority: int, *waiting: tuple[Document, int]) -> None:
+    """The worker takes the pass queued at `priority`, and each waiting source's
+    ingest is queued at its own priority while the pass reads."""
+    extract_figures(source.id, priority=priority)
+    task = ingest_queue.dequeue()
+    assert task.name == "extract_figures"
+    for document, at in waiting:
+        ingest_document(document.id, priority=at)
+    ingest_queue.execute(task)
+
+
+def queued() -> list[tuple[str, tuple, int]]:
+    """Each job in the queue, in the order the worker takes them."""
+    return [(t.name, t.args, t.priority or 0) for t in ingest_queue.pending()]
+
+
+@pytest.mark.parametrize("waiting", ["note", "upload"])
+@pytest.mark.parametrize(
+    "priority", [PRIORITY_IDLE, PRIORITY_INTERACTIVE], ids=["idle", "asked"]
+)
 def test_the_pass_gives_way_to_a_waiting_source_and_queues_again(
     session: Session,
     runs: SimpleNamespace,
     no_wait: None,
     priority: int,
+    waiting: str,
 ) -> None:
-    """At the priority it came with, its runs kept and figures.json not yet written."""
+    """At the priority it came with, behind that source, its runs kept and
+    figures.json not yet written."""
     source = add_source(session, report_with_a_scan())
-    note = add_waiting_note(session)
-    extract_figures(source.id, priority=priority)
+    if waiting == "note":
+        note = add_waiting_note(session)
+    else:
+        note = add_source(
+            session, report_with_a_scan(), "upload.pdf", DocumentStatus.PENDING
+        )
 
-    run_queued()
+    pass_turn(source, priority, (note, PRIORITY_INTERACTIVE))
 
     assert runs.asked == RUNS[:1]
     assert not (folder_of(source) / "figures" / "figures.json").exists()
@@ -169,13 +209,14 @@ def test_the_pass_gives_way_to_a_waiting_source_and_queues_again(
     assert sorted(path.name for path in kept.glob("layout-*.json")) == [
         "layout-1-2.json"
     ]
-    assert [(t.name, t.args, t.priority or 0) for t in ingest_queue.pending()] == [
-        ("extract_figures", (source.id,), priority)
+    assert queued() == [
+        ("ingest_document", (note.id,), PRIORITY_INTERACTIVE),
+        ("extract_figures", (source.id,), priority),
     ]
 
     session.delete(note)
     session.commit()
-    run_queued()
+    drain()
 
     assert runs.asked == RUNS
     index = json.loads(figures(source)["figures.json"])
@@ -193,9 +234,8 @@ def test_a_resumed_pass_keeps_the_very_figures_of_an_uninterrupted_one(
     resumed = add_source(session, report_with_a_scan(), name="resumed.pdf")
     note = add_waiting_note(session)
     for _turn in range(2):
-        extract_figures(resumed.id, priority=PRIORITY_IDLE)
-        run_queued()
-        assert ingest_queue.pending_count() == 1  # it gave way again
+        pass_turn(resumed, PRIORITY_IDLE, (note, PRIORITY_INTERACTIVE))
+        assert queued()[-1] == ("extract_figures", (resumed.id,), PRIORITY_IDLE)
         ingest_queue.flush()
     session.delete(note)
     session.commit()
@@ -214,12 +254,49 @@ def test_the_pass_does_not_give_way_before_its_time(
 ) -> None:
     """The 20 s keeps a short file's pass whole."""
     source = add_source(session, report_with_a_scan())
-    add_waiting_note(session)
+    note = add_waiting_note(session)
 
-    extract_figures.call_local(source.id)
+    pass_turn(source, PRIORITY_IDLE, (note, PRIORITY_INTERACTIVE))
 
     assert runs.asked == RUNS
     assert "figures.json" in figures(source)
+
+
+def test_an_asked_for_pass_does_not_give_way_to_work_queued_below_it(
+    session: Session, runs: SimpleNamespace, no_wait: None
+) -> None:
+    """Queued again at 100, it would run ahead of that work and give way again,
+    reading the whole file a run a turn while nothing else ran. Nor to a pending
+    row with no job queued, which nobody waits on."""
+    source = add_source(session, report_with_a_scan())
+    copied = add_source(
+        session, report_with_a_scan(), "copied.pdf", DocumentStatus.PENDING
+    )
+    add_waiting_note(session)
+
+    pass_turn(source, PRIORITY_INTERACTIVE, (copied, PRIORITY_BULK))
+
+    assert runs.asked == RUNS
+    assert "figures.json" in figures(source)
+    assert queued() == [("ingest_document", (copied.id,), PRIORITY_BULK)]
+
+
+def test_an_idle_pass_gives_way_to_a_bulk_copy(
+    session: Session, runs: SimpleNamespace, no_wait: None
+) -> None:
+    """Nobody waits on it, so every upload goes first."""
+    source = add_source(session, report_with_a_scan())
+    copied = add_source(
+        session, report_with_a_scan(), "copied.pdf", DocumentStatus.PENDING
+    )
+
+    pass_turn(source, PRIORITY_IDLE, (copied, PRIORITY_BULK))
+
+    assert runs.asked == RUNS[:1]
+    assert queued() == [
+        ("ingest_document", (copied.id,), PRIORITY_BULK),
+        ("extract_figures", (source.id,), PRIORITY_IDLE),
+    ]
 
 
 def chart_page(bars: int) -> bytes:
@@ -239,20 +316,19 @@ def chart_page(bars: int) -> bytes:
     return out.getvalue()
 
 
-def test_ingest_queues_the_idle_pass_for_a_chart_drawn_as_paths(
+def test_a_chart_drawn_as_paths_alone_waits_to_be_asked(
     session: Session, stub_model: None, docling: list[Any]
 ) -> None:
-    """No image object, but enough drawing for a chart; the docling fixture fails
-    the test if Docling is asked to read it."""
+    """No count of path segments told a chart from a table's rules, and the pass
+    would load Docling into the ingest worker; the docling fixture fails the test
+    if Docling is asked to read it."""
     source = add_source(session, chart_page(bars=8), status=DocumentStatus.PENDING)
 
     run(source.id)
 
     session.expire_all()
     assert source.status is DocumentStatus.READY
-    assert [(t.name, t.args, t.priority) for t in ingest_queue.pending()] == [
-        ("extract_figures", (source.id,), PRIORITY_IDLE)
-    ]
+    assert ingest_queue.pending_count() == 0
 
 
 def test_ingest_leaves_a_long_pdf_to_be_asked(
@@ -278,3 +354,24 @@ def test_ingest_leaves_a_long_pdf_to_be_asked(
     session.expire_all()
     assert source.status is DocumentStatus.READY
     assert ingest_queue.pending_count() == 0
+
+
+def test_a_source_deleted_while_its_pass_reads_does_not_come_back(
+    session: Session, runs: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Delete takes a ready source whatever its pass is doing; the runs the pass
+    goes on to read are kept nowhere, and no folder is made again for them."""
+    source = add_source(session, report_with_a_scan())
+    read = run_reading.read_by_layout
+
+    def deleted_first(pdf: Path, first: int, last: int) -> LayoutReading:
+        if first == 1:
+            shutil.rmtree(folder_of(source))
+        return read(pdf, first, last)
+
+    monkeypatch.setattr(run_reading, "read_by_layout", deleted_first)
+
+    extract_figures.call_local(source.id)
+
+    assert runs.asked == RUNS
+    assert not folder_of(source).exists()

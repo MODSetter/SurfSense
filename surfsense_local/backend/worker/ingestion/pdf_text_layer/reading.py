@@ -12,6 +12,7 @@ from worker.ingestion.pdf_text_layer.filled_fields import holds_filled_fields
 from worker.ingestion.pdf_text_layer.page_triage import (
     TEXT_USABLE,
     PageKind,
+    drawn_objects,
     read_page,
 )
 from worker.ingestion.pdf_text_layer.switch import text_layer_on
@@ -84,7 +85,10 @@ def _page(pdf: pypdfium2.PdfDocument, index: int) -> LayerPage:
         # pdfium returns a turned page's lines last to first.
         turned = page.get_rotation()
         if turned:
-            return LayerPage(None, f"page {index + 1} is turned {turned} degrees")
+            # Its images count still: a picture on it alone gets the idle pass.
+            images, segments = drawn_objects(page)
+            why = f"page {index + 1} is turned {turned} degrees"
+            return LayerPage(None, why, None, images, segments)
         reading = read_page(page)
     finally:
         page.close()

@@ -315,14 +315,31 @@ def test_a_picture_page_with_a_caption_only_ocr_could_read_is_read_again_in_full
     assert sorted(joined.pages) == [1, 2, 3, 4]
 
 
-def test_a_reading_that_lacks_a_page_falls_back_to_the_full_one(
+def test_a_page_a_reading_lacks_is_kept_empty_and_no_full_reading_follows(
     tmp_path: Path, docling: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Joining would shift every later page, and the crops with them."""
+    """Joining would shift every later page, and the crops with them; a reading of
+    the whole file, which never gives way, lacks the page all the same."""
     docling.lost = {1}
     monkeypatch.setattr("worker.ingestion.parsing.convert", lambda _path: "full")
 
     source = pdf(tmp_path / "report.pdf", words, words, stamped_scan)
+    joined = reading_for_figures(source)
 
-    assert reading_for_figures(source) == "full"
-    assert docling.asked == [("layout", (1, 2))]
+    assert docling.asked == [("layout", (1, 2)), ("full", (3, 3))]
+    assert kept(joined) == [(2, "layout 2"), (3, "full 3")]
+    assert sorted(joined.pages) == [1, 2, 3]
+
+
+@pytest.mark.parametrize("lost", [8, 9], ids=["last-of-a-batch", "first-of-a-batch"])
+def test_a_long_scan_that_lost_a_page_keeps_its_batches_and_pages(
+    tmp_path: Path, docling: SimpleNamespace, lost: int
+) -> None:
+    """Read in full a batch at a time, each picture on its own page."""
+    docling.lost = {lost}
+
+    joined = read_for_pictures(tmp_path / "scan.pdf", [True] * 20)
+
+    assert docling.asked == [("full", (1, 8)), ("full", (9, 16)), ("full", (17, 20))]
+    assert kept(joined) == [(n, f"full {n}") for n in range(1, 21) if n != lost]
+    assert sorted(joined.pages) == list(range(1, 21))

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from worker.ingestion.docling_batches.checkpoint import ReadingCheckpoint
+from worker.ingestion.docling_batches.lost_pages import with_every_page
 from worker.ingestion.docling_batches.page_runs import BATCH_PAGES
 from worker.ingestion.figures import run_reading
 
@@ -104,8 +105,9 @@ class _Reader:
 
 def _whole(document: Any, run: _Run) -> Any:
     # Joining renumbers each reading's pages from where the last one ended.
-    if set(document.pages) != set(range(run.first, run.last + 1)):
-        raise ValueError(f"the reading of pages {run.first}-{run.last} lacks some")
+    pages = range(run.first, run.last + 1)
+    if set(with_every_page(document, pages).pages) != set(pages):
+        raise ValueError(f"the reading of pages {run.first}-{run.last} has others")
     return document
 
 

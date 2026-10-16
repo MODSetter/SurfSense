@@ -1,6 +1,5 @@
 """Docling's reading of a whole PDF, its figures kept as ingest reads it."""
 
-import logging
 from pathlib import Path
 
 import pypdfium2
@@ -12,8 +11,6 @@ from worker.ingestion.docling_batches.joined import joined
 from worker.ingestion.docling_batches.page_runs import PageRun, batches_of
 from worker.ingestion.docling_batches.reading import read_batches
 from worker.ingestion.figures.store import keep_figures
-
-logger = logging.getLogger(__name__)
 
 
 def whole_markdown(document: Document, original: Path, pages: int | None) -> str:
@@ -27,14 +24,8 @@ def whole_markdown(document: Document, original: Path, pages: int | None) -> str
         return converted.export_to_markdown()
     read = read_batches(document, original, batches)
     reading = joined(list(zip(batches, read, strict=True)))
-    if reading.pages_kept:
-        keep_figures(original, reading.document)
-    else:
-        logger.info(
-            "%s: Docling dropped a page, so its figures wait for the figures pass",
-            original.name,
-        )
-    return reading.document.export_to_markdown()
+    keep_figures(original, reading)
+    return reading.export_to_markdown()
 
 
 def _page_count(original: Path) -> int | None:

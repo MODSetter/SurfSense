@@ -105,9 +105,24 @@ def read_page(page: Any) -> PageReading:
     return PageReading(printable(text), _kind(signs), signs.images, signs.segments)
 
 
-def _signs(page: Any, box: Box, text: str, unmapped: int, margins_only: bool) -> _Signs:
+def drawn_objects(page: Any) -> tuple[int, int]:
+    """Image objects and path segments, for a page whose text is not read, as a
+    turned one: the figures it may hold. Hold shared.pdfium.lock."""
+    objects = _objects(page, page.get_bbox())
+    return objects.images, objects.segments
+
+
+@dataclass(frozen=True)
+class _Objects:
+    images: int
+    image_area: float
+    text_objects: int
+    invisible: int
+    segments: int
+
+
+def _objects(page: Any, box: Box) -> _Objects:
     left, bottom, right, top = box
-    area = max(1.0, (right - left) * (top - bottom))
     image_area = 0.0
     images = text_objects = invisible = segments = 0
     # Every depth: N-up imposition and a PDF included in a PDF nest Form XObjects.
@@ -125,16 +140,23 @@ def _signs(page: Any, box: Box, text: str, unmapped: int, margins_only: bool) ->
             mode = pdfium_c.FPDFTextObj_GetTextRenderMode(obj.raw)
             if mode == pdfium_c.FPDF_TEXTRENDERMODE_INVISIBLE:
                 invisible += 1
+    return _Objects(images, image_area, text_objects, invisible, segments)
+
+
+def _signs(page: Any, box: Box, text: str, unmapped: int, margins_only: bool) -> _Signs:
+    left, bottom, right, top = box
+    area = max(1.0, (right - left) * (top - bottom))
+    objects = _objects(page, box)
     return _Signs(
         chars=len(_SPACE.sub("", text)),
         unmapped=unmapped,
         bad=sum(map(_is_bad, text)),
         alnum=_alnum_ratio(text),
-        image_cover=min(1.0, image_area / area),
-        images=images,
-        text_objects=text_objects,
-        invisible=invisible,
-        segments=segments,
+        image_cover=min(1.0, objects.image_area / area),
+        images=objects.images,
+        text_objects=objects.text_objects,
+        invisible=objects.invisible,
+        segments=objects.segments,
         margins_only=margins_only,
     )
 

@@ -1,5 +1,8 @@
-"""A long Docling reading's batches: how pages are cut, and how the batches join
-into the reading one conversion of all their pages makes."""
+"""A long Docling reading's batches: how pages are cut, how the batches join into
+the reading one conversion of all their pages makes, and when kept ones are
+read again."""
+
+from pathlib import Path
 
 import pytest
 from docling_core.types.doc import (
@@ -13,6 +16,8 @@ from docling_core.types.doc import (
 )
 from reportlab.lib.pagesizes import A4
 
+from worker.ingestion.docling_batches import checkpoint
+from worker.ingestion.docling_batches.checkpoint import ReadingCheckpoint
 from worker.ingestion.docling_batches.joined import joined
 from worker.ingestion.docling_batches.page_runs import (
     PageRun,
@@ -96,13 +101,12 @@ def test_a_paragraph_running_on_past_a_batch_is_one_text_again() -> None:
 
     whole = joined([(PageRun(1, 1), before), (PageRun(2, 2), after)])
 
-    assert texts(whole.document) == [
+    assert texts(whole) == [
         ("Harbour dues rose.", [(1, (0, 18))]),
         ("The crane budget covers two berths.", [(1, (0, 16)), (2, (17, 35))]),
         ("Dredging ends.", [(2, (0, 14))]),
     ]
-    assert sorted(whole.document.pages) == [1, 2]
-    assert whole.pages_kept
+    assert sorted(whole.pages) == [1, 2]
 
 
 def test_a_word_split_at_a_batch_edge_is_one_word_again() -> None:
@@ -112,7 +116,7 @@ def test_a_word_split_at_a_batch_edge_is_one_word_again() -> None:
 
     whole = joined([(PageRun(1, 1), before), (PageRun(2, 2), after)])
 
-    assert [text for text, _places in texts(whole.document)] == [
+    assert [text for text, _places in texts(whole)] == [
         "The terminal's throughput doubled."
     ]
 
@@ -133,7 +137,7 @@ def test_a_closed_sentence_or_a_heading_is_not_joined() -> None:
         ]
     )
 
-    assert [text for text, _places in texts(whole.document)] == [
+    assert [text for text, _places in texts(whole)] == [
         "Harbour dues rose.",
         "berths reopened.",
         "The crane budget",
@@ -151,16 +155,62 @@ def test_a_text_runs_on_past_a_batch_with_nothing_to_read() -> None:
         [(PageRun(1, 1), before), (PageRun(2, 2), blank), (PageRun(3, 3), after)]
     )
 
-    assert [text for text, _places in texts(whole.document)] == [
+    assert [text for text, _places in texts(whole)] == [
         "The crane budget covers two berths."
     ]
 
 
-def test_a_batch_that_lost_a_page_is_said_so() -> None:
-    """Joining numbers pages on from the last batch's, so its pictures would move."""
-    before = reading(1, [[(TEXT, "Harbour dues rose.")]])
-    short = reading(2, [[(TEXT, "Dredging ends.")]])
+@pytest.mark.parametrize("lost", [2, 3], ids=["last-of-a-batch", "first-of-a-batch"])
+def test_a_page_a_batch_lost_leaves_every_later_page_in_place(lost: int) -> None:
+    """Joining numbers each batch's pages on from the last one's; the lost page is
+    kept empty, so what Docling read on page 4 stays on page 4."""
+    pages = {
+        1: "Harbour dues rose.",
+        2: "Cranes were idle.",
+        3: "Dredging ends.",
+        4: "Berth four reopens.",
+    }
+    batches = []
+    for run in (PageRun(1, 2), PageRun(3, 4)):
+        read = DoclingDocument(name="report")
+        for n in run.pages:
+            if n != lost:
+                read.add_page(page_no=n, size=Size(width=A4[0], height=A4[1]))
+                read.add_text(label=TEXT, text=pages[n], prov=place(n, 0, pages[n]))
+        batches.append((run, read))
 
-    whole = joined([(PageRun(1, 1), before), (PageRun(2, 3), short)])
+    whole = joined(batches)
 
-    assert not whole.pages_kept
+    assert [(text, places[0][0]) for text, places in texts(whole)] == [
+        (pages[n], n) for n in pages if n != lost
+    ]
+    assert sorted(whole.pages) == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize("change", ["docling", "format", "parser pack"])
+def test_batches_kept_by_another_docling_format_or_parser_pack_are_read_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str
+) -> None:
+    """Each can read the same bytes otherwise, so the batches would not join as
+    one reading."""
+    original = tmp_path / "scan.pdf"
+    original.write_bytes(b"%PDF-1.7 a scan")
+    work = tmp_path / "docling" / "work"
+    kept = ReadingCheckpoint(work, original, root=tmp_path / "docling")
+    assert kept.keep("pages-1-8", reading(1, [[(TEXT, "Harbour dues rose.")]]))
+    assert ReadingCheckpoint(work, original).done("pages-1-8") is not None
+
+    if change == "docling":
+        monkeypatch.setattr(checkpoint, "version", lambda _name: "0.0.1")
+    elif change == "format":
+        monkeypatch.setattr(checkpoint, "_FORMAT", checkpoint._FORMAT + 1)
+    else:
+        pack_missing = bool(checkpoint.missing_parser_folders())
+        monkeypatch.setattr(
+            checkpoint,
+            "missing_parser_folders",
+            lambda: [] if pack_missing else ["RapidOcr"],
+        )
+
+    assert ReadingCheckpoint(work, original).done("pages-1-8") is None
+    assert not work.exists()

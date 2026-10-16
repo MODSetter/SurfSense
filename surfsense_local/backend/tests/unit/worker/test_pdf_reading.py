@@ -4,11 +4,7 @@ and which text-read PDFs get the figures-only pass queued at idle."""
 import pytest
 
 from worker.ingestion.docling_batches.page_runs import PageRun
-from worker.ingestion.figures.idle_pass import (
-    CHART_SEGMENTS,
-    IDLE_PASS_PAGES,
-    wants_idle_pass,
-)
+from worker.ingestion.figures.idle_pass import IDLE_PASS_PAGES, wants_idle_pass
 from worker.ingestion.pdf_reading.docling_pages import pages_for_docling
 from worker.ingestion.pdf_reading.spliced_text import spliced
 from worker.ingestion.pdf_text_layer import LayerPage, TextLayer
@@ -71,10 +67,12 @@ def test_docling_markdown_takes_its_pages_place_a_blank_line_apart() -> None:
     assert joined == "# Cover\n\nPage 2 text.\n\n| a | b |\n\nPage 5 text."
 
 
-def test_the_idle_pass_is_for_pictures_raster_or_drawn() -> None:
-    """A photo, or a page drawing more than a chart's segments; never a long file."""
+def test_the_idle_pass_is_for_image_objects_and_never_a_long_file() -> None:
+    """Drawing alone waits to be asked: no segment count told a chart from a
+    table's rules."""
     assert wants_idle_pass(layer(text(1), text(2, images=1)))
-    assert wants_idle_pass(layer(text(1, segments=CHART_SEGMENTS + 1)))
-    assert not wants_idle_pass(layer(text(1, segments=CHART_SEGMENTS), text(2)))
+    assert not wants_idle_pass(layer(text(1, segments=1128), text(2)))
+    at_most = [text(n, images=1) for n in range(1, IDLE_PASS_PAGES + 1)]
+    assert wants_idle_pass(TextLayer("text", images=40, pages=tuple(at_most)))
     long_file = [text(n, images=1) for n in range(1, IDLE_PASS_PAGES + 2)]
     assert not wants_idle_pass(TextLayer("text", images=99, pages=tuple(long_file)))

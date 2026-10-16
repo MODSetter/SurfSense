@@ -37,7 +37,7 @@ def run(document_id: int, priority: int) -> None:
         return  # a copy of this pass queued twice, or ingest got there first
 
     try:
-        converted = reading_for_figures(original, FiguresTurn())
+        converted = reading_for_figures(original, FiguresTurn(priority))
     except FiguresPassYieldedError:
         queue_figures_pass(document_id, priority)
         return

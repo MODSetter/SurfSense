@@ -31,7 +31,8 @@ def pdf_markdown(document: Document, original: Path) -> str:
         logger.info("Docling reads %s: %s", original.name, layer.refused_because)
         return whole_markdown(document, original, len(layer.pages) or None)
     logger.info(
-        "Docling reads pages %s of %s: %s",
+        "Docling reads %s %s of %s: %s",
+        "page" if sum(len(run.pages) for run in runs) == 1 else "pages",
         described(runs),
         original.name,
         _reasons(layer, runs),
@@ -52,12 +53,7 @@ def _docling_markdown(
         zip(batches, read_batches(document, original, batches), strict=True)
     )
     return [
-        (
-            run,
-            joined(
-                [next(readings) for _ in batches_of(run)]
-            ).document.export_to_markdown(),
-        )
+        (run, joined([next(readings) for _ in batches_of(run)]).export_to_markdown())
         for run in runs
     ]
 
