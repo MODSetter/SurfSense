@@ -44,11 +44,11 @@ The protocol is stateless: every call carries the whole conversation. A Claude C
 - **A new conversation, or one that changed.** The earlier turns go into the prompt as text, tagged by role, with the last user message after them. Measured: a remembered fact from two turns back answered correctly in 1.4 s.
 - **The same conversation, one user message longer.** When `conversation` names an open client whose last call's messages are a prefix of this call's, only the new user message is sent. Measured: 0.9 s to the first token, against 2.3 s for a new client.
 
-Anything else (an edited message, a retry, a regenerated reply, a changed system prompt) closes that client and starts again from text. A digest of the messages last sent is kept with the client to tell these apart.
+Anything else (an edited message, a retry, a regenerated reply, a changed system prompt, another model or schema) closes that client and starts again from text. The client keeps the messages it was last sent to tell these apart; the reply's own text is not compared, since the chat stores it after resolving citations. The newest message's images go beside its text as image blocks: measured, the model named the colour of a picture sent this way. Earlier turns are sent as text only. This is [`chat_prompt.py`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/chat_prompt.py).
 
 ## The client pool
 
-Clients are kept per `conversation` key, closed after five minutes idle, and capped at four; the least recently used goes first. Three conversations at once took 1.7 s wall. A call with no `conversation` (a title, a Studio step) opens a client, answers and closes it. The pool closes every client when the API stops.
+Clients are kept per `conversation` key in one pool for the API process ([`chat_runs.py`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/chat_runs.py)), since a provider is made per request. They are closed after five minutes idle and capped at four; the least recently used idle one goes first, and a client answering is never closed. A client joins the pool when it opens, so a second message on the same conversation sent while it answers sees it busy and gets a client of its own, answered from the whole conversation and closed after. A call with no `conversation` (a title, a Studio step) opens a client, answers and closes it. Three conversations at once took 1.7 s wall. The pool closes every client when the API stops.
 
 ## The rest of the protocol
 
@@ -56,12 +56,11 @@ Clients are kept per `conversation` key, closed after five minutes idle, and cap
 |---|---|
 | `name` | `"claude_plan"` |
 | `health()` | the [status](01-connection.md#status); `ready` is healthy |
-| `models()` | the cached model list |
-| `context_tokens(model)` | the remote manifest's window for `resolvedModel` under `anthropic`; a `[1m]` value is 1,000,000 |
-| `sees_images(model)` | `None` until image input through the SDK is tested |
+| `models()` | Claude Code's list, read live ([`01-connection.md`](01-connection.md#models)) |
+| `context_tokens(model)` | the remote manifest's window for the model under `anthropic`; `None` for a model it does not carry, such as Haiku 5.5 today |
+| `sees_images(model)` | the manifest's answer under `anthropic`, as for any Anthropic model |
 | `token_count(model, text)` | `None` |
 
 ## Open questions
 
-- Image input: whether a streamed user message with `image` content blocks reaches the model unchanged.
 - Whether one warm client can answer an unrelated call in a new session (`query(session_id=…)`), which would let titles skip the cold start.

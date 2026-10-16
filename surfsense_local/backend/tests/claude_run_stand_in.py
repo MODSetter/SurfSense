@@ -54,3 +54,48 @@ class ScriptedRun:
     async def close(self) -> None:
         """Record that the run was closed."""
         self.closed = True
+
+
+def _event(event: dict[str, Any]) -> Message:
+    from claude_agent_sdk import StreamEvent
+
+    return StreamEvent(uuid="e", session_id="s", event=event)
+
+
+def done(*, structured_output: Any = None, is_error: bool = False) -> Message:
+    """The `ResultMessage` every reply ends with."""
+    from claude_agent_sdk import ResultMessage
+
+    return ResultMessage(
+        subtype="error_during_execution" if is_error else "success",
+        duration_ms=1,
+        duration_api_ms=1,
+        is_error=is_error,
+        num_turns=1,
+        session_id="s",
+        structured_output=structured_output,
+    )
+
+
+def answer(*chunks: str, thinking: Sequence[str] = ()) -> list[Message]:
+    """A reply streamed as Claude Code streams one: thinking first, then text."""
+    events: list[Message] = []
+    for piece in thinking:
+        events.append(
+            _event(
+                {
+                    "type": "content_block_delta",
+                    "delta": {"type": "thinking_delta", "thinking": piece},
+                }
+            )
+        )
+    for piece in chunks:
+        events.append(
+            _event(
+                {
+                    "type": "content_block_delta",
+                    "delta": {"type": "text_delta", "text": piece},
+                }
+            )
+        )
+    return [*events, done()]
