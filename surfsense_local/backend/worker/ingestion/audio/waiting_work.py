@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.recordings.kind import RECORDING_MIME_PREFIX
 
-__all__ = ["another_recording_queued", "other_sources_pending"]
+__all__ = ["IS_RECORDING", "another_recording_queued", "other_sources_pending"]
 
 _MIME = func.coalesce(Document.document_metadata["mime_type"].as_string(), "")
-_IS_RECORDING = (Document.document_type == DocumentType.FILE) & _MIME.startswith(
+# A row that is a recording, as is_recording() tells one, for a query.
+IS_RECORDING = (Document.document_type == DocumentType.FILE) & _MIME.startswith(
     RECORDING_MIME_PREFIX
 )
 
@@ -23,7 +24,7 @@ def other_sources_pending(session: Session) -> bool:
             exists().where(
                 Document.status == DocumentStatus.PENDING,
                 Document.document_type.in_([DocumentType.FILE, DocumentType.NOTE]),
-                or_(Document.document_type == DocumentType.NOTE, ~_IS_RECORDING),
+                or_(Document.document_type == DocumentType.NOTE, ~IS_RECORDING),
             )
         )
     )
@@ -40,7 +41,7 @@ def another_recording_queued(session: Session, document_id: int) -> bool:
                 Document.status.in_(
                     [DocumentStatus.PENDING, DocumentStatus.PROCESSING]
                 ),
-                _IS_RECORDING,
+                IS_RECORDING,
             )
         )
     )

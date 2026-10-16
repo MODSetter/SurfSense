@@ -89,6 +89,45 @@ def test_no_hits_asks_for_no_citations(tier: Tier) -> None:
     assert grounding.citations == []
 
 
+@pytest.mark.parametrize("tier", list(Tier))
+def test_no_hits_while_sources_are_read_says_they_are_still_being_read(
+    tier: Tier,
+) -> None:
+    """A question asked straight after an upload finds nothing ready to search;
+    saying the knowledge base does not cover it would be wrong."""
+    one = build_context([], tier, indexing=1)
+    three = build_context([], tier, indexing=3)
+
+    assert "still being read" in three.instruction
+    assert "knowledge base does not cover" not in three.instruction
+    assert not re.search(r"\[\s*(?:n|\d+)\s*\]", three.instruction)
+    assert three.excerpts == "3 selected sources are still being read."
+    assert one.excerpts == "1 selected source is still being read."
+    assert three.citations == []
+    # The count rides with the question, so the cached system message holds.
+    assert one.instruction == three.instruction
+
+
+@pytest.mark.parametrize("tier", list(Tier))
+def test_no_hits_with_nothing_being_read_keeps_the_no_sources_reply(
+    tier: Tier,
+) -> None:
+    """Every ticked source is ready, so nothing matching means it is not there."""
+    grounding = build_context([], tier, indexing=0)
+
+    assert "knowledge base does not cover" in grounding.instruction
+    assert "still being read" not in grounding.instruction
+    assert grounding.excerpts is None
+
+
+@pytest.mark.parametrize("tier", list(Tier))
+def test_hits_are_cited_however_many_sources_are_still_read(tier: Tier) -> None:
+    """Passages from the ready sources answer; the rest being read changes nothing."""
+    hits = [_hit(10, 42, (1, 4), "Report.pdf")]
+
+    assert build_context(hits, tier, indexing=2) == build_context(hits, tier)
+
+
 def test_every_tier_keeps_the_citation_contract() -> None:
     """resolve_citations rewrites the model's [n]; a tier that asks for any other
     token leaves the answer with dead chips."""

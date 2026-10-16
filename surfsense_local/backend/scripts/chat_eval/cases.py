@@ -27,6 +27,8 @@ class Case(BaseModel):
     # Text a correct answer contains, chosen to read the same in any language.
     facts: list[str] = Field(default_factory=list)
     history: list[Turn] = Field(default_factory=list)
+    # Ticked sources still being read, which chat reports when no passage matched.
+    indexing: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def _supporting_names_a_passage(self) -> "Case":
