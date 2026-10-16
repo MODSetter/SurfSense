@@ -1,14 +1,14 @@
-# ADR 0044: Basic and Agentic are chosen per chat, and a measured score sets only the default, never whether a model may be Agentic
+# ADR 0044: Basic and Agentic are chosen per chat, and a measured score sets the default mode, never whether a model may be Agentic
 
 - **Status:** Accepted
-- **Date:** 2026-10-08
+- **Date:** 2026-10-07
 - **Source:** [new-chat modes L1–6](https://github.com/MODSetter/SurfSense/blob/2f5e1a2f24003880f23cbda61db256f393468168/surfsense_local/backend/modules/llm/capability/modes/new_chat.py#L1-L6), [agent gate L1–27](https://github.com/MODSetter/SurfSense/blob/2f5e1a2f24003880f23cbda61db256f393468168/surfsense_local/backend/modules/llm/capability/agent_gate.py#L1-L27), [where a row holds L54–91](https://github.com/MODSetter/SurfSense/blob/2f5e1a2f24003880f23cbda61db256f393468168/surfsense_local/backend/modules/llm/capability/resolve.py#L54-L91)
 
 ## Context
 
 A chat can be answered by two engines: the chat engine's retrieval, which runs on any chat model, and the [agent](../architecture/agent.md), opencode working in steps with SurfSense's tools. The file-agent proposal planned to let a model's measured capability decide which engines it may use, and to keep the word "mode" out of the interface ([06](../proposals/file-agent/06-product-shape.md)).
 
-What SurfSense can measure is thin. Every row of the shipped [capability list](../architecture/model-capabilities.md#the-list) is screening, one run per cell, on a provider's host, and the list is marked provisional. Every local model, the 11 models the providers kept rate-limiting, and any model newer than the list have no row. A row that passed was measured on a provider's own serving of the model, not on a quantized copy on the user's machine. The sweep ran only models under $3/M of input, so the expensive flagships were never run.
+What SurfSense can measure is thin. Every row of the shipped [capability list](../architecture/model-capabilities.md#the-list) is screening, one run per cell, on a provider's host, and the list is marked provisional. No row was measured on this computer, and the 11 models the providers kept rate-limiting, and any model newer than the list have no row. A row that passed was measured on a provider's own serving of the model, not on a quantized copy on the user's machine. The sweep ran only models under $3/M of input, so the expensive flagships were never run.
 
 If a score decided who may use the agent, every local model would be kept out of it until a local suite exists, and so would every new model, on the strength of a single run per case.
 
@@ -16,18 +16,19 @@ If a score decided who may use the agent, every local model would be kept out of
 
 - **The user chooses the mode per chat.** A new chat is Basic (Q&A) or Agentic, picked in the composer. A chat keeps its mode: its row stores the opencode session that holds its turns ([which threads get it](../architecture/agent.md#which-threads-get-it)). In an open chat, picking the other mode opens a new chat.
 - **Only technical gates keep a model out of Agentic, never a score.** No opencode staged (`agent_not_installed`); a stated no on tool calls, the remote catalog's `tool_call: false` or a local template llama-server does not report as calling tools (`tool_calls_unsupported`); a stated window under 32,768 tokens, below which opencode compacts early (`window_below_floor`). A catalog that says nothing, and a runtime that cannot be read, let the model in. Agentic asked for and gated is refused with `409` and its code.
-- **A score sets only the default.** With no mode the user picked for that model, a new chat starts Agentic when the model is measured at `agent` or `agent_limited` where it is served, and Basic (Q&A) otherwise: a low scorer, an untested model, a local copy. The user's pick, sent with `remember: true`, becomes that model's default. Agentic off its default carries the reason beside it: the score, "Not tested", "Local copy" or "Expected to pass".
-- **A pass holds only where it was measured.** A row records where the model must be served for it to hold. A pass measured on a remote host does not hold for the same model served from this computer or the user's own network, which is `not_measured` with reason `measured_elsewhere`. A failure holds everywhere.
+- **A score sets the default mode, not whether Agentic is allowed.** With no mode the user picked for that model, a new chat starts Agentic when the model is measured at `agent` or `agent_limited` where it is served, and Basic (Q&A) otherwise: a low scorer, an untested model, a local copy. A gated model defaults to Basic (Q&A). The user's pick, sent with `remember: true`, becomes that model's default; only a pick is remembered, so an unchosen default follows the model's current score. Agentic carries its reason beside it unless the model passed: the score, "Not tested", "Local copy" or "Expected to pass".
+- **A pass holds only where it was measured.** A row records where the model must be served for it to hold. A pass measured on a remote host does not hold for the same model served from this computer or the user's own network, which is `not_measured` with reason `measured_elsewhere`. A failure holds everywhere. A row matches another server's name for the model when they differ only by quantisation tags, a file extension, the instruct tag or Ollama's `name:tag`, never across sizes or versions ([`match_key.py`](../../surfsense_local/backend/modules/llm/capability/match_key.py)).
 - **Expensive flagships are `assumed`.** A model the sweep did not run for its price, or named with `--assume`, or stopped at the per-case dollar cap, is listed at `agent` with reason `assumed` and no runs. The schema refuses an assumed row with runs or below `agent`.
 
 ## Consequences
 
 - Every chat model may use the agent. A score informs the user and sets where they start; it does not decide for them.
+- The same level also picks Studio's Word and PDF path: a model at `agent` or `agent_limited` writes a script, one at `studio_only` writes Markdown ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)).
 - A gate is a fact that predicts the agent cannot work, stated by a catalog or the runtime; a score is a sample. Only the first refuses.
 - A local copy starts in Basic (Q&A) even when its full-size version passed: the copy has its own quantization and window, so its pass is a measurement not yet made. A failure needs no such care, since a copy is the same model or a smaller one.
 - Assuming the flagships keeps the sweep's spend bounded and starts them Agentic on a remote host. A later sweep screens an assumed model once its price falls under $3/M, and a screening row replaces the assumption.
 - The interface says "mode", contrary to [06](../proposals/file-agent/06-product-shape.md)'s plan. Its other parts, a license that never changes a verdict and an organization policy that may only lower one, are not decided here.
-- A thread's engine cannot change. A selected model that a gate keeps out is refused at the next agent turn, and the user starts a new chat.
+- A thread's engine cannot change. A selected model that a gate keeps out is refused at the next agent turn, and the user starts a new chat. A new chat asked for as Agentic whose agent does not start is not kept: it is answered `503` with `agent_unavailable`.
 
 ## Where the code stands
 
