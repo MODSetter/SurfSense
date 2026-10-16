@@ -707,6 +707,7 @@
   "models_speech_model_languages_button": "{count, plural, other {#言語}}",
   "models_try_dialog_cancel_button": "キャンセル",
   "models_try_dialog_chat_confirmed_body": "チャットへの対応は確認済みです。テストでは短いプロンプトを1回送信するため、料金が発生する場合があります。",
+  "models_try_dialog_chat_plan_body": "チャットへの対応は確認済みです。テストでは短いプロンプトを1回送信し、プランの使用上限に含まれます。",
   "models_try_dialog_chat_unconfirmed_body": "このエンドポイントは機能を公開していないため、チャットへの対応は未確認です。テストでは短いプロンプトを1回送信するため、料金が発生する場合があります。",
   "models_try_dialog_image_confirmed_body": "画像への対応は確認済みです。テストでは実際に推論を行うため、料金が発生する場合があります。",
   "models_try_dialog_image_unconfirmed_body": "このエンドポイントは機能を公開していないため、画像への対応は未確認です。/images/generationsまたは/imagesを実装している必要があります。テストでは実際に推論を行うため、料金が発生する場合があります。",

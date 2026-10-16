@@ -707,6 +707,7 @@
   "models_speech_model_languages_button": "{count, plural, one {# langue} many {# langues} other {# langues}}",
   "models_try_dialog_cancel_button": "Annuler",
   "models_try_dialog_chat_confirmed_body": "La prise en charge du chat est confirmée. Le test envoie un prompt court et peut être facturé.",
+  "models_try_dialog_chat_plan_body": "La prise en charge du chat est confirmée. Le test envoie un prompt court, qui compte dans les limites de votre forfait.",
   "models_try_dialog_chat_unconfirmed_body": "Cet endpoint ne publie pas ses capacités, la prise en charge du chat n’est donc pas confirmée. Le test envoie un prompt court et peut être facturé.",
   "models_try_dialog_image_confirmed_body": "La prise en charge de l’image est confirmée. Le test lance une véritable inférence et peut être facturé.",
   "models_try_dialog_image_unconfirmed_body": "Cet endpoint ne publie pas ses capacités, la prise en charge de l’image n’est donc pas confirmée. Il doit implémenter /images/generations ou /images. Le test lance une véritable inférence et peut être facturé.",

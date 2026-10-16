@@ -707,6 +707,7 @@
   "models_speech_model_languages_button": "{count, plural, other {# 种语言}}",
   "models_try_dialog_cancel_button": "取消",
   "models_try_dialog_chat_confirmed_body": "已确认支持对话。测试会发送一条简短的提示词，可能产生费用。",
+  "models_try_dialog_chat_plan_body": "已确认支持对话。测试会发送一条简短提示词，计入你的套餐额度。",
   "models_try_dialog_chat_unconfirmed_body": "这个端点没有公布能力，因此是否支持对话尚未确认。测试会发送一条简短的提示词，可能产生费用。",
   "models_try_dialog_image_confirmed_body": "已确认支持图像。测试会真实执行推理，可能产生费用。",
   "models_try_dialog_image_unconfirmed_body": "这个端点没有公布能力，因此是否支持图像尚未确认。它必须实现 /images/generations 或 /images。测试会真实执行推理，可能产生费用。",

@@ -707,6 +707,7 @@
   "models_speech_model_languages_button": "{count, plural, one {# language} other {# languages}}",
   "models_try_dialog_cancel_button": "Cancel",
   "models_try_dialog_chat_confirmed_body": "Chat support is confirmed. Testing sends one short prompt and may cost money.",
+  "models_try_dialog_chat_plan_body": "Chat support is confirmed. Testing sends one short prompt, which counts toward your plan’s limits.",
   "models_try_dialog_chat_unconfirmed_body": "This endpoint does not publish capabilities, so chat support is unconfirmed. Testing sends one short prompt and may cost money.",
   "models_try_dialog_image_confirmed_body": "Image support is confirmed. Testing runs real inference and may cost money.",
   "models_try_dialog_image_unconfirmed_body": "This endpoint does not publish capabilities, so image support is unconfirmed. It must implement /images/generations or /images. Testing runs real inference and may cost money.",

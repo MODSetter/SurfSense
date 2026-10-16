@@ -707,6 +707,7 @@
   "models_speech_model_languages_button": "{count, plural, other {#개 언어}}",
   "models_try_dialog_cancel_button": "취소",
   "models_try_dialog_chat_confirmed_body": "채팅 지원이 확인되었습니다. 테스트는 짧은 프롬프트를 한 번 전송하며 비용이 발생할 수 있습니다.",
+  "models_try_dialog_chat_plan_body": "채팅 지원이 확인되었습니다. 테스트는 짧은 프롬프트를 한 번 보내며, 플랜 한도에 포함됩니다.",
   "models_try_dialog_chat_unconfirmed_body": "이 엔드포인트는 기능을 공개하지 않으므로 채팅 지원 여부가 확인되지 않았습니다. 테스트는 짧은 프롬프트를 한 번 전송하며 비용이 발생할 수 있습니다.",
   "models_try_dialog_image_confirmed_body": "이미지 지원이 확인되었습니다. 테스트는 실제 추론을 실행하며 비용이 발생할 수 있습니다.",
   "models_try_dialog_image_unconfirmed_body": "이 엔드포인트는 기능을 공개하지 않으므로 이미지 지원 여부가 확인되지 않았습니다. /images/generations 또는 /images를 구현해야 합니다. 테스트는 실제 추론을 실행하며 비용이 발생할 수 있습니다.",

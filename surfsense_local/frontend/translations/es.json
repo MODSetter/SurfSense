@@ -707,6 +707,7 @@
   "models_speech_model_languages_button": "{count, plural, one {# idioma} many {# idiomas} other {# idiomas}}",
   "models_try_dialog_cancel_button": "Cancelar",
   "models_try_dialog_chat_confirmed_body": "La compatibilidad con chat está confirmada. La prueba envía un prompt corto y puede costar dinero.",
+  "models_try_dialog_chat_plan_body": "La compatibilidad con chat está confirmada. La prueba envía un prompt corto, que cuenta para los límites de tu plan.",
   "models_try_dialog_chat_unconfirmed_body": "Este endpoint no publica sus capacidades, así que la compatibilidad con chat no está confirmada. La prueba envía un prompt corto y puede costar dinero.",
   "models_try_dialog_image_confirmed_body": "La compatibilidad con imagen está confirmada. La prueba ejecuta una inferencia real y puede costar dinero.",
   "models_try_dialog_image_unconfirmed_body": "Este endpoint no publica sus capacidades, así que la compatibilidad con imagen no está confirmada. Debe implementar /images/generations o /images. La prueba ejecuta una inferencia real y puede costar dinero.",

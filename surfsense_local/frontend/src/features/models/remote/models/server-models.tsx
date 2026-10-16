@@ -104,7 +104,7 @@ export function ServerModels({
     unlisted: boolean
   } | null>(null)
   const [tryOpen, setTryOpen] = useState(false)
-  const models = useConnectionModels(connection.id, open)
+  const models = useConnectionModels(connection, open)
   const selection = useSelection(modelType)
 
   const inUse = (name: string) =>
@@ -503,6 +503,10 @@ export function ServerModels({
           modelType={modelType}
           model={trying.model}
           unlisted={trying.unlisted}
+          plan={
+            connection.auth_kind === "chatgpt" ||
+            connection.auth_kind === "claude_plan"
+          }
           onOpenChange={setTryOpen}
           onOpenChangeComplete={(open) => {
             if (!open) setTrying(null)
