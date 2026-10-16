@@ -3,7 +3,10 @@ import type { Announcement } from "@/contracts/types/announcement.types";
 /**
  * Static announcements data.
  *
- * To add a new announcement, append an entry to this array.
+ * To add a new announcement, append an entry to this array and write its full
+ * text in `announcements/content/<id>.mdx`. The `id` is also the URL of its
+ * page, `/announcements/<id>`, so it takes lowercase letters, digits and
+ * hyphens only; `tests/unit/announcements-content.test.ts` checks both.
  * Each announcement requires `startTime` and `endTime` (ISO datetime strings)
  * to define its visibility window, and `audience` to control who sees it.
  * Current possible audiences are "all", "users", and "web_visitors".
@@ -17,7 +20,7 @@ export const announcements: Announcement[] = [
 		id: "2026-07-05-competitive-intelligence-direction",
 		title: "SurfSense's Next Chapter: Open Web Research for AI Agents",
 		description:
-			"Happy Independence Day to everyone celebrating in the United States! We picked this week to share some big news: SurfSense is now the open-source open web research platform for AI agents. Your agents research the live web with structured data from Reddit, YouTube, Google Maps, Google Search, and any page on the open web, through one REST API or MCP server. Everything you rely on today keeps working, and self-hosting stays free.",
+			"SurfSense is now the open-source open web research platform for AI agents. Your agents research the live web with structured data from Reddit, YouTube, Google Maps, Google Search, and any page on the open web, through one REST API or MCP server. Everything you rely on today keeps working, and self-hosting stays free.",
 		category: "update",
 		date: "2026-07-05T00:00:00Z",
 		startTime: "2026-07-05T00:00:00Z",
@@ -30,8 +33,8 @@ export const announcements: Announcement[] = [
 			alt: "Platform data tiles for social, video, maps, search, and the web flowing into a central AI core that outputs research briefs and alerts.",
 		},
 		link: {
-			label: "Read the full announcement",
-			url: "/changelog",
+			label: "Browse the plugins",
+			url: "/plugins",
 		},
 	},
 	{
@@ -50,7 +53,7 @@ export const announcements: Announcement[] = [
 			alt: "Connector tiles flowing into a central AI core that triggers scheduled and event-driven automations.",
 		},
 		link: {
-			label: "See what's new",
+			label: "See the changelog",
 			url: "/changelog",
 		},
 	},
