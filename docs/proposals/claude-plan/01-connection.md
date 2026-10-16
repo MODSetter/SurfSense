@@ -13,7 +13,7 @@ Part of [Use your Claude plan](README.md).
 | macOS, Linux | `~/.local/bin/claude` (native installer), `~/.claude/local/claude` (older local install), `~/.npm-global/bin/claude`, `~/.volta/bin/claude`, the newest `~/.nvm/versions/node/*/bin/claude`, `/opt/homebrew/bin/claude` and `/usr/local/bin/claude` (Homebrew), `/home/linuxbrew/.linuxbrew/bin/claude` (Linuxbrew), `/usr/bin/claude` (apt, dnf, apk) |
 | Windows | `%USERPROFILE%\.local\bin\claude.exe` (native installer), `%LOCALAPPDATA%\Microsoft\WinGet\Links\claude.exe` (WinGet), `%APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe` (npm) |
 
-On Windows only a `claude.exe` counts: npm's `claude.cmd` launcher on `PATH` is passed over for the executable behind it, since the Agent SDK refuses a `.cmd`. On macOS and Linux a file without the executable bit is passed over. The path found is stored on the connection and checked again before each run; a binary that moved is looked for again before the run fails.
+On Windows only a `claude.exe` counts: npm's `claude.cmd` launcher on `PATH` is passed over for the executable behind it, since the Agent SDK refuses a `.cmd`. On macOS and Linux a file without the executable bit is passed over. The binary is found again before each run, so one that moved or was reinstalled elsewhere is still used.
 
 ## Status
 
@@ -33,8 +33,8 @@ The status is read when the dialog opens, on **Check again**, and before each ru
 
 ## The connection
 
-- `ProviderConnection.auth_kind` gains `'claude_plan'`. Revision `0031` widens the `CHECK` in [`models.py`](../../../surfsense_local/backend/modules/llm/models.py) and adds one nullable JSON column, `local_client`. `api_key_ciphertext` and `oauth_ciphertext` stay `NULL`, `provider` stays `openai_compatible` read as "remote connection" ([ADR 0038](../../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md)), `base_url` is `https://api.anthropic.com`, `catalog_provider` is `anthropic`.
-- `local_client` holds what was last read: the binary's path, its version, the account's email and plan, and the [model list](#models). It is a cache for the screen and the pickers; the status is read fresh before a run.
+- `ProviderConnection.auth_kind` gains `'claude_plan'`, the only schema change. Revision `0031` widens the `CHECK` in [`models.py`](../../../surfsense_local/backend/modules/llm/models.py) by rebuilding the table from its own stored definition, keeping every remote selection aside and putting it back, since dropping the table cascades through `selected_models.connection_id`. `api_key_ciphertext` and `oauth_ciphertext` stay `NULL`, `provider` stays `openai_compatible` read as "remote connection" ([ADR 0038](../../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md)), `base_url` is `https://api.anthropic.com`, `catalog_provider` is `anthropic`.
+- Nothing Claude Code reports is stored: the binary's path, its version, the account's email and plan, and the [model list](#models) are read live. Measured on macOS, a status check took 0.13 s after the first (0.58 s) and the model list 0.34 to 0.42 s, and a stored copy would go stale the moment the user signs out or switches account in Claude Code.
 - [`serves.py`](../../../surfsense_local/backend/modules/llm/connections/serves.py) gains `"claude_plan": (TEXT_GEN,)` in step 2 of the [build order](README.md#build-order) and the agent's slot in step 4.
 - One connection per install. A second **Use your Claude plan** opens the existing one.
 - Deleting the connection deletes the row. Claude Code's login is untouched; signing out of Claude is the user's, in Claude Code.
@@ -53,7 +53,7 @@ Listing, renaming and deleting go through the existing connection routes. `_read
 
 ## Models
 
-`client.get_server_info()["models"]` lists what the account's Claude Code offers: `value` (`opus`, `sonnet`, `haiku`, `claude-fable-5-1[1m]`), `displayName`, `resolvedModel` and supported effort levels. `default` is dropped, since it only names another entry. The list is read when the connection is created and on **Check again**, and cached on the row; `connection_models` in [`listing.py`](../../../surfsense_local/backend/modules/llm/connections/listing.py) returns it as `DiscoveredModel`s with source `declared`. A model is selected by its `value`, the alias Claude Code resolves to the current release.
+`client.get_server_info()["models"]` lists what the account's Claude Code offers: `value` (`opus`, `sonnet`, `haiku`, `claude-fable-5-1[1m]`), `displayName`, `resolvedModel` and supported effort levels. `default` is dropped, since it only names another entry. The list is read live, and may be held in the API's memory for a few minutes; `connection_models` in [`listing.py`](../../../surfsense_local/backend/modules/llm/connections/listing.py) returns it as `DiscoveredModel`s with source `declared`. A model is selected by its `value`, the alias Claude Code resolves to the current release.
 
 ## Launching a run
 
