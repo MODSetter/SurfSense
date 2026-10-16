@@ -18,7 +18,7 @@ Part of [Use your Claude plan](README.md). Launch options, errors and network ar
 |---|---|
 | `model` | the model's `value`, such as `sonnet` |
 | `tools` | `[]` ([ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md)) |
-| `max_turns` | `1` |
+| `max_turns` | `1`; `3` with a `json_schema` ([Structured output](#structured-output)) |
 | `system_prompt` | the first `system` message, whole. Claude Code's own prompt is not sent: 652 tokens were cached on a first request, against Claude Code's tens of thousands |
 | `include_partial_messages` | `True`, so text streams |
 | `extra_args` | `{"no-session-persistence": None}`: nothing written under `~/.claude/projects` |
@@ -27,7 +27,15 @@ Part of [Use your Claude plan](README.md). Launch options, errors and network ar
 
 Each `content_block_delta` of type `text_delta` becomes `Delta(text)`, and of type `thinking_delta` `Delta(text, reasoning=True)`. `chat()` drops the reasoning, as the ChatGPT provider does. The stream keeps the existing deadlines (`with_deadlines`): 300 seconds to the first token, 30 between.
 
-`max_tokens` and `temperature` are dropped: Claude Code exposes neither. `json_schema` maps to the SDK's `output_format`, which is untested and listed under [Open questions](#open-questions); until it is tested, a caller asking for a schema on a Claude plan model gets the same refusal a ChatGPT plan gave before [ADR 0050](../../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md).
+`max_tokens` and `temperature` are dropped: Claude Code exposes neither.
+
+## Structured output
+
+`json_schema` maps to the SDK's `output_format`, `{"type": "json_schema", "schema": …}`, and the answer is `ResultMessage.structured_output`, not streamed text. This is what the chat engine's router step and Studio's workflows ask for, so both run on a Claude plan model; each router call counts against the plan, as on a ChatGPT plan ([ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md)).
+
+Claude Code returns structured output through a tool of its own, `StructuredOutput`, which its init message lists even with `tools=[]`. It is how the answer comes back, not a tool SurfSense gives the model, so ADR 0052 holds: the model still calls nothing SurfSense runs. The tool call and its result take a second turn, so a call with a schema allows three: with `max_turns=1` the call ended `error_max_turns`, and four of eleven calls used three turns.
+
+Measured on haiku and sonnet with `permission_mode="default"` and `tools=[]`: picking one of three tools or `none` chose right in every case, `none` included for a request no tool fits; filling a flat input schema gave `{"city": "Pune", "days": 3}`; asked for 10 days against a `maximum` of 7, it returned 7. All eleven outputs validated against their schemas. A call took 1.6 to 2.4 s, and 3.4 to 6.7 s when the model thought first.
 
 ## History
 
@@ -55,6 +63,5 @@ Clients are kept per `conversation` key, closed after five minutes idle, and cap
 
 ## Open questions
 
-- Structured output through `output_format`, which Studio's workflows need for a schema.
 - Image input: whether a streamed user message with `image` content blocks reaches the model unchanged.
 - Whether one warm client can answer an unrelated call in a new session (`query(session_id=…)`), which would let titles skip the cold start.

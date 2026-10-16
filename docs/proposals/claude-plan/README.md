@@ -107,6 +107,7 @@ Scripts kept out of the repo; each line is one run on the machine above.
 | Latency (haiku) | connect 1.0 s; first token 2.3 s cold, 0.9 s on a running client; history-as-text turn 1.4 s |
 | Three conversations at once | 1.7 s wall |
 | Thinking | streams `thinking_delta` only with `display: "summarized"` |
+| Structured output (`output_format`), `tools=[]`, `permission_mode="default"` | 11 of 11 outputs valid against their schemas, tool choice and `none` right every time; returned through Claude Code's `StructuredOutput` tool; `max_turns=1` ends `error_max_turns`; 1.6–2.4 s, up to 6.7 s with thinking |
 | Signed out | `AssistantMessage.error == "authentication_failed"` within 0.04 s |
 | Plan usage | `RateLimitEvent`: `status`, `resetsAt`, five-hour and seven-day utilisation |
 | HTTP MCP with an `Authorization` header | connected; every call carried the key |
