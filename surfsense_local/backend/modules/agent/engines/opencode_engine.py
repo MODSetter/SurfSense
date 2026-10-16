@@ -18,7 +18,7 @@ from modules.agent.agent_threads.open_session import open_agent_session
 from modules.agent.agent_threads.thread_messages import agent_thread_messages
 from modules.agent.agent_threads.turn import RunPlace, agent_turn
 from modules.agent.opencode_runtime import AgentUnavailableError, connect_opencode
-from modules.chat.models import ChatThread
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.chat.schemas import MessageCreate
 from shared.config import get_storage_settings
 
@@ -93,6 +93,7 @@ class OpencodeEngine:
 
 def _record_session(session: Session, thread: ChatThread, session_id: str) -> None:
     """Reloaded here, off the event loop: the write moves `updated_at`, which the response reads."""
+    thread.agent_engine = AgentEngineKind.OPENCODE
     thread.opencode_session_id = session_id
     session.flush()
     session.refresh(thread)
