@@ -124,6 +124,11 @@ class LLMSettings(BaseSettings):
     audio_espeak_library: Path | None = None
     audio_espeak_data: Path | None = None
 
+    # The same audio.cpp build run again for speech recognition. Electron tells
+    # the API alone, and workers reach it through the API; absent where no
+    # audio.cpp is staged.
+    transcription_base_url: str | None = None
+
 
 class AgentSettings(BaseSettings):
     """Where opencode will listen and its password, chosen by Electron at boot.

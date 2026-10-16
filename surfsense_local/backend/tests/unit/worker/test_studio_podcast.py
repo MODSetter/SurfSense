@@ -1,5 +1,7 @@
 """The podcast pipeline: a reviewed brief becomes an outline, then segments."""
 
+import io
+import wave
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 
@@ -229,9 +231,11 @@ def test_every_segment_reads_the_same_sources_before_what_is_its_own() -> None:
 class FakeVoice:
     """A TextToSpeech that records what it was asked to say."""
 
-    def __init__(self) -> None:
+    def __init__(self, content: bytes = b"RIFFfake", media_type: str = "audio/wav"):
         self.turns: list[SpokenTurn] = []
         self.language: str | None = None
+        self.content = content
+        self.media_type = media_type
 
     def voices(self) -> list[Voice]:
         return [
@@ -247,11 +251,13 @@ class FakeVoice:
     ) -> SynthesizedAudio:
         self.turns = turns
         self.language = language
-        return SynthesizedAudio(b"RIFFfake", "audio/wav")
+        return SynthesizedAudio(self.content, self.media_type)
 
 
-def _episode(monkeypatch: pytest.MonkeyPatch, *replies: str) -> tuple[FakeVoice, list]:
-    voice = FakeVoice()
+def _episode(
+    monkeypatch: pytest.MonkeyPatch, *replies: str, voice: FakeVoice | None = None
+) -> tuple[FakeVoice, list]:
+    voice = voice or FakeVoice()
     queue = iter(replies)
     prompts: list[str] = []
 
@@ -297,6 +303,53 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
     assert built.primary_filename == "saturn-rings.wav"
     assert "**Sam:** Welcome." in built.markdown
     assert "**Lee:** Goodbye." in built.markdown
+
+
+def _real_wav(seconds: float = 1.0, rate: int = 24000) -> bytes:
+    """A voice's joined episode: 16-bit mono PCM."""
+    out = io.BytesIO()
+    with wave.open(out, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(b"\x01\x00" * int(rate * seconds))
+    return out.getvalue()
+
+
+def test_a_wav_episode_is_stored_as_mp3(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The podcast is encoded here, whichever voice made it: synthesize stays
+    WAV for every other caller, such as Settings' voice check."""
+    voice, _ = _episode(
+        monkeypatch,
+        '{"title": "Saturn Rings", "segments": [{"title": "Open"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Bye."}]}',
+        voice=FakeVoice(_real_wav(), "audio/wav"),
+    )
+
+    built = pipeline.render(MODEL, voice, [], None, BRIEF.model_dump(mode="json"))
+
+    assert (built.primary_mime, built.primary_filename) == (
+        "audio/mpeg",
+        "saturn-rings.mp3",
+    )
+    assert built.primary[0] == 0xFF and built.primary[1] & 0xE0 == 0xE0
+
+
+def test_an_mp3_episode_is_named_mp3(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The local voice encodes MP3; the stored file says so by its name."""
+    voice, _ = _episode(
+        monkeypatch,
+        '{"title": "Saturn Rings", "segments": [{"title": "Open"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Bye."}]}',
+        voice=FakeVoice(b"\xff\xf3fake", "audio/mpeg"),
+    )
+
+    built = pipeline.render(MODEL, voice, [], None, BRIEF.model_dump(mode="json"))
+
+    assert (built.primary_mime, built.primary_filename) == (
+        "audio/mpeg",
+        "saturn-rings.mp3",
+    )
 
 
 @pytest.mark.parametrize(

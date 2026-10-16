@@ -1,6 +1,8 @@
 import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
-import { blog, changelog } from "@/.source/server";
+import { blog } from "@/.source/server";
+import { getPublishedAnnouncementPosts } from "@/lib/announcements/announcements-source";
+import { announcementPath } from "@/lib/announcements/announcements-utils";
 import { getAllConnectorSlugs } from "@/lib/connectors-marketing";
 import { FREE_MODELS } from "@/lib/free-models";
 import { source as docsSource } from "@/lib/source";
@@ -10,12 +12,10 @@ const blogSource = loader({
 	source: blog.toFumadocsSource(),
 });
 
-const changelogSource = loader({
-	baseUrl: "/changelog",
-	source: changelog.toFumadocsSource(),
-});
-
 const BASE_URL = "https://www.surfsense.com";
+
+// Hourly, like the announcement pages, so a scheduled one is listed without a redeploy.
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	const now = new Date();
@@ -97,8 +97,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		priority: 0.8,
 	}));
 
-	const changelogPages: MetadataRoute.Sitemap = changelogSource.getPages().map((page) => ({
-		url: `${BASE_URL}${page.url}`,
+	// No changelog entries: /changelog is one page and has no per-entry routes.
+	const announcementPages: MetadataRoute.Sitemap = getPublishedAnnouncementPosts().map((post) => ({
+		url: `${BASE_URL}${announcementPath(post.id)}`,
 		lastModified,
 		changeFrequency: "monthly" as const,
 		priority: 0.5,
@@ -110,6 +111,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		...freeModelPages,
 		...docsPages,
 		...blogPages,
-		...changelogPages,
+		...announcementPages,
 	];
 }

@@ -99,3 +99,26 @@ def test_a_render_answers_before_opencode_gives_up_on_the_call() -> None:
     longest = render_document.WAIT_SECONDS + WORD_SNAPSHOT_SECONDS
 
     assert longest <= render_document.CALL_SECONDS < TOOL_CALL_SECONDS
+
+
+async def test_tools_held_connected_as_given_are_not_given_again(
+    opencode: ThreadingHTTPServer, tmp_path: Path
+) -> None:
+    """Giving them again makes opencode connect to the API anew, a handshake each turn."""
+    async with OpencodeClient(
+        f"http://127.0.0.1:{opencode.server_port}", "pw"
+    ) as client:
+        first = await register_thread_tools(client, tmp_path, 7, 12, "launch-key")
+        held = await register_thread_tools(
+            client, tmp_path, 7, 12, "launch-key", "connected"
+        )
+        failed = await register_thread_tools(
+            client, tmp_path, 7, 12, "launch-key", "failed"
+        )
+        # A new API process has a new key, which the held connection does not carry.
+        restarted = await register_thread_tools(
+            client, tmp_path, 7, 12, "new-key", "connected"
+        )
+
+    assert (first, held, failed, restarted) == (True, False, True, True)
+    assert len(opencode.sent) == 3  # type: ignore[attr-defined]

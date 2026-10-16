@@ -17,11 +17,12 @@ def ingest_document(document_id: int) -> None:
     """Parse, chunk, embed and index one document."""
     # Lazy: the body pulls in Docling and torch, which the API never needs.
     from worker.ingestion import run
+    from worker.ingestion.audio.failures import RecordingRefusedError
     from worker.ingestion.parsing import UnreadableFileError
 
     try:
         run(document_id)
-    except UnreadableFileError as refused:
+    except (UnreadableFileError, RecordingRefusedError) as refused:
         # Already failed with its reason; a retry would only refuse it again.
         raise CancelExecution(retry=False) from refused
 

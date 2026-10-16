@@ -26,6 +26,7 @@
     <a href="#형식별로-하는-일">형식</a> ·
     <a href="#빠른-시작">빠른 시작</a> ·
     <a href="#비교">비교</a> ·
+    <a href="#플러그인">플러그인</a> ·
     <a href="https://www.surfsense.com/pricing">요금</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -76,6 +77,25 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 편집, 변환, PDF 도구는 항상 새 파일을 만들며, 원본은 절대 바뀌지 않습니다. 지금은 PDF, Word, Excel에서 할 수 있는 일이 가장 많고, 다른 형식의 지원도 계속 나아지고 있습니다.
 
 
+## 플러그인
+
+**설정 › 플러그인**에서 연결하세요.
+
+**SurfSense 제공.** 내 계정 없이 공개 페이지를 읽으며, SurfSense 라이선스가 필요합니다. [앱을 다운로드](https://www.surfsense.com/downloads)한 다음 앱에서 이메일을 입력하면 30일 무료 라이선스를 받을 수 있습니다.
+
+| 플러그인 | 하는 일 |
+|---|---|
+| **Google Search** | Google에서 검색하고 검색 결과, 광고, 관련 질문 읽기 |
+| **Web Crawl** | 웹 페이지를 읽거나 사이트 전체를 크롤링해 깔끔한 텍스트로 만들기 |
+| **YouTube** | YouTube 동영상, 채널, 댓글 읽기 |
+| **TikTok** | TikTok 동영상과 댓글 읽기, 사용자 검색, 지금 인기 있는 콘텐츠 보기 |
+| **Google Maps** | Google Maps에서 장소를 찾고 리뷰 읽기 |
+| **Amazon** | Amazon 상품과 검색 결과 읽기 |
+| **Walmart** | Walmart 상품, 검색 결과, 리뷰 읽기 |
+| **Indeed** | Indeed의 채용 공고 읽기 |
+
+**서드파티.** [플러그인 레지스트리](plugins/registry)에 있는 DeepWiki, Notion 같은 MCP 서버 또는 URL로 직접 추가한 서버입니다. 라이선스는 필요 없으며, 허용하기 전까지 꺼져 있습니다.
+
 ## 비교
 
 | | NotebookLM (현재 Gemini Notebook) | SurfSense |
@@ -92,18 +112,6 @@ SurfSense는 업로드할 수 없는 문서를 위한 무료 오픈소스 데스
 - **기여:** PR은 `dev` 브랜치를 대상으로 엽니다. 개발 루프는 [CONTRIBUTING.md](CONTRIBUTING.md)와 [`surfsense_local/`](./surfsense_local)에서 확인하세요. 동작 방식은 [`docs/`](docs/README.md)에 있습니다.
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense 기여자" /></a>
-
-## 스타 기록
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## 라이선스
 

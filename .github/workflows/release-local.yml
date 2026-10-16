@@ -167,8 +167,9 @@ jobs:
           "$WORKER" --check-vision-runtime
 
       # A script is not analysed when the worker is frozen, so a library the
-      # spec leaves out shows only when a script runs in the shipped worker.
-      - name: Run document scripts in the frozen worker
+      # spec leaves out shows only when a script runs in the shipped worker;
+      # the same holds for the decode child's miniaudio.
+      - name: Run document scripts and decode a recording in the frozen worker
         working-directory: surfsense_local/backend
         # addopts pins -m 'not packaging'; the later -m on the command line wins.
         run: |
@@ -197,11 +198,12 @@ jobs:
           echo "::error::frozen API never became healthy"
           exit 1
 
-      - name: Stage embedding, voice, and Docling parser packs
+      - name: Stage embedding, voice, voice activity, and Docling parser packs
         working-directory: surfsense_local/backend
         run: |
           uv run scripts/fetch_embedding_model.py models
           uv run scripts/fetch_bundled_voice.py models
+          uv run scripts/fetch_silero_vad.py models
           uv run scripts/fetch_docling_models.py models
 
       - name: Build frontend SPA
@@ -250,6 +252,13 @@ jobs:
         run: |
           if [ -f sdcpp.tar ]; then tar -xf sdcpp.tar && rm sdcpp.tar; fi
           node scripts/sdcpp/stage.mjs --strict
+
+      # After every staging step, since the native notices read the staged
+      # folders. Fails when an npm, Python or native dependency has no licence
+      # text and scripts/notices/allowed-without-text.json gives no reason.
+      - name: Generate third-party notices
+        working-directory: surfsense_local/electron
+        run: pnpm build:notices
 
       - name: Package installer
         working-directory: surfsense_local/electron
@@ -357,6 +366,15 @@ jobs:
           (cd "$DIR" && ./sd-server --help > /dev/null)
           test -f "$DIR/libggml-vulkan.so"
           test -f "$DIR/stable-diffusion.cpp.txt"
+
+      - name: Smoke the bundled notices (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -e
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/licenses
+          test -s "$DIR/THIRD_PARTY_NOTICES.json"
+          test -s "$DIR/THIRD_PARTY_NOTICES.txt"
+          test ! -e "$DIR/fragments"
 
       - name: Upload installers
         uses: actions/upload-artifact@v7

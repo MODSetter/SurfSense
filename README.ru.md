@@ -26,6 +26,7 @@
     <a href="#что-surfsense-делает-с-каждым-форматом">Форматы</a> ·
     <a href="#быстрый-старт">Быстрый старт</a> ·
     <a href="#сравнение">Сравнение</a> ·
+    <a href="#плагины">Плагины</a> ·
     <a href="https://www.surfsense.com/pricing">Цены</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -76,6 +77,25 @@ SurfSense — бесплатное настольное приложение с 
 Правки, преобразования и инструменты для PDF всегда создают новый файл; оригинал никогда не меняется. Шире всего сейчас поддерживаются PDF, Word и Excel, а поддержка остальных форматов постоянно улучшается.
 
 
+## Плагины
+
+Подключите их в разделе **Настройки › Плагины**.
+
+**От SurfSense.** Они читают общедоступные страницы без ваших собственных аккаунтов, и для них нужна лицензия SurfSense: [скачайте приложение](https://www.surfsense.com/downloads) и введите в нём свою почту, чтобы получить бесплатную лицензию на 30 дней.
+
+| Плагин | Что делает |
+|---|---|
+| **Google Search** | Ищет в Google и читает результаты, рекламу и похожие вопросы |
+| **Web Crawl** | Читает веб-страницу или обходит весь сайт, превращая его в чистый текст |
+| **YouTube** | Читает видео и каналы YouTube, а также комментарии к ним |
+| **TikTok** | Читает видео TikTok и комментарии к ним, ищет пользователей и показывает, что сейчас в тренде |
+| **Google Maps** | Находит места на Google Maps и читает отзывы о них |
+| **Amazon** | Читает карточки товаров и результаты поиска на Amazon |
+| **Walmart** | Читает карточки товаров, результаты поиска и отзывы на Walmart |
+| **Indeed** | Читает вакансии на Indeed |
+
+**Сторонние.** MCP-серверы из [реестра плагинов](plugins/registry), например DeepWiki и Notion, или любые другие, которые вы добавите по URL. Лицензия не нужна; они остаются выключенными, пока вы их не разрешите.
+
 ## Сравнение
 
 | | NotebookLM (теперь Gemini Notebook) | SurfSense |
@@ -92,18 +112,6 @@ SurfSense — бесплатное настольное приложение с 
 - **Участие в разработке:** запросы на слияние направляйте в ветку `dev`; цикл разработки описан в [CONTRIBUTING.md](CONTRIBUTING.md) и [`surfsense_local/`](./surfsense_local). Как всё устроено, рассказано в [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="Участники SurfSense" /></a>
-
-## История звёзд
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## Лицензия
 

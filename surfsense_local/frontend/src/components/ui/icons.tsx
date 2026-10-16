@@ -13,6 +13,7 @@ import {
   ArrowUp02Icon as ArrowUp02IconData,
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
+  BanIcon as BanIconData,
   BotIcon as BotIconData,
   Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
@@ -50,10 +51,12 @@ import {
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
   GridViewIcon as GridViewIconData,
+  HandIcon as HandIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
+  Mic01Icon as Mic01IconData,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
   NoteAddIcon as NoteAddIconData,
@@ -133,6 +136,7 @@ export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
+export const BanIcon = createIcon(BanIconData)
 export const BotIcon = createIcon(BotIconData)
 export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
@@ -175,10 +179,12 @@ export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const GridViewIcon = createIcon(GridViewIconData)
+export const HandIcon = createIcon(HandIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
 export const ExternalLinkIcon = createIcon(ArrowUpRight01IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
+export const Mic01Icon = createIcon(Mic01IconData)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
 export const NoteAddIcon = createIcon(NoteAddIconData)

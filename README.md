@@ -34,6 +34,7 @@
     <a href="#what-it-does-with-each-format">Formats</a> ·
     <a href="#quick-start">Quick start</a> ·
     <a href="#how-it-compares">Compare</a> ·
+    <a href="#plugins">Plugins</a> ·
     <a href="https://www.surfsense.com/pricing">Pricing</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -83,6 +84,25 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 
 Edits, conversions and PDF tools always make a new file; your original is never changed. PDF, Word and Excel do the most today, and support for the other formats keeps improving.
 
+## Plugins
+
+Connect them in **Settings › Plugins**.
+
+**By SurfSense.** They read public pages without your own accounts and need a SurfSense license: [download the app](https://www.surfsense.com/downloads) and enter your email there for a free 30-day one.
+
+| Plugin | What it does |
+|---|---|
+| **Google Search** | Search Google and read its results, ads and related questions |
+| **Web Crawl** | Read a web page, or crawl a whole site into clean text |
+| **YouTube** | Read YouTube videos, channels and their comments |
+| **TikTok** | Read TikTok videos and their comments, search users, and see what is trending |
+| **Google Maps** | Find places on Google Maps and read their reviews |
+| **Amazon** | Read Amazon products and search results |
+| **Walmart** | Read Walmart products, search results and reviews |
+| **Indeed** | Read job listings on Indeed |
+
+**Third-party.** MCP servers from the [plugin registry](plugins/registry), such as DeepWiki and Notion, or any you add by URL. No license needed; they stay off until you allow them.
+
 ## How it compares
 
 | | NotebookLM (now Gemini Notebook) | SurfSense |
@@ -99,18 +119,6 @@ Edits, conversions and PDF tools always make a new file; your original is never 
 - **Contributing:** PRs go against `dev`; see [CONTRIBUTING.md](CONTRIBUTING.md) and [`surfsense_local/`](./surfsense_local) for the dev loop. How it works is in [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense contributors" /></a>
-
-## Star history
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## License
 

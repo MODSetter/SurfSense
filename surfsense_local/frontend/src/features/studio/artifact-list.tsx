@@ -277,17 +277,19 @@ const ArtifactRow = memo(function ArtifactRow({
             <OverflowTooltip
               label={artifact.title}
               render={
-                <button
+                <Button
                   type="button"
+                  variant="bare"
+                  static
                   disabled={!onOpen}
                   className={cn(
-                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+                    "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-default disabled:opacity-100",
                     dropdownOpen && "sidebar-row-title-fade-actions"
                   )}
                   onClick={onOpen ?? undefined}
                 >
                   {artifact.title}
-                </button>
+                </Button>
               }
             />
             {artifact.version ? (
@@ -328,7 +330,7 @@ const ArtifactRow = memo(function ArtifactRow({
                       type="button"
                       size="icon-sm"
                       variant="ghost"
-                      className="size-6 shrink-0 opacity-0 group-hover/artifact:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                      className="size-6 shrink-0 opacity-0 group-hover/artifact:opacity-100 hover:bg-transparent focus-visible:opacity-100 data-popup-open:bg-accent data-popup-open:opacity-100"
                       aria-label={intl.formatMessage(
                         {
                           id: "studio_artifact_row_actions_aria",

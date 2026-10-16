@@ -26,6 +26,7 @@
     <a href="#ما-يفعله-بكل-صيغة">الصيغ</a> ·
     <a href="#بداية-سريعة">بداية سريعة</a> ·
     <a href="#كيف-يقارن-بغيره">المقارنة</a> ·
+    <a href="#الإضافات">الإضافات</a> ·
     <a href="https://www.surfsense.com/pricing">الأسعار</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
@@ -75,6 +76,25 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 
 عمليات التحرير والتحويل وأدوات PDF تُنشئ دائمًا ملفًا جديدًا، ولا يتغيّر الملف الأصلي أبدًا. تحظى ملفات PDF وWord وExcel اليوم بأوسع الإمكانات، ويتحسّن دعم الصيغ الأخرى باستمرار.
 
+## الإضافات
+
+تُربط من **الإعدادات › الإضافات** (Settings › Plugins).
+
+**من SurfSense** (By SurfSense). تقرأ الصفحات العامة دون الحاجة إلى حسابات شخصية، وتتطلب رخصة SurfSense (License): يكفي [تنزيل التطبيق](https://www.surfsense.com/downloads) وإدخال البريد الإلكتروني فيه للحصول على رخصة مجانية لمدة 30 يومًا.
+
+| الإضافة | ما تفعله |
+|---|---|
+| **Google Search** | البحث في Google وقراءة نتائجه وإعلاناته والأسئلة ذات الصلة |
+| **Web Crawl** | قراءة صفحة ويب، أو الزحف على موقع كامل وتحويله إلى نص نظيف |
+| **YouTube** | قراءة مقاطع فيديو YouTube وقنواته والتعليقات عليها |
+| **TikTok** | قراءة مقاطع فيديو TikTok والتعليقات عليها، والبحث عن المستخدمين، ومعرفة الرائج حاليًا |
+| **Google Maps** | العثور على الأماكن في Google Maps وقراءة مراجعاتها |
+| **Amazon** | قراءة منتجات Amazon ونتائج البحث فيه |
+| **Walmart** | قراءة منتجات Walmart ونتائج البحث فيه والمراجعات |
+| **Indeed** | قراءة إعلانات الوظائف على Indeed |
+
+**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
+
 ## كيف يقارن بغيره
 
 | | NotebookLM (أصبح الآن Gemini Notebook) | SurfSense |
@@ -91,18 +111,6 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 - **المساهمة:** تُفتح طلبات السحب على الفرع `dev`، وحلقة التطوير مشروحة في [CONTRIBUTING.md](CONTRIBUTING.md) و[`surfsense_local/`](./surfsense_local). أما طريقة عمل التطبيق ففي [`docs/`](docs/README.md).
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors"><img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="المساهمون في SurfSense" /></a>
-
-## تاريخ النجوم
-
-<p align="center">
-  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-      <img alt="مخطط تاريخ النجوم" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-    </picture>
-  </a>
-</p>
 
 ## الرخصة
 

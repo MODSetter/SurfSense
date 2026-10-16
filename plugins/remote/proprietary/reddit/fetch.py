@@ -32,18 +32,21 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
 from scrapling.fetchers import AsyncFetcher, AsyncStealthySession, FetcherSession
 
 from proprietary.scraping.browser_loop import in_browser_loop
+from proprietary.scraping.http import FAIL_FAST
 from proprietary.scraping.proxy import get_proxy_url, get_sticky_proxy_url
 
 # Shared cross-country rotation walk (also used by the TikTok sibling). Kept under
@@ -74,6 +77,19 @@ class RedditAccessBlockedError(RuntimeError):
 _current_session: ContextVar[_RotatingSession | None] = ContextVar(
     "reddit_proxy_session", default=None
 )
+
+# The calling tool's progress reporter (server.py sets it per call): each warm
+# and fetch is a stage, so a call spent warming browsers is not a silent stream.
+on_stage: ContextVar[Callable[[str], Awaitable[None]] | None] = ContextVar(
+    "reddit_on_stage", default=None
+)
+
+
+async def _stage(message: str) -> None:
+    report = on_stage.get()
+    if report is not None:
+        await report(message)
+
 
 # 403 => this IP is blocked; rotate to a fresh one and re-warm. 429 => rate
 # limited; back off on the SAME IP (rotating wouldn't help and burns the pool).
@@ -111,6 +127,9 @@ _PACE_JITTER_S = 0.25
 # costs one bounded wait, then the timeout falls into the generic exception
 # branch of fetch_json and rotates to a fresh IP — same treatment as a 403.
 _REQUEST_TIMEOUT_S = 10.0
+# One attempt per request (Scrapling would retry 3x on the same exit); the
+# rotation loop in fetch_json is the only retry layer.
+_HTTP_OPTIONS = {**FAIL_FAST, "timeout": (5, _REQUEST_TIMEOUT_S)}
 
 _HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
 
@@ -126,9 +145,10 @@ _LOID_COOKIE = "loid"
 
 # The stealth browser warm (cold start + the page's own ``load``) lands in
 # ~6-15s once the solve_cloudflare/network_idle dead-waits are dropped (see
-# warm_session), so 30s is a generous ceiling that still bounds a dead exit; the
-# fast HTTP ``.json`` fetches keep the tight _REQUEST_TIMEOUT_S above.
-_WARM_TIMEOUT_MS = 30_000
+# warm_session). One 15s navigation, not Scrapling's 3 x 30s: a dead exit cost
+# 93s that way (smoke test 2026-10-13), and a fresh exit is cheaper than waiting.
+_WARM_TIMEOUT_MS = 15_000
+_WARM_RETRIES = 1
 
 # Bound concurrent browser warms so a wide fan-out (up to _FANOUT_CONCURRENCY=16
 # workers, each warming once) can't spawn 16 Chromiums at once and OOM the box.
@@ -138,6 +158,81 @@ _WARM_TIMEOUT_MS = 30_000
 # spikes push memory. Ceiling: a burst of >4 cold workers queues behind this.
 _WARM_CONCURRENCY = 4
 _warm_slots = asyncio.Semaphore(_WARM_CONCURRENCY)
+
+# Reddit closed logged-out ``.json`` (smoke test 2026-10-13): a freshly warmed
+# exit with ``loid`` minted, and even an in-page fetch from that browser, gets a
+# 403 HTML page reading "You've been blocked by network security" on every
+# country. One dirty exit can serve the same page, so the endpoint counts as
+# closed once this many countries agree (0 turns the check off).
+_CLOSED_MARKER = "blocked by network security"
+_CLOSED_QUORUM = int(os.getenv("REDDIT_CLOSED_QUORUM", "2"))
+# Sightings older than this no longer count toward the quorum.
+_CLOSED_EVIDENCE_S = 600.0
+# Once closed, every call fails at once for this long, then one call probes
+# again (0 keeps no memory between calls). If Reddit reopens, recovery waits
+# up to this long.
+_CLOSED_LATCH_S = float(os.getenv("REDDIT_CLOSED_LATCH_S", "1800"))
+# How long the probing call has the endpoint to itself before another may try.
+_PROBE_LEASE_S = 120.0
+
+
+class _ClosedLatch:
+    """Process-wide memory that Reddit refuses logged-out ``.json``.
+
+    Without it every call paid up to 9 browser warms and ~2m50s to give up.
+    """
+
+    def __init__(self) -> None:
+        self.sightings: dict[str, float] = {}  # country -> monotonic time seen
+        self.until = 0.0  # monotonic deadline; 0 when not latched
+        self.probing = False
+
+    def check(self) -> None:
+        """Raise at once while latched; once it expires, let one call probe."""
+        if not self.until:
+            return
+        now = time.monotonic()
+        if now < self.until:
+            raise RedditAccessBlockedError(self._message(now))
+        self.probing = True
+        self.until = now + _PROBE_LEASE_S
+
+    def saw_wall(self, country: str) -> None:
+        """Record the closed page on ``country``; raise once enough agree."""
+        if _CLOSED_QUORUM <= 0:
+            return
+        now = time.monotonic()
+        self.sightings = {
+            c: t for c, t in self.sightings.items() if now - t < _CLOSED_EVIDENCE_S
+        }
+        self.sightings[country or "default"] = now
+        # A probe needs only its own sighting: the quorum was met before.
+        if len(self.sightings) < (1 if self.probing else _CLOSED_QUORUM):
+            return
+        self.probing = False
+        self.until = now + _CLOSED_LATCH_S if _CLOSED_LATCH_S > 0 else 0.0
+        raise RedditAccessBlockedError(self._message(now))
+
+    def opened(self) -> None:
+        """Reddit answered ``.json`` with something else: forget it all."""
+        self.sightings.clear()
+        self.until = 0.0
+        self.probing = False
+
+    def _message(self, now: float) -> str:
+        where = " and ".join(sorted(self.sightings)) or "every country tried"
+        text = (
+            "logged-out reads are closed. Reddit answers a freshly warmed "
+            "anonymous session with a 403 'blocked by network security' page "
+            f"(seen on {where}), so retrying now fails the same way"
+        )
+        if not self.until:
+            return text + "."
+        retry_at = datetime.now(UTC) + timedelta(seconds=self.until - now)
+        return text + f"; SurfSense checks again after {retry_at:%H:%M} UTC."
+
+
+_closed = _ClosedLatch()
 
 
 def now_iso() -> str:
@@ -234,7 +329,7 @@ class _RotatingSession:
             proxy=self.proxy,
             stealthy_headers=True,
             impersonate="chrome",
-            timeout=_REQUEST_TIMEOUT_S,
+            **_HTTP_OPTIONS,
         )
         self.session = await self._cm.__aenter__()
 
@@ -342,6 +437,7 @@ async def warm_session(proxy: str | None) -> dict[str, str] | None:
             network_idle=False,
             proxy=proxy,
             timeout=_WARM_TIMEOUT_MS,
+            retries=_WARM_RETRIES,
         ) as sess:
             page = await sess.fetch(_WARM_HTML_URL)
             jar = _browser_cookie_jar(page)
@@ -372,8 +468,19 @@ async def _get_page(session: Any, url: str, cookies: dict[str, str]) -> Any:
         cookies=_OVER18_COOKIES,
         proxy=get_proxy_url(),
         stealthy_headers=True,
-        timeout=_REQUEST_TIMEOUT_S,
+        **_HTTP_OPTIONS,
     )
+
+
+def _is_closed_page(page: Any) -> bool:
+    """True for Reddit's "blocked by network security" 403 page."""
+    for attr in ("body", "text"):
+        val = getattr(page, attr, None)
+        if isinstance(val, bytes):
+            val = val.decode("utf-8", "replace")
+        if isinstance(val, str) and val:
+            return _CLOSED_MARKER in val.lower()
+    return False
 
 
 async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | None:
@@ -382,16 +489,24 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
     Returns parsed JSON (dict or list), or ``None`` on 404 / non-block failure.
     Warms the ``loid`` session once per session; rotates the residential IP and
     re-warms on 403; backs off on 429. Raises :class:`RedditAccessBlockedError`
-    only when every rotated IP refuses anonymous access (the yt-dlp
-    "login required" branch, which we cannot satisfy).
+    when every rotated IP refuses anonymous access (the yt-dlp "login required"
+    branch, which we cannot satisfy), and at once when warmed sessions in
+    ``_CLOSED_QUORUM`` countries get the closed page, or while that is latched.
     """
+    _closed.check()
     holder = _current_session.get()
     if holder is None:
         # No bound session (e.g. a direct call outside fan_out): open a
         # short-lived warmed session for this one fetch, then tear it down.
-        async with proxy_session():
-            return await fetch_json(path, params)
+        async with proxy_session() as holder:
+            return await _fetch_on(holder, path, params)
+    return await _fetch_on(holder, path, params)
 
+
+async def _fetch_on(
+    holder: _RotatingSession, path: str, params: dict[str, Any] | None
+) -> Any | None:
+    """:func:`fetch_json`'s warm/rotate/backoff loop on one bound holder."""
     url = _build_url(path, params)
     attempt = 0
     backoffs = 0
@@ -399,6 +514,8 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
         session = holder.session
         try:
             if session is not None and not holder.warmed:
+                country = getattr(holder, "country", "") or "any country"
+                await _stage(f"warming an anonymous session ({country})")
                 warmed_ok = await holder.warm()
                 holder.warmed = True  # attempted; don't re-warm this IP
                 if not warmed_ok:
@@ -411,9 +528,12 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                     )
 
             await holder.pace()
+            await _stage(f"fetching {path}")
             page = await _get_page(session, url, holder.cookies)
             status = page.status
 
+            if status in (200, 404):
+                _closed.opened()
             if status == 200:
                 return _parse_json(page)
             if status == 404:
@@ -424,6 +544,10 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                 logger.warning("[reddit] 429 on %s; backing off %.1fs", path, delay)
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
+            if status == _ROTATE_STATUS and holder.cookies and _is_closed_page(page):
+                # Only after a warm: a cold request meets the same page on the
+                # bot wall that the warm exists to clear.
+                _closed.saw_wall(getattr(holder, "country", ""))
             if status == _ROTATE_STATUS and attempt < _MAX_ROTATIONS:
                 attempt += 1
                 await holder.rotate()

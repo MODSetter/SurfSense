@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
@@ -25,6 +26,7 @@ from .parsers import (
     find_first,
     parse_comment_entities,
     parse_count,
+    parse_translation,
     parse_video_page,
 )
 from .schemas import CommentItem, YouTubeCommentsInput
@@ -36,6 +38,11 @@ logger = logging.getLogger(__name__)
 # Apify sort value -> YouTube sort-menu label. The section token loads "Top" by
 # default, so only "Newest" needs an explicit switch request.
 _SORT_LABELS = {"TOP_COMMENTS": "Top", "NEWEST_FIRST": "Newest"}
+
+# Seed from ``/next {videoId}`` (the same section token, title and count as the
+# watch page, at about a third of the bytes and with no HTML scan).
+# YOUTUBE_COMMENTS_NEXT_SEED=0 restores the watch-page seed.
+_NEXT_SEED = os.getenv("YOUTUBE_COMMENTS_NEXT_SEED", "1") != "0"
 
 
 async def _post_next(token: str) -> dict[str, Any] | None:
@@ -56,20 +63,78 @@ def _older(entity: dict[str, Any], cutoff) -> bool:
 
 
 async def _collect_replies(
-    token: str, *, parent_cid: str, base: dict[str, Any], cutoff
-) -> list[dict]:
-    """Collect one thread's replies (``replyLevel`` 1) until exhausted."""
+    token: str | None, *, parent_cid: str, base: dict[str, Any], cutoff, budget: int
+) -> tuple[list[dict], str | None]:
+    """Collect one thread's replies (``replyLevel`` 1), page by page.
+
+    Stops once ``budget`` replies are in hand (a thread can hold thousands) and
+    returns the token of the next page, so the caller can go on if budget is
+    left over.
+    """
     replies: list[dict] = []
-    while token:
+    while token and len(replies) < budget:
         data = await _post_next(token)
         if not data:
-            break
+            return replies, None
         for entity in parse_comment_entities(data):
             if cutoff and _older(entity, cutoff):
                 continue
             replies.append(_finalize(entity, base, parent_cid))
         token = comment_next_token(data)
-    return replies
+    return replies, token
+
+
+def _reply_plan(
+    entities: list[dict[str, Any]], reply_tokens: dict[str, str], budget: int
+) -> list[tuple[str, str, int]]:
+    """The reply threads the remaining ``budget`` can reach, with a budget each.
+
+    Walks the page in emit order: each comment costs one item, then its thread
+    up to its ``replyCount`` (an estimate: rounded above 1K, at least one when a
+    reply token exists). Threads past the budget are not fetched.
+    """
+    plan: list[tuple[str, str, int]] = []
+    for entity in entities:
+        if budget <= 0:
+            break
+        budget -= 1
+        token = reply_tokens.get(entity["cid"])
+        if token and budget > 0:
+            plan.append((entity["cid"], token, budget))
+            budget -= min(max(entity.get("replyCount") or 0, 1), budget)
+    return plan
+
+
+async def _seed(video_id: str) -> tuple[str | None, dict[str, Any]]:
+    """The comments-section token plus the video's title and approximate count."""
+    if _NEXT_SEED:
+        data = await _post(
+            INNERTUBE_NEXT_URL, build_innertube_payload(video_id=video_id)
+        )
+        # No token may be a /next layout we do not read (an A/B or consent
+        # variant), not comments turned off: the watch page decides.
+        section = comment_section_token(data) if data else None
+        if section:
+            contextual = find_first(data, "contextualInfo")
+            return section, {
+                # parse_translation reads the /next title; with hl=en it is
+                # the plain title.
+                "title": parse_translation(data)[0],
+                "commentsCount": parse_count(dig(contextual, "runs", 0, "text")),
+            }
+    html = await fetch_html(f"https://www.youtube.com/watch?v={video_id}")
+    if not html:
+        return None, {}
+    # Both helpers scan 1-2MB of watch-page HTML in pure Python; keep that
+    # off the event loop.
+    initial = await asyncio.to_thread(extract_yt_initial_data, html)
+    if not initial:
+        return None, {}
+    section = comment_section_token(initial)
+    if not section:  # comments disabled or absent: skip the page parse
+        return None, {}
+    meta = await asyncio.to_thread(parse_video_page, html) or {}
+    return section, meta
 
 
 async def _comments_for_video(
@@ -77,19 +142,9 @@ async def _comments_for_video(
 ) -> AsyncIterator[dict]:
     limit = input_model.maxComments
     page_url = f"https://www.youtube.com/watch?v={video_id}"
-    html = await fetch_html(page_url)
-    if not html:
-        return
-    # Both helpers scan 1-2MB of watch-page HTML in pure Python; keep that
-    # off the event loop.
-    initial = await asyncio.to_thread(extract_yt_initial_data, html)
-    if not initial:
-        return
-    section = comment_section_token(initial)
+    section, meta = await _seed(video_id)
     if not section:  # comments disabled or absent
         return
-
-    meta = await asyncio.to_thread(parse_video_page, html) or {}
     base = {
         "videoId": video_id,
         "pageUrl": page_url,
@@ -123,22 +178,19 @@ async def _comments_for_video(
         reply_tokens = comment_reply_tokens(data)
         entities = parse_comment_entities(data)
 
-        # Fetch this page's reply threads concurrently (the reused session
-        # multiplexes requests), then emit in Apify order: comment, its replies.
-        # ponytail: prefetch is capped at the remaining budget — each thread
-        # yields >=1 item, so more threads than budget can't all be needed.
-        pending = [
-            (e["cid"], reply_tokens[e["cid"]])
-            for e in entities
-            if e["cid"] in reply_tokens
-        ][: max(limit - count, 0)]
+        # Fetch the reply threads the budget can reach concurrently (the reused
+        # session multiplexes requests), then emit in Apify order: comment, its
+        # replies.
+        plan = _reply_plan(entities, reply_tokens, limit - count)
         fetched = await asyncio.gather(
             *(
-                _collect_replies(tok, parent_cid=cid, base=base, cutoff=cutoff)
-                for cid, tok in pending
+                _collect_replies(
+                    tok, parent_cid=cid, base=base, cutoff=cutoff, budget=budget
+                )
+                for cid, tok, budget in plan
             )
         )
-        replies_by_cid = {cid: r for (cid, _), r in zip(pending, fetched, strict=False)}
+        replies_by_cid = {cid: r for (cid, _, _), r in zip(plan, fetched, strict=True)}
 
         for entity in entities:
             if count >= limit:
@@ -149,11 +201,21 @@ async def _comments_for_video(
             yield _finalize(entity, base, None)
             count += 1
 
-            for reply in replies_by_cid.get(entity["cid"], []):
-                if count >= limit:
-                    return
-                yield reply
-                count += 1
+            cid = entity["cid"]
+            replies, more = replies_by_cid.get(cid, ([], reply_tokens.get(cid)))
+            while True:
+                for reply in replies:
+                    if count >= limit:
+                        return
+                    yield reply
+                    count += 1
+                # The estimate undershot (or the thread was past the plan) and
+                # budget is left: fetch on, lazily.
+                if not more or count >= limit:
+                    break
+                replies, more = await _collect_replies(
+                    more, parent_cid=cid, base=base, cutoff=cutoff, budget=limit - count
+                )
 
         token = comment_next_token(data)
         if not token or count >= limit:

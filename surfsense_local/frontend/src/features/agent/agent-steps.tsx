@@ -1,5 +1,6 @@
 import { memo, useCallback, type ReactNode } from "react"
 
+import { Button } from "@/components/ui/button"
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -83,14 +84,16 @@ const StepLine = memo(function StepLine({
   if (made && openArtifact) {
     return (
       <li className="py-0.5">
-        <button
+        <Button
+          variant="bare"
+          static
           type="button"
-          className="flex max-w-full cursor-pointer items-center gap-1 rounded-sm text-left outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex max-w-full items-center gap-1 rounded-sm text-left hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           onClick={() => openArtifact(made.id)}
         >
           {line}
           <ArrowRightIcon className="size-3.5 shrink-0" />
-        </button>
+        </Button>
         {ask}
       </li>
     )

@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process"
 import { availableParallelism } from "node:os"
 import { join } from "node:path"
 
-import { visualStudio } from "../msvc-runtime.mjs"
+import { visualStudio, visualStudioGenerator } from "../msvc-runtime.mjs"
 import { CMAKE, GCC_13, VISUAL_STUDIO } from "../not-staged/tools.mjs"
 import { COMMIT, SOURCE, TAG } from "./pins.mjs"
 import { configureArgs } from "./recipe.mjs"
@@ -48,9 +48,10 @@ export function compile(work) {
   const head = output("git", ["-C", source, "rev-parse", "HEAD"])
   if (head !== COMMIT) throw new Error(`audio.cpp ${TAG} is ${head}, not the pinned ${COMMIT}`)
 
-  // Ninja needs MSVC's environment on Windows, so there CMake picks Visual Studio.
+  // Ninja needs MSVC's environment on Windows, so there the recipe names Visual Studio.
   const ninja = process.platform !== "win32" && output("ninja", ["--version"]) != null
-  run("cmake", ["-S", source, "-B", build, ...(ninja ? ["-G", "Ninja"] : []), ...configureArgs(process.platform)])
+  const generator = process.platform === "win32" ? visualStudioGenerator() : null
+  run("cmake", ["-S", source, "-B", build, ...(ninja ? ["-G", "Ninja"] : []), ...configureArgs(process.platform, generator)])
   run("cmake", [
     "--build", build,
     "--config", "Release",

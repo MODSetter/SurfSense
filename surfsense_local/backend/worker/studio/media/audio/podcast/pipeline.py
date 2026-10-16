@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from modules.artifacts.podcast.brief import PodcastBrief, Speaker
+from modules.llm.providers.episode_audio.encoded_episode import encoded_episode
 from modules.llm.providers.protocols import SpokenTurn, TextToSpeech
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline
@@ -47,6 +48,10 @@ def render(
         sum(len(turn.text) for turn in spoken),
     )
     audio = asyncio.run(voice.synthesize(spoken, brief.language))
+    # Encoded here, not by the voice: only a podcast is worth making MP3, and
+    # Settings' voice check plays the voice's own WAV.
+    if audio.media_type == "audio/wav":
+        audio = encoded_episode(audio.content)
     return Built(
         title=plan.title,
         markdown=_transcript(plan.title, brief, turns),

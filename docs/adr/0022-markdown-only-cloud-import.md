@@ -13,7 +13,9 @@ Moving the hosted service's current users onto the desktop app is the point of t
 - The export is one ZIP for the whole account, markdown only ([contract 3](../contracts/03-export-bundle.md)): every ready document's extracted content with its folder structure and title, plus the chat threads. Original uploads and old generated artifacts stay behind. Tool calls and agent steps are dropped, and citations are reduced to document titles.
 - Import is a bulk upload on the API side, and nothing touches the network. It creates one local workspace per hosted workspace, writes each markdown file through the upload path so it gets a `dedup_key`, keeps `folder_path`, `source` and the hosted ids in `document_metadata`, and enqueues the existing `ingest_document` ([`modules/migration/`](../../surfsense_local/backend/modules/migration/)).
 - An imported chat thread keeps its hosted id in `cloud_id`. Re-import skips a
-  thread with that id without changing it and creates one that is missing.
+  thread with that id without changing it. In an ordinary workspace it creates
+  a missing thread; in a workspace marked as holding legacy unkeyed imports, it
+  only assigns that id to the unique unkeyed row with the same creation time.
 - The app re-chunks and re-embeds everything locally. Markdown is in `TEXT_SUFFIXES` ([`worker/ingestion/parsing.py`](../../surfsense_local/backend/worker/ingestion/parsing.py)), so Docling is skipped and import is chunk and embed only.
 - An imported assistant message keeps its citations as a "Sources: A, B" line in its text, because local citations are chunk-backed and imported ones cannot be.
 

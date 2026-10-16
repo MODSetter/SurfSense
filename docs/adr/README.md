@@ -72,14 +72,16 @@ The Date is the day the decision was first written down. Source links are permal
 | 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted |
 | 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
-| 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050 |
+| 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050, its Claude consequence by 0057 |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
 | 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part superseded by 0054 |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
-| 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted |
+| 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted, in part narrowed by 0057 |
 | 0051 | [A plugin is an MCP server, and SurfSense decides which of its tools each caller gets, remote servers first](0051-plugins-are-mcp-servers-behind-one-tool-gateway.md) | Accepted |
 | 0052 | [The chat engine's model never calls tools; SurfSense chooses a plugin tool through structured output and calls it](0052-the-chat-model-never-calls-tools.md) | Proposed, deferred |
 | 0053 | [First-party plugins are listed in the app, third-party plugins in a registry in this repository, and third-party plugins start off](0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) | Accepted, in part superseded by 0055 |
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted |
 | 0055 | [Verified is a maintainer's judgement, and CI contacts each server a pull request adds](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md) | Accepted |
+| 0056 | [Speech recognition runs on a second audio.cpp server that only the API calls](0056-speech-recognition-runs-on-a-second-audiocpp-server.md) | Accepted |
+| 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted |

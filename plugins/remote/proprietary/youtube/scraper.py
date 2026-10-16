@@ -11,19 +11,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import aclosing
 from typing import Any
 from urllib.parse import quote
+
+from proprietary.scraping.concurrency import ordered_map
 
 from .innertube import (
     INNERTUBE_BROWSE_URL,
     INNERTUBE_NEXT_URL,
-    INNERTUBE_PUBLIC_API_KEY,
     INNERTUBE_SEARCH_URL,
-    bind_proxy_holder,
     build_innertube_payload,
     fetch_html,
-    open_proxy_holder,
+    job_session,
     post_innertube,
 )
 from .parsers import (
@@ -40,7 +42,7 @@ from .parsers import (
     parse_translation,
     parse_video_page,
 )
-from .schemas import VideoItem, YouTubeScrapeInput
+from .schemas import SubtitleTrack, VideoItem, YouTubeScrapeInput
 from .search_filters import build_search_params
 from .subtitles import fetch_subtitles
 from .url_resolver import ResolvedUrl, resolve_url
@@ -55,76 +57,66 @@ _SORT_LABELS = {"NEWEST": "Latest", "POPULAR": "Popular", "OLDEST": "Oldest"}
 # saturate typical job counts while leaving gateway headroom for other callers.
 _FANOUT_CONCURRENCY = 16
 
+# Items of one list page finalize this many at a time: with subtitles each is two
+# or three requests, on the job's holder. YOUTUBE_FINALIZE_CONCURRENCY=1 restores
+# one item at a time, should concurrent /player calls on one exit draw blocks.
+_FINALIZE_CONCURRENCY = max(1, int(os.getenv("YOUTUBE_FINALIZE_CONCURRENCY", "4")))
+
+Extras = tuple[list[SubtitleTrack] | None, dict[str, Any] | None]
+
 
 async def fan_out(
     jobs: list[AsyncIterator[dict[str, Any]]], *, concurrency: int = _FANOUT_CONCURRENCY
 ) -> AsyncIterator[dict[str, Any]]:
-    """Stream items from independent async-iterator jobs via a warm worker pool.
+    """Stream items from independent async-iterator jobs, in job order.
 
-    Each worker opens ONE proxy session and reuses it across the sequential jobs
-    it pulls, so only the first job per worker pays the ~2s proxy TCP+TLS
-    handshake. A bad job yields nothing rather than aborting the batch; results
-    stream out as each job finishes. Workers are cancelled if the consumer stops
-    early (e.g. the collector hits its limit).
+    Each worker holds ONE warm proxy holder and reuses it across the sequential
+    jobs it pulls, so only the first job per worker pays the proxy CONNECT and
+    TLS. A bad job yields nothing rather than aborting the batch. Pending jobs
+    are cancelled and the holders closed if the consumer stops early.
     """
-    if not jobs:
-        return
-    job_queue: asyncio.Queue[AsyncIterator[dict[str, Any]]] = asyncio.Queue()
-    for job in jobs:
-        job_queue.put_nowait(job)
-    results: asyncio.Queue[list[dict[str, Any]]] = asyncio.Queue()
 
-    async def worker() -> None:
-        holder = None
+    async def run(job: AsyncIterator[dict[str, Any]]) -> list[dict[str, Any]]:
         try:
-            holder = await open_proxy_holder()
-        except Exception as e:  # no session: jobs still run via one-shot fetches
-            logger.warning("[youtube] proxy session open failed: %s", e)
-        try:
-            while True:
-                try:
-                    job = job_queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    return
-                items: list[dict[str, Any]] = []
-                try:
-                    if holder is not None:
-                        async with bind_proxy_holder(holder):
-                            items = [item async for item in job]
-                    else:
-                        items = [item async for item in job]
-                except Exception as e:  # one bad video/URL must not kill the run
-                    logger.warning("[youtube] fan-out job failed: %s", e)
-                await results.put(items)
-        finally:
-            if holder is not None:
-                await holder.close()
+            return [item async for item in job]
+        except Exception as e:  # one bad video/URL must not kill the run
+            logger.warning("[youtube] fan-out job failed: %s", e)
+            return []
 
-    tasks = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(jobs)))]
-    try:
-        for _ in range(len(jobs)):
-            for item in await results.get():
+    async with aclosing(
+        ordered_map(jobs, run, concurrency=concurrency, worker_context=job_session)
+    ) as results:
+        async for items in results:
+            for item in items:
                 yield item
-    finally:
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        # Await cancellation so each worker's finally closes its session before
-        # we return — no leaked keep-alive connections when the consumer stops
-        # early (e.g. the collector hit its limit).
-        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 async def _post(url: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-    """POST to InnerTube, retrying with the public web key if keyless fails.
+    """POST to InnerTube (keyed; keyless on a refused key, see ``post_innertube``)."""
+    return await post_innertube(url, payload)
 
-    ponytail: retries with the key only when the keyless call returns nothing;
-    could remember which one worked to avoid the extra request.
+
+async def _extras(video_id: str, input_model: YouTubeScrapeInput) -> Extras:
+    """A video's subtitles, plus its ``/next`` in the subtitles language, at once.
+
+    translatedTitle/Text cost one extra /next, gated on a non-English
+    subtitlesLanguage (the language means nothing without subtitles), so default
+    runs pay nothing.
     """
-    data = await post_innertube(url, payload)
-    if data is None:
-        data = await post_innertube(url, payload, api_key=INNERTUBE_PUBLIC_API_KEY)
-    return data
+    subtitles = fetch_subtitles(
+        video_id,
+        language=input_model.subtitlesLanguage,
+        fmt=input_model.subtitlesFormat,
+        prefer_generated=input_model.preferAutoGeneratedSubtitles,
+    )
+    lang = input_model.subtitlesLanguage
+    if not lang or lang == "en":
+        return await subtitles, None
+    translation = _post(
+        INNERTUBE_NEXT_URL, build_innertube_payload(video_id=video_id, hl=lang)
+    )
+    tracks, data = await asyncio.gather(subtitles, translation)
+    return tracks, data
 
 
 async def _finalize(
@@ -135,30 +127,36 @@ async def _finalize(
     from_url: str | None,
     order: int,
     content_type: str,
+    extras: Awaitable[Extras] | None = None,
 ) -> dict[str, Any]:
+    """Shape one item; ``extras`` is a subtitles fetch the caller already started."""
     item = VideoItem(**partial)
     item.type = content_type  # type: ignore[assignment]
     item.input = source_input
     item.fromYTUrl = from_url
     item.order = order
     if input_model.downloadSubtitles and item.id:
-        item.subtitles = await fetch_subtitles(
-            item.id,
-            language=input_model.subtitlesLanguage,
-            fmt=input_model.subtitlesFormat,
-            prefer_generated=input_model.preferAutoGeneratedSubtitles,
-        )
-    # translatedTitle/Text: one extra /next in the requested language. ponytail:
-    # gated on a non-English subtitlesLanguage so default runs pay nothing; costs
-    # one request per item when a translation language is set.
-    lang = input_model.subtitlesLanguage
-    if item.id and lang and lang != "en":
-        data = await _post(
-            INNERTUBE_NEXT_URL, build_innertube_payload(video_id=item.id, hl=lang)
-        )
-        if data:
-            item.translatedTitle, item.translatedText = parse_translation(data)
+        subtitles, translation = await (extras or _extras(item.id, input_model))
+        item.subtitles = subtitles
+        if translation:
+            item.translatedTitle, item.translatedText = parse_translation(translation)
     return item.to_output()
+
+
+async def _finalize_page(
+    page: list[tuple[int, dict[str, Any]]], **kw: Any
+) -> AsyncIterator[dict[str, Any]]:
+    """Finalize one list page's ``(order, partial)`` items concurrently, in order."""
+
+    async def one(entry: tuple[int, dict[str, Any]]) -> dict[str, Any]:
+        order, partial = entry
+        return await _finalize(partial, order=order, **kw)
+
+    async with aclosing(
+        ordered_map(page, one, concurrency=_FINALIZE_CONCURRENCY)
+    ) as results:
+        async for item in results:
+            yield item
 
 
 async def _video_flow(
@@ -171,22 +169,34 @@ async def _video_flow(
     content_type: str,
 ) -> AsyncIterator[dict[str, Any]]:
     url = f"https://www.youtube.com/watch?v={video_id}"
-    html = await fetch_html(url)
-    if not html:
-        return
-    # Watch-page HTML is 1-2MB and the embedded-JSON scan is pure Python; run
-    # it off-loop so one video parse can't stall other requests.
-    partial = await asyncio.to_thread(parse_video_page, html)
-    if not partial:
-        return
-    yield await _finalize(
-        partial,
-        input_model=input_model,
-        source_input=source_input,
-        from_url=from_url,
-        order=order,
-        content_type=content_type,
+    # The id is known: subtitles (and the translation) load alongside the page.
+    extras = (
+        asyncio.create_task(_extras(video_id, input_model))
+        if input_model.downloadSubtitles
+        else None
     )
+    try:
+        html = await fetch_html(url)
+        if not html:
+            return
+        # Watch-page HTML is 1-2MB; parse it off-loop so one video can't stall
+        # other requests.
+        partial = await asyncio.to_thread(parse_video_page, html)
+        if not partial:
+            return
+        yield await _finalize(
+            partial,
+            input_model=input_model,
+            source_input=source_input,
+            from_url=from_url,
+            order=order,
+            content_type=content_type,
+            extras=extras,
+        )
+    finally:
+        if extras is not None and not extras.done():
+            extras.cancel()
+            await asyncio.gather(extras, return_exceptions=True)
 
 
 async def _search_flow(
@@ -206,18 +216,16 @@ async def _search_flow(
     order = 0
     while data:
         items, token = parse_search_response(data)
-        for it in items:
-            if order >= limit:
-                return
-            yield await _finalize(
-                it,
-                input_model=input_model,
-                source_input=source_input,
-                from_url=from_url,
-                order=order,
-                content_type="video",
-            )
-            order += 1
+        page = list(enumerate(items[: limit - order], start=order))
+        order += len(page)
+        async for item in _finalize_page(
+            page,
+            input_model=input_model,
+            source_input=source_input,
+            from_url=from_url,
+            content_type="video",
+        ):
+            yield item
         if not token or order >= limit:
             return
         data = await _post(
@@ -237,6 +245,14 @@ _CHANNEL_TABS = {
     "shorts": ("shorts", parse_channel_shorts),
     "streams": ("stream", parse_channel_videos),
 }
+
+
+async def _fetch_seed(url: str) -> dict | None:
+    """GET a channel tab page and return its ``ytInitialData`` (or ``None``)."""
+    html = await fetch_html(url)
+    if not html:
+        return None
+    return await asyncio.to_thread(extract_yt_initial_data, html)
 
 
 async def _fetch_channel_about(initial: dict) -> dict[str, Any]:
@@ -286,54 +302,53 @@ async def _channel_tab_flow(
     Videos honor ``sortVideosBy`` via the sort chips (re-fetch sorted from the
     start); shorts/streams page straight from the seed's first page + its
     continuation, since those tabs don't expose the same sort chips. ``initial``
-    may be prefetched (videos tab) to avoid re-downloading the seed.
+    may be prefetched to avoid re-downloading the seed.
     """
     if limit <= 0:
         return
     content_type, parse_fn = _CHANNEL_TABS[tab]
     from_url = _channel_tab_url(handle, tab)
     if initial is None:
-        seed_html = await fetch_html(from_url)
-        if not seed_html:
-            return
-        initial = await asyncio.to_thread(extract_yt_initial_data, seed_html)
+        initial = await _fetch_seed(from_url)
         if not initial:
             return
 
-    # Videos: prefer a sort chip token (fetches page 1 sorted). Otherwise parse
-    # the seed's first page directly and follow its continuation.
+    # Videos sorted Popular/Oldest: the chip token fetches page 1 sorted. The
+    # seed's own first page is already Latest (same ids as the Latest chip), so
+    # the default sort parses it directly and follows its continuation.
     items: list[dict[str, Any]] = []
     token: str | None = None
-    if tab == "videos":
-        tokens = parse_channel_sort_tokens(initial)
-        label = _SORT_LABELS.get(input_model.sortVideosBy or "NEWEST", "Latest")
-        token = tokens.get(label) or next(iter(tokens.values()), None)
+    sort = input_model.sortVideosBy or "NEWEST"
+    if tab == "videos" and sort != "NEWEST":
+        token = parse_channel_sort_tokens(initial).get(_SORT_LABELS[sort])
     if token is None:
         items, token = parse_fn(initial)
 
     order = 0
     while order < limit:
-        for it in items:
-            if order >= limit:
-                return
+        page: list[tuple[int, dict[str, Any]]] = []
+        past_cutoff = False
+        for it in items[: limit - order]:
             # Newest-first ordering: once we pass the cutoff, the rest are older.
             if cutoff is not None:
                 item_date = _published_date(it.get("publishedTimeText"))
                 if item_date is not None and item_date < cutoff:
-                    return
+                    past_cutoff = True
+                    break
             it.setdefault("channelUsername", handle)
             for key, value in channel_meta.items():
                 it.setdefault(key, value)
-            yield await _finalize(
-                it,
-                input_model=input_model,
-                source_input=source_input,
-                from_url=from_url,
-                order=order,
-                content_type=content_type,
-            )
+            page.append((order, it))
             order += 1
-        if not token:
+        async for item in _finalize_page(
+            page,
+            input_model=input_model,
+            source_input=source_input,
+            from_url=from_url,
+            content_type=content_type,
+        ):
+            yield item
+        if past_cutoff or order >= limit or not token:
             return
         data = await _post(
             INNERTUBE_BROWSE_URL, build_innertube_payload(continuation_token=token)
@@ -355,36 +370,64 @@ async def _channel_flow(
 
     The videos seed is fetched once and reused to derive channel-wide metadata
     (identity, banner, and the About panel's deep fields) stamped on every item.
+    The shorts and streams seeds then load alongside the About call, on the
+    connection the videos seed opened: started any earlier they would open
+    their own connections, and a block on one would rotate the shared session
+    under the others. The tabs still emit in order: videos, shorts, streams.
     """
-    videos_seed = await fetch_html(_channel_tab_url(handle, "videos"))
-    initial = (
-        await asyncio.to_thread(extract_yt_initial_data, videos_seed)
-        if videos_seed
-        else None
-    )
-    channel_meta: dict[str, Any] = {}
-    if initial:
-        channel_meta = parse_channel_metadata(initial)
-        channel_meta.update(await _fetch_channel_about(initial))
-
-    cutoff = _published_date(input_model.oldestPostDate)
-
-    for tab, limit in (
-        ("videos", input_model.maxResults),
+    other_tabs = (
         ("shorts", input_model.maxResultsShorts),
         ("streams", input_model.maxResultStreams),
-    ):
+    )
+    seeds: dict[str, asyncio.Task[dict | None]] = {}
+    try:
+        initial = await _fetch_seed(_channel_tab_url(handle, "videos"))
+        seeds = {
+            tab: asyncio.create_task(_fetch_seed(_channel_tab_url(handle, tab)))
+            for tab, limit in other_tabs
+            if limit > 0
+        }
+        channel_meta: dict[str, Any] = {}
+        if initial:
+            channel_meta = parse_channel_metadata(initial)
+            channel_meta.update(await _fetch_channel_about(initial))
+
+        cutoff = _published_date(input_model.oldestPostDate)
+
         async for item in _channel_tab_flow(
             handle,
-            tab,
-            limit=limit,
+            "videos",
+            limit=input_model.maxResults,
             input_model=input_model,
             source_input=source_input,
             channel_meta=channel_meta,
-            initial=initial if tab == "videos" else None,
+            initial=initial,
             cutoff=cutoff,
         ):
             yield item
+        for tab, limit in other_tabs:
+            if tab not in seeds:
+                continue
+            # A failed seed already rotated through its retries: skip the tab.
+            tab_initial = await seeds[tab]
+            if not tab_initial:
+                continue
+            async for item in _channel_tab_flow(
+                handle,
+                tab,
+                limit=limit,
+                input_model=input_model,
+                source_input=source_input,
+                channel_meta=channel_meta,
+                initial=tab_initial,
+                cutoff=cutoff,
+            ):
+                yield item
+    finally:
+        # The consumer may stop early (limit hit, call cancelled).
+        for task in seeds.values():
+            task.cancel()
+        await asyncio.gather(*seeds.values(), return_exceptions=True)
 
 
 async def _playlist_flow(
@@ -415,7 +458,7 @@ async def _playlist_flow(
             ordered_ids.append(vid)
             if len(ordered_ids) >= limit:
                 break
-        if not token:
+        if not token or len(ordered_ids) >= limit:
             break
         data = await _post(
             INNERTUBE_BROWSE_URL, build_innertube_payload(continuation_token=token)
@@ -423,7 +466,7 @@ async def _playlist_flow(
 
     # Phase 2: resolve the videos concurrently — the per-video watch-page fetch
     # is the bottleneck, so fan them out (each carries its playlist position in
-    # ``order``; fan_out emits as they finish, not in playlist order).
+    # ``order``; fan_out emits in playlist order).
     # ponytail: nested fan_out — when many playlist URLs run at once this can
     # stack pools (outer x inner) of proxy sessions. Fine for the common
     # single/few-playlist case; cap inner concurrency if bulk-playlist runs trip it.
@@ -467,18 +510,16 @@ async def _hashtag_flow(
     order = 0
     while data:
         items, token = parse_search_response(data)
-        for it in items:
-            if order >= limit:
-                return
-            yield await _finalize(
-                it,
-                input_model=input_model,
-                source_input=source_input,
-                from_url=url,
-                order=order,
-                content_type="video",
-            )
-            order += 1
+        page = list(enumerate(items[: limit - order], start=order))
+        order += len(page)
+        async for item in _finalize_page(
+            page,
+            input_model=input_model,
+            source_input=source_input,
+            from_url=url,
+            content_type="video",
+        ):
+            yield item
         if not token or order >= limit:
             return
         data = await _post(
@@ -525,24 +566,19 @@ async def _dispatch(
 async def iter_youtube(
     input_model: YouTubeScrapeInput,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Yield Apify-shaped video items. startUrls override searchQueries.
+    """Yield Apify-shaped video items for every startUrl and search query.
 
     Independent startUrls / queries fan out concurrently; each flow's own
     continuation paging stays sequential.
     """
-    if input_model.startUrls:
-        jobs = []
-        for entry in input_model.startUrls:
-            resolved = resolve_url(entry.url)
-            if not resolved:
-                logger.warning("Unrecognized YouTube URL: %s", entry.url)
-                continue
-            jobs.append(_dispatch(resolved, input_model))
-        async for item in fan_out(jobs):
-            yield item
-        return
-
-    jobs = [
+    jobs: list[AsyncIterator[dict[str, Any]]] = []
+    for entry in input_model.startUrls:
+        resolved = resolve_url(entry.url)
+        if not resolved:
+            logger.warning("Unrecognized YouTube URL: %s", entry.url)
+            continue
+        jobs.append(_dispatch(resolved, input_model))
+    jobs += [
         _search_flow(query, input_model=input_model, source_input=query)
         for query in input_model.searchQueries
     ]

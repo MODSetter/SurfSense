@@ -34,6 +34,10 @@ LISTING_TIMEOUT = httpx.Timeout(120.0, connect=5.0)
 MAX_ERROR_CHARS = 400
 
 
+class StreamedError(RuntimeError):
+    """A failure the endpoint reported inside a stream it had already begun."""
+
+
 class OpenAICompatibleChatProvider:
     name = "openai_compatible"
 
@@ -264,6 +268,11 @@ def _delta(line: str) -> Delta | None:
     if not payload or payload == "[DONE]":
         return None
     chunk = json.loads(payload)
+    # Past the first token the status is already 200, so llama.cpp and
+    # OpenRouter send a failure as a chunk. Skipped, it ended a cut-off reply
+    # as though the model had finished.
+    if error := chunk.get("error"):
+        raise StreamedError(_streamed_message(error))
     if progress := _prompt_progress(chunk.get("prompt_progress")):
         return Delta("", progress=progress)
     choices = chunk.get("choices")
@@ -287,6 +296,13 @@ def _reuse(line: str) -> tuple[int, int] | None:
         return None
     chunk = json.loads(payload)
     return chunk_reuse(chunk) if isinstance(chunk, dict) else None
+
+
+def _streamed_message(error: object) -> str:
+    message = error.get("message") if isinstance(error, dict) else error
+    if isinstance(message, str) and message.strip():
+        return message.strip()[:MAX_ERROR_CHARS]
+    return "the endpoint reported an error mid-stream"
 
 
 def _prompt_progress(reported: object) -> PromptProgress | None:

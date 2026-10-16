@@ -107,3 +107,11 @@ class DataImpulseProvider(ProxyProvider):
     ) -> str | None:
         """The configured URL on the session's sticky port, with its country."""
         return self._rewrite_proxy_url(country=country, session_id=session_id)
+
+    def sticky_slot(self, session_id: str) -> object:
+        """The port, since each port holds one IP.
+
+        About 118 live ids give even odds of two landing on one port; the lease
+        keeps live ports distinct.
+        """
+        return _sticky_port(session_id)

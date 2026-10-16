@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
 from modules.artifacts.models import Artifact
+from modules.artifacts.refused import refused
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.studio_documents.recipe import refinement, renders_as_stored
 from modules.artifacts.tasks import studio_job
@@ -106,7 +107,7 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     """
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
-        raise _refused(
+        raise refused(
             status.HTTP_409_CONFLICT, "already generating", "already_generating"
         )
     meta = artifact.artifact_metadata
@@ -136,23 +137,12 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
 def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
     """Stop a queued or running generation. The worker exits without writing ready."""
     if not cancel_studio_job(session, artifact.document, artifact.id):
-        raise _refused(
-            status.HTTP_409_CONFLICT, "nothing is running", "nothing_running"
-        )
+        raise refused(status.HTTP_409_CONFLICT, "nothing is running", "nothing_running")
     return artifact
 
 
-def _refused(status_code: int, message: str, code: str) -> HTTPException:
-    """A refusal with a code beside its sentence.
-
-    The interface keys its translated line on the code and falls back to the
-    sentence for one it has no line for: studio-error-text.ts, keep them in sync.
-    """
-    return HTTPException(status_code, {"message": message, "code": code})
-
-
 def _no_sources() -> HTTPException:
-    return _refused(
+    return refused(
         status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source", "no_sources"
     )
 
@@ -169,7 +159,7 @@ def _resolve_sources(
     resolved = resolve_scope(session, workspace_id, payload.source_scope)
     if not resolved.ids:
         if resolved.counts.indexing:
-            raise _refused(
+            raise refused(
                 status.HTTP_409_CONFLICT,
                 "the chosen sources are still indexing",
                 "sources_indexing",
@@ -204,7 +194,7 @@ def _replayed_sources(session: Session, artifact: Artifact) -> list[int]:
         )
         ids = [i for i in recorded if i in existing]
     if not ids:
-        raise _refused(
+        raise refused(
             status.HTTP_409_CONFLICT,
             "None of this artifact's sources are left.",
             "sources_gone",
