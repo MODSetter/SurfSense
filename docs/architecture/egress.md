@@ -66,7 +66,7 @@ The GGUF download runs inside the API (`modules/llm/providers/llamacpp/download.
 
 A refused GET therefore surfaces as an error without a prompt.
 
-One question covers one user action: it names every host that action may reach, including a host that background work started by it reaches, which no dialog could ask about later, and leaves a host only a later action reaches to that action's own question ([ADR 0058](../adr/0058-one-consent-question-per-user-action.md)). Only hosts SurfSense names are asked about; a host a program it runs tries on its own is refused.
+One question covers one user action: it names every host that action may reach, including a host that background work started by it reaches, which no dialog could ask about later, and leaves a host only a later action reaches to that action's own question ([ADR 0060](../adr/0060-one-consent-question-per-user-action.md)). Only hosts SurfSense names are asked about; a host a program it runs tries on its own is refused.
 
 Studio resolves its model in the worker, where no dialog can reach the user, so a job whose connection host is off fails with the refusal as its reason. Choosing a remote model already requires its host, so this happens only after the user turns the host off again.
 

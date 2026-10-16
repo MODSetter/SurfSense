@@ -1,4 +1,4 @@
-"""The proxy an agent run's Claude Code goes through: Anthropic's hosts and the ready plugins' (ADR 0059).
+"""The proxy an agent run's Claude Code goes through: Anthropic's hosts and the ready plugins' (ADR 0061).
 
 Separate from a chat run's, which passes Anthropic's hosts alone, so a chat run
 can never reach a plugin. Both checks are the ones already in use, not copies.

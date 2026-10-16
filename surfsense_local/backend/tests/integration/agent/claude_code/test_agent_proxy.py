@@ -1,4 +1,4 @@
-"""An agent run's Claude Code reaches Anthropic and the turn's ready plugins, and nothing else (ADR 0059)."""
+"""An agent run's Claude Code reaches Anthropic and the turn's ready plugins, and nothing else (ADR 0061)."""
 
 import pytest
 from sqlalchemy import Engine

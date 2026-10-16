@@ -117,7 +117,8 @@ async def _tunnel(
             _connect(host, int(port)), CONNECT_SECONDS
         )
     # Any failure, not only the network's: a socket closed unanswered reads as a
-    # blip, and Claude Code retries it ten times.
+    # blip: opencode marks the plugin failed without saying why, and Claude Code
+    # retries it ten times.
     except Exception:
         logger.warning("could not reach %s for %s", target, client, exc_info=True)
         await _answer(writer, b"502 Bad Gateway")

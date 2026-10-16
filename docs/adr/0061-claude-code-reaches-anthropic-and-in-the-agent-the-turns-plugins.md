@@ -1,11 +1,11 @@
-# ADR 0059: Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins
+# ADR 0061: Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins
 
 - **Status:** Accepted
 - **Date:** 2026-10-16
 
 ## Context
 
-[ADR 0057](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) has Claude Code's traffic tunnel "only `api.anthropic.com`". Claude Code also refreshes its sign-in on `platform.claude.com`, so chat runs already allow both, each while the user allows it ([ADR 0058](0058-one-consent-question-per-user-action.md)).
+[ADR 0057](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) has Claude Code's traffic tunnel "only `api.anthropic.com`". Claude Code also refreshes its sign-in on `platform.claude.com`, so chat runs already allow both, each while the user allows it ([ADR 0060](0060-one-consent-question-per-user-action.md)).
 
 The agent gives Claude Code the thread's plugins. opencode connects to each plugin server itself, with its URL and sign-in header, through the plugin proxy, which passes only a ready plugin's hosts ([agent](../architecture/agent.md#network)). Measured on Claude Code 2.1.301: its MCP traffic to a remote plugin goes through `HTTPS_PROXY`, so a proxy limited to Anthropic refuses the plugin.
 

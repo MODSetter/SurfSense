@@ -188,6 +188,8 @@ One row per run of a plugin's action. What the run produced is not here: the plu
         ├── documents/<document_id>/
         │   ├── <file name>       an uploaded or imported file, under its own name
         │   ├── figures/          the pictures ingest kept, and figures.json
+        │   │   └── work/         the runs a figures-only pass that gave way resumes from
+        │   ├── docling/work/     a long Docling reading's batches, until it ends
         │   └── transcript/       a recording's: segments.json once transcribed;
         │       └── work/         the decoded audio, plan and windows a job resumes from
         ├── chats/<thread_id>/

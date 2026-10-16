@@ -1,3 +1,5 @@
+from typing import Any
+
 from huey.exceptions import CancelExecution
 
 from shared.queue import ingest_queue
@@ -6,14 +8,22 @@ from shared.queue import ingest_queue
 # seconds; the copy waits behind it.
 PRIORITY_INTERACTIVE = 100
 PRIORITY_CHANGED = 50
+# A figures pass someone asked for: ahead of a folder import, but behind a note
+# or an upload, since each pass is a Docling run and a draft asks for several.
+PRIORITY_ASKED = 30
 PRIORITY_BULK = 10
+# Below every ingest and every figures pass someone asked for: work nobody
+# waits on yet.
+PRIORITY_IDLE = -10
 
 # An upload of more files than this is a bulk copy.
 BULK_UPLOAD_FILES = 20
 
 
-@ingest_queue.task(retries=2, priority=PRIORITY_INTERACTIVE)
-def ingest_document(document_id: int) -> None:
+# Huey hands the task itself in: a long reading gives way only to work queued as
+# high as its own, and queues again at it.
+@ingest_queue.task(retries=2, context=True, priority=PRIORITY_INTERACTIVE)
+def ingest_document(document_id: int, task: Any = None) -> None:
     """Parse, chunk, embed and index one document."""
     # Lazy: the body pulls in Docling and torch, which the API never needs.
     from worker.ingestion import run
@@ -21,17 +31,20 @@ def ingest_document(document_id: int) -> None:
     from worker.ingestion.parsing import UnreadableFileError
 
     try:
-        run(document_id)
+        run(document_id, PRIORITY_ASKED if task is None else task.priority)
     except (UnreadableFileError, RecordingRefusedError) as refused:
         # Already failed with its reason; a retry would only refuse it again.
         raise CancelExecution(retry=False) from refused
 
 
 # No retries: a failure is recorded in the figures index, and a second read of
-# the same file would fail the same way.
-@ingest_queue.task()
-def extract_figures(document_id: int) -> None:
-    """Keep the figures of a source ingested before figures were kept."""
+# the same file would fail the same way. Huey hands the task itself in, so a
+# pass that gives the queue up queues again at the priority it came with.
+@ingest_queue.task(context=True, priority=PRIORITY_ASKED)
+def extract_figures(document_id: int, task: Any = None) -> None:
+    """Keep the figures of a ready source that ingest left without them: a PDF
+    read from its text layer or partly from it, a Word file read without
+    Docling, or one ingested before figures were kept."""
     from worker.ingestion.figures.backfill import run
 
-    run(document_id)
+    run(document_id, PRIORITY_ASKED if task is None else task.priority)

@@ -1,4 +1,4 @@
-# ADR 0058: One consent question asks for every host a user action needs, including hosts its background work will reach
+# ADR 0060: One consent question asks for every host a user action needs, including hosts its background work will reach
 
 - **Status:** Accepted
 - **Date:** 2026-10-16
