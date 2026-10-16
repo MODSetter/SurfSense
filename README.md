@@ -77,6 +77,7 @@ SurfSense is a free, open-source desktop app for documents you can't upload. A p
 | **Images** PNG, JPEG, TIFF, BMP, WebP | ✓ text read by OCR³ | Images and infographics² | — | Place in new documents |
 | **Markdown**, plain text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ web page | — | — |
+| **Recordings** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcribed on your machine | — | — | — |
 | **Podcast** (audio) | — | ✓ with a transcript, voiced on your machine by default | — | — |
 | **Mind maps, flashcards, quizzes** | — | ✓ in the app | — | — |
 

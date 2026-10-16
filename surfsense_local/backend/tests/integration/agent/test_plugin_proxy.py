@@ -455,7 +455,8 @@ async def test_the_api_runs_the_proxy_where_electron_points_opencode(
 
 def test_a_ready_plugins_host_is_tunnelled_to_under_uvloop(engine: Engine) -> None:
     """The real app runs on uvloop on macOS and Linux; the tests' loop is asyncio's."""
-    uvloop = pytest.importorskip("uvloop")  # Not installed on Windows.
+    # uvloop has no Windows build, and the app runs on asyncio's own loop there.
+    uvloop = pytest.importorskip("uvloop")
 
     async def tunnelled() -> tuple[bytes, bytes]:
         async def answer(

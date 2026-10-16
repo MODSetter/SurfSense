@@ -1,0 +1,82 @@
+---
+date: "2026-10-16"
+version: "2.2.2"
+---
+
+## What's New in v2.2.2
+
+v2.2.2 makes sources usable seconds after you add them, and adds speech recognition that runs on this computer: recordings become sources, and a mic in the composer turns your voice into text. In our tests on one Windows PC, the mean time from adding a file to it being ready fell from 476 s to 44 s across 231 real files. In Agentic chats, plugins get ready sooner, and one that hangs no longer takes the others with it. Get it from the [downloads page](/downloads).
+
+### Sources ready in seconds
+
+- **PDFs with a text layer**: A PDF made on a computer, rather than scanned, is now read from its own text, which takes milliseconds a page. In our tests a 46-page budget PDF was ready in about 9 s instead of about 2 minutes.
+- **PDFs with a few scanned pages**: When at most half the pages are a scan, a cover photo or a turned page, only those pages go through Docling, the slower reader. Scans, filled-in forms and PDFs whose text can't be read are still read whole by Docling.
+- **Word files**: `.docx` files have their own reader, about 9 times as fast in our tests. Numbering matches what Word shows, such as 9.3, (b) or 12(c)(i), and citations quote those numbers. Footnotes and endnotes are now searchable, and tracked changes are read as accepted. Word files with charts, and Excel and PowerPoint files, are read as before.
+- **Faster embedding**: On Windows and Linux PCs with x64 processors, the bundled embedding model (bge-small) now runs at full precision, which made it about 6 times as fast on our Windows test PC. Nothing already indexed is embedded again.
+- **Quicker to start**: A batch of dropped files starts with the ones that are already text (`.md`, `.txt`), then goes smallest first, with recordings last. SurfSense starts on an upload within half a second instead of up to 10 s.
+- **Long scans give way**: After a minute, a long scan lets a new note or upload go ahead of it. Cancel stops it within 8 pages instead of at the end of the file. If you quit partway, the row shows Ingestion failed, and Retry carries on from the pages already read.
+- **Basic (Q&A) says when sources are still being read**: When some ticked sources aren't read yet and nothing already read matches your question, the reply says how many are still being read and to ask again. Before, it said your sources didn't cover the question.
+
+### Speech recognition
+
+- **Recordings as sources**: Add `.wav`, `.mp3`, `.flac`, `.ogg` or `.oga` files like any other source. SurfSense transcribes them on this computer, and chat, search, citations, Studio and the agent read the transcript, which marks where each passage starts with a time such as [00:42:10]. In our tests on a desktop PC it ran at 11.5 times real time, so an hour of audio takes about 5 minutes.
+- **Progress you can see**: The row shows how far it has got, such as "Transcribing · 23 of 58 min · about 7 min left". About once a minute, a long recording lets other uploads and notes go ahead of it. Cancel stops it within 28 s of audio, and Retry carries on where it stopped.
+- **Voice input**: A mic sits beside Send in every chat, Basic (Q&A) or Agentic. Text appears a phrase at a time as you pause. Enter or Send puts it in the box without sending it, Escape cancels, and holding the mic down is push-to-talk. Voice input stops after 5 minutes. Your voice stays in memory on this computer, and nothing goes to an online service.
+- **Settings › Speech recognition**: Add model offers two models. Nemotron 3.5 ASR Streaming 0.6B (931 MB) knows 26 languages and detects which one it hears. Canary 180M Flash (249 MB) does English, German and French, and needs less free memory. Spoken language sets the language of your recordings and voice input, and Nemotron also offers Detect automatically.
+- **Set up when you need it**: The first press of the mic opens "Set up speech recognition", which downloads a model once. A recording added before that waits with Set up on its row, then starts by itself once a model is chosen, with no need to upload it again.
+- **Microphone access**: macOS asks before SurfSense uses the microphone. If microphone access is off in your system's settings, the composer says so, with Open settings. Only SurfSense's own window can use the microphone, and requests for the camera or the screen are refused.
+
+### Plugins
+
+- **Search plugins**: A search box in Settings › Plugins looks through Yours and Browse at once, by name, description, author or tool. Third-party plugins are searched once Allow third-party plugins is on.
+- **Three permissions per tool**: In a plugin's details, each tool has three icons: Always allowed, Needs approval and Blocked. Hover a tool's name to read its description. The Read-only and Can make changes groups fold away, and each has a menu that sets every tool in the group at once. Your existing tool settings carry over.
+- **Replies start sooner**: In an Agentic chat, plugins get ready while your sources sync instead of after. In our tests, a cold chat with 8 plugins used to spend about 2 to 9 s on them first, depending on the network. The check for changed tools no longer holds a message up for more than 3 s.
+- **License status at once**: Importing, replacing or removing a license in Settings › License updates SurfSense's plugins right away: Needs a license, License expired, License revoked or License not recognized, or back to On. A plugin your license doesn't unlock is no longer offered after `@` or given to the agent.
+- **Faster SurfSense plugins**: In our tests, an Indeed search took about 2 s instead of 77 s, an Amazon search 2 s instead of 58 s, and a YouTube video with subtitles under 1 s instead of 13 s. The agent now reads each result's data, such as prices, page text and reviews, not just a list of titles, and Amazon search returns products again. These plugins run on plugins.surfsense.com, so v2.2.1 gets this too.
+- **Longer calls**: SurfSense's own plugins can now run for up to 300 s instead of 200 s, so long scrapes time out less often. When the agent gives up on a call to one of them, the plugin host stops it too.
+- **Notion and DeepWiki**: With Allow third-party plugins on, Browse lists Notion, a Community plugin that signs in with your Notion account. DeepWiki is now Verified. The list comes from plugins.surfsense.com, so v2.2.1 shows them too.
+
+### Chat, Studio and Settings
+
+- **Use your ChatGPT plan**: Settings › Text gen › Add model, and onboarding, have a Use your ChatGPT plan row below Use a server. Sign in with ChatGPT opens the sign-in in your browser in one click, where it used to take four or five through the Provider list in Connect a server. It needs a ChatGPT Plus or Pro plan.
+- **Podcasts as MP3**: Studio's Podcast saves the episode as MP3, about a sixth of the size of the WAV it used to be, and Download gives a `.mp3` file named after the episode.
+- **Larger Settings**: The Settings dialog is about 1024 by 768 instead of 1000 by 640, with a wider sidebar, and it shrinks to fit a small window. The chat column is wider too.
+- **Buttons**: Buttons shrink slightly when pressed, unless your system asks for reduced motion. Secondary buttons stand out more, and the Connect button on Browse cards is filled.
+- **Third-party license notices**: The installers now include the license notices of the third-party software SurfSense ships, in `THIRD_PARTY_NOTICES.txt` in the app's `resources/licenses` folder. The app doesn't show them yet.
+
+### No longer broken
+
+- One plugin that hangs no longer takes every plugin out of an Agentic chat. After 25 s only that plugin shows "Couldn't reach" with its name, and the others keep working.
+- After you remove a license or it expires, SurfSense's plugins no longer stay On until a call fails. A chat now says the plugin "needs a SurfSense license" instead of asking you to sign in again.
+- A reply that the model's server cuts off with an error now ends as failed, keeping the text written so far, with Retry. Before, the cut-off text was saved as a finished answer. Test chat, when you choose a model, shows the server's error too.
+- When the agent keeps crashing, SurfSense restarts it after 10 s, then after 20 s, and after three quick crashes stops with one "The agent stopped" notification. An Agentic chat then fails at once instead of after about a minute, and your next Agentic message tries again. Before, it restarted every 10 s and showed "A background service stopped" each time.
+- Clicking Settings behind a dialog opened from it, such as Add custom plugin or a confirmation, no longer presses buttons in Settings. It closes the dialog in front.
+- Secondary buttons no longer almost vanish on hovered rows and cards in dark mode.
+- When a script the agent or Studio runs fails, its error shows paths relative to the script's own folder instead of long temporary paths, so more of the error fits in the tooltip and the agent has more to fix the script with.
+- Studio's Refine box now gives most of its reasons for turning down a request in your language.
+- On Windows, a source deleted while its figures were being extracted could leave files behind for the next file you uploaded to pick up. Uploads now clear them first.
+
+### Known issues
+
+- **The first start needs free disk space**: v2.2.2 copies your library database before upgrading it, so the first start needs free space about the size of `~/.surfsense/surfsense.db`. Without it, SurfSense closes without a message. Free some space and start it again.
+- **Going back to v2.2.1 needs a manual restore**: v2.2.1 can't open the upgraded database. Quit SurfSense and replace `~/.surfsense/surfsense.db` with the copy saved at the upgrade, `~/.surfsense/backups/0029-0030.db`, before you reinstall v2.2.1. If `surfsense.db-wal` or `surfsense.db-shm` is still there, delete it too. Anything added since the update, such as sources, recordings, chats and notes, won't be in the copy. If you updated straight from v2.2.0, the copy is `0027-0030.db`. To get back the speech model's disk space, delete the model in Settings › Speech recognition before you go back.
+- **Sources you already have aren't read again**: PDF and Word sources added before v2.2.2 keep their earlier reading. To get the new one, delete the source and add it again.
+- **Figures come after the text**: A PDF read from its text layer, or a Word file with images, gets its figures in a background pass after it shows as ready. A PDF over 40 pages, or one whose charts are drawn as lines, gets them only when the agent or Studio asks. Until then the agent is told to ask again in a minute, and a Studio draft places no figures from that source. The pass keeps the CPU busy for a few minutes after your sources are ready, and a model running on this computer shares the CPU with it.
+- **PDFs read from their text layer are plain text**: They have no headings, and a table becomes lines of values without columns, which is what citations show. To have Docling read every PDF, see Developers.
+- **Scans are as slow as before**: A scanned PDF is still read by Docling, so a 20-page scan takes about as long as it did, and a long reading shows no progress in Sources.
+- **No faster embedding on Macs**: The embedding model runs as before on macOS. The new PDF and Word readers still apply.
+- **Some recording formats can't be added yet**: Opus (in `.ogg`, `.oga` or `.opus` files), `.m4a`, `.aac` and `.webm` aren't supported, and many apps save voice notes as Opus. A file can be up to 500 MB. A recording can't be played, and a citation can't open it at its time.
+- **Speech recognition needs a download and free memory**: The model is a one-time download of 931 MB or 249 MB. Loading it needs about 2.9 GB of free memory for Nemotron or 1.9 GB for Canary, which a busy 8 GB computer may not have.
+- **Tell Canary the language you speak**: Canary can't detect the language, and set to the wrong one it may write English instead of a transcript. It doesn't offer Spanish yet. One Spoken language covers both recordings and voice input.
+- **Voice input uses your default microphone**, with no choice of device. If the speech recognition engine crashes, the notice reads "A background service stopped" and asks you to restart, though SurfSense restarts it by itself.
+- **Three plugin tools turn off once**: With the plugin host update, YouTube's `scrape` and `comments` and TikTok's `scrape` have new descriptions, so they're marked Changed and stay off until you allow them again in the plugin's details. Google Search now returns 4 to 9 People Also Ask questions instead of 9 to 12.
+- **Notion has more tools than a chat gives the agent**: Notion lists 39 tools, and a chat gives the agent the first 24 plugin tools plus every tool of a plugin you mention. Type `@notion` when you want the agent to use it.
+
+### Developers
+
+- **Turning the new readers off**: `SURFSENSE_LOCAL_PDF_TEXT_LAYER=off` sends every PDF to Docling whole, `SURFSENSE_LOCAL_DOCX_READER=docling` puts Docling back for Word, and `SURFSENSE_LOCAL_EMBED_PRECISION=fp16` runs the embedder as shipped (`fp32` upcasts it on any processor). Set one in the environment and restart SurfSense; there's no setting for them in the app.
+- **Decisions**: [ADR 0056](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0056-speech-recognition-runs-on-a-second-audiocpp-server.md) runs speech recognition on a second audio.cpp server, [ADR 0058](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0058-the-bundled-embedder-runs-at-fp32-on-x86-64.md) runs the bundled embedder at FP32 on x86-64, and [ADR 0059](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0059-a-born-digital-pdf-is-read-from-its-text-layer.md) reads a born-digital PDF from its text layer. [ADR 0057](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md) plans a way to use a Claude plan through your own Claude Code; it isn't built.
+- **Source checkouts**: Run `uv sync` in `surfsense_local/backend` for the new audio packages, miniaudio and lameenc. `pnpm dev` now stages audio.cpp again by itself when the staged copy lacks a model family SurfSense needs, such as the speech ones; compiling it on Windows or Linux takes about 4 to 5 minutes. On Windows it compiles with Visual Studio's C++ tools, whatever `cmake` comes first on your PATH.
+- **Plugin publishers**: Verified now means SurfSense's maintainers judged that the author runs the server, and an entry no longer needs a `domain` ([ADR 0055](https://github.com/MODSetter/SurfSense/blob/main/docs/adr/0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md)). CI connects to each plugin a pull request adds or changes. `plugins/registry/README.md` is the guide to listing one, and GitHub has a Report a plugin issue form.
+- **Third-party notices**: `pnpm build:notices` writes `THIRD_PARTY_NOTICES.txt` and `.json` for the installer, and fails the build when a dependency has no license text and no reasoned entry in `surfsense_local/electron/scripts/notices/allowed-without-text.json`.
+- **Desktop tests on three systems**: The backend and Electron tests now run on Linux, macOS and Windows for every push to dev, as checks named after the system, such as `Backend (windows-latest)` and `Electron (macos-latest)`.

@@ -70,6 +70,7 @@ O SurfSense é um aplicativo de desktop gratuito e open source para os documento
 | **Imagens** PNG, JPEG, TIFF, BMP, WebP | ✓ texto lido por OCR³ | Imagens e infográficos² | — | Inserir em novos documentos |
 | **Markdown**, texto simples | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ página web | — | — |
+| **Gravações** WAV, MP3, FLAC, Ogg Vorbis | ✓ transcritas na sua máquina | — | — | — |
 | **Podcast** (áudio) | — | ✓ com transcrição; por padrão, a voz é gerada na sua máquina | — | — |
 | **Mapas mentais, flashcards, quizzes** | — | ✓ no aplicativo | — | — |
 
