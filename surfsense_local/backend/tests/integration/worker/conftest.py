@@ -5,6 +5,11 @@ import pytest
 from modules.llm.profile import Fingerprint, Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 
+# Docling's reading of a file, scripted by the test.
+from tests.integration.worker.docling_stand_in import (
+    docling,  # noqa: F401 - a fixture
+)
+
 # The API's speech routes, as a recording's ingest job reaches them.
 from tests.integration.worker.speech_api_stand_in import (
     speech_api,  # noqa: F401 - a fixture

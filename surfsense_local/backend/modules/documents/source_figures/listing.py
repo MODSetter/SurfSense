@@ -23,7 +23,7 @@ def list_figures(
 ) -> list[SourceFigure]:
     """The figures kept from one source, in the order the source shows them.
 
-    A source ingested before figures were kept gets the figures-only pass queued.
+    A ready source ingest left without them gets the figures-only pass queued.
     """
     document = source_in_workspace(session, workspace_id, document_id)
     if document.document_type is not DocumentType.FILE:
@@ -44,10 +44,13 @@ def list_figures(
 
 
 def _queue_figures_pass(document: Document) -> None:
-    # Once is enough: the pass reads the whole file, and a caller polls.
+    # Once is enough: the pass reads the whole file, and a caller polls. A copy
+    # ingest queued at idle priority would wait out a folder import, so it is not.
     wanted = extract_figures.s(document.id)
     waiting = any(
-        task.name == wanted.name and task.args == wanted.args
+        task.name == wanted.name
+        and task.args == wanted.args
+        and (task.priority or 0) >= (wanted.priority or 0)
         for task in ingest_queue.pending()
     )
     if not waiting:

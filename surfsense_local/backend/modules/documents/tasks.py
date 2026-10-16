@@ -7,6 +7,8 @@ from shared.queue import ingest_queue
 PRIORITY_INTERACTIVE = 100
 PRIORITY_CHANGED = 50
 PRIORITY_BULK = 10
+# Below an asked-for figures pass, at the default 0: work nobody waits on yet.
+PRIORITY_IDLE = -10
 
 # An upload of more files than this is a bulk copy.
 BULK_UPLOAD_FILES = 20
@@ -31,7 +33,7 @@ def ingest_document(document_id: int) -> None:
 # the same file would fail the same way.
 @ingest_queue.task()
 def extract_figures(document_id: int) -> None:
-    """Keep the figures of a source ingested before figures were kept."""
+    """Keep the figures of a ready source that ingest left without them."""
     from worker.ingestion.figures.backfill import run
 
     run(document_id)

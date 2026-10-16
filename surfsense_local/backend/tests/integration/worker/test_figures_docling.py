@@ -1,4 +1,8 @@
-"""Figures real Docling keeps from generated PDF, Word and PowerPoint files, offline."""
+"""Figures real Docling keeps from generated PDF, Word and PowerPoint files, offline.
+
+Ingest reads the born-digital PDF from its text layer and queues the figures-only
+pass, which then reads it with Docling once nothing else is queued.
+"""
 
 import io
 import json
@@ -19,6 +23,12 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Image as PdfImage
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate
 
+from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.tasks import PRIORITY_IDLE
+from modules.workspaces.models import Workspace
+from shared.config import StorageSettings
+from shared.db import create_db_engine, create_session_factory
+from shared.migrations import upgrade_to_head
 from tests.integration.worker.test_parsing import BACKEND, PACK_ROOT
 
 pytestmark = pytest.mark.integration
@@ -28,7 +38,7 @@ CHART_CAPTION = "Figure 2: Yearly costs by region."
 
 # Every file converts in one child, which pays Docling's import and model load once.
 CHILD = """
-import socket, sys
+import socket
 
 def refuse(*_args, **_kwargs):
     raise OSError("this test refuses outbound network")
@@ -36,13 +46,29 @@ def refuse(*_args, **_kwargs):
 socket.socket.connect = refuse
 socket.socket.connect_ex = refuse
 
-from modules.documents.models import Document, DocumentType
-from shared.db import import_models
+from sqlalchemy import select
+
+from modules.documents.models import Document, DocumentStatus
+from shared.config import get_storage_settings
+from shared.db import create_db_engine, create_session_factory, import_models
+from shared.queue import ingest_queue
 from worker.ingestion.parsing import markdown_for
 
 import_models()
-for document_id in range(1, len(sys.argv)):
-    markdown_for(Document(id=document_id, workspace_id=1, document_type=DocumentType.FILE))
+engine = create_db_engine(get_storage_settings().database_path)
+with create_session_factory(engine)() as session:
+    for document in session.scalars(select(Document).order_by(Document.id)):
+        markdown_for(document)
+        # As ingest finishes a source: ready, with its figures kept or queued.
+        document.status = DocumentStatus.READY
+        session.commit()
+engine.dispose()
+
+# The ingest worker, once no upload waits: the figures-only pass, as queued.
+while ingest_queue.pending_count():
+    task = ingest_queue.dequeue()
+    print(f"queued: {task.name} {task.args} {task.priority}")
+    ingest_queue.execute(task)
 """
 
 
@@ -120,22 +146,38 @@ def kept(tmp_path_factory: pytest.TempPathFactory) -> dict[str, dict]:
         "memo.docx": pasted_docx(),
         "deck.pptx": deck_pptx(),
     }
-    data_dir = root / "data"
-    folders = {}
-    for document_id, (name, content) in enumerate(files.items(), start=1):
-        folder = data_dir / "data" / "workspaces" / "1" / "documents" / str(document_id)
-        folder.mkdir(parents=True)
-        (folder / name).write_bytes(content)
-        folders[name] = folder
+    storage = StorageSettings(data_dir=root / "data")
+    engine = create_db_engine(storage.database_path)
+    upgrade_to_head(engine)
+    folders, ids = {}, {}
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="Figures")
+        session.add(workspace)
+        session.flush()
+        for name, content in files.items():
+            source = Document(
+                workspace_id=workspace.id,
+                title=name,
+                document_type=DocumentType.FILE,
+                status=DocumentStatus.PROCESSING,
+            )
+            session.add(source)
+            session.flush()
+            folder = storage.document_dir(workspace.id, source.id)
+            folder.mkdir(parents=True)
+            (folder / name).write_bytes(content)
+            folders[name], ids[name] = folder, source.id
+        session.commit()
+    engine.dispose()
 
     empty_cache = root / "hf"
     empty_cache.mkdir()
     child = subprocess.run(
-        [sys.executable, "-c", CHILD, *files],
+        [sys.executable, "-c", CHILD],
         cwd=BACKEND,
         env={
             **os.environ,
-            "SURFSENSE_LOCAL_DATA_DIR": str(data_dir),
+            "SURFSENSE_LOCAL_DATA_DIR": str(storage.data_dir),
             "SURFSENSE_LOCAL_MODELS_DIR": str(PACK_ROOT),
             "HF_HOME": str(empty_cache),
             "HF_HUB_OFFLINE": "1",
@@ -146,6 +188,11 @@ def kept(tmp_path_factory: pytest.TempPathFactory) -> dict[str, dict]:
         timeout=900,
     )
     assert child.returncode == 0, child.stderr[-4000:]
+    # Only the born-digital PDF is left to the figures pass, below every ingest.
+    queued = [line for line in child.stdout.splitlines() if line.startswith("queued:")]
+    assert queued == [
+        f"queued: extract_figures ({ids['report.pdf']},) {PRIORITY_IDLE}"
+    ], child.stdout[-4000:]
     return {
         name: {
             "index": json.loads(
