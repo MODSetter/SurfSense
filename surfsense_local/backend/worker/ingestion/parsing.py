@@ -1,4 +1,3 @@
-import logging
 import os
 from contextlib import nullcontext
 from functools import lru_cache
@@ -10,9 +9,6 @@ import psutil
 from modules.documents.models import Document, DocumentType
 from modules.documents.original_file import original_path
 from modules.documents.recordings.kind import is_recording
-from modules.documents.source_figures.figures_pass import queue_figures_pass
-from modules.documents.source_figures.layout import figures_dir, read_index
-from modules.documents.tasks import PRIORITY_IDLE
 from modules.documents.text_files import TEXT_SUFFIXES
 from shared.config import get_storage_settings
 from worker.ingestion.audio.transcript_job import recording_markdown
@@ -21,11 +17,8 @@ from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
-from worker.ingestion.pdf_text_layer import read_text_layer
 from worker.ingestion.slideless_deck import describe_slideless_deck
 from worker.ingestion.word_markdown import markdown_without_docling
-
-logger = logging.getLogger(__name__)
 
 
 class UnreadableFileError(Exception):
@@ -45,22 +38,11 @@ def markdown_for(document: Document) -> str:
     if is_recording(document.mime_type):
         return recording_markdown(document, path)
     if path.suffix.lower() == ".pdf":
-        text = _text_layer(document, path)
-        if text is not None:
-            return text
+        # Lazy: it reads through this module's converter.
+        from worker.ingestion.pdf_reading import pdf_markdown
+
+        return pdf_markdown(document, path)
     return _markdown_from(path)
-
-
-def _text_layer(document: Document, path: Path) -> str | None:
-    """A born-digital PDF's own text, or None when Docling must read the file."""
-    layer = read_text_layer(path)
-    if layer.text is None:
-        logger.info("Docling reads %s: %s", path.name, layer.refused_because)
-        return None
-    if layer.images and read_index(figures_dir(path.parent)) is None:
-        # Ready without its figures; Docling keeps them once nothing else waits.
-        queue_figures_pass(document.id, PRIORITY_IDLE)
-    return layer.text
 
 
 def _markdown_from(path: Path) -> str:
@@ -78,8 +60,9 @@ def _markdown_from(path: Path) -> str:
     return converted.export_to_markdown() if template is None else template
 
 
-def convert(path: Path) -> Any:
-    """Docling's reading of a file: its DoclingDocument."""
+def convert(path: Path, page_range: tuple[int, int] | None = None) -> Any:
+    """Docling's reading of a file, or of a PDF's pages first to last: its
+    DoclingDocument."""
     if describe_slideless_deck(path) is not None:
         from docling_core.types.doc import DoclingDocument
 
@@ -95,7 +78,9 @@ def convert(path: Path) -> Any:
     reading = cached_style_lookups() if suffix == ".docx" else nullcontext()
     try:
         with reading:
-            return converter.convert(source).document
+            if page_range is None:
+                return converter.convert(source).document
+            return converter.convert(source, page_range=page_range).document
     except ConversionError as refused:
         # Docling also reports a file it cannot open yet and a model that ran
         # out of memory this way; only bytes it cannot load fail the same again.

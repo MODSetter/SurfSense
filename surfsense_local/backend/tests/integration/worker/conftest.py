@@ -10,6 +10,11 @@ from tests.integration.worker.docling_stand_in import (
     docling,  # noqa: F401 - a fixture
 )
 
+# Docling reading exactly the pages it is asked for.
+from tests.integration.worker.paged_docling_stand_in import (
+    paged_docling,  # noqa: F401 - a fixture
+)
+
 # The API's speech routes, as a recording's ingest job reaches them.
 from tests.integration.worker.speech_api_stand_in import (
     speech_api,  # noqa: F401 - a fixture

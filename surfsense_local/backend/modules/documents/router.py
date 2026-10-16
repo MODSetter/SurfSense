@@ -24,6 +24,7 @@ from api.notify import (
 )
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
+from modules.documents.docling_batches import ended_in_queue as docling_batches
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.original_file import (
     emptied_document_dir,
@@ -457,6 +458,7 @@ def cancel_ingest(
     if not cancel_ingest_job(session, document):
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
     drop_when_cancelled_in_queue(document, was)
+    docling_batches.drop_when_cancelled_in_queue(document, was)
     notify_document_updates(broker, document)
     return document
 
