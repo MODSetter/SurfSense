@@ -19,8 +19,8 @@ from modules.documents.models import DocumentStatus
 from modules.documents.source_figures.layout import read_index
 from modules.documents.source_figures.listing import FiguresPending, list_figures
 from modules.documents.tasks import (
+    PRIORITY_ASKED,
     PRIORITY_BULK,
-    PRIORITY_INTERACTIVE,
     extract_figures,
 )
 from shared.db import create_session_factory
@@ -268,12 +268,12 @@ def test_a_word_files_pictures_come_from_the_figures_pass(
     with pytest.raises(FiguresPending):
         list_figures(session, source.workspace_id, source.id)
     assert figures_queued() == [
-        ((source.id,), PRIORITY_INTERACTIVE),
+        ((source.id,), PRIORITY_ASKED),
         ((source.id,), PRIORITY_BULK),
     ]
     session.close()  # the pass reads the row in a transaction of its own
     first = ingest_queue.dequeue()
-    assert (first.args, first.priority) == ((source.id,), PRIORITY_INTERACTIVE)
+    assert (first.args, first.priority) == ((source.id,), PRIORITY_ASKED)
     extract_figures.call_local(source.id)
     kept = [{"n": 1, "caption": None, "page": None, "width": 400, "height": 300}]
     assert read_index(folder) == kept

@@ -25,7 +25,11 @@ from api.notify import (
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.documents.original_file import original_path, stored_name
+from modules.documents.original_file import (
+    emptied_document_dir,
+    original_path,
+    stored_name,
+)
 from modules.documents.recordings.ended_run import drop_when_cancelled_in_queue
 from modules.documents.schemas import (
     DocumentByChunkRead,
@@ -317,8 +321,7 @@ def upload_documents(
         raise
 
     for document, streamed, suffix in accepted:
-        destination = storage.document_dir(workspace.id, document.id)
-        destination.mkdir(parents=True, exist_ok=True)
+        destination = emptied_document_dir(workspace.id, document.id)
         streamed.path.replace(destination / stored_name(document.title, suffix))
 
     made = list(

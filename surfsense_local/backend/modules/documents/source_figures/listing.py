@@ -9,7 +9,7 @@ from modules.documents.source_figures.source import (
     kept_figures_dir,
     source_in_workspace,
 )
-from modules.documents.tasks import PRIORITY_INTERACTIVE
+from modules.documents.tasks import PRIORITY_ASKED
 
 # Still being read: ingest keeps them, or settles a Word file's as it ends.
 _INGEST_WILL_KEEP_THEM = (DocumentStatus.PENDING, DocumentStatus.PROCESSING)
@@ -40,8 +40,8 @@ def list_figures(
     if original is None or not can_hold_figures(original):
         return []
     if document.status is DocumentStatus.READY:
-        # Someone is waiting on it: ahead of the ingests queued meanwhile.
-        queue_figures_pass(document.id, PRIORITY_INTERACTIVE)
+        # Someone is waiting on it: ahead of a folder import, behind a note.
+        queue_figures_pass(document.id, PRIORITY_ASKED)
     elif document.status not in _INGEST_WILL_KEEP_THEM:
         return []
     raise FiguresPending(f"the figures of source {document.id} are being extracted")

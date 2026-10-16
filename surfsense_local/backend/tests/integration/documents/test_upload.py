@@ -389,6 +389,33 @@ async def test_a_deleted_document_takes_its_file(
     assert stored_files(data_dir) == []
 
 
+async def test_an_upload_given_a_deleted_documents_id_starts_with_its_folder_empty(
+    client: AsyncClient, workspace_id: int, data_dir: Path
+) -> None:
+    """SQLite gives the highest id out again, and a delete leaves a file it cannot
+    remove, as one held open on Windows: the new document must not read it."""
+    first = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    deleted = first.json()["created"][0]["id"]
+    await client.delete(f"/workspaces/{workspace_id}/documents/{deleted}")
+    left = get_storage_settings().document_dir(workspace_id, deleted)
+    (left / "figures").mkdir(parents=True)
+    (left / "report.pdf").write_bytes(b"%PDF-1.7")
+    (left / "figures" / "figures.json").write_text(
+        '{"version": 1, "figures": []}', encoding="utf-8"
+    )
+
+    second = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("budget.pdf", b"%PDF-1.7 budget", "application/pdf")},
+    )
+
+    assert second.json()["created"][0]["id"] == deleted
+    assert [path.name for path in stored_files(data_dir)] == ["budget.pdf"]
+
+
 async def test_a_deleted_workspace_takes_every_file(
     client: AsyncClient, workspace_id: int, data_dir: Path
 ) -> None:

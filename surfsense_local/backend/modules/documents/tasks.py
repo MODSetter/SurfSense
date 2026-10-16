@@ -6,6 +6,9 @@ from shared.queue import ingest_queue
 # seconds; the copy waits behind it.
 PRIORITY_INTERACTIVE = 100
 PRIORITY_CHANGED = 50
+# A figures pass someone asked for: ahead of a folder import, but behind a note
+# or an upload, since each pass is a Docling run and a draft asks for several.
+PRIORITY_ASKED = 30
 PRIORITY_BULK = 10
 # Below every ingest and every figures pass someone asked for: work nobody
 # waits on yet.
@@ -31,9 +34,8 @@ def ingest_document(document_id: int) -> None:
 
 
 # No retries: a failure is recorded in the figures index, and a second read of
-# the same file would fail the same way. Interactive unless queued otherwise:
-# whoever asks for figures is waiting on them.
-@ingest_queue.task(priority=PRIORITY_INTERACTIVE)
+# the same file would fail the same way.
+@ingest_queue.task(priority=PRIORITY_ASKED)
 def extract_figures(document_id: int) -> None:
     """Keep the figures of a ready source that ingest left without them: a PDF
     read from its text layer, a Word file read without Docling, or one ingested

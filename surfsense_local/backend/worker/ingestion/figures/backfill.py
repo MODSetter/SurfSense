@@ -4,17 +4,14 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.documents.original_file import original_path
 from modules.documents.source_figures.layout import (
     can_hold_figures,
     figures_dir,
     read_index,
 )
-from shared.config import get_storage_settings
-from shared.db import create_db_engine, create_session_factory
 from worker.ingestion import parsing
 from worker.ingestion.figures import pictures_reading
+from worker.ingestion.figures.read_source import ready_source, still_ready
 from worker.ingestion.figures.scanned_pages import scanned_pages
 from worker.ingestion.figures.store import keep_figures, record_figures_failure
 from worker.ingestion.image_page import IMAGE_SUFFIXES
@@ -23,18 +20,21 @@ logger = logging.getLogger(__name__)
 
 
 def run(document_id: int) -> None:
-    original = _ready_original(document_id)
-    if original is None or not can_hold_figures(original):
+    source = ready_source(document_id)
+    if source is None or not can_hold_figures(source.original):
         return
+    original = source.original
     if read_index(figures_dir(original.parent)) is not None:
         return  # a copy of this pass queued twice, or ingest got there first
 
     try:
         converted = reading_for_figures(original)
     except Exception as failure:
-        record_figures_failure(original, failure)
+        if still_ready(source):
+            record_figures_failure(original, failure)
         return
-    keep_figures(original, converted)
+    if still_ready(source):
+        keep_figures(original, converted)
 
 
 def reading_for_figures(original: Path) -> Any:
@@ -52,20 +52,3 @@ def reading_for_figures(original: Path) -> Any:
             logger.warning("read %s in full for its figures", original, exc_info=True)
     # Docling reads Word and PowerPoint without models; a scan's captions need OCR.
     return parsing.convert(original)
-
-
-def _ready_original(document_id: int) -> Path | None:
-    # No transaction is held while Docling reads: that takes minutes on a long PDF.
-    engine = create_db_engine(get_storage_settings().database_path)
-    try:
-        with create_session_factory(engine)() as session:
-            document = session.get(Document, document_id)
-            if (
-                document is None
-                or document.document_type is not DocumentType.FILE
-                or document.status is not DocumentStatus.READY
-            ):
-                return None
-            return original_path(document)
-    finally:
-        engine.dispose()
