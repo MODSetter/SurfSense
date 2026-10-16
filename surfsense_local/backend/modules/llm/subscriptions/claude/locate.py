@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 from collections.abc import Iterator, Mapping
 from pathlib import Path
@@ -21,7 +20,11 @@ _POSIX_SYSTEM_WIDE = (
 
 
 def _version_key(node_dir: Path) -> tuple[int, ...]:
-    return tuple(int(n) for n in re.findall(r"\d+", node_dir.name))
+    """`v22.4.0` as (22, 4, 0); a folder that is not a version ranks below every one."""
+    parts = node_dir.name.removeprefix("v").split(".")
+    if not all(part.isdecimal() for part in parts):
+        return ()
+    return tuple(int(part) for part in parts)
 
 
 def _posix_installed(home: Path) -> Iterator[Path]:

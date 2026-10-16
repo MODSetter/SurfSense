@@ -135,3 +135,15 @@ def test_windows_nothing_found_is_none(tmp_path: Path) -> None:
     assert (
         locate_claude(path_env="", home=tmp_path / "home", windows=True, env={}) is None
     )
+
+
+def test_a_folder_that_is_not_a_node_version_is_tried_last(tmp_path: Path) -> None:
+    """nvm names each Node folder vX.Y.Z; anything else there ranks below them."""
+    home = tmp_path / "home"
+    node = home / ".nvm" / "versions" / "node"
+    _executable(node / "system" / "bin" / "claude")
+    versioned = _executable(node / "v18.20.1" / "bin" / "claude")
+
+    found = locate_claude(path_env="/usr/bin:/bin", home=home, windows=False)
+
+    assert found == versioned

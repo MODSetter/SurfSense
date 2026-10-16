@@ -2,7 +2,6 @@
 
 import json
 import logging
-import re
 from pathlib import Path
 
 import pytest
@@ -72,6 +71,12 @@ async def test_a_basic_chat_is_answered_by_this_machines_claude_code(
     assert not [f for f in first + second if f.get("type") == "error"], first + second
     answer = "".join(f["text"] for f in second if f.get("type") == "delta")
     assert "biscuit" in answer.lower()
-    tunnelled = set(re.findall(r"tunnel to ([\w.-]+):443:", caplog.text))
+    # Each tunnel is logged with its host as the first argument.
+    tunnelled = {
+        record.args[0]
+        for record in caplog.records
+        if record.name == "modules.agent.plugin_proxy.server"
+        and record.msg.startswith("tunnel to %s:%s: checked")
+    }
     assert tunnelled == {"api.anthropic.com"}
     assert "refused" not in caplog.text
