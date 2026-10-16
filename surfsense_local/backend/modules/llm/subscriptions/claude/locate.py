@@ -70,3 +70,8 @@ def locate_claude(
         if _runnable(candidate, windows):
             return candidate
     return None
+
+
+def this_machines_claude() -> Path | None:
+    """The Claude Code this process can run, found on its own PATH and home."""
+    return locate_claude(path_env=os.environ.get("PATH"), home=Path.home())

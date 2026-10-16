@@ -45,15 +45,14 @@ Mounted beside the ChatGPT routes, before the connections router:
 
 | Route | Does |
 |---|---|
-| `GET /llm/connections/claude` | the status, the `serves` a plan would fill, and `hosts` still to allow (`api.anthropic.com` until allowed) |
-| `POST /llm/connections/claude/check` | reads the status again and, when a connection exists, updates its hints |
+| `GET /llm/connections/claude` | the status, read live on every call, the `serves` a plan would fill, and `hosts` still to allow (`api.anthropic.com` until allowed). **Check again** calls it again: nothing is stored, so there is nothing else to refresh |
 | `POST /llm/connections/claude` | creates the connection; `409` when one exists, `422` with the state when not `ready`; refused with `egress_disabled` until `host:api.anthropic.com` is on |
 
-Listing, renaming and deleting go through the existing connection routes. `_read` in the connections router reports the email and plan for a `claude_plan` row as it reports `signed_in` and `email` for a ChatGPT one.
+Listing, renaming and deleting go through the existing connection routes, made public as `connection_read`. Renaming is all a Claude plan allows, as for a ChatGPT one. The connection list does not run Claude Code: it would block about 0.13 s per Claude plan on every list, so the account's email and plan come from `GET /llm/connections/claude`.
 
 ## Models
 
-`client.get_server_info()["models"]` lists what the account's Claude Code offers: `value` (`opus`, `sonnet`, `haiku`, `claude-fable-5-1[1m]`), `displayName`, `resolvedModel` and supported effort levels. `default` is dropped, since it only names another entry. The list is read live, and may be held in the API's memory for a few minutes; `connection_models` in [`listing.py`](../../../surfsense_local/backend/modules/llm/connections/listing.py) returns it as `DiscoveredModel`s with source `declared`. A model is selected by its `value`, the alias Claude Code resolves to the current release.
+`client.get_server_info()["models"]` lists what the account's Claude Code offers: `value` (`opus`, `sonnet`, `haiku`, `claude-fable-5-1[1m]`), `displayName`, `resolvedModel` and supported effort levels. `default` is dropped, since it only names another entry. The list is read live; `connection_models` in [`listing.py`](../../../surfsense_local/backend/modules/llm/connections/listing.py) returns it as `DiscoveredModel`s with source `declared`. Each model is listed once by its full id, `resolvedModel` (`claude-sonnet-5-5`), not its alias: Claude Code 2.1.301 ran all four full ids, and they are what the remote manifest describes under `anthropic`, so a model's window, image input, tool calls and structured output come from the manifest as for any Anthropic model. Haiku 5.5 is not in the manifest yet, so it is listed as a model the catalog says nothing about. With Claude Code uninstalled since connecting, the list answers `409` `sign_in_required`.
 
 ## Launching a run
 

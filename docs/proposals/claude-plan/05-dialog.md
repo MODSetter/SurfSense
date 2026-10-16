@@ -12,8 +12,8 @@ Part of [Use your Claude plan](README.md).
 |---|---|
 | `claude-option.tsx` | the row: title, one-line body, and once connected "Connected as … · Max plan" with **Show models** |
 | `claude-dialog.tsx` | the nested dialog, one view per state |
-| `use-claude-status.ts` | reads `GET /llm/connections/claude`; **Check again** posts `…/check` |
-| `api.ts` | the three routes ([`01-connection.md`](01-connection.md#routes)) |
+| `use-claude-status.ts` | reads `GET /llm/connections/claude`; **Check again** reads it again |
+| `api.ts` | the two routes ([`01-connection.md`](01-connection.md#routes)) |
 
 The row is mounted where the ChatGPT row is: [`add-model-options.tsx`](../../../surfsense_local/frontend/src/features/models/add-model/add-model-options.tsx) and [`model-step.tsx`](../../../surfsense_local/frontend/src/features/onboarding/model-step/model-step.tsx). The dialog uses the app's dialog component, nested in the open one, and the shared button; every string is a message, translated like the ChatGPT row's.
 

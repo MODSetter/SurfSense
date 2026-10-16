@@ -1,0 +1,65 @@
+from fastapi import APIRouter, HTTPException, status
+
+from api.dependencies import SessionDep
+from modules.egress import service as egress
+from modules.egress.models import EgressDestination
+from modules.llm.connections.router import connection_read
+from modules.llm.connections.serves import served_by
+from modules.llm.schemas import ConnectionRead
+from modules.llm.subscriptions.claude import account
+from modules.llm.subscriptions.claude.locate import this_machines_claude
+from modules.llm.subscriptions.claude.schemas import (
+    ClaudeConnectionWrite,
+    ClaudeHost,
+    ClaudeOption,
+)
+from modules.llm.subscriptions.claude.status import ClaudeState, read_status
+
+router = APIRouter(prefix="/connections")
+
+
+@router.get("/claude")
+def claude_option(session: SessionDep) -> ClaudeOption:
+    """Claude Code's state on this machine, read live, so signing in or out in a
+    terminal shows on the next look."""
+    found = read_status(this_machines_claude())
+    destination = egress.host_destination(account.API_URL)
+    row = session.get(EgressDestination, destination)
+    hosts = (
+        []
+        if row is not None and row.enabled
+        else [ClaudeHost(destination=destination, host=egress.host_of(destination))]
+    )
+    return ClaudeOption(
+        state=found.state,
+        version=found.version,
+        email=found.email,
+        plan=found.plan,
+        serves=list(served_by(account.CLAUDE_PLAN)),
+        hosts=hosts,
+    )
+
+
+@router.post("/claude", status_code=status.HTTP_201_CREATED)
+def connect_claude(
+    payload: ClaudeConnectionWrite, session: SessionDep
+) -> ConnectionRead:
+    """A Claude plan connection, once Claude Code is signed in and Anthropic allowed."""
+    label = payload.label.strip()
+    if not label:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "label must not be empty"
+        )
+    egress.require(session, egress.host_destination(account.API_URL))
+    found = read_status(this_machines_claude())
+    if found.state is not ClaudeState.READY:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {"state": found.state.value, "message": "Claude Code is not ready"},
+        )
+    try:
+        connection = account.add_claude_plan(session, label)
+    except account.ClaudePlanExistsError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    session.commit()
+    return connection_read(connection)
