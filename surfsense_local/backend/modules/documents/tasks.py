@@ -28,10 +28,12 @@ def ingest_document(document_id: int) -> None:
 
 
 # No retries: a failure is recorded in the figures index, and a second read of
-# the same file would fail the same way.
-@ingest_queue.task()
+# the same file would fail the same way. Interactive unless queued otherwise:
+# whoever asks for figures is waiting on them.
+@ingest_queue.task(priority=PRIORITY_INTERACTIVE)
 def extract_figures(document_id: int) -> None:
-    """Keep the figures of a source ingested before figures were kept."""
+    """Keep the figures of a source whose ingest did not: one ingested before
+    figures were kept, or a Word file read without Docling."""
     from worker.ingestion.figures.backfill import run
 
     run(document_id)
