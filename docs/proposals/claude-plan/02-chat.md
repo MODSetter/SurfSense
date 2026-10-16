@@ -6,8 +6,10 @@ Part of [Use your Claude plan](README.md). Launch options, errors and network ar
 
 ## Wiring
 
-- [`text_generator.py`](../../../surfsense_local/backend/modules/llm/connections/text_generator.py): `connection_generator()` returns `ClaudePlanProvider(connection)` for `auth_kind == "claude_plan"`, beside the ChatGPT branch.
-- [`listing.py`](../../../surfsense_local/backend/modules/llm/connections/listing.py): `connection_models()` returns the cached [model list](01-connection.md#models).
+- [`text_generator.py`](../../../surfsense_local/backend/modules/llm/connections/text_generator.py): `connection_generator()` returns `claude_generator()` for `auth_kind == "claude_plan"`, beside the ChatGPT branch. [`plan_generator.py`](../../../surfsense_local/backend/modules/llm/subscriptions/claude/plan_generator.py) builds a `ClaudePlanProvider` over the API's one pool of warm runs, working in the empty `<data>/claude/chat`. Chat, its title, the chat check and Studio all resolve through this, so each answers on the plan.
+- [`listing.py`](../../../surfsense_local/backend/modules/llm/connections/listing.py): `connection_models()` returns Claude Code's [model list](01-connection.md#models).
+- The API's lifespan closes the pool when it stops, so no Claude Code process outlives it.
+- A failure that is not the plan's or the sign-in's, `ClaudeRunError`, reaches the chat as `unknown`, as any unclassified failure does.
 - [`call_route.py`](../../../surfsense_local/backend/modules/llm/connections/call_route.py) is not consulted: a Claude plan has no HTTP route of SurfSense's.
 
 ## One answer

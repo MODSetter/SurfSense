@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 
 from modules.llm.subscriptions.claude import models as claude_models
-from tests.claude_run_stand_in import ScriptedRun
+from modules.llm.subscriptions.claude import plan_generator
+from tests.claude_run_stand_in import ScriptedRun, answer
 from tests.claude_stand_in import claude_stand_in
 
 ClaudeOnThisMachine = Callable[..., Path | None]
@@ -34,15 +35,38 @@ def claude_on_this_machine(
     return install
 
 
-@pytest.fixture
-def claude_runs(monkeypatch: pytest.MonkeyPatch) -> list[ScriptedRun]:
-    """Every run the API opens, scripted; append before the request makes one."""
-    runs: list[ScriptedRun] = []
+class FakeClaude:
+    """Every Claude Code run the API opens, scripted.
 
-    async def open_scripted(options: object) -> ScriptedRun:
-        run = runs.pop(0) if runs else ScriptedRun()
+    `runs` are handed out in order; past them, a run answers a title request
+    with a title and anything else with the next of `replies`, so a chat and
+    the title generated beside it never take each other's answer.
+    """
+
+    def __init__(self) -> None:
+        self.runs: list[ScriptedRun] = []
+        self.replies: list[list] = []
+        self.opened: list[ScriptedRun] = []
+
+    def _respond(self, prompt: object) -> list:
+        text = prompt if isinstance(prompt, str) else prompt[-1]["text"]
+        if text.startswith("Write a 2-5 word"):
+            return answer("A title")
+        return self.replies.pop(0)
+
+    async def open(self, options: object) -> ScriptedRun:
+        run = self.runs.pop(0) if self.runs else ScriptedRun(respond=self._respond)
         run.options = options
+        self.opened.append(run)
         return run
 
-    monkeypatch.setattr(claude_models, "open_run", open_scripted)
-    return runs
+
+@pytest.fixture
+def fake_claude(monkeypatch: pytest.MonkeyPatch) -> FakeClaude:
+    """Stand in for every Claude Code run, model lists and chat alike."""
+    fake = FakeClaude()
+    monkeypatch.setattr(claude_models, "open_run", fake.open)
+    monkeypatch.setattr(plan_generator, "open_run", fake.open)
+    # The API's one pool of warm chat runs, fresh for each test.
+    monkeypatch.setattr(plan_generator, "_runs", None)
+    return fake

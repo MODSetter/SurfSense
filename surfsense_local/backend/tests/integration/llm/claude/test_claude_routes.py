@@ -5,7 +5,7 @@ from httpx import AsyncClient
 
 from tests.claude_stand_in import SIGNED_OUT
 
-from .conftest import ClaudeOnThisMachine
+from .conftest import ClaudeOnThisMachine, FakeClaude
 
 pytestmark = pytest.mark.integration
 ANTHROPIC = "host:api.anthropic.com"
@@ -132,7 +132,9 @@ async def test_there_is_one_claude_plan_per_install(
 
 
 async def test_the_connection_lists_claude_codes_models(
-    client: AsyncClient, claude_on_this_machine: ClaudeOnThisMachine, claude_runs: list
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
 ) -> None:
     """Each model once, by its full id, so the manifest's capabilities apply to it."""
     claude_on_this_machine()

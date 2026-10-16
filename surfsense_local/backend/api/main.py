@@ -51,6 +51,7 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
+from modules.llm.subscriptions.claude.plan_generator import close_claude_runs
 from modules.llm.transcription.gate import TranscriptionGate
 from modules.llm.transcription.internal_router import (
     router as transcription_windows_router,
@@ -138,6 +139,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with _plugin_proxy(session_factory):
             yield
     finally:
+        await close_claude_runs()
         engine.dispose()
 
 

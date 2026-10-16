@@ -1,6 +1,6 @@
 """A ClaudeRun that replays what a real Claude Code run sent, without starting one."""
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from typing import Any
 
 from claude_agent_sdk import Message
@@ -30,8 +30,11 @@ class ScriptedRun:
         self,
         replies: Sequence[Sequence[Message]] = (),
         models: list[dict[str, Any]] | None = None,
+        respond: Callable[[Any], Sequence[Message]] | None = None,
     ) -> None:
         self.replies = list(replies)
+        # Answers what the script does not, from what was sent.
+        self._respond = respond
         self.sent: list[Any] = []
         self.interrupted = False
         self.closed = False
@@ -40,7 +43,12 @@ class ScriptedRun:
     async def send(self, prompt: Any) -> AsyncIterator[Message]:
         """Yield the next scripted reply."""
         self.sent.append(prompt)
-        for message in self.replies.pop(0):
+        reply = (
+            self.replies.pop(0)
+            if self.replies or not self._respond
+            else self._respond(prompt)
+        )
+        for message in reply:
             yield message
 
     async def interrupt(self) -> None:
