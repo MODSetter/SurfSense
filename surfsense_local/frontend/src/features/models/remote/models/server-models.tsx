@@ -150,14 +150,19 @@ export function ServerModels({
           <span className="shrink-0">{connection.label}</span>
           <DotIcon aria-hidden="true" className="size-3 shrink-0" />
           <span className="truncate font-normal">
-            {connection.auth_kind !== "chatgpt"
-              ? connection.base_url
-              : connection.signed_in
-                ? (connection.account_email ?? connection.base_url)
-                : intl.formatMessage({
-                    id: "models_server_models_signed_out_status",
-                    defaultMessage: "Signed out",
-                  })}
+            {connection.auth_kind === "claude_plan"
+              ? intl.formatMessage({
+                  id: "models_server_models_claude_plan_status",
+                  defaultMessage: "Through Claude Code on this computer",
+                })
+              : connection.auth_kind !== "chatgpt"
+                ? connection.base_url
+                : connection.signed_in
+                  ? (connection.account_email ?? connection.base_url)
+                  : intl.formatMessage({
+                      id: "models_server_models_signed_out_status",
+                      defaultMessage: "Signed out",
+                    })}
           </span>
         </h3>
         <div className="flex shrink-0 items-center gap-1">

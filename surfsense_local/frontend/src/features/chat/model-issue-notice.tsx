@@ -23,6 +23,15 @@ function reason({ model, code, host }: ModelIssue): string {
         },
         { model }
       )
+    case "claude_sign_in_required":
+      return intl.formatMessage(
+        {
+          id: "chat_model_issue_claude_sign_in_body",
+          defaultMessage:
+            "Couldn’t use {model}: Claude Code on this computer isn’t installed or has to sign in again.",
+        },
+        { model }
+      )
     case "sign_in_required":
       return intl.formatMessage(
         {

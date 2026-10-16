@@ -15,11 +15,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import { type ApiError, setEgressPrompt } from "@/lib/api"
 
-import {
-  describeDestination,
-  destinationsQueryKey,
-  setDestinationEnabled,
-} from "./api"
+import { allowAll, describeDestination, destinationsQueryKey } from "./api"
 import {
   advanceEgressQueue,
   askEgress,
@@ -29,13 +25,21 @@ import {
 } from "./ask-egress"
 
 function requestFrom(error: ApiError): Omit<Pending, "resolve"> {
-  const { destination, host, purpose } = error.detail
+  const { destination, host, hosts, purpose } = error.detail
   const key = typeof destination === "string" ? destination : ""
+  const first = typeof host === "string" ? host : ""
+  // Every host still to allow, the first named apart: one question for them all.
+  const also = Array.isArray(hosts)
+    ? hosts.filter(
+        (each): each is string => typeof each === "string" && each !== first
+      )
+    : []
   return {
     destination: key,
-    host: typeof host === "string" ? host : "",
+    host: first,
     purpose: typeof purpose === "string" ? purpose : undefined,
-    allow: () => setDestinationEnabled(key, true),
+    also,
+    allow: () => allowAll(key, also),
   }
 }
 
@@ -65,7 +69,12 @@ export function EgressPrompt() {
   }
 
   const copy = question
-    ? describeDestination(question.destination, question.host, question.purpose)
+    ? describeDestination(
+        question.destination,
+        question.host,
+        question.purpose,
+        question.also
+      )
     : null
   return (
     <AlertDialog
@@ -77,6 +86,11 @@ export function EgressPrompt() {
         <AlertDialogHeader>
           <AlertDialogTitle>{copy?.title}</AlertDialogTitle>
           <AlertDialogDescription>{copy?.body}</AlertDialogDescription>
+          {copy?.details.map((detail) => (
+            <p key={detail} className="text-sm text-muted-foreground">
+              {detail}
+            </p>
+          ))}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={allowing}>

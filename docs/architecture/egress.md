@@ -62,7 +62,7 @@ The GGUF download runs inside the API (`modules/llm/providers/llamacpp/download.
 
 ## Asking for consent
 
-`request()` in `lib/api.ts` catches `egress_disabled` on a non-GET request and hands it to `EgressPrompt`, which shows that destination's copy. Allow enables the destination and the request is retried once; Cancel rethrows the refusal. The method stands in for "the user just did something", a `ponytail:` simplification, because reads also run unattended at boot and must never raise a dialog.
+`request()` in `lib/api.ts` catches `egress_disabled` on a non-GET request and hands it to `EgressPrompt`, which shows that destination's copy. A refusal naming several hosts in `hosts` is one question: the copy names the others, and Allow enables every one of them before the request is retried once; Cancel rethrows the refusal. A Claude plan's refusal, `purpose: "claude_plan"`, says what each of its two hosts gets ([`features/egress/api.ts`](../../surfsense_local/frontend/src/features/egress/api.ts)). The method stands in for "the user just did something", a `ponytail:` simplification, because reads also run unattended at boot and must never raise a dialog.
 
 A refused GET therefore surfaces as an error without a prompt.
 
@@ -79,6 +79,5 @@ Settings › Network lists the App updates row and every destination with its ho
 
 ## Known gaps
 
-- `EgressPrompt` reads only `destination`, so a plugin with several hosts, such as a registry entry whose authorization server is on another host, is asked about one host at a time, though the refusal names them all in `hosts` ([plugins](plugins.md)).
 - Document scripts, Studio's Office formats and the agent's, run model-written code in the script runner's process, and that code can open connections of its own ([studio](studio.md#script-documents)).
 - The Office pack's download is allowed by its host, `downloadarchive.documentfoundation.org`, which redirects to one of TDF's mirrors; the mirror sees the user's IP address and is not asked about ([office pack](office-pack.md)).

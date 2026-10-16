@@ -8,6 +8,12 @@ export type Destination = {
   last_call_at: string | null
 }
 
+/** Switch on a question's destination and every other host it named. */
+export async function allowAll(destination: string, also: string[] = []) {
+  await setDestinationEnabled(destination, true)
+  for (const host of also) await setDestinationEnabled(`host:${host}`, true)
+}
+
 /** Search, model weights and image weights all reach this one host. */
 export const HUGGINGFACE = "host:huggingface.co"
 
@@ -28,11 +34,95 @@ export function setDestinationEnabled(
   })
 }
 
+// A Claude plan's two hosts: model calls, and where Claude Code refreshes its sign-in.
+const CLAUDE_API_HOST = "api.anthropic.com"
+const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
+
+export type DestinationCopy = {
+  label: string
+  title: string
+  body: string
+  /** Whole sentences shown after the body, one paragraph each. */
+  details: string[]
+}
+
+/**
+ * How a destination is named in Settings › Network, and the question asked
+ * before allowing it. `also` names the other hosts asked about in the same
+ * question, which one Allow switches on together.
+ */
 export function describeDestination(
   destination: string,
   host: string,
-  purpose?: string
-) {
+  purpose?: string,
+  also: string[] = []
+): DestinationCopy {
+  if (purpose === "claude_plan" || host === CLAUDE_SIGN_IN_HOST)
+    return describeClaudePlan([host, ...also])
+  const one = describeOne(destination, host, purpose)
+  return {
+    ...one,
+    details: also.length
+      ? [
+          intl.formatMessage(
+            {
+              id: "egress_prompt_also_allows_body",
+              defaultMessage: "Allowing also lets SurfSense reach {hosts}.",
+            },
+            { hosts: intl.formatList(also, { type: "conjunction" }) }
+          ),
+        ]
+      : [],
+  }
+}
+
+// Each host's own sentence, since one gets chats and the other only a sign-in.
+function describeClaudePlan(hosts: string[]): DestinationCopy {
+  const details = []
+  if (hosts.includes(CLAUDE_API_HOST))
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_claude_api_host_body",
+          defaultMessage:
+            "{host} gets what you send the model: your prompts and excerpts of your documents.",
+        },
+        { host: CLAUDE_API_HOST }
+      )
+    )
+  if (hosts.includes(CLAUDE_SIGN_IN_HOST))
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_claude_sign_in_host_body",
+          defaultMessage:
+            "{host} keeps Claude Code signed in. It gets no chats, and turning it off stops Claude once the sign-in expires.",
+        },
+        { host: CLAUDE_SIGN_IN_HOST }
+      )
+    )
+  return {
+    label:
+      hosts[0] === CLAUDE_SIGN_IN_HOST
+        ? intl.formatMessage({
+            id: "egress_claude_sign_in_label",
+            defaultMessage: "Claude Code sign-in",
+          })
+        : hosts[0],
+    title: intl.formatMessage({
+      id: "egress_claude_prompt_title",
+      defaultMessage: "Allow your Claude plan to reach Anthropic?",
+    }),
+    body: intl.formatMessage({
+      id: "egress_claude_prompt_body",
+      defaultMessage:
+        "Claude Code on this computer reaches Anthropic only through SurfSense, and only the hosts you allow. You can turn each one off in Settings › Network.",
+    }),
+    details,
+  }
+}
+
+function describeOne(destination: string, host: string, purpose?: string) {
   if (destination === "app_updates") {
     return {
       label: intl.formatMessage({

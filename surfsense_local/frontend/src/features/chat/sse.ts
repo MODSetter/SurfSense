@@ -65,6 +65,8 @@ export type ChatErrorKind =
   | "context_too_long"
   | "subscription_sign_in"
   | "subscription_limit"
+  | "claude_sign_in"
+  | "claude_limit"
   | "runtime_busy"
   | "network"
   | "timeout"
