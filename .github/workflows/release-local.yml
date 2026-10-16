@@ -39,9 +39,11 @@ jobs:
   sdcpp:
     uses: ./.github/workflows/build-sdcpp.yml
 
-  # Before any build: a lapsed Apple agreement fails here in seconds.
+  # Before the release build: a lapsed Apple agreement fails here in seconds.
   notarization:
     uses: ./.github/workflows/notarization-credentials.yml
+    with:
+      publish: ${{ inputs.publish || 'always' }}
     secrets: inherit
 
   build:
@@ -269,9 +271,9 @@ jobs:
           # this .p12 through signtool, so a dry run never signed as a tag does.
           CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
           CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
           # Windows Azure Trusted Signing — the service principal is only wired
           # in on production tags (see the CLI flags below).
           WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
