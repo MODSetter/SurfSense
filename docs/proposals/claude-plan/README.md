@@ -86,9 +86,9 @@ Anthropic changed this policy in January, February, April and June 2026, and may
 ## Build order
 
 1. This proposal and [ADR 0057](../../adr/0057-a-claude-plan-runs-through-the-users-own-claude-code.md).
-2. **Connection and chat**: [`01-connection.md`](01-connection.md), [`02-chat.md`](02-chat.md), [`05-dialog.md`](05-dialog.md). A Claude plan serves `text_gen` only until step 4.
+2. **Connection and chat**: [`01-connection.md`](01-connection.md), [`02-chat.md`](02-chat.md), [`05-dialog.md`](05-dialog.md). A Claude plan serves `text_gen`, and only `text_gen`: no image, video, audio, speech or embedding slot.
 3. **The engine interface**, with opencode moved behind it and no change in behaviour ([`03-agent.md`](03-agent.md#the-engine-interface)).
-4. **The Claude engine and the handover** ([`03-agent.md`](03-agent.md), [`04-handover.md`](04-handover.md)); `serves` gains the agent.
+4. **The Claude engine and the handover** ([`03-agent.md`](03-agent.md), [`04-handover.md`](04-handover.md)); the Agentic gate in `engine_choice.py` lets a Claude plan model open Agentic threads last, once the engine does everything opencode does ([Same as opencode](03-agent.md#same-as-opencode)).
 5. Windows and Linux on a real install: the sign-in check and the proxy.
 
 ## Measurements

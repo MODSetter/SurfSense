@@ -58,6 +58,28 @@ The plugin steps before a turn (sign-ins, the license, changed tools, the server
 
 Measured: Claude Code connected to an HTTP MCP endpoint behind a bearer key and every call carried it; the init message listed only the passed tools. With `mcp_servers` as a dict, the plugin's key was in the process's arguments; as a file path, it was not. `disallowed_tools`, wildcards included, left those tools out of the init message. A remote plugin's MCP traffic reached the proxy as `CONNECT plugin.example.com:443`. A tool added to a server mid-session was not seen until `reconnect_mcp_server`, then seen in the same session. SurfSense's skills folder given as a local plugin was listed as `surfsense:documents`, loaded through `Skill` and followed, with `verbatim_prompts` on and off. A 59,000-character MCP result was written to a file under `~/.claude/projects` instead of reaching the model.
 
+## Same as opencode
+
+A Claude plan model in Agentic does everything an opencode model does, through the same code where SurfSense owns it:
+
+| Capability | opencode | Claude Code |
+|---|---|---|
+| SurfSense's tools: search, read a document, source pages, images, artifacts, render, revise, convert, analyze data, PDF pages, stamp and form | the thread's tool endpoint | the same endpoint, as `mcp__surfsense__<tool>` |
+| Reading sources | `read`, `glob`, `grep`, `list` in `sources/` | `Read`, `Glob`, `Grep`, held to the folder by the gate |
+| Writing | `outputs/` only | `outputs/` only |
+| Skills: documents, revisions, data, PDF | the skills folder | the same folder as a local plugin, and `Read` inside it |
+| Plugins: up to 24 ready tools and any mentioned, sign-ins, the license, `allow`, `ask`, `deny` | `turn_plugins()`, given to opencode | `turn_plugins()`, in the MCP file, `disallowed_tools` and the gate |
+| A plugin call on SurfSense's plugin host: calls token, text-only results, 300 s, Stop cancels it | headers on the server, opencode's timeout, `POST /cancel` | the same headers, `MCP_TOOL_TIMEOUT`, the same cancel |
+| A step's whole result, Save to Sources | opencode's stored session | SurfSense's mirrored entries |
+| Bash, web, subagents, questions | denied | not given |
+
+Code written for opencode that changes so both engines get it:
+
+- The tool endpoint hides image-returning tools from a model that cannot see images by reading opencode's `opencode.json`. It asks the thread's model instead.
+- A tool call's timeout, 200 s, or 300 s on SurfSense's plugin host, is opencode's per-server setting. Claude Code's is `MCP_TOOL_TIMEOUT`, set to the longer.
+
+One suite of scenarios runs against both engines: search and cite, read `sources/`, write `outputs/` and be refused outside it, render a Word document, an allowed, an approved and a hidden plugin tool, Stop during a plugin call, and Save to Sources.
+
 ## The gate
 
 Claude Code 2.1.301 starts in `auto` permission mode, and in `auto` it approved and ran an MCP `delete_note` without calling `can_use_tool`. `launch.py` therefore forces `permission_mode="default"`, and the decision lives in a `PreToolUse` hook, which ran before every call in every mode measured. `can_use_tool` applies the same rules, so a future mode that skips one still meets the other.
