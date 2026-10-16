@@ -84,9 +84,7 @@ describe("egress prompt", () => {
       name: "Allow your Claude plan to reach Anthropic?",
     })
     // Each host says what it gets: one the chats, the other only the sign-in.
-    expect(prompt.textContent).toContain(
-      "api.anthropic.com gets what you send the model"
-    )
+    expect(prompt.textContent).toContain("api.anthropic.com gets your prompts")
     expect(prompt.textContent).toContain(
       "platform.claude.com keeps Claude Code signed in. It gets no chats"
     )

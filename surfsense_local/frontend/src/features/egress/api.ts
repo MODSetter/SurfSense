@@ -90,8 +90,7 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
       intl.formatMessage(
         {
           id: "egress_claude_api_host_body",
-          defaultMessage:
-            "{host} gets what you send the model: your prompts and excerpts of your documents.",
+          defaultMessage: "{host} gets your prompts and document excerpts.",
         },
         { host: CLAUDE_API_HOST }
       )
@@ -102,7 +101,7 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
         {
           id: "egress_claude_sign_in_host_body",
           defaultMessage:
-            "{host} keeps Claude Code signed in. It gets no chats, and turning it off stops Claude once the sign-in expires.",
+            "{host} keeps Claude Code signed in. It gets no chats.",
         },
         { host: CLAUDE_SIGN_IN_HOST }
       )
@@ -122,7 +121,7 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
     body: intl.formatMessage({
       id: "egress_claude_prompt_body",
       defaultMessage:
-        "Claude Code on this computer reaches Anthropic only through SurfSense, and only the hosts you allow. You can turn each one off in Settings › Network.",
+        "Claude Code reaches only the hosts you allow, through SurfSense. Turn each off in Settings › Network.",
     }),
     details,
   }
