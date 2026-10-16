@@ -44,7 +44,7 @@ The thread's folder is synced to its sources and the scope note written exactly 
 | `session_store` | SurfSense's store ([Sessions](#sessions)) |
 | `resume` | `claude_session_id`, after the first turn |
 
-The plugin steps before a turn (sign-ins, the license, changed tools, the servers) run unchanged ([agent](../../architecture/agent.md#plugins)); what they produce is passed as `mcp_servers` and to the gate, instead of to opencode's session. The proxy allows `api.anthropic.com` and each ready plugin's hosts, as `may_connect` already decides for opencode.
+The plugin steps before a turn (sign-ins, the license, changed tools, the servers) run unchanged ([agent](../../architecture/agent.md#plugins)); what they produce is passed as `mcp_servers` and to the gate, instead of to opencode's session. Which hosts the proxy allows a turn is [open](#open-questions): this would allow each ready plugin's hosts, as `may_connect` decides for opencode, while [`01-connection.md`](01-connection.md#network) has Claude Code never reach a plugin.
 
 Measured: Claude Code connected to an HTTP MCP endpoint behind a bearer key and every call carried it; the init message listed only the passed tools.
 
@@ -103,6 +103,7 @@ Claude Code compacts a full window itself. Its compaction boundary is folded int
 ## Open questions
 
 - SurfSense's skills (documents, data, PDF) reach opencode as a skills folder. Whether the SDK's `plugins` option with a local path carries them to Claude Code unchanged, or the engine gives their instructions in the system prompt.
+- How Claude Code reaches a plugin. Given each plugin server directly, the Claude proxy must allow plugin hosts, which [`01-connection.md`](01-connection.md#network) rules out. Given only SurfSense's tool endpoint, which then calls the plugins itself, the proxy stays at Anthropic's two hosts and plugin calls go through the gateway opencode already uses; the endpoint then has to list and forward plugin tools. Preferred, to be settled in the agent spikes.
 - Claude Code's compaction message in a long thread, and whether its summary leaks into the reply.
 - Images the agent is shown ([agent](../../architecture/agent.md#image-input)): `Read` of an image file, untested.
 - Whether local transcripts are deleted once mirrored, or kept as Claude Code's own history.

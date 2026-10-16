@@ -132,4 +132,5 @@ A SurfSense sign-in to Claude, reading or storing Claude Code's credentials, `cl
 - Windows and Linux on a real install: whether `claude auth status` prints the same JSON, whether `HTTPS_PROXY` is honoured the same way, and WinGet's `Links` folder. Where installers put `claude` is settled ([`01-connection.md`](01-connection.md#finding-claude-code)) and tested on every system with stand-ins.
 - The lowest Claude Code version to accept, and how often a contract test against the real binary runs.
 - Whether a plan limit reached with Claude Code's extra usage switched on should say so; `overageStatus` is in the `RateLimitEvent`.
+- Whether the agent gives Claude Code each plugin server, so its proxy allows plugin hosts, or only SurfSense's tool endpoint ([`03-agent.md`](03-agent.md#open-questions)).
 - Whether transcripts the agent engine writes under `~/.claude/projects` should be deleted once mirrored ([`03-agent.md`](03-agent.md#sessions)).
