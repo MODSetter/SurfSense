@@ -290,7 +290,7 @@
   "egress_claude_api_host_body": "{host} получает ваши промпты и фрагменты документов.",
   "egress_claude_prompt_body": "Claude Code обращается только к разрешённым хостам и только через SurfSense. Каждый можно отключить в разделе Настройки › Сеть.",
   "egress_claude_prompt_title": "Разрешить вашему плану Claude обращаться к Anthropic?",
-  "egress_claude_sign_in_host_body": "{host} поддерживает вход в Claude Code. Он не получает чаты.",
+  "egress_claude_sign_in_host_body": "{host} только обновляет вход в Claude Code.",
   "egress_claude_sign_in_label": "Вход в Claude Code",
   "egress_connection_prompt_body": "Чаты через это подключение отправляют ваши промпты и фрагменты ваших документов на {host}. Это можно в любой момент отключить в разделе Настройки › Сеть.",
   "egress_connection_prompt_title": "Разрешить отправку данных на {host}?",

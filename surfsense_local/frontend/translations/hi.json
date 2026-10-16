@@ -290,7 +290,7 @@
   "egress_claude_api_host_body": "{host} को आपके प्रॉम्प्ट और दस्तावेज़ों के अंश मिलते हैं।",
   "egress_claude_prompt_body": "Claude Code सिर्फ़ SurfSense के ज़रिए उन्हीं होस्ट तक पहुंचता है जिनकी आप अनुमति देते हैं। हर एक को सेटिंग्स › नेटवर्क में बंद करें।",
   "egress_claude_prompt_title": "अपने Claude प्लान को Anthropic तक पहुंचने की अनुमति दें?",
-  "egress_claude_sign_in_host_body": "{host} Claude Code को साइन इन रखता है। इसे कोई चैट नहीं मिलती।",
+  "egress_claude_sign_in_host_body": "{host} सिर्फ़ Claude Code का साइन-इन रीफ़्रेश करता है।",
   "egress_claude_sign_in_label": "Claude Code साइन-इन",
   "egress_connection_prompt_body": "इस कनेक्शन से होने वाली चैट आपके प्रॉम्प्ट और आपके दस्तावेज़ों के अंश {host} को भेजती हैं। आप इसे कभी भी सेटिंग्स › नेटवर्क में बंद कर सकते हैं।",
   "egress_connection_prompt_title": "{host} को डेटा भेजने की अनुमति दें?",

@@ -86,7 +86,7 @@ describe("egress prompt", () => {
     // Each host says what it gets: one the chats, the other only the sign-in.
     expect(prompt.textContent).toContain("api.anthropic.com gets your prompts")
     expect(prompt.textContent).toContain(
-      "platform.claude.com keeps Claude Code signed in. It gets no chats"
+      "platform.claude.com only refreshes Claude Code’s sign-in"
     )
     await user.click(screen.getByRole("button", { name: "Allow" }))
 

@@ -290,7 +290,7 @@
   "egress_claude_api_host_body": "{host}은(는) 프롬프트와 문서 발췌를 받습니다.",
   "egress_claude_prompt_body": "Claude Code는 SurfSense를 통해 허용한 호스트에만 접속합니다. 각 호스트는 설정 › 네트워크에서 끌 수 있습니다.",
   "egress_claude_prompt_title": "Claude 플랜이 Anthropic에 접속하도록 허용할까요?",
-  "egress_claude_sign_in_host_body": "{host}은(는) Claude Code의 로그인 상태를 유지합니다. 채팅은 전송되지 않습니다.",
+  "egress_claude_sign_in_host_body": "{host}은(는) Claude Code의 로그인만 갱신합니다.",
   "egress_claude_sign_in_label": "Claude Code 로그인",
   "egress_connection_prompt_body": "이 연결을 사용하는 채팅은 프롬프트와 문서 발췌를 {host}에 전송합니다. 설정 › 네트워크에서 언제든지 끌 수 있습니다.",
   "egress_connection_prompt_title": "{host}에 데이터 전송을 허용하시겠습니까?",

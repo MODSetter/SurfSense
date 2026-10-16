@@ -100,8 +100,7 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
       intl.formatMessage(
         {
           id: "egress_claude_sign_in_host_body",
-          defaultMessage:
-            "{host} keeps Claude Code signed in. It gets no chats.",
+          defaultMessage: "{host} only refreshes Claude Code’s sign-in.",
         },
         { host: CLAUDE_SIGN_IN_HOST }
       )

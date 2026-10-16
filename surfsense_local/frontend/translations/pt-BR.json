@@ -290,7 +290,7 @@
   "egress_claude_api_host_body": "{host} recebe seus prompts e trechos de documentos.",
   "egress_claude_prompt_body": "O Claude Code só acessa os hosts que você permitir, pelo SurfSense. Desative cada um em Configurações › Rede.",
   "egress_claude_prompt_title": "Permitir que seu plano do Claude acesse a Anthropic?",
-  "egress_claude_sign_in_host_body": "{host} mantém o Claude Code conectado. Ele não recebe nenhum chat.",
+  "egress_claude_sign_in_host_body": "{host} só renova o login do Claude Code.",
   "egress_claude_sign_in_label": "Login do Claude Code",
   "egress_connection_prompt_body": "Os chats que usam esta conexão enviam seus prompts e trechos dos seus documentos para {host}. Você pode desativar isso quando quiser em Configurações › Rede.",
   "egress_connection_prompt_title": "Permitir o envio de dados para {host}?",
