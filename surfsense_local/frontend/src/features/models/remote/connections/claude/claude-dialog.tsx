@@ -161,7 +161,7 @@ export function ClaudeDialog({
       onOpenChange={onOpenChange}
       onOpenChangeComplete={(open) => !open && setFailure(null)}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {intl.formatMessage({
