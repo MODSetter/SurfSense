@@ -20,7 +20,7 @@ opencode reaches a model through an HTTP provider, and every model reaches it th
 | `answer_permission(thread, request_id, verdict)` | the `/chat/threads/{id}/permissions/{request_id}` route |
 | `stop(thread)`, `forget(thread)` | the run's abort and `forget_thread` |
 
-[`ChatThread`](../../../surfsense_local/backend/modules/chat/models.py) gains `agent_engine` (`opencode` or `claude_code`, `NULL` for a chat thread) and `claude_session_id`. `opencode_session_id` stays. A thread that has switched engines holds both ids ([`04-handover.md`](04-handover.md)).
+[`ChatThread`](../../../surfsense_local/backend/modules/chat/models.py) gains `agent_engine` (`opencode` or `claude_code`, `NULL` for a chat thread), `claude_session_id`, and `claude_account`, the Claude Code account that session was made under. `opencode_session_id` stays. A thread that has switched engines holds both ids ([`04-handover.md`](04-handover.md)).
 
 Before each turn, the selected model's connection picks the engine: `claude_plan` is `claude_code`, anything else `opencode`. When it differs from `agent_engine`, the handover runs and `agent_engine` changes.
 
@@ -36,7 +36,7 @@ The thread's folder is synced to its sources and the scope note written exactly 
 | `cwd` | the thread's working folder (`thread_working_dir`) |
 | `tools` | `["Read", "Glob", "Grep", "Write", "Edit"]`. No `Bash` ([ADR 0039](../../adr/0039-document-scripts-run-without-approval.md)), no `WebFetch` or `WebSearch`, no `Task` subagents, no `Skill`, no `NotebookEdit` |
 | `mcp_servers` | `surfsense`: the thread's [tool endpoint](../../../surfsense_local/backend/modules/agent/tool_endpoint/) as `{"type": "http", "url": …, "headers": {"Authorization": "Bearer <launch key>"}}`; and each ready plugin under its id, with its sign-in header, as [`give_plugins.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/give_plugins.py) builds them |
-| `system_prompt` | SurfSense's agent prompt, the scope note, and the handover note when there is one |
+| `system_prompt` | SurfSense's agent prompt. The scope note and any handover note travel beside the user's message ([`04-handover.md`](04-handover.md#where-the-note-goes)) |
 | `hooks` | `PreToolUse`: [the gate](#the-gate) |
 | `can_use_tool` | the gate again |
 | `thinking` | `{"type": "adaptive", "display": "summarized"}` when the thread's thinking switch is on |
