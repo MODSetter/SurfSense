@@ -1,6 +1,7 @@
-"""audio.cpp behind the engine seam: audio models in its server's folder."""
+"""audio.cpp behind the engine seam: voice models and speech recognisers in
+one folder, each kind named in the config of its own server."""
 
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence, Set
 from pathlib import Path
 
 from modules.llm.catalog.local.build import Build, BuildFile
@@ -11,8 +12,15 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed import (
     InstalledAudio,
     installed_audio,
 )
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed_recognisers import (
+    InstalledRecogniser,
+    installed_recognisers,
+)
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.server_config import (
     write_server_config,
+)
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.transcription_config import (
+    write_transcription_config,
 )
 from modules.llm.catalog.local.engines.audiocpp.rows.catalog import audio_catalog
 from modules.llm.catalog.local.engines.engine import InstallStep
@@ -28,7 +36,8 @@ from modules.llm.providers.audiocpp.memory import OtherModel
 
 class AudioCppEngine:
     name = ENGINE
-    model_types = (ModelType.AUDIO_GEN,)
+    # Voices for podcasts, and speech recognition on a second server.
+    model_types = (ModelType.AUDIO_GEN, ModelType.SPEECH_TO_TEXT)
     provider = PROVIDER
     server_follows_selection = False
 
@@ -56,7 +65,7 @@ class AudioCppEngine:
         models: Sequence[CuratedModel],
         mint: Callable[[Build], str],
         *,
-        selected: str | None,
+        selected: Set[str],
     ) -> tuple[LocalRow, ...]:
         if self._audio_dir is None:
             return ()
@@ -80,7 +89,8 @@ class AudioCppEngine:
         return read_installs(self._bundled_dir)
 
     def installed(self) -> list[InstalledAudio]:
-        """The audio folder's downloads, then the pack's voice unless downloaded."""
+        """The voices: the audio folder's downloads, then the pack's voice
+        unless downloaded."""
         if self._audio_dir is None:
             return []
         downloaded = installed_audio(
@@ -101,11 +111,28 @@ class AudioCppEngine:
         )
         return downloaded + [m for m in bundled if m.model_id not in ids]
 
+    def recognisers(self) -> list[InstalledRecogniser]:
+        """The speech recognisers downloaded into the audio folder."""
+        if self._audio_dir is None:
+            return []
+        return installed_recognisers(
+            self._models,
+            read_installs(self._audio_dir),
+            files_in(self._audio_dir),
+            self._audio_dir,
+        )
+
+    def installed_recogniser(self, model_id: str) -> InstalledRecogniser | None:
+        return next((m for m in self.recognisers() if m.model_id == model_id), None)
+
     def landing(self, file: BuildFile, model_id: str) -> str:
         return file.name
 
     def holds(self, model_id: str) -> bool:
-        return self.installed_model(model_id) is not None
+        return (
+            self.installed_model(model_id) is not None
+            or self.installed_recogniser(model_id) is not None
+        )
 
     def bundled(self, model_id: str) -> bool:
         model = self.installed_model(model_id)
@@ -126,23 +153,37 @@ class AudioCppEngine:
         return plan  # curated only: read when the manifest was refreshed
 
     async def after_install(self, model_id: str) -> AsyncIterator[InstallStep]:
-        # Electron restarts the server on the new file; the model loads on its
-        # first request, so there is nothing to wait for here.
-        self._write_config()
+        # Electron restarts a server on its new config; the model loads on its
+        # first request, so there is nothing to wait for here. A recogniser
+        # leaves the voices' server alone, which may be voicing a podcast.
+        if self.installed_recogniser(model_id) is None:
+            self._write_server_config()
+        self._write_transcription_config()
         yield InstallStep("complete", "Model is ready", code=InstallCode.READY)
 
-    def _write_config(self) -> None:
+    def _write_server_config(self) -> None:
         if self._audio_dir is not None:
             write_server_config(self._audio_dir, self.installed(), self._espeak)
 
+    def _write_transcription_config(self, *, restart: bool = False) -> None:
+        if self._audio_dir is not None:
+            write_transcription_config(
+                self._audio_dir, self.recognisers(), restart=restart
+            )
+
     def after_remove(self) -> None:
-        self._write_config()
+        self._write_server_config()
+        self._write_transcription_config()
 
     async def release(self, model_id: str) -> None:
-        # Electron restarts the server on any rewrite, and the new one opens a
+        # Electron restarts a server on any rewrite, and the new one opens a
         # model only on its first request.
-        self._write_config()
+        if self.installed_recogniser(model_id) is not None:
+            self._write_transcription_config(restart=True)
+        else:
+            self._write_server_config()
 
     def on_startup(self) -> None:
-        """Write the config from what is installed, so a stale one heals."""
-        self._write_config()
+        """Write both configs from what is installed, so a stale one heals."""
+        self._write_server_config()
+        self._write_transcription_config()

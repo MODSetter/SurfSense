@@ -24,9 +24,10 @@ def figure_png(folder: Path, n: int) -> Path:
 
 
 def can_hold_figures(original: Path) -> bool:
-    """Text uploads carry no pictures; Docling drops an HTML page's linked ones."""
+    """Text uploads carry no pictures; Docling drops an HTML page's linked ones.
+    A recording has none, and the figures pass would hand it to Docling."""
     mime = UPLOAD_MIME_BY_SUFFIX.get(original.suffix.lower(), "")
-    return not mime.startswith("text/")
+    return not mime.startswith(("text/", "audio/"))
 
 
 def read_index(folder: Path) -> list[dict[str, Any]] | None:

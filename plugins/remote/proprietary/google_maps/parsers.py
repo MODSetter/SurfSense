@@ -12,6 +12,7 @@ deterministic and offline-unit-testable against captured fixtures.
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 from typing import Any
@@ -94,6 +95,22 @@ def _opening_hours(darray: list) -> list[dict[str, str]]:
 def _categories(darray: list) -> list[str]:
     cats = dig(darray, 13)
     return [c for c in cats if isinstance(c, str)] if isinstance(cats, list) else []
+
+
+def _address(darray: list, title: str | None) -> str | None:
+    """Street address without the place name.
+
+    ``darray[39]`` is the bare address; ``darray[18]`` prefixes it with the
+    title (``"787 coffee, 245 W 46th St, ..."``), so it is only the fallback,
+    with that prefix cut.
+    """
+    bare = _dig_str(darray, 39)
+    if bare:
+        return bare
+    full = _dig_str(darray, 18)
+    if full and title and full.startswith(f"{title}, "):
+        return full[len(title) + 2 :]
+    return full
 
 
 def _website(darray: list) -> str | None:
@@ -307,12 +324,14 @@ def parse_place(darray: list) -> dict[str, Any]:
     lng = _dig_num(darray, 9, 3)
     dist = dig(darray, 175, 3)  # per-star review counts [1★,2★,3★,4★,5★]
 
+    title = _dig_str(darray, 11)
     result: dict[str, Any] = {
-        "title": _dig_str(darray, 11),
+        "title": title,
         "categories": _categories(darray),
-        "address": _dig_str(darray, 18),
+        "address": _address(darray, title),
         "website": _website(darray),
         "phone": _dig_str(darray, 178, 0, 0),
+        "phoneUnformatted": _dig_str(darray, 178, 0, 3),  # E.164, "+16465967178"
         "plusCode": _dig_str(darray, 183, 2, 2, 0),
         "totalScore": _dig_num(darray, 4, 7),
         "reviewsCount": (int(v) if (v := _dig_num(darray, 4, 8)) is not None else None),
@@ -392,11 +411,25 @@ def parse_place(darray: list) -> dict[str, Any]:
 #   r[4]  owner reply [?, relativeDate, text, ...]
 #   r[5]  reviewId             r[12] reviewUrl
 #   r[13]/r[14] images [[url, caption, ...], ...]
-#   r[26] language             r[27] text        r[28] translated text
+#   r[26] language             r[27] text (``<br>`` for line breaks)
+#   r[28] preview: r[27] cut to ~200 chars + "…" when r[29] == 1 (not used)
 #   r[30] guided Q&A (context + per-aspect ratings)   r[44] [origin, ...]
+#   r[36] source language name, in the request's hl ("Spanish")
+#   r[37] translation of r[27] into the request's hl (None when same language)
+# No likes count has been found in any slot (r[34] is an unrelated 0/1, r[45]
+# repeats the stars), so ``likesCount`` stays null rather than a made-up 0.
 
 
 _CONTRIB_ID_RE = re.compile(r"/contrib/(\d+)")
+_BR_RE = re.compile(r"<br\s*/?>", re.I)
+
+
+def _review_text(r: Any, *path: int) -> str | None:
+    """Review prose as plain text: Google sends ``<br>`` for line breaks."""
+    raw = _dig_str(r, *path)
+    if raw is None:
+        return None
+    return html.unescape(_BR_RE.sub("\n", raw)).strip()
 
 
 def _ms_to_iso(ms: Any) -> str | None:
@@ -451,9 +484,11 @@ def _guided_answers(r: Any) -> tuple[dict[str, Any], dict[str, Any]]:
     return context, detailed
 
 
-def parse_review(r: Any) -> dict[str, Any] | None:
+def parse_review(r: Any, language: str | None = None) -> dict[str, Any] | None:
     """Map one BOQ review array to ReviewFields-shaped fields.
 
+    ``language`` is the ``hl`` the page was requested in: Google translates
+    other-language reviews into it, so it is the ``translatedLanguage``.
     Returns ``None`` for malformed entries (no author block).
     """
     if not isinstance(r, list):
@@ -470,8 +505,10 @@ def parse_review(r: Any) -> dict[str, Any] | None:
 
     n_reviews = _dig_num(r, 3, 3)
     local_guide = _dig_num(r, 3, 5, 1)
-    text = _dig_str(r, 27)
-    translated = _dig_str(r, 28)
+    text = _review_text(r, 27)
+    translated = _review_text(r, 37)
+    if not translated or translated == text:
+        translated = None
     context, detailed = _guided_answers(r)
 
     fields: dict[str, Any] = {
@@ -485,7 +522,8 @@ def parse_review(r: Any) -> dict[str, Any] | None:
         "isLocalGuide": bool(local_guide) if local_guide is not None else None,
         "stars": _dig_num(r, 1),
         "text": text,
-        "textTranslated": translated if translated and translated != text else None,
+        "textTranslated": translated,
+        "translatedLanguage": language if translated else None,
         "publishAt": _dig_str(r, 2, 0),
         "publishedAtDate": _ms_to_iso(dig(r, 2, 2)),
         "originalLanguage": _dig_str(r, 26),
@@ -496,21 +534,24 @@ def parse_review(r: Any) -> dict[str, Any] | None:
     }
 
     # Owner response (r[4]); only a relative date is exposed here.
-    reply_text = _dig_str(r, 4, 2)
+    reply_text = _review_text(r, 4, 2)
     if reply_text:
         fields["responseFromOwnerText"] = reply_text
         fields["responseFromOwnerDate"] = _dig_str(r, 4, 1)
 
-    return {k: v for k, v in fields.items() if v not in (None, [])}
+    # Rating-only reviews carry '' for text and language: absent, not empty.
+    return {k: v for k, v in fields.items() if v not in (None, [], "")}
 
 
-def parse_reviews_page(reviews: Any) -> list[dict[str, Any]]:
+def parse_reviews_page(
+    reviews: Any, language: str | None = None
+) -> list[dict[str, Any]]:
     """Parse one BOQ page's raw review list into ReviewFields dicts."""
     if not isinstance(reviews, list):
         return []
     out = []
     for entry in reviews:
-        parsed = parse_review(entry)
+        parsed = parse_review(entry, language)
         if parsed:
             out.append(parsed)
     return out

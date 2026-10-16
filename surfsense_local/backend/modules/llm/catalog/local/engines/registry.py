@@ -28,6 +28,8 @@ class Engine:
     entry_requires: frozenset[str]
     # Exactly one of these must be present, where the engine has such a choice.
     entry_requires_one_of: frozenset[str] = frozenset()
+    # Which of that choice an entry of each type carries.
+    entry_block_for: tuple[tuple[ModelType, str], ...] = ()
     # File roles every build must carry beside its weights.
     build_requires: frozenset[FileRole] = frozenset()
 
@@ -48,9 +50,11 @@ ENGINES = (
     ),
     Engine(
         audiocpp.ENGINE,
-        (ModelType.AUDIO_GEN,),
+        (ModelType.AUDIO_GEN, ModelType.SPEECH_TO_TEXT),
         audiocpp_fields.ENTRY_OWNS,
         audiocpp_fields.ENTRY_REQUIRES,
+        audiocpp_fields.ENTRY_REQUIRES_ONE_OF,
+        audiocpp_fields.ENTRY_BLOCK_FOR,
     ),
     Engine(
         onnxruntime.ENGINE,

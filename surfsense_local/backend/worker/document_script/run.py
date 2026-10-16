@@ -4,6 +4,7 @@ A process, not a thread: only a process can be stopped at its time limit (ADR 00
 """
 
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -127,9 +128,28 @@ def run_child(
         exit_code=exit_code,
         stdout=printed.replace("\r\n", "\n"),
         stdout_cut=stdout.dropped,
-        stderr=stderr.text(timeout_seconds=LAST_OUTPUT_SECONDS),
+        stderr=without_the_run_folder(
+            stderr.text(timeout_seconds=LAST_OUTPUT_SECONDS), folder
+        ),
         seconds=seconds,
     )
+
+
+def without_the_run_folder(text: str, folder: Path) -> str:
+    """Paths in the run folder, relative to it: the folder is gone once the run
+    ends, and its absolute path in every line crowds the traceback out of the
+    500-character reason the agent reads. A Windows path in an exception message
+    is a repr, with its backslashes doubled."""
+    relative: dict[str, str] = {}
+    for path in {str(folder), str(folder.resolve())}:
+        for written, rewritten in ((os.path.join(path, ""), ""), (path, ".")):
+            relative[written] = rewritten
+            relative[written.replace("\\", "\\\\")] = rewritten
+    # Longest first: the resolved form can end with the given one, as
+    # /private/var/... does /var/... on macOS.
+    for prefix in sorted(relative, key=len, reverse=True):
+        text = text.replace(prefix, relative[prefix])
+    return text
 
 
 def _wait_for_exit(process: subprocess.Popen, timeout_seconds: float) -> int | None:

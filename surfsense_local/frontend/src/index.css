@@ -74,7 +74,7 @@
   --popover-foreground: #1e1e1e;
   --primary: #2e2e2e;
   --primary-foreground: #f7f7f7;
-  --secondary: #f1f0ec;
+  --secondary: #e8e7e2;
   --secondary-foreground: #2e2e2e;
   --muted: #ebeae6;
   --muted-foreground: #626262;
@@ -123,7 +123,7 @@
   --popover-foreground: #e8e3da;
   --primary: #d9aa90;
   --primary-foreground: #363636;
-  --secondary: #222222;
+  --secondary: #2f2f2f;
   --secondary-foreground: #d1cfc0;
   --muted: #2a2a2a;
   --muted-foreground: #8e8a83;
@@ -184,6 +184,9 @@
   }
   #root {
     height: 100svh;
+    /* Base UI's setup: the app's own z-indexes stay below every portaled popup,
+       which then stack by the order they opened. */
+    isolation: isolate;
   }
 }
 

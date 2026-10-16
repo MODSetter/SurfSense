@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from proprietary.web_crawl.contacts import extract_contacts
+from pathlib import Path
+
+from proprietary.web_crawl.contacts import extract_contacts, is_social_url
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_harvests_mailto_tel_and_socials() -> None:
@@ -13,7 +17,7 @@ def test_harvests_mailto_tel_and_socials() -> None:
         <a href="tel:+1-555-0100">Call</a>
         <a href="https://www.linkedin.com/company/acme">LinkedIn</a>
         <a href="https://x.com/acme">X</a>
-        <a href="https://github.com/acme/repo#readme">GitHub</a>
+        <a href="https://github.com/acme#readme">GitHub</a>
         <a href="https://acme.io/about">About</a>
       </footer>
     </body></html>
@@ -24,7 +28,7 @@ def test_harvests_mailto_tel_and_socials() -> None:
     assert c.socials == [
         "https://www.linkedin.com/company/acme",
         "https://x.com/acme",
-        "https://github.com/acme/repo",  # fragment stripped
+        "https://github.com/acme",  # fragment stripped
     ]
     # Same-site, non-social link is not a contact signal.
     assert "https://acme.io/about" not in c.socials
@@ -97,3 +101,39 @@ def test_empty_or_unparseable_html_is_empty() -> None:
     assert extract_contacts("").is_empty
     assert extract_contacts(None).is_empty
     assert extract_contacts("   ").is_empty
+
+
+def test_code_host_profile_is_social_but_its_repos_and_pages_are_not() -> None:
+    """A changelog links thousands of issues: 5,852 of its 5,855 "socials" were GitHub."""
+    html = """
+    <a href="https://github.com/jane">Jane</a>
+    <a href="https://gitlab.com/acme-group">Acme</a>
+    <a href="https://github.com/python/cpython/issues/1">gh-1</a>
+    <a href="https://github.com/python/cpython/pull/2">PR 2</a>
+    <a href="https://github.com/acme/repo/blob/main/README.md">readme</a>
+    <a href="https://gitlab.com/group/project">project</a>
+    <a href="https://github.com/features">features</a>
+    <a href="https://docs.github.com/en">docs</a>
+    """
+    assert extract_contacts(html).socials == [
+        "https://github.com/jane",
+        "https://gitlab.com/acme-group",
+    ]
+    assert is_social_url("https://www.github.com/jane/")
+    assert not is_social_url("https://github.com/orgs/acme/people")
+
+
+def test_requests_changelog_fixture_has_no_github_socials() -> None:
+    """The live requests changelog listed 21 GitHub issue and repo links as socials."""
+    html = (FIXTURES / "requests_updates.html").read_text(encoding="utf-8")
+    assert extract_contacts(html).socials == []
+
+
+def test_an_address_spelled_with_entities_is_found_in_the_raw_source() -> None:
+    """The static tier reads the server's own bytes now, not Scrapling's
+    re-serialised page, where ``&#64;`` had already become ``@``."""
+    html = (
+        "<p><code>http://localhost&#64;other.com</code> or write to "
+        "ann&#x40;shop&#46;io</p>"
+    )
+    assert extract_contacts(html).emails == ["localhost@other.com", "ann@shop.io"]

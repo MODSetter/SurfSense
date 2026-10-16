@@ -16,13 +16,14 @@ from ..schemas import ErrorItem
 from ..targets.types import TikTokTarget
 from . import FetchListingFn
 
-# Profile and search feeds are trust-gated: an anonymous headless session gets an
-# empty body (profile) or no results XHR (search), while hashtag feeds load. We
-# can't tell "genuinely empty" from "blocked" here, so a zero-item listing emits
-# one honest ErrorItem instead of vanishing silently.
+# Profile, hashtag and search feeds all load anonymously, but any of them can
+# come back empty on a draw (an empty first item_list on a cold profile, or a
+# withheld body on a flagged exit). We can't tell "genuinely empty" from
+# "withheld" here, so a zero-item listing emits one honest ErrorItem instead of
+# vanishing silently.
 _EMPTY_LISTING_MESSAGE = (
     "No videos returned. The target may be empty/private/removed, or TikTok "
-    "withheld this feed from anonymous access (common for profiles and search)."
+    "withheld this feed from anonymous access on every exit tried."
 )
 
 

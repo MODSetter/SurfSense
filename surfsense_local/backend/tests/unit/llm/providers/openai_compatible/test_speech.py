@@ -3,6 +3,7 @@
 import asyncio
 import io
 import json
+import sys
 import wave
 
 import httpx
@@ -56,8 +57,10 @@ def speak(server: StubServer, turns: list[SpokenTurn]):
     return asyncio.run(speech.synthesize(turns, "en"))
 
 
-def test_each_turn_is_one_speech_request_joined_into_one_wav() -> None:
-    """WAV is asked for every time, because only WAV joins without an encoder."""
+def test_each_turn_is_one_speech_request_joined_into_one_wav(monkeypatch) -> None:
+    """WAV is asked for every time, because only WAV joins without an encoder.
+    Read from the WAV, which an episode stays when no encoder is installed."""
+    monkeypatch.setitem(sys.modules, "lameenc", None)
     server = StubServer()
 
     audio = speak(server, [SpokenTurn("coral", "Hi."), SpokenTurn("onyx", "Hello.")])
@@ -114,8 +117,11 @@ def test_a_server_that_answers_in_another_format_says_so() -> None:
         asyncio.run(speech.synthesize([SpokenTurn("coral", "Hi.")], "en"))
 
 
-def test_a_reply_of_several_wavs_back_to_back_joins_as_all_of_them() -> None:
+def test_a_reply_of_several_wavs_back_to_back_joins_as_all_of_them(
+    monkeypatch,
+) -> None:
     """Some servers stream a long line as one WAV per sentence in one body."""
+    monkeypatch.setitem(sys.modules, "lameenc", None)
 
     def stacked(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, content=wav(600) + wav(400))
@@ -130,6 +136,16 @@ def test_a_reply_of_several_wavs_back_to_back_joins_as_all_of_them() -> None:
 
     with wave.open(io.BytesIO(audio.content)) as joined:
         assert joined.getnframes() == 1000
+
+
+def test_a_wav_episode_is_returned_as_wav() -> None:
+    """MP3 is the podcast's own step; Settings' voice check plays this WAV."""
+    audio = speak(
+        StubServer(), [SpokenTurn("coral", "Hi."), SpokenTurn("onyx", "Hello.")]
+    )
+
+    assert audio.media_type == "audio/wav"
+    assert audio.content[:4] == b"RIFF"
 
 
 # MPEG-1 Layer III, 128 kbit/s, 44.1 kHz, no padding: 417 bytes a frame.
@@ -178,6 +194,7 @@ def test_a_server_that_refuses_wav_voices_the_episode_as_one_mp3() -> None:
 
     assert server.formats == ["wav", "mp3", "mp3"]
     assert audio.media_type == "audio/mpeg"
+    # The server's own frames, not encoded a second time.
     assert audio.content == FRAME * 6
 
 

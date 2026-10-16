@@ -65,11 +65,12 @@ class RemoteSpeech:
                     )
                 voiced.append(reply.content)
         try:
-            return joined_replies(voiced)
+            joined = joined_replies(voiced)
         except (wave.Error, EOFError, ValueError) as error:
             raise NonRetryableSpeechError(
                 f"the server answered, but not as WAV or MP3: {error}"
             ) from error
+        return joined
 
     async def _voice(
         self,

@@ -10,6 +10,7 @@ metadata item therefore survives even when the videos are blocked.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -27,11 +28,26 @@ async def iter_profile(
     fetch: FetchFn,
     fetch_listing: FetchListingFn,
 ) -> AsyncIterator[dict[str, Any]]:
-    html = await fetch(target.url)
+    # The blob's HTTP GET (about 1-2.6 s) runs while the browser loads the feed,
+    # instead of before it; it never outlives this flow.
+    blob = asyncio.ensure_future(fetch(target.url))
+    try:
+        videos = await fetch_listing(target.url, cap)
+    except BaseException:
+        # Awaited so a blob that already failed is retrieved, and is done before
+        # the worker's holder closes.
+        blob.cancel()
+        await asyncio.gather(blob, return_exceptions=True)
+        raise
+    html = await blob
     info = user_info(extract_rehydration_data(html) or {}) if html else None
     if info:
         item = parse_profile(info)
         item["scrapedAt"] = now_iso()
         yield item
-    async for out in iter_listing(target, cap=cap, fetch_listing=fetch_listing):
+
+    async def fetched(_url: str, _count: int) -> list[dict[str, Any]]:
+        return videos
+
+    async for out in iter_listing(target, cap=cap, fetch_listing=fetched):
         yield out

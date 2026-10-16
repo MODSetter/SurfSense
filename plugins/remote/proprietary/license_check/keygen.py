@@ -15,8 +15,11 @@ same values:
 import logging
 import os
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 import httpx2
+
+from proprietary.scraping.api_clients import api_client
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +67,16 @@ class Keygen:
         if self.host:
             headers["Host"] = self.host
             headers["X-Forwarded-Proto"] = "https"
+        # One kept client: a new one paid a TLS handshake on every check.
+        origin = urlsplit(url)
+        http = api_client(f"{origin.scheme}://{origin.netloc}")
         try:
-            async with httpx2.AsyncClient(timeout=TIMEOUT_SECONDS) as http:
-                response = await http.post(
-                    url, json={"meta": {"key": key}}, headers=headers
-                )
+            response = await http.post(
+                url,
+                json={"meta": {"key": key}},
+                headers=headers,
+                timeout=TIMEOUT_SECONDS,
+            )
         except httpx2.TransportError as error:
             raise KeygenUnreachableError(str(error)) from error
         if response.status_code >= 500:

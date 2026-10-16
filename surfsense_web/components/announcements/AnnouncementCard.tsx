@@ -1,6 +1,15 @@
 "use client";
 
-import { Bell, ExternalLink, Info, type LucideIcon, Rocket, Wrench, Zap } from "lucide-react";
+import {
+	ArrowRight,
+	Bell,
+	ExternalLink,
+	Info,
+	type LucideIcon,
+	Rocket,
+	Wrench,
+	Zap,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
 import type { AnnouncementCategory } from "@/contracts/types/announcement.types";
 import type { AnnouncementWithState } from "@/hooks/use-announcements";
+import { announcementPath } from "@/lib/announcements/announcements-utils";
 import { formatRelativeDate } from "@/lib/format-date";
 
 const categoryConfig: Record<
@@ -45,9 +55,17 @@ const categoryConfig: Record<
 	},
 };
 
-export function AnnouncementCard({ announcement }: { announcement: AnnouncementWithState }) {
+export function AnnouncementCard({
+	announcement,
+	onNavigate,
+}: {
+	announcement: AnnouncementWithState;
+	/** Called when a link leaves for another page in the app: "Read more", or an internal CTA. */
+	onNavigate?: () => void;
+}) {
 	const config = categoryConfig[announcement.category] ?? categoryConfig.info;
 	const Icon = config.icon;
+	const isExternalLink = announcement.link?.url.startsWith("http") ?? false;
 
 	return (
 		<Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-md">
@@ -97,19 +115,26 @@ export function AnnouncementCard({ announcement }: { announcement: AnnouncementW
 				<p className="text-sm text-muted-foreground leading-relaxed">{announcement.description}</p>
 			</CardContent>
 
-			{announcement.link && (
-				<CardFooter className="pt-0 pb-4">
+			<CardFooter className="flex-wrap gap-2 pt-0 pb-4">
+				<Button variant="secondary" size="sm" asChild className="gap-1.5">
+					<Link href={announcementPath(announcement.id)} onClick={onNavigate}>
+						Read more
+						<ArrowRight className="h-3 w-3" />
+					</Link>
+				</Button>
+				{announcement.link && (
 					<Button variant="outline" size="sm" asChild className="gap-1.5">
 						<Link
 							href={announcement.link.url}
-							target={announcement.link.url.startsWith("http") ? "_blank" : undefined}
+							target={isExternalLink ? "_blank" : undefined}
+							onClick={isExternalLink ? undefined : onNavigate}
 						>
 							{announcement.link.label}
 							<ExternalLink className="h-3 w-3" />
 						</Link>
 					</Button>
-				</CardFooter>
-			)}
+				)}
+			</CardFooter>
 		</Card>
 	);
 }

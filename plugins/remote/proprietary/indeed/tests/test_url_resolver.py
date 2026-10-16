@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlparse
 from proprietary.indeed.url_resolver import (
     build_search_url,
     country_domain,
+    domain_country,
     resolve_url,
 )
 
@@ -85,3 +86,12 @@ def test_build_search_url_remote_keyword_fallback_and_jobtype():
     assert qs["q"] == ["developer remote"]
     assert qs["jt"] == ["fulltime"]
     assert qs["fromage"] == ["7"]
+
+
+def test_domain_country_reverses_country_domain():
+    for cc in ("us", "gb", "de", "ca"):
+        assert domain_country(country_domain(cc)) == cc
+    # Hosts that name no country pin to the US site's exit.
+    assert domain_country("secure.indeed.com") == "us"
+    assert domain_country("indeed.com") == "us"
+    assert domain_country(None) == "us"

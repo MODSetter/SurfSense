@@ -125,17 +125,12 @@ async def test_json_api_disabled_names_the_fix(monkeypatch, caplog):
         status_code = 403
 
     class _Client:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *exc):
-            return False
-
-        async def get(self, url, params=None):
+        async def get(self, url, params=None, timeout=None):  # noqa: ASYNC109 - httpx2's signature
             return _Response()
 
     monkeypatch.setattr(searxng, "_HOST", "https://searx.example")
-    monkeypatch.setattr(searxng.httpx2, "AsyncClient", lambda **kw: _Client())
+    # The kept per-instance client (SW-7) replaced the client per request.
+    monkeypatch.setattr(searxng, "api_client", lambda base: _Client())
 
     with caplog.at_level(logging.WARNING, logger=searxng.logger.name):
         assert await searxng._fetch_json({"q": "x"}) is None

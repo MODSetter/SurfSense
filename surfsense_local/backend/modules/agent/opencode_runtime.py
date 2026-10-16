@@ -1,7 +1,9 @@
 """An opencode running SurfSense's current configuration, ready for a turn."""
 
 import asyncio
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -21,6 +23,7 @@ from modules.agent.opencode_config import (
     AgentSetup,
     write_opencode_config,
 )
+from modules.agent.opencode_failure import opencode_failure
 from modules.agent.thread_folder.repo_fence import fence_every_workspace
 from shared.config import get_agent_settings, get_storage_settings
 
@@ -42,12 +45,18 @@ class ReadyAgent:
     model: str
 
 
-async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
+async def ready_opencode(
+    session: Session, *, launch_key: str, earns_a_start: bool = True
+) -> ReadyAgent:
     """Write opencode's configuration for the selected model, then wait until it serves it.
 
     The opencode already running may hold an earlier configuration, with
     another model or a launch key from a previous run; it is reloaded, and
     counts only once it reports this one. The caller closes the client.
+
+    A turn or a new session earns an opencode Electron gave up on another
+    start. A history read passes `earns_a_start=False`, so reading a failed
+    turn back does not start it a second time.
     """
     settings = get_agent_settings()
     if not settings.opencode_url or not settings.opencode_password:
@@ -63,13 +72,20 @@ async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
         launch_key=launch_key,
         route=await transact(session, selected_call_route),
     )
-    await run_in_threadpool(
-        write_opencode_config, get_storage_settings().agent_dir / CONFIG_FILE, setup
-    )
+    agent_dir = get_storage_settings().agent_dir
+    config = agent_dir / CONFIG_FILE
+    await run_in_threadpool(write_opencode_config, config, setup)
+    if (
+        earns_a_start
+        and opencode_failure(agent_dir, config.stat().st_mtime) is not None
+    ):
+        # Electron starts opencode again only for a newer file, and an unchanged one is not rewritten.
+        os.utime(config)
+    written = config.stat().st_mtime
 
     client = OpencodeClient(settings.opencode_url, settings.opencode_password)
     try:
-        await _until_serving(client, setup)
+        await _until_serving(client, setup, agent_dir, written)
     except BaseException:
         await client.close()
         raise
@@ -94,8 +110,13 @@ def _endpoint_url() -> str:
     return f"http://{api.host}:{api.port}/agent/model/v1"
 
 
-async def _until_serving(client: OpencodeClient, setup: AgentSetup) -> None:
-    """Return once opencode reports `setup`, reloading it once if it holds an older one."""
+async def _until_serving(
+    client: OpencodeClient, setup: AgentSetup, agent_dir: Path, written: float
+) -> None:
+    """Return once opencode reports `setup`, reloading it once if it holds an older one.
+
+    Fails at once when Electron gave up on opencode after `written`.
+    """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + READY_SECONDS
     reloaded = False
@@ -109,6 +130,8 @@ async def _until_serving(client: OpencodeClient, setup: AgentSetup) -> None:
                 reloaded = True
         except httpx.HTTPError:
             pass  # not yet started by Electron, or still starting
+        if (reason := opencode_failure(agent_dir, written)) is not None:
+            raise AgentUnavailableError(f"opencode could not stay up: {reason}")
         if loop.time() > deadline:
             raise AgentUnavailableError(
                 "opencode did not start with SurfSense's configuration"

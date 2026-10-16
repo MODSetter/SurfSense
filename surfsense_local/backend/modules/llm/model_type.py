@@ -18,4 +18,5 @@ class ModelType(StrEnum):
     IMAGE_EDIT = "image_edit"
     VIDEO_GEN = "video_gen"
     AUDIO_GEN = "audio_gen"
+    SPEECH_TO_TEXT = "speech_to_text"
     EMBEDDING = "embedding"

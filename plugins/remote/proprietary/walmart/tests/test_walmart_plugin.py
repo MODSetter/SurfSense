@@ -1,11 +1,12 @@
 """The Walmart plugin as the app reaches it: its MCP server on the host, behind the license.
 
-Walmart itself is faked at the scraper's network seam, Scrapling's `AsyncFetcher`,
-with no proxy; the host, the license check, the tools and Walmart's parsing are real.
+Walmart itself is faked at the scraper's network seam, the shared transport's
+`http.request`, with no proxy; the host, the license check, the tools, the retry
+policy and Walmart's parsing are real.
 """
 
+import json
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,7 @@ from proprietary.license_check.tests.stand_in_keygen import (
     StandInKeygen,
     accounts_url,
 )
-from proprietary.walmart import fetch
+from proprietary.walmart.tests.fake_http import answering, raw
 
 LICENSE = {"Authorization": "License k-1"}
 
@@ -43,33 +44,16 @@ def walmart(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
             yield f"{base}/walmart/mcp"
 
 
-@dataclass
-class Page:
-    """A Scrapling response, as far as `fetch_page` reads one."""
-
-    url: str
-    html_content: str
-    status: int = 200
-    cookies: dict[str, str] = field(default_factory=dict)
-    headers: dict[str, str] = field(default_factory=dict)
-
-
 def walmart_answering(
     monkeypatch: pytest.MonkeyPatch, page_for: Callable[[str], str]
 ) -> list[str]:
     """Walmart serving `page_for(url)` for every URL asked; keeps each URL asked for."""
-    asked: list[str] = []
+    return answering(monkeypatch, lambda url: raw(url, PAGES[page_for(url)]))
 
-    class Fetcher:
-        @staticmethod
-        async def get(url: str, **_: Any) -> Page:
-            asked.append(url)
-            return Page(url=url, html_content=PAGES[page_for(url)])
 
-    monkeypatch.setattr(fetch, "AsyncFetcher", Fetcher)
-    monkeypatch.setattr(fetch, "get_geo_proxy_url", lambda country=None: None)
-    monkeypatch.setattr(fetch, "get_sticky_proxy_url", lambda *_, **__: None)
-    return asked
+def lines(text: str) -> list[dict[str, Any]]:
+    """The items as the agent reads them: one JSON line each, after the summary."""
+    return [json.loads(line) for line in text.splitlines()[1:]]
 
 
 def first_page_only(name: str) -> Callable[[str], str]:
@@ -154,8 +138,37 @@ async def test_reviews_return_each_review_with_a_summary_and_progress(
     assert [item["reviewId"] for item in items] == ["296013686", "296013687"]
     assert all(item["usItemId"] == "212092810" for item in items)
     assert result.content[0].text.startswith("2 Walmart reviews")
-    assert progress[-1] == 2
+    assert [line["text"] for line in lines(result.content[0].text)] == [
+        item["text"] for item in items
+    ]
+    # One product: its id would only repeat on every line.
+    assert all("usItemId" not in line for line in lines(result.content[0].text))
+    # Progress now goes through the shared limiter (one notice a second), so a
+    # call this fast reports its first stage; the values still only rise.
+    assert progress and progress == sorted(progress)
     assert "sort=helpful" in asked[0]
+
+
+async def test_reviews_of_several_products_are_counted_per_product(
+    walmart: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A text cut short still says whose reviews it holds and whose it lacks."""
+    walmart_answering(monkeypatch, first_page_only("reviews"))
+
+    result = await call(
+        walmart, "reviews", {"item_ids": ["212092810", "791595618"]}, LICENSE, []
+    )
+
+    text = result.content[0].text
+    assert text.splitlines()[0] == (
+        "4 Walmart reviews (2 for 212092810, 2 for 791595618)"
+    )
+    assert [line["usItemId"] for line in lines(text)] == [
+        "212092810",
+        "212092810",
+        "791595618",
+        "791595618",
+    ]
 
 
 async def test_walmart_blocking_every_exit_reads_as_a_failed_input(
@@ -172,7 +185,40 @@ async def test_walmart_blocking_every_exit_reads_as_a_failed_input(
     (item,) = result.structured_content["items"]
     assert item["error"] == "product_not_found"
     assert result.content[0].text.startswith("0 Walmart products, 1 failed")
-    assert len(asked) == 6
+    # Four exits now (was six): with each try capped at 16 s, the page's budget
+    # is 25 s rather than minutes.
+    assert len(asked) == 4
+
+
+async def test_a_search_keeps_a_blocked_products_card_and_says_so(
+    walmart: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def page_for(url: str) -> str:
+        if "791595618" in url:
+            return "blocked"
+        return "product" if "/ip/" in url else first_page_only("listing")(url)
+
+    asked = walmart_answering(monkeypatch, page_for)
+
+    result = await call(
+        walmart, "scrape", {"search_terms": ["laptop"], "max_items": 2}, LICENSE
+    )
+
+    assert not result.is_error
+    card, detailed = result.structured_content["items"]
+    assert card["usItemId"] == "791595618"
+    assert card["detailsError"].startswith("product_not_found")
+    assert "longDescription" in detailed
+    # The items are now in the text as JSON lines (opencode reads only the
+    # text), so the card's price and its failed details are read from there.
+    text = result.content[0].text
+    assert text.startswith("2 Walmart products; 1 listing card only (details failed)")
+    card_line, detailed_line = lines(text)
+    assert card_line["name"].startswith("Restored Acer Chromebook")
+    assert card_line["price"] == 79.99
+    assert card_line["detailsError"].startswith("product_not_found")
+    assert "longDescription" in detailed_line
+    assert not any("page=2" in url for url in asked)
 
 
 @pytest.mark.parametrize(
@@ -198,3 +244,103 @@ def test_without_a_license_the_plugin_answers_nothing(walmart: str) -> None:
     refused = httpx2.post(walmart, json={})
 
     assert (refused.status_code, refused.json()) == (401, {"reason": "missing_license"})
+
+
+@pytest.fixture
+def walmart_server(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """The plugin's server module, importable without a Keygen account in the env."""
+    monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
+    from proprietary.walmart import server
+
+    return server
+
+
+def test_the_text_keeps_what_an_agent_compares_and_leaves_out_the_bulk(
+    walmart_server: Any,
+) -> None:
+    _product_fields = walmart_server._product_fields
+    _review_fields = walmart_server._review_fields
+
+    product = {
+        "usItemId": "1",
+        "name": "Soap",
+        "price": {"value": 3.5, "currency": "USD"},
+        "stars": 4.6,
+        "images": ["https://i5.walmartimages.com/a.jpg"],
+        "variants": [{"id": "size"}],
+        "fulfillment": {"shipping": {"deliveryDate": "2026-10-16", "location": "x"}},
+        "reviewsSample": {
+            "topReviews": [{"rating": 5, "title": "Good", "text": "y" * 500}] * 5
+        },
+    }
+    projected = _product_fields(product)
+
+    assert (projected["price"], projected["currency"], projected["stars"]) == (
+        3.5,
+        "USD",
+        4.6,
+    )
+    assert "images" not in projected and "variants" not in projected
+    assert projected["fulfillment"]["shipping"]["deliveryDate"] == "2026-10-16"
+    assert len(projected["topReviews"]) == 2
+    assert len(projected["topReviews"][0]["text"]) == 201
+
+    same = {"usItemId": "1", "text": "ok", "reviewedItemId": "1"}
+    other = {**same, "reviewedItemId": "2", "reviewedItemName": "Soap, 2 pack"}
+    assert _review_fields(same)["reviewedItemId"] is None
+    assert _review_fields(other)["reviewedItemName"] == "Soap, 2 pack"
+
+
+def test_ten_detailed_products_fit_the_text_with_room_to_spare(
+    walmart_server: Any,
+) -> None:
+    """Descriptions and specifications are cut, so the default ten all show."""
+    product = {
+        "usItemId": "1",
+        "name": "Soap",
+        "shortDescription": "s" * 600,
+        "longDescription": "l" * 2000,
+        "specifications": {f"spec {n}": "value" * 4 for n in range(40)},
+    }
+
+    projected = walmart_server._product_fields(product)
+
+    assert len(projected["shortDescription"]) == len(projected["longDescription"])
+    assert len(projected["longDescription"]) == 301
+    assert list(projected["specifications"]) == [f"spec {n}" for n in range(15)]
+
+
+def test_a_review_line_carries_no_padding(walmart_server: Any) -> None:
+    review = {
+        "usItemId": "1",
+        "rating": 5.0,
+        "text": "ok",
+        "verifiedPurchase": True,
+        "positiveFeedback": 0,
+    }
+
+    line = walmart_server._review_fields(review, with_id=False)
+
+    assert line["rating"] == 5 and isinstance(line["rating"], int)
+    assert line["usItemId"] is None and line["helpful"] is None
+    assert line["verified"] is True
+    assert walmart_server._review_fields({**review, "rating": 4.5})["rating"] == 4.5
+
+
+async def test_its_lifespan_joins_the_shared_shutdown(
+    monkeypatch: pytest.MonkeyPatch, walmart_server: Any
+) -> None:
+    from proprietary.scraping import lifecycle
+
+    entered: list[str] = []
+    real = lifecycle.lifespan
+
+    def lifespan():
+        entered.append("walmart")
+        return real()
+
+    monkeypatch.setattr(lifecycle, "lifespan", lifespan)
+    async with walmart_server.lifespan():
+        pass
+
+    assert entered == ["walmart"]

@@ -9,7 +9,7 @@ import {
   setThirdPartyAllowed,
   setTool,
   thirdPartyQueryKey,
-  type ToolApproval,
+  type ToolChange,
 } from "../api"
 
 /** Every change the screen makes; each reads the plugins back once it lands. */
@@ -27,7 +27,7 @@ export function usePluginChanges() {
       }: {
         plugin: string
         tool: string
-        change: { enabled: boolean } | { approval: ToolApproval }
+        change: ToolChange
       }) => setTool(plugin, tool, change),
       onSettled: refresh,
     }),

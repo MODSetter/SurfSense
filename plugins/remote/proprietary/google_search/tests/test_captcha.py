@@ -19,6 +19,14 @@ def test_on_sorry_detects_wall_only():
     assert not captcha.on_sorry(_Page(""))
 
 
+def test_on_sorry_reads_the_host_and_path_not_the_query():
+    """A Google Search URL is rendered as given, so its query may say "/sorry/"."""
+    assert captcha.on_sorry(_Page("https://www.google.co.uk/sorry/index?continue=x"))
+    assert captcha.on_sorry(_Page("https://ipv4.google.com/sorry/index?continue=x"))
+    assert not captcha.on_sorry(_Page("https://www.google.com/search?q=inurl:/sorry/"))
+    assert not captcha.on_sorry(_Page("https://example.com/sorry/"))
+
+
 def test_sitekey_and_data_s_extraction():
     html = (
         '<div class="g-recaptcha" data-sitekey="6LdLLIMbAAAAAIl-KLj9p1ePhM"'

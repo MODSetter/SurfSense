@@ -21,7 +21,7 @@ export function AddModelOptions({
 }: {
   /** The slot's catalog for this computer. */
   download: ReactNode
-  /** The slot being filled, so the connect dialog offers only what fills it. */
+  /** The slot being filled, so a ChatGPT plan is offered only where one fills it. */
   modelType: ModelType
   /** Absent where the slot offers no server. */
   onConnected?: (connection: Connection) => void

@@ -55,14 +55,15 @@ const SITE_DESIGN_ROUTES = new Set([
 
 /**
  * Prefixes for site-design routes with their own dynamic children, e.g. every
- * `/blog/<slug>` post under the `/blog` index.
+ * `/blog/<slug>` post under the `/blog` index and every
+ * `/announcements/<id>` page under `/announcements`.
  *
  * `/free/` covers every model page. Those used to bypass this shell entirely so
  * the anonymous chat could own the viewport; the hosted chat is closed and the
  * route is an ordinary marketing page now, so it takes the same chrome and
  * ruled column as the `/free` index above it.
  */
-const SITE_DESIGN_PREFIXES = ["/blog/", "/free/"];
+const SITE_DESIGN_PREFIXES = ["/blog/", "/announcements/", "/free/"];
 
 export function SiteShell({
 	children,

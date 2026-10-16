@@ -1,201 +1,323 @@
 """Offline resilience tests for the fetch seam and fan-out worker pool.
 
-No network. Stubs the proxy session so the rotate-on-block path (which never
-fires in practice because live runs return 200s) is exercised deterministically,
-and asserts the worker pool closes every session when the consumer stops early.
+No network. ``proprietary.scraping.http.request`` is replaced by a script of
+answers, so the rotate-on-block, redirect, keyed-POST and hedging paths run on
+real :mod:`proprietary.scraping.sessions` holders deterministically, and the pool
+is checked to close every session when the consumer stops early.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
+from typing import Any
 
+import pytest
+
+from proprietary.scraping import http, sessions
 from proprietary.youtube import innertube, scraper
 from proprietary.youtube.innertube import (
+    INNERTUBE_PUBLIC_API_KEY,
     INNERTUBE_SEARCH_URL,
-    _current_session,
     fetch_html,
     post_innertube,
 )
 
-
-class _FakePage:
-    def __init__(self, status: int) -> None:
-        self.status = status
-
-    def json(self) -> dict:
-        return {"status": self.status}
-
-    @property
-    def html_content(self) -> str:
-        return "<html>ok</html>"
+_TIMINGS = http.Timings(False, 0.0, 0.0, 0.0, 0.0, 0)
 
 
-class _FakeSession:
-    """One 'IP': returns ``status`` for every request, or raises if ``exc``."""
-
-    def __init__(self, status: int = 200, *, exc: bool = False) -> None:
-        self.status = status
-        self.exc = exc
-        self.calls = 0
-
-    async def post(self, url, json=None):
-        self.calls += 1
-        if self.exc:
-            raise ConnectionError("boom")
-        return _FakePage(self.status)
-
-    async def get(self, url, headers=None, cookies=None):
-        self.calls += 1
-        if self.exc:
-            raise ConnectionError("boom")
-        return _FakePage(self.status)
+def answer(
+    status: int = 200, body: bytes = b'{"ok": true}', location: str | None = None
+) -> dict[str, Any]:
+    return {"status": status, "body": body, "location": location}
 
 
-class _FakeHolder:
-    """Holder whose ``rotate()`` advances to the next fake session (a new IP)."""
+class FakeTransport:
+    """Pops one scripted answer per request and records what was sent."""
 
-    def __init__(self, sessions: list[_FakeSession]) -> None:
-        self._sessions = sessions
-        self.session = sessions[0]
-        self.rotations = 0
+    def __init__(self, answers: list[Any]) -> None:
+        self.answers = answers
+        self.sent: list[dict[str, Any]] = []
 
-    async def rotate(self):
-        self.rotations += 1
-        self.session = self._sessions[min(self.rotations, len(self._sessions) - 1)]
-        return self.session
-
-
-def _payload() -> dict:
-    return {"context": {}}
-
-
-async def test_post_rotates_on_429_then_succeeds():
-    holder = _FakeHolder([_FakeSession(429), _FakeSession(200)])
-    token = _current_session.set(holder)
-    try:
-        result = await post_innertube(INNERTUBE_SEARCH_URL, _payload())
-    finally:
-        _current_session.reset(token)
-    assert result == {"status": 200}
-    assert holder.rotations == 1  # rotated exactly once to the healthy IP
+    async def request(self, method: str, url: str, **kw: Any) -> http.RawResponse:
+        self.sent.append({"method": method, "url": url, **kw})
+        step = self.answers.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        if callable(step):
+            step = await step()
+        headers = {"location": step["location"]} if step["location"] else {}
+        r = http.RawResponse(
+            step["status"], url, headers, {}, step["body"], (), _TIMINGS
+        )
+        blocked = kw["is_blocked"](r) if kw.get("is_blocked") else False
+        return http.RawResponse(
+            r.status, r.url, r.headers, {}, r.body, (), _TIMINGS, blocked
+        )
 
 
-async def test_post_rotates_on_connection_error_then_succeeds():
-    holder = _FakeHolder([_FakeSession(exc=True), _FakeSession(200)])
-    token = _current_session.set(holder)
-    try:
-        result = await post_innertube(INNERTUBE_SEARCH_URL, _payload())
-    finally:
-        _current_session.reset(token)
-    assert result == {"status": 200}
-    assert holder.rotations == 1
+@pytest.fixture
+def transport(monkeypatch: pytest.MonkeyPatch):
+    def install(answers: list[Any]) -> FakeTransport:
+        fake = FakeTransport(answers)
+        monkeypatch.setattr(http, "request", fake.request)
+        return fake
+
+    return install
 
 
-async def test_post_gives_up_after_max_rotations():
+async def _post_on_holder() -> tuple[dict | None, sessions.SessionHolder]:
+    async with sessions.bound("youtube") as h:
+        return await post_innertube(INNERTUBE_SEARCH_URL, {"context": {}}), h
+
+
+async def test_post_rotates_on_429_then_succeeds(transport) -> None:
+    fake = transport([answer(429), answer(200)])
+
+    result, h = await _post_on_holder()
+
+    assert result == {"ok": True}
+    assert h.rotations == 1  # rotated exactly once to the healthy IP
+    # The public key goes on the first try.
+    assert (
+        fake.sent[0]["url"] == f"{INNERTUBE_SEARCH_URL}?key={INNERTUBE_PUBLIC_API_KEY}"
+    )
+    assert fake.sent[0]["timeout"] == (4, 12)
+    assert fake.sent[0]["allow_redirects"] is False
+
+
+async def test_post_rotates_on_a_dead_exit_then_succeeds(transport) -> None:
+    transport([http.TransportError("Timeout", 28, 4000.0), answer(200)])
+
+    result, h = await _post_on_holder()
+
+    assert result == {"ok": True}
+    assert h.rotations == 1
+
+
+async def test_post_gives_up_after_max_rotations(transport) -> None:
     # Every IP is blocked -> rotate up to the cap, then return None.
-    holder = _FakeHolder(
-        [_FakeSession(429) for _ in range(innertube._MAX_ROTATIONS + 1)]
-    )
-    token = _current_session.set(holder)
-    try:
-        result = await post_innertube(INNERTUBE_SEARCH_URL, _payload())
-    finally:
-        _current_session.reset(token)
+    transport([answer(429) for _ in range(innertube._MAX_ROTATIONS + 1)])
+
+    result, h = await _post_on_holder()
+
     assert result is None
-    assert holder.rotations == innertube._MAX_ROTATIONS
+    assert h.rotations == innertube._MAX_ROTATIONS + 1
 
 
-async def test_post_does_not_rotate_on_non_block_status():
+async def test_post_does_not_rotate_on_non_block_status(transport) -> None:
     # 404 is not a block: fail fast, no wasted IP rotations.
-    holder = _FakeHolder([_FakeSession(404), _FakeSession(200)])
-    token = _current_session.set(holder)
-    try:
-        result = await post_innertube(INNERTUBE_SEARCH_URL, _payload())
-    finally:
-        _current_session.reset(token)
+    fake = transport([answer(404)])
+
+    result, h = await _post_on_holder()
+
     assert result is None
-    assert holder.rotations == 0
+    assert h.rotations == 0
+    assert len(fake.sent) == 1
 
 
-async def test_fetch_html_rotates_then_succeeds():
-    holder = _FakeHolder([_FakeSession(403), _FakeSession(200)])
-    token = _current_session.set(holder)
-    try:
+async def test_a_refused_key_tries_once_without_it(transport) -> None:
+    fake = transport([answer(400), answer(200)])
+
+    result, _ = await _post_on_holder()
+
+    assert result == {"ok": True}
+    assert [s["url"] for s in fake.sent] == [
+        f"{INNERTUBE_SEARCH_URL}?key={INNERTUBE_PUBLIC_API_KEY}",
+        INNERTUBE_SEARCH_URL,
+    ]
+
+
+async def test_a_403_sweep_tries_one_keyless_exit_not_a_second_sweep(
+    transport,
+) -> None:
+    # A 403 is a block, so the keyed call already rotated through every exit.
+    keyed = [answer(403) for _ in range(innertube._MAX_ROTATIONS + 1)]
+    fake = transport([*keyed, answer(403)])
+
+    result, _ = await _post_on_holder()
+
+    assert result is None
+    assert [s["url"] for s in fake.sent] == [
+        f"{INNERTUBE_SEARCH_URL}?key={INNERTUBE_PUBLIC_API_KEY}"
+    ] * len(keyed) + [INNERTUBE_SEARCH_URL]
+
+
+async def test_a_403_sweep_still_answers_when_only_the_key_was_refused(
+    transport,
+) -> None:
+    keyed = [answer(403) for _ in range(innertube._MAX_ROTATIONS + 1)]
+    fake = transport([*keyed, answer(200)])
+
+    result, _ = await _post_on_holder()
+
+    assert result == {"ok": True}
+    assert fake.sent[-1]["url"] == INNERTUBE_SEARCH_URL
+
+
+async def test_one_refused_exit_costs_one_rotation_however_many_saw_it(
+    transport,
+) -> None:
+    def refused_after(delay: float):
+        async def step() -> dict[str, Any]:
+            await asyncio.sleep(delay)
+            return answer(429)
+
+        return step
+
+    # Three requests in flight on one exit are refused one after another: the
+    # first refusal rotates, the late two are about the exit already dropped.
+    refusals = [refused_after(0.03 * n) for n in (1, 2, 3)]
+    fake = transport([*refusals, answer(200), answer(200), answer(200)])
+
+    async with sessions.bound("youtube") as h:
+        results = await asyncio.gather(
+            *(post_innertube(INNERTUBE_SEARCH_URL, {"context": {}}) for _ in range(3))
+        )
+
+    assert results == [{"ok": True}] * 3
+    assert (h.rotations, h.burned) == (1, False)
+    first, retries = fake.sent[:3], fake.sent[3:]
+    assert len({id(s["session"]) for s in first}) == 1
+    # Every retry runs on the one new exit.
+    assert len({id(s["session"]) for s in retries}) == 1
+    assert retries[0]["session"] is not first[0]["session"]
+
+
+async def test_the_sorry_redirect_is_a_block_and_is_not_followed(transport) -> None:
+    sorry = "https://www.google.com/sorry/index?continue=x"
+    fake = transport([answer(302, b"", sorry), answer(200, b"<html>ok</html>")])
+
+    async with sessions.bound("youtube") as h:
         html = await fetch_html("https://www.youtube.com/watch?v=abc")
-    finally:
-        _current_session.reset(token)
+
     assert html == "<html>ok</html>"
-    assert holder.rotations == 1
+    assert h.rotations == 1
+    assert [s["url"] for s in fake.sent] == ["https://www.youtube.com/watch?v=abc"] * 2
 
 
-async def test_fetch_html_falls_back_to_stealthy_when_all_blocked(monkeypatch):
-    called: dict[str, str] = {}
+async def test_a_plain_redirect_is_followed_once(transport) -> None:
+    fake = transport([answer(301, b"", "/watch?v=xyz"), answer(200, b"page")])
 
-    async def _fake_stealthy(url: str):
-        called["url"] = url
-        return "<html>stealthy</html>"
+    async with sessions.bound("youtube") as h:
+        html = await fetch_html("https://www.youtube.com/watch?v=abc")
 
-    monkeypatch.setattr(innertube, "_fetch_html_stealthy", _fake_stealthy)
-    holder = _FakeHolder(
-        [_FakeSession(429) for _ in range(innertube._MAX_ROTATIONS + 1)]
-    )
-    token = _current_session.set(holder)
-    try:
+    assert html == "page"
+    assert h.rotations == 0
+    assert fake.sent[1]["url"] == "https://www.youtube.com/watch?v=xyz"
+
+
+async def test_every_exit_blocked_returns_none_without_a_browser(transport) -> None:
+    fake = transport([answer(429) for _ in range(innertube._MAX_ROTATIONS + 1)])
+
+    async with sessions.bound("youtube"):
         html = await fetch_html("https://www.youtube.com/watch?v=zzz")
-    finally:
-        _current_session.reset(token)
-    assert html == "<html>stealthy</html>"
-    assert called["url"].endswith("v=zzz")
+
+    assert html is None
+    assert len(fake.sent) == innertube._MAX_ROTATIONS + 1
 
 
-class _TrackingHolder:
-    """Fake fan-out session holder that records whether it was closed."""
+async def test_a_slow_request_is_hedged_on_a_fresh_exit(
+    transport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(innertube, "_HEDGE_API_S", 0.05)
 
-    def __init__(self) -> None:
-        self.closed = False
+    async def stuck() -> dict[str, Any]:
+        await asyncio.sleep(5)
+        return answer(200, b'{"slow": true}')
 
-    async def close(self) -> None:
-        self.closed = True
+    fake = transport([stuck, answer(200, b'{"hedge": true}')])
+
+    result, h = await _post_on_holder()
+
+    assert result == {"hedge": True}
+    # The hedge is a one-off on a new exit, never the holder's own session.
+    assert fake.sent[0]["session"] is not None
+    assert fake.sent[1].get("session") is None
+    assert h.rotations == 0
 
 
-async def test_fan_out_closes_all_sessions_on_early_stop(monkeypatch):
-    holders: list[_TrackingHolder] = []
+async def test_hedging_off_sends_one_request(
+    transport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(innertube, "_HEDGE_API_S", 0.01)
+    monkeypatch.setattr(innertube, "_MAX_HEDGES", 0)
 
-    async def _fake_open():
-        h = _TrackingHolder()
-        holders.append(h)
-        return h
+    async def slowish() -> dict[str, Any]:
+        await asyncio.sleep(0.1)
+        return answer(200)
 
-    # No real session binding needed; jobs just yield.
-    from contextlib import asynccontextmanager
+    fake = transport([slowish])
 
-    @asynccontextmanager
-    async def _fake_bind(_holder):
-        yield _holder
+    result, _ = await _post_on_holder()
 
-    monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
-    monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
+    assert result == {"ok": True}
+    assert len(fake.sent) == 1
+
+
+async def test_a_holder_refused_while_a_hedge_answers_is_burned(
+    transport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(innertube, "_HEDGE_API_S", 0.05)
+
+    async def refused() -> dict[str, Any]:
+        await asyncio.sleep(0.1)
+        return answer(429)
+
+    async def hedge() -> dict[str, Any]:
+        await asyncio.sleep(0.2)
+        return answer(200)
+
+    transport([refused, hedge])
+
+    result, h = await _post_on_holder()
+
+    assert result == {"ok": True}
+    # Not rotated now (the hedge answered), but its next request rotates first
+    # and it is never kept idle.
+    assert (h.rotations, h.burned) == (0, True)
+
+
+async def test_fan_out_closes_all_sessions_on_early_stop(transport) -> None:
+    transport([answer(200, b"x") for _ in range(100)])
 
     async def _job(n: int) -> AsyncIterator[dict]:
         for i in range(5):
+            await fetch_html(f"https://www.youtube.com/watch?v={n}")
             yield {"job": n, "i": i}
 
-    jobs = [_job(n) for n in range(20)]
-
-    gen = scraper.fan_out(jobs, concurrency=4)
+    gen = scraper.fan_out([_job(n) for n in range(20)], concurrency=4)
     collected = []
     async for item in gen:
         collected.append(item)
         if len(collected) >= 3:  # consumer stops early (like a limit)
             break
     await gen.aclose()  # deterministically run fan_out's teardown
+    await sessions.close_idle()
 
-    assert len(collected) >= 3
-    assert holders, "workers should have opened sessions"
-    # Every opened session must be closed after the generator is torn down.
-    assert all(h.closed for h in holders), "a worker leaked its proxy session"
+    assert collected[:3] == [{"job": 0, "i": i} for i in range(3)]
+    assert sessions.live_sessions() == 0, "a worker leaked its proxy session"
 
 
-async def test_fan_out_empty_jobs_is_noop():
+async def test_fan_out_keeps_a_warm_holder_for_the_next_call(
+    transport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(innertube, "_KEEP_IDLE", True)
+    transport([answer(200, b"x"), answer(200, b"y")])
+
+    async def _job() -> AsyncIterator[dict]:
+        yield {"html": await fetch_html("https://www.youtube.com/watch?v=a")}
+
+    try:
+        assert [i async for i in scraper.fan_out([_job()])] == [{"html": "x"}]
+        assert sessions.live_sessions() == 1  # kept idle, not closed
+        assert [i async for i in scraper.fan_out([_job()])] == [{"html": "y"}]
+        assert sessions.live_sessions() == 1  # the same one, taken and returned
+    finally:
+        await sessions.close_idle()
+    assert sessions.live_sessions() == 0
+
+
+async def test_fan_out_empty_jobs_is_noop() -> None:
     out = [x async for x in scraper.fan_out([])]
     assert out == []

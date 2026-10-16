@@ -14,7 +14,7 @@ pytestmark = pytest.mark.unit
 MODELS = load_local_manifest().models
 
 
-def rows(installs=None, files=(), selected=None):
+def rows(installs=None, files=(), selected=frozenset()):
     """The shipped manifest's image rows against a folder."""
     return {
         r.id: r
@@ -84,7 +84,7 @@ def test_the_selected_image_model_leads_as_in_use() -> None:
     """The row says which build the Studio's images come from."""
     sdxl = rows(
         files={"sd_xl_base_1.0_0_Q4_0.gguf"},
-        selected="sd_xl_base_1.0_0_Q4_0",
+        selected={"sd_xl_base_1.0_0_Q4_0"},
     )["sdxl-base-1.0"]
 
     assert sdxl.lead is not None and sdxl.lead.why is LeadReason.IN_USE

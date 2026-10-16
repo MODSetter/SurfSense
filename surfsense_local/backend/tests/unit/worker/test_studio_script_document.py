@@ -481,7 +481,8 @@ def test_with_office_support_a_workbook_is_delivered_with_recalculated_totals(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Studio's viewer and the summary show the real total, and Excel still recalculates on open."""
-    _runner(monkeypatch, _ran(_workbook_file()))
+    data = _workbook_file()
+    _runner(monkeypatch, _ran(data))
     office = office_on(monkeypatch, values={"Costs": {"B5": 306}})
     script = DocumentScript(text="build()", format="xlsx", images=())
 
@@ -504,7 +505,7 @@ def test_with_office_support_a_workbook_is_delivered_with_recalculated_totals(
         }
     }
     (handed,) = office.read
-    assert handed == (".xlsx", _workbook_file())
+    assert handed == (".xlsx", data)
 
 
 def test_a_formula_libreoffice_could_not_compute_is_left_blank_not_stale(

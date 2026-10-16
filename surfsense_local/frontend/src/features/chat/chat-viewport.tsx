@@ -54,7 +54,7 @@ export function ChatViewport({
         {children}
         {footer ? (
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-20 -mx-4 mt-auto shrink-0 bg-gradient-to-t from-background via-background to-transparent px-4 pb-1">
-            <div className="relative mx-auto w-full max-w-2xl">
+            <div className="relative mx-auto w-full max-w-3xl">
               <ScrollToBottom raised={footerHasNotice} />
               {footer}
             </div>

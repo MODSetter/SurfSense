@@ -41,6 +41,7 @@ function FooterRow({
 }) {
   return (
     <Button
+      static
       type="button"
       variant="ghost"
       size="xs"

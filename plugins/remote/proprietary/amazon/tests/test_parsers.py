@@ -17,6 +17,7 @@ from proprietary.amazon.parsers import (
     parse_search_page,
     parse_seller,
 )
+from proprietary.amazon.tests._fake_http import answering, raw
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -73,28 +74,50 @@ def test_float_handles_us_and_eu_price_formats():
     assert _float("1234") == 1234.0
 
 
-def test_block_retry_proxy_uses_fresh_country_session(monkeypatch):
-    geo_calls: list[str | None] = []
-    sticky_calls: list[tuple[str, str | None]] = []
+async def test_block_retry_proxy_uses_fresh_country_session(monkeypatch):
+    """A retry leaves on a leased sticky exit, burned when Amazon refused it."""
+    leased: list[tuple[str, str | None]] = []
+    released: list[tuple[str, bool]] = []
 
-    def get_geo_proxy_url(country: str | None = None):
-        geo_calls.append(country)
-        return f"http://geo-{country}"
+    class Exit:
+        def __init__(self, name: str) -> None:
+            self.name = name
 
-    def get_sticky_proxy_url(session_id: str, country: str | None = None):
-        sticky_calls.append((session_id, country))
-        return f"http://sticky-{country}-{session_id}"
+        def proxy_url(self) -> str:
+            return f"http://{self.name}"
 
-    monkeypatch.setattr(fetch, "get_geo_proxy_url", get_geo_proxy_url)
-    monkeypatch.setattr(fetch, "get_sticky_proxy_url", get_sticky_proxy_url)
+    def lease_exit(prefix: str, country: str | None = None) -> Exit:
+        leased.append((prefix, country))
+        return Exit(f"sticky-{len(leased)}")
 
-    first = fetch._selected_proxy(None, "fr", 1, "https://www.amazon.fr/s?k=x")
-    second = fetch._selected_proxy(None, "fr", 2, "https://www.amazon.fr/s?k=x")
+    def release_exit(exit: Exit, *, burned: bool = False) -> None:
+        released.append((exit.name, burned))
 
-    assert first == "http://geo-fr"
-    assert second.startswith("http://sticky-fr-amazon-fr-2-")
-    assert geo_calls == ["fr"]
-    assert sticky_calls[0][1] == "fr"
+    async def reply(url: str, kwargs):
+        blocked = kwargs["proxy"] in {"http://geo-fr", "http://sticky-1"}
+        return raw(url, "Robot Check" if blocked else "<html>ok</html>")
+
+    sent = answering(monkeypatch, reply)
+    monkeypatch.setattr(
+        fetch, "get_geo_proxy_url", lambda country=None: "http://geo-fr"
+    )
+    monkeypatch.setattr(fetch.sessions, "lease_exit", lease_exit)
+    monkeypatch.setattr(fetch.sessions, "release_exit", release_exit)
+    monkeypatch.setenv("AMAZON_HEDGE", "0")
+    _notes, hedges, notes = fetch.start_call()
+    try:
+        result = await fetch.fetch_page("https://www.amazon.fr/s?k=x", country="fr")
+    finally:
+        fetch.end_call(hedges, notes)
+
+    assert result is not None and result.html == "<html>ok</html>"
+    assert [kwargs["proxy"] for kwargs in sent] == [
+        "http://geo-fr",
+        "http://sticky-1",
+        "http://sticky-2",
+    ]
+    assert leased == [("amazon", "fr"), ("amazon", "fr")]
+    assert released == [("sticky-1", True), ("sticky-2", False)]
 
 
 def test_search_parser_extracts_cards_and_provenance():
@@ -138,10 +161,15 @@ def test_location_route_filter_is_explicit():
 
 async def test_location_session_mints_once_and_reuses_cache(monkeypatch):
     fetch._location_sessions.clear()
+    fetch._location_failures.clear()
     calls: list[str] = []
 
-    async def sticky_proxy(_session_id: str, _country: str | None = None):
-        return "http://sticky-proxy"
+    class StickyExit:
+        country = "us"
+
+        @staticmethod
+        def proxy_url() -> str:
+            return "http://sticky-proxy"
 
     async def fetch_page(url: str, **_kwargs):
         calls.append(url)
@@ -159,7 +187,7 @@ async def test_location_session_mints_once_and_reuses_cache(monkeypatch):
             cookies={"session-id": "session"},
         )
 
-    monkeypatch.setattr(fetch, "_sticky_proxy", sticky_proxy)
+    monkeypatch.setattr(fetch, "_lease_location_exit", lambda _country: StickyExit())
     monkeypatch.setattr(fetch, "fetch_page", fetch_page)
 
     first = await get_location_session(

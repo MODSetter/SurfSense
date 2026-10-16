@@ -156,6 +156,10 @@ class ReviewItem(BaseModel):
     syndicated: bool | None = None
     sellerResponse: str | None = None
     usItemId: str | None = None
+    # The product the review is about; a sibling variant's id when Walmart mixes
+    # its reviews into ``usItemId``'s pages.
+    reviewedItemId: str | None = None
+    reviewedItemName: str | None = None
     input: str | None = None
 
     def to_output(self) -> dict[str, Any]:

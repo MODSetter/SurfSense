@@ -121,7 +121,8 @@ export const FolderRow = memo(function FolderRow({
         dropping && "border-ring"
       )}
     >
-      <button
+      <Button
+        variant="bare"
         type="button"
         tabIndex={-1}
         aria-label={
@@ -153,7 +154,7 @@ export const FolderRow = memo(function FolderRow({
             expanded && "rotate-90"
           )}
         />
-      </button>
+      </Button>
       <span className="relative flex size-5 shrink-0 items-center justify-center">
         <Checkbox
           checked={tick === "checked"}
@@ -174,18 +175,20 @@ export const FolderRow = memo(function FolderRow({
         label={folder.name}
         focusOwner='[role="treeitem"]'
         render={
-          <button
+          <Button
+            variant="bare"
+            static
             type="button"
             tabIndex={-1}
             className={cn(
-              "sidebar-row-title-fade flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none",
+              "sidebar-row-title-fade flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap",
               menuOpen && "sidebar-row-title-fade-actions"
             )}
             onClick={onToggleExpanded}
           >
             <Folder01Icon className="size-4 shrink-0 text-muted-foreground" />
             {folder.name}
-          </button>
+          </Button>
         }
       />
       <div className="absolute inset-y-0 right-0 flex items-center pr-1">
@@ -196,7 +199,7 @@ export const FolderRow = memo(function FolderRow({
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 group-focus-visible/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 group-focus-visible/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 data-popup-open:bg-accent data-popup-open:opacity-100"
                 aria-label={intl.formatMessage(
                   {
                     id: "sources_folder_actions_aria",

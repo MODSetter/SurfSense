@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/
   - surfsense_local/backend/modules/documents/
@@ -11,6 +11,7 @@ code:
   - surfsense_local/backend/tests/packaging/
   - surfsense_local/backend/bundling/
   - surfsense_local/backend/pyproject.toml
+  - surfsense_local/backend/shared/config.py
   - surfsense_local/electron/src/main/
   - surfsense_local/electron/src/preload/
   - surfsense_local/electron/scripts/audiocpp/
@@ -110,6 +111,9 @@ Others considered, with the cards' speed in transcribe.cpp on a Ryzen 7 PRO 4750
 | Whisper small | 270 MB | 5.86× | 23 of 81; hi 42.05, zh CER 23.06 | MIT | no |
 | OWSM v4 base and small | 118 and 432 MB (audio.cpp) | unmeasured | unpublished | CC-BY-4.0 | needs v0.9.1 and an eval (step 8) |
 | SenseVoice Small | 254 MB | 19.73× | 5 trained languages | FunASR custom | no |
+| Canary 180M Flash | 249.5 MB (audio.cpp) | 22× warm on an M2 ([Measurements](#measurements)) | en, de, es, fr; es not listed | CC-BY-4.0 | the second model, for English |
+
+**Canary 180M Flash is the second model, for English.** Its English is 7.12% average error on the Open ASR leaderboard, against Parakeet v3's 6.34%, at a quarter of Nemotron's file and 783 MiB at its first request. It is in the pinned v0.8.2 and in upstream's macOS archive. It cannot detect the language, and told none it translates into English, so the app always names one: English, German or French. Spanish is in its family and not listed, because v0.8.2 drops every "ñ" it writes.
 
 - **Languages the app lists.** The 26 Nemotron's card measures at 30% or better: it 5.78, es, en, pt, hi, ko, de, fr, ru, ja, nl, vi, uk, tr, ar, pl, zh 18.87, nb, fi, bg, cs, sk, sv, hr, ro and da 28.51. Estonian (31.84) and Hungarian (32.12) are measured above 30% and not listed. Auto-detection still transcribes the other locales it knows, and the transcript says so ([Languages](#languages)).
 - **One selected model serves both features**; the server holds one at a time. A second curated model is an alternative the user picks, never a second resident model.
@@ -155,7 +159,7 @@ A second process removes all four without touching the podcast. Measured, it hol
 
 ### Memory
 
-Before a request that would load the model, the API reads `GET /v1/models`. A model already `loaded` needs no check, since the operating system's figure already excludes it. Otherwise it applies the podcast's rule ([Memory](local-audio-models.md#memory)): the manifest's measured `peak_mb` plus 1 GiB against [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py). [`memory.py`](../../surfsense_local/backend/modules/llm/providers/audiocpp/memory.py)'s check takes a verb, so the sentence reads "Transcribing needs about {peak + 1 GiB} free; this computer has {available}." Once a second speech model is curated, it also names the first lighter one that would fit, as voicing does.
+Before a request that would load the model, the API reads `GET /v1/models`. A model already `loaded` needs no check, since the operating system's figure already excludes it. Otherwise it applies the podcast's rule ([Memory](local-audio-models.md#memory)): the manifest's measured `peak_mb` plus 1 GiB against [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py). [`memory.py`](../../surfsense_local/backend/modules/llm/providers/audiocpp/memory.py)'s check takes a verb, so the sentence reads "Transcribing needs about {peak + 1 GiB} free; this computer has {available}." Naming the first lighter speech model that would fit, as voicing does, is not built: Canary is curated, but the screen formats the refusal from its two sizes and would need a field and a sentence for it.
 
 - **Dictation** is refused at once, `409 transcription_needs_memory`, before the user says anything.
 - **A file window** waits while memory is short, checked every 5 s. The job sums those waits in `progress.json` across its yields, and past 10 minutes it fails with the sentence and no retry.
@@ -193,7 +197,7 @@ The schema refuses a `family_codes` key outside `languages`, a `detected_only` k
 
 - `manifest_fields.py` gains `TranscriptionDefaults`; [`registry.py`](../../surfsense_local/backend/modules/llm/catalog/local/engines/registry.py) has the engine run `(AUDIO_GEN, SPEECH_TO_TEXT)` with `entry_requires_one_of={"audio", "transcription"}`, as sdcpp does for images and video.
 - [`classifier.py`](../../surfsense_local/backend/modules/llm/catalog/local/classifier.py) answers `SPEECH_TO_TEXT` for `nemotron_asr`; other recognisers stay typeless.
-- `audio_folder/installed.py` and `server_config.py` keep only entries with `audio`. `audio_folder/transcription_config.py` writes `transcription.json`: `lazy_load`, then `{id, family, path, task: "asr", mode: "offline", session_options}` per installed recogniser, deleted when none is installed.
+- `audio_folder/installed.py` and `server_config.py` keep only entries with `audio`. `audio_folder/transcription_config.py` writes `transcription.json`: `lazy_load`, then `{id, family, path, task: "asr", mode: "offline", default_request_options}` per installed recogniser, deleted when none is installed.
 - Rows state the size, the memory while transcribing, that the model detects the language, and the languages it is listed for, a count that expands to the names. An install with `select: true` selects the row's own type.
 - `scripts/local_manifest/` adds the entry; `VALIDATED` pins its file to v0.8.2.
 
@@ -253,7 +257,7 @@ Transcript of meeting.mp3 · 42:10 · Japanese (detected) · Nemotron 3.5. [hh:m
 
 The chunker splits at blank lines ([`chunking.py`](../../surfsense_local/backend/worker/ingestion/chunking.py)), so while a window's paragraph stays under its 480 tokens ([Open questions](#open-questions)), every chunk's first line carries its start time and the agent can quote times. CJK text has no `. ` sentence breaks, so paragraphs keep chunk boundaries meaningful. The header language is the majority across windows; each window keeps its own. The job stores `transcription: {language, duration_s, model}` in the document's metadata.
 
-**Text cleanup**, the same for files and dictation, and fail-open (on any error the text is kept as it is), as Handy's is: trim; collapse any run of one to four words (characters for zh, ja, yue and th) repeated four or more times to one; drop a window's text, and log it, when it runs past 40 characters per second of audio or its zlib compression ratio passes 2.4 over at least 50 characters. Runaway repetition is the known failure of autoregressive decoders such as Qwen's; Nemotron's transducer rarely repeats, and the guard costs nothing when it does not fire. No filler removal and no model rewriting in v1.
+**Text cleanup**, the same for files and dictation, and fail-open (on any error the text is kept as it is), as Handy's is: trim; collapse any run of one to four words (characters for zh, ja, yue and th, where a number or a Latin word counts as one) repeated four or more times to one; drop a window's text, and log it, when it runs past 40 characters per second of audio or its zlib compression ratio passes 2.4 over at least 50 characters. Runaway repetition is the known failure of autoregressive decoders such as Qwen's; Nemotron's transducer rarely repeats, and the guard costs nothing when it does not fire. No filler removal and no model rewriting in v1.
 
 ### No speech model yet
 
@@ -284,10 +288,10 @@ The renderer never talks to a sidecar ([`preload`](../../surfsense_local/electro
 |---|---|
 | `GET /llm/transcription/status` | → `{ready, reason: needs_speech_model or transcription_unavailable or null, model, language_intent, languages}` |
 | `POST /llm/transcription/dictations` | → `201 {id, warm: loaded or loading}`; `409 needs_speech_model`; `409 transcription_needs_memory` with `needed_bytes`, `available_bytes` and an English `message`; `503 transcription_unavailable` |
-| `POST /llm/transcription/dictations/{id}/phrases` | multipart `audio`, a WAV of 16 kHz mono s16, at most 30 s → `{text, language, no_speech}`; `404 dictation_ended` for a session the API does not know |
+| `POST /llm/transcription/dictations/{id}/phrases` | multipart `audio`, a WAV of 16 kHz mono s16, at most 30 s → `{text, language, no_speech}`; `404 dictation_ended` for a session the API does not know; `409 transcription_needs_memory` when a hold has unloaded the model and memory is short |
 | `POST /llm/transcription/dictations/{id}/keepalive` | every 10 s while recording → `204` |
 | `DELETE /llm/transcription/dictations/{id}` | → `204` |
-| `POST /internal/transcription/windows` | a file window from the ingest worker, multipart → `200 {text, language, model_id}`; after at most 30 s of waiting, `503 waiting {reason: dictation, hold or memory}`, with both sizes for memory; `409 needs_speech_model`; `503 transcription_unavailable` |
+| `POST /internal/transcription/windows` | a file window from the ingest worker, multipart → `200 {text, language, model_id}`; after at most 30 s of waiting, `503 waiting {reason: dictation, hold, memory or busy}`, with both sizes for memory; `409 needs_speech_model`; `503 transcription_unavailable` |
 
 The worker meets `503 waiting` by checking for cancel and the yield rule, then asking again: a hold's wait has no bound, and memory waits count toward the job's 10 minutes ([Memory](#memory)). `409 needs_speech_model` makes the recording wait for a model, and `503 transcription_unavailable` is retried.
 
@@ -369,7 +373,7 @@ The runtime licence policy keeps GPL and LGPL code out of the app's own binaries
 
 ## Packaging and CI
 
-- [`pins.mjs`](../../surfsense_local/electron/scripts/audiocpp/pins.mjs): `FAMILIES` gains `nemotron_asr`; the recipe compiles only `FAMILIES` and stages their specs. `stage.mjs` returns early when a server is staged, so developers delete `electron/audiocpp/` once.
+- [`pins.mjs`](../../surfsense_local/electron/scripts/audiocpp/pins.mjs): `FAMILIES` gains `nemotron_asr`; the recipe compiles only `FAMILIES` and stages their specs. `stage.mjs` keeps a staged server only while it has every family in `FAMILIES`, and stages again otherwise.
 - [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) re-runs the Linux `objdump` gate and the Windows per-CPU check with the new family, checks that upstream's macOS v0.8.2 archive contains it, and records the staged size and compile time.
 - `tests/packaging/test_audiocpp_transcription.py`, added to the workflow's path filter: Kokoro voices known sentences in en, es, fr, hi, pt-BR and zh, the transcription server writes them down through the app's client, and the test asserts error and detected-language thresholds and records peak memory. No fixture with a licence of its own is needed. The model file is cached by its manifest sha256, unlike the voicing step's downloads, which run every time (step 4).
 - `scripts/fetch_silero_vad.py` stages `silero_vad_16k_op15.onnx` (1,289,603 B) from a pinned commit of snakers4/silero-vad, sha256-checked, into the models pack beside the bundled voice, run beside `fetch_bundled_voice.py` by [`release-local.yml`](../../.github/workflows/release-local.yml) and the electron `package.json` scripts; the API and worker read it in place (step 4).
@@ -381,12 +385,13 @@ The runtime licence policy keeps GPL and LGPL code out of the app's own binaries
 Each step ships alone and leaves the app working. Steps 1 to 7 are v1.
 
 1. **The measurement, no app change. Done** on 14 Oct 2026 ([Measurements](#measurements)): Nemotron 3.5 and Qwen3-ASR-0.6B on audio.cpp v0.8.2 built with the app's recipe flags. Nemotron took half the memory and a third of the time, so it is the model.
-2. **The runtime, staged and invisible.** `FAMILIES`, the Linux `objdump` and Windows per-CPU gates, the macOS archive check, the sidecar spec, its watcher with crash restart, and the API's URL. Nothing writes `transcription.json` yet, so nothing starts. Adds ADR 0055, or the next number free then (0040 to 0046 are proposed by the file-agent work): "Speech recognition runs on a second audio.cpp server that only the API calls". Updates [`packaging.md`](../architecture/packaging.md).
-3. **Catalog, selection and Settings.** The type, the revision, the slot, the manifest block and entry, the classifier, `transcription.json`, the rows and the Settings section. Users can install and choose a speech model; nothing reads it yet, which [selection](../architecture/local-models/selection.md) allows. Updates [`data-model.md`](../architecture/data-model.md), [`selection.md`](../architecture/local-models/selection.md) and [`catalog.md`](../architecture/local-models/catalog.md), and adds glossary rows for "speech recognition", "dictation" and "transcript", apart from the "speech" row.
-4. **The API slice,** `modules/llm/transcription/` (router, internal router, gate, sessions, admission, selected model, languages, audio checks, cleanup, Silero) and the provider client behind the `Transcriber` protocol, with the hold rule and `fetch_silero_vad.py`. Tested against a fake server, and against the staged server by `test_audiocpp_transcription.py`; no screen changes. Extends the ADR with the gate, and updates [`admission.md`](../architecture/local-models/admission.md) and [`studio.md`](../architecture/studio.md).
-5. **Audio files as sources,** with `miniaudio`, yielding, progress, cancel, awaiting rows and the set-up popover they open, and the search caveat in the same release, because without yielding one recording blocks every upload and note. Updates [`documents.md`](../architecture/documents.md) and `data-model.md`.
-6. **The microphone in Electron,** and a notarized macOS build that shows the prompt. Updates `packaging.md`.
-7. **Dictation,** phrase by phrase. Updates [`chat.md`](../architecture/chat.md). Folds v1 into `architecture/`, moves steps 8 to 11 into a new `proposals/speech-recognition-next.md`, and deletes this file.
+2. **The runtime, staged and invisible. Done.** `FAMILIES`, the Linux `objdump` and Windows per-CPU gates, the macOS archive check, the sidecar spec, its watcher with crash restart, and the API's URL. Nothing writes `transcription.json` yet, so nothing starts. Adds [ADR 0056](../adr/0056-speech-recognition-runs-on-a-second-audiocpp-server.md), "Speech recognition runs on a second audio.cpp server that only the API calls". Updates [`packaging.md`](../architecture/packaging.md).
+3. **Catalog, selection and Settings. Done.** The type, the revision, the slot, the manifest block and entry, the classifier, `transcription.json`, the rows and the Settings section. Users can install and choose a speech model; nothing reads it yet, which [selection](../architecture/local-models/selection.md) allows. Updates [`data-model.md`](../architecture/data-model.md), [`selection.md`](../architecture/local-models/selection.md) and [`catalog.md`](../architecture/local-models/catalog.md), and adds glossary rows for "speech recognition", "dictation" and "transcript", apart from the "speech" row.
+4. **The API slice, done:** `modules/llm/transcription/` (router, internal router, gate, sessions, admission, selected model, languages, audio checks, cleanup, Silero) and the provider client behind the `Transcriber` protocol, with the hold rule and `fetch_silero_vad.py`. Tested against a fake server, and against the staged server by `test_audiocpp_transcription.py`; no screen changes. Extends the ADR with the gate, and updates [`admission.md`](../architecture/local-models/admission.md) and [`studio.md`](../architecture/studio.md).
+5. **Audio files as sources, done:** with `miniaudio`, yielding, progress, cancel, awaiting rows and the set-up popover they open, and the search caveat in the same release, because without yielding one recording blocks every upload and note. Updates [`documents.md`](../architecture/documents.md) and `data-model.md`.
+6. **The microphone in Electron, done.** A notarized macOS build that shows the prompt is still owed ([packaging](../architecture/packaging.md), Known gaps). Updates `packaging.md`.
+7. **Dictation, done:** phrase by phrase. Updates [`chat.md`](../architecture/chat.md). Folding v1 into `architecture/`, moving steps 8 to 11 into `proposals/speech-recognition-next.md` and deleting this file wait for the measurements under [Open questions](#open-questions).
+   - **A light second model, done:** Canary 180M Flash for English, German and French, measured on an Apple M2 ([Measurements](#measurements)). A model that cannot detect is always told the language, and the cleanup joins a comma or full stop written apart from its word. Updates [`catalog.md`](../architecture/local-models/catalog.md), [`selection.md`](../architecture/local-models/selection.md), [`admission.md`](../architecture/local-models/admission.md) and [`packaging.md`](../architecture/packaging.md).
 8. **Next: light and broad languages.** The pin moved to v0.9.1 or later on its own, with the TTS peaks and the voicing gate re-run, then OWSM v4 base and small after a FLEURS eval of ar, hi, bn, ur, ta, te, sw, uk, he and fa, listing only the languages that pass.
 9. **Next: more formats.** `scripts/ffmpeg-decode/` builds a pinned FFmpeg in CI on `ubuntu-22.04`, Windows and macOS arm64 with `--disable-everything --disable-network --disable-autodetect`, only the needed demuxers, decoders and parsers, `aresample` and a `pcm_s16le` WAV muxer, gated on `-buildconf` showing no `--enable-gpl`, `--enable-nonfree` or `--enable-lib` option, on fixtures in every allowed format and on the `objdump` floor. The worker runs it as the decode child, with a timeout. `.opus` joins; `.m4a` and `.aac` join once the AAC question is settled; `.webm` joins only for a file whose only stream is audio, until the maintainer answers the video question. Evaluated beside it: decoding in the renderer through Electron's own FFmpeg for files added from the window, streamed in chunks to 16 kHz mono WAV.
 10. **Next: listen and seek.** `GET /documents/{id}/original` commits before its `FileResponse`, since every transaction is `BEGIN IMMEDIATE` and a player would hold the write lock, as Studio's file route does. An audio viewer joins the [source preview](source-preview.md)'s registry, with the transcript beside it, and a citation of a recording opens it at the time from `segments.json`.
@@ -418,12 +423,12 @@ The maintainer set the rule for the model, the one that takes the least of the u
 Each is a measurement with its rule already set, and the step that takes it:
 
 - **Nemotron on a laptop (step 2).** Speed and peak memory on the i5-1235U and on an 8 GB Windows laptop with a 4B `Q4_K_M` chat model loaded, and error on about 50 FLEURS test utterances in each of the 26 listed languages. A language over 30% on audio.cpp's package is dropped from `languages`. Below 3× real time on the laptop, file windows shrink to 15 s so dictation waits less behind them.
-- **Language tags (step 4).** How often a phrase or window comes back with no `<xx-XX>` tag. Above 1 in 10, the API reads the language from the text's script before giving up.
+- **Language tags (step 4).** How often a phrase or window comes back with no `<xx-XX>` tag. Above 1 in 10, the API reads the language from the text's script before giving up. Measured in step 4 on Kokoro's six sentences: French and Hindi came back untagged, so the API reads the script.
 - **Whisper large-v3-turbo on long files** in transcribe.cpp, which only short clips have measured (1.43×): the number that decides whether the fallback can carry the long tail (step 11).
 - **Language flips in files (step 5).** How often windows of a one-language recording are detected as another. Above 1 window in 20, a file locks to the majority of its first three speech windows.
 - **Hallucination (step 5).** An hour of meeting audio and 10 minutes of music and noise, with and without the Silero gate and the compression-ratio drop. A guard that drops real speech from the FLEURS subset is removed.
-- **Transcript chunks (step 5).** Tokens per 28 s window in each listed language under the chunker's tokenizer. A language whose windows pass 480 tokens gets shorter windows, so every chunk keeps its time.
-- **Decoding (step 5).** pyminiaudio's time for an hour of MP3, and error with its linear resampler against scipy's `resample_poly`, already bundled. A loss above 2% relative moves resampling to scipy.
+- **Transcript chunks (step 5).** Tokens per 28 s window in each listed language under the chunker's tokenizer. A language whose windows pass 480 tokens gets shorter windows, so every chunk keeps its time. Measured in step 5 on Kokoro's seven sentences at its pace: 78 tokens in English, 152 to 161 in es, fr, it and pt, 117 in zh and 214 in hi, so no language needs shorter windows yet.
+- **Decoding (step 5).** pyminiaudio's time for an hour of MP3, and error with its linear resampler against scipy's `resample_poly`, already bundled. A loss above 2% relative moves resampling to scipy. Measured in step 5: an hour of 128 kbps MP3 decoded in 3.6 s, and the 8.6-minute file at 44.1 kHz stereo, cut into the same windows, read at 5.91% word error through miniaudio and 5.83% through `resample_poly`, as at 16 kHz: 1.4% relative, so miniaudio resamples.
 - **Yielding (step 5, before release).** A PDF uploaded midway through an hour's transcription starts within 90 s. Chat's tokens per second while a file transcribes, on a CPU-only laptop: a slowdown above 30% pauses file windows while a local reply generates, too.
 - **Capture in packaged builds (steps 6 and 7).** The 16 kHz context and the worklet over `file://` on Windows, macOS and Linux, and the macOS prompt with the new entitlement. A platform that refuses 16 kHz resamples per phrase.
 - **Language ID on short phrases (step 7).** Auto-detection on 3 to 8 s clips in the listed languages. Below 90%, the set-up popover asks for the language before the first recording.
@@ -460,3 +465,21 @@ Kokoro sentences, error against the text voiced (word error; character error for
 | Qwen3-ASR-0.6B | 0 | 0 | 0 | 5.0 | 7.7 | 0 | 1.8 |
 
 Nemotron's Spanish error is a number written as digits ("un 12" for "un doce por ciento"); its French one is "plutôt que" heard for "plus tôt que". Qwen named every language it detected; Nemotron named none until `keep_language_tags` was set, and then tagged en, es, pt and zh and not the Hindi sentence, which ends without punctuation. Kokoro speech is clean and synthetic, so these say both models work in these languages, not how well on real recordings; the laptop measurement under [Open questions](#open-questions) takes the cards' FLEURS figures to audio.cpp's packages.
+
+### Canary 180M Flash
+
+16 Oct 2026, macOS, Apple M2 (8 cores), 8 GB. The staged server from upstream's v0.8.2 macOS archive, `--backend cpu --threads 4 --max-loaded-models 1`, one entry `task: asr, mode: offline` as `transcription.json` writes it; `canary-180m-flash-q8_0.gguf` at revision `f861648`, sha256 `8a6d06be…6ef57`. Memory is `/usr/bin/time -l`'s maximum resident set over the server's life. Audio is macOS `say`, converted to 16 kHz mono: a 25.1 s English paragraph and one or two sentences each in German, French and Spanish.
+
+| | Canary 180M Flash |
+|---|---|
+| First request, 25.1 s, load included | 2.59 s, peak 783 MiB (footprint 576 MiB) |
+| Warm 25.1 s, three requests | 1.14 to 1.34 s (about 22×), peak 803 MiB |
+| English, language named or not | word for word, punctuation included |
+| French, named | word for word but one full stop written as a comma |
+| German, named | "zeigt , dass": a space before every comma and full stop; "Größe" heard as "Grüße" |
+| Spanish, named | every "ñ" dropped: "Ma ana el ni o viaja a Espa a" |
+| German, not named | translated into English: "The report shows that the sumset in the last quarter…" |
+| A locale, `en-US` | refused: "Canary supports en, de, es and fr" |
+
+The app starts the server with `--min-free-memory-mb 1024`, and with 1.07 GiB free that guard refused Canary's estimated 0.47 GiB, as the app's own check (783 MiB plus 1 GiB) would. Synthetic speech, as for Kokoro's sentences above.
+
