@@ -6,16 +6,18 @@ Part of [Use your Claude plan](README.md).
 
 ## Finding Claude Code
 
-`subscriptions/claude/locate.py` returns the first executable `claude` it finds:
+`subscriptions/claude/locate.py` returns the first `claude` it finds that can run: each directory on the API's own `PATH`, then the places Claude Code's installers put it ([setup](https://code.claude.com/docs/en/setup)), which a GUI app's `PATH` usually lacks on macOS and Linux:
 
-1. `shutil.which("claude")` on the API's own `PATH`.
-2. The places installers put it, which a GUI app's `PATH` usually lacks: `~/.local/bin/claude` (native installer), `~/.claude/local/claude` (older local install), `/opt/homebrew/bin/claude`, `/usr/local/bin/claude`, `~/.npm-global/bin/claude`, and on Windows `%USERPROFILE%\.local\bin\claude.exe` and `%LOCALAPPDATA%\Programs\claude\claude.exe` (unverified, [open question](README.md#open-questions)).
+| System | Searched after `PATH` |
+|---|---|
+| macOS, Linux | `~/.local/bin/claude` (native installer), `~/.claude/local/claude` (older local install), `~/.npm-global/bin/claude`, `~/.volta/bin/claude`, the newest `~/.nvm/versions/node/*/bin/claude`, `/opt/homebrew/bin/claude` and `/usr/local/bin/claude` (Homebrew), `/home/linuxbrew/.linuxbrew/bin/claude` (Linuxbrew), `/usr/bin/claude` (apt, dnf, apk) |
+| Windows | `%USERPROFILE%\.local\bin\claude.exe` (native installer), `%LOCALAPPDATA%\Microsoft\WinGet\Links\claude.exe` (WinGet), `%APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe` (npm) |
 
-On Windows an npm `claude.cmd` shim is skipped for a native `claude.exe`, as the SDK's own search does. The path found is stored on the connection and checked again before each run; a binary that moved is looked for again before the run fails.
+On Windows only a `claude.exe` counts: npm's `claude.cmd` launcher on `PATH` is passed over for the executable behind it, since the Agent SDK refuses a `.cmd`. On macOS and Linux a file without the executable bit is passed over. The path found is stored on the connection and checked again before each run; a binary that moved is looked for again before the run fails.
 
 ## Status
 
-`subscriptions/claude/status.py` runs the binary twice, each with a 15-second timeout and the [launch environment](#launching-a-run):
+`subscriptions/claude/status.py` runs the binary twice, each with a 15-second timeout, the [launch environment](#launching-a-run), and on Windows `CREATE_NO_WINDOW`, so a check from the windowless API never flashes a console. A run that fails, times out or prints something unreadable counts as no answer: no version is `too_old`, no sign-in is `signed_out`.
 
 - `claude --version`, read as `major.minor.patch`. Below `MIN_VERSION`, the lowest version the contract test passed on, the state is `too_old`.
 - `claude auth status`, which prints JSON. `loggedIn: false` is `signed_out`; `authMethod` other than `"claude.ai"` is `signed_out` too, since a Console login is not a plan. Otherwise the state is `ready`, with `email`, `orgName` and `subscriptionType`.

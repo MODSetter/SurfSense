@@ -89,7 +89,7 @@ Anthropic changed this policy in January, February, April and June 2026, and may
 2. **Connection and chat**: [`01-connection.md`](01-connection.md), [`02-chat.md`](02-chat.md), [`05-dialog.md`](05-dialog.md). A Claude plan serves `text_gen` only until step 4.
 3. **The engine interface**, with opencode moved behind it and no change in behaviour ([`03-agent.md`](03-agent.md#the-engine-interface)).
 4. **The Claude engine and the handover** ([`03-agent.md`](03-agent.md), [`04-handover.md`](04-handover.md)); `serves` gains the agent.
-5. Windows and Linux: install locations and the proxy.
+5. Windows and Linux on a real install: the sign-in check and the proxy.
 
 ## Measurements
 
@@ -127,7 +127,7 @@ A SurfSense sign-in to Claude, reading or storing Claude Code's credentials, `cl
 
 ## Open questions
 
-- Windows and Linux: where installers put `claude`, whether `HTTPS_PROXY` is honoured the same way, and `claude.exe` versus npm's `claude.cmd` shim.
+- Windows and Linux on a real install: whether `claude auth status` prints the same JSON, whether `HTTPS_PROXY` is honoured the same way, and WinGet's `Links` folder. Where installers put `claude` is settled ([`01-connection.md`](01-connection.md#finding-claude-code)) and tested on every system with stand-ins.
 - The lowest Claude Code version to accept, and how often a contract test against the real binary runs.
 - Whether a plan limit reached with Claude Code's extra usage switched on should say so; `overageStatus` is in the `RateLimitEvent`.
 - Whether transcripts the agent engine writes under `~/.claude/projects` should be deleted once mirrored ([`03-agent.md`](03-agent.md#sessions)).
