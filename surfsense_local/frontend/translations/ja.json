@@ -815,7 +815,6 @@
   "onboarding_offline_start_body": "次のコマンドで起動してください：",
   "onboarding_offline_title": "ローカルバックエンドを利用できません",
   "onboarding_progress_aria": "オンボーディング ステップ{step, number}/{total, number}",
-  "onboarding_progress_step_aria": "ステップ{step, number}",
   "onboarding_server_option_aria": "サーバーを使用",
   "onboarding_server_option_body": "vLLM、LM Studio、OpenRouter、またはOpenAI互換の任意のAPI。",
   "onboarding_server_option_connect_button": "接続",

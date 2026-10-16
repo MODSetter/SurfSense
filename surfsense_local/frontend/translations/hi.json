@@ -815,7 +815,6 @@
   "onboarding_offline_start_body": "इसे इस कमांड से शुरू करें:",
   "onboarding_offline_title": "लोकल बैकएंड उपलब्ध नहीं है",
   "onboarding_progress_aria": "ऑनबोर्डिंग चरण {total, number} में से {step, number}",
-  "onboarding_progress_step_aria": "चरण {step, number}",
   "onboarding_server_option_aria": "सर्वर इस्तेमाल करें",
   "onboarding_server_option_body": "vLLM, LM Studio, OpenRouter या कोई भी OpenAI-संगत API।",
   "onboarding_server_option_connect_button": "कनेक्ट करें",

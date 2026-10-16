@@ -815,7 +815,6 @@
   "onboarding_offline_start_body": "Запустите его этой командой:",
   "onboarding_offline_title": "Локальный бэкенд недоступен",
   "onboarding_progress_aria": "Шаг настройки {step, number} из {total, number}",
-  "onboarding_progress_step_aria": "Шаг {step, number}",
   "onboarding_server_option_aria": "Использовать сервер",
   "onboarding_server_option_body": "vLLM, LM Studio, OpenRouter или любой API, совместимый с OpenAI.",
   "onboarding_server_option_connect_button": "Подключить",

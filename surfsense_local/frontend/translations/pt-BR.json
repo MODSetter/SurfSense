@@ -815,7 +815,6 @@
   "onboarding_offline_start_body": "Inicie-o com este comando:",
   "onboarding_offline_title": "Backend local indisponível",
   "onboarding_progress_aria": "Etapa {step, number} de {total, number} da configuração inicial",
-  "onboarding_progress_step_aria": "Etapa {step, number}",
   "onboarding_server_option_aria": "Usar um servidor",
   "onboarding_server_option_body": "vLLM, LM Studio, OpenRouter ou qualquer API compatível com a OpenAI.",
   "onboarding_server_option_connect_button": "Conectar",

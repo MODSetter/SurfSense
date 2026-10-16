@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowRightIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
-import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
+import { Progress } from "@/components/ui/progress"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { intl } from "@/i18n/intl"
 
@@ -14,7 +14,7 @@ import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
 /**
- * The steps, in order, and the ones the dots count. The welcome is still
+ * The steps, in order, and the ones the progress bar counts. The welcome is still
  * onboarding, and still gated by the same marker, but it is an introduction,
  * not a step to complete. Whichever step is last finishes onboarding.
  *
@@ -58,40 +58,24 @@ function OnboardingBrand() {
 
 function OnboardingProgress({ screen }: { screen: Step }) {
   const step = STEPS.indexOf(screen) + 1
+  const label = intl.formatMessage(
+    {
+      id: "onboarding_progress_aria",
+      defaultMessage: "Onboarding step {step, number} of {total, number}",
+    },
+    {
+      step,
+      total: STEPS.length,
+    }
+  )
   return (
-    <Stepper
+    <Progress
       value={step}
-      aria-label={intl.formatMessage(
-        {
-          id: "onboarding_progress_aria",
-          defaultMessage: "Onboarding step {step, number} of {total, number}",
-        },
-        {
-          step,
-          total: STEPS.length,
-        }
-      )}
-      className="mx-auto max-w-28 gap-1.5"
-    >
-      {STEPS.map((item, index) => (
-        <StepperItem key={item} step={index + 1} className="flex-1">
-          <StepperIndicator
-            asChild
-            className="h-1 w-full rounded-full bg-border"
-          >
-            <span className="sr-only">
-              {intl.formatMessage(
-                {
-                  id: "onboarding_progress_step_aria",
-                  defaultMessage: "Step {step, number}",
-                },
-                { step: index + 1 }
-              )}
-            </span>
-          </StepperIndicator>
-        </StepperItem>
-      ))}
-    </Stepper>
+      max={STEPS.length}
+      aria-label={label}
+      getAriaValueText={() => label}
+      className="mx-auto w-full max-w-28 **:data-[slot=progress-indicator]:rounded-full **:data-[slot=progress-indicator]:duration-300 **:data-[slot=progress-indicator]:ease-out **:data-[slot=progress-track]:bg-border **:data-[slot=progress-indicator]:motion-reduce:transition-none"
+    />
   )
 }
 
@@ -230,7 +214,7 @@ export function OnboardingPage({
       <div className="mx-auto flex h-full max-h-190 min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         {screen === "welcome" ? (
-          // The dots' height, kept so the hero sits exactly where it did.
+          // The progress bar's height, kept so the hero sits exactly where it did.
           <div aria-hidden="true" className="h-1" />
         ) : (
           <OnboardingProgress screen={screen} />

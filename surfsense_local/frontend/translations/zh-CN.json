@@ -815,7 +815,6 @@
   "onboarding_offline_start_body": "用这条命令启动它：",
   "onboarding_offline_title": "本地后端不可用",
   "onboarding_progress_aria": "引导步骤 {step, number}/{total, number}",
-  "onboarding_progress_step_aria": "第 {step, number} 步",
   "onboarding_server_option_aria": "使用服务器",
   "onboarding_server_option_body": "vLLM、LM Studio、OpenRouter 或任何兼容 OpenAI 的 API。",
   "onboarding_server_option_connect_button": "连接",

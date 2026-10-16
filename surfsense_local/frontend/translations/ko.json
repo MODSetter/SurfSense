@@ -815,7 +815,6 @@
   "onboarding_offline_start_body": "다음 명령으로 시작하세요:",
   "onboarding_offline_title": "로컬 백엔드를 사용할 수 없습니다",
   "onboarding_progress_aria": "온보딩 {total, number}단계 중 {step, number}단계",
-  "onboarding_progress_step_aria": "{step, number}단계",
   "onboarding_server_option_aria": "서버 사용",
   "onboarding_server_option_body": "vLLM, LM Studio, OpenRouter 또는 OpenAI 호환 API.",
   "onboarding_server_option_connect_button": "연결",
