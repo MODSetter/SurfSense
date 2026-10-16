@@ -256,12 +256,11 @@ export type CompareVerdict = "yes" | "no" | "partial";
 
 export type CompareCell = { text: string; verdict: CompareVerdict };
 
-export type CompareProduct = "ours" | "notebooklm" | "anythingllm" | "openNotebook";
+export type CompareProduct = "ours" | "notebooklm" | "openNotebook";
 
 export const COMPARE_PRODUCTS: { key: CompareProduct; name: string }[] = [
 	{ key: "ours", name: "SurfSense" },
 	{ key: "notebooklm", name: "NotebookLM" },
-	{ key: "anythingllm", name: "AnythingLLM" },
 	{ key: "openNotebook", name: "Open Notebook" },
 ];
 
@@ -275,42 +274,36 @@ export const COMPARE_ROWS: CompareRow[] = [
 		label: "Runs offline",
 		ours: { text: "Yes, fully", verdict: "yes" },
 		notebooklm: { text: "No, cloud only", verdict: "no" },
-		anythingllm: { text: "Yes", verdict: "yes" },
 		openNotebook: { text: "Yes", verdict: "yes" },
 	},
 	{
 		label: "Account required",
 		ours: { text: "None", verdict: "yes" },
 		notebooklm: { text: "Google account", verdict: "no" },
-		anythingllm: { text: "None", verdict: "yes" },
 		openNotebook: { text: "None", verdict: "yes" },
 	},
 	{
 		label: "Setup",
 		ours: { text: "Desktop installer", verdict: "yes" },
 		notebooklm: { text: "Web sign-in", verdict: "partial" },
-		anythingllm: { text: "Installer or Docker", verdict: "yes" },
 		openNotebook: { text: "Docker", verdict: "no" },
 	},
 	{
 		label: "Choice of model",
 		ours: { text: "Any, local or hosted", verdict: "yes" },
 		notebooklm: { text: "Gemini only", verdict: "no" },
-		anythingllm: { text: "Any", verdict: "yes" },
 		openNotebook: { text: "Any", verdict: "yes" },
 	},
 	{
 		label: "Model bundled",
 		ours: { text: "Picked at first launch", verdict: "partial" },
 		notebooklm: { text: "Not applicable", verdict: "partial" },
-		anythingllm: { text: "Yes", verdict: "yes" },
 		openNotebook: { text: "No", verdict: "no" },
 	},
 	{
 		label: "Source code",
 		ours: { text: "Open, auditable", verdict: "yes" },
 		notebooklm: { text: "Closed", verdict: "no" },
-		anythingllm: { text: "Open", verdict: "yes" },
 		openNotebook: { text: "Open", verdict: "yes" },
 	},
 ];
