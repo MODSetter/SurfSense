@@ -61,8 +61,18 @@ def text_pages(*pages: list[str]) -> bytes:
     return out.getvalue()
 
 
-def two_column_page(paragraphs: list[str]) -> bytes:
-    """A title across the top, then the paragraphs flowing down two columns."""
+def set_text(*pages: list[str]) -> str:
+    """The text text_pages() sets: each paragraph's lines as wrapped, a blank line
+    between paragraphs and between pages."""
+    return "\n\n".join(
+        "\n\n".join("\n".join(_wrapped(paragraph)) for paragraph in paragraphs)
+        for paragraphs in pages
+    )
+
+
+def two_column_page(paragraphs: list[str], *, paragraph_space: float = 0) -> bytes:
+    """A title across the top, then the paragraphs flowing down two columns, with
+    `paragraph_space` points after each."""
     out = io.BytesIO()
     document = BaseDocTemplate(
         out, pagesize=A4, leftMargin=50, rightMargin=50, topMargin=50, bottomMargin=50
@@ -75,12 +85,46 @@ def two_column_page(paragraphs: list[str]) -> bytes:
         for k in range(2)
     ]
     document.addPageTemplates([PageTemplate(id="page", frames=[title, *columns])])
-    body = ParagraphStyle("body", fontName=FONT, fontSize=9, leading=11.4)
+    body = ParagraphStyle(
+        "body", fontName=FONT, fontSize=9, leading=11.4, spaceAfter=paragraph_space
+    )
     heading = ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=17)
 
     story = [Paragraph("Coastal freight corridors", heading), FrameBreak()]
     story += [Paragraph(text, body) for text in paragraphs]
     document.build(story)
+    return out.getvalue()
+
+
+def table_page(
+    caption: str,
+    rows: list[list[str]],
+    *,
+    caption_above: bool,
+    before: list[str],
+    after: list[str],
+) -> bytes:
+    """Paragraphs, then a table as a paper sets one, 9 pt rows under a header with a
+    rule beneath it, captioned above as a paper does or below as a spec does, then
+    more paragraphs."""
+    out = io.BytesIO()
+    drawing = canvas.Canvas(out, pagesize=A4)
+    y = _paragraphs_at(drawing, before, HEIGHT - MARGIN) - 3 * LEADING
+    if caption_above:
+        y = _caption_at(drawing, caption, y) - 22
+    drawing.setFont(FONT, 9)
+    for n, row in enumerate(rows):
+        for k, cell in enumerate(row):
+            drawing.drawString(MARGIN + 20 + 110 * k, y, cell)
+        if n == 0:  # the rule under the header
+            drawing.line(MARGIN + 20, y - 5, MARGIN + 350, y - 5)
+            y -= 5
+        y -= 10
+    if not caption_above:
+        y = _caption_at(drawing, caption, y - 12) - 10
+    _paragraphs_at(drawing, after, y + 10 - 3 * LEADING)
+    drawing.showPage()
+    drawing.save()
     return out.getvalue()
 
 
@@ -152,7 +196,7 @@ def misencoded(pdf: bytes, letter: str, becomes: str) -> bytes:
     as a broken generator writes it; the page looks the same."""
     writer = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf)))
     pairs = "\n".join(
-        f"<{code:02X}> <{ord(becomes if chr(code) == letter else chr(code)):04X}>"
+        f"<{code:02X}> <{_utf16(becomes if chr(code) == letter else chr(code))}>"
         for code in range(0x20, 0x7F)
     )
     cmap = (
@@ -332,10 +376,41 @@ def _write(drawing: canvas.Canvas, paragraphs: list[str], render_mode: int = 0) 
     text.setFont(FONT, SIZE, LEADING)
     text.setTextRenderMode(render_mode)
     for paragraph in paragraphs:
-        for line in simpleSplit(paragraph, FONT, SIZE, WIDTH - 2 * MARGIN):
+        for line in _wrapped(paragraph):
             text.textLine(line)
         text.textLine("")
     drawing.drawText(text)
+
+
+def _paragraphs_at(drawing: canvas.Canvas, paragraphs: list[str], y: float) -> float:
+    """Sets the paragraphs from baseline y down, a blank line apart; returns the
+    last baseline."""
+    drawing.setFont(FONT, SIZE)
+    for n, paragraph in enumerate(paragraphs):
+        if n:
+            y -= LEADING
+        for line in _wrapped(paragraph):
+            drawing.drawString(MARGIN, y, line)
+            y -= LEADING
+    return y + LEADING
+
+
+def _caption_at(drawing: canvas.Canvas, caption: str, y: float) -> float:
+    """Sets a 9 pt caption from baseline y down; returns its last baseline."""
+    drawing.setFont(FONT, 9)
+    for line in simpleSplit(caption, FONT, 9, 300):
+        drawing.drawString(MARGIN + 20, y, line)
+        y -= 10
+    return y + 10
+
+
+def _wrapped(paragraph: str) -> list[str]:
+    return simpleSplit(paragraph, FONT, SIZE, WIDTH - 2 * MARGIN)
+
+
+def _utf16(char: str) -> str:
+    """A ToUnicode destination: UTF-16BE in hex, a surrogate pair past U+FFFF."""
+    return char.encode("utf-16-be").hex().upper()
 
 
 def _drawn_as_forms(pdf: bytes) -> bytes:

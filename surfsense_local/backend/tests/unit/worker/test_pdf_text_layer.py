@@ -51,15 +51,16 @@ def left_edge(pdf: bytes, phrase: str) -> float:
         document.close()
 
 
-def test_a_born_digital_pdf_is_the_ab_texts_pages_a_blank_line_apart(
+def test_a_born_digital_pdf_is_its_pages_and_paragraphs_a_blank_line_apart(
     tmp_path: Path,
 ) -> None:
-    """Exactly the representation that answered better than Docling's in the A/B."""
+    """The A/B's text arm, which answered better than Docling's, with a blank line
+    where each paragraph ends."""
     pdf = pdf_samples.text_pages(REPORT[:2], REPORT[2:4], REPORT[4:])
 
     layer = read(tmp_path, pdf)
 
-    assert layer.text == pdf_samples.ab_text(pdf)
+    assert layer.text == pdf_samples.set_text(REPORT[:2], REPORT[2:4], REPORT[4:])
     assert "\r" not in layer.text
     assert layer.text.count(REPORT[0][:30]) == 1
 
@@ -306,7 +307,7 @@ def test_a_text_page_whose_box_is_off_the_origin_keeps_the_text_layer(
 
     layer = read(tmp_path, pdf_samples.moved(pdf, 400, 400))
 
-    assert layer.text == pdf_samples.ab_text(pdf)
+    assert layer.text == pdf_samples.set_text(REPORT[:3], REPORT[3:])
 
 
 def test_a_word_hyphenated_at_a_lines_end_is_whole_again(tmp_path: Path) -> None:
@@ -382,7 +383,7 @@ def test_a_blank_page_keeps_the_text_layer(tmp_path: Path) -> None:
 
     layer = read(tmp_path, pdf)
 
-    assert layer.text == pdf_samples.ab_text(pdf)
+    assert layer.text == pdf_samples.set_text(REPORT[:2], [], REPORT[2:4])
 
 
 @pytest.mark.parametrize(("shapes", "text_layer"), [(3, True), (30, False)])

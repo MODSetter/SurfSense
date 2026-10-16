@@ -68,7 +68,7 @@ def test_a_born_digital_pdf_is_ready_with_its_text_layer_as_content(
     session.expire_all()
     assert source.status is DocumentStatus.READY
     assert source.error_message is None
-    assert source.content == pdf_samples.ab_text(pdf)
+    assert source.content == pdf_samples.set_text(REPORT[:4], REPORT[4:])
     found = session.scalar(
         text("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'Paragraph'")
     )
