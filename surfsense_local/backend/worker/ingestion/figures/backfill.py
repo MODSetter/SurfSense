@@ -6,13 +6,13 @@ from typing import Any
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.original_file import original_path
+from modules.documents.source_figures.figures_pass import queue_figures_pass
 from modules.documents.source_figures.layout import (
     can_hold_figures,
     figures_dir,
     figures_work_dir,
     read_index,
 )
-from modules.documents.tasks import extract_figures
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.ingestion import parsing
@@ -27,7 +27,7 @@ from worker.ingestion.image_page import IMAGE_SUFFIXES
 logger = logging.getLogger(__name__)
 
 
-def run(document_id: int, priority: int | None = None) -> None:
+def run(document_id: int, priority: int) -> None:
     """`priority`: the one this copy was queued with, which a copy queued again
     after giving the queue up keeps."""
     original = _ready_original(document_id)
@@ -39,7 +39,7 @@ def run(document_id: int, priority: int | None = None) -> None:
     try:
         converted = reading_for_figures(original, FiguresTurn())
     except FiguresPassYieldedError:
-        extract_figures(document_id, priority=priority)
+        queue_figures_pass(document_id, priority)
         return
     except Exception as failure:
         record_figures_failure(original, failure)

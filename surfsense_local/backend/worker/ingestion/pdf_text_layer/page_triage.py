@@ -12,6 +12,7 @@ from typing import Any
 
 import pypdfium2.raw as pdfium_c
 
+from worker.ingestion.pdf_text_layer.paragraph_breaks import with_paragraph_breaks
 from worker.ingestion.pdf_text_layer.printable_text import printable
 
 # Fewer non-space characters than this is a sparse page, or a cover's title.
@@ -96,6 +97,7 @@ def read_page(page: Any) -> PageReading:
             for index in range(count)
         )
         margins_only = _in_margins_only(textpage, count, box)
+        text = with_paragraph_breaks(textpage, text)
     finally:
         textpage.close()
     text = text.replace("\r\n", "\n").replace("\r", "\n")

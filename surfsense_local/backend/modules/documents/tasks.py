@@ -9,7 +9,8 @@ from shared.queue import ingest_queue
 PRIORITY_INTERACTIVE = 100
 PRIORITY_CHANGED = 50
 PRIORITY_BULK = 10
-# Below an asked-for figures pass, at the default 0: work nobody waits on yet.
+# Below every ingest and every figures pass someone asked for: work nobody
+# waits on yet.
 PRIORITY_IDLE = -10
 
 # An upload of more files than this is a bulk copy.
@@ -32,11 +33,14 @@ def ingest_document(document_id: int) -> None:
 
 
 # No retries: a failure is recorded in the figures index, and a second read of
-# the same file would fail the same way. Huey hands the task itself in, so a
-# pass that gives the queue up queues again at the priority it came with.
-@ingest_queue.task(context=True)
+# the same file would fail the same way. Interactive unless queued otherwise:
+# whoever asks for figures is waiting on them. Huey hands the task itself in,
+# so a pass that gives the queue up queues again at the priority it came with.
+@ingest_queue.task(context=True, priority=PRIORITY_INTERACTIVE)
 def extract_figures(document_id: int, task: Any = None) -> None:
-    """Keep the figures of a ready source that ingest left without them."""
+    """Keep the figures of a ready source that ingest left without them: a PDF
+    read from its text layer or partly from it, a Word file read without
+    Docling, or one ingested before figures were kept."""
     from worker.ingestion.figures.backfill import run
 
-    run(document_id, priority=task.priority if task is not None else None)
+    run(document_id, PRIORITY_INTERACTIVE if task is None else task.priority)

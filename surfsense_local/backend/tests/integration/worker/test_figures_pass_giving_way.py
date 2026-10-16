@@ -244,9 +244,7 @@ def test_ingest_queues_the_idle_pass_for_a_chart_drawn_as_paths(
 ) -> None:
     """No image object, but enough drawing for a chart; the docling fixture fails
     the test if Docling is asked to read it."""
-    source = add_source(
-        session, chart_page(bars=8), status=DocumentStatus.PENDING
-    )
+    source = add_source(session, chart_page(bars=8), status=DocumentStatus.PENDING)
 
     run(source.id)
 

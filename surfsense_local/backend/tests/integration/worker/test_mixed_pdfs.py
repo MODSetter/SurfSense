@@ -7,7 +7,6 @@ import logging
 from collections.abc import Iterator
 from pathlib import Path
 
-import pypdfium2
 import pytest
 from PIL import Image
 from reportlab.lib.pagesizes import A4
@@ -90,21 +89,6 @@ def filled_form_with_a_scan() -> bytes:
     return out.getvalue()
 
 
-def text_layer_pages(pdf: bytes) -> list[str]:
-    """Each page's text, as ingest reads a born-digital page."""
-    document = pypdfium2.PdfDocument(pdf)
-    try:
-        texts = []
-        for page in document:
-            textpage = page.get_textpage()
-            text = textpage.get_text_range()
-            texts.append(text.replace("\r\n", "\n").replace("\r", "\n"))
-            textpage.close()
-        return texts
-    finally:
-        document.close()
-
-
 def folder_of(source: Document) -> Path:
     """The source's own folder, where its original and its figures live."""
     return get_storage_settings().document_dir(source.workspace_id, source.id)
@@ -130,9 +114,12 @@ def test_a_scanned_page_between_born_digital_ones_is_all_docling_reads(
     session.expire_all()
     assert source.status is DocumentStatus.READY
     assert paged_docling.asked == [(2, 2)]
-    first, _scan, third = text_layer_pages(pdf)
     assert source.content == "\n\n".join(
-        [first, paged_docling.markdown(2, 2), third]
+        [
+            pdf_samples.set_text(REPORT[:3]),
+            paged_docling.markdown(2, 2),
+            pdf_samples.set_text(REPORT[3:6]),
+        ]
     )
     assert "Docling reads pages 2 of report.pdf: page 2 is ocr:no-text" in caplog.text
 
@@ -150,9 +137,12 @@ def test_a_turned_landscape_page_is_read_by_docling_alone(
 
     session.expire_all()
     assert paged_docling.asked == [(2, 2)]
-    first, _turned, third = text_layer_pages(pdf)
     assert source.content == "\n\n".join(
-        [first, paged_docling.markdown(2, 2), third]
+        [
+            pdf_samples.set_text(REPORT[:3]),
+            paged_docling.markdown(2, 2),
+            pdf_samples.set_text(REPORT[6:]),
+        ]
     )
 
 
@@ -168,14 +158,16 @@ def test_runs_of_flagged_pages_are_each_read_in_one_go(
 
     session.expire_all()
     assert paged_docling.asked == [(1, 1), (4, 5)]
-    pages = text_layer_pages(pdf)
+    page = pdf_samples.set_text(REPORT[:3])
     assert source.content == "\n\n".join(
         [
             paged_docling.markdown(1, 1),
-            pages[1],
-            pages[2],
+            page,
+            page,
             paged_docling.markdown(4, 5),
-            *pages[5:],
+            page,
+            page,
+            page,
         ]
     )
 

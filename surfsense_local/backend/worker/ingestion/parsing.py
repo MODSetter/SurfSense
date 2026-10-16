@@ -14,9 +14,11 @@ from shared.config import get_storage_settings
 from worker.ingestion.audio.transcript_job import recording_markdown
 from worker.ingestion.docx_style_cache import cached_style_lookups
 from worker.ingestion.figures.store import keep_figures
+from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 from worker.ingestion.slideless_deck import describe_slideless_deck
+from worker.ingestion.word_markdown import markdown_without_docling
 
 
 class UnreadableFileError(Exception):
@@ -47,6 +49,10 @@ def _markdown_from(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix in TEXT_SUFFIXES:
         return path.read_text(encoding="utf-8", errors="replace")
+    if suffix == ".docx" and (markdown := markdown_without_docling(path)) is not None:
+        # Its figures come from the figures-only pass, which still asks Docling.
+        leave_figures_to_the_pass(path)
+        return markdown
 
     converted = convert(path)
     keep_figures(path, converted)
