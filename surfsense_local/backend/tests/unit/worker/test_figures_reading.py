@@ -83,7 +83,7 @@ def readings(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
         asked.append("full")
         return "the full reading"
 
-    def for_pictures(_path: Path, scanned: list[bool]) -> str:
+    def for_pictures(_path: Path, scanned: list[bool], *_resumable: Any) -> str:
         asked.append(list(scanned))
         return "the pictures reading"
 
@@ -154,7 +154,7 @@ def test_a_failed_pictures_reading_falls_back_to_the_full_one(
 ) -> None:
     """A failure is recorded for good, so only the full reading may make it."""
 
-    def broken(_path: Path, _scanned: list[bool]) -> None:
+    def broken(_path: Path, _scanned: list[bool], *_resumable: Any) -> None:
         raise RuntimeError("the layout model ran out of memory")
 
     monkeypatch.setattr(

@@ -31,6 +31,12 @@ BLANK_PAGE_SEGMENTS = 40
 # 648 corpus and stress pages, it sends one to OCR: a raster org chart.
 MARGIN_BAND = 0.12
 
+_COUNTED = (
+    pdfium_c.FPDF_PAGEOBJ_IMAGE,
+    pdfium_c.FPDF_PAGEOBJ_TEXT,
+    pdfium_c.FPDF_PAGEOBJ_PATH,
+)
+
 # Table-of-contents dot leaders and form underscores are typography, not garbage.
 _LEADERS = re.compile(r"(?:[.·•…_\-]\s*){3,}")
 _SPACE = re.compile(r"\s+")
@@ -60,6 +66,7 @@ class PageReading:
     text: str  # line breaks as "\n"
     kind: PageKind
     images: int  # image objects, at any depth
+    segments: int  # path segments drawn, at any depth: rules, tables, vector charts
 
 
 @dataclass(frozen=True)
@@ -72,6 +79,7 @@ class _Signs:
     images: int
     text_objects: int
     invisible: int
+    segments: int
     margins_only: bool
 
 
@@ -92,19 +100,19 @@ def read_page(page: Any) -> PageReading:
         textpage.close()
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     signs = _signs(page, box, text, unmapped, margins_only)
-    return PageReading(printable(text), _kind(page, signs), signs.images)
+    return PageReading(printable(text), _kind(signs), signs.images, signs.segments)
 
 
 def _signs(page: Any, box: Box, text: str, unmapped: int, margins_only: bool) -> _Signs:
     left, bottom, right, top = box
     area = max(1.0, (right - left) * (top - bottom))
     image_area = 0.0
-    images = text_objects = invisible = 0
+    images = text_objects = invisible = segments = 0
     # Every depth: N-up imposition and a PDF included in a PDF nest Form XObjects.
-    for obj in page.get_objects(
-        filter=[pdfium_c.FPDF_PAGEOBJ_IMAGE, pdfium_c.FPDF_PAGEOBJ_TEXT]
-    ):
-        if obj.type == pdfium_c.FPDF_PAGEOBJ_IMAGE:
+    for obj in page.get_objects(filter=list(_COUNTED)):
+        if obj.type == pdfium_c.FPDF_PAGEOBJ_PATH:
+            segments += max(0, pdfium_c.FPDFPath_CountSegments(obj.raw))
+        elif obj.type == pdfium_c.FPDF_PAGEOBJ_IMAGE:
             x0, y0, x1, y1 = _on_page(obj)
             images += 1
             image_area += max(0, min(x1, right) - max(x0, left)) * max(
@@ -124,19 +132,20 @@ def _signs(page: Any, box: Box, text: str, unmapped: int, margins_only: bool) ->
         images=images,
         text_objects=text_objects,
         invisible=invisible,
+        segments=segments,
         margins_only=margins_only,
     )
 
 
-def _kind(page: Any, signs: _Signs) -> PageKind:
+def _kind(signs: _Signs) -> PageKind:
     if signs.chars < SPARSE_CHARS and signs.image_cover > SCAN_IMAGE_COVER:
         return PageKind.NO_TEXT
     if signs.chars == 0:
         # Triage sent every textless page to OCR; a blank one has nothing to read.
-        blank = signs.images == 0 and _barely_drawn(page)
+        blank = signs.images == 0 and _barely_drawn(signs)
         return PageKind.BLANK if blank else PageKind.NO_TEXT
     if signs.margins_only and (
-        signs.image_cover > SCAN_IMAGE_COVER or not _barely_drawn(page)
+        signs.image_cover > SCAN_IMAGE_COVER or not _barely_drawn(signs)
     ):
         return PageKind.NO_TEXT
     if signs.chars < SPARSE_CHARS:
@@ -182,14 +191,9 @@ def _on_page(obj: Any) -> Box:
     return bounds
 
 
-def _barely_drawn(page: Any) -> bool:
+def _barely_drawn(signs: _Signs) -> bool:
     """Drawn shapes too few to be lettering, which Docling's OCR reads off them."""
-    segments = 0
-    for path in page.get_objects(filter=[pdfium_c.FPDF_PAGEOBJ_PATH]):
-        segments += max(0, pdfium_c.FPDFPath_CountSegments(path.raw))
-        if segments > BLANK_PAGE_SEGMENTS:
-            return False
-    return True
+    return signs.segments <= BLANK_PAGE_SEGMENTS
 
 
 def _is_bad(char: str) -> bool:

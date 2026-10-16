@@ -1,3 +1,5 @@
+from typing import Any
+
 from huey.exceptions import CancelExecution
 
 from shared.queue import ingest_queue
@@ -30,10 +32,11 @@ def ingest_document(document_id: int) -> None:
 
 
 # No retries: a failure is recorded in the figures index, and a second read of
-# the same file would fail the same way.
-@ingest_queue.task()
-def extract_figures(document_id: int) -> None:
+# the same file would fail the same way. Huey hands the task itself in, so a
+# pass that gives the queue up queues again at the priority it came with.
+@ingest_queue.task(context=True)
+def extract_figures(document_id: int, task: Any = None) -> None:
     """Keep the figures of a ready source that ingest left without them."""
     from worker.ingestion.figures.backfill import run
 
-    run(document_id)
+    run(document_id, priority=task.priority if task is not None else None)

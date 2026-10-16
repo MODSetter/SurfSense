@@ -442,3 +442,60 @@ def test_the_switch_turns_the_text_layer_off(
     layer = read(tmp_path, pdf_samples.text_pages(REPORT))
 
     assert (layer.text is not None) is text_layer
+
+
+# Page by page: the routing reads these to send Docling only the pages it must
+
+
+def test_each_page_says_whether_the_text_layer_holds_its_text(tmp_path: Path) -> None:
+    """A scan bound into a report is named; the pages around it keep their text."""
+    first = pdf_samples.text_pages(REPORT[:2])
+    last = pdf_samples.text_pages(REPORT[4:])
+    scan = pdf_samples.scanned_page(REPORT[2:4], ocr_layer=False)
+
+    layer = read(tmp_path, pdf_samples.joined(first, scan, last))
+
+    assert [page.refused_because for page in layer.pages] == [
+        None,
+        "page 2 is ocr:no-text",
+        None,
+    ]
+    assert [page.text for page in layer.pages] == [
+        pdf_samples.ab_text(first),
+        None,
+        pdf_samples.ab_text(last),
+    ]
+    assert layer.refused_because == "page 2 is ocr:no-text"
+
+
+def test_a_turned_page_is_named_and_the_others_still_read(tmp_path: Path) -> None:
+    """Only the turned page's lines come last to first."""
+    pages = [REPORT[:2], REPORT[2:4], REPORT[4:]]
+    pdf = pdf_samples.turned(pdf_samples.text_pages(*pages), page=1, degrees=90)
+
+    layer = read(tmp_path, pdf)
+
+    assert [page.refused_because for page in layer.pages] == [
+        None,
+        "page 2 is turned 90 degrees",
+        None,
+    ]
+    assert layer.pages[2].text == pdf_samples.ab_text(pdf_samples.text_pages(pages[2]))
+
+
+def test_each_page_counts_the_path_segments_it_draws(tmp_path: Path) -> None:
+    """A curve is four: where it starts and its three points."""
+    pdf = pdf_samples.joined(
+        pdf_samples.text_pages(REPORT[:2]), pdf_samples.drawn_page(10)
+    )
+
+    layer = read(tmp_path, pdf)
+
+    assert [page.segments for page in layer.pages] == [0, 40]
+
+
+def test_a_filled_in_form_names_no_page(tmp_path: Path) -> None:
+    """Its answers are in its fields, whatever its pages hold: Docling reads it whole."""
+    pdf = pdf_samples.form({"Claimant name": "Ingrid Solheim"}, ticked=False)
+
+    assert read(tmp_path, pdf).pages == ()
