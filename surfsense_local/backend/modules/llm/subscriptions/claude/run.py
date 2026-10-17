@@ -1,7 +1,11 @@
+import asyncio
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any, Protocol
 
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, Message
+
+from modules.llm.subscriptions.claude.tested_version import note_untested
 
 # A user message given as content blocks, such as a handover note beside the text.
 Prompt = str | list[dict[str, Any]]
@@ -73,6 +77,8 @@ class _SdkRun:
 
 async def open_run(options: ClaudeAgentOptions) -> ClaudeRun:
     """Start Claude Code with options from `launch_options`."""
+    if options.cli_path is not None:
+        await asyncio.to_thread(note_untested, Path(options.cli_path))
     client = ClaudeSDKClient(options)
     await client.connect()
     return _SdkRun(client)

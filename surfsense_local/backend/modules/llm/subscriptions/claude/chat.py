@@ -22,6 +22,7 @@ from modules.llm.subscriptions.claude.errors import (
     ClaudeSignInRequiredError,
     failure_of,
 )
+from modules.llm.subscriptions.claude.extra_usage import plan_usage
 from modules.llm.subscriptions.claude.launch import launch_options
 from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.models import claude_models
@@ -116,7 +117,7 @@ class ClaudePlanProvider:
             json_schema=json_schema,
             conversation=conversation,
         ):
-            if not delta.reasoning:
+            if not delta.reasoning and delta.plan_usage is None:
                 yield delta.text
 
     async def chat_deltas(
@@ -175,6 +176,9 @@ async def _answer(
         refusal = await proxy_refusal() if retrying else None
         if (failure := failure_of(message, proxy_refusal=refusal)) is not None:
             raise failure
+        if (usage := plan_usage(message)) is not None:
+            yield Delta("", plan_usage=usage)
+            continue
         if isinstance(message, ResultMessage):
             if structured:
                 yield Delta(json.dumps(message.structured_output))

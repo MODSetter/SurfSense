@@ -112,6 +112,8 @@
   "chat_composer_attach_images_unavailable_tooltip": "Эта модель не может читать изображения",
   "chat_composer_disclaimer_body": "SurfSense может ошибаться. Проверяйте важные ответы.",
   "chat_composer_egress_off_placeholder": "Разрешите отправку на {host}, чтобы общаться",
+  "chat_composer_extra_usage_body": "Лимит вашего плана исчерпан, поэтому ответы учитываются как дополнительное использование.",
+  "chat_composer_extra_usage_until_body": "Лимит вашего плана исчерпан, поэтому до {resetsAt, date, ::EEEjmm} ответы учитываются как дополнительное использование.",
   "chat_composer_follow_up_placeholder": "Задайте уточняющий вопрос по этому ответу",
   "chat_composer_length_limit_status": "Сообщения ограничены {max, number} символами.",
   "chat_composer_message_aria": "Сообщение",

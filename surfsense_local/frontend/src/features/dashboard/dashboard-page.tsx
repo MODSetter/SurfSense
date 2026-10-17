@@ -21,6 +21,9 @@ import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationsEnabled } from "@/features/egress/api"
+import { ExtraUsageNotice } from "@/features/chat/extra-usage/extra-usage-notice"
+import { useExtraUsage } from "@/features/chat/extra-usage/extra-usage-store"
+import { useSelectedOnClaudePlan } from "@/features/chat/extra-usage/use-selected-on-claude-plan"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import {
   useBlockAgentic,
@@ -184,6 +187,9 @@ function WorkspaceDashboard({
 
   const composerHold =
     modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
+  // A model issue blocks sending, so it takes the composer's one notice first.
+  const extraUsage = useExtraUsage()
+  const onClaudePlan = useSelectedOnClaudePlan(selection)
 
   const closeInspect = () => setInspect(null)
   const startNewChat = () => {
@@ -485,6 +491,8 @@ function WorkspaceDashboard({
                       onAllow={needsConsent ? onAllowModelIssue : undefined}
                       onOpenSettings={onModelIssueSettings}
                     />
+                  ) : extraUsage && onClaudePlan ? (
+                    <ExtraUsageNotice usage={extraUsage} />
                   ) : null
                 }
                 blockedPlaceholder={composerHold}

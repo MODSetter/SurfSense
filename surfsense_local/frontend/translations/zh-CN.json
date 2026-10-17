@@ -112,6 +112,8 @@
   "chat_composer_attach_images_unavailable_tooltip": "此模型无法读取图像",
   "chat_composer_disclaimer_body": "SurfSense 可能会出错。请核对重要的回答。",
   "chat_composer_egress_off_placeholder": "允许向 {host} 发送数据才能对话",
+  "chat_composer_extra_usage_body": "你的套餐已达到使用上限，回复将使用额外用量。",
+  "chat_composer_extra_usage_until_body": "你的套餐已达到使用上限，{resetsAt, date, ::EEEjmm} 前回复将使用额外用量。",
   "chat_composer_follow_up_placeholder": "就这个回答继续追问",
   "chat_composer_length_limit_status": "消息最多 {max, number} 个字符。",
   "chat_composer_message_aria": "消息",

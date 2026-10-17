@@ -98,6 +98,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 | `prompt-progress` | per batch of prompt the local runtime reads, before the first token; no other endpoint sends it | `processed` and `total`, in tokens it had left to read |
 | `reasoning` | per chunk of a thinking model's trace, before its answer | `text` |
 | `reasoning-end` | once, when the answer starts or the stream ends, if the model reasoned | `duration_ms`, from the trace's first chunk |
+| `plan-extra-usage` | once per reply a plan reports its limits for, and again if they change; only a Claude plan does ([Claude plan](claude-plan.md#launching-a-run)). The composer's notice follows the last one, across threads | `using`, whether extra usage pays past the plan's limit; `resets_at`, Unix seconds or null |
 | `delta` | per token chunk of the answer | `text` |
 | `error` | on a generator failure | `kind`, `message`, `provider` |
 | `citations` | once, if the reply cited anything | the cited passages, in first-cited order |

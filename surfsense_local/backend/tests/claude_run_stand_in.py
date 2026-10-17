@@ -95,6 +95,35 @@ def done(*, structured_output: Any = None, is_error: bool = False) -> Message:
     )
 
 
+# When the plan's five-hour window measured on 17 Oct 2026 reset.
+RESETS_AT = 1792232400
+
+
+def plan_limits(*, using_extra: bool) -> Message:
+    """Claude Code's rate-limit event, sent with each reply: within the plan, or past it on extra usage.
+
+    Within the plan is as measured (extra usage off for the organization); past
+    it is shaped from the SDK's fields, as a plan using extra usage was not measured.
+    """
+    from claude_agent_sdk import RateLimitEvent, RateLimitInfo
+
+    raw = {
+        "status": "allowed",
+        "resetsAt": RESETS_AT,
+        "rateLimitType": "five_hour",
+        "overageStatus": "allowed" if using_extra else "rejected",
+        "isUsingOverage": using_extra,
+    }
+    info = RateLimitInfo(
+        status="allowed",
+        resets_at=RESETS_AT,
+        rate_limit_type="five_hour",
+        overage_status="allowed" if using_extra else "rejected",
+        raw=raw,
+    )
+    return RateLimitEvent(info, "limit", "s")
+
+
 def answer(*chunks: str, thinking: Sequence[str] = ()) -> list[Message]:
     """A reply streamed as Claude Code streams one: thinking first, then text."""
     events: list[Message] = []

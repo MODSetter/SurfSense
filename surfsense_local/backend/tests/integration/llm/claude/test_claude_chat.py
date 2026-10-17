@@ -12,7 +12,7 @@ from modules.llm.subscriptions.claude import plan_generator
 from modules.llm.subscriptions.claude.chat import ClaudePlanProvider
 from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
 from shared.db import create_session_factory
-from tests.claude_run_stand_in import answer
+from tests.claude_run_stand_in import RESETS_AT, answer, plan_limits
 from tests.claude_stand_in import SIGNED_OUT
 
 from .conftest import ClaudeOnThisMachine, FakeClaude
@@ -275,3 +275,23 @@ async def test_a_host_turned_off_during_a_reply_says_so(
 
     errors = [f for f in frames if f.get("type") == "error"]
     assert [e["kind"] for e in errors] == ["egress_disabled"]
+
+
+@pytest.mark.usefixtures("real_model")
+async def test_a_basic_chat_says_whether_the_plan_is_on_extra_usage(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """As an agent turn does: once per reply, beside an answer that goes on."""
+    await _choose_claude(client, claude_on_this_machine)
+    past = plan_limits(using_extra=True)
+    fake_claude.replies.append([past, *answer("Paris."), past])
+    thread_id = await _basic_thread(client)
+
+    frames = await _send(client, thread_id, "What is the capital of France?")
+
+    assert [f for f in frames if f["type"] == "plan-extra-usage"] == [
+        {"type": "plan-extra-usage", "using": True, "resets_at": RESETS_AT}
+    ]
+    assert "".join(f["text"] for f in frames if f["type"] == "delta") == "Paris."

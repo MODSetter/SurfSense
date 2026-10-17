@@ -52,6 +52,7 @@ from modules.agent.engines.claude_code.models import ClaudeSessionEntry
 from modules.agent.engines.claude_code.opencode_shape import OpencodeShape
 from modules.agent.engines.claude_code.plugin_statuses import unavailable_plugins
 from modules.agent.engines.claude_code.saved_results import claude_home
+from modules.agent.engines.claude_code.session_files import drop_transcript
 from modules.agent.engines.claude_code.session_store import ThreadSessionStore
 from modules.agent.engines.claude_code.skills_plugin import SkillsPlugin
 from modules.agent.engines.claude_code.tool_names import claude_tool, for_claude
@@ -84,9 +85,11 @@ from modules.llm.subscriptions.claude.errors import (
     ClaudeSignInRequiredError,
     failure_of,
 )
+from modules.llm.subscriptions.claude.extra_usage import plan_usage
 from modules.llm.subscriptions.claude.hosts import claude_refusal, require_claude_hosts
 from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.run import ClaudeRun, open_run
+from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.plugins.installed.models import PluginTool
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
 from shared.config import get_storage_settings
@@ -223,6 +226,8 @@ async def _stream(
     tools = _Tools()
     held: HeldRun | None = None
     pump: asyncio.Task | None = None
+    # Said once per reply, and again only if it changes.
+    plan_said = None
     try:
         yield _frame({"type": "agent-preparing", "count": len(sending.document_ids)})
         thread = await transact(session, _reload, thread_id)
@@ -321,6 +326,11 @@ async def _stream(
                 if unavailable:
                     yield _frame(_unavailable_frame(unavailable))
                 continue
+            elif (usage := plan_usage(item)) is not None:
+                if usage != plan_said:
+                    plan_said = usage
+                    yield _frame(plan_usage_frame(usage))
+                continue
             else:
                 refusal = (
                     await transact(session, claude_refusal)
@@ -380,6 +390,7 @@ async def _stream(
             else:
                 host_calls.end()
             setup.runs.release(thread_id)
+            await run_in_threadpool(drop_transcript, session_id)
 
 
 async def _pump(

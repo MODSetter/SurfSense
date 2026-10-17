@@ -70,12 +70,13 @@ from modules.llm.admission.waiting import wait_in_line
 from modules.llm.capability.modes import ChatMode
 from modules.llm.providers import llamacpp
 from modules.llm.providers.protocols import Generator
-from modules.llm.providers.types import Message
+from modules.llm.providers.types import Message, PlanUsage
 from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     resolve_generation,
 )
+from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.source_scope.resolve import resolve_scope
 from modules.source_scope.schemas import SourceScope
 from modules.source_scope.thread_scope import store_thread_scope, thread_scope
@@ -432,6 +433,8 @@ async def send_message(
                         ):
                             run.set_state(RunState("queued", place))
                     run.set_state(RunState("running"))
+                    # Said once per reply, and again only if it changes.
+                    plan_said: PlanUsage | None = None
                     async for delta in generator.chat_deltas(
                         selected.name,
                         prompt.messages,
@@ -441,6 +444,11 @@ async def send_message(
                         # An endpoint that routes by it keeps the thread on one cache.
                         conversation=f"surfsense-thread-{thread.id}",
                     ):
+                        if delta.plan_usage is not None:
+                            if delta.plan_usage != plan_said:
+                                plan_said = delta.plan_usage
+                                yield _frame(plan_usage_frame(plan_said))
+                            continue
                         if delta.progress is not None:
                             yield _frame(
                                 {

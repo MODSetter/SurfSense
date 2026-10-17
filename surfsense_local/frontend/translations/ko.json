@@ -112,6 +112,8 @@
   "chat_composer_attach_images_unavailable_tooltip": "이 모델은 이미지를 읽을 수 없습니다",
   "chat_composer_disclaimer_body": "SurfSense는 실수할 수 있습니다. 중요한 답변은 확인하세요.",
   "chat_composer_egress_off_placeholder": "채팅하려면 {host}에 전송을 허용하세요",
+  "chat_composer_extra_usage_body": "플랜의 사용 한도에 도달해 답변에 추가 사용량이 사용됩니다.",
+  "chat_composer_extra_usage_until_body": "플랜의 사용 한도에 도달해 {resetsAt, date, ::EEEjmm}까지 답변에 추가 사용량이 사용됩니다.",
   "chat_composer_follow_up_placeholder": "이 답변에 이어서 질문하세요",
   "chat_composer_length_limit_status": "메시지는 {max, number}자까지 입력할 수 있습니다.",
   "chat_composer_message_aria": "메시지",

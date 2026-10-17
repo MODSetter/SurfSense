@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     UserMessage,
 )
 
-from tests.claude_run_stand_in import ScriptedRun
+from tests.claude_run_stand_in import ScriptedRun, plan_limits
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,14 @@ class Hang:
     text: str
 
 
-Step = Say | Call | Fail | Hang
+@dataclass(frozen=True)
+class Limits:
+    """Claude Code reports where the plan stands: within its limit, or past it on extra usage."""
+
+    using_extra: bool
+
+
+Step = Say | Call | Fail | Hang | Limits
 
 
 class ScriptedAgentRun(ScriptedRun):
@@ -116,6 +123,9 @@ class ScriptedAgentRun(ScriptedRun):
 
     async def _play(self, step: Step) -> AsyncIterator[Message]:
         message_id = self._next("msg")
+        if isinstance(step, Limits):
+            yield plan_limits(using_extra=step.using_extra)
+            return
         if isinstance(step, Say | Hang):
             yield AssistantMessage(
                 [TextBlock(step.text)], "sonnet", message_id=message_id

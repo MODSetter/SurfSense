@@ -33,4 +33,4 @@ A Claude plan has no HTTP endpoint SurfSense may call, so opencode cannot reach 
 
 ## Where the code stands
 
-Built: chat, titles, Studio and Agentic mode ([Claude plan](../architecture/claude-plan.md)). It is untested on Windows and Linux on a real install. The contract tests against the real binary that the consequences name run only on a developer's machine, opted in, and are to be removed; nothing yet replaces them ([Known gaps](../architecture/claude-plan.md#known-gaps)).
+Built: chat, titles, Studio and Agentic mode ([Claude plan](../architecture/claude-plan.md)). It is untested on Windows and Linux on a real install. The contract tests against the real binary that the consequences name run only on a developer's machine, opted in; a Claude Code newer than the one they last passed on is named in the log, and the version SurfSense calls tested is raised only once they pass again ([Tests](../architecture/claude-plan.md#tests), [Known gaps](../architecture/claude-plan.md#known-gaps)).

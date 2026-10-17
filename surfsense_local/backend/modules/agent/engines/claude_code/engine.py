@@ -6,14 +6,12 @@ engines' turns alike (docs/architecture/claude-plan.md).
 """
 
 import asyncio
-import contextlib
 import logging
 import uuid
 from pathlib import Path
 from typing import Any, Literal
 
 from anyio import from_thread
-from claude_agent_sdk import delete_session
 from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -31,6 +29,7 @@ from modules.agent.engines.claude_code.agent_runs import AgentRuns
 from modules.agent.engines.claude_code.approvals import APPROVALS
 from modules.agent.engines.claude_code.endings import recorded_endings
 from modules.agent.engines.claude_code.models import ClaudeSessionEntry
+from modules.agent.engines.claude_code.session_files import delete_session_files
 from modules.agent.engines.claude_code.skills_plugin import build_skills_plugin
 from modules.agent.engines.claude_code.transcript_shape import opencode_messages
 from modules.agent.engines.claude_code.turn import ClaudeSetup, claude_turn
@@ -76,12 +75,8 @@ class ClaudeCodeEngine:
         left = thread.claude_session_id
         await self._runs.forget(thread.id)
         await transact(session, _renew_session, thread, str(uuid.uuid4()), account)
-        folder = get_storage_settings().thread_working_dir(
-            thread.workspace_id, thread.id
-        )
         # SurfSense's copy keeps its turns; Claude Code's own is not needed again.
-        with contextlib.suppress(FileNotFoundError, ValueError):
-            await run_in_threadpool(delete_session, left, str(folder))
+        await run_in_threadpool(delete_session_files, left)
         return True
 
     def __init__(self) -> None:
@@ -193,9 +188,7 @@ class ClaudeCodeEngine:
         await self._runs.forget(thread_id)
         forget_thread_lock(folder)
         if session_id is not None:
-            # Never run yet, or already swept by Claude Code: nothing to delete.
-            with contextlib.suppress(FileNotFoundError, ValueError):
-                await run_in_threadpool(delete_session, session_id, str(folder))
+            await run_in_threadpool(delete_session_files, session_id)
 
     async def _messages(
         self, session: Session, thread: ChatThread

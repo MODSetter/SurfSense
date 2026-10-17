@@ -12,7 +12,8 @@ from modules.chat.models import AgentEngineKind, ChatThread
 from modules.plugins.installed.models import PluginTool
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from tests.claude_agent_stand_in import Call, Fail, Hang, Say
+from tests.claude_agent_stand_in import Call, Fail, Hang, Limits, Say
+from tests.claude_run_stand_in import RESETS_AT
 from tests.integration.agent.claude_code.conftest import ClaudeAgent
 from tests.integration.agent.test_plugin_proxy import connect_plugin
 
@@ -422,3 +423,83 @@ async def test_a_plugin_whose_tools_changed_is_reconnected_in_the_running_claude
 
     (run,) = claude_agent.started
     assert run.reconnected == ["notes"]
+
+
+def _claude_codes_files(home: Path, session_id: str) -> tuple[Path, Path]:
+    """A session's transcript and a saved result, where Claude Code writes them."""
+    project = home / "projects" / "-threads-1"
+    saved = project / session_id / "tool-results" / "toolu_1.txt"
+    saved.parent.mkdir(parents=True)
+    saved.write_text("ledger")
+    transcript = project / f"{session_id}.jsonl"
+    transcript.write_text('{"type": "user"}\n')
+    return transcript, saved
+
+
+async def test_after_a_turn_claude_codes_transcript_is_deleted_and_saved_results_kept(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SurfSense's copy is the thread; a later turn may still read an earlier saved result."""
+    home = tmp_path / "claude-home"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(home))
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    with create_session_factory(engine)() as session:
+        session_id = session.get_one(ChatThread, thread["id"]).claude_session_id
+    transcript, saved = _claude_codes_files(home, session_id)
+
+    await _send(client, thread["id"], "Hello")
+
+    assert not transcript.exists()
+    assert saved.read_text() == "ledger"
+
+
+async def test_deleting_the_thread_deletes_claude_codes_saved_results(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the transcript gone after each turn, the session's folder still goes with the thread."""
+    home = tmp_path / "claude-home"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(home))
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    with create_session_factory(engine)() as session:
+        session_id = session.get_one(ChatThread, thread["id"]).claude_session_id
+    _, saved = _claude_codes_files(home, session_id)
+    await _send(client, thread["id"], "Hello")
+
+    deleted = await client.delete(f"/chat/threads/{thread['id']}")
+
+    assert deleted.status_code == 204
+    assert not saved.parent.parent.exists()
+
+
+async def test_each_reply_says_whether_the_plan_is_on_extra_usage(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """Once per reply, so the composer can say so before the next one, and stop once back within the plan."""
+    claude_agent.turns = [
+        [Limits(using_extra=True), Say("Q3 grew."), Limits(using_extra=True)],
+        [Limits(using_extra=False), Say("Two.")],
+    ]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    past = await _send(client, thread["id"], "What grew?")
+    within = await _send(client, thread["id"], "And then?")
+
+    assert _of(past, "plan-extra-usage") == [
+        {"type": "plan-extra-usage", "using": True, "resets_at": RESETS_AT}
+    ]
+    assert _of(past, "completed")[0]["text"] == "Q3 grew."
+    assert _of(within, "plan-extra-usage") == [
+        {"type": "plan-extra-usage", "using": False, "resets_at": RESETS_AT}
+    ]

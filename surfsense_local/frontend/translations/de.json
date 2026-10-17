@@ -112,6 +112,8 @@
   "chat_composer_attach_images_unavailable_tooltip": "Dieses Modell kann keine Bilder lesen",
   "chat_composer_disclaimer_body": "SurfSense kann Fehler machen. Überprüfe wichtige Antworten.",
   "chat_composer_egress_off_placeholder": "Erlaube das Senden an {host}, um zu chatten",
+  "chat_composer_extra_usage_body": "Das Limit deines Plans ist erreicht, daher laufen Antworten über zusätzliche Nutzung.",
+  "chat_composer_extra_usage_until_body": "Das Limit deines Plans ist erreicht, daher laufen Antworten bis {resetsAt, date, ::EEEjmm} über zusätzliche Nutzung.",
   "chat_composer_follow_up_placeholder": "Nachfrage zu dieser Antwort stellen",
   "chat_composer_length_limit_status": "Nachrichten sind auf {max, number} Zeichen begrenzt.",
   "chat_composer_message_aria": "Nachricht",

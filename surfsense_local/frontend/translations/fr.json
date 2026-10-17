@@ -112,6 +112,8 @@
   "chat_composer_attach_images_unavailable_tooltip": "Ce modèle ne peut pas lire les images",
   "chat_composer_disclaimer_body": "SurfSense peut faire des erreurs. Vérifiez les réponses importantes.",
   "chat_composer_egress_off_placeholder": "Autorisez l’envoi vers {host} pour discuter",
+  "chat_composer_extra_usage_body": "La limite de votre forfait est atteinte, donc les réponses sont facturées en usage supplémentaire.",
+  "chat_composer_extra_usage_until_body": "La limite de votre forfait est atteinte, donc jusqu’à {resetsAt, date, ::EEEjmm}, les réponses sont facturées en usage supplémentaire.",
   "chat_composer_follow_up_placeholder": "Posez une question sur cette réponse",
   "chat_composer_length_limit_status": "Les messages sont limités à {max, number} caractères.",
   "chat_composer_message_aria": "Message",

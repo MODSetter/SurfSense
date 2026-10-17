@@ -112,6 +112,8 @@
   "chat_composer_attach_images_unavailable_tooltip": "यह मॉडल इमेज नहीं पढ़ सकता",
   "chat_composer_disclaimer_body": "SurfSense से गलतियां हो सकती हैं। ज़रूरी जवाब जांच लें।",
   "chat_composer_egress_off_placeholder": "चैट करने के लिए {host} को भेजने की अनुमति दें",
+  "chat_composer_extra_usage_body": "आपके प्लान की उपयोग सीमा पूरी हो गई है, इसलिए जवाब अतिरिक्त उपयोग में गिने जाते हैं।",
+  "chat_composer_extra_usage_until_body": "आपके प्लान की उपयोग सीमा पूरी हो गई है, इसलिए {resetsAt, date, ::EEEjmm} तक जवाब अतिरिक्त उपयोग में गिने जाते हैं।",
   "chat_composer_follow_up_placeholder": "इस जवाब पर आगे पूछें",
   "chat_composer_length_limit_status": "संदेश {max, number} अक्षरों तक सीमित हैं।",
   "chat_composer_message_aria": "संदेश",
