@@ -9,12 +9,15 @@ import pytest
 from PIL import Image
 from sqlalchemy.orm import Session
 
-from modules.documents.models import DocumentStatus
+from modules.documents.docling_batches.layout import docling_dir, ocr_dir
+from modules.documents.models import Document, DocumentStatus
 from modules.documents.tasks import PRIORITY_IDLE
 from shared.queue import ingest_queue
 from tests import pdf_samples
+from tests.integration.worker import test_long_docling_readings as long_readings
 from tests.integration.worker.docling_stand_in import reading
 from tests.integration.worker.paged_docling_stand_in import PagedDocling
+from tests.integration.worker.test_long_docling_readings import no_minute
 from tests.integration.worker.test_mixed_pdfs import (
     REPORT,
     folder_of,
@@ -22,7 +25,7 @@ from tests.integration.worker.test_mixed_pdfs import (
     session,
     upload,
 )
-from worker.ingestion import run
+from worker.ingestion import pipeline, run
 from worker.ingestion.pdf_reading import ocr_first
 from worker.ingestion.scan_ocr import images
 from worker.ingestion.scan_ocr.frames import Frame
@@ -30,7 +33,7 @@ from worker.ingestion.scan_ocr.page import Line, OcrPage, Word
 
 pytestmark = pytest.mark.integration
 
-__all__ = ["session"]
+__all__ = ["no_minute", "session"]
 
 
 def prose(page: int) -> OcrPage:
@@ -212,3 +215,105 @@ def test_a_photo_with_no_frame_of_text_is_read_by_docling(
 
     session.expire_all()
     assert source.content == "Quarterly results."
+
+
+def test_a_long_scan_gives_way_to_a_note_and_reads_only_the_pages_left(
+    session: Session,
+    stub_model: None,
+    paged_docling: PagedDocling,
+    ocr: StandInOcr,
+    no_minute: None,
+) -> None:
+    """Its pages are kept in ocr/ when it gives the queue up, as a long Docling
+    reading keeps its batches; each page is read once."""
+    source = long_readings.upload(session, scans(20))
+
+    note = long_readings.give_way_once(session, source)
+
+    session.expire_all()
+    assert source.status is DocumentStatus.PENDING
+    assert ocr.read_pages == list(range(1, 9))
+    assert (ocr_dir(folder_of(source)) / "pages.json").is_file()
+    session.commit()  # the read above holds SQLite's lock the queue's jobs need
+
+    long_readings.drain(session)
+
+    session.expire_all()
+    written = session.get(Document, note.id)
+    assert written is not None
+    assert (written.status, source.status) == (DocumentStatus.READY,) * 2
+    assert ocr.read_pages == list(range(1, 21))
+    assert paged_docling.asked == []
+    content = source.content or ""
+    assert "Scanned page 1 line 0" in content and "Scanned page 20 line 7" in content
+    assert not ocr_dir(folder_of(source)).exists()
+
+
+def test_a_cancel_as_an_ocr_reading_gives_way_drops_its_pages(
+    session: Session,
+    stub_model: None,
+    paged_docling: PagedDocling,
+    ocr: StandInOcr,
+    no_minute: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It lands after the reading's last check: no run is left to clear them."""
+    source = long_readings.upload(session, scans(20))
+    pause = pipeline.pause_job
+
+    def cancelled_first(job: Session, document: Document) -> bool:
+        long_readings.set_status(session, source, DocumentStatus.CANCELLED)
+        return pause(job, document)
+
+    monkeypatch.setattr(pipeline, "pause_job", cancelled_first)
+
+    long_readings.give_way_once(session, source)
+
+    session.expire_all()
+    assert source.status is DocumentStatus.CANCELLED
+    assert not ocr_dir(folder_of(source)).exists()
+
+
+def test_an_ocr_reading_does_not_give_way_to_one_that_gave_way_itself(
+    session: Session,
+    stub_model: None,
+    paged_docling: PagedDocling,
+    ocr: StandInOcr,
+    no_minute: None,
+) -> None:
+    """Two long scans: the first gives way to the second once, which then reads
+    to the end; taking turns would leave both waiting until the last page."""
+    first = long_readings.upload(session, scans(20), name="first.pdf")
+    second = long_readings.upload(session, scans(20), name="second.pdf")
+
+    outcomes = long_readings.drain(session)
+
+    assert outcomes == [
+        ("ingest_document", first.id, "pending"),
+        ("ingest_document", second.id, "ready"),
+        ("ingest_document", first.id, "ready"),
+    ]
+    assert ocr.read_pages == [*range(1, 9), *range(1, 21), *range(9, 21)]
+
+
+def test_a_cancel_in_the_docling_part_drops_ocrs_pages_too(
+    session: Session, stub_model: None, paged_docling: PagedDocling, ocr: StandInOcr
+) -> None:
+    """OCR kept its pages for the Docling part's resume; a cancel there ends the
+    reading, and a source left with ocr/ would look like one that gave way."""
+    ocr.garbled = set(range(1, 18))
+    source = long_readings.upload(session, scans(20))
+
+    def cancel(pages: tuple[int, int] | None) -> None:
+        if pages == (1, 8):
+            long_readings.set_status(session, source, DocumentStatus.CANCELLED)
+
+    paged_docling.during = cancel
+
+    long_readings.drain(session)
+
+    session.expire_all()
+    assert source.status is DocumentStatus.CANCELLED
+    assert paged_docling.asked == [(1, 8)]
+    assert not ocr_dir(folder_of(source)).exists()
+    assert not docling_dir(folder_of(source)).exists()

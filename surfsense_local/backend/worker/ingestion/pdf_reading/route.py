@@ -22,6 +22,7 @@ from worker.ingestion.pdf_reading.whole_reading import whole_markdown
 from worker.ingestion.pdf_text_layer import TextLayer, read_text_layer
 from worker.ingestion.pdf_text_layer.page_triage import PageKind
 from worker.ingestion.pdf_text_layer.reading import PAGE_BREAK
+from worker.jobs import JobYieldedError
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,8 @@ _REASONS_SHOWN = 3
 
 
 def pdf_markdown(document: Document, original: Path) -> str:
-    """Raises JobYieldedError when a long Docling reading gives the queue up, and
-    JobCancelledError when a reading is cancelled."""
+    """Raises JobYieldedError when a long reading, Docling's or OCR's, gives the
+    queue up, and JobCancelledError when a reading is cancelled."""
     layer = read_text_layer(original)
     if layer.text is not None:
         queue_idle_figures_pass(document, original, layer)
@@ -59,19 +60,28 @@ def _ocr_first_markdown(document: Document, original: Path, reading: OcrReading)
     """OCR's pages with Docling's markdown in place of the pages it reads."""
     runs = runs_of(sorted(reading.docling))
     logger.info(
-        "%s %s %d of %d pages of %s in %.1f s%s",
+        "%s reads %d of %d pages of %s in %.1f s%s%s",
         reading.reader,
-        "kept" if reading.resumed else "reads",
         reading.read,
         len(reading.layer.pages),
         original.name,
         reading.seconds,
+        f", {reading.kept} kept from an earlier run" if reading.kept else "",
         f"; Docling reads {described(runs)}: {_shown(list(reading.docling.values()))}"
         if runs
         else "",
     )
     if runs:
-        markdown = spliced(reading.layer, _docling_markdown(document, original, runs))
+        try:
+            docling = _docling_markdown(document, original, runs)
+        except JobYieldedError:
+            raise
+        except Exception:
+            # As Docling's batches go: a cancel or a failure starts over, and a
+            # source left with ocr/ would look like a reading that gave way.
+            forget_reading(original)
+            raise
+        markdown = spliced(reading.layer, docling)
     else:
         markdown = PAGE_BREAK.join(page.text or "" for page in reading.layer.pages)
     forget_reading(original)

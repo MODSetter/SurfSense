@@ -7,13 +7,17 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from modules.documents.models import Document
+from modules.documents.tasks import PRIORITY_INTERACTIVE
 from worker.ingestion.pdf_reading import ocr_first
+from worker.ingestion.pdf_reading.ocr_kept import forget_reading
 from worker.ingestion.pdf_text_layer import LayerPage, TextLayer
 from worker.ingestion.pdf_text_layer.page_triage import PageKind
 from worker.ingestion.scan_ocr import switch
 from worker.ingestion.scan_ocr.frames import Frame
 from worker.ingestion.scan_ocr.page import Line, OcrPage, PageVerdict, Word
 from worker.ingestion.scan_ocr.upright import read_upright
+from worker.jobs import JobCancelledError, JobYieldedError
 
 pytestmark = pytest.mark.unit
 
@@ -416,14 +420,161 @@ def test_a_resumed_reading_keeps_ocrs_pages(
     ocr.update({1: page(*prose()), 2: page(*prose(), confidence=0.5)})
     layer = layer_of(scanned(1), scanned(2))
     first = ocr_first.ocr_reading(original, layer)
-    assert first is not None and not first.resumed
+    assert first is not None and first.kept == 0
 
     ocr.clear()  # any read now would fail
     second = ocr_first.ocr_reading(original, layer)
 
-    assert second is not None and second.resumed
+    assert second is not None and second.kept == 2
     assert second.docling == first.docling == {2: "page 2 is garbled"}
     assert second.layer.pages[0].text == first.layer.pages[0].text
     # Other bytes: nothing kept applies, and the stand-in, asked again, fails.
     original.write_bytes(b"%PDF another scan")
     assert ocr_first.ocr_reading(original, layer) is None
+
+
+class Turn:
+    """The ingest job's turn on the queue, past its minute with an upload
+    waiting: it gives way at every check it is asked."""
+
+    def __init__(self) -> None:
+        self.gives_way = True
+        self.cancelled = False
+
+    def check_cancelled(self) -> None:
+        if self.cancelled:
+            raise JobCancelledError
+
+    def give_way(self) -> None:
+        if self.gives_way:
+            raise JobYieldedError(PRIORITY_INTERACTIVE)
+
+
+@pytest.fixture
+def turn(monkeypatch: pytest.MonkeyPatch) -> Turn:
+    """A reading inside an ingest job, whose turn this is."""
+    made = Turn()
+    monkeypatch.setattr(ocr_first, "object_session", lambda _document: object())
+    monkeypatch.setattr(ocr_first, "reading_turn", lambda _session, _document: made)
+    return made
+
+
+def long_scan(
+    folder: Path, ocr: dict[int, OcrPage], pages: int = 20
+) -> tuple[Path, TextLayer]:
+    """A scan of running text on disk, and its text layer."""
+    original = folder / "scan.pdf"
+    original.write_bytes(b"%PDF a long scan")
+    ocr.update({n: page(*prose()) for n in range(1, pages + 1)})
+    return original, layer_of(*map(scanned, range(1, pages + 1)))
+
+
+def asked() -> list[int]:
+    """The pages the stand-in reader has been asked for, in order."""
+    reader = ocr_first.page_reader()
+    assert isinstance(reader, StubReader)
+    return reader.asked
+
+
+def test_a_long_reading_gives_the_queue_up_with_its_pages_kept(
+    ocr: dict[int, OcrPage], turn: Turn, tmp_path: Path
+) -> None:
+    """The run that resumes reads only the pages left, and comes to what one
+    run would."""
+    original, layer = long_scan(tmp_path, ocr)
+
+    with pytest.raises(JobYieldedError):
+        ocr_first.ocr_reading(original, layer, Document())
+    assert asked() == list(range(1, 9))
+
+    turn.gives_way = False
+    resumed = ocr_first.ocr_reading(original, layer, Document())
+
+    assert asked() == list(range(1, 21))
+    assert resumed is not None and (resumed.kept, resumed.read) == (8, 20)
+    forget_reading(original)
+    straight = ocr_first.ocr_reading(original, layer)
+    assert straight is not None and straight.kept == 0
+    assert (resumed.layer, resumed.docling) == (straight.layer, straight.docling)
+
+
+def test_a_reading_does_not_give_way_after_its_last_page(
+    ocr: dict[int, OcrPage], turn: Turn, tmp_path: Path
+) -> None:
+    """Nothing is left to read; Docling's part, if any, gives way on its own."""
+    original, layer = long_scan(tmp_path, ocr, pages=8)
+
+    reading = ocr_first.ocr_reading(original, layer, Document())
+
+    assert reading is not None and reading.read == 8
+
+
+def test_a_reading_that_cannot_keep_its_pages_reads_on(
+    ocr: dict[int, OcrPage], turn: Turn, tmp_path: Path
+) -> None:
+    """Giving way would lose every page read so far."""
+    original, layer = long_scan(tmp_path, ocr)
+    (tmp_path / "ocr").write_text("a file in the folder's place", "utf-8")
+
+    reading = ocr_first.ocr_reading(original, layer, Document())
+
+    assert reading is not None and reading.read == 20
+    assert asked() == list(range(1, 21))
+
+
+def test_a_cancelled_reading_forgets_the_pages_it_kept(
+    ocr: dict[int, OcrPage], turn: Turn, tmp_path: Path
+) -> None:
+    """As a cancelled Docling reading drops its batches."""
+    original, layer = long_scan(tmp_path, ocr)
+    with pytest.raises(JobYieldedError):
+        ocr_first.ocr_reading(original, layer, Document())
+    assert (tmp_path / "ocr" / "pages.json").is_file()
+
+    turn.cancelled = True
+    with pytest.raises(JobCancelledError):
+        ocr_first.ocr_reading(original, layer, Document())
+
+    assert not (tmp_path / "ocr").exists()
+
+
+def test_a_resumed_reading_with_no_page_of_text_is_docling_s_whole(
+    ocr: dict[int, OcrPage], turn: Turn, tmp_path: Path
+) -> None:
+    """The pages kept before it gave way count, and are forgotten with the rest."""
+    original, layer = long_scan(tmp_path, ocr)
+    ocr.update({n: page(line("Fig.", 300), ink=0.2) for n in range(1, 9)})
+    ocr.update({n: page(*prose(), confidence=0.5) for n in range(9, 21)})
+    with pytest.raises(JobYieldedError):
+        ocr_first.ocr_reading(original, layer, Document())
+
+    turn.gives_way = False
+    assert ocr_first.ocr_reading(original, layer, Document()) is None
+
+    # An unsure page is read again turned, so pages 9 on are asked for more than once.
+    assert asked()[:8] == list(range(1, 9))
+    assert sorted(set(asked()[8:])) == list(range(9, 21))
+    assert not (tmp_path / "ocr").exists()
+
+
+@pytest.mark.parametrize("then", ["fails", "is turned off"])
+def test_pages_kept_for_a_reading_docling_takes_over_are_forgotten(
+    ocr: dict[int, OcrPage],
+    turn: Turn,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    then: str,
+) -> None:
+    """Docling reads every page; a source left with ocr/ would look like a
+    reading that gave way, and be given way to by no other."""
+    original, layer = long_scan(tmp_path, ocr)
+    with pytest.raises(JobYieldedError):
+        ocr_first.ocr_reading(original, layer, Document())
+    if then == "fails":
+        ocr.clear()  # any read now fails
+    else:
+        monkeypatch.setattr(ocr_first, "page_reader", lambda: None)
+
+    assert ocr_first.ocr_reading(original, layer, Document()) is None
+
+    assert not (tmp_path / "ocr").exists()

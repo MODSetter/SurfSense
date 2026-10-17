@@ -1,13 +1,15 @@
-"""What a long Docling reading gives the queue up to: a file or note whose ingest
-waits at the reading's own priority or above, so a bulk copy started after it
-does not finish first. Not a recording, as for a recording's job, and not
-another reading that gave the queue up itself, or long readings would take turns
-until all ended together."""
+"""What a long reading, Docling's or OCR's, gives the queue up to: a file or note
+whose ingest waits at the reading's own priority or above, so a bulk copy started
+after it does not finish first. Not a recording, as for a recording's job, and
+not another reading that gave the queue up itself, or long readings would take
+turns until all ended together."""
+
+from pathlib import Path
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from modules.documents.docling_batches.layout import batches_dir
+from modules.documents.docling_batches.layout import batches_dir, ocr_dir
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from shared.config import get_storage_settings
 from worker.ingestion.audio.waiting_work import IS_RECORDING
@@ -32,6 +34,11 @@ def sources_to_give_way_to(session: Session, priority: int) -> bool:
     # Matched here, not in SQL: a bulk copy queues more ids than SQLite binds.
     return any(
         document_id in queued
-        and not batches_dir(storage.document_dir(workspace_id, document_id)).is_dir()
+        and not _gave_way(storage.document_dir(workspace_id, document_id))
         for workspace_id, document_id in waiting
     )
+
+
+def _gave_way(folder: Path) -> bool:
+    """A reading that gave the queue up keeps what it read here for its next run."""
+    return batches_dir(folder).is_dir() or ocr_dir(folder).is_dir()
