@@ -32,8 +32,13 @@ def check_scan_ocr() -> str:
 
 
 def _read(reader: PageReader) -> str:
+    """Raises unless every word of the sample came back."""
     [(_, page)] = list(reader.read([Frame(1, _sample(), 0.05)]))
-    return f"{reader.name} read {page.text()!r}"
+    text = page.text()
+    missing = [word for word in SAMPLE.split() if word.lower() not in text.lower()]
+    if missing:
+        raise RuntimeError(f"{reader.name} read {text!r}, missing {missing}")
+    return f"{reader.name} read {text!r}"
 
 
 def _sample() -> Image.Image:

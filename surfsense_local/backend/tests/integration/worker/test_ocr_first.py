@@ -191,3 +191,24 @@ def test_a_photo_ocr_cannot_read_is_read_by_docling_whole(
     assert source.status is DocumentStatus.READY
     assert source.content == "Quarterly results."
     assert docling == []
+
+
+def test_a_photo_with_no_frame_of_text_is_read_by_docling(
+    session: Session, stub_model: None, docling: list, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Too little read: Docling reads it whole, so nothing is indexed empty."""
+
+    class Little(StandInOcr):
+        def read(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, OcrPage]]:
+            for frame in frames:
+                yield frame, OcrPage(1786, 2526, (), 0.2, "en-US", confidence=0.9)
+
+    reader = Little()
+    monkeypatch.setattr(images, "page_reader", lambda: reader)
+    docling.append(reading())
+    source = upload(session, photo(), name="receipt.jpg")
+
+    run(source.id)
+
+    session.expire_all()
+    assert source.content == "Quarterly results."
