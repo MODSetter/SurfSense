@@ -105,6 +105,13 @@ win:
   artifactName: "${productName}-Setup.${ext}"
   icon: build/icons/packaged/icon.ico
 
+# A folder page instead of the one-click default, which installs into
+# %LOCALAPPDATA%\Programs with no choice. Still per user: per machine would ask
+# for elevation at install and at every update.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
 
 mac:
   target: [dmg, zip]
