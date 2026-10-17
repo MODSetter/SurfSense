@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api"
 import { translatedStudioError } from "./studio-error-text"
 
 describe("a refused Studio job", () => {
-  // The codes `_refused()` sends from modules/artifacts/service.py.
+  // The codes `refused()` sends from modules/artifacts/refused.py.
   it.each([
     ["already_generating", "Already generating."],
     ["nothing_running", "Nothing is running."],
@@ -30,6 +30,53 @@ describe("a refused Studio job", () => {
 
     expect(translatedStudioError(refusal)).toBe(line)
   })
+
+  it("formats the numbers a too-long rewrite sends beside its sentence", () => {
+    const refusal = new ApiError(
+      409,
+      "backend prose, never shown",
+      "rewrite_too_long",
+      {
+        message: "backend prose, never shown",
+        code: "rewrite_too_long",
+        model: "Qwen3-4B",
+        spec_tokens: 12345,
+        needed_tokens: 29300,
+        window_tokens: 8192,
+      }
+    )
+
+    expect(translatedStudioError(refusal)).toBe(
+      "This document is too long for Qwen3-4B to rewrite in one go: it is about 12,345 tokens, and reading it and writing it again needs about 29,300 of the model’s 8,192-token window."
+    )
+  })
+
+  it.each([
+    ["no model", { spec_tokens: 1, needed_tokens: 2, window_tokens: 3 }],
+    ["no document size", { model: "m", needed_tokens: 2, window_tokens: 3 }],
+    ["no needed size", { model: "m", spec_tokens: 1, window_tokens: 3 }],
+    ["no window", { model: "m", spec_tokens: 1, needed_tokens: 2 }],
+    [
+      "a number sent as text",
+      { model: "m", spec_tokens: "1", needed_tokens: 2, window_tokens: 3 },
+    ],
+  ])(
+    "leaves a too-long rewrite with %s to the backend's sentence",
+    (_, values) => {
+      const refusal = new ApiError(
+        409,
+        "the backend's own",
+        "rewrite_too_long",
+        {
+          message: "the backend's own",
+          code: "rewrite_too_long",
+          ...values,
+        }
+      )
+
+      expect(translatedStudioError(refusal)).toBeNull()
+    }
+  )
 
   it("has none for a code it does not know, so the backend's sentence stays", () => {
     const refusal = new ApiError(

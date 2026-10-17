@@ -1310,6 +1310,7 @@
   "studio_error_no_sources": "Выберите хотя бы один источник.",
   "studio_error_not_refinable": "Доработать можно только документ Word или PDF, созданный в Studio.",
   "studio_error_nothing_running": "Ничего не выполняется.",
+  "studio_error_rewrite_too_long": "Этот документ слишком длинный, чтобы модель {model} переписала его за один раз: в нём около {specTokens, number} токенов, а чтобы прочитать его и написать заново, нужно около {neededTokens, number}; контекстное окно модели вмещает {windowTokens, number}.",
   "studio_error_sources_gone": "Ни одного из источников этого артефакта не осталось.",
   "studio_error_sources_indexing": "Выбранные источники ещё индексируются.",
   "studio_error_version_unfinished": "Эта версия не была завершена: повторите попытку или доработайте другую версию.",
