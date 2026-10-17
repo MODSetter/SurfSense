@@ -7,7 +7,7 @@ from shared.going_back.this_release import this_release_scripts
 
 
 def usable_backup(data_dir: Path) -> Path | None:
-    """The copy in backups/ this release can open that loses the least.
+    """The undamaged copy in backups/ this release can open that loses the least.
 
     Judged by the revision inside the file, not its name. The latest revision
     this release knows wins, then the newest file.
@@ -33,6 +33,10 @@ def _revision_inside(backup: Path) -> str | None:
             row = connection.execute(
                 "SELECT version_num FROM alembic_version"
             ).fetchone()
+            # A copy that opens can still be damaged; restoring it would replace
+            # the user's database with a broken one.
+            if connection.execute("PRAGMA quick_check").fetchone() != ("ok",):
+                return None
     except sqlite3.Error:
         return None  # Unreadable or not a database: not something to restore.
     return row[0] if row else None

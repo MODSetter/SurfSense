@@ -7,7 +7,7 @@ from alembic.util import CommandError
 from sqlalchemy import Engine
 
 from shared.going_back.data_folder import migrations_dir
-from shared.going_back.saved_migrations import with_saved_migrations
+from shared.going_back.saved_scripts import read_saved_scripts
 from shared.going_back.this_release import this_release_head, this_release_scripts
 from shared.going_back.usable_backup import usable_backup
 
@@ -36,18 +36,21 @@ def database_revision(engine: Engine) -> str | None:
 
 
 def _can_undo(engine: Engine, data_dir: Path) -> bool:
-    """Whether the saved scripts reach from the database back to this release."""
-    current = database_revision(engine)
-    if current is None:
-        return False
-    with with_saved_migrations(migrations_dir(data_dir)) as config:
-        try:
-            scripts = ScriptDirectory.from_config(config)
-            list(scripts.iterate_revisions(current, this_release_head()))
-        # Anything a saved script raises as it loads: it was written for code this
-        # release may not have.
-        except Exception:
+    """Whether saved scripts lead from the database back to this release's head.
+
+    Read from their source: nothing in the data folder runs before the user
+    chooses to undo.
+    """
+    scripts = read_saved_scripts(migrations_dir(data_dir))
+    head = this_release_head()
+    revision = database_revision(engine)
+    seen = set()
+    while revision != head:
+        script = scripts.get(revision) if revision else None
+        if script is None or not script.stand_alone or revision in seen:
             return False
+        seen.add(revision)
+        revision = script.down_revision
     return True
 
 

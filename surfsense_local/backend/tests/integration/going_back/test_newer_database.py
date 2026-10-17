@@ -1,6 +1,8 @@
 """This release notices a database a newer release upgraded, and what it can do about it."""
 
 import shutil
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,7 @@ from sqlalchemy import Engine
 from alembic import command
 from shared.db import create_db_engine
 from shared.going_back.newer_database import going_back_options, is_newer_than_this_app
+from shared.going_back.undo import undo_newer_revisions
 from shared.migration_snapshot import snapshot_before_upgrade
 from shared.migrations import upgrade_to_head
 from tests.integration.going_back.newer_app import (
@@ -111,3 +114,63 @@ def test_it_prefers_the_copy_at_its_own_revision(tmp_path: Path) -> None:
     backup = going_back_options(engine, tmp_path).backup
 
     assert backup == tmp_path / "backups" / f"{this_head()}-{newer_head()}.db"
+
+
+def _plant_a_script_that_leaves_a_mark(data_dir: Path, name: str) -> Path:
+    mark = data_dir / f"{name}.ran"
+    (data_dir / "migrations" / f"{name}.py").write_text(
+        f"from pathlib import Path\nPath({str(mark)!r}).write_text('ran')\n",
+        encoding="utf-8",
+    )
+    return mark
+
+
+def test_the_options_run_no_saved_script(tmp_path: Path) -> None:
+    """Nothing from the data folder runs before the user chooses to undo."""
+    engine = _newer_library(tmp_path)
+    marks = [
+        _plant_a_script_that_leaves_a_mark(tmp_path, f"{newer_head()}_newer_pins"),
+        _plant_a_script_that_leaves_a_mark(tmp_path, "zz_not_a_migration"),
+    ]
+    # The planted 0032 replaces the real one, so put its revision lines back after the mark.
+    (tmp_path / "migrations" / f"{newer_head()}_newer_pins.py").write_text(
+        (tmp_path / "migrations" / f"{newer_head()}_newer_pins.py").read_text()
+        + f'revision = "{newer_head()}"\ndown_revision = "{int(newer_head()) - 1:04d}"\n',
+        encoding="utf-8",
+    )
+
+    going_back_options(engine, tmp_path)
+
+    assert [mark for mark in marks if mark.exists()] == []
+
+
+def test_a_file_not_named_like_a_migration_is_never_run(tmp_path: Path) -> None:
+    """Undo loads only NNNN_*.py, so a stray script in the folder stays inert."""
+    engine = _newer_library(tmp_path)
+    mark = _plant_a_script_that_leaves_a_mark(tmp_path, "zz_not_a_migration")
+
+    assert going_back_options(engine, tmp_path).can_undo
+    undo_newer_revisions(engine, tmp_path)
+
+    assert not mark.exists()
+
+
+def test_it_offers_no_copy_that_fails_its_integrity_check(tmp_path: Path) -> None:
+    """A damaged copy would replace the user's database with a broken one."""
+    engine = _newer_library(tmp_path)
+    backup = tmp_path / "backups" / f"{this_head()}-{newer_head()}.db"
+    with closing(sqlite3.connect(backup)) as copy:
+        size = copy.execute("PRAGMA page_size").fetchone()[0]
+        (page,) = copy.execute(
+            "SELECT rootpage FROM sqlite_master WHERE name = 'workspaces'"
+        ).fetchone()
+    with backup.open("r+b") as raw:
+        raw.seek((page - 1) * size)
+        raw.write(b"\xff" * size)
+    with closing(sqlite3.connect(backup)) as copy:
+        # Still names its revision, so only the check can tell it is damaged.
+        assert copy.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            this_head(),
+        )
+
+    assert going_back_options(engine, tmp_path).backup is None
