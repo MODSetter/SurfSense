@@ -44,7 +44,7 @@ FILES: dict[str, PackFile] = {
         version="26.8.0.3",
         url=f"{_ARCHIVE}/26.8.0.3/win/x86_64/LibreOffice_26.8.0.3_Win_x86-64.msi",
         # Measured: downloaded and hashed once; matches TDF's published sha256.
-        sha256="4aa6c6e1895f4055104effcb556bd3362d20c6ad707c149543304f395ef9db95",
+        sha256="4aa6c6e1895f4055104effcb556bd3362d20c6ad707c149543304f395ef9db95",  # pragma: allowlist secret
         size=374_906_880,
         packaging=Packaging.WINDOWS_MSI,
     ),
@@ -52,28 +52,28 @@ FILES: dict[str, PackFile] = {
         version="26.8.1.1",
         url=f"{_ARCHIVE}/26.8.1.1/mac/x86_64/LibreOffice_26.8.1.1_MacOS_x86-64.dmg",
         # TDF's published sha256 (the .mirrorlist); not downloaded here.
-        sha256="4c7464313a529e9074400cbcdc894fc40ac4ef9421ded03b16b5a78d12cb155e",
+        sha256="4c7464313a529e9074400cbcdc894fc40ac4ef9421ded03b16b5a78d12cb155e",  # pragma: allowlist secret
         size=309_092_706,
         packaging=Packaging.MACOS_DMG,
     ),
     "macos-arm64": PackFile(
         version="26.8.1.1",
         url=f"{_ARCHIVE}/26.8.1.1/mac/aarch64/LibreOffice_26.8.1.1_MacOS_aarch64.dmg",
-        sha256="ca074e0b13571efb30a31fc531c5f95e997030637325e5d5de92d67aefdf0dfc",
+        sha256="ca074e0b13571efb30a31fc531c5f95e997030637325e5d5de92d67aefdf0dfc",  # pragma: allowlist secret
         size=298_845_477,
         packaging=Packaging.MACOS_DMG,
     ),
     "linux-x64": PackFile(
         version="26.8.1.1",
         url=f"{_ARCHIVE}/26.8.1.1/deb/x86_64/LibreOffice_26.8.1.1_Linux_x86-64_deb.tar.gz",
-        sha256="30903df3b9f61360d9660cd707de48cd2831469114492a5008ed58a0ac77d044",
+        sha256="30903df3b9f61360d9660cd707de48cd2831469114492a5008ed58a0ac77d044",  # pragma: allowlist secret
         size=219_791_834,
         packaging=Packaging.LINUX_DEBS,
     ),
     "linux-arm64": PackFile(
         version="26.8.1.1",
         url=f"{_ARCHIVE}/26.8.1.1/deb/aarch64/LibreOffice_26.8.1.1_Linux_aarch64_deb.tar.gz",
-        sha256="1b069c20dd237f6decad3ea02cb02f39fdf458b03d09c2a9facb7b9b71e6a27a",
+        sha256="1b069c20dd237f6decad3ea02cb02f39fdf458b03d09c2a9facb7b9b71e6a27a",  # pragma: allowlist secret
         size=208_175_884,
         packaging=Packaging.LINUX_DEBS,
     ),
