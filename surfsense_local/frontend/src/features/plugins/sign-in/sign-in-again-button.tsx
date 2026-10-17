@@ -7,6 +7,7 @@ import { intl } from "@/i18n/intl"
 import { pluginsQueryKey, signInAgain, type Plugin } from "../api"
 import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
+import { signInFailureMessage } from "./sign-in-failure-text"
 import { SignInProgress } from "./sign-in-progress"
 import { usePluginSignIn } from "./use-plugin-sign-in"
 
@@ -66,10 +67,11 @@ export function SignInAgainButton({
       ) : null}
       {signIn.state.phase === "failed" ? (
         <span role="alert" className="text-destructive">
-          {intl.formatMessage({
-            id: "plugins_row_sign_in_again_error",
-            defaultMessage: "The sign-in didn’t finish.",
-          })}
+          {signInFailureMessage(signIn.state) ??
+            intl.formatMessage({
+              id: "plugins_row_sign_in_again_error",
+              defaultMessage: "The sign-in didn’t finish.",
+            })}
         </span>
       ) : null}
     </>
