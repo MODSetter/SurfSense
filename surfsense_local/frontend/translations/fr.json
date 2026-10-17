@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "Les modèles, les espaces de travail et les paramètres sont conservés ici, pas dans le dossier où SurfSense est installé.",
+  "about_data_folder_open_button": "Ouvrir le dossier",
+  "about_data_folder_open_error": "Impossible d’ouvrir le dossier des données",
+  "about_data_folder_title": "Vos données",
   "about_discord_link": "Communauté sur Discord",
   "about_docs_link": "Documentation",
   "about_github_link": "Code source sur GitHub",

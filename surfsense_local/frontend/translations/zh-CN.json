@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "模型、工作区和设置保存在这里，而不是 SurfSense 的安装文件夹中。",
+  "about_data_folder_open_button": "打开文件夹",
+  "about_data_folder_open_error": "无法打开数据文件夹",
+  "about_data_folder_title": "你的数据",
   "about_discord_link": "Discord 社区",
   "about_docs_link": "文档",
   "about_github_link": "GitHub 源代码",

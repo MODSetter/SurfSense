@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "Modelle, Workspaces und Einstellungen liegen hier, nicht im Ordner, in dem SurfSense installiert ist.",
+  "about_data_folder_open_button": "Ordner öffnen",
+  "about_data_folder_open_error": "Datenordner konnte nicht geöffnet werden",
+  "about_data_folder_title": "Deine Daten",
   "about_discord_link": "Community auf Discord",
   "about_docs_link": "Dokumentation",
   "about_github_link": "Quellcode auf GitHub",
