@@ -1,9 +1,11 @@
-import { dialog, type MessageBoxOptions } from "electron"
+import { app, dialog, type MessageBoxOptions } from "electron"
 
 import type { Question } from "./offer-going-back.ts"
 
 // English, like the quit confirmation: main's own text is not translated.
 export async function askAboutGoingBack(question: Question): Promise<boolean> {
+  // No window yet: without this the dialog can open behind other apps.
+  app.focus({ steal: true })
   const { response } = await dialog.showMessageBox(dialogFor(question))
   return question.kind !== "cannot-go-back" && response === 1
 }
