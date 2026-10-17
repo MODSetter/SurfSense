@@ -5,6 +5,7 @@ and a shell launcher elsewhere, so the same tests run on all three systems.
 """
 
 import json
+import os
 import shlex
 import sys
 from pathlib import Path
@@ -56,12 +57,17 @@ def claude_stand_in(
             auth=auth if isinstance(auth, str) else json.dumps(auth),
         )
     )
+    launcher = directory / ("claude.cmd" if sys.platform == "win32" else "claude")
+    replaced = launcher.stat().st_mtime_ns if launcher.exists() else None
     if sys.platform == "win32":
-        launcher = directory / "claude.cmd"
         launcher.write_text(f'@"{sys.executable}" "{program}" %*\r\n')
     else:
-        launcher = directory / "claude"
         python, script = shlex.quote(sys.executable), shlex.quote(str(program))
         launcher.write_text(f'#!/bin/sh\nexec {python} {script} "$@"\n')
         launcher.chmod(0o755)
+    if replaced is not None:
+        # Rewritten within milliseconds, and NTFS may keep the old time: a second
+        # on, so the version read per binary as installed sees another install.
+        later = max(launcher.stat().st_mtime_ns, replaced + 1_000_000_000)
+        os.utime(launcher, ns=(later, later))
     return launcher

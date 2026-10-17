@@ -19,6 +19,11 @@ _POSIX_SYSTEM_WIDE = (
 )
 
 
+# The only Claude Code the Agent SDK runs on Windows: it refuses npm's `claude.cmd`,
+# since cmd.exe re-parses its arguments (CVE-2024-27980).
+WINDOWS_NAME = "claude.exe"
+
+
 def _version_key(node_dir: Path) -> tuple[int, ...]:
     """`v22.4.0` as (22, 4, 0); a folder that is not a version ranks below every one."""
     parts = node_dir.name.removeprefix("v").split(".")
@@ -66,7 +71,7 @@ def locate_claude(
     env: Mapping[str, str] = os.environ,
 ) -> Path | None:
     """The user's own Claude Code; SurfSense ships none."""
-    name = "claude.exe" if windows else "claude"
+    name = WINDOWS_NAME if windows else "claude"
     on_path = (Path(d) / name for d in (path_env or "").split(os.pathsep) if d)
     installed = _windows_installed(home, env) if windows else _posix_installed(home)
     for candidate in (*on_path, *installed):

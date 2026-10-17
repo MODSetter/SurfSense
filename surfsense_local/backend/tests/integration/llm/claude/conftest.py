@@ -1,10 +1,11 @@
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from modules.llm.subscriptions.claude import locate, plan_generator
 from modules.llm.subscriptions.claude import models as claude_models
-from modules.llm.subscriptions.claude import plan_generator
 from modules.llm.subscriptions.claude import proxy as claude_proxy
 from tests.claude_run_stand_in import ScriptedRun, answer
 from tests.claude_stand_in import claude_stand_in
@@ -29,6 +30,10 @@ def claude_on_this_machine(
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     monkeypatch.setenv("PATH", str(bin_dir))
+    if sys.platform == "win32":
+        # The stand-in is a batch file, which Windows runs as a process does; only
+        # the Agent SDK refuses one, and no test here starts it.
+        monkeypatch.setattr(locate, "WINDOWS_NAME", "claude.cmd")
 
     def install(*, installed: bool = True, **stand_in: object) -> Path | None:
         return claude_stand_in(bin_dir, **stand_in) if installed else None
