@@ -55,7 +55,10 @@ SERVER = STAGED / (
 )
 SPEECH = BACKEND / "tests" / "fixtures" / "audio" / "speech.ogg"
 
-(RECOGNISER,) = [m for m in load_local_manifest().models if m.transcription]
+# Spanish and Portuguese, detected: Nemotron's.
+(RECOGNISER,) = [
+    m for m in load_local_manifest().models if m.id == "nemotron-3.5-asr-streaming-0.6b"
+]
 PINNED = RECOGNISER.builds[0].files[0]
 NAME = PINNED.path.rsplit("/", 1)[-1]
 MODEL = NAME.removesuffix(".gguf")

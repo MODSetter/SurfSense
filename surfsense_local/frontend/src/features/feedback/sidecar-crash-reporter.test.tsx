@@ -66,4 +66,29 @@ describe("sidecar crash reports", () => {
     view.unmount()
     expect(bridge.isListening()).toBe(false)
   })
+
+  it("names the agent, and says it tries again rather than asking for a restart", async () => {
+    const bridge = stubCrashBridge()
+    render(
+      <>
+        <SidecarCrashReporter />
+        <Toaster />
+      </>
+    )
+
+    act(() => bridge.crash({ name: "opencode", code: 1 }))
+
+    // sonner keeps an earlier test's toasts, so read this one alone.
+    const toast = (
+      await screen.findByText("The agent stopped")
+    ).closest<HTMLElement>("[data-sonner-toast]")!
+    expect(
+      within(toast).getByText(
+        "SurfSense will try again with your next Agentic message."
+      )
+    ).toBeTruthy()
+    expect(
+      within(toast).queryByText("Restart SurfSense to restore it.")
+    ).toBeNull()
+  })
 })

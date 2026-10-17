@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
 import {
   Table,
@@ -89,9 +90,11 @@ export function ConnectedPluginsTable({
               onMouseLeave={() => leave(plugin.id)}
             >
               <TableCell className={CELL}>
-                <button
+                <Button
                   type="button"
-                  className="flex max-w-full min-w-0 items-center gap-3 text-left font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                  variant="bare"
+                  static
+                  className="flex max-w-full min-w-0 items-center gap-3 text-left font-medium after:absolute after:inset-0 after:rounded-lg focus-visible:ring-0 focus-visible:after:ring-2 focus-visible:after:ring-ring"
                   onClick={() => onOpen(plugin.id)}
                 >
                   <PluginIcon
@@ -102,7 +105,7 @@ export function ConnectedPluginsTable({
                     className="size-7 text-xs"
                   />
                   <span className="truncate">{plugin.name}</span>
-                </button>
+                </Button>
               </TableCell>
               <TableCell className={cn(CELL, "truncate text-muted-foreground")}>
                 {pluginTypeLabel(plugin.source)}

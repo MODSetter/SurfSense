@@ -15,6 +15,7 @@ AUDIO_IDS = {
     "supertonic-3",
     "kitten-tts-mini-0.8",
     "nemotron-3.5-asr-streaming-0.6b",
+    "canary-180m-flash",
 }
 
 

@@ -42,7 +42,8 @@ function ModelControl({
       className={className}
     />
   ) : (
-    <button
+    <Button
+      variant="bare"
       type="button"
       className={cn(
         modelControlButtonClassName,
@@ -55,7 +56,7 @@ function ModelControl({
         id: "chat_composer_set_up_model_button",
         defaultMessage: "Set up model",
       })}
-    </button>
+    </Button>
   )
 }
 
@@ -233,7 +234,7 @@ export function ChatComposer({
   )
   return (
     <div
-      className="relative mx-auto w-full max-w-xl"
+      className="relative mx-auto w-full max-w-2xl"
       data-composer-placement={placement}
     >
       {notice ? (

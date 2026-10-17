@@ -188,6 +188,8 @@ One row per run of a plugin's action. What the run produced is not here: the plu
         ├── documents/<document_id>/
         │   ├── <file name>       an uploaded or imported file, under its own name
         │   ├── figures/          the pictures ingest kept, and figures.json
+        │   │   └── work/         the runs a figures-only pass that gave way resumes from
+        │   ├── docling/work/     a long Docling reading's batches, until it ends
         │   └── transcript/       a recording's: segments.json once transcribed;
         │       └── work/         the decoded audio, plan and windows a job resumes from
         ├── chats/<thread_id>/
@@ -385,14 +387,14 @@ erDiagram
 | `0025` | `0025_source_roots_and_folders.py` | `source_roots` and `folders`; a Library root and root folder per workspace; `documents.folder_id` by a plain `ALTER TABLE`; every `FILE` and `NOTE` filed, an imported `folder_path` becoming a chain of folders (case and normalization variants merged, levels past 8 joined with " / " into the eighth); `content_hash` filled from `dedup_key`; the dedup index swapped to per folder by `DROP` and `CREATE INDEX` |
 | `0026` | `0026_chat_history_start.py` | `chat_threads.history_start_message_id`, by a plain `ALTER TABLE`; no row is backfilled, so a thread sends its whole history until it first outgrows its budget |
 | `0027` | `0027_retire_pre_host_egress_grants.py` | egress rows under `model_download`, `model_search` and `image_model_pull` removed; `host:huggingface.co` allowed only where search and a download were both allowed and the host had no row; downgrading changes nothing |
-| `0029` | `0029_chat_thread_cloud_id.py` | `chat_threads.cloud_id`, nullable and unique; marks workspaces with older unkeyed imported threads |
+| `0029` | `0029_chat_thread_cloud_id.py` | `chat_threads.cloud_id`, nullable and unique; `workspaces.has_unkeyed_imported_threads`, marking workspaces with older unkeyed imported threads |
 | `0030` | `0030_speech_to_text_slot.py` | `selected_models` rebuilt so `speech_to_text` is a type and `audiocpp` may hold it beside `audio_gen`, carrying every column, `0019`'s `settings` included, which `0018`'s rebuild predates; downgrading drops a `speech_to_text` selection |
 
 - Before the API applies a pending revision to an existing database, `upgrade_to_head` writes a `VACUUM INTO` copy to `<data>/backups/<from>-<to>.db` (via `.partial`, renamed once complete) and keeps the newest two ([`migration_snapshot.py`](../../surfsense_local/backend/shared/migration_snapshot.py)). A new database or one at head writes none. If the copy fails, nothing migrates and the API start fails with the reason. To restore: quit SurfSense, replace `surfsense.db` with the snapshot, and start the app.
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012`, `0013`, `0016`, `0018` and `0030` copy `selected_models` into a new table. A copy names every column the table has by then: one written from an older rebuild drops what later revisions added.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
-- A revision imports only the standard library, `sqlalchemy` and `alembic`, and its `downgrade` must work on a database holding rows, back to `0011`, 2.0.0's head. An older release runs these scripts ([ADR 0057](../adr/0057-an-older-release-goes-back-with-the-newer-releases-undo-steps.md)); [`tests/unit/going_back/`](../../surfsense_local/backend/tests/unit/going_back/) and [`tests/integration/going_back/`](../../surfsense_local/backend/tests/integration/going_back/) fail otherwise.
+- A revision imports only the standard library, `sqlalchemy` and `alembic`, and its `downgrade` must work on a database holding rows, back to `0011`, 2.0.0's head. An older release runs these scripts ([ADR 0060](../adr/0060-an-older-release-goes-back-with-the-newer-releases-undo-steps.md)); [`tests/unit/going_back/`](../../surfsense_local/backend/tests/unit/going_back/) and [`tests/integration/going_back/`](../../surfsense_local/backend/tests/integration/going_back/) fail otherwise.
 - [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py`, `test_migration_0027.py`, `test_migration_0029.py` and `test_migration_0030.py` beside it test what those revisions change.
 
 ### Going back to an older release

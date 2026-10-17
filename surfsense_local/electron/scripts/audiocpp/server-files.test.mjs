@@ -17,18 +17,26 @@ function built() {
   mkdirSync(stage)
   writeFileSync(join(binaries, SERVER), "")
   writeFileSync(join(source, "LICENSE"), "MIT")
-  for (const family of ["kokoro_tts", "supertonic", "kitten_tts", "nemotron_asr", "qwen3_asr"]) {
+  for (const family of [
+    "kokoro_tts",
+    "supertonic",
+    "kitten_tts",
+    "nemotron_asr",
+    "canary_asr",
+    "qwen3_asr",
+  ]) {
     writeFileSync(join(source, "model_specs", `${family}.json`), "{}")
   }
   return { files: { binaries, source }, stage }
 }
 
-test("ships the voices' specs and Nemotron's, and no other family's", () => {
+test("ships the voices' and the recognisers' specs, and no other family's", () => {
   const { files, stage } = built()
 
   copyServerFiles(files, stage)
 
   assert.deepEqual(readdirSync(join(stage, "model_specs")).sort(), [
+    "canary_asr.json",
     "kitten_tts.json",
     "kokoro_tts.json",
     "nemotron_asr.json",

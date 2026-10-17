@@ -98,11 +98,12 @@ Import stores each message as `{"text": text, "citations": []}`, appending `\n\n
 - Cap ZIP entries and unpacked size with import-specific limits; the upload limits in `documents/storage.py` (10,000 entries) are too small for a large account once OKF index/log files are counted.
 - Write each document through the existing upload path so it gets a content-hash `dedup_key`; store `folder_path` (directory part of `path` under `documents/`), `source`, and `cloud: {workspace_id, document_id}` in `document_metadata`.
 - Re-importing the same bundle is a no-op per document via `dedup_key`. A re-export after edits lands as a second copy, not an update; acceptable for a one-shot migration.
-- Re-importing skips each chat thread already present by its hosted `id` and
-  creates any missing thread. Threads imported by app versions that did not
-  retain this id claim the one unkeyed row with the same creation time, writing
-  its hosted id while keeping the local title and messages. Ambiguous or
-  unmatched rows stay untouched.
+- Re-importing skips each chat thread already present by its hosted `id`. In an
+  ordinary workspace it creates a missing thread. In a workspace marked as
+  holding threads imported before hosted ids were retained, it instead claims
+  the one unkeyed row with the same creation time, writing its hosted id while
+  keeping the local title and messages; ambiguous or unmatched rows stay
+  untouched and no new thread is created.
 
 ## Fixture
 

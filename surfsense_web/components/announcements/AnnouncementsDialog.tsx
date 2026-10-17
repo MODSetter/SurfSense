@@ -37,7 +37,12 @@ export function AnnouncementsDialog() {
 							) : (
 								<div className="flex flex-col gap-4">
 									{announcements.map((announcement) => (
-										<AnnouncementCard key={announcement.id} announcement={announcement} />
+										<AnnouncementCard
+											key={announcement.id}
+											announcement={announcement}
+											// Closed first, or it reopens over the dashboard on the way back.
+											onNavigate={() => setOpen(false)}
+										/>
 									))}
 								</div>
 							)}

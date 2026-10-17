@@ -72,7 +72,7 @@ async function open() {
 }
 
 describe("speech recognition set-up", () => {
-  it("offers the model with its download, its memory and where it works well", async () => {
+  it("offers the model with its download and where it works well", async () => {
     serving([fakeSpeechRow()])
     renderSetUp()
 
@@ -85,7 +85,7 @@ describe("speech recognition set-up", () => {
       name: "Nemotron 3.5 ASR",
     })
     expect(card.textContent).toContain("931 MB")
-    expect(card.textContent).toContain("1.8 GB while transcribing")
+    expect(card.textContent).not.toContain("while transcribing")
     // Named in the interface's language, alphabetically.
     expect(
       within(card).getByText(

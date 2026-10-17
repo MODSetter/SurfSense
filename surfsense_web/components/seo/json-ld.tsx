@@ -23,7 +23,7 @@ export function OrganizationJsonLd() {
 				sameAs: [
 					"https://github.com/MODSetter/SurfSense",
 					"https://discord.gg/ejRNvftDp9",
-					"https://www.reddit.com/r/SurfSense/",
+					"https://www.reddit.com/r/SurfSenseAI/",
 					"https://www.linkedin.com/company/surfsense/",
 				],
 				contactPoint: {

@@ -7,7 +7,11 @@ from modules.llm.transcription.languages import heard, requested_locale
 
 pytestmark = pytest.mark.unit
 
-(NEMOTRON,) = [m.transcription for m in load_local_manifest().models if m.transcription]
+(NEMOTRON,) = [
+    m.transcription
+    for m in load_local_manifest().models
+    if m.id == "nemotron-3.5-asr-streaming-0.6b"
+]
 
 
 @pytest.mark.parametrize(

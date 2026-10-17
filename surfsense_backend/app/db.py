@@ -291,7 +291,7 @@ INCENTIVE_TASKS_CONFIG = {
         "title": "Join our Subreddit",
         "description": "Join the SurfSense community on Reddit",
         "credit_micros_reward": 30000,
-        "action_url": "https://www.reddit.com/r/SurfSense/",
+        "action_url": "https://www.reddit.com/r/SurfSenseAI/",
     },
     IncentiveTaskType.DISCORD_JOIN: {
         "title": "Join our Discord",

@@ -48,6 +48,8 @@ export interface Announcement {
 		src: string;
 		/** Accessible alt text */
 		alt: string;
+		/** A 1200x630 version for link previews; `src` is used when absent */
+		og?: string;
 	};
 	/** Optional CTA link */
 	link?: {

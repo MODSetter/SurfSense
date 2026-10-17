@@ -7,7 +7,7 @@ import { ArrowRightIcon } from "@/components/ui/icons";
 
 const GITHUB_URL = "https://github.com/MODSetter/SurfSense";
 const DISCORD_URL = "https://discord.gg/ejRNvftDp9";
-const REDDIT_URL = "https://www.reddit.com/r/SurfSense/";
+const REDDIT_URL = "https://www.reddit.com/r/SurfSenseAI/";
 
 /** Closing CTA doubling as the GitHub/community strip (brief section 7). */
 export function CommunityStrip() {
@@ -44,7 +44,7 @@ export function CommunityStrip() {
 						<Button asChild variant="ghost" size="lg">
 							<Link href={REDDIT_URL} target="_blank" rel="noopener noreferrer">
 								<IconBrandReddit className="size-4" />
-								r/SurfSense
+								r/SurfSenseAI
 							</Link>
 						</Button>
 					</div>

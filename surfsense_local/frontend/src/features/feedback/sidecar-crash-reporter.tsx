@@ -19,26 +19,38 @@ function affectedPart(name: string): string {
       return "images"
     case "audiocpp":
       return "audio"
+    case "opencode":
+      return "agent"
     default:
       return "other"
   }
 }
 
 function reportCrash(crash: SidecarCrash): void {
+  const part = affectedPart(crash.name)
   errorToast(
     intl.formatMessage(
       {
         id: "feedback_sidecar_crashed_toast",
         defaultMessage:
-          "{part, select, core {SurfSense stopped working} documents {Document processing stopped} studio {Studio processing stopped} chat {Local chat stopped} images {Image generation stopped} audio {Audio generation stopped} other {A background service stopped}}",
+          "{part, select, core {SurfSense stopped working} documents {Document processing stopped} studio {Studio processing stopped} chat {Local chat stopped} images {Image generation stopped} audio {Audio generation stopped} agent {The agent stopped} other {A background service stopped}}",
       },
-      { part: affectedPart(crash.name) }
+      { part }
     ),
     {
-      description: intl.formatMessage({
-        id: "feedback_sidecar_crashed_body",
-        defaultMessage: "Restart SurfSense to restore it.",
-      }),
+      // Electron reports the agent only once it stops restarting it, and the
+      // next Agentic message earns it another start.
+      description:
+        part === "agent"
+          ? intl.formatMessage({
+              id: "feedback_agent_crashed_body",
+              defaultMessage:
+                "SurfSense will try again with your next Agentic message.",
+            })
+          : intl.formatMessage({
+              id: "feedback_sidecar_crashed_body",
+              defaultMessage: "Restart SurfSense to restore it.",
+            }),
       reportError: `Sidecar ${crash.name} crashed (code=${crash.code})`,
     }
   )

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   InputGroup,
   InputGroupAddon,
@@ -401,10 +402,12 @@ export function ModelSearch({
                 const parts = describe(hit)
                 return (
                   <li key={hit.repo}>
-                    <button
+                    <Button
                       type="button"
+                      variant="bare"
+                      static
                       aria-expanded={open}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/20"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-muted/20"
                       onClick={() => setOpenRepo(open ? null : hit.repo)}
                     >
                       <div className="flex min-w-0 flex-col gap-0.5">
@@ -454,7 +457,7 @@ export function ModelSearch({
                           ))}
                         </p>
                       </div>
-                    </button>
+                    </Button>
                     {open ? (
                       <div className="border-t bg-muted/20">
                         <RepoBuilds

@@ -111,6 +111,9 @@ Others considered, with the cards' speed in transcribe.cpp on a Ryzen 7 PRO 4750
 | Whisper small | 270 MB | 5.86× | 23 of 81; hi 42.05, zh CER 23.06 | MIT | no |
 | OWSM v4 base and small | 118 and 432 MB (audio.cpp) | unmeasured | unpublished | CC-BY-4.0 | needs v0.9.1 and an eval (step 8) |
 | SenseVoice Small | 254 MB | 19.73× | 5 trained languages | FunASR custom | no |
+| Canary 180M Flash | 249.5 MB (audio.cpp) | 22× warm on an M2 ([Measurements](#measurements)) | en, de, es, fr; es not listed | CC-BY-4.0 | the second model, for English |
+
+**Canary 180M Flash is the second model, for English.** Its English is 7.12% average error on the Open ASR leaderboard, against Parakeet v3's 6.34%, at a quarter of Nemotron's file and 783 MiB at its first request. It is in the pinned v0.8.2 and in upstream's macOS archive. It cannot detect the language, and told none it translates into English, so the app always names one: English, German or French. Spanish is in its family and not listed, because v0.8.2 drops every "ñ" it writes.
 
 - **Languages the app lists.** The 26 Nemotron's card measures at 30% or better: it 5.78, es, en, pt, hi, ko, de, fr, ru, ja, nl, vi, uk, tr, ar, pl, zh 18.87, nb, fi, bg, cs, sk, sv, hr, ro and da 28.51. Estonian (31.84) and Hungarian (32.12) are measured above 30% and not listed. Auto-detection still transcribes the other locales it knows, and the transcript says so ([Languages](#languages)).
 - **One selected model serves both features**; the server holds one at a time. A second curated model is an alternative the user picks, never a second resident model.
@@ -156,7 +159,7 @@ A second process removes all four without touching the podcast. Measured, it hol
 
 ### Memory
 
-Before a request that would load the model, the API reads `GET /v1/models`. A model already `loaded` needs no check, since the operating system's figure already excludes it. Otherwise it applies the podcast's rule ([Memory](local-audio-models.md#memory)): the manifest's measured `peak_mb` plus 1 GiB against [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py). [`memory.py`](../../surfsense_local/backend/modules/llm/providers/audiocpp/memory.py)'s check takes a verb, so the sentence reads "Transcribing needs about {peak + 1 GiB} free; this computer has {available}." Once a second speech model is curated, it also names the first lighter one that would fit, as voicing does.
+Before a request that would load the model, the API reads `GET /v1/models`. A model already `loaded` needs no check, since the operating system's figure already excludes it. Otherwise it applies the podcast's rule ([Memory](local-audio-models.md#memory)): the manifest's measured `peak_mb` plus 1 GiB against [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py). [`memory.py`](../../surfsense_local/backend/modules/llm/providers/audiocpp/memory.py)'s check takes a verb, so the sentence reads "Transcribing needs about {peak + 1 GiB} free; this computer has {available}." Naming the first lighter speech model that would fit, as voicing does, is not built: Canary is curated, but the screen formats the refusal from its two sizes and would need a field and a sentence for it.
 
 - **Dictation** is refused at once, `409 transcription_needs_memory`, before the user says anything.
 - **A file window** waits while memory is short, checked every 5 s. The job sums those waits in `progress.json` across its yields, and past 10 minutes it fails with the sentence and no retry.
@@ -370,7 +373,7 @@ The runtime licence policy keeps GPL and LGPL code out of the app's own binaries
 
 ## Packaging and CI
 
-- [`pins.mjs`](../../surfsense_local/electron/scripts/audiocpp/pins.mjs): `FAMILIES` gains `nemotron_asr`; the recipe compiles only `FAMILIES` and stages their specs. `stage.mjs` returns early when a server is staged, so developers delete `electron/audiocpp/` once.
+- [`pins.mjs`](../../surfsense_local/electron/scripts/audiocpp/pins.mjs): `FAMILIES` gains `nemotron_asr`; the recipe compiles only `FAMILIES` and stages their specs. `stage.mjs` keeps a staged server only while it has every family in `FAMILIES`, and stages again otherwise.
 - [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) re-runs the Linux `objdump` gate and the Windows per-CPU check with the new family, checks that upstream's macOS v0.8.2 archive contains it, and records the staged size and compile time.
 - `tests/packaging/test_audiocpp_transcription.py`, added to the workflow's path filter: Kokoro voices known sentences in en, es, fr, hi, pt-BR and zh, the transcription server writes them down through the app's client, and the test asserts error and detected-language thresholds and records peak memory. No fixture with a licence of its own is needed. The model file is cached by its manifest sha256, unlike the voicing step's downloads, which run every time (step 4).
 - `scripts/fetch_silero_vad.py` stages `silero_vad_16k_op15.onnx` (1,289,603 B) from a pinned commit of snakers4/silero-vad, sha256-checked, into the models pack beside the bundled voice, run beside `fetch_bundled_voice.py` by [`release-local.yml`](../../.github/workflows/release-local.yml) and the electron `package.json` scripts; the API and worker read it in place (step 4).
@@ -388,6 +391,7 @@ Each step ships alone and leaves the app working. Steps 1 to 7 are v1.
 5. **Audio files as sources, done:** with `miniaudio`, yielding, progress, cancel, awaiting rows and the set-up popover they open, and the search caveat in the same release, because without yielding one recording blocks every upload and note. Updates [`documents.md`](../architecture/documents.md) and `data-model.md`.
 6. **The microphone in Electron, done.** A notarized macOS build that shows the prompt is still owed ([packaging](../architecture/packaging.md), Known gaps). Updates `packaging.md`.
 7. **Dictation, done:** phrase by phrase. Updates [`chat.md`](../architecture/chat.md). Folding v1 into `architecture/`, moving steps 8 to 11 into `proposals/speech-recognition-next.md` and deleting this file wait for the measurements under [Open questions](#open-questions).
+   - **A light second model, done:** Canary 180M Flash for English, German and French, measured on an Apple M2 ([Measurements](#measurements)). A model that cannot detect is always told the language, and the cleanup joins a comma or full stop written apart from its word. Updates [`catalog.md`](../architecture/local-models/catalog.md), [`selection.md`](../architecture/local-models/selection.md), [`admission.md`](../architecture/local-models/admission.md) and [`packaging.md`](../architecture/packaging.md).
 8. **Next: light and broad languages.** The pin moved to v0.9.1 or later on its own, with the TTS peaks and the voicing gate re-run, then OWSM v4 base and small after a FLEURS eval of ar, hi, bn, ur, ta, te, sw, uk, he and fa, listing only the languages that pass.
 9. **Next: more formats.** `scripts/ffmpeg-decode/` builds a pinned FFmpeg in CI on `ubuntu-22.04`, Windows and macOS arm64 with `--disable-everything --disable-network --disable-autodetect`, only the needed demuxers, decoders and parsers, `aresample` and a `pcm_s16le` WAV muxer, gated on `-buildconf` showing no `--enable-gpl`, `--enable-nonfree` or `--enable-lib` option, on fixtures in every allowed format and on the `objdump` floor. The worker runs it as the decode child, with a timeout. `.opus` joins; `.m4a` and `.aac` join once the AAC question is settled; `.webm` joins only for a file whose only stream is audio, until the maintainer answers the video question. Evaluated beside it: decoding in the renderer through Electron's own FFmpeg for files added from the window, streamed in chunks to 16 kHz mono WAV.
 10. **Next: listen and seek.** `GET /documents/{id}/original` commits before its `FileResponse`, since every transaction is `BEGIN IMMEDIATE` and a player would hold the write lock, as Studio's file route does. An audio viewer joins the [source preview](source-preview.md)'s registry, with the transcript beside it, and a citation of a recording opens it at the time from `segments.json`.
@@ -461,3 +465,21 @@ Kokoro sentences, error against the text voiced (word error; character error for
 | Qwen3-ASR-0.6B | 0 | 0 | 0 | 5.0 | 7.7 | 0 | 1.8 |
 
 Nemotron's Spanish error is a number written as digits ("un 12" for "un doce por ciento"); its French one is "plutôt que" heard for "plus tôt que". Qwen named every language it detected; Nemotron named none until `keep_language_tags` was set, and then tagged en, es, pt and zh and not the Hindi sentence, which ends without punctuation. Kokoro speech is clean and synthetic, so these say both models work in these languages, not how well on real recordings; the laptop measurement under [Open questions](#open-questions) takes the cards' FLEURS figures to audio.cpp's packages.
+
+### Canary 180M Flash
+
+16 Oct 2026, macOS, Apple M2 (8 cores), 8 GB. The staged server from upstream's v0.8.2 macOS archive, `--backend cpu --threads 4 --max-loaded-models 1`, one entry `task: asr, mode: offline` as `transcription.json` writes it; `canary-180m-flash-q8_0.gguf` at revision `f861648`, sha256 `8a6d06be…6ef57`. Memory is `/usr/bin/time -l`'s maximum resident set over the server's life. Audio is macOS `say`, converted to 16 kHz mono: a 25.1 s English paragraph and one or two sentences each in German, French and Spanish.
+
+| | Canary 180M Flash |
+|---|---|
+| First request, 25.1 s, load included | 2.59 s, peak 783 MiB (footprint 576 MiB) |
+| Warm 25.1 s, three requests | 1.14 to 1.34 s (about 22×), peak 803 MiB |
+| English, language named or not | word for word, punctuation included |
+| French, named | word for word but one full stop written as a comma |
+| German, named | "zeigt , dass": a space before every comma and full stop; "Größe" heard as "Grüße" |
+| Spanish, named | every "ñ" dropped: "Ma ana el ni o viaja a Espa a" |
+| German, not named | translated into English: "The report shows that the sumset in the last quarter…" |
+| A locale, `en-US` | refused: "Canary supports en, de, es and fr" |
+
+The app starts the server with `--min-free-memory-mb 1024`, and with 1.07 GiB free that guard refused Canary's estimated 0.47 GiB, as the app's own check (783 MiB plus 1 GiB) would. Synthetic speech, as for Kokoro's sentences above.
+

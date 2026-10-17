@@ -88,7 +88,7 @@ _SPEECH_IN = (
 )
 # audio.cpp's recogniser families a curated entry names as its architecture.
 # Other recognisers stay typeless until one is curated: nothing could run them.
-_SPEECH_RECOGNISERS = ("nemotron_asr",)
+_SPEECH_RECOGNISERS = ("nemotron_asr", "canary_asr")
 _LABELLERS = (
     "openai-privacy-filter",
     "locateanything",

@@ -211,6 +211,9 @@ CHAT_DELTAS = ["Hel", "lo"]
 # finish thinking inside.
 REASONING_DELTAS = ["Okay, "] * 200
 REMOTE_THINKS = False
+# Set, /chat/completions sends this chunk after CHAT_DELTAS, as OpenRouter
+# reports a failure once the status is already 200.
+STREAM_ERROR: dict | None = None
 REMOTE_REQUESTS: list[tuple[str, str]] = []
 # Set, the image routes answer with this URL instead of inline bytes, as a
 # provider serving its images from a CDN does.
@@ -263,6 +266,8 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
                 f"data: {json.dumps({'choices': [{'delta': {field: text}}]})}\n\n"
                 for field, text in deltas
             ]
+            if STREAM_ERROR is not None:
+                frames.append(f"data: {json.dumps(STREAM_ERROR)}\n\n")
             frames.append("data: [DONE]\n\n")
             self._send("".join(frames).encode())
         elif self.path == "/responses":

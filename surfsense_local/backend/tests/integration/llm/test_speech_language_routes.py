@@ -10,6 +10,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 ROUTE = "/llm/selection/speech_to_text/language"
 NEMOTRON = "nemotron-3.5-asr-streaming-0.6b"
+CANARY = "canary-180m-flash"
 
 
 async def install(client: AsyncClient, model: str, **body: object) -> dict:
@@ -44,6 +45,36 @@ async def test_a_new_choice_detects_the_language_and_lists_what_it_offers(
     assert body["detects_language"] is True
     assert len(body["languages"]) == 26
     assert body["languages"][:3] == ["it", "es", "en"]
+
+
+async def test_a_model_that_cannot_detect_starts_on_its_first_language(
+    client: AsyncClient, audio_dir, fake_hub
+) -> None:
+    """Canary told nothing translates into English, so it is never told nothing:
+    English, its first language, until another is set."""
+    await install(client, CANARY, select=True)
+
+    reply = await client.get(ROUTE)
+
+    assert reply.status_code == 200, reply.text
+    assert reply.json() == {
+        "language": "en",
+        "languages": ["en", "de", "fr"],
+        "detects_language": False,
+    }
+
+
+async def test_a_model_that_cannot_detect_refuses_auto(
+    client: AsyncClient, audio_dir, fake_hub
+) -> None:
+    """Settings offers no "Detect automatically" for it, so nothing sets it."""
+    await install(client, CANARY, select=True)
+    await client.put(ROUTE, json={"language": "de"})
+
+    refused = await client.put(ROUTE, json={"language": "auto"})
+
+    assert refused.status_code == 422, refused.text
+    assert (await client.get(ROUTE)).json()["language"] == "de"
 
 
 async def test_a_listed_language_is_kept_until_set_back_to_auto(

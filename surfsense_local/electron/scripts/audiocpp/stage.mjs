@@ -19,6 +19,7 @@ import { packageManager } from "../not-staged/package-manager.mjs"
 import { renameWhenUnlocked } from "../windows-locks/rename-when-unlocked.mjs"
 import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
+import { stagedServer } from "./staged-server.mjs"
 import { unpackUpstream } from "./upstream-archive.mjs"
 
 const OUT = fileURLToPath(new URL("../../audiocpp", import.meta.url))
@@ -37,6 +38,18 @@ function verifyStage(stage) {
   }
 }
 
+/** Whether `folder` can be swapped out now; on Windows a running server holds it. */
+function canMove(folder, aside) {
+  try {
+    renameSync(folder, aside)
+  } catch (error) {
+    if (["EBUSY", "EPERM", "EACCES"].includes(error.code)) return false
+    throw error
+  }
+  renameSync(aside, folder)
+  return true
+}
+
 function megabytes(root) {
   let total = 0
   for (const entry of readdirSync(root, { withFileTypes: true, recursive: true })) {
@@ -47,9 +60,17 @@ function megabytes(root) {
 
 async function main() {
   const strict = process.argv.includes("--strict")
-  if (existsSync(join(OUT, SERVER))) {
+  const staged = await stagedServer(OUT)
+  if (staged.state === "current") {
     console.log(`audio.cpp ${TAG} already staged in ${OUT}`)
     return
+  }
+  // Without --strict a stale server is kept whenever staging again cannot finish:
+  // it still serves every family it has, and pnpm dev goes on.
+  const keep = (why) => {
+    const message = `${why}\n\nThe audio.cpp in ${OUT} stays, though it ${staged.reason}.`
+    if (strict) throw new NotStaged(message)
+    console.warn(message)
   }
 
   const host = `${process.platform}-${process.arch}`
@@ -64,6 +85,7 @@ async function main() {
           packageManager()
         )
   if (reason) {
+    if (staged.state === "stale") return keep(reason)
     if (strict) throw new NotStaged(reason)
     // Empty, so the packager still finds the folder; the sidecar never starts.
     mkdirSync(OUT, { recursive: true })
@@ -71,10 +93,17 @@ async function main() {
     return
   }
 
+  if (staged.state === "stale") console.log(`audio.cpp in ${OUT} ${staged.reason}; staging it again`)
+
   const started = Date.now()
   const work = mkdtempSync(join(tmpdir(), "surfsense-audiocpp-"))
   const stage = `${OUT}.stage-${process.pid}`
   const backup = `${OUT}.old-${process.pid}`
+  // Found out before a few minutes of compiling, not after.
+  if (staged.state === "stale" && !canMove(OUT, backup)) {
+    rmSync(work, { recursive: true, force: true })
+    return keep(`${OUT} is in use; quit SurfSense and run this again.`)
+  }
   try {
     mkdirSync(stage)
     if (process.platform !== "darwin") {
@@ -98,6 +127,9 @@ async function main() {
     rmSync(backup, { recursive: true, force: true })
     const minutes = ((Date.now() - started) / 60_000).toFixed(1)
     console.log(`audio.cpp ${TAG} staged in ${OUT}: ${megabytes(OUT)} MB, in ${minutes} min`)
+  } catch (error) {
+    if (staged.state !== "stale") throw error
+    keep(`audio.cpp could not be staged again: ${error instanceof Error ? error.message : error}`)
   } finally {
     rmSync(work, { recursive: true, force: true })
     rmSync(stage, { recursive: true, force: true })

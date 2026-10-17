@@ -1,4 +1,4 @@
-# ADR 0057: An older release goes back by running the undo steps a newer release left in the data folder
+# ADR 0060: An older release goes back by running the undo steps a newer release left in the data folder
 
 - **Status:** Accepted
 - **Date:** 2026-10-15

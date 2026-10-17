@@ -250,7 +250,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 					<IconBrandDiscord className="size-5 text-muted-foreground" aria-hidden />
 				</Link>
 				<Link
-					href="https://www.reddit.com/r/SurfSense/"
+					href="https://www.reddit.com/r/SurfSenseAI/"
 					target="_blank"
 					rel="noopener noreferrer"
 					aria-label="SurfSense on Reddit"
@@ -363,7 +363,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 								<IconBrandDiscord className="size-5 text-muted-foreground" aria-hidden />
 							</Link>
 							<Link
-								href="https://www.reddit.com/r/SurfSense/"
+								href="https://www.reddit.com/r/SurfSenseAI/"
 								target="_blank"
 								rel="noopener noreferrer"
 								aria-label="SurfSense on Reddit"

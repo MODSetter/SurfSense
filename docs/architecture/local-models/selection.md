@@ -255,7 +255,9 @@ detects_language}`: the language the user says they speak, `auto` or an ISO
 639-1 code; the codes the model is listed for, best first; and whether `auto`
 detects. `PUT` takes `{language}` and answers the same. A code the model is not
 listed for is `422`, Estonian included, which Nemotron detects at lower
-accuracy. Both answer `409` `needs_speech_model` without a speech model.
+accuracy. A model that cannot detect, Canary, has no `auto`: told no language
+it translates into English, so with nothing set its intent is its first
+language, English, and `auto` is `422`. Both answer `409` `needs_speech_model` without a speech model.
 
 The intent lives in the row's `settings` under `transcription`, as
 `{"language": "ja"}`, read and written only by

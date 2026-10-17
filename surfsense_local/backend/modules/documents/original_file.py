@@ -1,5 +1,6 @@
 """Where an upload's bytes live: alone in documents/<id>/, under its own name."""
 
+import shutil
 from pathlib import Path
 
 from pathvalidate import sanitize_filename
@@ -31,6 +32,19 @@ def stored_name(filename: str, suffix: str) -> str:
     if stored.casefold() == LEGACY_EXTRACTED:
         return f"{stem} (1){suffix}"
     return stored
+
+
+def emptied_document_dir(workspace_id: int, document_id: int) -> Path:
+    """The folder a just-inserted document's file moves into, emptied first.
+
+    SQLite gives the highest id out again once its row is gone, and a delete
+    leaves a file it cannot remove, as one held open on Windows; that file would
+    read as the new document's own.
+    """
+    directory = get_storage_settings().document_dir(workspace_id, document_id)
+    shutil.rmtree(directory, ignore_errors=True)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
 
 
 def original_path(document: Document) -> Path | None:

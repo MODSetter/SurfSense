@@ -44,7 +44,7 @@ function isAlive(pid: number): boolean {
 }
 
 test("a sidecar that does not inherit sees only its own variables", async () => {
-  process.env.SURFSENSE_LOCAL_SECRET = "leaked"
+  process.env.SURFSENSE_LOCAL_SECRET = "leaked" // pragma: allowlist secret
   const out = join(mkdtempSync(join(tmpdir(), "supervisor-")), "env.json")
   const sidecars: Sidecars = new Map()
   try {
@@ -218,4 +218,21 @@ test("an echo with no terminal to open stays silent", () => {
     echo(1, "[api] started\n")
     echo(1, "[api] still running\n")
   })
+})
+
+test("a sidecar that cannot be spawned is reported as a crash, not thrown", async () => {
+  const crashes: Array<[string, number | null]> = []
+  const children: Sidecars = new Map()
+  const spec: SidecarSpec = {
+    name: "missing",
+    cmd: join(mkdtempSync(join(tmpdir(), "supervisor-")), "no-such-sidecar"),
+    args: [],
+    cwd: tmpdir(),
+    env: {},
+  }
+
+  startOne(children, spec, (name, code) => crashes.push([name, code]))
+  await once(children.get("missing")!, "error")
+
+  assert.deepEqual(crashes, [["missing", null]])
 })

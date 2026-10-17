@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { BotIcon, Chat01Icon, ChevronDownIcon } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type { ChatMode, ChatModes } from "@/features/models/capability/api"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
@@ -213,7 +214,8 @@ function ModeTrigger({
   return (
     <DropdownMenuTrigger
       render={
-        <button
+        <Button
+          variant="bare"
           type="button"
           className={cn(modelControlButtonClassName, className)}
           title={intl.formatMessage({
@@ -225,7 +227,7 @@ function ModeTrigger({
           <Icon className="size-3.5" />
           <span className="whitespace-nowrap">{modeLabel(mode)}</span>
           <ChevronDownIcon className="size-3" />
-        </button>
+        </Button>
       }
     />
   )

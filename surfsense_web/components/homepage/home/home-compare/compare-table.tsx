@@ -16,9 +16,7 @@ export function CompareTable() {
 	return (
 		<div className="rounded-2xl border border-border bg-card px-4 py-5 shadow-xs md:px-8 md:py-6">
 			<table className="w-full border-separate border-spacing-0 text-sm">
-				<caption className="sr-only">
-					SurfSense compared with NotebookLM, AnythingLLM and Open Notebook
-				</caption>
+				<caption className="sr-only">SurfSense compared with NotebookLM and Open Notebook</caption>
 				<thead>
 					<tr>
 						<th scope="col" className="w-40 lg:w-48">

@@ -22,9 +22,12 @@ AUTO = "auto"
 def language_intent(
     selected: SelectedModel, transcription: TranscriptionDefaults
 ) -> str:
-    """The kept language, or `auto` for one the model is not listed for."""
+    """The kept language, or else `auto`; a model that cannot detect gets its
+    first language instead, since told nothing it translates into English."""
     kept = ((selected.settings or {}).get(KEY) or {}).get("language")
-    return kept if kept in transcription.languages else AUTO
+    if kept in transcription.languages:
+        return kept
+    return AUTO if transcription.detects_language else transcription.languages[0]
 
 
 def keep_language_intent(

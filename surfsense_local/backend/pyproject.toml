@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-local-backend"
-version = "2.2.1"
+version = "2.2.2"
 description = "SurfSense Community Local backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -63,6 +63,7 @@ dependencies = [
     "torchvision>=0.17",
     "uvicorn[standard]>=0.34.0",
     "xlsxwriter>=3.2.9",
+    "lameenc>=1.8.4",
     "mcp>=2.3,<2.4",
 ]
 

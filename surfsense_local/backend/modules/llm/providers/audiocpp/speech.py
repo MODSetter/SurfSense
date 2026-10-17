@@ -11,12 +11,12 @@ import httpx
 
 from modules.llm.catalog.local.engines.audiocpp.manifest_fields import AudioDefaults
 from modules.llm.hardware import system_memory
-from modules.llm.providers.audiocpp.joined_wav import joined_wav
 from modules.llm.providers.audiocpp.memory import (
     NotEnoughMemoryError,
     OtherModel,
     check_memory,
 )
+from modules.llm.providers.episode_audio.joined_wav import joined_wav
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
 from shared import cancellation
 

@@ -37,6 +37,7 @@ export function SourcePreviewPanel({
         defaultMessage: "Close source preview",
       })}
       onClose={onClose}
+      side="left"
       flush
       actions={
         <>
