@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "모델, 워크스페이스, 설정은 SurfSense가 설치된 폴더가 아니라 이곳에 저장됩니다.",
+  "about_data_folder_open_button": "폴더 열기",
+  "about_data_folder_open_error": "데이터 폴더를 열지 못했습니다",
+  "about_data_folder_title": "내 데이터",
   "about_discord_link": "Discord 커뮤니티",
   "about_docs_link": "문서",
   "about_github_link": "GitHub 소스 코드",

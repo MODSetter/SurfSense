@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "मॉडल, वर्कस्पेस और सेटिंग्स यहाँ रखे जाते हैं, उस फ़ोल्डर में नहीं जिसमें SurfSense इंस्टॉल है।",
+  "about_data_folder_open_button": "फ़ोल्डर खोलें",
+  "about_data_folder_open_error": "डेटा फ़ोल्डर नहीं खुल सका",
+  "about_data_folder_title": "आपका डेटा",
   "about_discord_link": "Discord पर कम्युनिटी",
   "about_docs_link": "डॉक्यूमेंटेशन",
   "about_github_link": "GitHub पर सोर्स कोड",

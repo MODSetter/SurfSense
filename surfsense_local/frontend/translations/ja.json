@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "モデル、ワークスペース、設定は、SurfSense のインストール先ではなく、ここに保存されます。",
+  "about_data_folder_open_button": "フォルダーを開く",
+  "about_data_folder_open_error": "データフォルダーを開けませんでした",
+  "about_data_folder_title": "データ",
   "about_discord_link": "Discordのコミュニティ",
   "about_docs_link": "ドキュメント",
   "about_github_link": "GitHubのソースコード",
