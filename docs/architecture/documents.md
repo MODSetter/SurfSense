@@ -194,7 +194,7 @@ A scanned page and an uploaded image are read by OCR alone before Docling is ask
 - **Figures.** Ingest keeps none for a PDF read this way. A scan's figures wait until the agent or Studio asks for them, as a PDF over 40 pages does: the figures-only pass reads every scanned page with Docling in full, about 39 CPU-s a page, the cost this path removes. A PDF with born-digital pages beside its scanned ones still gets the pass queued at idle, as a text-read PDF does. An image is still its own figure.
 - **Cancel.** A PDF's reading checks every 8 pages; an image's frames are read without a check. A long reading does not give the queue up as a long Docling reading does.
 - **The release build** runs `worker --check-scan-ocr` in the frozen worker on every system: each reader reads a rendered line, and an import the spec dropped fails the build.
-- **Measured** on the Ryzen 7 5800X, Windows 11, through the upload route and a real `worker.py ingest`: PENDING.
+- **Measured** on the Ryzen 7 5800X, Windows 11, through the upload route and a real `worker.py ingest`, one upload at a time: the six public scanned PDFs and three book scans, 199 pages, were all ready in 509 s against 829 s through Docling, a file in 332 s on average against 598 s, at 1,752 worker CPU-s against 7,343; no page went to Docling. 40 receipt photos, receipt scans and forms were all ready in 113 s against 202 s, an image in 65 s on average against 129 s, at 131 worker CPU-s against 1,416.
 
 ## Figures
 

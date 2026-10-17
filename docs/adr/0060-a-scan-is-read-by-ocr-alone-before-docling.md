@@ -39,13 +39,13 @@ Answers followed: Haiku 5.5, given each page's text whole, answered 0.79 of the 
 ## Consequences
 
 - A scan's pages no longer import Docling unless one is garbled, so a worker that sees only scans skips Docling's cold start and its 1 GB, until a figures-only pass runs.
-- PENDING: time to ready through the upload route.
+- Through the upload route and a real `worker.py ingest`, the six public scanned PDFs and the three book scans, 199 pages in one upload, were all ready in 509 s against 829 s through Docling, a file in 332 s on average against 598 s, for 1,752 worker CPU-s against 7,343. No page went to Docling. A 25-page court filing was ready 47 s after upload, against 614 s as Docling's long readings gave way to each other; its job took 46 s against 130 s. 40 receipt photos, receipt scans and forms in one upload were all ready in 113 s against 202 s, an image in 65 s on average against 129 s, for 131 worker CPU-s against 1,416; none went to Docling. RapidOCR reads about 2 s a page on this machine, so a scan is ready in seconds a page, not in seconds: Windows' own OCR was ten times as fast and read too little.
 - Docling's headings and pipe tables are gone from a scan's text; ADR 0059 found the same trade for text-layer PDFs to the app's benefit.
 - An image's text is RapidOCR's or Vision's whole, or Docling's whole: Docling cannot be given one frame of a multi-frame TIFF.
 
 ## Where the code stands
 
-- Speed is measured on one Windows machine; RapidOCR on Linux runs the same onnxruntime CPU code, and in CI's tests on Ubuntu, macOS and Windows. Vision's speed is from a virtual Mac with no Neural Engine, so a real Mac should read faster; its accuracy is from that runner.
+- Speed is measured on one machine. On it, RapidOCR under Linux (WSL's Ubuntu 24.04) read the same 100 pages in 174 s and 684 CPU-s, against 209 s and 824 under Windows, with the same text; CI runs its tests on Ubuntu, macOS and Windows. Vision's speed is from a virtual Mac with no Neural Engine, so a real Mac should read faster; its accuracy is from that runner.
 - A long OCR-first reading checks for a cancel every 8 pages but does not give way to other uploads, as a long Docling reading does: a 100-page scan holds the queue for about 3 minutes. When its garbled pages go to a Docling reading that gives way, OCR's pages are kept, so the resumed run does not read them again.
 - Camera captures shot at an angle are read upright, but RapidOCR's rows can still mix lines a perspective skews; Vision read them well.
 - PP-OCRv6 covers Latin, Chinese and Japanese, as Docling's did, so scanned Korean, Cyrillic, Devanagari or Arabic text is misread, and Vision's languages are the system's.
