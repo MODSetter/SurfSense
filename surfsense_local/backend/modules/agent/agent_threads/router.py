@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from api.dependencies import SessionDep
 from modules.agent.engines.both_sessions import stored_step_of
-from modules.agent.engines.thread_engine import thread_engine
+from modules.agent.engines.thread_engine import every_engine, thread_engine
 from modules.chat.dependencies import ThreadDep
 
 router = APIRouter(tags=["agent"])
@@ -32,7 +32,7 @@ class StepResult(BaseModel):
 async def read_step_result(
     thread: ThreadDep, part_id: str, session: SessionDep
 ) -> StepResult:
-    step = await stored_step_of(session, thread, part_id)
+    step = await stored_step_of(session, thread, part_id, every_engine())
     state = step.get("state") or {}
     output, error = state.get("output"), state.get("error")
     return StepResult(

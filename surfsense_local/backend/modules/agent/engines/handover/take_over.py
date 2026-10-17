@@ -16,7 +16,7 @@ from api.dependencies import transact
 from modules.agent.engines.agent_engine import AgentEngine
 from modules.agent.engines.both_sessions import thread_turns_of
 from modules.agent.engines.handover.note import handover_note
-from modules.agent.engines.thread_engine import thread_engine
+from modules.agent.engines.thread_engine import every_engine, thread_engine
 from modules.agent.thread_folder.layout import OUTPUTS
 from modules.chat.models import ChatThread
 from shared.config import get_storage_settings
@@ -34,7 +34,9 @@ async def take_over(
     seen = await _turns(session, thread, taking, launch_key) if moving else []
     await taking.ensure_session(session, thread, launch_key)
     if await taking.renew_session(session, thread):
-        missed = await thread_turns_of(session, thread, launch_key, False)
+        missed = await thread_turns_of(
+            session, thread, launch_key, False, every_engine()
+        )
     elif moving:
         missed = await _turns(session, thread, leaving, launch_key)
         since = _last_asked(seen)

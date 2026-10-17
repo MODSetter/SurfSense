@@ -10,7 +10,7 @@ from sqlalchemy import Engine
 
 from modules.chat.models import AgentEngineKind, ChatThread
 from modules.plugins.installed.models import PluginTool
-from shared.config import get_storage_settings
+from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_session_factory
 from tests.claude_agent_stand_in import Call, Fail, Hang, Limits, Say
 from tests.claude_run_stand_in import RESETS_AT
@@ -519,3 +519,36 @@ async def test_a_turn_on_a_claude_code_now_too_old_is_refused_before_it_runs(
     assert reply.status_code == 409
     assert reply.json()["detail"]["code"] == "claude_too_old"
     assert claude_agent.started == []
+
+
+async def test_a_thread_that_left_opencode_reads_back_while_opencode_cannot_answer(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Its opencode session is from before; opencode gone from this install must not keep it from opening."""
+    claude_agent.turns = [
+        [Call("Glob", {"pattern": "sources/*.md"}, "a.md"), Say("One.")]
+    ]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    frames = await _send(client, thread["id"], "List my sources")
+    (step,) = _of(frames, "agent-step")[-1:]
+    with create_session_factory(engine)() as session:
+        row = session.get_one(ChatThread, thread["id"])
+        row.opencode_session_id = "ses_from_before"
+        session.commit()
+    # As on a machine without the agent installed: opencode refuses at once.
+    monkeypatch.setattr(get_agent_settings(), "opencode_url", None)
+
+    listed = await client.get(f"/chat/threads/{thread['id']}/messages")
+    whole = await client.get(f"/chat/threads/{thread['id']}/steps/{step['id']}/result")
+
+    assert listed.status_code == 200, listed.text
+    assert [turn["content"]["text"] for turn in listed.json()] == [
+        "List my sources",
+        "One.",
+    ]
+    assert whole.status_code == 200, whole.text
+    assert whole.json()["output"] == "a.md"

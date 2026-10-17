@@ -182,7 +182,9 @@ async def list_messages(
 ) -> Sequence[ChatMessage] | list[dict]:
     if thread.uses_agent:
         answering = runs.get(thread.id) is not None
-        return await thread_turns_of(session, thread, launch_key, answering)
+        return await thread_turns_of(
+            session, thread, launch_key, answering, every_engine()
+        )
     return await transact(session, _stored_turns, thread)
 
 
