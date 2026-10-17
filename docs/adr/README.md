@@ -89,3 +89,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0059 | [A born-digital PDF is read from its own text layer, and Docling reads only a PDF with a page that needs it](0059-a-born-digital-pdf-is-read-from-its-text-layer.md) | Accepted |
 | 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted |
 | 0061 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |
+| 0062 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0062-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |

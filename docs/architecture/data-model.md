@@ -190,6 +190,7 @@ One row per run of a plugin's action. What the run produced is not here: the plu
         │   ├── figures/          the pictures ingest kept, and figures.json
         │   │   └── work/         the runs a figures-only pass that gave way resumes from
         │   ├── docling/work/     a long Docling reading's batches, until it ends
+        │   ├── ocr/              a long OCR reading's pages.json, until it ends
         │   └── transcript/       a recording's: segments.json once transcribed;
         │       └── work/         the decoded audio, plan and windows a job resumes from
         ├── chats/<thread_id>/
