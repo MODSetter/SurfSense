@@ -382,6 +382,7 @@ erDiagram
 | `0018` | `0018_sdcpp_edit_and_video.py` | `selected_models` rebuilt so `sdcpp` may hold `image_edit` and `video_gen`; downgrading drops such a selection |
 | `0019` | `0019_selection_settings.py` | `selected_models.settings`, a nullable JSON column added in place; its first entry is a server audio model's `voices` |
 | `0020` | `0020_plugin_runs.py` | `plugin_runs` |
+| `0021` | `0021_agent_threads.py` | `chat_threads.opencode_session_id`, added in place; downgrading drops it in place too, since a batch rebuild of `chat_threads` would cascade away every chat message |
 | `0022` | `0022_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
 | `0024` | `0024_thread_source_scope.py` | `chat_threads.source_scope`, by a plain `ALTER TABLE`; no row is backfilled, so every older thread uses every source |
 | `0025` | `0025_source_roots_and_folders.py` | `source_roots` and `folders`; a Library root and root folder per workspace; `documents.folder_id` by a plain `ALTER TABLE`; every `FILE` and `NOTE` filed, an imported `folder_path` becoming a chain of folders (case and normalization variants merged, levels past 8 joined with " / " into the eighth); `content_hash` filled from `dedup_key`; the dedup index swapped to per folder by `DROP` and `CREATE INDEX` |
@@ -402,10 +403,11 @@ erDiagram
 Releases after 2.2.1 do this ([`shared/going_back/`](../../surfsense_local/backend/shared/going_back/), [`going-back/`](../../surfsense_local/electron/src/main/going-back/)):
 
 - Every API start copies the release's migrations to `<data>/migrations/`, keeping the files a later release left there.
-- An API that finds the database at a revision it does not know exits with code 3 before serving, and changes nothing. Electron stops every sidecar, runs `api --going-back-options`, and asks in a native dialog. Quit changes nothing.
-- When the saved scripts reach from the database's revision back to this release's head and all of them load, it offers to undo. `api --go-back undo` copies the database to `backups/set-aside/`, then runs those downgrades to this release's head. Rows added since the update stay, except what a downgrade drops. If any downgrade fails, the set-aside copy is loaded back.
-- Otherwise, or after a failed undo, it offers the copy in `backups/` holding the latest revision this release knows, read from the file rather than its name. `api --go-back restore` sets the database aside and loads that copy through SQLite's backup API, not a file swap, so the WAL stays consistent and Windows' file locks do not interfere.
+- An API that finds the database at a revision it does not know exits with code 75 before serving, and changes nothing. Not 3: uvicorn exits 3 on any failed startup. Electron stops every sidecar, runs `api --going-back-options`, and asks in a native dialog. Quit changes nothing. Both commands refuse a database that is not newer than the release.
+- When the saved scripts reach from the database's revision back to this release's head, and none imports more than the standard library, `sqlalchemy` and `alembic`, it offers to undo. The options read each script's `revision` and `down_revision` with `ast`; nothing in the data folder runs before the user chooses, and only `NNNN_*.py` files are ever loaded. `api --go-back undo` copies the database to `backups/set-aside/`, then runs those downgrades to this release's head. Rows added since the update stay, except what a downgrade drops. If any downgrade fails, the set-aside copy is loaded back.
+- Otherwise, or after a failed undo, it offers the copy in `backups/` holding the latest revision this release knows, read from the file rather than its name, the newest file among equals, skipping any that fails `PRAGMA quick_check`. `api --go-back restore` sets the database aside and loads that copy through SQLite's backup API, not a file swap, so the WAL stays consistent and Windows' file locks do not interfere.
 - With neither, the dialog says to install the newer release again.
+- `--go-back` has no time limit, since a kill would skip loading the set-aside copy back. A failure prints `{"data_unchanged": …}`, true only once that copy is back in place or nothing had changed; only then does the dialog say the data is as the newer release left it.
 - After going back, Electron starts the app again.
 
 ## Known gaps
