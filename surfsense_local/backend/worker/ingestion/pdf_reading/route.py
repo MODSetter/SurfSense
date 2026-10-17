@@ -6,13 +6,22 @@ from pathlib import Path
 
 from modules.documents.models import Document
 from worker.ingestion.docling_batches.joined import joined
-from worker.ingestion.docling_batches.page_runs import PageRun, batches_of, described
+from worker.ingestion.docling_batches.page_runs import (
+    PageRun,
+    batches_of,
+    described,
+    runs_of,
+)
 from worker.ingestion.docling_batches.reading import read_batches
 from worker.ingestion.figures.idle_pass import queue_idle_figures_pass
 from worker.ingestion.pdf_reading.docling_pages import pages_for_docling
+from worker.ingestion.pdf_reading.ocr_first import OcrReading, ocr_reading
+from worker.ingestion.pdf_reading.ocr_kept import forget_reading
 from worker.ingestion.pdf_reading.spliced_text import spliced
 from worker.ingestion.pdf_reading.whole_reading import whole_markdown
 from worker.ingestion.pdf_text_layer import TextLayer, read_text_layer
+from worker.ingestion.pdf_text_layer.page_triage import PageKind
+from worker.ingestion.pdf_text_layer.reading import PAGE_BREAK
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +30,14 @@ _REASONS_SHOWN = 3
 
 
 def pdf_markdown(document: Document, original: Path) -> str:
-    """Raises JobYieldedError when a long Docling reading gives the queue up."""
+    """Raises JobYieldedError when a long Docling reading gives the queue up, and
+    JobCancelledError when a reading is cancelled."""
     layer = read_text_layer(original)
     if layer.text is not None:
         queue_idle_figures_pass(document, original, layer)
         return layer.text
+    if (reading := ocr_reading(original, layer, document)) is not None:
+        return _ocr_first_markdown(document, original, reading)
     runs = pages_for_docling(layer)
     if runs is None:
         logger.info("Docling reads %s: %s", original.name, layer.refused_because)
@@ -40,6 +52,34 @@ def pdf_markdown(document: Document, original: Path) -> str:
     markdown = spliced(layer, _docling_markdown(document, original, runs))
     # Figures come from the figures-only pass, as for a text-read PDF.
     queue_idle_figures_pass(document, original, layer)
+    return markdown
+
+
+def _ocr_first_markdown(document: Document, original: Path, reading: OcrReading) -> str:
+    """OCR's pages with Docling's markdown in place of the pages it reads."""
+    runs = runs_of(sorted(reading.docling))
+    logger.info(
+        "%s %s %d of %d pages of %s in %.1f s%s",
+        reading.reader,
+        "kept" if reading.resumed else "reads",
+        reading.read,
+        len(reading.layer.pages),
+        original.name,
+        reading.seconds,
+        f"; Docling reads {described(runs)}: {_shown(list(reading.docling.values()))}"
+        if runs
+        else "",
+    )
+    if runs:
+        markdown = spliced(reading.layer, _docling_markdown(document, original, runs))
+    else:
+        markdown = PAGE_BREAK.join(page.text or "" for page in reading.layer.pages)
+    forget_reading(original)
+    # A scan's figures wait to be asked for: the pass would read every scanned
+    # page with Docling in full, 39 CPU-s a page. Born-digital pages beside them
+    # are read by layout alone, so a mixed PDF still gets its idle pass.
+    if any(page.kind is PageKind.TEXT for page in reading.layer.pages):
+        queue_idle_figures_pass(document, original, reading.layer)
     return markdown
 
 
@@ -60,6 +100,10 @@ def _docling_markdown(
 
 def _reasons(layer: TextLayer, runs: Sequence[PageRun]) -> str:
     reasons = [layer.pages[n - 1].refused_because for run in runs for n in run.pages]
+    return _shown(reasons)
+
+
+def _shown(reasons: Sequence[str | None]) -> str:
     shown = "; ".join(reason or "" for reason in reasons[:_REASONS_SHOWN])
     more = len(reasons) - _REASONS_SHOWN
     return f"{shown}; and {more} more" if more > 0 else shown
