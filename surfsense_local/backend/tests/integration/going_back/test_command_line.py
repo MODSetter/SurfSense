@@ -12,10 +12,13 @@ import pytest
 from shared.db import create_db_engine
 from shared.going_back.exit_code import NEWER_DATABASE
 from shared.going_back.newer_database import database_revision
+from shared.migration_snapshot import snapshot_before_upgrade
 from shared.migrations import upgrade_to_head
 from tests.integration.going_back.newer_app import (
     newer_head,
     open_with_newer_release,
+    previous_revision,
+    save_newer_scripts,
     this_head,
 )
 
@@ -90,3 +93,55 @@ def test_going_back_that_fails_says_why(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "no copy" in result.stderr
+    assert json.loads(result.stdout) == {"data_unchanged": True}
+
+
+def test_an_api_that_fails_to_start_for_another_reason_does_not_offer_to_go_back(
+    tmp_path: Path,
+) -> None:
+    """uvicorn exits 3 on any startup failure; Electron must not read that as a newer database."""
+    engine = create_db_engine(tmp_path / "surfsense.db")
+    upgrade_to_head(engine)
+    engine.dispose()
+    # A file where the saved migrations go: startup fails after the migration check.
+    (tmp_path / "migrations").write_text("not a folder", encoding="utf-8")
+
+    result = _run(tmp_path)
+
+    assert result.returncode not in (0, NEWER_DATABASE), result.stderr
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [["--going-back-options"], ["--go-back", "undo"], ["--go-back", "restore"]],
+)
+def test_the_commands_refuse_a_database_this_release_can_open(
+    tmp_path: Path, arguments: list[str]
+) -> None:
+    """Going back from this release's own head would only lose data."""
+    engine = create_db_engine(tmp_path / "surfsense.db")
+    upgrade_to_head(engine)
+    engine.dispose()
+    snapshot_before_upgrade(
+        engine, tmp_path / "backups", previous_revision(), this_head()
+    )
+
+    result = _run(tmp_path, *arguments)
+
+    assert result.returncode == 1
+    assert "not newer" in result.stderr
+    if arguments[0] == "--go-back":
+        assert json.loads(result.stdout) == {"data_unchanged": True}
+    assert database_revision(create_db_engine(tmp_path / "surfsense.db")) == this_head()
+    assert not (tmp_path / "backups" / "set-aside").exists()
+
+
+def test_a_failed_undo_reports_the_data_was_loaded_back(tmp_path: Path) -> None:
+    """Electron says the data is as the newer version left it only on this report."""
+    _newer_library(tmp_path)
+    save_newer_scripts(tmp_path / "migrations", first_undo_fails=True)
+
+    result = _run(tmp_path, "--go-back", "undo")
+
+    assert result.returncode == 1
+    assert json.loads(result.stdout) == {"data_unchanged": True}

@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import Engine, inspect, text
 
 from shared.db import create_db_engine
+from shared.going_back.failure import GoingBackError
 from shared.going_back.newer_database import database_revision
 from shared.going_back.undo import undo_newer_revisions
 from shared.migrations import upgrade_to_head
@@ -81,9 +82,28 @@ def test_an_undo_step_that_fails_leaves_the_database_as_it_was(tmp_path: Path) -
     engine = _library_a_newer_release_opened(tmp_path)
     save_newer_scripts(tmp_path / "migrations", first_undo_fails=True)
 
-    with pytest.raises(RuntimeError, match="undo broke"):
+    with pytest.raises(GoingBackError) as failed:
         undo_newer_revisions(engine, tmp_path)
 
+    assert failed.value.data_unchanged
     assert database_revision(engine) == newer_head()
     assert inspect(engine).has_table("newer_notes")
     assert _titles(engine) == ["before the update", "after the update"]
+
+
+def test_an_undo_whose_copy_cannot_be_loaded_back_says_the_data_changed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The dialog must not tell the user their data is as the newer version left it."""
+    engine = _library_a_newer_release_opened(tmp_path)
+    save_newer_scripts(tmp_path / "migrations", first_undo_fails=True)
+
+    def copy_is_gone(_engine: Engine, copy: Path) -> None:
+        raise FileNotFoundError(copy)
+
+    monkeypatch.setattr("shared.going_back.undo.load_copy", copy_is_gone)
+
+    with pytest.raises(GoingBackError) as failed:
+        undo_newer_revisions(engine, tmp_path)
+
+    assert not failed.value.data_unchanged

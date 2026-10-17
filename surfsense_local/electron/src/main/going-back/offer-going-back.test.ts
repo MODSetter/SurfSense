@@ -3,6 +3,7 @@ import test from "node:test"
 
 import {
   offerGoingBack,
+  type GoBackResult,
   type GoingBackOptions,
   type Question,
   type Way,
@@ -12,7 +13,10 @@ const SAVED_AT = new Date("2026-10-14T07:30:00Z")
 
 function fakes(
   options: GoingBackOptions,
-  { answers = [], fails = [] }: { answers?: boolean[]; fails?: Way[] } = {},
+  {
+    answers = [],
+    fails = {},
+  }: { answers?: boolean[]; fails?: Partial<Record<Way, GoBackResult>> } = {},
 ) {
   const asked: Question[] = []
   const ran: Way[] = []
@@ -21,9 +25,9 @@ function fakes(
     ran,
     deps: {
       options: async () => options,
-      goBack: async (way: Way) => {
+      goBack: async (way: Way): Promise<GoBackResult> => {
         ran.push(way)
-        return !fails.includes(way)
+        return fails[way] ?? "went-back"
       },
       ask: async (question: Question) => {
         asked.push(question)
@@ -75,7 +79,7 @@ test("quitting at the question changes nothing", async () => {
 test("an undo that fails falls back to offering the copy", async () => {
   const fake = fakes(
     { canUndo: true, backupSavedAt: SAVED_AT },
-    { answers: [true, true], fails: ["undo"] },
+    { answers: [true, true], fails: { undo: "failed-data-unchanged" } },
   )
 
   const outcome = await offerGoingBack(fake.deps)
@@ -88,14 +92,29 @@ test("an undo that fails falls back to offering the copy", async () => {
   assert.equal(outcome, "restart")
 })
 
-test("going back that fails with nothing left to try says so and quits", async () => {
+test("going back that fails with the data loaded back says it is unchanged", async () => {
   const fake = fakes(
-    { canUndo: false, backupSavedAt: SAVED_AT },
-    { answers: [true], fails: ["restore"] },
+    { canUndo: true, backupSavedAt: null },
+    { answers: [true], fails: { undo: "failed-data-unchanged" } },
   )
 
   const outcome = await offerGoingBack(fake.deps)
 
-  assert.deepEqual(fake.asked.at(-1), { kind: "cannot-go-back", reason: "going-back-failed" })
+  assert.deepEqual(fake.asked.at(-1), { kind: "cannot-go-back", reason: "failed-data-unchanged" })
+  assert.equal(outcome, "quit")
+})
+
+test("going back that stopped partway does not claim the data is unchanged", async () => {
+  const fake = fakes(
+    { canUndo: false, backupSavedAt: SAVED_AT },
+    { answers: [true], fails: { restore: "failed-data-may-have-changed" } },
+  )
+
+  const outcome = await offerGoingBack(fake.deps)
+
+  assert.deepEqual(fake.asked.at(-1), {
+    kind: "cannot-go-back",
+    reason: "failed-data-may-have-changed",
+  })
   assert.equal(outcome, "quit")
 })

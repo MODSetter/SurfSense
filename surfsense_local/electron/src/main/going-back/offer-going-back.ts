@@ -12,15 +12,20 @@ export interface GoingBackOptions {
   backupSavedAt: Date | null
 }
 
+/** A failure is "unchanged" only when the backend loaded the set-aside copy back. */
+export type GoBackResult = "went-back" | "failed-data-unchanged" | "failed-data-may-have-changed"
+
+type CannotGoBackReason = "nothing-to-go-back-to" | Exclude<GoBackResult, "went-back">
+
 export type Question =
   | { kind: "undo" }
   | { kind: "restore"; savedAt: Date; afterFailedUndo: boolean }
-  | { kind: "cannot-go-back"; reason: "nothing-to-go-back-to" | "going-back-failed" }
+  | { kind: "cannot-go-back"; reason: CannotGoBackReason }
 
 export interface GoingBackDeps {
   options: () => Promise<GoingBackOptions>
-  /** True when the backend went back; it logs why when it did not. */
-  goBack: (way: Way) => Promise<boolean>
+  /** The backend logs why when it did not go back. */
+  goBack: (way: Way) => Promise<GoBackResult>
   /** True when the user agreed. A cannot-go-back notice has only Quit. */
   ask: (question: Question) => Promise<boolean>
 }
@@ -32,8 +37,9 @@ export async function offerGoingBack(deps: GoingBackDeps): Promise<Outcome> {
 
   if (canUndo) {
     if (!(await deps.ask({ kind: "undo" }))) return "quit"
-    if (await deps.goBack("undo")) return "restart"
-    if (backupSavedAt === null) return cannotGoBack(deps, "going-back-failed")
+    const undone = await deps.goBack("undo")
+    if (undone === "went-back") return "restart"
+    if (backupSavedAt === null) return cannotGoBack(deps, undone)
     return offerRestore(deps, backupSavedAt, true)
   }
   if (backupSavedAt !== null) return offerRestore(deps, backupSavedAt, false)
@@ -46,14 +52,12 @@ async function offerRestore(
   afterFailedUndo: boolean,
 ): Promise<Outcome> {
   if (!(await deps.ask({ kind: "restore", savedAt, afterFailedUndo }))) return "quit"
-  if (await deps.goBack("restore")) return "restart"
-  return cannotGoBack(deps, "going-back-failed")
+  const restored = await deps.goBack("restore")
+  if (restored === "went-back") return "restart"
+  return cannotGoBack(deps, restored)
 }
 
-async function cannotGoBack(
-  deps: GoingBackDeps,
-  reason: "nothing-to-go-back-to" | "going-back-failed",
-): Promise<Outcome> {
+async function cannotGoBack(deps: GoingBackDeps, reason: CannotGoBackReason): Promise<Outcome> {
   await deps.ask({ kind: "cannot-go-back", reason })
   return "quit"
 }

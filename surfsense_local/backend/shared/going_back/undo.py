@@ -4,6 +4,7 @@ from sqlalchemy import Engine
 
 from alembic import command
 from shared.going_back.data_folder import migrations_dir
+from shared.going_back.failure import GoingBackError
 from shared.going_back.load_copy import load_copy
 from shared.going_back.saved_migrations import with_saved_migrations
 from shared.going_back.set_aside import set_aside
@@ -22,6 +23,12 @@ def undo_newer_revisions(engine: Engine, data_dir: Path) -> None:
             config.attributes["engine"] = engine
             # Not "head": with the saved scripts loaded, that is the newer release's.
             command.downgrade(config, this_release_head())
-    except Exception:
-        load_copy(engine, newer)
-        raise
+    except Exception as error:
+        try:
+            load_copy(engine, newer)
+        except Exception as load_error:
+            raise GoingBackError(
+                f"{error}; loading the set-aside copy back failed too: {load_error}",
+                data_unchanged=False,
+            ) from error
+        raise GoingBackError(str(error), data_unchanged=True) from error

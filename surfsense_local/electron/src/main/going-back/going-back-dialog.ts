@@ -43,18 +43,30 @@ function dialogFor(question: Question): MessageBoxOptions {
         type: "warning",
         buttons: ["Quit"],
         defaultId: 0,
-        message:
-          question.reason === "going-back-failed"
-            ? "SurfSense couldn't go back to this version."
-            : "This version of SurfSense can't open your data.",
-        detail:
-          question.reason === "going-back-failed"
-            ? "Your data is as the newer version left it. Install the newer version again to keep using it."
-            : "A newer version updated it, and no copy from before that update was found. " +
-              "Install the newer version again to keep using your data.",
+        ...cannotGoBackText[question.reason],
       }
   }
 }
+
+const cannotGoBackText = {
+  "nothing-to-go-back-to": {
+    message: "This version of SurfSense can't open your data.",
+    detail:
+      "A newer version updated it, and no copy from before that update was found. " +
+      "Install the newer version again to keep using your data.",
+  },
+  "failed-data-unchanged": {
+    message: "SurfSense couldn't go back to this version.",
+    detail:
+      "Your data is as the newer version left it. Install the newer version again to keep using it.",
+  },
+  "failed-data-may-have-changed": {
+    message: "SurfSense couldn't go back to this version.",
+    detail:
+      "It stopped partway, so your data may have changed. A full copy from before it " +
+      "started is in the backups folder in your SurfSense data folder.",
+  },
+} satisfies Record<Extract<Question, { kind: "cannot-go-back" }>["reason"], { message: string; detail: string }>
 
 function formatDate(date: Date): string {
   return date.toLocaleString("en", { dateStyle: "long", timeStyle: "short" })

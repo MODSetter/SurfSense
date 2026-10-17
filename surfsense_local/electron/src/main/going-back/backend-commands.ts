@@ -2,15 +2,13 @@ import { execFile } from "node:child_process"
 
 import { apiCommand } from "../sidecars/python.ts"
 import type { SidecarContext } from "../sidecars/types.ts"
-import type { GoingBackOptions, Way } from "./offer-going-back.ts"
+import type { GoBackResult, GoingBackOptions, Way } from "./offer-going-back.ts"
 
-// Going back copies the whole database at least once; a large one takes a while.
-const GO_BACK_TIMEOUT_MS = 10 * 60_000
 const OPTIONS_TIMEOUT_MS = 60_000
 
 export interface BackendCommands {
   options: () => Promise<GoingBackOptions>
-  goBack: (way: Way) => Promise<boolean>
+  goBack: (way: Way) => Promise<GoBackResult>
 }
 
 /** The two backend commands, run with the API's binary; `log` gets why one failed. */
@@ -25,9 +23,11 @@ export function backendCommands(
       return parseGoingBackOptions(result.stdout)
     },
     goBack: async (way) => {
-      const result = await run(ctx, ["--go-back", way], GO_BACK_TIMEOUT_MS)
+      // No time limit: killing it skips loading the set-aside copy back, and
+      // SQLite's busy timeout already bounds every lock wait.
+      const result = await run(ctx, ["--go-back", way])
       if (!result.ok) log(`going back (${way}) failed: ${result.stderr}`)
-      return result.ok
+      return parseGoBackResult(result)
     },
   }
 }
@@ -45,18 +45,36 @@ export function parseGoingBackOptions(stdout: string): GoingBackOptions {
   }
 }
 
-function run(
-  ctx: SidecarContext,
-  args: string[],
-  timeout: number,
-): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+export function parseGoBackResult(result: { exitCode: number | null; stdout: string }): GoBackResult {
+  if (result.exitCode === 0) return "went-back"
+  try {
+    const parsed = JSON.parse(result.stdout) as { data_unchanged?: unknown }
+    if (parsed.data_unchanged === true) return "failed-data-unchanged"
+  } catch {
+    // Killed or crashed: nothing says the copy was loaded back.
+  }
+  return "failed-data-may-have-changed"
+}
+
+interface RunResult {
+  ok: boolean
+  exitCode: number | null
+  stdout: string
+  stderr: string
+}
+
+function run(ctx: SidecarContext, args: string[], timeout?: number): Promise<RunResult> {
   const command = apiCommand(ctx, args)
   return new Promise((resolve) => {
     execFile(
       command.cmd,
       command.args,
       { cwd: command.cwd, env: { ...process.env, ...command.env }, timeout, windowsHide: true },
-      (error, stdout, stderr) => resolve({ ok: error === null, stdout, stderr }),
+      (error, stdout, stderr) => {
+        // A non-numeric code is a spawn failure such as ENOENT, not an exit.
+        const code = error === null ? 0 : typeof error.code === "number" ? error.code : null
+        resolve({ ok: error === null, exitCode: code, stdout, stderr })
+      },
     )
   })
 }

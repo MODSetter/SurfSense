@@ -2,6 +2,7 @@ from pathlib import Path
 
 from sqlalchemy import Engine
 
+from shared.going_back.failure import GoingBackError
 from shared.going_back.load_copy import load_copy
 from shared.going_back.set_aside import set_aside
 from shared.going_back.usable_backup import usable_backup
@@ -16,4 +17,8 @@ def restore_backup(engine: Engine, data_dir: Path) -> None:
     if backup is None:
         raise LookupError("no copy in backups/ that this release can open")
     set_aside(engine, data_dir)
-    load_copy(engine, backup)
+    try:
+        load_copy(engine, backup)
+    except Exception as error:
+        # SQLite does not promise the live file is untouched after a failed backup step.
+        raise GoingBackError(str(error), data_unchanged=False) from error
