@@ -103,6 +103,7 @@ function WorkspaceDashboard({
   onModelIssueSettings,
   onAllowModelIssue,
   onModelRequired,
+  onModelCheck,
   onModelSelected,
   onOpenLicense,
   onOpenAudioSettings,
@@ -115,6 +116,7 @@ function WorkspaceDashboard({
   selection: ModelSelection | null
   providerAvailable: boolean
   modelIssue: ModelIssue | null
+  onModelCheck: () => void
   needsConsent: boolean
   onModelIssueSettings: () => void
   onAllowModelIssue: () => void
@@ -166,6 +168,7 @@ function WorkspaceDashboard({
     newChatMode: useNewChatChoice(selection),
     onAgenticGate,
     onModelRequired,
+    onModelCheck,
   })
   const sourcePreview = sources.documents.find(
     (document) => document.id === sourcePreviewId
@@ -683,6 +686,8 @@ export function DashboardPage({
     useState<SettingsSectionId>("general")
   // Bumped after egress is allowed from the notice, to check the model again.
   const [consents, setConsents] = useState(0)
+  // Bumped when a send is refused for a reason the check reports, so it says why.
+  const [refusedSends, setRefusedSends] = useState(0)
 
   // Set while Settings opens on Office support's consent, from a thread's offer.
   const [askOfficeConsent, setAskOfficeConsent] = useState(false)
@@ -711,7 +716,8 @@ export function DashboardPage({
   )
 
   // Checked when the model changes, when settings close (a key entered again,
-  // egress switched, a connection edited) and after egress is allowed.
+  // egress switched, a connection edited), after egress is allowed, and after a
+  // send was refused for Claude Code.
   useEffect(() => {
     if (!selection) return
     if (skipFirstCheck.current) {
@@ -726,7 +732,7 @@ export function DashboardPage({
       }
     )
     return () => controller.abort()
-  }, [selection, modelsVisited, consents])
+  }, [selection, modelsVisited, consents, refusedSends])
 
   const availability: Availability =
     selection && checked.key === modelKey(selection)
@@ -799,6 +805,7 @@ export function DashboardPage({
             )
           }
           onModelRequired={() => openSettings("chat-models")}
+          onModelCheck={() => setRefusedSends((count) => count + 1)}
           onModelSelected={onModelSelected}
           onOpenLicense={() => openSettings("license")}
           onOpenAudioSettings={() => openSettings("audio-models")}

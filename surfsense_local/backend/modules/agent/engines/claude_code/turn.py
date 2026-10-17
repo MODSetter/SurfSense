@@ -87,8 +87,8 @@ from modules.llm.subscriptions.claude.errors import (
 )
 from modules.llm.subscriptions.claude.extra_usage import plan_usage
 from modules.llm.subscriptions.claude.hosts import claude_refusal, require_claude_hosts
-from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.run import ClaudeRun, open_run
+from modules.llm.subscriptions.claude.usable_claude import usable_claude
 from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.plugins.installed.models import PluginTool
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
@@ -162,6 +162,8 @@ async def claude_turn(
         )
     # Before anything runs, so the window asks for the hosts as it does for a chat.
     await transact(session, require_claude_hosts)
+    # Found once, here, so an old Claude Code is refused before the turn starts.
+    binary = await run_in_threadpool(usable_claude)
     sources = await transact(session, turn_sources, thread, payload)
     title = first_title(thread, payload.text)
     if title is not None:
@@ -190,6 +192,7 @@ async def claude_turn(
                 launch_key,
                 sending,
                 setup,
+                binary,
             ):
                 yield frame
 
@@ -213,6 +216,7 @@ async def _stream(
     launch_key: str,
     sending: _Sending,
     setup: ClaudeSetup,
+    binary: Path,
 ) -> AsyncIterator[bytes]:
     """The turn's frames, from its sources prepared to the reply stated."""
     workspace_id, thread_id = where
@@ -248,9 +252,6 @@ async def _stream(
             yield _frame(_not_prepared(error))
             yield _DONE
             return
-        binary = this_machines_claude()
-        if binary is None:
-            raise ClaudeSignInRequiredError("Claude Code is not installed")
         servers = _servers(workspace_id, thread_id, launch_key, tools.plugins)
         gate = Gate(
             folder=folder,

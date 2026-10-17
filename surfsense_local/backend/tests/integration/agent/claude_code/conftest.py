@@ -1,7 +1,5 @@
 """A stand-in Claude Code for agent turns, and the fixtures shared with the Claude chat and proxy tests."""
 
-from pathlib import Path
-
 import pytest
 from claude_agent_sdk import ClaudeAgentOptions
 
@@ -42,9 +40,6 @@ def claude_agent(
     """Stand in for the user's Claude Code in agent turns; nothing leaves the machine."""
     agent = ClaudeAgent()
     monkeypatch.setattr(claude_turn, "open_run", agent.open)
-    monkeypatch.setattr(
-        claude_turn, "this_machines_claude", lambda: Path("/opt/claude/bin/claude")
-    )
     # A serving API's proxy address; scripted runs never connect to it.
     monkeypatch.setattr(agent_proxy, "_url", "http://127.0.0.1:9")
 

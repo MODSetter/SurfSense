@@ -38,6 +38,10 @@ On Windows only a `claude.exe` counts, since the SDK refuses npm's `claude.cmd`;
 
 Nothing Claude Code reports is stored: the path, version, account and model list are read live, since a stored copy would go stale the moment the user signs out or switches account. Nothing polls.
 
+After connecting, the chat model's check, run at startup, when the model changes, when Settings closes and after egress is allowed, lists the plan's models, and a Claude Code below `MIN_VERSION` answers `409` `claude_too_old` there: the composer's notice says "Couldn’t use {model}: Claude Code is too old. Update it.", before anything is sent. The version is read once per binary as installed, by path and modified time ([`installed_version.py`](../../surfsense_local/backend/modules/llm/subscriptions/claude/installed_version.py)). Unlike the dialog, a version it cannot read is let through, so an answer not yet seen on another system never blocks a plan that may work.
+
+Every run asks the same gatekeeper first ([`usable_claude.py`](../../surfsense_local/backend/modules/llm/subscriptions/claude/usable_claude.py)): a chat, title or Studio run when its model is resolved, an Agentic turn beside its egress check, before anything streams. A Claude Code gone or too old refuses the send with `409` `claude_sign_in_required` or `claude_too_old`, answered app-wide; nothing is launched and no reply is made. The frontend puts the message back in the composer and checks the chat model again, so its notice says why at once ([`claude-code-refusal.ts`](../../surfsense_local/frontend/src/features/chat/claude-code-refusal.ts)). It costs a file `stat` per run, as the version is read again only once the binary changes.
+
 ## The connection
 
 A `provider_connections` row with `auth_kind = 'claude_plan'` (revision `0031`, which rebuilt the table from its stored definition, keeping remote selections aside and putting them back), `provider = 'openai_compatible'`, `base_url = 'https://api.anthropic.com'` and `catalog_provider = 'anthropic'`. It holds no credential: both ciphertext columns stay `NULL`. One per install; it serves `text_gen` only ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)), which the agent answers with too. Deleting it deletes the row and forgets `host:platform.claude.com`; Claude Code's sign-in is untouched.
@@ -168,5 +172,4 @@ Stand-ins replay what the measured Claude Code sent: a fake `claude` for status 
 ## Known gaps
 
 - Windows and Linux are untested on a real install: whether `claude auth status` prints the same JSON, whether `HTTPS_PROXY` is honoured the same way, and WinGet's `Links` folder.
-- The Claude engine does not refuse a Claude Code below `MIN_VERSION` before a turn, as the dialog does; it runs whatever binary it finds.
 - A Claude Code update that changes what this page measured is caught only when someone runs the `claude_code` tests on it; until then, only the log warning says it is untested.

@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "Chat mode {mode}. Change mode.",
   "chat_model_issue_allow_button": "Allow…",
   "chat_model_issue_claude_sign_in_body": "Couldn’t use {model}: Claude Code on this computer isn’t installed or has to sign in again.",
+  "chat_model_issue_claude_too_old_body": "Couldn’t use {model}: Claude Code is too old. Update it.",
   "chat_model_issue_egress_off_body": "Sending data to {host} is off.",
   "chat_model_issue_key_rejected_body": "The provider for {model} rejected its key.",
   "chat_model_issue_rate_limited_body": "The provider for {model} is limiting requests. Try again in a moment.",

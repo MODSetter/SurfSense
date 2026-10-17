@@ -53,6 +53,10 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
+from modules.llm.subscriptions.claude.errors import (
+    ClaudeSignInRequiredError,
+    ClaudeTooOldError,
+)
 from modules.llm.subscriptions.claude.plan_generator import close_claude_runs
 from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
 from modules.llm.transcription.gate import TranscriptionGate
@@ -269,7 +273,30 @@ def create_app() -> FastAPI:
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(EmbeddingNotChosenError, embedding_not_chosen)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)
+    app.add_exception_handler(ClaudeTooOldError, claude_too_old)
+    app.add_exception_handler(ClaudeSignInRequiredError, claude_sign_in_required)
     return app
+
+
+def claude_too_old(_request: Request, error: ClaudeTooOldError) -> JSONResponse:
+    """Handled once, here: the model list, a chat and an agent turn refuse it alike, before anything runs.
+
+    409 like `unreadable_secret`: the request is fine; the user's Claude Code is not.
+    """
+    return JSONResponse(
+        {"detail": {"code": "claude_too_old", "message": str(error)}},
+        status.HTTP_409_CONFLICT,
+    )
+
+
+def claude_sign_in_required(
+    _request: Request, error: ClaudeSignInRequiredError
+) -> JSONResponse:
+    """Claude Code gone before a run starts: the code the composer's model check already shows."""
+    return JSONResponse(
+        {"detail": {"code": "claude_sign_in_required", "message": str(error)}},
+        status.HTTP_409_CONFLICT,
+    )
 
 
 def unreadable_secret(_request: Request, error: UnreadableSecretError) -> JSONResponse:

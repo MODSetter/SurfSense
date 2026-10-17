@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "Modo do chat {mode}. Trocar modo.",
   "chat_model_issue_allow_button": "Permitir…",
   "chat_model_issue_claude_sign_in_body": "Não foi possível usar {model}: o Claude Code neste computador não está instalado ou precisa entrar novamente.",
+  "chat_model_issue_claude_too_old_body": "Não foi possível usar {model}: o Claude Code é antigo demais. Atualize-o.",
   "chat_model_issue_egress_off_body": "O envio de dados para {host} está desativado.",
   "chat_model_issue_key_rejected_body": "O provedor de {model} rejeitou a chave.",
   "chat_model_issue_rate_limited_body": "O provedor de {model} está limitando as solicitações. Tente novamente em instantes.",

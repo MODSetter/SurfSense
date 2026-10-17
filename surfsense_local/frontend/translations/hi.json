@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "चैट मोड {mode}. मोड बदलें.",
   "chat_model_issue_allow_button": "अनुमति दें…",
   "chat_model_issue_claude_sign_in_body": "{model} का उपयोग नहीं हो सका: इस कंप्यूटर पर Claude Code इंस्टॉल नहीं है या उसे फिर से साइन इन करना होगा।",
+  "chat_model_issue_claude_too_old_body": "{model} का उपयोग नहीं हो सका: Claude Code बहुत पुराना है। इसे अपडेट करें।",
   "chat_model_issue_egress_off_body": "{host} पर डेटा भेजना बंद है।",
   "chat_model_issue_key_rejected_body": "{model} के प्रोवाइडर ने उसकी कुंजी अस्वीकार कर दी।",
   "chat_model_issue_rate_limited_body": "{model} का प्रोवाइडर अनुरोधों को सीमित कर रहा है। थोड़ी देर में फिर कोशिश करें।",

@@ -22,6 +22,10 @@ class ClaudePlanLimitError(PlanLimitError):
     """The Claude plan's usage limit is reached; it resets on its own."""
 
 
+class ClaudeTooOldError(Exception):
+    """The Claude Code found is older than MIN_VERSION: updated in a terminal, not in SurfSense."""
+
+
 class ClaudeRunError(Exception):
     """Claude Code ended a run with an error that is not the plan's or the sign-in's."""
 

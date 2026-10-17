@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "チャットモード: {mode}。モードを変更します。",
   "chat_model_issue_allow_button": "許可…",
   "chat_model_issue_claude_sign_in_body": "{model}を使用できませんでした。このコンピューターのClaude Codeがインストールされていないか、再度サインインする必要があります。",
+  "chat_model_issue_claude_too_old_body": "{model}を使用できませんでした。Claude Codeが古すぎます。更新してください。",
   "chat_model_issue_egress_off_body": "{host}へのデータ送信はオフになっています。",
   "chat_model_issue_key_rejected_body": "{model}のプロバイダーがキーを拒否しました。",
   "chat_model_issue_rate_limited_body": "{model}のプロバイダーがリクエストを制限しています。しばらくしてからもう一度お試しください。",

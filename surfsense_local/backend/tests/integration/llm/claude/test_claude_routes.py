@@ -247,6 +247,37 @@ async def test_a_plan_whose_claude_code_is_gone_asks_to_set_it_up_again(
     assert reply.json()["detail"]["code"] == "claude_sign_in_required"
 
 
+async def test_a_plan_whose_claude_code_is_now_too_old_says_so(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """Replaced by an older one after connecting: the composer says to update before anything is sent."""
+    claude_on_this_machine()
+    connection = await _connect(client)
+    claude_on_this_machine(version="2.1.200 (Claude Code)")
+
+    reply = await client.get(f"/llm/connections/{connection['id']}/models")
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "claude_too_old"
+
+
+async def test_a_claude_code_whose_version_cannot_be_read_still_lists(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """An answer not yet seen on another system never blocks a plan that may work."""
+    claude_on_this_machine()
+    connection = await _connect(client)
+    claude_on_this_machine(version="Claude Code, nightly")
+
+    reply = await client.get(f"/llm/connections/{connection['id']}/models")
+
+    assert reply.status_code == 200, reply.text
+
+
 async def test_the_model_list_needs_both_hosts(
     client: AsyncClient,
     claude_on_this_machine: ClaudeOnThisMachine,

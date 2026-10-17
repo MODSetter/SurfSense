@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "对话模式 {mode}。更换模式。",
   "chat_model_issue_allow_button": "允许…",
   "chat_model_issue_claude_sign_in_body": "无法使用 {model}：这台电脑上的 Claude Code 未安装或需要重新登录。",
+  "chat_model_issue_claude_too_old_body": "无法使用 {model}：Claude Code 版本过旧。请更新。",
   "chat_model_issue_egress_off_body": "向 {host} 发送数据已关闭。",
   "chat_model_issue_key_rejected_body": "{model} 的提供商拒绝了它的密钥。",
   "chat_model_issue_rate_limited_body": "{model} 的提供商正在限制请求。请稍后重试。",

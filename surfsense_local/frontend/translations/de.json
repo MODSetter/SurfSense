@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "Chatmodus {mode}. Modus wechseln.",
   "chat_model_issue_allow_button": "Erlauben …",
   "chat_model_issue_claude_sign_in_body": "{model} konnte nicht verwendet werden: Claude Code auf diesem Computer ist nicht installiert oder muss sich erneut anmelden.",
+  "chat_model_issue_claude_too_old_body": "{model} konnte nicht verwendet werden: Claude Code ist zu alt. Aktualisiere es.",
   "chat_model_issue_egress_off_body": "Das Senden von Daten an {host} ist aus.",
   "chat_model_issue_key_rejected_body": "Der Anbieter von {model} hat den Schlüssel abgelehnt.",
   "chat_model_issue_rate_limited_body": "Der Anbieter von {model} begrenzt gerade die Anfragen. Versuch es gleich noch einmal.",

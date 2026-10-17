@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "Mode de chat {mode}. Changer de mode.",
   "chat_model_issue_allow_button": "Autoriser…",
   "chat_model_issue_claude_sign_in_body": "Impossible d’utiliser {model} : Claude Code n’est pas installé sur cet ordinateur ou doit se reconnecter.",
+  "chat_model_issue_claude_too_old_body": "Impossible d’utiliser {model} : Claude Code est trop ancien. Mettez-le à jour.",
   "chat_model_issue_egress_off_body": "L’envoi de données vers {host} est désactivé.",
   "chat_model_issue_key_rejected_body": "Le fournisseur de {model} a rejeté sa clé.",
   "chat_model_issue_rate_limited_body": "Le fournisseur de {model} limite les requêtes. Réessayez dans un instant.",

@@ -503,3 +503,19 @@ async def test_each_reply_says_whether_the_plan_is_on_extra_usage(
     assert _of(within, "plan-extra-usage") == [
         {"type": "plan-extra-usage", "using": False, "resets_at": RESETS_AT}
     ]
+
+
+async def test_a_turn_on_a_claude_code_now_too_old_is_refused_before_it_runs(
+    client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
+) -> None:
+    """As a chat is: refused before anything starts, so the composer says why."""
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    claude_on_this_machine(version="2.1.200 (Claude Code)")
+
+    reply = await client.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "Hello"}
+    )
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "claude_too_old"
+    assert claude_agent.started == []

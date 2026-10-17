@@ -19,7 +19,6 @@ from modules.llm.subscriptions.claude.account import CATALOG_PROVIDER
 from modules.llm.subscriptions.claude.chat_prompt import system_prompt
 from modules.llm.subscriptions.claude.chat_runs import ChatRuns
 from modules.llm.subscriptions.claude.errors import (
-    ClaudeSignInRequiredError,
     failure_of,
 )
 from modules.llm.subscriptions.claude.extra_usage import plan_usage
@@ -28,6 +27,7 @@ from modules.llm.subscriptions.claude.locate import this_machines_claude
 from modules.llm.subscriptions.claude.models import claude_models
 from modules.llm.subscriptions.claude.run import ClaudeRun, Prompt
 from modules.llm.subscriptions.claude.status import ClaudeState, read_status
+from modules.llm.subscriptions.claude.usable_claude import usable_claude
 
 # Claude Code returns a schema's answer through a tool of its own, which takes
 # a second turn; measured, one call in four used a third.
@@ -68,10 +68,7 @@ class ClaudePlanProvider:
         self._proxy_refusal = proxy_refusal
 
     def _binary(self) -> Path:
-        binary = self._find_claude()
-        if binary is None:
-            raise ClaudeSignInRequiredError("Claude Code is not installed")
-        return binary
+        return usable_claude(self._find_claude)
 
     async def health(self) -> bool:
         try:

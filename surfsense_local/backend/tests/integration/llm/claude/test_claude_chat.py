@@ -224,6 +224,47 @@ async def test_a_chat_with_a_claude_host_off_is_refused_before_claude_code_runs(
 
 
 @pytest.mark.usefixtures("real_model")
+async def test_a_chat_on_a_claude_code_now_too_old_is_refused_before_it_runs(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """Replaced by an older one mid-session: the send is refused, so the composer can say why."""
+    await _choose_claude(client, claude_on_this_machine)
+    opened = len(fake_claude.opened)
+    claude_on_this_machine(version="2.1.200 (Claude Code)")
+    thread_id = await _basic_thread(client)
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "Hi"}
+    )
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "claude_too_old"
+    assert len(fake_claude.opened) == opened
+
+
+@pytest.mark.usefixtures("real_model")
+async def test_a_chat_after_claude_code_was_uninstalled_is_refused_before_it_runs(
+    client: AsyncClient,
+    claude_on_this_machine: ClaudeOnThisMachine,
+    fake_claude: FakeClaude,
+) -> None:
+    """The composer's own reason, so it shows there as it does at startup."""
+    installed = claude_on_this_machine()
+    await _choose_claude(client, lambda: installed)
+    installed.unlink()
+    thread_id = await _basic_thread(client)
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "Hi"}
+    )
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "claude_sign_in_required"
+
+
+@pytest.mark.usefixtures("real_model")
 async def test_no_claude_code_runs_without_the_proxy(
     client: AsyncClient,
     claude_on_this_machine: ClaudeOnThisMachine,

@@ -32,6 +32,15 @@ function reason({ model, code, host }: ModelIssue): string {
         },
         { model }
       )
+    case "claude_too_old":
+      return intl.formatMessage(
+        {
+          id: "chat_model_issue_claude_too_old_body",
+          defaultMessage:
+            "Couldn’t use {model}: Claude Code is too old. Update it.",
+        },
+        { model }
+      )
     case "sign_in_required":
       return intl.formatMessage(
         {

@@ -178,6 +178,7 @@
   "chat_mode_picker_trigger_aria": "Режим чата: {mode}. Сменить режим.",
   "chat_model_issue_allow_button": "Разрешить…",
   "chat_model_issue_claude_sign_in_body": "Не удалось использовать {model}: Claude Code на этом компьютере не установлен или ему нужно снова войти.",
+  "chat_model_issue_claude_too_old_body": "Не удалось использовать {model}: Claude Code слишком старый. Обновите его.",
   "chat_model_issue_egress_off_body": "Отправка данных на {host} отключена.",
   "chat_model_issue_key_rejected_body": "Провайдер модели {model} отклонил её ключ.",
   "chat_model_issue_rate_limited_body": "Провайдер модели {model} ограничивает запросы. Попробуйте ещё раз через минуту.",
