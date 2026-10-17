@@ -11,7 +11,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from api.main import create_app
-from modules.chat.models import ChatThread
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.source_scope.schemas import SourceScope
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -48,6 +48,7 @@ class ToolEndpoint:
             thread = ChatThread(
                 workspace_id=workspace_id,
                 title="New chat",
+                agent_engine=AgentEngineKind.OPENCODE if agent else None,
                 opencode_session_id="ses_test" if agent else None,
                 source_scope=None if scope is None else scope.model_dump(),
             )

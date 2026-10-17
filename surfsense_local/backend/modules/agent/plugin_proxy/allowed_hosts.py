@@ -52,9 +52,13 @@ class AllowedHosts:
         # Taken first, so a commit landing while this reads makes the result stale.
         generation = _generation
         with self._sessions() as session:
-            hosts = _ready_hosts(session)
+            hosts = self._ready(session)
         self._built = (generation, time.monotonic(), hosts)
         return hosts
+
+    def _ready(self, session: Session) -> frozenset[tuple[str, int]]:
+        """The hosts this proxy lets through, read from the database."""
+        return _ready_hosts(session)
 
     def call_to_record(self, host: str) -> str | None:
         """The destination to record as called, when its last record is old enough."""

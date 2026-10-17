@@ -32,6 +32,7 @@ import {
 } from "./api"
 import { CHATGPT_PROVIDER } from "./chatgpt/api"
 import { ChatGPTSignIn } from "./chatgpt/chatgpt-sign-in"
+import { CLAUDE_PLAN_PROVIDER, ClaudePlanEdit } from "./claude/claude-plan-edit"
 import { fillTemplate } from "./provider-url"
 
 // A local server's port is whatever its owner set, so nothing is filled in:
@@ -111,7 +112,9 @@ export function ConnectionForm({
   const [providerId, setProviderId] = useState(
     connection?.auth_kind === "chatgpt"
       ? CHATGPT_PROVIDER
-      : (connection?.catalog_provider ?? CUSTOM_PROVIDER)
+      : connection?.auth_kind === "claude_plan"
+        ? CLAUDE_PLAN_PROVIDER
+        : (connection?.catalog_provider ?? CUSTOM_PROVIDER)
   )
   const [accountValues, setAccountValues] = useState<Record<string, string>>({})
   const providers = useQuery({
@@ -150,10 +153,29 @@ export function ConnectionForm({
     keywords: ["chatgpt", "openai", "plus", "pro", "subscription"],
     disabled: false,
   }
+  // Likewise a Claude plan, set up from its own option and only shown here.
+  const isClaudePlan = connection?.auth_kind === "claude_plan"
+  const claudePlanOption: ProviderOption = {
+    value: CLAUDE_PLAN_PROVIDER,
+    label: intl.formatMessage({
+      id: "models_connection_form_claude_plan_provider_label",
+      defaultMessage: "Claude plan",
+    }),
+    hint: intl.formatMessage({
+      id: "models_connection_form_claude_plan_provider_body",
+      defaultMessage: "Through Claude Code on this computer",
+    }),
+    keywords: ["claude", "anthropic", "pro", "max", "team"],
+    disabled: false,
+  }
   const providerGroups: ProviderGroup[] = [
     {
       label: null,
-      items: offerChatGPT ? [customOption, chatgptOption] : [customOption],
+      items: offerChatGPT
+        ? [customOption, chatgptOption]
+        : isClaudePlan
+          ? [customOption, claudePlanOption]
+          : [customOption],
     },
     {
       label: intl.formatMessage({
@@ -279,11 +301,11 @@ export function ConnectionForm({
           onValueChange={choose}
           isItemEqualToValue={(item, value) => item.value === value.value}
           filter={matchesProvider}
-          disabled={busy || connection?.auth_kind === "chatgpt"}
+          disabled={busy || offerChatGPT || isClaudePlan}
         >
           <ComboboxInput
             id={`${fieldId}-provider`}
-            disabled={busy || connection?.auth_kind === "chatgpt"}
+            disabled={busy || offerChatGPT || isClaudePlan}
             placeholder={intl.formatMessage({
               id: "models_connection_form_provider_placeholder",
               defaultMessage: "Search providers",
@@ -329,6 +351,19 @@ export function ConnectionForm({
       </Field>
     </>
   )
+
+  if (isClaudePlan && connection) {
+    return (
+      <ClaudePlanEdit
+        fields={fields}
+        label={label}
+        connection={connection}
+        onBusyChange={setBusy}
+        onCancel={onCancel}
+        onSaved={onSaved}
+      />
+    )
+  }
 
   if (isChatGPT) {
     return (

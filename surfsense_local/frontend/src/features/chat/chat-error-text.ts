@@ -50,6 +50,24 @@ const chatErrorText: Record<ChatTurnErrorKind, () => string> = {
       defaultMessage:
         "Your ChatGPT plan’s usage limit is reached. It resets on its own; check your usage in ChatGPT’s settings.",
     }),
+  claude_sign_in: () =>
+    intl.formatMessage({
+      id: "chat_error_claude_sign_in",
+      defaultMessage:
+        "Claude Code on this computer needs to sign in again: run claude in a terminal and sign in.",
+    }),
+  claude_limit: () =>
+    intl.formatMessage({
+      id: "chat_error_claude_limit",
+      defaultMessage:
+        "Your Claude plan’s usage limit is reached. It resets on its own.",
+    }),
+  egress_disabled: () =>
+    intl.formatMessage({
+      id: "chat_error_egress_disabled",
+      defaultMessage:
+        "A host this model needs was turned off in Settings › Network. Allow it there, then try again.",
+    }),
   network: () =>
     intl.formatMessage({
       id: "chat_error_network",

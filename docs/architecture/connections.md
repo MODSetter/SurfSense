@@ -41,7 +41,7 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
-| `auth_kind` | `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account, enforced by a CHECK; added in place by `0023`, so existing rows read `api_key` |
+| `auth_kind` | `api_key`, `chatgpt` for a connection signed in with a ChatGPT account, or `claude_plan` for one run through the user's own Claude Code ([Claude plan](claude-plan.md)), enforced by a CHECK; added in place by `0023`, so existing rows read `api_key`, and widened by `0031` |
 | `oauth_ciphertext`, `token_version` | a `chatgpt` row's encrypted token set and its refresh counter ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
 | `created_at`, `updated_at` | |
 

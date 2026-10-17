@@ -65,6 +65,7 @@ dependencies = [
     "xlsxwriter>=3.2.9",
     "lameenc>=1.8.4",
     "mcp>=2.3,<2.4",
+    "claude-agent-sdk==0.2.168",
     # Apple's Vision reads scans and photos on a Mac before Docling
     # (worker/ingestion/scan_ocr). Not ocrmac: Docling would then switch its own OCR.
     "pyobjc-framework-Quartz>=12.2.2; sys_platform == 'darwin'",
@@ -82,6 +83,12 @@ dev = [
 # Docling brings torch, and PyPI's Linux torch brings 3GB of CUDA wheels that
 # an installer would carry to machines that cannot use them. Elsewhere the
 # published wheels are already CPU-only.
+
+[tool.uv]
+# Built from its source package: the wheels carry a 241 MB Claude Code in
+# `_bundled`, and SurfSense ships none (ADR 0057); every run uses the user's own.
+no-binary-package = ["claude-agent-sdk"]
+
 [tool.uv.sources]
 # The rules a plugin's manifest.json follows, shared with the plugin tooling.
 surfsense-plugin-manifest = { path = "../../plugins/bundles/core/manifest", editable = true }
@@ -151,5 +158,6 @@ markers = [
     "integration: tests that run against a real SQLite database built by migrations",
     "packaging: freezes or runs the binaries the app ships; slow, opt-in",
     "office: runs a real LibreOffice through the test seam (SURFSENSE_TEST_LIBREOFFICE, else a standard install path); skipped when none is found",
+    "claude_code: runs the user's own installed Claude Code on their Claude plan; skipped unless SURFSENSE_CLAUDE_CODE_TESTS=1 and Claude Code is signed in, uses the plan's limits",
     "live: calls a paid model (Claude Sonnet unless SURFSENSE_LIVE_MODEL says otherwise) through the real agent path; skipped unless SURFSENSE_LIVE_TESTS=1 and the provider's key are set, costs money",
 ]

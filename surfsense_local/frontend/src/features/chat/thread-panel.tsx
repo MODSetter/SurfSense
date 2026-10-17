@@ -125,7 +125,7 @@ function ComposerDraftLifecycle({
   const aui = useAui()
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
-  const returned = view.status === "new" ? view.returned : undefined
+  const returned = view.status === "creating" ? undefined : view.returned
 
   // Voice input outlives the composer, so it is cancelled, never stopped: no
   // late phrase lands in the thread opened next.
