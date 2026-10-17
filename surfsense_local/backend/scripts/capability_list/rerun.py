@@ -3,11 +3,20 @@
 A person runs this on the two runs' `sweep-results.json` files and feeds the
 folded screen to `catalog_rows.py`:
 
-    python -c "
+    PYTHONPATH=scripts uv run python -c "
+    from pathlib import Path
     from capability_list.rerun import folded
     from capability_list.sweep_input import SweepResults
-    ...
+    base = SweepResults.model_validate_json(Path('scripts/capability_list/sweep/openrouter-screen-v1.json').read_text())
+    rerun = SweepResults.model_validate_json(Path('<rerun>/sweep-results.json').read_text())
+    Path('/tmp/folded-screen.json').write_text(folded(base, rerun).model_dump_json(indent=2))
     "
+
+Run from surfsense_local/backend; `<rerun>` is the
+re-run's --out folder. The folded file is not the screen to commit as-is:
+a Pydantic round-trip drops the provenance extras the committed screen
+carries, so merge its verdicts into the committed screen at the JSON
+level and commit that.
 """
 
 from capability_list.sweep_input import SweepResults, SweptModel
