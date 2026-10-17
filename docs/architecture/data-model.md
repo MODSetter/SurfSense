@@ -180,6 +180,8 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 <data dir>/                       ~/.surfsense by default
 ├── surfsense.db
 ├── backups/<from>-<to>.db       the database as it was before a migration; the newest two are kept
+├── backups/set-aside/<rev>-<time>.db   the database as it was before going back to an older release; never pruned
+├── migrations/<rev>_<name>.py    every migration a release has shipped, for an older release to undo
 ├── huey.db                       three queues, ingest, studio and plugins, in one file
 └── data/
     └── workspaces/<workspace_id>/
@@ -392,10 +394,24 @@ erDiagram
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012`, `0013`, `0016`, `0018` and `0030` copy `selected_models` into a new table. A copy names every column the table has by then: one written from an older rebuild drops what later revisions added.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
+- A revision imports only the standard library, `sqlalchemy` and `alembic`, and its `downgrade` must work on a database holding rows, back to `0011`, 2.0.0's head. An older release runs these scripts ([ADR 0060](../adr/0060-an-older-release-goes-back-with-the-newer-releases-undo-steps.md)); [`tests/unit/going_back/`](../../surfsense_local/backend/tests/unit/going_back/) and [`tests/integration/going_back/`](../../surfsense_local/backend/tests/integration/going_back/) fail otherwise.
 - [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py`, `test_migration_0027.py`, `test_migration_0029.py` and `test_migration_0030.py` beside it test what those revisions change.
+
+### Going back to an older release
+
+Releases after 2.2.1 do this ([`shared/going_back/`](../../surfsense_local/backend/shared/going_back/), [`going-back/`](../../surfsense_local/electron/src/main/going-back/)):
+
+- Every API start copies the release's migrations to `<data>/migrations/`, keeping the files a later release left there.
+- An API that finds the database at a revision it does not know exits with code 3 before serving, and changes nothing. Electron stops every sidecar, runs `api --going-back-options`, and asks in a native dialog. Quit changes nothing.
+- When the saved scripts reach from the database's revision back to this release's head and all of them load, it offers to undo. `api --go-back undo` copies the database to `backups/set-aside/`, then runs those downgrades to this release's head. Rows added since the update stay, except what a downgrade drops. If any downgrade fails, the set-aside copy is loaded back.
+- Otherwise, or after a failed undo, it offers the copy in `backups/` holding the latest revision this release knows, read from the file rather than its name. `api --go-back restore` sets the database aside and loads that copy through SQLite's backup API, not a file swap, so the WAL stays consistent and Windows' file locks do not interfere.
+- With neither, the dialog says to install the newer release again.
+- After going back, Electron starts the app again.
 
 ## Known gaps
 
 - Deleting a folder is permanent: the Trash is designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)).
 - The snapshot needs free disk about the size of `surfsense.db`, and nothing checks for it first: when the copy fails, the API does not start and the app closes with no message ([overview](overview.md#known-gaps)).
-- A release cannot open a database a later release migrated, since its migrations do not know the newer revision, so its API does not start. Going back a version means restoring the snapshot by hand, as going from 2.2.0 to 2.1.0 takes `backups/0023-0027.db`.
+- Going back to 2.2.1 or earlier still means restoring the snapshot by hand: those releases do not go back on their own, and their API does not start. Going from 2.2.1 to 2.2.0 takes `backups/0027-0029.db`.
+- Restoring a copy leaves the files of documents, chats and artifacts added after it under `data/workspaces/` with no row pointing at them.
+- Copies in `backups/set-aside/` are never pruned, so each time the app goes back costs disk the size of `surfsense.db` until the user deletes them.

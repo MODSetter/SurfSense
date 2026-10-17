@@ -47,5 +47,17 @@ if __name__ == "__main__":
             sys.stderr.write("usage: --probe-devices <library-dir>\n")
             sys.exit(2)
         sys.exit(probe_devices(arguments[1]))
+    elif arguments == ["--going-back-options"]:
+        from shared.going_back.command_line import print_options
+
+        sys.exit(print_options())
+    elif arguments[:1] == ["--go-back"]:
+        # Matched on the flag, as above: a malformed one must not start a server.
+        if arguments[1:] not in (["undo"], ["restore"]):
+            sys.stderr.write("usage: --go-back <undo|restore>\n")
+            sys.exit(2)
+        from shared.going_back.command_line import go_back
+
+        sys.exit(go_back(arguments[1]))
     else:
         serve()

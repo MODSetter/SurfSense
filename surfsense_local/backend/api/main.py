@@ -74,6 +74,7 @@ from shared.db import (
     import_models,
     serving_request,
 )
+from shared.going_back.saved_migrations import save_migrations
 from shared.migrations import upgrade_to_head
 from shared.secrets import UnreadableSecretError
 
@@ -104,6 +105,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_db_engine(storage.database_path)
     try:
         upgrade_to_head(engine, backups_dir=storage.data_dir / "backups")
+        save_migrations(storage.data_dir / "migrations")
         session_factory = create_session_factory(engine)
         with session_factory() as session:
             ensure_default_workspace(session)

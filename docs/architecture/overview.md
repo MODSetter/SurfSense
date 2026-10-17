@@ -79,6 +79,8 @@ The rules that keep the processes out of each other's way:
 ```text
 ~/.surfsense/                 ~/.surfsense-dev under `pnpm dev`
 ├── surfsense.db              every table and the search index
+├── backups/                  the database before each migration, and before going back to an older release
+├── migrations/               every migration a release has shipped, for an older release to undo
 ├── huey.db                   the ingest and studio queues
 ├── models/                   GGUF weights and llama-server's models.ini
 ├── images/                   sd-server weights (hosts with sd-server staged)
@@ -139,5 +141,5 @@ The rules that keep the processes out of each other's way:
 ## Known gaps
 
 - The sources list reloads itself on a workspace event rather than through TanStack Query: it is component state, so nothing else that shows a document is invalidated by the same event.
-- When the API does not start, because it exits or `/health` does not answer within 60 seconds, Electron writes the reason to the session log and quits: no window opens, nothing on screen says why, and the log, kept only in memory, goes with the app ([about](about.md#known-gaps)). A migration snapshot that cannot be written, such as on a full disk, ends this way ([data model](data-model.md#known-gaps)).
+- When the API does not start, because it exits or `/health` does not answer within 60 seconds, Electron writes the reason to the session log and quits: no window opens, nothing on screen says why, and the log, kept only in memory, goes with the app ([about](about.md#known-gaps)). A migration snapshot that cannot be written, such as on a full disk, ends this way ([data model](data-model.md#known-gaps)). A database a newer release upgraded does not: Electron offers to go back ([data model](data-model.md#going-back-to-an-older-release)).
 
