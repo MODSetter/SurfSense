@@ -12,8 +12,16 @@ from sqlalchemy.orm import Session
 from modules.documents.models import DocumentStatus
 from modules.documents.tasks import PRIORITY_IDLE
 from shared.queue import ingest_queue
+from tests import pdf_samples
+from tests.integration.worker.docling_stand_in import reading
 from tests.integration.worker.paged_docling_stand_in import PagedDocling
-from tests.integration.worker.test_mixed_pdfs import folder_of, scans, session, upload
+from tests.integration.worker.test_mixed_pdfs import (
+    REPORT,
+    folder_of,
+    scans,
+    session,
+    upload,
+)
 from worker.ingestion import run
 from worker.ingestion.pdf_reading import ocr_first
 from worker.ingestion.scan_ocr import images
@@ -100,14 +108,34 @@ def test_a_garbled_page_of_a_scan_is_read_by_docling_in_its_place(
     assert "Scanned page 3 line 7" in parts[-1]
 
 
-def test_a_short_scan_still_gets_its_figures_after_it_is_ready(
+def test_a_scans_figures_wait_to_be_asked_for(
     session: Session, stub_model: None, paged_docling: PagedDocling, ocr: StandInOcr
 ) -> None:
-    """From the figures-only pass, queued at idle, as for a text-read PDF."""
+    """The pass would read every scanned page with Docling in full."""
     source = upload(session, scans(2))
 
     run(source.id)
 
+    assert ingest_queue.pending() == []
+    assert not (folder_of(source) / "figures" / "figures.json").exists()
+
+
+def test_a_mixed_pdf_read_with_ocr_still_gets_its_idle_figures_pass(
+    session: Session, stub_model: None, paged_docling: PagedDocling, ocr: StandInOcr
+) -> None:
+    """Its born-digital pages are read by layout alone, as before."""
+    pdf = pdf_samples.joined(
+        pdf_samples.text_pages(REPORT[:3]),
+        scans(1),
+        pdf_samples.text_pages(REPORT[3:6]),
+    )
+    source = upload(session, pdf)
+
+    run(source.id)
+
+    session.expire_all()
+    assert paged_docling.asked == []
+    assert "Scanned page 2 line 0" in (source.content or "")
     assert [(t.name, t.args, t.priority) for t in ingest_queue.pending()] == [
         ("extract_figures", (source.id,), PRIORITY_IDLE)
     ]
@@ -147,3 +175,19 @@ def test_a_photo_is_read_by_ocr_and_is_its_own_figure(
     assert paged_docling.asked == []
     assert "Scanned page 1 line 0" in (source.content or "")
     assert (folder_of(source) / "figures" / "figures.json").is_file()
+
+
+def test_a_photo_ocr_cannot_read_is_read_by_docling_whole(
+    session: Session, stub_model: None, docling: list, ocr: StandInOcr
+) -> None:
+    """A garbled frame: Docling reads the image, as before."""
+    ocr.garbled = {1}
+    docling.append(reading())
+    source = upload(session, photo(), name="receipt.jpg")
+
+    run(source.id)
+
+    session.expire_all()
+    assert source.status is DocumentStatus.READY
+    assert source.content == "Quarterly results."
+    assert docling == []

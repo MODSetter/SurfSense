@@ -87,3 +87,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted |
 | 0058 | [The bundled embedder runs at FP32 on x86-64, upcast in memory, and its vector space is still the pinned FP16 file](0058-the-bundled-embedder-runs-at-fp32-on-x86-64.md) | Accepted |
 | 0059 | [A born-digital PDF is read from its own text layer, and Docling reads only a PDF with a page that needs it](0059-a-born-digital-pdf-is-read-from-its-text-layer.md) | Accepted |
+| 0060 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0060-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |

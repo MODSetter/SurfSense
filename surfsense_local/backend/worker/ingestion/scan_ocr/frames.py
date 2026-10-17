@@ -54,8 +54,8 @@ def pdf_frames(original: Path, pages: Sequence[int], max_side: int) -> Iterator[
 
 def image_frames(path: Path, max_side: int) -> Iterator[Frame]:
     """Each frame upright by its EXIF and sized as an A4 page at 216 dpi, never
-    below its own pixels: real 754x1000 forms read 0.52 of their words at their
-    own size and 0.67 at A4 size."""
+    below its own pixels, as Docling's image page is: real 754x1000 forms gave
+    Windows OCR 0.49 of their words at their own size and 0.61 at A4 size."""
     with Image.open(path) as image:
         for index in range(getattr(image, "n_frames", 1)):
             image.seek(index)

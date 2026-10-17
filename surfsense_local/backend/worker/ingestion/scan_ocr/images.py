@@ -6,6 +6,7 @@ OCR's text cannot stand for sends the whole file to Docling, as before.
 
 import logging
 import time
+from contextlib import closing
 from pathlib import Path
 
 from worker.ingestion.pdf_text_layer.reading import PAGE_BREAK
@@ -26,15 +27,19 @@ def image_markdown(path: Path) -> str | None:
     started = time.perf_counter()
     texts: list[str] = []
     try:
-        for frame, page in read_upright(reader, image_frames(path, reader.max_side)):
-            verdict = page.verdict()
-            if verdict not in KEPT:
-                logger.info(
-                    "Docling reads %s: frame %d is %s", path.name, frame.number, verdict
-                )
-                return None
-            if verdict is not PageVerdict.BLANK:
-                texts.append(page.text())
+        with closing(image_frames(path, reader.max_side)) as frames:
+            for frame, page in read_upright(reader, frames):
+                verdict = page.verdict()
+                if verdict not in KEPT:
+                    logger.info(
+                        "Docling reads %s: frame %d is %s",
+                        path.name,
+                        frame.number,
+                        verdict,
+                    )
+                    return None
+                if verdict is not PageVerdict.BLANK:
+                    texts.append(page.text())
     except Exception:
         logger.warning(
             "%s could not read %s; Docling reads it",

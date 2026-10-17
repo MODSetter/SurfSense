@@ -44,6 +44,22 @@ class _Row:
         return statistics.median(box.h for box in self.boxes)
 
 
+# A box this much taller than wide holds a line of text turned on its side.
+_TALL = 1.5
+
+
+def vertical_share(boxes: list[Box]) -> float:
+    """The share of characters in boxes standing on end: a page turned a quarter
+    round, which RapidOCR still reads with confidence, its lines across one row."""
+    chars = sum(len(box.text) for box in boxes)
+    tall = sum(
+        len(box.text)
+        for box in boxes
+        if len(box.text) > 1 and box.y1 - box.y0 > _TALL * (box.x1 - box.x0)
+    )
+    return tall / chars if chars else 0.0
+
+
 def lines_in_order(boxes: list[Box]) -> tuple[Line, ...]:
     if not boxes:
         return ()

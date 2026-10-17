@@ -34,6 +34,9 @@ WORD_SHARE = 0.3
 # Characters a token, on average, with no confidence: 2.8 to 5.5 on real pages,
 # 1.0 to 1.8 on a page read sideways, its letters' strokes one by one.
 SIDEWAYS_TOKEN = 2.2
+# Most of its text in boxes standing on end: a page turned a quarter round, which
+# an engine may read confidently, every line across one row.
+SIDEWAYS_VERTICAL = 0.5
 _WORD = re.compile(r"[^\W\d_]{3,}")
 
 
@@ -85,6 +88,8 @@ class OcrPage:
     language: str | None = None
     # The engine's own, when it gives one: RapidOCR's; Vision's is not used.
     confidence: float | None = None
+    # Share of its characters in boxes standing on end.
+    vertical: float = 0.0
 
     @property
     def chars(self) -> int:
@@ -129,12 +134,15 @@ class OcrPage:
         return sum(len(m.group()) for m in _WORD.finditer(text)) / max(1, visible)
 
     def looks_sideways(self) -> bool:
-        """Read turned a quarter or half round: the engine unsure of its text,
-        or, with no confidence given, one or two characters a token."""
+        """Read turned a quarter or half round: its lines standing on end, the
+        engine unsure of its text, or, with no confidence given, one or two
+        characters a token."""
         tokens = " ".join(line.text for line in self.lines).split()
         if self.chars < MIN_CHARS or not tokens:
             # Little text says nothing of which way up: a photo, a signature.
             return False
+        if self.vertical > SIDEWAYS_VERTICAL:
+            return True
         if self.confidence is not None:
             return self.confidence < LOW_CONFIDENCE
         return sum(map(len, tokens)) / len(tokens) < SIDEWAYS_TOKEN

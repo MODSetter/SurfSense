@@ -8,6 +8,7 @@ pages take.
 
 import logging
 import time
+from contextlib import closing
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from sqlalchemy.orm import object_session
 from modules.documents.models import Document
 from worker.ingestion.docling_batches.queue_turn import reading_turn
 from worker.ingestion.figures.scanned_pages import scanned_pages
+from worker.ingestion.pdf_reading.ocr_kept import keep_reading, kept_reading
 from worker.ingestion.pdf_text_layer import LayerPage, TextLayer
 from worker.ingestion.pdf_text_layer.page_triage import PageKind
 from worker.ingestion.scan_ocr.frames import pdf_frames
@@ -46,6 +48,8 @@ class OcrReading:
     read: int
     reader: str
     seconds: float
+    # Kept from a run that gave the queue up to Docling's reading.
+    resumed: bool = False
 
 
 def ocr_reading(
@@ -98,37 +102,61 @@ def _read(
     document: Document | None,
 ) -> OcrReading | None:
     started = time.perf_counter()
-    # The ingest job's own session; a reading outside one has nothing to check.
-    session = object_session(document) if document is not None else None
-    turn = reading_turn(session, document) if session and document else None
+    kept = kept_reading(original, reader.name)
+    if kept is not None:
+        texts = {int(n): text for n, text in kept["texts"].items()}
+        docling = {int(n): why for n, why in kept["docling"].items()}
+    else:
+        texts, docling, stood = _ocr(reader, original, layer, candidates, document)
+        if not stood:
+            # No page read as text: Docling reads the file whole, as before.
+            return None
+        if docling:
+            keep_reading(original, reader.name, {"texts": texts, "docling": docling})
     pages: list[LayerPage] = list(layer.pages)
-    docling: dict[int, str] = {}
-    read = 0
-    frames = pdf_frames(original, candidates, reader.max_side)
-    for count, (frame, page) in enumerate(read_upright(reader, frames), start=1):
-        if turn is not None and count % CANCEL_EVERY == 0:
-            turn.check_cancelled()
-        verdict = page.verdict()
-        if verdict in KEPT:
-            # A blank render keeps what little the layer had, a cover's title.
-            own = pages[frame.number - 1].text or ""
-            text = own if verdict is PageVerdict.BLANK else page.text()
-            pages[frame.number - 1] = replace(
-                pages[frame.number - 1], text=text, refused_because=None
-            )
-            read += 1
-        else:
-            docling[frame.number] = f"page {frame.number} is {verdict}"
-    if not read:
-        # Docling would read every page of it anyway; let it read the file whole.
-        return None
+    for n, text in texts.items():
+        pages[n - 1] = replace(pages[n - 1], text=text, refused_because=None)
     for n, page in enumerate(pages, start=1):
         if page.text is None and n not in docling:
             docling[n] = page.refused_because or f"page {n} is for Docling"
     return OcrReading(
         replace(layer, pages=tuple(pages)),
         docling,
-        read,
+        len(texts),
         reader.name,
         time.perf_counter() - started,
+        resumed=kept is not None,
     )
+
+
+def _ocr(
+    reader: PageReader,
+    original: Path,
+    layer: TextLayer,
+    candidates: list[int],
+    document: Document | None,
+) -> tuple[dict[int, str], dict[int, str], int]:
+    """Each candidate page's text, why the others go to Docling, and how many read
+    as text."""
+    # The ingest job's own session; a reading outside one has nothing to check.
+    session = object_session(document) if document is not None else None
+    turn = reading_turn(session, document) if session and document else None
+    texts: dict[int, str] = {}
+    docling: dict[int, str] = {}
+    stood = 0
+    # Closed here, whatever stops the reading: its PDF closes under pdfium's lock,
+    # which the garbage collector could otherwise take while this thread holds it.
+    with closing(pdf_frames(original, candidates, reader.max_side)) as frames:
+        for count, (frame, page) in enumerate(read_upright(reader, frames), start=1):
+            if turn is not None and count % CANCEL_EVERY == 0:
+                turn.check_cancelled()
+            n, verdict = frame.number, page.verdict()
+            if verdict not in KEPT:
+                docling[n] = f"page {n} is {verdict}"
+            elif verdict is PageVerdict.TEXT:
+                texts[n] = page.text()
+                stood += 1
+            else:
+                # Little or nothing read: a cover's own title, if it has one, wins.
+                texts[n] = layer.pages[n - 1].text or page.text()
+    return texts, docling, stood

@@ -8,18 +8,15 @@ found 0.80 of a form's words where Docling found 0.72, and the answer to 0.88 of
 """
 
 import logging
-from collections import deque
 from collections.abc import Iterable, Iterator
-from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
-
-import psutil
 
 from worker.ingestion.parser_pack import parser_dir
 from worker.ingestion.scan_ocr.frames import Frame
 from worker.ingestion.scan_ocr.page import OcrPage
-from worker.ingestion.scan_ocr.reading_order import Box, lines_in_order
+from worker.ingestion.scan_ocr.pages_at_once import PagesAtOnce
+from worker.ingestion.scan_ocr.reading_order import Box, lines_in_order, vertical_share
 
 log = logging.getLogger(__name__)
 
@@ -29,10 +26,10 @@ CLS = "ch_ppocr_mobile_v2.0_cls_mobile.onnx"
 # RapidOCR shrinks anything longer to this before reading; rendering larger only
 # costs time.
 MAX_SIDE = 2000
-# Pages read at once, one onnxruntime thread each: its CPU-s a page grow with its
-# threads (14.9 at 1, 36.6 at 8), so several pages at one thread read more pages
-# a CPU-second. At most 4, and half the physical cores, as chat may need the rest.
-MAX_IN_FLIGHT = 4
+# One onnxruntime thread a page, several pages at once: a page costs about 8 CPU-s
+# however it is split, and one thread a page spends the least (824 CPU-s for 100
+# pages against 1,016 at 8 threads a page, at about the same wall time).
+THREADS_A_PAGE = 1
 
 
 class RapidOcr:
@@ -42,6 +39,9 @@ class RapidOcr:
 
     def __init__(self, engine: Any) -> None:
         self._engine = engine
+        # One engine, several pages at once: its only per-call state is harmless
+        # (rapidocr 3.9.2).
+        self._pages = PagesAtOnce(self._recognise, "rapidocr")
 
     @classmethod
     def create(cls) -> "RapidOcr | None":
@@ -52,14 +52,13 @@ class RapidOcr:
         try:
             from rapidocr import RapidOCR
 
-            _no_spinning()
             engine = RapidOCR(
                 params={
                     # What Docling passes for the app: RapidOcrOptions(use_cls=False).
                     "Global.text_score": 0.5,
                     "Global.use_cls": False,
                     "Global.log_level": "error",
-                    "EngineConfig.onnxruntime.intra_op_num_threads": 1,
+                    "EngineConfig.onnxruntime.intra_op_num_threads": THREADS_A_PAGE,
                     "Det.model_path": str(models / DET),
                     "Rec.model_path": str(models / REC),
                     # Built even when off; pointed at the pack so nothing downloads.
@@ -72,21 +71,7 @@ class RapidOcr:
         return cls(engine)
 
     def read(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, OcrPage]]:
-        """Each frame's page, in order, several read at once on one engine: its
-        only per-call state is harmless (rapidocr 3.9.2)."""
-        in_flight = max(
-            1, min(MAX_IN_FLIGHT, (psutil.cpu_count(logical=False) or 2) // 2)
-        )
-        with ThreadPoolExecutor(in_flight, thread_name_prefix="rapidocr") as pool:
-            pending: deque[tuple[Frame, Future[OcrPage]]] = deque()
-            for frame in frames:
-                if len(pending) >= in_flight:
-                    done, future = pending.popleft()
-                    yield done, future.result()
-                pending.append((frame, pool.submit(self._recognise, frame)))
-            while pending:
-                done, future = pending.popleft()
-                yield done, future.result()
+        return self._pages.read(frames)
 
     def _recognise(self, frame: Frame) -> OcrPage:
         import numpy
@@ -115,6 +100,7 @@ class RapidOcr:
             frame.ink,
             self.language,
             confidence=weighed / chars if chars else None,
+            vertical=vertical_share(boxes),
         )
 
 
@@ -132,25 +118,3 @@ def _models() -> Path | None:
         if all((folder / name).is_file() for name in (DET, REC, CLS)):
             return folder
     return None
-
-
-def _no_spinning() -> None:
-    """onnxruntime's idle threads spin, burning CPU-seconds a page never used:
-    13 CPU-s a page at 8 threads in the corpus run. RapidOCR has no switch for it."""
-    try:
-        from rapidocr.inference_engine.onnxruntime import main as ort_main
-
-        build = ort_main.OrtInferSession._init_sess_opts
-        if getattr(build, "_no_spin", False):
-            return
-
-        def quiet(config: Any) -> Any:
-            options = build(config)
-            options.add_session_config_entry("session.intra_op.allow_spinning", "0")
-            options.add_session_config_entry("session.inter_op.allow_spinning", "0")
-            return options
-
-        quiet._no_spin = True  # type: ignore[attr-defined]
-        ort_main.OrtInferSession._init_sess_opts = staticmethod(quiet)
-    except Exception:
-        log.debug("onnxruntime's threads keep spinning", exc_info=True)

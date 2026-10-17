@@ -16,9 +16,11 @@ from worker.ingestion.docling_batches.reading import read_batches
 from worker.ingestion.figures.idle_pass import queue_idle_figures_pass
 from worker.ingestion.pdf_reading.docling_pages import pages_for_docling
 from worker.ingestion.pdf_reading.ocr_first import OcrReading, ocr_reading
+from worker.ingestion.pdf_reading.ocr_kept import forget_reading
 from worker.ingestion.pdf_reading.spliced_text import spliced
 from worker.ingestion.pdf_reading.whole_reading import whole_markdown
 from worker.ingestion.pdf_text_layer import TextLayer, read_text_layer
+from worker.ingestion.pdf_text_layer.page_triage import PageKind
 from worker.ingestion.pdf_text_layer.reading import PAGE_BREAK
 
 logger = logging.getLogger(__name__)
@@ -57,8 +59,9 @@ def _ocr_first_markdown(document: Document, original: Path, reading: OcrReading)
     """OCR's pages with Docling's markdown in place of the pages it reads."""
     runs = runs_of(sorted(reading.docling))
     logger.info(
-        "%s reads %d of %d pages of %s in %.1f s%s",
+        "%s %s %d of %d pages of %s in %.1f s%s",
         reading.reader,
+        "kept" if reading.resumed else "reads",
         reading.read,
         len(reading.layer.pages),
         original.name,
@@ -71,8 +74,12 @@ def _ocr_first_markdown(document: Document, original: Path, reading: OcrReading)
         markdown = spliced(reading.layer, _docling_markdown(document, original, runs))
     else:
         markdown = PAGE_BREAK.join(page.text or "" for page in reading.layer.pages)
-    # A scan's figures come from the figures-only pass too, after it is ready.
-    queue_idle_figures_pass(document, original, reading.layer)
+    forget_reading(original)
+    # A scan's figures wait to be asked for: the pass would read every scanned
+    # page with Docling in full, 39 CPU-s a page. Born-digital pages beside them
+    # are read by layout alone, so a mixed PDF still gets its idle pass.
+    if any(page.kind is PageKind.TEXT for page in reading.layer.pages):
+        queue_idle_figures_pass(document, original, reading.layer)
     return markdown
 
 

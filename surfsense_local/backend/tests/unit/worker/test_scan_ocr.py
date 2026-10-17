@@ -330,3 +330,100 @@ def test_a_form_or_an_unreadable_pdf_is_left_to_docling(
     assert (
         ocr_first.ocr_reading(Path("form.pdf"), TextLayer(None, "a form field")) is None
     )
+
+
+def test_a_turned_reading_must_read_as_text_to_replace_the_page() -> None:
+    """A turn that reads as blank paper would drop the page's text unread."""
+    readings = iter(
+        [sideways(), page(line("ab", 300), ink=0.001), sideways(), sideways()]
+    )
+    reader = StubReader({})
+    reader.read = lambda frames: ((f, next(readings)) for f in frames)  # type: ignore[method-assign]
+    frame = Frame(1, Image.new("L", (40, 20), 0), 0.005)
+
+    [(kept, read)] = list(read_upright(reader, [frame]))
+
+    assert read.verdict() is PageVerdict.GARBLED
+    assert kept.image.size == (40, 20)
+
+
+def test_lines_standing_on_end_mean_a_page_read_sideways() -> None:
+    """RapidOCR reads a quarter-turned page confidently, every line in one row."""
+    assert page(*prose(), confidence=0.97).looks_sideways() is False
+    tall = OcrPage(WIDTH, HEIGHT, tuple(prose()), 0.08, "en-US", 0.97, vertical=0.9)
+    assert tall.looks_sideways()
+
+
+def test_a_cover_keeps_its_own_title_over_ocrs_scraps(ocr: dict[int, OcrPage]) -> None:
+    """With no page of running text, picture pages are read too; a reading of a
+    few characters must not replace the title the layer had."""
+    cover = LayerPage("Annual Report of the Harbour Board", None, PageKind.BIG_IMAGE, 1)
+    ocr.update({1: page(line("Ann Rep", 300), ink=0.3), 2: page(*prose())})
+
+    reading = ocr_first.ocr_reading(Path("cover.pdf"), layer_of(cover, scanned(2)))
+
+    assert reading is not None
+    assert reading.layer.pages[0].text == "Annual Report of the Harbour Board"
+
+
+def test_blank_pages_alone_are_not_a_reading(ocr: dict[int, OcrPage]) -> None:
+    """Every other page garbled: Docling reads the file whole, as before."""
+    ocr.update({1: page(ink=0.001), 2: page(*prose(), confidence=0.5)})
+
+    assert (
+        ocr_first.ocr_reading(Path("scan.pdf"), layer_of(scanned(1), scanned(2)))
+        is None
+    )
+
+
+def test_the_pdf_closes_when_ocr_fails_midway(
+    ocr: dict[int, OcrPage], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Closed on the ingest thread, not by the garbage collector under pdfium's lock."""
+    closed: list[bool] = []
+
+    def frames(_original: Path, numbers: list[int], _max_side: int) -> Iterator[Frame]:
+        try:
+            for number in numbers:
+                yield Frame(number, Image.new("L", (10, 10), 255), 0.0)
+        finally:
+            closed.append(True)
+
+    class Failing(StubReader):
+        def read(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, OcrPage]]:
+            for frame in frames:
+                if frame.number == 2:
+                    raise RuntimeError("onnxruntime could not run the detector")
+                yield frame, page(*prose())
+
+    monkeypatch.setattr(ocr_first, "pdf_frames", frames)
+    monkeypatch.setattr(ocr_first, "page_reader", lambda: Failing({}))
+
+    assert (
+        ocr_first.ocr_reading(Path("scan.pdf"), layer_of(*map(scanned, (1, 2, 3))))
+        is None
+    )
+    assert closed == [True]
+
+
+def test_a_resumed_reading_keeps_ocrs_pages(
+    ocr: dict[int, OcrPage], tmp_path: Path
+) -> None:
+    """When Docling's part gives the queue up, the run that resumes does not read
+    every page with OCR again; the same bytes and reader only."""
+    original = tmp_path / "scan.pdf"
+    original.write_bytes(b"%PDF scan")
+    ocr.update({1: page(*prose()), 2: page(*prose(), confidence=0.5)})
+    layer = layer_of(scanned(1), scanned(2))
+    first = ocr_first.ocr_reading(original, layer)
+    assert first is not None and not first.resumed
+
+    ocr.clear()  # any read now would fail
+    second = ocr_first.ocr_reading(original, layer)
+
+    assert second is not None and second.resumed
+    assert second.docling == first.docling == {2: "page 2 is garbled"}
+    assert second.layer.pages[0].text == first.layer.pages[0].text
+    # Other bytes: nothing kept applies, and the stand-in, asked again, fails.
+    original.write_bytes(b"%PDF another scan")
+    assert ocr_first.ocr_reading(original, layer) is None

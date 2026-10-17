@@ -11,21 +11,16 @@ Docling's own OCR on a Mac with no parser pack.
 """
 
 import logging
-from collections import deque
 from collections.abc import Iterable, Iterator
-from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
-
-import psutil
 
 from worker.ingestion.scan_ocr.frames import Frame
 from worker.ingestion.scan_ocr.page import OcrPage
-from worker.ingestion.scan_ocr.reading_order import Box, lines_in_order
+from worker.ingestion.scan_ocr.pages_at_once import PagesAtOnce
+from worker.ingestion.scan_ocr.reading_order import Box, lines_in_order, vertical_share
 
 log = logging.getLogger(__name__)
 
-# Throughput stops growing past the performance cores; leave room for chat.
-MAX_IN_FLIGHT = 4
 # Vision takes far larger images than a 216 dpi page; this only bounds memory.
 MAX_SIDE = 10_000
 
@@ -34,6 +29,11 @@ class VisionOcr:
     name = "Vision"
     language = "auto"
     max_side = MAX_SIDE
+
+    def __init__(self) -> None:
+        # PyObjC lets go of the GIL inside every Objective-C call, so pages in
+        # flight do overlap.
+        self._pages = PagesAtOnce(_recognise, "vision-ocr")
 
     @classmethod
     def create(cls) -> "VisionOcr | None":
@@ -47,21 +47,7 @@ class VisionOcr:
         return cls()
 
     def read(self, frames: Iterable[Frame]) -> Iterator[tuple[Frame, OcrPage]]:
-        """Each frame's page, in order. PyObjC lets go of the GIL inside every
-        Objective-C call, so pages in flight do overlap."""
-        in_flight = max(
-            1, min(MAX_IN_FLIGHT, (psutil.cpu_count(logical=False) or 2) // 2)
-        )
-        with ThreadPoolExecutor(in_flight, thread_name_prefix="vision-ocr") as pool:
-            pending: deque[tuple[Frame, Future[OcrPage]]] = deque()
-            for frame in frames:
-                if len(pending) >= in_flight:
-                    done, future = pending.popleft()
-                    yield done, future.result()
-                pending.append((frame, pool.submit(_recognise, frame)))
-            while pending:
-                done, future = pending.popleft()
-                yield done, future.result()
+        return self._pages.read(frames)
 
 
 def _recognise(frame: Frame) -> OcrPage:
@@ -109,7 +95,14 @@ def _recognise(frame: Frame) -> OcrPage:
         ]
     # No confidence: Vision's was never measured against the corpus, and the
     # page verdict's threshold is RapidOCR's.
-    return OcrPage(width, height, lines_in_order(boxes), frame.ink, "auto")
+    return OcrPage(
+        width,
+        height,
+        lines_in_order(boxes),
+        frame.ink,
+        "auto",
+        vertical=vertical_share(boxes),
+    )
 
 
 def _box(observation: Any, width: int, height: int) -> Box | None:
