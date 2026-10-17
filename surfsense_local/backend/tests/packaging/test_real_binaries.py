@@ -68,6 +68,16 @@ def _assert_capability_catalogue_shipped(binary: Path) -> None:
     assert json.loads(manifest.read_text())["providers"]
 
 
+def _assert_no_claude_code_shipped(binary: Path) -> None:
+    """The SDK's own Claude Code stays out: every run uses the user's (ADR 0057)."""
+    shipped = [
+        path
+        for path in binary.parent.rglob("*")
+        if path.name in ("claude", "claude.exe") or "_bundled" in path.parts
+    ]
+    assert shipped == [], f"Claude Code is in the bundle: {shipped}"
+
+
 def _assert_curated_manifest_shipped(binary: Path) -> None:
     """Studio finds its chosen image and audio models through the curated list;
     without it the frozen worker calls an installed model "not installed"."""
@@ -99,6 +109,7 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
     """Freeze the API and assert the running binary serves /health."""
     binary = _freeze("api.spec", tmp_path)
     _assert_capability_catalogue_shipped(binary)
+    _assert_no_claude_code_shipped(binary)
 
     # /health and /llm/catalog/local never touch retrieval, so an over-broad exclude in
     # api.spec would pass the checks below and only break on a user's first chat.

@@ -50,10 +50,10 @@ def _ready_to_sign_in(session: Session, payload: SignInWrite) -> None:
 @router.get("/chatgpt")
 def sign_in_option(session: SessionDep) -> SignInOption:
     """What a ChatGPT connection would serve, and the hosts still off, asked
-    about one by one before the sign-in starts.
+    about in one question before the sign-in starts.
 
-    `request` asks about one refused host per call, and cannot tell a host
-    the user declined from a second one, so the renderer asks from this list.
+    Asked up front from this list rather than after a refused request, so a
+    sign-in never starts with a host it needs still off.
     """
     endpoints = get_endpoints()
     refused: list[SignInHost] = []

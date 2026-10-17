@@ -3,7 +3,7 @@ import { useId } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { setDestinationEnabled } from "@/features/egress/api"
+import { setDestinationsEnabled } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -92,7 +92,7 @@ function AllowRegistryHost({
       destination,
       host,
       purpose: String(refusal.detail.purpose ?? ""),
-      allow: () => setDestinationEnabled(destination, true),
+      allow: () => setDestinationsEnabled([destination], true),
     })
     if (allowed) onAllowed()
   }

@@ -351,8 +351,8 @@ function backend({
         },
       ])
     }
-    if (path.startsWith("/egress/") && init?.method === "PUT") {
-      return Response.json({})
+    if (path === "/egress" && init?.method === "PUT") {
+      return Response.json([])
     }
     if (path === "/llm/onboarding" && init?.method === "POST") {
       finished.push(init.body ? JSON.parse(String(init.body)) : null)
@@ -1297,7 +1297,11 @@ describe("the embedding model step", () => {
       expect(
         fetchMock.mock.calls.some(
           ([path, init]) =>
-            path === "/egress/host:huggingface.co" && init?.method === "PUT"
+            path === "/egress" &&
+            init?.method === "PUT" &&
+            JSON.parse(String(init.body)).destinations.includes(
+              "host:huggingface.co"
+            )
         )
       ).toBe(true)
     )

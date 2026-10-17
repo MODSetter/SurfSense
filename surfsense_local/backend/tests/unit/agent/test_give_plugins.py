@@ -10,15 +10,12 @@ import pytest
 
 from modules.agent.plugin_tools import give_plugins as giving
 from modules.agent.plugin_tools import stop_plugin_calls as stopping
-from modules.agent.plugin_tools.give_plugins import (
-    UnavailablePlugin,
-    give_plugins,
-    set_plugin_rules,
-)
+from modules.agent.plugin_tools.give_plugins import give_plugins, set_plugin_rules
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
 from modules.agent.plugin_tools.stop_plugin_calls import HostCalls, timed_out_plugin
 from modules.agent.plugin_tools.thread_calls import CALLS_HEADER
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.tool_endpoint.registration import (
     PLUGIN_CALL_SECONDS,
     TOOL_CALL_SECONDS,
@@ -91,7 +88,7 @@ async def test_a_server_that_hangs_or_fails_is_named_alone(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The others are given, and only an answered add is remembered as given."""
-    monkeypatch.setattr(giving, "ADD_SECONDS", 0.2)
+    monkeypatch.setattr(giving, "CONNECT_SECONDS", 0.2)
     opencode = _Opencode({"a": 0, "hung": None, "down": httpx.ConnectError("refused")})
     held: dict[str, str] = {}
 
@@ -165,7 +162,7 @@ async def test_a_server_that_failed_this_turn_is_not_waited_on_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A second giving, after the check changed the list, names it at once; one given anew is tried."""
-    monkeypatch.setattr(giving, "ADD_SECONDS", 0.2)
+    monkeypatch.setattr(giving, "CONNECT_SECONDS", 0.2)
     opencode = _Opencode({"hung": None, "b": 0})
     held: dict[str, str] = {}
     first = await give_plugins(opencode, tmp_path, held, [plugin("hung")])

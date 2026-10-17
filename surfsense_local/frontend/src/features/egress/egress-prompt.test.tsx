@@ -27,9 +27,9 @@ function stubApi() {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
       calls.push(`${init?.method ?? "GET"} ${path}`)
-      if (path.startsWith("/egress/")) {
+      if (path === "/egress" && init?.method === "PUT") {
         allowed = true
-        return Response.json({})
+        return Response.json([])
       }
       return allowed
         ? Response.json({})
@@ -45,6 +45,97 @@ afterEach(() => {
 })
 
 describe("egress prompt", () => {
+  it("asks once about every host a refusal names, and Allow switches on each", async () => {
+    const calls: string[] = []
+    let allowed = false
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        calls.push(`${init?.method ?? "GET"} ${path}`)
+        if (path === "/egress" && init?.method === "PUT") {
+          calls[calls.length - 1] +=
+            ` ${JSON.parse(String(init.body)).destinations.join(",")}`
+          allowed = true
+          return Response.json([])
+        }
+        return allowed
+          ? Response.json({})
+          : Response.json(
+              {
+                detail: {
+                  code: "egress_disabled",
+                  message: "off",
+                  destination: "host:api.anthropic.com",
+                  host: "api.anthropic.com",
+                  hosts: ["api.anthropic.com", "platform.claude.com"],
+                  purpose: "claude_plan",
+                },
+              },
+              { status: 403 }
+            )
+      })
+    )
+    const user = userEvent.setup()
+    render(<EgressPrompt />)
+
+    const pending = requestVoid("/llm/connections/claude", { method: "POST" })
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow your Claude plan to reach Anthropic?",
+    })
+    // Each host says what it gets: one the chats, the other only the sign-in.
+    expect(prompt.textContent).toContain("api.anthropic.com gets your prompts")
+    expect(prompt.textContent).toContain(
+      "platform.claude.com only refreshes Claude Code’s sign-in"
+    )
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await expect(pending).resolves.toBeUndefined()
+    expect(calls).toEqual([
+      "POST /llm/connections/claude",
+      // One request: Allow switches both on together, or neither.
+      "PUT /egress host:api.anthropic.com,host:platform.claude.com",
+      "POST /llm/connections/claude",
+    ])
+  })
+
+  it("names the other hosts a plugin's refusal lists", async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:mcp.notes.example",
+              host: "mcp.notes.example",
+              hosts: ["mcp.notes.example", "auth.notes.example"],
+              purpose: "plugin",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    // Handled from the start: Cancel rejects it before the test awaits it.
+    const refused = requestVoid("/plugins/custom", { method: "POST" }).catch(
+      (error: unknown) => error
+    )
+    const prompt = await screen.findByRole("alertdialog", {
+      name: "Allow connecting to mcp.notes.example?",
+    })
+
+    expect(prompt.textContent).toContain(
+      "Allowing also lets SurfSense reach auth.notes.example."
+    )
+    await user.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(await refused).toBeInstanceOf(Error)
+  })
+
   it("asks about the host and, once allowed, lets the call through", async () => {
     const calls = stubApi()
     const user = userEvent.setup()
@@ -59,7 +150,7 @@ describe("egress prompt", () => {
     await expect(pending).resolves.toBeUndefined()
     expect(calls).toEqual([
       "POST /chat/threads/1/messages",
-      "PUT /egress/host:api.provider.example",
+      "PUT /egress",
       "POST /chat/threads/1/messages",
     ])
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
