@@ -11,6 +11,7 @@ from modules.llm.providers.openai_responses.errors import (
     PlanLimitError,
     SignInRequiredError,
 )
+from modules.llm.subscriptions.claude.extra_usage import refused
 
 
 class ClaudeSignInRequiredError(SignInRequiredError):
@@ -48,10 +49,7 @@ def failure_of(
             return ClaudeSignInRequiredError("Claude Code has to sign in again")
         if message.error == "rate_limit":
             return _limit_reached(None)
-    if (
-        isinstance(message, RateLimitEvent)
-        and message.rate_limit_info.status == "rejected"
-    ):
+    if isinstance(message, RateLimitEvent) and refused(message.rate_limit_info):
         return _limit_reached(message.rate_limit_info.resets_at)
     if isinstance(message, SystemMessage) and message.subtype == "api_retry":
         return proxy_refusal

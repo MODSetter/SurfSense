@@ -102,23 +102,26 @@ RESETS_AT = 1792232400
 def plan_limits(*, using_extra: bool) -> Message:
     """Claude Code's rate-limit event, sent with each reply: within the plan, or past it on extra usage.
 
-    Within the plan is as measured (extra usage off for the organization); past
-    it is shaped from the SDK's fields, as a plan using extra usage was not measured.
+    Within the plan is as measured (extra usage off for the organization). Past it
+    is as Claude Code 2.1.301 builds the event from Anthropic's headers: the plan's
+    own status `rejected`, extra usage `allowed`, so `isUsingOverage`.
     """
     from claude_agent_sdk import RateLimitEvent, RateLimitInfo
 
+    status = "rejected" if using_extra else "allowed"
+    overage = "allowed" if using_extra else "rejected"
     raw = {
-        "status": "allowed",
+        "status": status,
         "resetsAt": RESETS_AT,
         "rateLimitType": "five_hour",
-        "overageStatus": "allowed" if using_extra else "rejected",
+        "overageStatus": overage,
         "isUsingOverage": using_extra,
     }
     info = RateLimitInfo(
-        status="allowed",
+        status=status,
         resets_at=RESETS_AT,
         rate_limit_type="five_hour",
-        overage_status="allowed" if using_extra else "rejected",
+        overage_status=overage,
         raw=raw,
     )
     return RateLimitEvent(info, "limit", "s")

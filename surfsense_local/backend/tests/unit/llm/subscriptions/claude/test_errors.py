@@ -73,6 +73,25 @@ def test_a_used_up_plan_is_the_plan_limit(message: object) -> None:
     assert isinstance(failure_of(message), ClaudePlanLimitError)
 
 
+@pytest.mark.parametrize(
+    "extra",
+    [{"isUsingOverage": True}, {"overageInUse": True}],
+    ids=["using-overage", "overage-in-use"],
+)
+def test_a_used_up_plan_on_extra_usage_is_no_failure(extra: dict) -> None:
+    """As Claude Code 2.1.301 decides: past the plan's limit, extra usage lets the reply go on."""
+    info = RateLimitInfo(
+        status="rejected",
+        resets_at=1792107600,
+        rate_limit_type="five_hour",
+        overage_status="allowed",
+        raw={"status": "rejected", "overageStatus": "allowed", **extra},
+    )
+    event = RateLimitEvent(rate_limit_info=info, uuid="u", session_id="s")
+
+    assert failure_of(event) is None
+
+
 @pytest.mark.parametrize("status", ["allowed", "allowed_warning"])
 def test_a_plan_with_room_left_is_no_failure(status: str) -> None:
     """A warning that the plan is nearly used up still answers."""
