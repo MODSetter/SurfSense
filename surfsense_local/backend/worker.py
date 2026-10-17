@@ -18,6 +18,10 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     if sys.argv[1:] == ["--check-vision-runtime"]:
         check_vision_runtime()
+    elif sys.argv[1:] == ["--check-scan-ocr"]:
+        from worker.ingestion.scan_ocr.check import check_scan_ocr
+
+        sys.stdout.write(check_scan_ocr() + "\n")
     elif len(sys.argv) == 3 and sys.argv[1] == "--run-document-script":
         # Ahead of the consumer's imports: a script process loads no queue,
         # database or settings.

@@ -171,6 +171,7 @@ jobs:
           WORKER="./surfsense_local/backend/dist/worker/worker"
           if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
           "$WORKER" --check-vision-runtime
+          "$WORKER" --check-scan-ocr
 
       # A script is not analysed when the worker is frozen, so a library the
       # spec leaves out shows only when a script runs in the shipped worker;

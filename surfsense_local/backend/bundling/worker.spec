@@ -121,6 +121,14 @@ hiddenimports += [
     "pandas",
 ]
 
+# Apple's Vision (worker/ingestion/scan_ocr/vision.py) is imported inside
+# functions, which the analyser follows; named so a refactor cannot drop it
+# unseen. `worker.py --check-scan-ocr` checks the frozen worker on every release.
+if sys.platform == "darwin":
+    # Not collect_all("objc"): it would ship pyobjc-core's 23 MB of .dSYM bundles
+    # and test extensions into a notarised app.
+    hiddenimports += ["objc", "Foundation", "Quartz", "Vision"]
+
 a = Analysis(
     [str(BACKEND / "worker.py")],
     pathex=[str(BACKEND)],

@@ -65,6 +65,10 @@ dependencies = [
     "xlsxwriter>=3.2.9",
     "lameenc>=1.8.4",
     "mcp>=2.3,<2.4",
+    # Apple's Vision reads scans and photos on a Mac before Docling
+    # (worker/ingestion/scan_ocr). Not ocrmac: Docling would then switch its own OCR.
+    "pyobjc-framework-Quartz>=12.2.2; sys_platform == 'darwin'",
+    "pyobjc-framework-Vision>=12.2.2; sys_platform == 'darwin'",
 ]
 
 [dependency-groups]
