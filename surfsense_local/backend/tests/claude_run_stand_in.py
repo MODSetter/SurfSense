@@ -39,6 +39,8 @@ class ScriptedRun:
         self.uuids: list[str | None] = []
         self.interrupted = False
         self.closed = False
+        # Each MCP server reconnected, by name, in order.
+        self.reconnected: list[str] = []
         self._models = MAX_PLAN_MODELS if models is None else models
 
     async def send(
@@ -62,6 +64,10 @@ class ScriptedRun:
     async def models(self) -> list[dict[str, Any]]:
         """The scripted model list."""
         return self._models
+
+    async def reconnect(self, server: str) -> None:
+        """Record that a server was connected again."""
+        self.reconnected.append(server)
 
     async def close(self) -> None:
         """Record that the run was closed."""

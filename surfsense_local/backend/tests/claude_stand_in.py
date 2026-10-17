@@ -14,6 +14,7 @@ SIGNED_IN = {
     "authMethod": "claude.ai",
     "apiProvider": "firstParty",
     "email": "ada@example.com",
+    "orgId": "org-ada",
     "orgName": "Ada's Org",
     "subscriptionType": "max",
 }

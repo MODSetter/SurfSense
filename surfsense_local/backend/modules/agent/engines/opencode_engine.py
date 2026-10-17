@@ -61,6 +61,9 @@ class OpencodeEngine:
             await ready.client.close()
         await transact(session, _record_session, thread, session_id)
 
+    async def renew_session(self, session: Session, thread: ChatThread) -> bool:
+        return False
+
     async def open_session(
         self, session: Session, thread: ChatThread, launch_key: str
     ) -> bool:

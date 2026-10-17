@@ -25,7 +25,7 @@ from modules.agent.engine_choice import (
 )
 from modules.agent.engines.both_sessions import thread_turns_of
 from modules.agent.engines.handover.take_over import take_over
-from modules.agent.engines.thread_engine import selected_engine, thread_engine
+from modules.agent.engines.thread_engine import every_engine, selected_engine
 from modules.agent.thread_folder.layout import remove_thread_folder
 from modules.chat.budget import (
     IMAGE_TOKENS,
@@ -199,8 +199,10 @@ async def delete_thread(
     await run_in_threadpool(session.commit)
     await runs.stop(thread_id, STOP_SETTLE_SECONDS)
     folder = None
-    if thread.uses_agent:
-        folder = await thread_engine(thread).forget_thread(thread)
+    # A thread that switched engines has a session in each.
+    for engine in every_engine():
+        if engine.has_session(thread):
+            folder = await engine.forget_thread(thread)
     await transact(session, _delete_thread, thread)
     store.remove_thread(workspace_id, thread_id)
     if folder is not None:
@@ -259,12 +261,10 @@ async def send_message(
         place = RunPlace(
             runs, request.app.state.session_factory, request.app.state.broker
         )
-        # The selected model decides the engine; crossing to the other hands over.
+        # The selected model decides the engine; crossing to the other, or to a
+        # new session of the same, hands over.
         taking = await transact(session, selected_engine)
-        handover = None
-        if taking.kind is not thread.agent_engine:
-            leaving = thread_engine(thread)
-            handover = await take_over(session, thread, leaving, taking, launch_key)
+        handover = await take_over(session, thread, taking, launch_key)
         return await taking.run_turn(
             session, thread, payload, launch_key, place, handover
         )

@@ -43,6 +43,8 @@ class ChatThread(Base):
     opencode_session_id: Mapped[str | None]
     # The thread's Claude Code session, chosen when Claude Code first runs it.
     claude_session_id: Mapped[str | None]
+    # A digest of the Claude account that session runs under: another account gets a new one.
+    claude_account: Mapped[str | None]
     # The sources the user ticked, resolved on the server per turn; None is all.
     source_scope: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     # The oldest message the model is still sent once history was trimmed. Kept

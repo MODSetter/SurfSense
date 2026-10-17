@@ -129,6 +129,8 @@ class _Tools:
     unavailable: list[UnavailablePlugin] = field(default_factory=list)
     mentions: list[Any] = field(default_factory=list)
     hidden: list[str] = field(default_factory=list)
+    # A digest of each plugin's offered tools, as SurfSense last listed them.
+    listings: dict[str, str] = field(default_factory=dict)
 
 
 async def claude_turn(
@@ -286,7 +288,7 @@ async def _stream(
                 mcp_file.unlink(missing_ok=True)
                 raise
 
-        held = await setup.runs.acquire(thread_id, digest, start)
+        held = await setup.runs.acquire(thread_id, digest, start, tools.listings)
         begin_turn(thread_id)
         if sending.shown is not None:
             yield _frame({"type": "agent-scope", "scope": sending.shown})
@@ -414,7 +416,8 @@ async def _prepare_tools(
             session, turn_plugins, mentioned, thread_calls_token(thread_id)
         )
         hidden = await transact(session, _hidden_tools, plugins)
-    return _Tools(plugins, signed_out + licensed_out, mentions, hidden)
+        listings = await transact(session, _listings, plugins)
+    return _Tools(plugins, signed_out + licensed_out, mentions, hidden, listings)
 
 
 def _hidden_tools(session: Session, plugins: list[TurnPlugin]) -> list[str]:
@@ -427,6 +430,26 @@ def _hidden_tools(session: Session, plugins: list[TurnPlugin]) -> list[str]:
             if tool not in plugin.tools:
                 hidden.append(claude_tool(plugin.name, tool))
     return sorted(hidden)
+
+
+def _listings(session: Session, plugins: list[TurnPlugin]) -> dict[str, str]:
+    """What the model is told of each plugin's offered tools; a change needs the plugin connected again."""
+    listings = {}
+    for plugin in plugins:
+        tools = session.scalars(
+            select(PluginTool)
+            .where(PluginTool.plugin_id == plugin.name)
+            .where(PluginTool.tool.in_(plugin.tools))
+            .order_by(PluginTool.tool)
+        )
+        told = [
+            [tool.tool, tool.title, tool.description, tool.input_schema]
+            for tool in tools
+        ]
+        listings[plugin.name] = hashlib.sha256(
+            json.dumps(told, sort_keys=True).encode()
+        ).hexdigest()
+    return listings
 
 
 def _servers(

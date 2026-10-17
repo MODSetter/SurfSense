@@ -1,4 +1,4 @@
-"""Record which engine runs each agent thread, and keep a Claude Code session's transcript.
+"""Record which engine runs each agent thread, and keep a Claude Code session's transcript and account.
 
 Plain ALTER TABLE: rebuilding chat_threads with foreign keys enabled would
 cascade-delete its messages. Every agent thread so far ran on opencode.
@@ -31,6 +31,9 @@ def upgrade() -> None:
     )
     op.add_column(
         "chat_threads", sa.Column("claude_session_id", sa.String(), nullable=True)
+    )
+    op.add_column(
+        "chat_threads", sa.Column("claude_account", sa.String(), nullable=True)
     )
     op.create_table(
         "claude_session_entries",
@@ -80,5 +83,6 @@ def downgrade() -> None:
         "claude_session_entries_session_uuid", table_name="claude_session_entries"
     )
     op.drop_table("claude_session_entries")
+    op.drop_column("chat_threads", "claude_account")
     op.drop_column("chat_threads", "claude_session_id")
     op.drop_column("chat_threads", "agent_engine")

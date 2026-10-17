@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.chat.models import AgentEngineKind, ChatThread
+from modules.plugins.installed.models import PluginTool
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from tests.claude_agent_stand_in import Call, Fail, Hang, Say
@@ -395,3 +396,29 @@ async def test_the_model_reads_a_long_result_claude_code_saved_for_it(
     (step,) = _of(frames, "agent-step")[-1:]
     assert step["status"] == "completed"
     assert step["output"] == "title: Q3"
+
+
+async def test_a_plugin_whose_tools_changed_is_reconnected_in_the_running_claude_code(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """Claude Code lists a plugin's tools once it connects: a new input schema needs a new connection."""
+    connect_plugin(engine, "https://localhost:1/mcp")
+    claude_agent.turns = [[Say("One.")], [Say("Two.")], [Say("Three.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+    await _send(client, thread["id"], "First")
+    await _send(client, thread["id"], "Second")
+    with create_session_factory(engine)() as session:
+        search = session.get_one(PluginTool, ("notes", "search"))
+        search.input_schema = {
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+        }
+        session.commit()
+
+    await _send(client, thread["id"], "Third")
+
+    (run,) = claude_agent.started
+    assert run.reconnected == ["notes"]

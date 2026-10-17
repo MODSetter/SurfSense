@@ -7,6 +7,7 @@ session store, as the SDK mirrors the transcript.
 
 import asyncio
 import json
+import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -77,6 +78,8 @@ class ScriptedAgentRun(ScriptedRun):
         # Set once a Hang step has written, so a test can stop the turn mid-reply.
         self.hanging = asyncio.Event()
         self._made = 0
+        # Claude Code's ids are unique across sessions, so a thread's two sessions never share one.
+        self._run = uuid.uuid4().hex[:8]
         # What Claude Code sent that nobody read yet, which the SDK keeps for the next read.
         self._unread: list[Message] = []
 
@@ -211,7 +214,7 @@ class ScriptedAgentRun(ScriptedRun):
 
     def _next(self, kind: str) -> str:
         self._made += 1
-        return f"{kind}_{self._made}"
+        return f"{kind}_{self._run}_{self._made}"
 
     def _result(self, *, error: bool = False) -> ResultMessage:
         return ResultMessage(

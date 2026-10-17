@@ -55,6 +55,27 @@ async def test_a_turn_set_up_otherwise_starts_a_new_one_and_ends_the_old(
     assert not (tmp_path / "mcp-0.json").exists()
 
 
+class _WillNotReconnect(ScriptedRun):
+    async def reconnect(self, server: str) -> None:
+        raise RuntimeError(f"{server} did not answer")
+
+
+async def test_a_server_that_will_not_reconnect_starts_the_claude_code_over(
+    tmp_path: Path,
+) -> None:
+    """A run left with a server's old tools would offer the model what the server no longer has."""
+    starts = _Starts(tmp_path)
+    runs = AgentRuns()
+    held = await runs.acquire(7, "digest-a", starts, {"notes": "tools-a"})
+    held.run = _WillNotReconnect()
+
+    again = await runs.acquire(7, "digest-a", starts, {"notes": "tools-b"})
+
+    assert again is not held
+    assert len(starts.started) == 2
+    assert again.listings == {"notes": "tools-b"}
+
+
 async def test_an_idle_claude_code_is_ended(tmp_path: Path) -> None:
     """Each holds memory; five minutes covers a reply read and answered."""
     now = [0.0]

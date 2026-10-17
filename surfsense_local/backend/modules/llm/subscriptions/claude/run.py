@@ -24,6 +24,10 @@ class ClaudeRun(Protocol):
 
     async def models(self) -> list[dict[str, Any]]: ...
 
+    async def reconnect(self, server: str) -> None:
+        """Connect an MCP server again, so its tools are listed anew."""
+        ...
+
     async def close(self) -> None: ...
 
 
@@ -59,6 +63,9 @@ class _SdkRun:
     async def models(self) -> list[dict[str, Any]]:
         info = await self._client.get_server_info()
         return list((info or {}).get("models", []))
+
+    async def reconnect(self, server: str) -> None:
+        await self._client.reconnect_mcp_server(server)
 
     async def close(self) -> None:
         await self._client.disconnect()

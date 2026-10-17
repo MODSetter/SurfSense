@@ -32,6 +32,10 @@ class AgentEngine(Protocol):
         """Give a new thread to this engine; False when it cannot answer now, and the thread stays the chat's."""
         ...
 
+    async def renew_session(self, session: Session, thread: ChatThread) -> bool:
+        """Start the thread a new session when its own may no longer be resumed; True when it did."""
+        ...
+
     async def run_turn(
         self,
         session: Session,

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -55,6 +56,23 @@ def _sign_in(text: str) -> dict:
     except json.JSONDecodeError:
         return {}
     return answer if isinstance(answer, dict) else {}
+
+
+def signed_in_account(
+    binary: Path | None, *, timeout: float = 15, proxy_url: str | None = None
+) -> str | None:
+    """A digest of the plan account Claude Code is signed in to, or None when it reports none.
+
+    A digest, since only a change matters and the email need not be kept.
+    """
+    if binary is None:
+        return None
+    env = {**os.environ, **claude_env(proxy_url)}
+    auth = _sign_in(_run(binary, "auth", "status", timeout=timeout, env=env))
+    if not auth.get("loggedIn") or auth.get("authMethod") != _PLAN_LOGIN:
+        return None
+    account = json.dumps([auth.get("email"), auth.get("orgId")])
+    return hashlib.sha256(account.encode()).hexdigest()
 
 
 def read_status(

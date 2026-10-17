@@ -38,6 +38,9 @@ from modules.agent.opencode_config import skills_folder
 from modules.agent.thread_folder.layout import forget_thread_lock, fresh_thread_folder
 from modules.chat.models import AgentEngineKind, ChatThread
 from modules.chat.schemas import MessageCreate
+from modules.llm.subscriptions.claude.locate import this_machines_claude
+from modules.llm.subscriptions.claude.proxy import claude_proxy_url
+from modules.llm.subscriptions.claude.status import signed_in_account
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -54,6 +57,32 @@ class ClaudeCodeEngine:
     ) -> None:
         if thread.claude_session_id is None:
             await transact(session, _name_session, thread, str(uuid.uuid4()))
+
+    async def renew_session(self, session: Session, thread: ChatThread) -> bool:
+        """Another Claude account signed in since the session was made gets a session of its own.
+
+        A session made before its account was read is taken as the one signed in now.
+        """
+        if thread.claude_session_id is None:
+            return False
+        account = await run_in_threadpool(
+            signed_in_account, this_machines_claude(), proxy_url=claude_proxy_url()
+        )
+        if account is None or account == thread.claude_account:
+            return False
+        if thread.claude_account is None:
+            await transact(session, _record_account, thread, account)
+            return False
+        left = thread.claude_session_id
+        await self._runs.forget(thread.id)
+        await transact(session, _renew_session, thread, str(uuid.uuid4()), account)
+        folder = get_storage_settings().thread_working_dir(
+            thread.workspace_id, thread.id
+        )
+        # SurfSense's copy keeps its turns; Claude Code's own is not needed again.
+        with contextlib.suppress(FileNotFoundError, ValueError):
+            await run_in_threadpool(delete_session, left, str(folder))
+        return True
 
     def __init__(self) -> None:
         self._runs = AgentRuns()
@@ -144,7 +173,8 @@ class ClaudeCodeEngine:
         threads = session.execute(
             select(ChatThread.id, ChatThread.claude_session_id).where(
                 ChatThread.workspace_id == workspace_id,
-                ChatThread.agent_engine == AgentEngineKind.CLAUDE_CODE,
+                # Not only the threads on Claude Code now: one that left keeps its session.
+                ChatThread.claude_session_id.is_not(None),
             )
         ).all()
         storage = get_storage_settings()
@@ -174,7 +204,7 @@ class ClaudeCodeEngine:
             raise HTTPException(
                 status.HTTP_409_CONFLICT, "this thread is not the agent's"
             )
-        entries = await transact(session, _entries, thread.claude_session_id)
+        entries = await transact(session, _entries, thread.id)
         return opencode_messages(entries)
 
 
@@ -192,11 +222,25 @@ def _name_session(session: Session, thread: ChatThread, session_id: str) -> None
     session.refresh(thread)
 
 
-def _entries(session: Session, session_id: str) -> list[dict[str, Any]]:
+def _record_account(session: Session, thread: ChatThread, account: str) -> None:
+    thread.claude_account = account
+
+
+def _renew_session(
+    session: Session, thread: ChatThread, session_id: str, account: str
+) -> None:
+    thread.claude_session_id = session_id
+    thread.claude_account = account
+    session.flush()
+    session.refresh(thread)
+
+
+def _entries(session: Session, thread_id: int) -> list[dict[str, Any]]:
+    """Every session the thread had in Claude Code, one per account, in the order written."""
     return list(
         session.scalars(
             select(ClaudeSessionEntry.entry)
-            .where(ClaudeSessionEntry.session_id == session_id)
+            .where(ClaudeSessionEntry.thread_id == thread_id)
             .order_by(ClaudeSessionEntry.id)
         )
     )

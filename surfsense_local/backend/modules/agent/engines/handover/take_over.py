@@ -1,8 +1,9 @@
-"""An engine taking a thread over from the other: its session, and the note of what it missed.
+"""The session a thread's next turn runs in, and the note of what that session missed.
 
 docs/architecture/claude-plan.md, Switching engines. Each engine keeps its own session and
 resumes it; the note covers only the turns since it last answered, and goes
 beside the user's message, so its session keeps it as it keeps the scope note.
+A session the engine renewed missed the whole thread.
 """
 
 from pathlib import Path
@@ -13,7 +14,9 @@ from starlette.concurrency import run_in_threadpool
 
 from api.dependencies import transact
 from modules.agent.engines.agent_engine import AgentEngine
+from modules.agent.engines.both_sessions import thread_turns_of
 from modules.agent.engines.handover.note import handover_note
+from modules.agent.engines.thread_engine import thread_engine
 from modules.agent.thread_folder.layout import OUTPUTS
 from modules.chat.models import ChatThread
 from shared.config import get_storage_settings
@@ -23,20 +26,24 @@ NOTE_CHARS = 24_000
 
 
 async def take_over(
-    session: Session,
-    thread: ChatThread,
-    leaving: AgentEngine,
-    taking: AgentEngine,
-    launch_key: str,
+    session: Session, thread: ChatThread, taking: AgentEngine, launch_key: str
 ) -> str | None:
-    """Move the thread to `taking`; the note for its next turn, or None with nothing missed."""
-    seen = await _turns(session, thread, taking, launch_key)
+    """Run the thread's next turn on `taking`; the note for that turn, or None with nothing missed."""
+    leaving = thread_engine(thread)
+    moving = leaving is not taking
+    seen = await _turns(session, thread, taking, launch_key) if moving else []
     await taking.ensure_session(session, thread, launch_key)
-    missed = await _turns(session, thread, leaving, launch_key)
-    since = _last_asked(seen)
-    if since is not None:
-        missed = _after(missed, since)
-    await transact(session, _move, thread, taking)
+    if await taking.renew_session(session, thread):
+        missed = await thread_turns_of(session, thread, launch_key, False)
+    elif moving:
+        missed = await _turns(session, thread, leaving, launch_key)
+        since = _last_asked(seen)
+        if since is not None:
+            missed = _after(missed, since)
+    else:
+        return None
+    if moving:
+        await transact(session, _move, thread, taking)
     if not missed:
         return None
     folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
