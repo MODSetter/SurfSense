@@ -1314,6 +1314,7 @@
   "studio_error_no_sources": "Wähle mindestens eine Quelle aus.",
   "studio_error_not_refinable": "Nur ein in Studio erstelltes Word-Dokument oder PDF kann überarbeitet werden.",
   "studio_error_nothing_running": "Es läuft nichts.",
+  "studio_error_rewrite_too_long": "Dieses Dokument ist zu lang, als dass {model} es in einem Durchgang neu schreiben könnte: Es hat etwa {specTokens, number} Tokens, und es zu lesen und neu zu schreiben braucht etwa {neededTokens, number}; das Kontextfenster des Modells hat {windowTokens, number}.",
   "studio_error_sources_gone": "Keine der Quellen dieses Artefakts ist mehr vorhanden.",
   "studio_error_sources_indexing": "Die ausgewählten Quellen werden noch indexiert.",
   "studio_error_version_unfinished": "Diese Version wurde nicht fertiggestellt: Versuche es erneut oder überarbeite eine andere Version.",

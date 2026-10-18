@@ -6,9 +6,12 @@ import { ApiError } from "@/lib/api"
 // regenerate (a refine's `needs_chat` comes from studio_documents/fits.py),
 // and the sentences `refused()` sends for a job that cannot start, be run
 // again or be stopped, and for a document that cannot be refined
-// (studio_documents/service.py);
-// the backend's own text stays the fallback for a code that has no line here.
-const studioErrorText: Record<string, () => string> = {
+// (studio_documents/service.py) or is too long to rewrite (fits.py);
+// the backend's own text stays the fallback for a code that has no line here,
+// and for one whose values did not come with it.
+type Detail = Record<string, unknown>
+
+const studioErrorText: Record<string, (detail: Detail) => string | null> = {
   already_generating: () =>
     intl.formatMessage({
       id: "studio_error_already_generating",
@@ -52,6 +55,26 @@ const studioErrorText: Record<string, () => string> = {
       defaultMessage:
         "This version did not finish: retry it, or refine another version.",
     }),
+  // The sentence's name and numbers arrive raw beside the code.
+  rewrite_too_long: ({ model, spec_tokens, needed_tokens, window_tokens }) =>
+    typeof model === "string" &&
+    typeof spec_tokens === "number" &&
+    typeof needed_tokens === "number" &&
+    typeof window_tokens === "number"
+      ? intl.formatMessage(
+          {
+            id: "studio_error_rewrite_too_long",
+            defaultMessage:
+              "This document is too long for {model} to rewrite in one go: it is about {specTokens, number} tokens, and reading it and writing it again needs about {neededTokens, number} of the model’s {windowTokens, number}-token window.",
+          },
+          {
+            model,
+            specTokens: spec_tokens,
+            neededTokens: needed_tokens,
+            windowTokens: window_tokens,
+          }
+        )
+      : null,
   needs_chat: () =>
     intl.formatMessage({
       id: "studio_error_needs_chat",
@@ -88,5 +111,5 @@ export function translatedStudioError(error: unknown) {
   ) {
     return null
   }
-  return studioErrorText[error.code]()
+  return studioErrorText[error.code](error.detail)
 }
