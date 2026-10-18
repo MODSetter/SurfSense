@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
+import { intl } from "@/i18n/intl"
 
 import { type ChatThread, storeThreadScope } from "./api"
 import { chatKeys } from "./query-keys"
@@ -90,6 +92,49 @@ export function useThreadScope({
     null
   )
   const seenEdits = useRef(scopeEdits)
+  // Each thread's stores run one after another, so an older one cannot land
+  // after a newer one and leave the thread with ticks the user has changed.
+  const stores = useRef(new Map<number, Promise<void>>())
+
+  // Keeps the thread's cached entry in step, so reopening it shows the ticks
+  // before the list is read again, and stores them.
+  const store = (threadId: number, scope: SourceScope) => {
+    queryClient.setQueryData<ChatThread[]>(
+      chatKeys.threads(workspaceId),
+      (threads) =>
+        threads?.map((thread) =>
+          thread.id === threadId ? { ...thread, source_scope: scope } : thread
+        )
+    )
+    const previous = stores.current.get(threadId) ?? Promise.resolve()
+    const pending = previous
+      .then(() => storeThreadScope(threadId, scope))
+      .then(
+        () => undefined,
+        () => {
+          // The next turn sends the ticks anyway; until then the thread
+          // would open with its earlier ticks after a reload.
+          errorToast(
+            intl.formatMessage({
+              id: "chat_scope_save_error",
+              defaultMessage: "Couldn’t save which sources this chat uses",
+            }),
+            {
+              description: intl.formatMessage({
+                id: "chat_scope_save_body",
+                defaultMessage: "They go with your next message anyway.",
+              }),
+            }
+          )
+        }
+      )
+    stores.current.set(threadId, pending)
+    void pending.then(() => {
+      if (stores.current.get(threadId) === pending) {
+        stores.current.delete(threadId)
+      }
+    })
+  }
 
   useEffect(() => {
     const current = shown.current
@@ -102,36 +147,28 @@ export function useThreadScope({
       return
     }
     if (activeThread === null) return
-    if (activeThread.source_scope === undefined) {
+    shown.current = { workspaceId, threadId }
+    if (scopeEdits !== seenEdits.current) {
+      // Ticks made while the thread's entry was still on its way are the
+      // user's for this thread: they stay, and the thread gets them.
+      seenEdits.current = scopeEdits
+      store(threadId, sourceScope)
+    } else if (activeThread.source_scope === undefined) {
       // The chat the ticks on screen just started: the send stored them.
       writeDraftScope(workspaceId, null)
     } else {
       setSourceScope(activeThread.source_scope ?? EVERY_SOURCE)
     }
-    shown.current = { workspaceId, threadId }
-  }, [activeThread, setSourceScope, threadId, workspaceId])
+  })
 
   useEffect(() => {
     if (scopeEdits === seenEdits.current) return
-    seenEdits.current = scopeEdits
     const current = shown.current
     if (current?.workspaceId !== workspaceId || current.threadId !== threadId) {
       return
     }
-    if (threadId === null) {
-      writeDraftScope(workspaceId, sourceScope)
-      return
-    }
-    queryClient.setQueryData<ChatThread[]>(
-      chatKeys.threads(workspaceId),
-      (threads) =>
-        threads?.map((thread) =>
-          thread.id === threadId
-            ? { ...thread, source_scope: sourceScope }
-            : thread
-        )
-    )
-    // The next turn sends the ticks again, so a store that fails costs nothing.
-    void storeThreadScope(threadId, sourceScope).catch(() => {})
-  }, [queryClient, scopeEdits, sourceScope, threadId, workspaceId])
+    seenEdits.current = scopeEdits
+    if (threadId === null) writeDraftScope(workspaceId, sourceScope)
+    else store(threadId, sourceScope)
+  })
 }

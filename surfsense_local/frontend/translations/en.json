@@ -224,6 +224,8 @@
   "chat_runtime_load_threads_toast": "Couldn’t load your chats",
   "chat_runtime_rename_toast": "Couldn’t rename chat",
   "chat_runtime_unexpected_error": "An unexpected error occurred",
+  "chat_scope_save_body": "They go with your next message anyway.",
+  "chat_scope_save_error": "Couldn’t save which sources this chat uses",
   "chat_thread_panel_conversation_aria": "Conversation",
   "chat_thread_panel_delete_label": "Delete chat",
   "chat_thread_panel_header_aria": "Chat",

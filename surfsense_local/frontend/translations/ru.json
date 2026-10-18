@@ -224,6 +224,8 @@
   "chat_runtime_load_threads_toast": "Не удалось загрузить ваши чаты",
   "chat_runtime_rename_toast": "Не удалось переименовать чат",
   "chat_runtime_unexpected_error": "Произошла непредвиденная ошибка",
+  "chat_scope_save_body": "Они всё равно отправятся со следующим сообщением.",
+  "chat_scope_save_error": "Не удалось сохранить, какие источники использует этот чат",
   "chat_thread_panel_conversation_aria": "Разговор",
   "chat_thread_panel_delete_label": "Удалить чат",
   "chat_thread_panel_header_aria": "Чат",

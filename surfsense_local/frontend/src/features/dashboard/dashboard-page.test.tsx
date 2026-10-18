@@ -9,6 +9,8 @@ import {
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { toast } from "sonner"
+
 import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -21,6 +23,11 @@ import {
   RIGHT_PANEL_KEY,
 } from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
+
+vi.mock("sonner", () => ({
+  Toaster: () => null,
+  toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+}))
 
 const workspace = {
   id: 1,
@@ -1795,8 +1802,15 @@ describe("dashboard chat", () => {
     })
   })
 
-  /** Two folders and two sources, two chats, one with a stored scope; what the panel shows for each. */
-  function scopedChats() {
+  /**
+   * Two folders and two sources, two chats, one with a stored scope; what the panel shows for
+   * each. `storeStatus` is how a store of ticks is answered, and `holdThreads` keeps the thread
+   * list from answering until it resolves.
+   */
+  function scopedChats({
+    storeStatus = 200,
+    holdThreads,
+  }: { storeStatus?: number; holdThreads?: Promise<void> } = {}) {
     const filed = (id: number, title: string, folderId: number) => ({
       id,
       title,
@@ -1847,6 +1861,7 @@ describe("dashboard chat", () => {
           ])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          await holdThreads
           return Response.json([
             thread(10, "Research only", {
               all: false,
@@ -1859,6 +1874,9 @@ describe("dashboard chat", () => {
           ])
         }
         if (path === "/chat/threads/10/source-scope" && init?.method === "PUT") {
+          if (storeStatus !== 200) {
+            return Response.json({ detail: "down" }, { status: storeStatus })
+          }
           return Response.json({
             source_scope: JSON.parse(String(init.body)),
             counts: { ready: 2, indexing: 0, failed: 0, removed: 0 },
@@ -1953,6 +1971,57 @@ describe("dashboard chat", () => {
     await open("Research only")
     await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
     expect(folder("Research")).toBe("true")
+  })
+
+  it("keeps a tick made while the chat's entry was still on its way, and stores it", async () => {
+    let listThreads = () => {}
+    const { fetchMock, user, page, folder, sourceRow, click } = scopedChats({
+      holdThreads: new Promise<void>((resolve) => {
+        listThreads = resolve
+      }),
+    })
+    rememberOpenThread(1, 10)
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+
+    // The sources are here before the chat's own entry: a tick now is for this chat.
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    listThreads()
+    await screen.findByRole("button", { name: "Research only" })
+    expect(folder("Research")).toBe("false")
+    expect(sourceRow("Guide.txt")).toBe("true")
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([path, init]) =>
+            path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+        )
+      ).toHaveLength(1)
+    )
+  })
+
+  it("says so when a tick could not be stored on the chat", async () => {
+    const { user, page, sourceRow, click, open } = scopedChats({
+      storeStatus: 503,
+    })
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+    await click("Select Guide.txt")
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t save which sources this chat uses",
+        expect.objectContaining({
+          description: "They go with your next message anyway.",
+        })
+      )
+    )
+    // The tick stays on screen: the next message sends it anyway.
+    expect(sourceRow("Guide.txt")).toBe("true")
   })
 
   it("starts a new chat from every source and keeps what it unticks across a remount", async () => {
