@@ -98,12 +98,16 @@ def test_an_undo_whose_copy_cannot_be_loaded_back_says_the_data_changed(
     engine = _library_a_newer_release_opened(tmp_path)
     save_newer_scripts(tmp_path / "migrations", first_undo_fails=True)
 
-    def copy_is_gone(_engine: Engine, copy: Path) -> None:
-        raise FileNotFoundError(copy)
+    def disk_is_full(_engine: Engine, _copy: Path) -> None:
+        raise OSError("database or disk is full")
 
-    monkeypatch.setattr("shared.going_back.undo.load_copy", copy_is_gone)
+    monkeypatch.setattr("shared.going_back.undo.load_copy", disk_is_full)
 
     with pytest.raises(GoingBackError) as failed:
         undo_newer_revisions(engine, tmp_path)
 
     assert not failed.value.data_unchanged
+    # The log must say why it failed and where the full copy is.
+    [kept] = (tmp_path / "backups" / "set-aside").iterdir()
+    assert "undo broke" in str(failed.value)
+    assert str(kept) in str(failed.value)

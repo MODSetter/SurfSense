@@ -28,7 +28,8 @@ def undo_newer_revisions(engine: Engine, data_dir: Path) -> None:
             load_copy(engine, newer)
         except Exception as load_error:
             raise GoingBackError(
-                f"{error}; loading the set-aside copy back failed too: {load_error}",
+                f"{error}; loading the set-aside copy back failed too: {load_error}. "
+                f"The full copy from before going back is {newer}",
                 data_unchanged=False,
             ) from error
         raise GoingBackError(str(error), data_unchanged=True) from error
