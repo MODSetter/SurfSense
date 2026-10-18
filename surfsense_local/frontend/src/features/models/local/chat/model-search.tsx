@@ -17,7 +17,7 @@ import {
   HUGGINGFACE,
   destinationsQueryKey,
   listDestinations,
-  setDestinationEnabled,
+  setDestinationsEnabled,
 } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
@@ -275,7 +275,7 @@ export function ModelSearch({
     void askEgress({
       destination: huggingface.destination,
       host: huggingface.host,
-      allow: () => setDestinationEnabled(huggingface.destination, true),
+      allow: () => setDestinationsEnabled([huggingface.destination], true),
     })
   }, [reached, huggingface])
 

@@ -116,7 +116,7 @@ The rules that keep the processes out of each other's way:
 - [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `plugins`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
-- [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0030`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
+- [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0032`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
 - [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `plugins`, `license`, `migration`, `updates` and `feedback`.
 - [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (the window, IPC and the paths it hands to boot), `sidecars/` (boot, the supervisor, one spec per sidecar, and the image-model, preset, audio and agent watchers), `session-log/` (this run's output, for issue reports), `permissions/` (who may use the microphone), `microphone/` (the operating system's switch), `secret.ts`, `updater.ts` and `document-files.ts`.
 
@@ -133,6 +133,7 @@ The rules that keep the processes out of each other's way:
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
+- [Claude plan](claude-plan.md): a connection to the user's own Claude Code, answering chat and running Agentic threads as a second engine.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [admission and parallel slots](local-models/admission.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in ten languages.
 - [Egress](egress.md), [Office pack](office-pack.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).

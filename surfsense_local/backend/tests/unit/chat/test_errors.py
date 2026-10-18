@@ -158,3 +158,41 @@ def test_a_shared_cache_that_ran_out_of_room_says_so(said: str) -> None:
 
     assert kind is ChatErrorKind.RUNTIME_BUSY
     assert "running together" in message
+
+
+def test_a_claude_plan_that_must_sign_in_again_points_at_claude_code() -> None:
+    """Its sign-in is Claude Code's, in a terminal, not ChatGPT's in Model setup."""
+    from modules.llm.subscriptions.claude.errors import ClaudeSignInRequiredError
+
+    kind, message = classify_chat_error(
+        ClaudeSignInRequiredError("signed out"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.CLAUDE_SIGN_IN
+    assert "Claude Code" in message
+    assert "ChatGPT" not in message
+
+
+def test_a_used_up_claude_plan_says_whose_limit_it_is() -> None:
+    """The limit is the Claude plan's, which resets on its own."""
+    from modules.llm.subscriptions.claude.errors import ClaudePlanLimitError
+
+    kind, message = classify_chat_error(
+        ClaudePlanLimitError("limit"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.CLAUDE_LIMIT
+    assert "Claude" in message
+    assert "ChatGPT" not in message
+
+
+def test_a_host_turned_off_during_a_reply_says_where_to_allow_it() -> None:
+    """Not `unknown`: the fix is a switch in Settings, which the user can flip."""
+    from modules.egress.service import EgressDeniedError
+
+    kind, message = classify_chat_error(
+        EgressDeniedError("host:api.anthropic.com"), "openai_compatible"
+    )
+
+    assert kind is ChatErrorKind.EGRESS_DISABLED
+    assert "Settings > Network" in message

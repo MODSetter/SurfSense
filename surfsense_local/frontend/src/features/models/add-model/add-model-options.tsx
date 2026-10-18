@@ -7,6 +7,7 @@ import { intl } from "@/i18n/intl"
 import type { ModelType } from "../model-type"
 import type { Connection } from "../remote/connections/api"
 import { ChatGPTOption } from "../remote/connections/chatgpt/chatgpt-option"
+import { ClaudeOption } from "../remote/connections/claude/claude-option"
 import { ServerCard } from "./server-card"
 
 /**
@@ -32,6 +33,7 @@ export function AddModelOptions({
         <>
           <ServerCard onConnected={onConnected} />
           <ChatGPTOption modelType={modelType} onConnected={onConnected} />
+          <ClaudeOption modelType={modelType} onConnected={onConnected} />
           <Separator />
         </>
       ) : null}

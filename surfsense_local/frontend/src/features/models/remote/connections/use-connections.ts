@@ -1,8 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { ModelType } from "../../model-type"
-import { MODELS_QUERY_KEY, useRefreshModels } from "../../models-query"
-import { deleteConnection, getConnections } from "./api"
+import { MODELS_QUERY_KEY } from "../../models-query"
+import { connectionIdQueryKey } from "../models/use-connection-models"
+import { deleteConnection, getConnections, type Connection } from "./api"
 
 export const connectionsQueryKey = [
   ...MODELS_QUERY_KEY,
@@ -34,11 +35,27 @@ export function useConnectionsServing(modelType: ModelType | null) {
   })
 }
 
-/** Removing a server clears every slot it filled, whichever section asked. */
+/**
+ * Removing a server clears every slot it filled, whichever section asked. The
+ * server itself is taken off the list rather than asked about again: it would
+ * answer "not found" on a card that is going.
+ */
 export function useDeleteConnection() {
-  const refresh = useRefreshModels()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => deleteConnection(id),
-    onSuccess: () => refresh(),
+    onSuccess: async (_deleted, id) => {
+      const its = connectionIdQueryKey(id)
+      queryClient.setQueryData<Connection[]>(
+        connectionsQueryKey,
+        (connections) =>
+          connections?.filter((connection) => connection.id !== id)
+      )
+      await queryClient.invalidateQueries({
+        queryKey: MODELS_QUERY_KEY,
+        predicate: (query) =>
+          !its.every((part, index) => query.queryKey[index] === part),
+      })
+    },
   })
 }

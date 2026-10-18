@@ -7,7 +7,7 @@ token changes the header, so the plugin is given to opencode again (`given_serve
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
-from modules.agent.plugin_tools.give_plugins import UnavailablePlugin
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH

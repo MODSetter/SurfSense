@@ -41,6 +41,7 @@ import { ChatImageAdapter, previewOf, uploadsOf } from "./image-attachments"
 import { AGENTIC_REFUSALS, agenticRefusedText } from "./modes/mode-text"
 import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
+import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
 import type { LivePair } from "./runs/apply-frame"
 import {
@@ -135,10 +136,10 @@ function lastThreadKey(workspaceId: number) {
 const NEW_CHAT = "new"
 
 export type ConversationView =
-  // `returned` is what a refused new chat hands back to the composer.
+  // `returned` is what a refused send hands back to the composer.
   | { status: "new"; returned?: ReturnedDraft }
   | { status: "creating" }
-  | { status: "active"; threadId: number }
+  | { status: "active"; threadId: number; returned?: ReturnedDraft }
 
 export type ReturnedDraft = { text: string; images: ImageUpload[] }
 
@@ -227,6 +228,7 @@ export function useChatRuntime({
   newChatMode = null,
   onAgenticGate,
   onModelRequired,
+  onModelCheck,
 }: {
   workspaceId: number
   canSend: boolean
@@ -245,6 +247,8 @@ export function useChatRuntime({
   // A gate the API refused an Agentic chat by, which the model's modes did not say.
   onAgenticGate?: (gate: string) => void
   onModelRequired: () => void
+  // A send was refused for a reason the chat model's check reports: check again.
+  onModelCheck?: () => void
 }) {
   const queryClient = useQueryClient()
   const [conversationView, setConversationView] = useState<ConversationView>(
@@ -724,6 +728,17 @@ export function useChatRuntime({
         ) {
           dropRun(runThreadId)
           onModelRequired()
+        } else if (isClaudeCodeRefusal(cause)) {
+          // Nothing ran: the question goes back, and the composer says why.
+          dropRun(runThreadId)
+          if (requestVersion.current === version) {
+            setConversationView({
+              status: "active",
+              threadId: runThreadId,
+              returned: { text: typed, images },
+            })
+          }
+          onModelCheck?.()
         } else if (isOutdatedThreadRefusal(cause)) {
           updatePair(runThreadId, ([user, assistant]) => [
             user,
@@ -786,6 +801,7 @@ export function useChatRuntime({
       isRunning,
       newChatMode,
       onAgenticGate,
+      onModelCheck,
       onModelRequired,
       queryClient,
       selectedDocumentIds,

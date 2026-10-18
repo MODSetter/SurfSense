@@ -43,6 +43,9 @@ export type ChatStreamEvent =
   | { type: "agent-scope"; scope: TurnSources }
   // Connected plugins the turn goes on without.
   | { type: "agent-plugins-unavailable"; plugins: UnavailablePlugin[] }
+  // Where the plan answering stands after a reply: past its limit on extra
+  // usage, or not, until `resets_at` (Unix seconds).
+  | { type: "plan-extra-usage"; using: boolean; resets_at: number | null }
   | ({ type: "agent-step" } & AgentStep)
   | ({ type: "permission-request" } & PermissionRequest)
   | { type: "permission-replied"; id: string; reply: string }
@@ -65,6 +68,9 @@ export type ChatErrorKind =
   | "context_too_long"
   | "subscription_sign_in"
   | "subscription_limit"
+  | "claude_sign_in"
+  | "claude_limit"
+  | "egress_disabled"
   | "runtime_busy"
   | "network"
   | "timeout"

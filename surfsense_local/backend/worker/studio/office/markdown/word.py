@@ -87,14 +87,28 @@ class _Writer:
         kind = "List Number" if block.ordered else "List Bullet"
         first = kind if level == 1 else f"{kind} {level}"
         rest = "List Continue" if level == 1 else f"List Continue {level}"
+        num_id = self._restarted_numbering(first) if block.ordered else None
         for item in block.items:
             styled = False
             for child in item:
-                if isinstance(child, Paragraph):
-                    self.block(child, depth, style=rest if styled else first)
+                if isinstance(child, Paragraph) and not styled:
+                    paragraph = self._document.add_paragraph(style=first)
+                    if num_id is not None:
+                        _number(paragraph, num_id)
+                    self._spans(paragraph, child.spans)
                     styled = True
+                elif isinstance(child, Paragraph):
+                    self.block(child, depth, style=rest)
                 else:
                     self.block(child, depth)
+
+    def _restarted_numbering(self, style: str) -> int:
+        """A numbering of its own from 1: the style's shared one counts on across lists."""
+        numbering = self._document.part.numbering_part.element
+        style_num = self._document.styles[style].element.pPr.numPr.numId.val
+        num = numbering.add_num(numbering.num_having_numId(style_num).abstractNumId.val)
+        num.add_lvlOverride(ilvl=0).add_startOverride(1)
+        return num.numId
 
     def _table(self, table: Table) -> None:
         columns = max(len(row) for row in (table.header, *table.rows))
@@ -161,6 +175,12 @@ def _link(paragraph: WordParagraph, run: object, href: str) -> None:
     run.font.underline = True  # type: ignore[attr-defined]
     hyperlink.append(run._r)  # type: ignore[attr-defined]
     paragraph._p.append(hyperlink)
+
+
+def _number(paragraph: WordParagraph, num_id: int) -> None:
+    num_pr = paragraph._p.get_or_add_pPr().get_or_add_numPr()
+    num_pr.get_or_add_ilvl().val = 0
+    num_pr.get_or_add_numId().val = num_id
 
 
 def _bottom_border(paragraph: WordParagraph) -> None:

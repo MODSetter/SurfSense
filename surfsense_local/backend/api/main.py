@@ -12,6 +12,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from api.config import Settings, get_settings
 from modules.agent.agent_threads.router import router as agent_threads_router
+from modules.agent.engines.claude_code.agent_proxy import serving_agent_proxy
+from modules.agent.engines.thread_engine import close_engines
 from modules.agent.launch_key import mint_launch_key
 from modules.agent.model_endpoint.responses_relay.router import (
     router as agent_responses_router,
@@ -51,6 +53,12 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
+from modules.llm.subscriptions.claude.errors import (
+    ClaudeSignInRequiredError,
+    ClaudeTooOldError,
+)
+from modules.llm.subscriptions.claude.plan_generator import close_claude_runs
+from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
 from modules.llm.transcription.gate import TranscriptionGate
 from modules.llm.transcription.internal_router import (
     router as transcription_windows_router,
@@ -137,9 +145,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             name="catalog-warm",
             daemon=True,
         ).start()
-        async with _plugin_proxy(session_factory):
+        async with (
+            _plugin_proxy(session_factory),
+            serving_claude_proxy(session_factory, get_settings().host),
+            serving_agent_proxy(session_factory, get_settings().host),
+        ):
             yield
     finally:
+        await close_claude_runs()
+        await close_engines()
         engine.dispose()
 
 
@@ -248,19 +262,43 @@ def create_app() -> FastAPI:
     app.include_router(plugin_license_router)
     app.include_router(plugin_oauth_router)
     app.include_router(plugins_router)
+    # Whichever engine runs a thread calls its tools and is answered through these.
+    app.include_router(agent_tools_router)
+    app.include_router(agent_threads_router)
+    app.include_router(plugin_steps_router)
     # Routes only opencode calls, or that answer it, exist only beside one.
     if get_agent_settings().has_opencode():
         app.include_router(agent_model_router)
         app.include_router(agent_responses_router)
-        app.include_router(agent_tools_router)
-        app.include_router(agent_threads_router)
-        app.include_router(plugin_steps_router)
         app.include_router(agent_previews_router)
         app.include_router(agent_preview_files_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(EmbeddingNotChosenError, embedding_not_chosen)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)
+    app.add_exception_handler(ClaudeTooOldError, claude_too_old)
+    app.add_exception_handler(ClaudeSignInRequiredError, claude_sign_in_required)
     return app
+
+
+def claude_too_old(_request: Request, error: ClaudeTooOldError) -> JSONResponse:
+    """Handled once, here: the model list, a chat and an agent turn refuse it alike, before anything runs.
+
+    409 like `unreadable_secret`: the request is fine; the user's Claude Code is not.
+    """
+    return JSONResponse(
+        {"detail": {"code": "claude_too_old", "message": str(error)}},
+        status.HTTP_409_CONFLICT,
+    )
+
+
+def claude_sign_in_required(
+    _request: Request, error: ClaudeSignInRequiredError
+) -> JSONResponse:
+    """Claude Code gone before a run starts: the code the composer's model check already shows."""
+    return JSONResponse(
+        {"detail": {"code": "claude_sign_in_required", "message": str(error)}},
+        status.HTTP_409_CONFLICT,
+    )
 
 
 def unreadable_secret(_request: Request, error: UnreadableSecretError) -> JSONResponse:

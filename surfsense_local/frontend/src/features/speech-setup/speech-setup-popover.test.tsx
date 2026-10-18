@@ -27,7 +27,12 @@ function serving(rows: unknown[], extra: Extra = () => null) {
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
-      calls.push(`${init?.method ?? "GET"} ${path}`)
+      // A consent records the destinations it switched, not only the route.
+      const switched =
+        path === "/egress" && init?.method === "PUT"
+          ? ` ${JSON.parse(String(init.body)).destinations.join(",")}`
+          : ""
+      calls.push(`${init?.method ?? "GET"} ${path}${switched}`)
       const handled = extra(path, init)
       if (handled) return handled
       if (path === "/llm/catalog/local") {
@@ -170,9 +175,9 @@ describe("speech recognition set-up", () => {
     })
     let allowed = false
     const calls = serving([fakeSpeechRow()], (path, init) => {
-      if (path.startsWith("/egress/")) {
+      if (path === "/egress" && init?.method === "PUT") {
         allowed = true
-        return Response.json({})
+        return Response.json([])
       }
       if (path === "/llm/installs" && init?.method === "POST" && !allowed) {
         return Response.json(
@@ -211,7 +216,7 @@ describe("speech recognition set-up", () => {
         },
       ])
     )
-    expect(calls).toContain("PUT /egress/host:huggingface.co")
+    expect(calls).toContain("PUT /egress host:huggingface.co")
     expect(
       screen.getByRole("dialog", { name: "Set up speech recognition" })
     ).toBeTruthy()

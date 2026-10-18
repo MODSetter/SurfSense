@@ -86,12 +86,18 @@ def sync_thread_folder(
 
 
 def _require_same_thread(session: Session, thread: ChatThread) -> None:
-    """The thread still exists with its session: a deleted newest id is given out again."""
-    session_id = session.scalar(
-        select(ChatThread.opencode_session_id).where(ChatThread.id == thread.id)
-    )
+    """The thread still exists with its engine and session: a deleted newest id is given out again."""
+    stored = session.execute(
+        select(ChatThread.agent_engine, ChatThread.opencode_session_id).where(
+            ChatThread.id == thread.id
+        )
+    ).one_or_none()
     session.commit()
-    if session_id is None or session_id != thread.opencode_session_id:
+    if (
+        stored is None
+        or stored.agent_engine is None
+        or tuple(stored) != (thread.agent_engine, thread.opencode_session_id)
+    ):
         raise ThreadGoneError(f"thread {thread.id} is no longer the agent's")
 
 

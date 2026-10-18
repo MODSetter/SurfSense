@@ -299,12 +299,17 @@ describe("app bootstrap", () => {
               { status: 403 }
             ),
       (path, init) => {
-        if (path === "/egress/host:openrouter.ai" && init?.method === "PUT") {
+        if (
+          path === "/egress" &&
+          init?.method === "PUT" &&
+          JSON.parse(String(init.body)).destinations.includes(
+            "host:openrouter.ai"
+          )
+        ) {
           allowed = true
-          return Response.json({
-            destination: "host:openrouter.ai",
-            enabled: true,
-          })
+          return Response.json([
+            { destination: "host:openrouter.ai", enabled: true },
+          ])
         }
         return null
       }

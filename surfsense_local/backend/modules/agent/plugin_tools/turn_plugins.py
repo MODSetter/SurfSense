@@ -29,6 +29,8 @@ class TurnPlugin:
     headers: dict[str, str]
     # `<plugin>_<tool>` to `allow` or `ask`; every other tool of the plugin is denied.
     rules: dict[str, str] = field(default_factory=dict)
+    # The same rules by the tool's own name, for an engine that names tools otherwise.
+    tools: dict[str, str] = field(default_factory=dict)
     # On SurfSense's plugin host, whose calls run longer and which Stop can reach.
     on_plugin_host: bool = False
     # Signs in with the SurfSense license, so a refusal is the license, not a sign-in.
@@ -79,4 +81,5 @@ def turn_plugins(
         rule = "ask" if needs_approval(tool) else "allow"
         name = opencode_tool_name(tool.plugin_id, tool.tool)
         plugins[tool.plugin_id].rules[name] = rule
+        plugins[tool.plugin_id].tools[tool.tool] = rule
     return list(plugins.values())

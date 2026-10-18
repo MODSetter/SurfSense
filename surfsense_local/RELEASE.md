@@ -20,7 +20,7 @@ Publishing a release makes it Latest, and the legacy 0.0.x desktop reads `latest
 
 From the repo root, on `dev`. A release is `dev` merged into `main` by pull request, with the tag on that merge. Replace `2.3.0` with this release and `v2.2.0` with the previous 2.x you shipped.
 
-Before you start, check both signing credentials are current. Apple refuses notarization with a 403 until the account holder accepts a new developer agreement, as on 3 Oct 2026, and only a tag's build checks for that before building ([#2224](https://github.com/MODSetter/SurfSense/issues/2224)). Windows signing needs the Azure client secret behind `AZURE_CLIENT_SECRET`, whose expiry Entra ID shows; only a tag's build uses it.
+Before you start, check both signing credentials are current. Apple refuses notarization with a 403 until the account holder accepts a new developer agreement, as on 3 Oct 2026, and every release run checks for that before building, as does a weekly run of [`notarization-credentials.yml`](../.github/workflows/notarization-credentials.yml) ([#2224](https://github.com/MODSetter/SurfSense/issues/2224)). Windows signing needs the Azure client secret behind `AZURE_CLIENT_SECRET`, whose expiry Entra ID shows; only a tag's build uses it.
 
 ### 1. Write the new number
 
@@ -146,7 +146,7 @@ Actions → **Desktop Release** → version `0.0.0-test` (or any `X.Y.Z`) → pu
 gh workflow run release-local.yml --ref dev -f version=0.0.0-test -f publish=never
 ```
 
-Not a tag, not an update: the installers stay on the run as artifacts, and `legacy-update-bridge` does not run. It is not unsigned. macOS is signed and notarized, because the Apple secrets reach every run in this repository. Windows is signed through signtool with that same macOS certificate (`CSC_LINK` reaches every runner), not through Azure Trusted Signing, which only a tag uses. Linux signs nothing. A fork has none of these secrets, so its run signs nothing.
+Not a tag, not an update: the installers stay on the run as artifacts, and `legacy-update-bridge` does not run. It is not unsigned. macOS is signed and notarized, because the Apple secrets reach every run in this repository. Windows is unsigned: the macOS certificate reaches only the macOS runner, and Azure Trusted Signing is used only by a tag. Linux signs nothing. A fork has none of these secrets, so its run signs nothing.
 
 ## Do not
 

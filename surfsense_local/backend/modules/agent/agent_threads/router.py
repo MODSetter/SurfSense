@@ -1,13 +1,12 @@
 from typing import Literal
 
-import httpx
 from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 
-from modules.agent.agent_threads.stored_step import stored_step
-from modules.agent.opencode_runtime import AgentUnavailableError, connect_opencode
+from api.dependencies import SessionDep
+from modules.agent.engines.both_sessions import stored_step_of
+from modules.agent.engines.thread_engine import every_engine, thread_engine
 from modules.chat.dependencies import ThreadDep
-from shared.config import get_storage_settings
 
 router = APIRouter(tags=["agent"])
 
@@ -30,8 +29,11 @@ class StepResult(BaseModel):
     response_model=StepResult,
     summary="Read the whole result of an agent's step",
 )
-async def read_step_result(thread: ThreadDep, part_id: str) -> StepResult:
-    state = (await stored_step(thread, part_id)).get("state") or {}
+async def read_step_result(
+    thread: ThreadDep, part_id: str, session: SessionDep
+) -> StepResult:
+    step = await stored_step_of(session, thread, part_id, every_engine())
+    state = step.get("state") or {}
     output, error = state.get("output"), state.get("error")
     return StepResult(
         output=None if output is None else str(output),
@@ -47,27 +49,8 @@ async def read_step_result(thread: ThreadDep, part_id: str) -> StepResult:
 async def answer_permission(
     thread: ThreadDep, request_id: str, payload: PermissionReply
 ) -> Response:
-    """Pass the user's answer to the opencode session waiting on it."""
+    """Pass the user's answer to the engine waiting on it."""
     if not thread.uses_agent:
         raise HTTPException(status.HTTP_409_CONFLICT, "this thread is not the agent's")
-    try:
-        client = connect_opencode()
-    except AgentUnavailableError as error:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
-    folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
-    async with client:
-        try:
-            await client.reply(folder, request_id, payload.reply)
-        except httpx.HTTPStatusError as error:
-            if error.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise HTTPException(
-                    status.HTTP_404_NOT_FOUND, "no such request is waiting"
-                ) from error
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, f"opencode refused the answer: {error}"
-            ) from error
-        except httpx.HTTPError as error:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, f"opencode did not answer: {error}"
-            ) from error
+    await thread_engine(thread).answer_permission(thread, request_id, payload.reply)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

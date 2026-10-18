@@ -17,6 +17,7 @@ from worker.ingestion.figures.store import keep_figures
 from worker.ingestion.figures.word_figures_pass import leave_figures_to_the_pass
 from worker.ingestion.image_page import IMAGE_SUFFIXES, as_page
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
+from worker.ingestion.scan_ocr.images import image_markdown
 from worker.ingestion.slideless_deck import describe_slideless_deck
 from worker.ingestion.word_markdown import markdown_without_docling
 
@@ -52,6 +53,10 @@ def _markdown_from(path: Path) -> str:
     if suffix == ".docx" and (markdown := markdown_without_docling(path)) is not None:
         # Its figures come from the figures-only pass, which still asks Docling.
         leave_figures_to_the_pass(path)
+        return markdown
+    if suffix in IMAGE_SUFFIXES and (markdown := image_markdown(path)) is not None:
+        # An image is its own one figure; Docling's reading adds nothing to it.
+        keep_figures(path, None)
         return markdown
 
     converted = convert(path)

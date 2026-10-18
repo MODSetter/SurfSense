@@ -33,6 +33,15 @@ PLUGIN_CALL_SECONDS = 300
 logger = logging.getLogger(__name__)
 
 
+def thread_tools_url(workspace_id: int, thread_id: int) -> str:
+    """The address naming one thread, as an engine is given it."""
+    api = get_settings()
+    return (
+        f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
+        f"/threads/{thread_id}"
+    )
+
+
 async def register_thread_tools(
     client: OpencodeClient,
     folder: Path,
@@ -46,11 +55,7 @@ async def register_thread_tools(
     `held` is the status opencode reports for them, if it holds them. A turn goes
     on without the tools if they cannot be given.
     """
-    api = get_settings()
-    url = (
-        f"http://{api.host}:{api.port}/agent/tools/workspaces/{workspace_id}"
-        f"/threads/{thread_id}"
-    )
+    url = thread_tools_url(workspace_id, thread_id)
     headers = {"Authorization": f"Bearer {launch_key}"}
     as_given = server_digest(url, headers)
     if held == "connected" and given_as(folder, SERVER) == as_given:

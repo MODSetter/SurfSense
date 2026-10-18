@@ -111,6 +111,13 @@ def no_office_support(monkeypatch: pytest.MonkeyPatch) -> None:
     office_off(monkeypatch)
 
 
+@pytest.fixture(autouse=True)
+def no_system_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scans and photos go to Docling, as the tests of Docling's readings expect,
+    whatever OCR this machine has; a test of the system's OCR turns it on."""
+    monkeypatch.setenv("SURFSENSE_LOCAL_SCAN_OCR", "off")
+
+
 @pytest.fixture
 def real_model(monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Point the encoder at the model fetch_embedding_model.py downloaded, or skip."""
