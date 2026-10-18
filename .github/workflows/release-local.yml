@@ -39,8 +39,15 @@ jobs:
   sdcpp:
     uses: ./.github/workflows/build-sdcpp.yml
 
+  # Before the release build: a lapsed Apple agreement fails here in seconds.
+  notarization:
+    uses: ./.github/workflows/notarization-credentials.yml
+    with:
+      publish: ${{ inputs.publish || 'always' }}
+    secrets: inherit
+
   build:
-    needs: [audiocpp, sdcpp]
+    needs: [audiocpp, sdcpp, notarization]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -104,26 +111,15 @@ jobs:
       - name: Detect release signing eligibility
         id: sign
         run: |
-          # Sign only on production tag pushes (v*), reusing the org certs.
-          # Contributor forks and dry runs lack the secrets and build unsigned.
+          # Windows signs through Azure only on production tag pushes (v*), so a
+          # dry run's Windows build is unsigned. macOS signs and notarizes
+          # whenever its secrets are present, dry runs in this repo included;
+          # contributor forks lack them and build unsigned.
           if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "prod=true" >> "$GITHUB_OUTPUT"
           else
             echo "prod=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Verify Apple notarization credentials
-        if: runner.os == 'macOS' && steps.sign.outputs.prod == 'true'
-        # Fails in seconds on bad secrets instead of after the full build.
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          xcrun notarytool history \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" > /dev/null
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
@@ -272,11 +268,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROD: ${{ steps.sign.outputs.prod }}
-          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # macOS only: on Windows electron-builder would sign every .exe with
+          # this .p12 through signtool, so a dry run never signed as a tag does.
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
           # Windows Azure Trusted Signing — the service principal is only wired
           # in on production tags (see the CLI flags below).
           WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
