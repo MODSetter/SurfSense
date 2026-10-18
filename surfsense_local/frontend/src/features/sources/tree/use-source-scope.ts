@@ -68,7 +68,7 @@ export function useSourceScope(
   })
   // What a chat stored, or the draft a new chat kept: not one of the user's edits.
   const setScope = useStableCallback((scope: SourceScope) =>
-    setMarks(marksOf(scope))
+    setMarks(marksOf(scope, index))
   )
 
   return {

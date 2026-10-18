@@ -154,13 +154,16 @@ describe("ticks from a stored scope", () => {
     [10, 20, 30].filter((id) => isDocumentIncluded(marks, index, id))
 
   it("shows a ticked folder as ticked, with a file added to it later", () => {
-    const marks = marksOf({
-      all: false,
-      folder_ids: [2],
-      excluded_folder_ids: [],
-      document_ids: [],
-      excluded_document_ids: [],
-    })
+    const marks = marksOf(
+      {
+        all: false,
+        folder_ids: [2],
+        excluded_folder_ids: [],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+      index
+    )
     expect(included(marks)).toEqual([20, 30])
     expect(ticksOf(marks, index).get(2)).toBe("checked")
     expect(ticksOf(marks, index).get(-1)).toBe("mixed")
@@ -177,16 +180,35 @@ describe("ticks from a stored scope", () => {
   })
 
   it("shows the sources a stored scope leaves out, and the one it adds back", () => {
-    const marks = marksOf({
-      all: true,
-      folder_ids: [],
-      excluded_folder_ids: [2],
-      document_ids: [30],
-      excluded_document_ids: [10],
-    })
+    const marks = marksOf(
+      {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [2],
+        document_ids: [30],
+        excluded_document_ids: [10],
+      },
+      index
+    )
     expect(included(marks)).toEqual([30])
     expect(ticksOf(marks, index).get(3)).toBe("checked")
     expect(ticksOf(marks, index).get(2)).toBe("mixed")
+  })
+
+  it("leaves out a listed folder under an excluded one, as the server does", () => {
+    // The server takes 2024's subtree, then removes Research's, 2024 included.
+    const marks = marksOf(
+      {
+        all: true,
+        folder_ids: [3],
+        excluded_folder_ids: [2],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+      index
+    )
+    expect(included(marks)).toEqual([10])
+    expect(ticksOf(marks, index).get(3)).toBe("unchecked")
   })
 
   it("round-trips the scope the ticks send", () => {
@@ -195,7 +217,7 @@ describe("ticks from a stored scope", () => {
     marks = markIncluded(marks, index, { kind: "document", id: 30 }, true)
     marks = markIncluded(marks, index, { kind: "document", id: 10 }, false)
     const scope = scopeOf(marks, index)
-    expect(scopeOf(marksOf(scope), index)).toEqual(scope)
-    expect(included(marksOf(scope))).toEqual(included(marks))
+    expect(scopeOf(marksOf(scope, index), index)).toEqual(scope)
+    expect(included(marksOf(scope, index))).toEqual(included(marks))
   })
 })
