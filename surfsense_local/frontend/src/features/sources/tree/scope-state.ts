@@ -184,3 +184,20 @@ export function scopeOf(marks: ScopeMarks, index: SourceIndex): SourceScope {
   walk(TOP, marks.all, marks.all)
   return scope
 }
+
+/**
+ * The ticks a stored scope describes, the inverse of `scopeOf`: `all` decides
+ * where no mark is nearer, and each listed folder or source carries its own.
+ * The nearest mark decides a row the way the server resolves the scope, so
+ * the ticks take in exactly the sources the stored scope does, a file added
+ * later to a listed folder included.
+ */
+export function marksOf(scope: SourceScope): ScopeMarks {
+  const folders = new Map<number, boolean>()
+  const documents = new Map<number, boolean>()
+  for (const id of scope.folder_ids) folders.set(id, true)
+  for (const id of scope.excluded_folder_ids) folders.set(id, false)
+  for (const id of scope.document_ids) documents.set(id, true)
+  for (const id of scope.excluded_document_ids) documents.set(id, false)
+  return { all: scope.all, folders, documents }
+}

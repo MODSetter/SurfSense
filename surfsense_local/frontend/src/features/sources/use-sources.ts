@@ -673,6 +673,8 @@ export function useSources(workspaceId: number) {
     selectedDocumentIds,
     includedDocumentIds: scope.includedDocumentIds,
     sourceScope: scope.scope,
+    scopeEdits: scope.edits,
+    setSourceScope: scope.setScope,
     folderTicks: scope.ticks,
     isLoading,
     isUploading,

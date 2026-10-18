@@ -7,9 +7,11 @@ import {
   everySource,
   isDocumentIncluded,
   markIncluded,
+  marksOf,
   scopeOf,
   ticksOf,
   type ScopeMarks,
+  type SourceScope,
 } from "./scope-state"
 import type { SourceIndex } from "./source-index"
 
@@ -23,6 +25,9 @@ export function useSourceScope(
 ) {
   // Every source by default, as the flat list ticked every ready row.
   const [marks, setMarks] = useState<ScopeMarks>(() => everySource(true))
+  // Counts the user's own ticks, not a scope put on screen for a chat, so a
+  // chat can tell its ticks from the ones it was opened with.
+  const [edits, setEdits] = useState(0)
 
   const derived = useMemo(() => {
     const ticks = ticksOf(marks, index)
@@ -37,7 +42,7 @@ export function useSourceScope(
 
   // Stable: they reach every row of the memoized tree.
   const setDocumentIncluded = useStableCallback(
-    (documentId: number, included: boolean) =>
+    (documentId: number, included: boolean) => {
       setMarks((current) =>
         markIncluded(
           current,
@@ -46,21 +51,32 @@ export function useSourceScope(
           included
         )
       )
+      setEdits((count) => count + 1)
+    }
   )
   const setFolderIncluded = useStableCallback(
-    (folderId: number, included: boolean) =>
+    (folderId: number, included: boolean) => {
       setMarks((current) =>
         markIncluded(current, index, { kind: "folder", id: folderId }, included)
       )
+      setEdits((count) => count + 1)
+    }
   )
-  const toggleAllIncluded = useStableCallback(() =>
+  const toggleAllIncluded = useStableCallback(() => {
     setMarks(everySource(derived.ticks.get(TOP_TICK) !== "checked"))
+    setEdits((count) => count + 1)
+  })
+  // What a chat stored, or the draft a new chat kept: not one of the user's edits.
+  const setScope = useStableCallback((scope: SourceScope) =>
+    setMarks(marksOf(scope))
   )
 
   return {
     ...derived,
+    edits,
     setDocumentIncluded,
     setFolderIncluded,
     toggleAllIncluded,
+    setScope,
   }
 }
