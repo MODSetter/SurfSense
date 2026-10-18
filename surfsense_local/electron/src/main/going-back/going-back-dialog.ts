@@ -4,9 +4,12 @@ import type { Question } from "./offer-going-back.ts"
 
 // English, like the quit confirmation: main's own text is not translated.
 export async function askAboutGoingBack(question: Question): Promise<boolean> {
-  // No window yet: without this the dialog can open behind other apps.
+  // No window yet: without this the dialog can open behind other apps. `steal`
+  // and the bounce are macOS only; Windows flashes the dialog's own taskbar button.
   app.focus({ steal: true })
+  const bounce = app.dock?.bounce("critical")
   const { response } = await dialog.showMessageBox(dialogFor(question))
+  if (bounce !== undefined) app.dock?.cancelBounce(bounce)
   return question.kind !== "cannot-go-back" && response === 1
 }
 

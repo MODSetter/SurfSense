@@ -419,4 +419,5 @@ Releases after 2.2.1 do this ([`shared/going_back/`](../../surfsense_local/backe
 - The snapshot needs free disk about the size of `surfsense.db`, and nothing checks for it first: when the copy fails, the API does not start and the app closes with no message ([overview](overview.md#known-gaps)).
 - Going back to 2.2.1 or earlier still means restoring the snapshot by hand: those releases do not go back on their own, and their API does not start. Going from 2.2.1 to 2.2.0 takes `backups/0027-0029.db`.
 - Restoring a copy leaves the files of documents, chats and artifacts added after it under `data/workspaces/` with no row pointing at them.
+- The going-back dialog opens before any window. macOS brings it forward and bounces the Dock icon, and Windows flashes its taskbar button when it cannot; on Linux under Wayland the compositor may leave it behind other windows.
 - Copies in `backups/set-aside/` are never pruned, so each time the app goes back costs disk the size of `surfsense.db` until the user deletes them.
