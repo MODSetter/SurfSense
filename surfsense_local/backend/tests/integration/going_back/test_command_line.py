@@ -8,13 +8,17 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+from alembic.config import Config
+from sqlalchemy import Engine
 
+from alembic import command
 from shared.db import create_db_engine
 from shared.going_back.exit_code import NEWER_DATABASE
 from shared.going_back.newer_database import database_revision
 from shared.migration_snapshot import snapshot_before_upgrade
 from shared.migrations import upgrade_to_head
 from tests.integration.going_back.newer_app import (
+    ALEMBIC,
     newer_head,
     open_with_newer_release,
     previous_revision,
@@ -25,6 +29,13 @@ from tests.integration.going_back.newer_app import (
 pytestmark = pytest.mark.integration
 
 BACKEND = Path(__file__).parents[3]
+
+
+def _config(engine: Engine) -> Config:
+    config = Config()
+    config.set_main_option("script_location", str(ALEMBIC))
+    config.attributes["engine"] = engine
+    return config
 
 
 def _newer_library(data_dir: Path) -> Path:
@@ -145,3 +156,21 @@ def test_a_failed_undo_reports_the_data_was_loaded_back(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert json.loads(result.stdout) == {"data_unchanged": True}
+
+
+def test_scripts_that_cannot_be_saved_leave_the_database_unmigrated(
+    tmp_path: Path,
+) -> None:
+    """Upgraded data without its saved undo steps could only go back by restore."""
+    engine = create_db_engine(tmp_path / "surfsense.db")
+    command.upgrade(_config(engine), previous_revision())
+    engine.dispose()
+    (tmp_path / "migrations").write_text("not a folder", encoding="utf-8")
+
+    result = _run(tmp_path)
+
+    assert result.returncode != 0
+    assert (
+        database_revision(create_db_engine(tmp_path / "surfsense.db"))
+        == previous_revision()
+    )

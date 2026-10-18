@@ -112,8 +112,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     storage = get_storage_settings()
     engine = create_db_engine(storage.database_path)
     try:
-        upgrade_to_head(engine, backups_dir=storage.data_dir / "backups")
+        # First: upgraded data without its undo steps could only go back by restore.
         save_migrations(storage.data_dir / "migrations")
+        upgrade_to_head(engine, backups_dir=storage.data_dir / "backups")
         session_factory = create_session_factory(engine)
         with session_factory() as session:
             ensure_default_workspace(session)
