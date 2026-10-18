@@ -1795,6 +1795,186 @@ describe("dashboard chat", () => {
     })
   })
 
+  /** Two folders and two sources, two chats, one with a stored scope; what the panel shows for each. */
+  function scopedChats() {
+    const filed = (id: number, title: string, folderId: number) => ({
+      id,
+      title,
+      document_type: "FILE",
+      mime_type: null,
+      status: "ready",
+      error_message: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+      folder_id: folderId,
+    })
+    const thread = (id: number, title: string, source_scope: unknown) => ({
+      id,
+      workspace_id: 1,
+      title,
+      uses_agent: false,
+      source_scope,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === "/llm/catalog/local") {
+          return Response.json({ rows: [], recommended_id: null })
+        }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE&limit=200&offset=0"
+        ) {
+          return Response.json([
+            filed(20, "Guide.txt", 1),
+            filed(21, "Paper.txt", 2),
+          ])
+        }
+        if (path === "/workspaces/1/folders") {
+          return Response.json([
+            { id: 1, parent_id: null, name: "Library" },
+            { id: 2, parent_id: 1, name: "Research" },
+          ])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([
+            thread(10, "Research only", {
+              all: false,
+              folder_ids: [2],
+              excluded_folder_ids: [],
+              document_ids: [],
+              excluded_document_ids: [],
+            }),
+            thread(11, "Everything", null),
+          ])
+        }
+        if (path === "/chat/threads/10/source-scope" && init?.method === "PUT") {
+          return Response.json({
+            source_scope: JSON.parse(String(init.body)),
+            counts: { ready: 2, indexing: 0, failed: 0, removed: 0 },
+          })
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const page = (
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "Qwen3-1.7B-Q4_K_M",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    // Base UI's checkbox is a button; its state is what it tells assistive technology.
+    const state = (box: HTMLElement) => box.getAttribute("aria-checked")
+    const folder = (name: string) =>
+      state(screen.getByRole("checkbox", { name: `Select folder ${name}` }))
+    const sourceRow = (title: string) =>
+      state(screen.getByRole("checkbox", { name: `Select ${title}` }))
+    const click = (name: string) =>
+      user.click(screen.getByRole("checkbox", { name }))
+    const open = async (title: string) => {
+      await user.click(screen.getByRole("button", { name: "Chats" }))
+      await user.click(await screen.findByRole("button", { name: title }))
+    }
+
+    return { fetchMock, user, page, folder, sourceRow, click, open }
+  }
+
+  it("opens a chat with the sources it stored", async () => {
+    const { user, page, folder, sourceRow, open } = scopedChats()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+
+    // The stored scope ticks the folder it names and nothing beside it.
+    await open("Research only")
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    expect(sourceRow("Guide.txt")).toBe("false")
+    expect(sourceRow("Paper.txt")).toBe("true")
+
+    // A thread that never stored ticks uses every source.
+    await open("Everything")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    expect(folder("Research")).toBe("true")
+  })
+
+  it("stores a tick made in an open chat on it, and shows it again on return", async () => {
+    const { fetchMock, user, page, folder, sourceRow, click, open } =
+      scopedChats()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+
+    await click("Select Guide.txt")
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+        )
+      ).toBe(true)
+    )
+    const stored = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/chat/threads/10/source-scope" && init?.method === "PUT"
+    )
+    expect(JSON.parse(String(stored?.[1]?.body))).toEqual({
+      all: false,
+      folder_ids: [2],
+      excluded_folder_ids: [],
+      document_ids: [20],
+      excluded_document_ids: [],
+    })
+    await open("Everything")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    expect(folder("Research")).toBe("true")
+  })
+
+  it("starts a new chat from every source and keeps what it unticks across a remount", async () => {
+    const { user, page, folder, sourceRow, click, open } = scopedChats()
+    const first = render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await open("Research only")
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("false"))
+
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => expect(sourceRow("Guide.txt")).toBe("true"))
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    first.unmount()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    expect(sourceRow("Guide.txt")).toBe("true")
+  })
+
   it("sends a turn with thinking off once the composer switch is off", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {

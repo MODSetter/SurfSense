@@ -1,0 +1,137 @@
+import { useEffect, useRef } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+
+import type { SourceScope } from "@/features/sources/tree/scope-state"
+
+import { type ChatThread, storeThreadScope } from "./api"
+import { chatKeys } from "./query-keys"
+import type { ConversationView } from "./use-chat-runtime"
+
+const EVERY_SOURCE: SourceScope = {
+  all: true,
+  folder_ids: [],
+  excluded_folder_ids: [],
+  document_ids: [],
+  excluded_document_ids: [],
+}
+
+function draftKey(workspaceId: number) {
+  return `surfsense:draft-scope:${workspaceId}:v1`
+}
+
+const isIdList = (value: unknown): value is number[] =>
+  Array.isArray(value) && value.every((id) => typeof id === "number")
+
+/** The ticks a new chat kept, or null for none it can read. */
+export function readDraftScope(workspaceId: number): SourceScope | null {
+  try {
+    const raw = localStorage.getItem(draftKey(workspaceId))
+    if (raw === null) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== "object" || parsed === null) return null
+    const scope = parsed as Record<string, unknown>
+    if (
+      typeof scope.all !== "boolean" ||
+      !isIdList(scope.folder_ids) ||
+      !isIdList(scope.excluded_folder_ids) ||
+      !isIdList(scope.document_ids) ||
+      !isIdList(scope.excluded_document_ids)
+    ) {
+      return null
+    }
+    return {
+      all: scope.all,
+      folder_ids: scope.folder_ids,
+      excluded_folder_ids: scope.excluded_folder_ids,
+      document_ids: scope.document_ids,
+      excluded_document_ids: scope.excluded_document_ids,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeDraftScope(workspaceId: number, scope: SourceScope | null) {
+  try {
+    if (scope === null) localStorage.removeItem(draftKey(workspaceId))
+    else localStorage.setItem(draftKey(workspaceId), JSON.stringify(scope))
+  } catch {
+    // Storage refused; the draft lives for the session only.
+  }
+}
+
+/**
+ * Keeps the sources panel's ticks with the chat they belong to. Opening a
+ * thread puts its stored scope on screen; a tick made in it between turns is
+ * stored at once, so the thread shows it again when it is opened next. A new
+ * chat keeps its ticks as a draft across a reload, until the chat is sent:
+ * the send stores them on the thread it makes, and the draft is spent.
+ */
+export function useThreadScope({
+  workspaceId,
+  view,
+  activeThread,
+  sourceScope,
+  scopeEdits,
+  setSourceScope,
+}: {
+  workspaceId: number
+  view: ConversationView
+  activeThread: ChatThread | null
+  sourceScope: SourceScope
+  /** Counts the user's own ticks, never a scope this hook put on screen. */
+  scopeEdits: number
+  setSourceScope: (scope: SourceScope) => void
+}) {
+  const queryClient = useQueryClient()
+  const threadId = view.status === "active" ? view.threadId : null
+  // The chat whose ticks are on screen; a thread not in the list yet waits.
+  const shown = useRef<{ workspaceId: number; threadId: number | null } | null>(
+    null
+  )
+  const seenEdits = useRef(scopeEdits)
+
+  useEffect(() => {
+    const current = shown.current
+    if (current?.workspaceId === workspaceId && current.threadId === threadId) {
+      return
+    }
+    if (threadId === null) {
+      setSourceScope(readDraftScope(workspaceId) ?? EVERY_SOURCE)
+      shown.current = { workspaceId, threadId }
+      return
+    }
+    if (activeThread === null) return
+    if (activeThread.source_scope === undefined) {
+      // The chat the ticks on screen just started: the send stored them.
+      writeDraftScope(workspaceId, null)
+    } else {
+      setSourceScope(activeThread.source_scope ?? EVERY_SOURCE)
+    }
+    shown.current = { workspaceId, threadId }
+  }, [activeThread, setSourceScope, threadId, workspaceId])
+
+  useEffect(() => {
+    if (scopeEdits === seenEdits.current) return
+    seenEdits.current = scopeEdits
+    const current = shown.current
+    if (current?.workspaceId !== workspaceId || current.threadId !== threadId) {
+      return
+    }
+    if (threadId === null) {
+      writeDraftScope(workspaceId, sourceScope)
+      return
+    }
+    queryClient.setQueryData<ChatThread[]>(
+      chatKeys.threads(workspaceId),
+      (threads) =>
+        threads?.map((thread) =>
+          thread.id === threadId
+            ? { ...thread, source_scope: sourceScope }
+            : thread
+        )
+    )
+    // The next turn sends the ticks again, so a store that fails costs nothing.
+    void storeThreadScope(threadId, sourceScope).catch(() => {})
+  }, [queryClient, scopeEdits, sourceScope, threadId, workspaceId])
+}

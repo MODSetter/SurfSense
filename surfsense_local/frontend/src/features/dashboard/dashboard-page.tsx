@@ -33,6 +33,7 @@ import { NewChatModeProvider } from "@/features/chat/modes/new-chat-mode-provide
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
+import { useThreadScope } from "@/features/chat/use-thread-scope"
 import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
@@ -169,6 +170,14 @@ function WorkspaceDashboard({
     onAgenticGate,
     onModelRequired,
     onModelCheck,
+  })
+  useThreadScope({
+    workspaceId: workspace.id,
+    view: chat.conversationView,
+    activeThread: chat.activeThread,
+    sourceScope: sources.sourceScope,
+    scopeEdits: sources.scopeEdits,
+    setSourceScope: sources.setSourceScope,
   })
   const sourcePreview = sources.documents.find(
     (document) => document.id === sourcePreviewId

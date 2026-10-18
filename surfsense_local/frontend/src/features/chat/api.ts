@@ -20,6 +20,9 @@ export type ChatThread = {
   title: string | null
   // The agent answers this thread: it opened in Agentic mode, and keeps it.
   uses_agent: boolean
+  // The ticks it stored; null is every source. Absent on a thread the client
+  // made itself before the list was read again.
+  source_scope?: SourceScope | null
   created_at: string
   updated_at: string
   // A reply is being generated for it right now. Absent on a thread the
@@ -87,6 +90,26 @@ export type ChatMessage = {
   content: MessageContent
   created_at: string | null
   completed_at: string | null
+}
+
+/** A scope as the server keeps it, pruned of sources that are gone, and what it holds now. */
+export type ScopeRead = {
+  source_scope: SourceScope
+  counts: { ready: number; indexing: number; failed: number; removed: number }
+}
+
+/** Store the ticks made in a thread between turns, so opening it again shows them. */
+export function storeThreadScope(
+  threadId: number,
+  scope: SourceScope,
+  signal?: AbortSignal
+): Promise<ScopeRead> {
+  return requestJson<ScopeRead>(`/chat/threads/${threadId}/source-scope`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(scope),
+    signal,
+  })
 }
 
 export function listThreads(
