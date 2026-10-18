@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "Модели, рабочие области и настройки хранятся здесь, а не в папке, куда установлен SurfSense.",
+  "about_data_folder_open_button": "Открыть папку",
+  "about_data_folder_open_error": "Не удалось открыть папку с данными",
+  "about_data_folder_title": "Ваши данные",
   "about_discord_link": "Сообщество в Discord",
   "about_docs_link": "Документация",
   "about_github_link": "Исходный код на GitHub",

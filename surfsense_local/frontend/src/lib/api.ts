@@ -38,6 +38,10 @@ declare global {
       ) => Promise<void>
       about?: {
         details: () => Promise<AppDetails>
+        // Where models, workspaces and settings live. Mirrors electron/src/preload/index.ts.
+        dataFolder?: () => Promise<string | null>
+        // "" once opened, else the OS's reason.
+        openDataFolder?: () => Promise<string>
       }
       // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
       sessionLog?: {

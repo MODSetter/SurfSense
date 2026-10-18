@@ -1,4 +1,8 @@
 {
+  "about_data_folder_body": "Modelos, workspaces e configurações ficam aqui, não na pasta onde o SurfSense está instalado.",
+  "about_data_folder_open_button": "Abrir pasta",
+  "about_data_folder_open_error": "Não foi possível abrir a pasta de dados",
+  "about_data_folder_title": "Seus dados",
   "about_discord_link": "Comunidade no Discord",
   "about_docs_link": "Documentação",
   "about_github_link": "Código-fonte no GitHub",
