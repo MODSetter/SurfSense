@@ -62,8 +62,24 @@ function writeDraftScope(workspaceId: number, scope: SourceScope | null) {
   }
 }
 
-/** The draft is spent once a thread has been opened with its ticks. */
-export function clearDraftScope(workspaceId: number) {
+/** The draft as stored, to tell later whether it changed meanwhile. */
+export function draftScopeSnapshot(workspaceId: number): string | null {
+  try {
+    return localStorage.getItem(draftKey(workspaceId))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The draft is spent once a thread has been opened with its ticks. Given the
+ * snapshot taken when that started, a draft written since, for a newer chat,
+ * is left alone.
+ */
+export function clearDraftScope(workspaceId: number, snapshot?: string | null) {
+  if (snapshot !== undefined && draftScopeSnapshot(workspaceId) !== snapshot) {
+    return
+  }
   writeDraftScope(workspaceId, null)
 }
 
