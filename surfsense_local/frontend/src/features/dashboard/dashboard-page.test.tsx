@@ -1873,6 +1873,16 @@ describe("dashboard chat", () => {
             thread(11, "Everything", null),
           ])
         }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          const body = JSON.parse(String(init.body)) as { source_scope?: unknown }
+          return Response.json(
+            thread(12, "Scoped draft", body.source_scope ?? null),
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/12/messages" && init?.method === "POST") {
+          return Response.json({ detail: "down" }, { status: 503 })
+        }
         if (path === "/chat/threads/10/source-scope" && init?.method === "PUT") {
           if (storeStatus !== 200) {
             return Response.json({ detail: "down" }, { status: storeStatus })
@@ -2021,6 +2031,55 @@ describe("dashboard chat", () => {
       )
     )
     // The tick stays on screen: the next message sends it anyway.
+    expect(sourceRow("Guide.txt")).toBe("true")
+  })
+
+  it("opens a new chat's thread with its ticks, which outlive a first message that fails", async () => {
+    const { fetchMock, user, page, folder, sourceRow, click, open } =
+      scopedChats()
+    render(page)
+    await screen.findByRole("treeitem", { name: "Research" })
+    await user.click(screen.getByRole("button", { name: "Expand Research" }))
+    await click("Select folder Research")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).not.toBeNull()
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Scoped")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/chat/threads/12/messages" && init?.method === "POST"
+        )
+      ).toBe(true)
+    )
+    // The thread was opened with the ticks, so the draft is spent even though
+    // the message never reached the backend.
+    const opened = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/workspaces/1/chat/threads" && init?.method === "POST"
+    )
+    expect(JSON.parse(String(opened?.[1]?.body))).toEqual({
+      title: "New chat",
+      source_scope: {
+        all: true,
+        folder_ids: [],
+        excluded_folder_ids: [2],
+        document_ids: [],
+        excluded_document_ids: [],
+      },
+    })
+    expect(localStorage.getItem("surfsense:draft-scope:1:v1")).toBeNull()
+    expect(folder("Research")).toBe("false")
+
+    // Coming back to it shows those ticks; a new chat starts over.
+    await open("Everything")
+    await waitFor(() => expect(folder("Research")).toBe("true"))
+    await open("Scoped draft")
+    await waitFor(() => expect(folder("Research")).toBe("false"))
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => expect(folder("Research")).toBe("true"))
     expect(sourceRow("Guide.txt")).toBe("true")
   })
 

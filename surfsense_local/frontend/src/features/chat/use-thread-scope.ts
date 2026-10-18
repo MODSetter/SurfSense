@@ -62,12 +62,17 @@ function writeDraftScope(workspaceId: number, scope: SourceScope | null) {
   }
 }
 
+/** The draft is spent once a thread has been opened with its ticks. */
+export function clearDraftScope(workspaceId: number) {
+  writeDraftScope(workspaceId, null)
+}
+
 /**
  * Keeps the sources panel's ticks with the chat they belong to. Opening a
  * thread puts its stored scope on screen; a tick made in it between turns is
  * stored at once, so the thread shows it again when it is opened next. A new
  * chat keeps its ticks as a draft across a reload, until the chat is sent:
- * the send stores them on the thread it makes, and the draft is spent.
+ * the thread is opened with them, and the draft is spent.
  */
 export function useThreadScope({
   workspaceId,
@@ -153,12 +158,11 @@ export function useThreadScope({
       // user's for this thread: they stay, and the thread gets them.
       seenEdits.current = scopeEdits
       store(threadId, sourceScope)
-    } else if (activeThread.source_scope === undefined) {
-      // The chat the ticks on screen just started: the send stored them.
-      writeDraftScope(workspaceId, null)
-    } else {
+    } else if (activeThread.source_scope !== undefined) {
       setSourceScope(activeThread.source_scope ?? EVERY_SOURCE)
     }
+    // An entry without a scope was made by this client: the ticks on screen
+    // opened it, and stay.
   })
 
   useEffect(() => {

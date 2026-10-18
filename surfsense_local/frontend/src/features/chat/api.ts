@@ -121,11 +121,22 @@ export function listThreads(
   })
 }
 
+/** Every source, which a thread opened without a scope uses anyway. */
+const isEverySource = (scope: SourceScope) =>
+  scope.all &&
+  scope.folder_ids.length === 0 &&
+  scope.excluded_folder_ids.length === 0 &&
+  scope.document_ids.length === 0 &&
+  scope.excluded_document_ids.length === 0
+
 export function createThread(
   workspaceId: number,
   title: string,
   // Null leaves the API to the selected model's default.
   choice: NewChatChoice | null,
+  // The new chat's ticks, stored with the thread so they outlive a first
+  // message that fails. Every source, or null, leaves the thread its default.
+  sourceScope: SourceScope | null,
   signal?: AbortSignal
 ): Promise<ChatThread> {
   return requestJson<ChatThread>(`/workspaces/${workspaceId}/chat/threads`, {
@@ -133,6 +144,9 @@ export function createThread(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       title,
+      ...(sourceScope && !isEverySource(sourceScope)
+        ? { source_scope: sourceScope }
+        : {}),
       ...(choice ? { mode: choice.mode } : {}),
       // Only the user's own choice becomes the model's default.
       ...(choice?.chosen ? { remember: true } : {}),
