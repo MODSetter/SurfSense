@@ -835,6 +835,7 @@
   "onboarding_welcome_title": "气隙隔离、开源的 <accent>NotebookLM 替代品</accent>",
   "plugins_actions_check_label": "刷新工具",
   "plugins_actions_remove_label": "移除",
+  "plugins_actions_submit_label": "提交到插件列表",
   "plugins_actions_trigger_aria": "{plugin} 的更多操作",
   "plugins_add_body": "通过网址访问的远程 MCP 服务器。SurfSense 会在添加前列出它的工具。",
   "plugins_add_cancel_button": "取消",

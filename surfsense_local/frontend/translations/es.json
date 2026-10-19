@@ -835,6 +835,7 @@
   "onboarding_welcome_title": "La <accent>alternativa a NotebookLM</accent>: aislada de la red y de código abierto",
   "plugins_actions_check_label": "Actualizar herramientas",
   "plugins_actions_remove_label": "Quitar",
+  "plugins_actions_submit_label": "Enviar a la lista de plugins",
   "plugins_actions_trigger_aria": "Más acciones para {plugin}",
   "plugins_add_body": "Un servidor MCP remoto, al que se accede por su URL. SurfSense enumera sus herramientas antes de añadirlo.",
   "plugins_add_cancel_button": "Cancelar",

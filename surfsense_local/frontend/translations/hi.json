@@ -835,6 +835,7 @@
   "onboarding_welcome_title": "एयर-गैप्ड, ओपन सोर्स <accent>NotebookLM विकल्प</accent>",
   "plugins_actions_check_label": "टूल रीफ़्रेश करें",
   "plugins_actions_remove_label": "हटाएं",
+  "plugins_actions_submit_label": "प्लगइन सूची में सबमिट करें",
   "plugins_actions_trigger_aria": "{plugin} के लिए और कार्रवाइयां",
   "plugins_add_body": "URL से पहुँचने वाला रिमोट MCP सर्वर। जोड़ने से पहले SurfSense उसके टूल की सूची देखता है।",
   "plugins_add_cancel_button": "रद्द करें",

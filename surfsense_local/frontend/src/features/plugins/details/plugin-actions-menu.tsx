@@ -7,12 +7,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { EllipsisIcon, RefreshCwIcon, Trash2Icon } from "@/components/ui/icons"
+import {
+  EllipsisIcon,
+  ExternalLinkIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+} from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
 import type { Plugin } from "../api"
+import { openRegistrySubmission } from "./registry-submission"
 
-/** A plugin's less frequent actions; a disconnected plugin can only be removed. On and off is the composer's "+ › Plugins". */
+/** A plugin's less frequent actions; a disconnected plugin can only be removed. On and off is the composer's "+ › Plugins". A custom one can be offered to the registry. */
 export function PluginActionsMenu({
   plugin,
   checking,
@@ -44,7 +50,7 @@ export function PluginActionsMenu({
           </Button>
         }
       />
-      <DropdownMenuContent align="end" sideOffset={8} className="w-40">
+      <DropdownMenuContent align="end" sideOffset={8} className="w-52">
         {plugin.disconnected ? null : (
           <>
             <DropdownMenuGroup>
@@ -55,6 +61,17 @@ export function PluginActionsMenu({
                   defaultMessage: "Refresh tools",
                 })}
               </DropdownMenuItem>
+              {plugin.source === "custom" ? (
+                <DropdownMenuItem
+                  onClick={() => openRegistrySubmission(plugin)}
+                >
+                  <ExternalLinkIcon />
+                  {intl.formatMessage({
+                    id: "plugins_actions_submit_label",
+                    defaultMessage: "Submit to the registry",
+                  })}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
           </>

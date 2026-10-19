@@ -835,6 +835,7 @@
   "onboarding_welcome_title": "에어갭 지원 오픈소스 <accent>NotebookLM 대안</accent>",
   "plugins_actions_check_label": "도구 새로 고침",
   "plugins_actions_remove_label": "제거",
+  "plugins_actions_submit_label": "플러그인 목록에 제출",
   "plugins_actions_trigger_aria": "{plugin} 추가 작업",
   "plugins_add_body": "URL로 연결하는 원격 MCP 서버입니다. SurfSense는 추가하기 전에 도구 목록을 확인합니다.",
   "plugins_add_cancel_button": "취소",

@@ -835,6 +835,7 @@
   "onboarding_welcome_title": "Die <accent>NotebookLM-Alternative</accent>: air-gapped und Open Source",
   "plugins_actions_check_label": "Tools aktualisieren",
   "plugins_actions_remove_label": "Entfernen",
+  "plugins_actions_submit_label": "Für die Plugin-Liste einreichen",
   "plugins_actions_trigger_aria": "Weitere Aktionen für {plugin}",
   "plugins_add_body": "Ein entfernter MCP-Server, erreichbar über seine URL. SurfSense listet seine Tools auf, bevor er hinzugefügt wird.",
   "plugins_add_cancel_button": "Abbrechen",

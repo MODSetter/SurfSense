@@ -835,6 +835,7 @@
   "onboarding_welcome_title": "<accent>Аналог NotebookLM</accent> с открытым исходным кодом, изолированный от сети",
   "plugins_actions_check_label": "Обновить инструменты",
   "plugins_actions_remove_label": "Удалить",
+  "plugins_actions_submit_label": "Предложить в список плагинов",
   "plugins_actions_trigger_aria": "Другие действия для {plugin}",
   "plugins_add_body": "Удалённый MCP-сервер, доступный по URL. SurfSense получает список его инструментов перед добавлением.",
   "plugins_add_cancel_button": "Отмена",

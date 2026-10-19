@@ -342,7 +342,7 @@ const changes = (calls: Call[]) =>
 
 /** The Electron bridge's way to the user's browser. */
 function browser() {
-  const openExternal = vi.fn(async () => {})
+  const openExternal = vi.fn<(url: string) => Promise<void>>(async () => {})
   window.surfsense = { openExternal } as unknown as typeof window.surfsense
   return openExternal
 }
@@ -876,7 +876,43 @@ describe("plugins settings", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent)
-    ).toEqual(["Refresh tools", "Remove"])
+    ).toEqual(["Refresh tools", "Submit to the registry", "Remove"])
+  })
+
+  it("offers a custom plugin to the registry through the submission form, filled in", async () => {
+    api({ allowed: true })
+    const openExternal = browser()
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    const menu = await actions(user, plugin, "Notes")
+    await user.click(
+      within(menu).getByRole("menuitem", { name: "Submit to the registry" })
+    )
+
+    const opened = new URL(String(openExternal.mock.calls[0]?.[0]))
+    expect(opened.origin + opened.pathname).toBe(
+      "https://github.com/MODSetter/SurfSense/issues/new"
+    )
+    expect(Object.fromEntries(opened.searchParams)).toEqual({
+      template: "plugin-submit.yml",
+      title: "[plugin submission] Notes",
+      name: "Notes",
+      url: "https://notes.example/mcp",
+    })
+  })
+
+  it("never offers a listed plugin to the registry again", async () => {
+    api({ plugins: [notes({ source: "registry" })], allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    const menu = await actions(user, plugin, "Notes")
+    expect(
+      within(menu).queryByRole("menuitem", { name: "Submit to the registry" })
+    ).toBeNull()
   })
 
   it("disconnects only once the user confirms, keeping the plugin to connect again", async () => {
