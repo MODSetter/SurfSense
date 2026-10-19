@@ -285,6 +285,7 @@ async def test_update_preserves_captured_models(
     }
     existing = SimpleNamespace(
         workspace_id=1,
+        created_by_user_id="u-1",
         definition={"name": "A", "plan": [], "models": captured},
         version=3,
     )
@@ -316,6 +317,7 @@ async def test_update_honors_changed_models_when_valid(
     """A definition edit with a *changed* models block validates + keeps it."""
     existing = SimpleNamespace(
         workspace_id=1,
+        created_by_user_id="u-1",
         definition={
             "name": "A",
             "plan": [],
@@ -377,6 +379,7 @@ async def test_update_rejects_changed_unbillable_models(
     """A *changed* non-billable models block is rejected with HTTP 422."""
     existing = SimpleNamespace(
         workspace_id=1,
+        created_by_user_id="u-1",
         definition={
             "name": "A",
             "plan": [],
@@ -439,6 +442,7 @@ async def test_update_keeps_unchanged_models_without_revalidation(
     }
     existing = SimpleNamespace(
         workspace_id=1,
+        created_by_user_id="u-1",
         definition={"name": "A", "plan": [], "models": captured},
         version=3,
     )
