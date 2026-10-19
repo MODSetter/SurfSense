@@ -520,7 +520,7 @@ Milestones are the [README](README.md)'s: P0 lands in M1, the Claude route and t
 
 **New ADRs** (numbers follow the [README](README.md#adrs-to-write-or-amend)'s order):
 - **ADR 0043**, "Claude goes through Anthropic's Messages API." It amends [ADR 0015](../../adr/0015-openai-compatible-connections.md): a connection's wire follows its host and `auth_kind`, derived in `wire.py`. Anthropic's host speaks Messages for chat, Studio and the agent.
-- **[ADR 0044](../../adr/0044-a-score-sets-the-default-mode-never-whether-agentic-is-allowed.md)** records what #2207 built in place of the planned "What a model may do comes from a reviewed, measured capability manifest": a measured level sets a new chat's default mode, and only technical gates keep a model out of Agentic. Still to record from this section: a third reviewed manifest extending [ADR 0014](../../adr/0014-two-tier-model-catalog.md), the prompt tier as prompt shape only, and committed rows coming from packaged builds.
+- **[ADR 0044](../../adr/0044-a-score-sets-the-default-mode-never-whether-agentic-is-allowed.md)** records what #2207 built in place of the planned "What a model may do comes from a reviewed, measured capability manifest": a measured level sets a new chat's default mode, and only technical gates keep a model out of Agentic. ADR 0044 does not decide the rest of this section, which still needs a record of its own: a third reviewed manifest extending [ADR 0014](../../adr/0014-two-tier-model-catalog.md), the prompt tier as prompt shape only, and committed rows coming from packaged builds.
 
 **Proposals and architecture docs:**
 - [`01-which-engine.md`](../agent/01-which-engine.md):

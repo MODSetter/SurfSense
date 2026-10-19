@@ -22,7 +22,7 @@ If a score decided who may use the agent, every local model would be kept out of
 
 ## Consequences
 
-- Every chat model may use the agent. A score informs the user and sets where they start; it does not decide for them.
+- Every chat model that no technical gate keeps out may use the agent. A score informs the user and sets where they start; it does not decide for them.
 - The same level also picks Studio's Word and PDF path: a model at `agent` or `agent_limited` writes a script, one at `studio_only` writes Markdown ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)).
 - A gate is a fact that predicts the agent cannot work, stated by a catalog or the runtime; a score is a sample. Only the first refuses.
 - A local copy starts in Basic (Q&A) even when its full-size version passed: the copy has its own quantization and window, so its pass is a measurement not yet made. A failure needs no such care, since a copy is the same model or a smaller one.
