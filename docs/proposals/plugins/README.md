@@ -9,7 +9,7 @@ code:
 
 # Plugins: what is not built
 
-> Remote plugins are built: SurfSense's own on the [plugin host](../../architecture/plugin-host.md), third-party ones in the signed [registry](../../architecture/plugin-registry.md), any server by URL, called by the agent's opencode under rules SurfSense writes each turn ([plugins](../../architecture/plugins.md), [agent](../../architecture/agent.md#plugins)). This page holds what comes next, roughly in the order it is likely to be needed. Plugins that run on the user's machine are [bundles](bundles/README.md), deferred.
+> Remote plugins are built: SurfSense's own on the [plugin host](../../architecture/plugin-host.md), third-party ones in the signed [registry](../../architecture/plugin-registry.md), any server by URL, called by the agent's opencode under rules SurfSense writes each turn ([plugins](../../architecture/plugins.md), [agent](../../architecture/agent.md#plugins)). This page holds what comes next, roughly in the order it is likely to be needed. Connecting any remote MCP server, with any sign-in it uses, is [connections](connections/README.md). Plugins that run on the user's machine are [bundles](bundles/README.md), deferred.
 
 The decisions behind what is built are ADRs [0051](../../adr/0051-plugins-are-mcp-servers-behind-one-tool-gateway.md), [0053](../../adr/0053-plugins-are-listed-in-a-registry-and-third-party-ones-start-off.md) and [0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md); the one behind the router step below is [ADR 0052](../../adr/0052-the-chat-model-never-calls-tools.md).
 
