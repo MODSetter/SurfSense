@@ -16,7 +16,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from api.main import create_app, lifespan
-from modules.agent.plugin_proxy import allowed_hosts
+from modules.agent.plugin_proxy import allowed_hosts, server
 from modules.agent.plugin_proxy.allowed_hosts import AllowedHosts
 from modules.agent.plugin_proxy.server import serving_plugin_proxy
 from modules.egress.models import EgressDestination
@@ -281,6 +281,24 @@ async def test_a_host_that_cannot_be_reached_is_answered(
     assert head.startswith(b"HTTP/1.1 502")
 
 
+async def test_a_connect_that_fails_in_any_way_is_answered(
+    engine: Engine, proxy: int, echo: Echo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Not only a network error: a dropped socket reads as a blip, and is retried blindly."""
+    connect_plugin(engine, f"https://localhost:{echo.port}/mcp")
+
+    async def unexpected(_host: str, _port: int) -> None:
+        raise RuntimeError("the loop refused the call")
+
+    monkeypatch.setattr(server, "_connect", unexpected)
+
+    head, _ = await through(
+        proxy, f"CONNECT localhost:{echo.port} HTTP/1.1\r\n\r\n".encode()
+    )
+
+    assert head.startswith(b"HTTP/1.1 502")
+
+
 async def test_a_check_that_fails_is_answered(
     engine: Engine, proxy: int, echo: Echo, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -433,3 +451,35 @@ async def test_the_api_runs_the_proxy_where_electron_points_opencode(
         head, _ = await through(port, b"CONNECT example.com:443 HTTP/1.1\r\n\r\n")
 
     assert head.startswith(b"HTTP/1.1 403")
+
+
+def test_a_ready_plugins_host_is_tunnelled_to_under_uvloop(engine: Engine) -> None:
+    """The real app runs on uvloop on macOS and Linux; the tests' loop is asyncio's."""
+    # uvloop has no Windows build, and the app runs on asyncio's own loop there.
+    uvloop = pytest.importorskip("uvloop")
+
+    async def tunnelled() -> tuple[bytes, bytes]:
+        async def answer(
+            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        ) -> None:
+            writer.write(await reader.read(100))
+            await writer.drain()
+            writer.close()
+
+        echo = await asyncio.start_server(answer, "127.0.0.1", 0)
+        port = echo.sockets[0].getsockname()[1]
+        connect_plugin(engine, f"https://localhost:{port}/mcp")
+        async with (
+            echo,
+            serving_plugin_proxy(
+                create_session_factory(engine), "127.0.0.1", 0
+            ) as proxy,
+        ):
+            return await through(
+                proxy, f"CONNECT localhost:{port} HTTP/1.1\r\n\r\n".encode()
+            )
+
+    head, echoed = uvloop.run(tunnelled())
+
+    assert head.startswith(b"HTTP/1.1 200")
+    assert echoed == b"ping"

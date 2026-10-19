@@ -156,7 +156,11 @@ jobs:
           uv run python - >> "$GITHUB_OUTPUT" <<'EOF'
           from modules.llm.catalog.local.manifest import load_local_manifest
 
-          (model,) = [m for m in load_local_manifest().models if m.transcription]
+          # The gate's tests are written for Nemotron; Canary is a second recogniser.
+          (model,) = [
+              m for m in load_local_manifest().models
+              if m.id == "nemotron-3.5-asr-streaming-0.6b"
+          ]
           pinned = model.builds[0].files[0]
           print(f"sha256={pinned.sha256}")
           print(f"url=https://huggingface.co/{pinned.repo}/resolve/{pinned.revision}/{pinned.path}")

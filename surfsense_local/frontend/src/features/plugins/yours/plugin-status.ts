@@ -6,9 +6,11 @@ export type PluginStatus = {
   label: string
   /** `failure` needs the user; `idle` is not in use; `ok` is working. */
   tone: "failure" | "idle" | "ok"
+  /** Something new beside the state, not a state of its own. */
+  badge?: string
 }
 
-/** One short state per plugin: what needs fixing first, then what keeps it unused, then what waits on the user. */
+/** One short state per plugin: what needs fixing first, then what keeps it unused, then On. */
 export function pluginStatus(
   plugin: Plugin,
   thirdPartyAllowed: boolean
@@ -100,20 +102,17 @@ export function pluginStatus(
       tone: "idle",
     }
   }
-  if (plugin.tools.some((tool) => tool.change)) {
-    return {
-      label: intl.formatMessage({
-        id: "plugins_list_new_tools_status",
-        defaultMessage: "New tools",
-      }),
-      tone: "ok",
-    }
-  }
   return {
     label: intl.formatMessage({
       id: "plugins_list_on_status",
       defaultMessage: "On",
     }),
     tone: "ok",
+    badge: plugin.tools.some((tool) => tool.change)
+      ? intl.formatMessage({
+          id: "plugins_list_new_tools_status",
+          defaultMessage: "New tools",
+        })
+      : undefined,
   }
 }

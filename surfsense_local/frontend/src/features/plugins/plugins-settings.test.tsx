@@ -105,6 +105,12 @@ function api({
   registryHostAllowed = true,
   customSignsIn = false,
   signInEnds = "connected",
+  signInFailure = {
+    code: "sign_in_declined",
+    message: "The sign-in was declined.",
+    host: null,
+    name: null,
+  },
 }: {
   plugins?: Plugin[]
   allowed?: boolean
@@ -113,8 +119,15 @@ function api({
   registryHostAllowed?: boolean
   /** Adding by URL reaches a server that asks for OAuth. */
   customSignsIn?: boolean
-  /** What the second poll of a sign-in says; `waiting` never ends. */
-  signInEnds?: "connected" | "failed" | "waiting"
+  /** What the second poll of a sign-in says; `waiting` never ends, `forgotten` is a 404. */
+  signInEnds?: "connected" | "failed" | "waiting" | "forgotten"
+  /** Why a sign-in that ends `failed` did, as the API sends it. */
+  signInFailure?: {
+    code: string | null
+    message: string | null
+    host: string | null
+    name: string | null
+  }
 } = {}): Call[] {
   const calls: Call[] = []
   let connected = plugins
@@ -150,9 +163,15 @@ function api({
       })
       if (asked) return new Response(null, { status: 204 })
       const [, , id, , tool] = url.pathname.split("/")
-      if (url.pathname === "/egress/host:plugins.surfsense.com") {
+      if (
+        url.pathname === "/egress" &&
+        init?.method === "PUT" &&
+        (body as { destinations?: string[] } | null)?.destinations?.includes(
+          "host:plugins.surfsense.com"
+        )
+      ) {
         hostAllowed = true
-        return Response.json({})
+        return Response.json([])
       }
       if (url.pathname === "/plugins/registry") {
         if (!thirdParty) {
@@ -195,6 +214,10 @@ function api({
         }
         polls += 1
         const status = polls < 2 ? "waiting" : signInEnds
+        if (status === "forgotten") {
+          signingIn = null
+          return Response.json({ detail: "No such sign-in" }, { status: 404 })
+        }
         if (status === "connected" && signingIn) {
           const signedIn: Plugin = signingIn
           connected = [
@@ -207,7 +230,10 @@ function api({
           id: "s-1",
           plugin_id: "notes",
           status,
-          message: status === "failed" ? "The sign-in was declined." : null,
+          code: status === "failed" ? signInFailure.code : null,
+          message: status === "failed" ? signInFailure.message : null,
+          host: status === "failed" ? signInFailure.host : null,
+          name: status === "failed" ? signInFailure.name : null,
         })
       }
       if (url.pathname === "/plugins/notes/sign-in") {
@@ -447,7 +473,7 @@ describe("plugins settings", () => {
       "Reddit By SurfSense Needs a license",
       "Wiki Third-party Off",
       "Acme Third-party No longer listed",
-      "Docs Custom New tools",
+      "Docs Custom On New tools",
     ]) {
       expect(within(table).getByRole("row", { name })).toBeTruthy()
     }
@@ -1545,13 +1571,89 @@ describe("plugins settings", () => {
     ])
   })
 
-  it("says a sign-in did not finish", async () => {
+  it("says why a sign-in did not finish", async () => {
     browser()
     api({
       plugins: [],
       allowed: true,
       registry: [listed({ auth_type: "oauth" })],
       signInEnds: "failed",
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
+
+    expect(
+      await within(wiki).findByRole("alert", {}, AFTER_POLLS)
+    ).toHaveProperty("textContent", "The sign-in was declined.")
+    expect(within(wiki).getByRole("button", { name: "Connect" })).toBeTruthy()
+  })
+
+  it("names the host a sign-in was not allowed to contact", async () => {
+    browser()
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+      signInEnds: "failed",
+      signInFailure: {
+        code: "sign_in_host_not_allowed",
+        message: "SurfSense isn't allowed to contact accounts.example.com.",
+        host: "accounts.example.com",
+        name: null,
+      },
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
+
+    expect(
+      await within(wiki).findByRole("alert", {}, AFTER_POLLS)
+    ).toHaveProperty(
+      "textContent",
+      "SurfSense isn’t allowed to contact accounts.example.com."
+    )
+  })
+
+  it("shows the API’s own sentence for a reason it has no words for", async () => {
+    browser()
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+      signInEnds: "failed",
+      signInFailure: {
+        code: "sign_in_new_reason",
+        message: "The provider has gone away.",
+        host: null,
+        name: null,
+      },
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
+
+    expect(
+      await within(wiki).findByRole("alert", {}, AFTER_POLLS)
+    ).toHaveProperty("textContent", "The provider has gone away.")
+  })
+
+  it("says a sign-in did not finish once the API has forgotten it", async () => {
+    browser()
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+      signInEnds: "forgotten",
     })
     const user = userEvent.setup()
     render(<PluginsSettings />)
@@ -1618,6 +1720,29 @@ describe("plugins settings", () => {
     ])
   })
 
+  it("says why signing in again did not finish", async () => {
+    browser()
+    api({
+      plugins: [notes({ auth_type: "oauth", check_failure: "sign_in" })],
+      allowed: true,
+      signInEnds: "failed",
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    await user.click(
+      within(plugin).getByRole("button", { name: "Sign in again" })
+    )
+
+    expect(
+      await within(plugin).findByRole("alert", {}, AFTER_POLLS)
+    ).toHaveProperty("textContent", "The sign-in was declined.")
+    expect(
+      within(plugin).getByRole("button", { name: "Sign in again" })
+    ).toBeTruthy()
+  })
+
   it("asks for SurfSense’s plugin host before listing the registry", async () => {
     const calls = api({
       plugins: [],
@@ -1648,8 +1773,8 @@ describe("plugins settings", () => {
     expect(changes(calls)).toEqual([
       {
         method: "PUT",
-        path: "/egress/host:plugins.surfsense.com",
-        body: { enabled: true },
+        path: "/egress",
+        body: { destinations: ["host:plugins.surfsense.com"], enabled: true },
       },
     ])
   })

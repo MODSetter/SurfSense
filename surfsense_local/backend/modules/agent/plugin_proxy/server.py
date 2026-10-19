@@ -31,10 +31,18 @@ logger = logging.getLogger(__name__)
 
 @contextlib.asynccontextmanager
 async def serving_plugin_proxy(
-    sessions: sessionmaker[Session], host: str, port: int
+    sessions: sessionmaker[Session],
+    host: str,
+    port: int,
+    allowed: AllowedHosts | None = None,
+    client: str = "opencode",
 ) -> AsyncIterator[int]:
-    """The proxy on `host`, yielding the port it listens on."""
-    allowed = AllowedHosts(sessions)
+    """The proxy on `host`, yielding the port it listens on.
+
+    `allowed` decides which hosts pass: a ready plugin's by default. `client`
+    names the program it serves in the log, so a refusal says whose it was.
+    """
+    allowed = allowed if allowed is not None else AllowedHosts(sessions)
     # Last-call records in flight, held so none is collected before it ran.
     recording: set[asyncio.Task[None]] = set()
 
@@ -42,7 +50,7 @@ async def serving_plugin_proxy(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         try:
-            await _tunnel(allowed, recording, reader, writer)
+            await _tunnel(allowed, recording, reader, writer, client)
         except (
             OSError,
             asyncio.IncompleteReadError,
@@ -60,11 +68,24 @@ async def serving_plugin_proxy(
         yield server.sockets[0].getsockname()[1]
 
 
+async def _connect(
+    host: str, port: int
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    """asyncio's own loop takes the next address after a delay; uvloop, which the
+    API runs on macOS and Linux, has no such option and refuses the call."""
+    if isinstance(asyncio.get_running_loop(), asyncio.BaseEventLoop):
+        return await asyncio.open_connection(
+            host, port, happy_eyeballs_delay=_NEXT_ADDRESS_SECONDS
+        )
+    return await asyncio.open_connection(host, port)
+
+
 async def _tunnel(
     allowed: AllowedHosts,
     recording: set[asyncio.Task[None]],
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
+    client: str,
 ) -> None:
     head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), _HEAD_SECONDS)
     method, target, *_ = head.split(b"\r\n", 1)[0].decode("latin-1").split(" ")
@@ -82,24 +103,24 @@ async def _tunnel(
             ready = (host, int(port)) in hosts
     except Exception:
         logger.warning(
-            "could not check opencode's %s %s", method, target, exc_info=True
+            "could not check %s's %s %s", client, method, target, exc_info=True
         )
         await _answer(writer, b"502 Bad Gateway")
         return
     checked = time.perf_counter()
     if not ready:
-        logger.info("refused opencode's %s %s", method, target)
+        logger.info("refused %s's %s %s", client, method, target)
         await _answer(writer, b"403 Forbidden")
         return
     try:
         upstream_reader, upstream_writer = await asyncio.wait_for(
-            asyncio.open_connection(
-                host, int(port), happy_eyeballs_delay=_NEXT_ADDRESS_SECONDS
-            ),
-            CONNECT_SECONDS,
+            _connect(host, int(port)), CONNECT_SECONDS
         )
-    except (OSError, TimeoutError):
-        logger.warning("could not reach %s for opencode", target, exc_info=True)
+    # Any failure, not only the network's: a socket closed unanswered reads as a
+    # blip: opencode marks the plugin failed without saying why, and Claude Code
+    # retries it ten times.
+    except Exception:
+        logger.warning("could not reach %s for %s", target, client, exc_info=True)
         await _answer(writer, b"502 Bad Gateway")
         return
     connected = time.perf_counter()

@@ -76,6 +76,12 @@ contextBridge.exposeInMainWorld("surfsense", {
     ipcRenderer.invoke("shell:open-plugin-page", pluginId, page),
   about: {
     details: () => ipcRenderer.invoke("about:details"),
+    // Where models, workspaces and settings live; null outside the app's window.
+    dataFolder: (): Promise<string | null> =>
+      ipcRenderer.invoke("about:data-folder"),
+    // "" once opened, else the OS's reason.
+    openDataFolder: (): Promise<string> =>
+      ipcRenderer.invoke("about:open-data-folder"),
   },
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),

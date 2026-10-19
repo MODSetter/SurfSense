@@ -3,7 +3,8 @@ from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
 from api.notify import notify_document_updates
-from modules.agent.agent_threads.stored_step import stored_step
+from modules.agent.engines.both_sessions import stored_step_of
+from modules.agent.engines.thread_engine import every_engine
 from modules.agent.plugin_tools.saved_results import save_result
 from modules.chat.dependencies import ThreadDep
 from modules.documents.tasks import ingest_document
@@ -32,7 +33,7 @@ async def save_plugin_step(
     response: Response,
 ) -> SavedStep:
     """201 for a new note; 200 when the same call's note was updated."""
-    part = await stored_step(thread, part_id)
+    part = await stored_step_of(session, thread, part_id, every_engine())
     note, created = await transact(session, save_result, thread, part)
     ingest_document(note.id)
     notify_document_updates(broker, note)

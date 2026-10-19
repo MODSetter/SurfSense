@@ -11,9 +11,10 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from modules.agent.opencode_config import CONFIG_FILE, declares_image_input
 from modules.agent.thread_folder.layout import SOURCES
 from modules.agent.tool_endpoint.tool import ToolCallError
-from modules.chat.models import ChatThread
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.source_scope.resolve import resolve_scope
 from modules.source_scope.thread_scope import thread_scope
 from shared.config import get_storage_settings
@@ -37,6 +38,15 @@ class TurnScope:
     document_ids: frozenset[int]
     # False when the address names no agent thread of the workspace.
     known: bool = True
+    # Every Claude model reads images; opencode's model is read again at each use,
+    # as the user can switch it while a tool runs.
+    on_claude_code: bool = False
+
+    def reads_images(self) -> bool:
+        """Whether the thread's model reads images now, so a tool returning them is offered."""
+        if self.on_claude_code:
+            return True
+        return declares_image_input(get_storage_settings().agent_dir / CONFIG_FILE)
 
     def require_known(self) -> None:
         """Refuse a call from an address naming no agent thread of the workspace."""
@@ -72,7 +82,13 @@ def thread_turn_scope(session: Session, workspace_id: int, thread_id: int) -> Tu
     if thread is None or thread.workspace_id != workspace_id or not thread.uses_agent:
         return TurnScope(workspace_id, thread_id, folder, frozenset(), known=False)
     resolved = resolve_scope(session, workspace_id, thread_scope(thread))
-    return TurnScope(workspace_id, thread_id, folder, frozenset(resolved.ids))
+    return TurnScope(
+        workspace_id,
+        thread_id,
+        folder,
+        frozenset(resolved.ids),
+        on_claude_code=thread.agent_engine is AgentEngineKind.CLAUDE_CODE,
+    )
 
 
 def _what_is_selected(selected: frozenset[int]) -> str:

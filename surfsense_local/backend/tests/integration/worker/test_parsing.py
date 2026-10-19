@@ -162,6 +162,8 @@ def parsed(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
         # A fresh install has no Hugging Face cache and every sidecar starts offline.
         "HF_HOME": str(empty_cache),
         "HF_HUB_OFFLINE": "1",
+        # This reads through Docling; the system's OCR has tests of its own.
+        "SURFSENSE_LOCAL_SCAN_OCR": "off",
     }
     child = subprocess.run(
         [sys.executable, "-c", CHILD, *files],

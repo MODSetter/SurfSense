@@ -138,3 +138,14 @@ test("a link the user confirmed opens on any https host, and nothing else", () =
   assert.equal(confirmedExternalUrl("https://me:pw@app.notion.com/"), null) // pragma: allowlist secret
   assert.equal(confirmedExternalUrl("not a url"), null)
 })
+
+test("opens Claude Code's install guide and nothing else on its docs site", () => {
+  assert.equal(
+    allowedExternalUrl("https://code.claude.com/docs/en/setup"),
+    "https://code.claude.com/docs/en/setup"
+  )
+  assert.equal(allowedExternalUrl("https://code.claude.com/docs/en/overview"), null)
+  assert.equal(allowedExternalUrl("https://code.claude.com/docs/en/setup?x=1"), null)
+  assert.equal(allowedExternalUrl("http://code.claude.com/docs/en/setup"), null)
+  assert.equal(allowedExternalUrl("https://claude.ai/"), null)
+})

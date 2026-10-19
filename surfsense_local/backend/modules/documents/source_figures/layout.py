@@ -13,10 +13,17 @@ from modules.documents.storage import UPLOAD_MIME_BY_SUFFIX
 FIGURES_FOLDER = "figures"
 INDEX_NAME = "figures.json"
 INDEX_VERSION = 1
+WORK_FOLDER = "work"
 
 
 def figures_dir(document_dir: Path) -> Path:
     return document_dir / FIGURES_FOLDER
+
+
+def figures_work_dir(folder: Path) -> Path:
+    """What a figures-only pass that gave the queue up carries on from; it goes
+    when the figures are written, as the folder is emptied first."""
+    return folder / WORK_FOLDER
 
 
 def figure_png(folder: Path, n: int) -> Path:

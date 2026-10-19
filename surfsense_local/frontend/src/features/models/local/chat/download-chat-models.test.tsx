@@ -581,7 +581,13 @@ describe("model catalog", () => {
     vi.stubGlobal(
       "fetch",
       serving(catalog(), (path, init) => {
-        calls.push(`${init?.method ?? "GET"} ${path}`)
+        const put = init?.method === "PUT"
+        calls.push(
+          put && path === "/egress"
+            ? `PUT /egress ${JSON.parse(String(init?.body)).destinations.join(",")}`
+            : `${init?.method ?? "GET"} ${path}`
+        )
+        if (path === "/egress" && put) return Response.json([])
         if (path === "/egress") {
           return Response.json([
             {
@@ -592,7 +598,6 @@ describe("model catalog", () => {
             },
           ])
         }
-        if (path.startsWith("/egress/")) return Response.json({})
         return null
       })
     )
@@ -612,7 +617,7 @@ describe("model catalog", () => {
     await user.click(screen.getByRole("button", { name: "Allow" }))
 
     await waitFor(() =>
-      expect(calls).toContain("PUT /egress/host:huggingface.co")
+      expect(calls).toContain("PUT /egress host:huggingface.co")
     )
   })
 
@@ -625,9 +630,9 @@ describe("model catalog", () => {
     })
     vi.stubGlobal(
       "fetch",
-      serving(catalog(), (path) => {
-        if (path === "/egress") return null
-        if (path.startsWith("/egress/")) return Response.json({})
+      serving(catalog(), (path, init) => {
+        if (path === "/egress" && init?.method === "PUT")
+          return Response.json([])
         return null
       })
     )

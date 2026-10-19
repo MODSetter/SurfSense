@@ -133,6 +133,24 @@
   },
   {
     "tree": "python",
+    "name": "pyobjc-core",
+    "version": "12.2.2",
+    "reason": "macOS only. The wheel ships no licence file. Its metadata declares MIT, by Ronald Oussoren and the PyObjC contributors, whose text pyobjc-framework-Cocoa and -Quartz ship."
+  },
+  {
+    "tree": "python",
+    "name": "pyobjc-framework-CoreML",
+    "version": "12.2.2",
+    "reason": "macOS only. The wheel ships no licence file. Its metadata declares MIT, by Ronald Oussoren and the PyObjC contributors, whose text pyobjc-framework-Cocoa and -Quartz ship."
+  },
+  {
+    "tree": "python",
+    "name": "pyobjc-framework-Vision",
+    "version": "12.2.2",
+    "reason": "macOS only. The wheel ships no licence file. Its metadata declares MIT, by Ronald Oussoren and the PyObjC contributors, whose text pyobjc-framework-Cocoa and -Quartz ship."
+  },
+  {
+    "tree": "python",
     "name": "rapidocr",
     "version": "3.9.2",
     "reason": "The wheel ships no licence file. Its metadata declares Apache-2.0, by SWHL."

@@ -69,6 +69,7 @@ SurfSense ist eine kostenlose Open-Source-Desktop-App für Dokumente, die du nic
 | **Bilder** PNG, JPEG, TIFF, BMP, WebP | ✓ Text per OCR erkannt³ | Bilder und Infografiken² | — | In neue Dokumente einfügen |
 | **Markdown**, reiner Text | ✓ | ✓ Markdown | — | — |
 | **HTML** | ✓ | ✓ Webseite | — | — |
+| **Aufnahmen** WAV, MP3, FLAC, Ogg Vorbis | ✓ auf deinem Rechner transkribiert | — | — | — |
 | **Podcast** (Audio) | — | ✓ mit Transkript, standardmäßig auf deinem Rechner vertont | — | — |
 | **Mindmaps, Karteikarten, Quizze** | — | ✓ in der App | — | — |
 

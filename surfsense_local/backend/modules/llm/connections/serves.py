@@ -2,10 +2,12 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 from modules.llm.selectable import REMOTE_SLOTS
 
-# A ChatGPT plan's token reaches POST /v1/responses only: no images, speech,
-# video or embeddings, whatever model is named.
+# A ChatGPT plan's token reaches POST /v1/responses only, and a Claude plan
+# reaches its models only through Claude Code: no images, speech, video or
+# embeddings, whatever model is named.
 _SERVES_BY_AUTH: dict[str, tuple[ModelType, ...]] = {
     "chatgpt": (ModelType.TEXT_GEN,),
+    "claude_plan": (ModelType.TEXT_GEN,),
 }
 
 

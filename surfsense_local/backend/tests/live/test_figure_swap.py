@@ -3,10 +3,12 @@
 The chart's numbers are only its bar labels, so the redraw needs the agent to read the figure.
 """
 
+import asyncio
 import hashlib
 import io
 import random
 import re
+import time
 
 import pytest
 from PIL import Image, ImageDraw, ImageFilter
@@ -18,9 +20,14 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Image as Picture
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
-from modules.documents.source_figures import figure_file, list_figures
+from modules.documents.source_figures import (
+    FiguresPending,
+    SourceFigure,
+    figure_file,
+    list_figures,
+)
 from shared.db import create_session_factory
-from tests.live.live_agent import LiveAgent
+from tests.live.live_agent import INGEST_SECONDS, LiveAgent
 from tests.live.turn_renders import (
     assert_next_version,
     assert_pages_checked,
@@ -48,7 +55,7 @@ async def test_the_agent_places_the_chart_then_redraws_it(live: LiveAgent) -> No
     """v1 holds the source chart, not the photo in its place; v2 holds a chart of its own with the same numbers."""
     report = await live.upload("Drammen depot site visit.pdf", _site_visit())
     await live.wait_ready(report)
-    chart, photo = _chart_and_photo(live, report)
+    chart, photo = await _chart_and_photo(live, report)
     thread = await live.thread()
 
     first = await live.turn(thread, TURNS[0])
@@ -76,11 +83,13 @@ async def test_the_agent_places_the_chart_then_redraws_it(live: LiveAgent) -> No
     )
 
 
-def _chart_and_photo(live: LiveAgent, report: int) -> tuple[str, str]:
-    """The hashes of the report's chart and photo as ingest kept them; checked before any paid call."""
+async def _chart_and_photo(live: LiveAgent, report: int) -> tuple[str, str]:
+    """The hashes of the report's chart and photo as the figures pass kept them; checked before any paid call."""
+    figures = await _kept_figures(live, report)
+    assert len(figures) == 2, (
+        f"the figures pass kept {figures}, not the photo and the chart"
+    )
     with create_session_factory(live.engine)() as session:
-        figures = list_figures(session, live.workspace_id, report)
-        assert len(figures) == 2, f"ingest kept {figures}, not the photo and the chart"
         by_caption = {
             ("chart" if "parcel" in (f.caption or "").lower() else "photo"): f
             for f in figures
@@ -96,6 +105,23 @@ def _chart_and_photo(live: LiveAgent, report: int) -> tuple[str, str]:
             ).hexdigest()
             for kind in ("chart", "photo")
         )
+
+
+async def _kept_figures(live: LiveAgent, report: int) -> list[SourceFigure]:
+    """A born-digital PDF is read from its text layer; the figures pass, queued by
+    ingest and again by the first listing, keeps its figures on the ingest worker."""
+    deadline = time.monotonic() + INGEST_SECONDS
+    while True:
+        with create_session_factory(live.engine)() as session:
+            try:
+                return list_figures(session, live.workspace_id, report)
+            except FiguresPending:
+                pass
+        if time.monotonic() > deadline:
+            raise AssertionError(
+                f"the figures of source {report} were not kept in time"
+            )
+        await asyncio.sleep(1)
 
 
 def _site_visit() -> bytes:
