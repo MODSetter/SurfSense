@@ -92,16 +92,18 @@ Enterprise settings that turn plugins off, keep third-party plugins off, or allo
 - **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [bundles](bundles/README.md)).
 - **Deleting the backend's scraping code** once its scraper API is retired, never before the purge on 18 Oct 2026 ([plugin host](../../architecture/plugin-host.md#layout)).
 
+## Local MCP servers
+
+Decided on 20 Oct 2026: a server started by a command, such as `npx -y @modelcontextprotocol/server-filesystem` or `uvx mcp-server-git`, is not added as a custom plugin. Plugins stay remote MCP servers; local ones come with [bundles](bundles/README.md), whose design is to be redone first. opencode runs such servers already (`type: "local"`), so calling one is the small part. What kept them out is what SurfSense promises:
+
+- **Trust.** The command downloads code and runs it with the user's permissions; approving each call does not limit a program already running.
+- **The network fence.** The program inherits opencode's proxy variables, so `npx` and `uvx` cannot download and most such servers fail to start. Giving them their own environment leaves them outside egress consent altogether.
+- **Listing.** The rules for tools added later need SurfSense's own listing, with annotations, so SurfSense would start the command itself to list it.
+- **One copy per thread.** Each thread's opencode instance starts its own process; a shared copy over HTTP needs a small bridge.
+- **What is installed.** `npx` needs Node and `uvx` needs uv, neither shipped, so a missing one has to read as that, not as a broken plugin.
+
 ## Open questions
 
-- **Whether to run local MCP servers**, those started by a command such as `npx -y @modelcontextprotocol/server-filesystem` or `uvx mcp-server-git`, which most of the MCP ecosystem is today. opencode runs them already (`type: "local"`), so calling one is the small part. The rest is what SurfSense promises:
-  - **Trust.** The command downloads code and runs it with the user's permissions; approving each call does not limit a program already running.
-  - **The network fence.** The program inherits opencode's proxy variables, so `npx` and `uvx` cannot download and most such servers fail to start. Giving them their own environment leaves them outside egress consent altogether.
-  - **Listing.** The rules for tools added later need SurfSense's own listing, with annotations, so SurfSense would start the command itself to list it.
-  - **One copy per thread.** Each thread's opencode instance starts its own process; a shared copy over HTTP needs a small bridge.
-  - **What is installed.** `npx` needs Node and `uvx` needs uv, neither shipped, so a missing one has to read as that, not as a broken plugin.
-
-  The smallest honest version is an advanced **Run a command** kind, off by default: the exact command and its environment, encrypted as keys are, shown and confirmed before it first runs, with a warning that it can reach anything the user can and that Settings › Network does not cover it. The alternative is to leave local plugins to [bundles](bundles/README.md), which run pinned code without `npx` at runtime.
 - The citation a chat answer gives a tool result, beside today's chunk citations.
 - How long the chat engine keeps tool results, and how large a stored one may be.
 - Whether outside clients, `surfsense_mcp` and direct users of the scraper API, move to the plugin host once the backend's scraper API is retired.

@@ -140,7 +140,7 @@ A plugin's server gets the arguments of the calls opencode makes to it, and noth
 
 ## Known gaps
 
-- Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added; whether it should be is an [open question](../proposals/plugins/README.md#open-questions).
+- Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added: local servers come with [bundles](../proposals/plugins/README.md#local-mcp-servers).
 - OAuth sign-in has been tried only against a stand-in authorization server, never a live provider.
 - The tests stand in for the callback page's forward to the API by calling the API's callback themselves; the deployed page is not exercised by any test.
 - A failed sign-in reads "The sign-in didn’t finish" whatever the cause; the API's `message` saying why is not shown.
