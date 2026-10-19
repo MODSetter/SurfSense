@@ -32,6 +32,8 @@ class Unreachable:
 @dataclass(frozen=True)
 class NotMcp:
     reason: str
+    # The 4xx a server refusing without a key answered, other than 401 or 403.
+    status: int | None = None
 
 
 Contact = Listed | SignInAsked | Unreachable | NotMcp
@@ -65,7 +67,7 @@ async def contact(url: str) -> Contact:
         if isinstance(error, httpx2.TransportError):
             return Unreachable(failure_reason(error))
         if failed:
-            return NotMcp(f"it answered {failed[-1]}")
+            return NotMcp(f"it answered {failed[-1]}", failed[-1])
         return NotMcp("its answer is not MCP")
 
 

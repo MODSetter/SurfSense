@@ -88,9 +88,13 @@ def _auth_problems(auth: Any) -> list[str]:
     if kind == "none":
         return []
     if kind == "token":
-        if all(_is_text(auth.get(f), n) for f, n in TOKEN_LABEL_LENGTHS.items()):
+        # Optional: without them the app asks in its own translated words.
+        given = {
+            f: n for f, n in TOKEN_LABEL_LENGTHS.items() if auth.get(f) is not None
+        }
+        if all(_is_text(auth[f], n) for f, n in given.items()):
             return []
-        return ["auth: token needs a title (1-80) and a description (1-200)"]
+        return ["auth: a token's title is 1-80 characters, its description 1-200"]
     if kind == "oauth":
         return _oauth_problems(auth)
     return ["auth: type must be none, token or oauth"]
@@ -153,7 +157,10 @@ def _listing_problems(entry: dict[str, Any]) -> list[str]:
     if about is not None and not _is_text(about, ABOUT_LENGTH):
         problems.append(f"about: must be 1 to {ABOUT_LENGTH} characters")
     tools = entry.get("tools")
-    if tools is not None:
+    # The plugin's page lists them before anyone connects.
+    if tools is None:
+        problems.append("tools: required")
+    else:
         problems += _tool_list_problems(tools)
     added = entry.get("added")
     if added is not None and not (

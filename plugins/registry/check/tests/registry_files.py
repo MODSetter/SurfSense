@@ -23,6 +23,7 @@ def valid_entry(**overrides: Any) -> dict[str, Any]:
         "hosts": ["mcp.acme.example"],
         "access": "free",
         "privacy_policy": "https://acme.example/privacy",
+        "tools": ["search"],
     }
     entry.update(overrides)
     return entry

@@ -1,0 +1,119 @@
+name: Submit a plugin
+description: List your MCP server as a plugin anyone can connect in SurfSense
+title: "[plugin submission] "
+labels: [plugin-submission]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A SurfSense plugin is a remote MCP server: Streamable HTTP, on HTTPS. Fill this in and a bot checks your server the way the app connects to it, then comments with the entry it makes or what to fix. Edit the issue to fix anything; the checks run again on every edit. Nothing here needs git.
+
+        Nothing needs checking first. To see your tools yourself anyway, `npx @modelcontextprotocol/inspector` or the desktop app's **Settings → Plugins → Add custom plugin** both work.
+
+        **Never put a key, token or password in this issue.** If a reviewer needs to sign in, say so below and a maintainer will arrange it with you.
+  - type: input
+    id: name
+    attributes:
+      label: Plugin name
+      description: Up to 80 characters. Its id is made from this, and is never reused.
+      placeholder: Acme Docs
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: MCP server URL
+      description: Your server's MCP endpoint, https, with no credentials in it.
+      placeholder: https://mcp.acme.example/mcp
+    validations:
+      required: true
+  - type: input
+    id: publisher
+    attributes:
+      label: Publisher
+      description: The company or project that runs the server, not a person. Up to 80 characters.
+      placeholder: Acme Inc.
+    validations:
+      required: true
+  - type: input
+    id: description
+    attributes:
+      label: One-line description
+      description: The line on your plugin's card. Up to 200 characters.
+      placeholder: Search and read Acme's public documentation.
+    validations:
+      required: true
+  - type: textarea
+    id: about
+    attributes:
+      label: About
+      description: For your plugin's page, up to 600 characters. What it lets someone do, and when it helps.
+    validations:
+      required: true
+  - type: input
+    id: privacy_policy
+    attributes:
+      label: Privacy policy URL
+      placeholder: https://acme.example/privacy
+    validations:
+      required: true
+  - type: input
+    id: homepage
+    attributes:
+      label: Homepage
+      placeholder: https://acme.example
+  - type: textarea
+    id: icon
+    attributes:
+      label: Icon
+      description: Drag a square PNG (at least 64×64) or SVG in here, or paste an https link to one. At most 32 KB, and an SVG with no scripts or outside references. Without one, SurfSense shows your name's first letter.
+  - type: dropdown
+    id: access
+    attributes:
+      label: Who can use it
+      options:
+        - Free for anyone
+        - Needs an account or subscription the publisher sells
+    validations:
+      required: true
+  - type: input
+    id: access_note
+    attributes:
+      label: What users must buy or have
+      description: Only if it is not free. Up to 200 characters.
+      placeholder: An Acme Pro plan.
+  - type: input
+    id: client_id
+    attributes:
+      label: OAuth client ID
+      description: Only if your sign-in accepts clients registered in advance, with neither Client ID Metadata Documents nor dynamic registration. Register SurfSense with redirect https://plugins.surfsense.com/oauth/callback and paste its client id; never a secret.
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tool names
+      description: Every tool your server offers, one per line, as users will see them on your plugin's public page. Include the ones that appear only after sign-in.
+      placeholder: |
+        search_docs
+        read_page
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: A prompt to try
+      description: Something to ask an Agentic chat, and the tools it should call.
+      placeholder: What do Acme's docs say about rate limits? (search_docs, then read_page)
+    validations:
+      required: true
+  - type: textarea
+    id: reviewer_sign_in
+    attributes:
+      label: How a reviewer signs in
+      description: Only if your plugin needs a key or an account, so a maintainer can try it. Say what is needed, never the key itself.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you send
+      options:
+        - label: I removed every key, token and password from this issue.
+          required: true

@@ -42,12 +42,14 @@ def test_a_server_that_lists_its_tools_as_the_entry_says_passes(tmp_path, capsys
     assert "live check: passed" in capsys.readouterr().err
 
 
-def test_a_tool_the_server_does_not_list_fails(tmp_path, capsys):
+def test_a_tool_not_listed_without_sign_in_only_warns(tmp_path, capsys):
+    # Some servers list more tools once signed in; the maintainer confirms those.
     tools = ["read_page", "search_docs", "delete_page"]
     with serving(docs_server()) as url:
-        assert live(tmp_path, [entry(f"{url}/mcp", tools=tools)]) == 1
-    assert 'plugins[0] "docs": tools: the server does not list delete_page' in (
-        capsys.readouterr().err
+        assert live(tmp_path, [entry(f"{url}/mcp", tools=tools)]) == 0
+    assert (
+        'plugins[0] "docs": warning: tools: delete_page not listed without sign-in'
+        in capsys.readouterr().err
     )
 
 
@@ -182,3 +184,13 @@ def test_what_a_server_answers_never_reaches_the_log(tmp_path, capfd):
     out, err = capfd.readouterr()
     assert "url: does not answer MCP over Streamable HTTP" in err
     assert SECRET not in out + err
+
+
+def test_a_key_server_refusing_with_another_code_only_warns(tmp_path, capsys):
+    with serving(not_mcp()) as url:
+        listed = entry(
+            f"{url}/mcp",
+            auth={"type": "token", "title": "Key", "description": "From Docs."},
+        )
+        assert live(tmp_path, [listed]) == 0
+    assert "answered 404 without a key" in capsys.readouterr().err

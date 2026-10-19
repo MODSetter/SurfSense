@@ -2,7 +2,7 @@
 
 Thanks for building something for SurfSense users. This page takes you from an MCP server to a plugin anyone can connect in the app. It is written for people and for coding agents alike; if you are an agent helping someone list a plugin, also read [the checklist for agents](#for-coding-agents).
 
-**The short version:** a SurfSense plugin *is* an MCP server. You run the server; this folder only holds a short JSON entry pointing at it. Listing a plugin is one pull request that adds that entry and an icon.
+**The short version:** a SurfSense plugin *is* an MCP server. You run the server; this folder only holds a short JSON entry pointing at it. Listing a plugin is [one form](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-submit.yml): a bot checks your server and writes that entry, and a maintainer accepts it.
 
 ## What a plugin is
 
@@ -54,17 +54,46 @@ So there is nothing SurfSense-specific to build. **If your server works in other
 
 - **Have a privacy policy.** The user's requests and sign-in reach your server, so the policy must be yours, not your API provider's.
 
-## 2. Try it in SurfSense first
+## 2. Submit it
 
-No listing is needed to try your server:
+The form is the only step: nothing needs checking before you send it, since the bot checks your server itself.
 
-1. In the desktop app, open **Settings → Plugins** and turn on **Allow third-party plugins**.
-2. Choose **Add custom plugin**, with a name, your server's URL and, if it needs one, a key. A server that asks for OAuth starts its sign-in on its own.
-3. Open an Agentic chat and ask for something your tools do.
 
-A server added this way is marked Custom, stays on that one computer, and is a good way to polish your tool descriptions before anyone reviews them.
+Fill in the **[Submit a plugin](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-submit.yml)** form. It asks only what your server cannot say about itself: a name, your server's URL, who runs it, a one-line description and a short about, your privacy policy, your tools' names, and an icon you can drag straight into the form. Nothing about keys: if your server takes one, each user pastes their own when they connect. Only if your sign-in accepts clients registered in advance do you give SurfSense's client id.
 
-## 3. Write your entry
+A bot then connects to your server the way the app does and comments on the issue within a few minutes, with either:
+
+- **what to fix**, each item named by the form's question, such as `Privacy policy URL: required` or `MCP server URL: could not be reached: timed out`. Edit the issue and the checks run again; or
+- **the entry it made**, which is what users will see. How users sign in and the hosts SurfSense contacts are read from your server, not typed by you. Your tool names are checked against what your server lists without sign-in: one it lists that you left out is a problem, and one you list that it shows only after sign-in is a note. A server behind sign-in passes too: its tools are confirmed by the maintainer who connects it in review.
+
+A maintainer then connects your plugin, reviews it, and adds the `registry: accept` label. The bot opens the pull request itself and links it to your issue. You never touch git.
+
+Never put a key, token or password in the issue. If a reviewer needs to sign in, say so in the form, and a maintainer will arrange it with you, or reach the maintainers on [Discord](https://discord.gg/ejRNvftDp9).
+
+### Optional: try it before you submit
+
+Not required, but it catches what only you can judge, such as whether the agent picks the right tool from your descriptions:
+
+- **[MCP Inspector](https://github.com/modelcontextprotocol/inspector):** `npx @modelcontextprotocol/inspector`, choose Streamable HTTP and paste your URL. It shows each tool, its description and hints, lets you call one, and walks through your sign-in.
+- **SurfSense itself:** in the desktop app, **Settings → Plugins**, turn on **Allow third-party plugins**, then **Add custom plugin** with your URL and, if it needs one, a key. Ask an Agentic chat for something your tools do. A server added this way stays on that one computer, and its **⋯** menu has **Submit to the registry**, which opens the form with its name and URL filled in.
+
+### What review looks at
+
+A maintainer reviews your submission, and before accepting it, or once a pull request you opened is merged into `dev`, connects your plugin, signing in if it needs it, before it reaches a release. They check once:
+
+- who runs the server, and that `author` names them, and that whoever submitted it may list it: the submitter's account, the server's domain and the publisher's own docs;
+- what each tool does, and that its annotations are honest;
+- that no description carries instructions aimed at the model;
+- that `hosts` is complete, and the privacy policy is real and yours.
+
+Once merged, CI signs the list. It reaches every app that allows third-party plugins with SurfSense's next release from `dev` to `main`, with no app update.
+
+
+## Or open the pull request yourself
+
+The form makes this same pull request for you. If you would rather write it, or are changing an entry already listed, here are the steps.
+
+### Write your entry
 
 Add one object to the `plugins` array in [`plugins.json`](plugins.json):
 
@@ -99,20 +128,20 @@ Add one object to the `plugins` array in [`plugins.json`](plugins.json):
 | `name`, `author` | Up to 80 characters. `author` is the company or project that runs the server, not a person |
 | `description` | Up to 200 characters: the one line on your card |
 | `url` | Your server's MCP endpoint, `https`, with no credentials in it |
-| `auth` | `{"type": "none"}`; `{"type": "token", "title": "...", "description": "..."}`, the words shown when asking for the key; or `{"type": "oauth"}`, with an optional `client_id` and `scopes`. Never a secret |
+| `auth` | `{"type": "none"}`; `{"type": "token"}`, with an optional `title` and `description` to word the key prompt, which otherwise uses the app's own; or `{"type": "oauth"}`, with an optional `client_id` and `scopes`. Never a secret |
 | `hosts` | Every host SurfSense contacts for your plugin: your server's, and for OAuth your authorization server's. The user agrees to each before anything is sent |
 | `access` | `free`, or `external` with an `access_note` (up to 200 characters) saying what the user must buy or have, such as an Acme subscription |
 | `privacy_policy` | Required, `https` |
 | `homepage` | Optional, `https` |
 | `icon` | A file you add to [`icons/`](icons/): SVG or PNG, square, at most 32 KB, a PNG at least 64×64, an SVG with no scripts, event handlers or outside references. Without one, SurfSense shows your name's first letter |
 | `about` | Up to 600 characters for your plugin's page: what it lets someone do, and when it helps |
-| `tools` | The name of every tool your server lists, as your page shows them before anyone connects |
+| `tools` | Required: the name of every tool your server offers, including the ones that appear only after sign-in, as your plugin's page shows them before anyone connects |
 | `added` | This month, like `2026-10` |
 | `min_app_version` | Optional: the oldest SurfSense version your plugin works with, like `2.3.0` |
 
-The check lets `about`, `tools` and `added` out, but review asks for all three, since they make your plugin's page.
+The check lets `about` and `added` out, but review asks for both, since they make your plugin's page.
 
-## 4. Check it
+### Check it
 
 From [`check/`](check/), with [uv](https://docs.astral.sh/uv/) installed:
 
@@ -122,9 +151,9 @@ uv run python -m registry_check static   # the entry rules and your icon
 uv run python -m registry_check live     # connects to your server, as the app would
 ```
 
-It prints `static check: passed`, or one line per problem naming your entry and the field, such as `plugins[1] "acme-docs": hosts: must include the url's host, mcp.acme.example`. `live` connects to your server with the app's own MCP client and fails if the app could not use it: unreachable, not MCP over Streamable HTTP, asking for sign-in when `auth` is `none`, listing other tools than `tools`, or, for OAuth, no authorization server, a sign-in host missing from `hosts`, or no way for SurfSense to register. What MCP leaves optional, such as tool hints, only warns. It never signs in, so a server behind a key or an account is checked up to its sign-in. CI runs both on your pull request.
+It prints `static check: passed`, or one line per problem naming your entry and the field, such as `plugins[1] "acme-docs": hosts: must include the url's host, mcp.acme.example`. `live` connects to your server with the app's own MCP client and fails if the app could not use it: unreachable, not MCP over Streamable HTTP, asking for sign-in when `auth` is `none`, listing a tool `tools` leaves out, or, for OAuth, no authorization server, a sign-in host missing from `hosts`, or no way for SurfSense to register. What MCP leaves optional, such as tool hints, only warns. It never signs in, so a server behind a key or an account is checked up to its sign-in. CI runs both on your pull request.
 
-## 5. Open the pull request
+### Open the pull request
 
 Fork the repository, branch from `dev`, and open the pull request **into `dev`**. Change only `plugins.json` and your icon. [`published/`](published/README.md) is written by CI, and a pull request that touches it fails.
 
@@ -132,20 +161,8 @@ Fill in the template's headings, What, Why and How to test, and include:
 
 - **A prompt to try**, such as "What do Acme's docs say about rate limits?", and the tools it should call.
 - **How a reviewer signs in**, if your plugin needs a key or an account. Never put a key or password in the pull request: say that one is needed, and a maintainer will arrange it with you, or reach the maintainers on [Discord](https://discord.gg/ejRNvftDp9).
-- **Why you should be Verified**, if you think you should be: a link from your own docs to the server, for example ([below](#verified-or-community)).
 
 A title in [Conventional Commits](https://www.conventionalcommits.org) form helps, such as `feat(registry): list Acme Docs`.
-
-### What review looks at
-
-A maintainer reviews your pull request, and once it is merged into `dev`, connects your plugin, signing in if it needs it, before it reaches a release. They check once:
-
-- who runs the server, and that `author` names them;
-- what each tool does, and that its annotations are honest;
-- that no description carries instructions aimed at the model;
-- that `hosts` is complete, and the privacy policy is real and yours.
-
-Once merged, CI signs the list. It reaches every app that allows third-party plugins with SurfSense's next release from `dev` to `main`, with no app update.
 
 ## Verified or Community
 
@@ -156,7 +173,7 @@ A maintainer decides it, on whatever convinces them that `author` runs the serve
 ## After your plugin is listed
 
 - **Updating your server needs no pull request.** Deploy whenever you like. A tool you add, or one whose description changes or whose annotations become less safe, is switched off in every app until the user turns it on, so tell your users when you add or reword something.
-- **Changing your entry** (name, URL, hosts, sign-in) is another pull request and another review.
+- **Changing your entry** (name, URL, hosts, sign-in) is a pull request, [opened yourself](#or-open-the-pull-request-yourself), and another review.
 - **Removing your plugin** moves its entry to `removed`, as `{"id": "acme-docs", "reason": "..."}`. Apps stop offering its tools and show the reason; users keep their connection in case it returns. An id is never reused.
 - **Reports.** Anyone can report a listed plugin that is broken, misleading or unsafe with the [Report a plugin](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-report.yml) form. A maintainer may then remove it, with the reason users see.
 
@@ -172,9 +189,8 @@ A maintainer decides it, on whatever convinces them that `author` runs the serve
 If you are helping someone list a plugin:
 
 1. Confirm the server is remote, Streamable HTTP, on HTTPS. If it only runs from a command or over SSE, stop and say so; it cannot be listed yet.
-2. Read each tool's name from the server, or ask for them; never invent `tools`. Check every tool has `readOnlyHint` or `destructiveHint`.
-3. Append one entry to `plugins` in `plugins.json`, with `verification: "community"`. Never set `verified`: only a maintainer does.
-4. Put no key, token, password or client secret anywhere: not in the entry, the pull request or a commit message.
-5. Touch only `plugins.json` and `icons/<file>`. Never edit `published/`, `check/` or another entry.
-6. Run `uv run python -m registry_check static` and `uv run python -m registry_check live` in `check/`, and fix every problem they print.
-7. Open the pull request into `dev` with What, Why and How to test, a prompt to try, and whether the reviewer needs sign-in details, without including them.
+2. Prefer the [submission form](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-submit.yml). From a terminal, open it with `gh issue create --repo MODSetter/SurfSense --title "[plugin submission] <name>" --body-file <file>`. The body is the form's answers, each under `### <question>` as the form names it in [`plugin-submit.yml`](../../.github/ISSUE_TEMPLATE/plugin-submit.yml), `_No response_` for a blank one, and the confirmation as a ticked `- [X]` line under `### Before you send`. The title prefix is what marks it, since a label you pass is dropped unless you have write access.
+3. Never invent tool names. Read every one from the server, signed in where it needs it (the MCP Inspector lists them), and put one per line under **Tool names**, including the ones that appear only after sign-in.
+4. Put no key, token, password or client secret anywhere: not in the issue, a pull request or a commit message.
+5. Read the bot's comment and fix each item by editing the issue body. Do not open a second issue.
+6. Opening the pull request yourself instead: touch only `plugins.json` and `icons/<file>`, with `verification: "community"`, never `published/`, `check/` or another entry; run `uv run python -m registry_check static` and `live` in `check/` and fix every problem; open it into `dev` with What, Why and How to test, and a prompt to try.

@@ -76,8 +76,18 @@ def test_optional_and_unknown_fields_are_allowed(tmp_path):
     assert problems(tmp_path, [entry]) == []
 
 
-def test_a_token_entry_names_what_to_paste(tmp_path):
-    found = problems(tmp_path, [valid_entry(auth={"type": "token"})])
+def test_an_entry_lists_its_tools_for_its_page(tmp_path):
+    entry = valid_entry()
+    del entry["tools"]
+    assert problems(tmp_path, [entry]) == ['plugins[0] "acme": tools: required']
+
+
+def test_a_token_entry_may_leave_the_wording_to_the_app(tmp_path):
+    assert problems(tmp_path, [valid_entry(auth={"type": "token"})]) == []
+
+
+def test_a_token_entry_wording_given_is_within_its_lengths(tmp_path):
+    found = problems(tmp_path, [valid_entry(auth={"type": "token", "title": "x" * 81})])
     assert len(found) == 1
     assert "auth:" in found[0]
 

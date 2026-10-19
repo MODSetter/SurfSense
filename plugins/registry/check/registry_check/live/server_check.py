@@ -21,6 +21,12 @@ async def server_findings(entry: dict[str, Any]) -> Findings:
     match reached:
         case Unreachable(reason):
             found.problems.append(f"url: could not be reached: {reason}")
+        case NotMcp(_, status) if auth == "token" and _is_client_error(status):
+            # Some servers refuse a missing key with 400 or 404 rather than 401.
+            found.warnings.append(
+                f"url: answered {status} without a key; checked when a maintainer "
+                "connects it with one"
+            )
         case NotMcp(reason):
             found.problems.append(
                 f"url: does not answer MCP over Streamable HTTP: {reason}"
@@ -39,3 +45,7 @@ async def server_findings(entry: dict[str, Any]) -> Findings:
     if auth == "oauth" and isinstance(reached, SignInAsked | Listed):
         found.add(await oauth_findings(entry))
     return found
+
+
+def _is_client_error(status: int | None) -> bool:
+    return status is not None and 400 <= status < 500
