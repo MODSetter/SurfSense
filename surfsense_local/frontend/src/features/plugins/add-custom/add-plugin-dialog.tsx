@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query"
 import { useId, useState, type FormEvent } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -10,16 +11,43 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
+import { ApiError } from "@/lib/api"
 
-import { addCustomPlugin, isSignInStarted } from "../api"
+import {
+  addCustomPlugin,
+  isSignInStarted,
+  oauthRedirectUri,
+  pluginsQueryKey,
+} from "../api"
 import { connectedToast } from "../connect-toasts"
+import {
+  connectionHeaders,
+  EMPTY_CONNECTION,
+  keyComplete,
+  type ConnectionDraft,
+} from "../connection/connection-draft"
+import { ConnectionEditor } from "../connection/connection-editor"
 import { refusalMessage } from "../refusal-message"
+import { asOwnApp } from "../sign-in/own-app/own-app-draft"
 import { SignInProgress } from "../sign-in/sign-in-progress"
 import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 
+// Refusals Advanced settings answers: a key, or the user's own OAuth app.
+const ADVANCED_REFUSALS = new Set([
+  "plugin_needs_sign_in",
+  "plugin_oauth_needs_client",
+  "plugin_oauth_refused",
+])
+
+/**
+ * Name, URL and Connect. Connect does the rest: an open server connects, one asking for
+ * an account opens the browser, and only a refusal opens Advanced settings, at the field
+ * that answers it.
+ */
 function AddPluginForm({
   onCancel,
   onAdded,
@@ -28,34 +56,68 @@ function AddPluginForm({
   onAdded: () => void
 }) {
   const fieldId = useId()
+  const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
-  const [key, setKey] = useState("")
+  const [draft, setDraft] = useState<ConnectionDraft>(EMPTY_CONNECTION)
+  const [advanced, setAdvanced] = useState(false)
+  const [redirectUri, setRedirectUri] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const added = () => {
     connectedToast(name.trim())
     onAdded()
   }
-  // A server asking for OAuth is added once the user signs in in the browser.
+  // A server asking for OAuth is kept from the start, and connected once signed in.
   const signIn = usePluginSignIn(added)
-  const waiting = signIn.state.phase === "waiting"
-  const locked = busy || waiting
+  const locked = busy || signIn.state.phase === "waiting"
+  const ready =
+    name.trim() !== "" &&
+    url.trim() !== "" &&
+    (!draft.key || keyComplete(draft))
+
+  const openAdvanced = () => {
+    setAdvanced(true)
+    if (redirectUri === null) {
+      oauthRedirectUri()
+        .then(setRedirectUri)
+        .catch(() => {
+          // The field stays empty; Connect still says what is missing.
+        })
+    }
+  }
 
   const connect = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
+    const headers = connectionHeaders(draft)
     try {
       const answer = await addCustomPlugin({
         url: url.trim(),
         name: name.trim(),
-        ...(key ? { token: key } : {}),
+        ...(headers.length ? { headers } : {}),
+        ...(draft.ownApp.clientId.trim()
+          ? { oauth_client: asOwnApp(draft.ownApp) }
+          : {}),
       })
-      if (isSignInStarted(answer)) signIn.follow(answer)
-      else added()
+      if (isSignInStarted(answer)) {
+        signIn.follow(answer)
+        // Already in Yours, waiting to sign in, should the browser be closed.
+        void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+      } else {
+        added()
+      }
     } catch (refused) {
       setError(refusalMessage(refused))
+      if (
+        refused instanceof ApiError &&
+        ADVANCED_REFUSALS.has(refused.code ?? "")
+      ) {
+        const redirect = refused.detail.redirect_uri
+        if (typeof redirect === "string") setRedirectUri(redirect)
+        openAdvanced()
+      }
     } finally {
       setBusy(false)
     }
@@ -98,30 +160,40 @@ function AddPluginForm({
             disabled={locked}
           />
         </Field>
-        <Field>
-          <FieldLabel htmlFor={`${fieldId}-key`}>
-            {intl.formatMessage({
-              id: "plugins_add_key_label",
-              defaultMessage: "Key",
-            })}
-          </FieldLabel>
-          <Input
-            id={`${fieldId}-key`}
-            type="password"
-            autoComplete="off"
-            value={key}
-            onChange={(event) => setKey(event.target.value)}
-            placeholder={intl.formatMessage({
-              id: "plugins_add_key_placeholder",
-              defaultMessage: "Optional, if the server asks for one",
-            })}
-            disabled={locked}
-          />
-        </Field>
         {error ? (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
+        ) : null}
+        <div className="flex">
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            className="-ml-2"
+            aria-expanded={advanced}
+            disabled={locked}
+            onClick={() => (advanced ? setAdvanced(false) : openAdvanced())}
+          >
+            {advanced ? (
+              <ChevronDownIcon data-icon="inline-start" />
+            ) : (
+              <ChevronRightIcon data-icon="inline-start" />
+            )}
+            {intl.formatMessage({
+              id: "plugins_add_advanced_button",
+              defaultMessage: "Advanced settings",
+            })}
+          </Button>
+        </div>
+        {advanced ? (
+          <ConnectionEditor
+            draft={draft}
+            onChange={setDraft}
+            withOAuth
+            redirectUri={redirectUri}
+            disabled={locked}
+          />
         ) : null}
         <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
       </FieldGroup>
@@ -132,7 +204,7 @@ function AddPluginForm({
             defaultMessage: "Cancel",
           })}
         </Button>
-        <Button type="submit" disabled={locked || !name.trim() || !url.trim()}>
+        <Button type="submit" disabled={locked || !ready}>
           {busy ? <Spinner data-icon="inline-start" /> : null}
           {intl.formatMessage({
             id: "plugins_add_connect_button",

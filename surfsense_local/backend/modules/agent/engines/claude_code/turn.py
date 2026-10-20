@@ -92,6 +92,7 @@ from modules.llm.subscriptions.claude.usable_claude import usable_claude
 from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.plugins.installed.models import PluginTool
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
+from modules.plugins.remote.mcp_client.transports import SSE
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -476,7 +477,7 @@ def _servers(
     }
     for plugin in plugins:
         servers[plugin.name] = {
-            "type": "http",
+            "type": "sse" if plugin.transport == SSE else "http",
             "url": plugin.url,
             "headers": plugin.headers,
         }

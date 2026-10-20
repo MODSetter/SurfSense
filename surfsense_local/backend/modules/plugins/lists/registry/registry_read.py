@@ -13,6 +13,12 @@ from modules.plugins.lists.registry.registry_icons import icon_file
 VERIFIED = "verified"
 
 
+class EntryHeaderRead(BaseModel):
+    name: str
+    label: str | None
+    description: str | None
+
+
 class RegistryEntryRead(BaseModel):
     id: str
     name: str
@@ -27,6 +33,11 @@ class RegistryEntryRead(BaseModel):
     auth_type: str
     auth_title: str | None
     auth_description: str | None
+    # A `headers` entry's headers, each to be given a value; never a value itself.
+    auth_headers: list[EntryHeaderRead] = []
+    # An `oauth` entry whose provider takes only apps registered in advance.
+    user_client: bool = False
+    transport: str = "streamable_http"
     hosts: list[str]
     # The host every call goes to; the rest, an OAuth plugin's, see only the sign-in.
     server_host: str
@@ -73,6 +84,14 @@ def read_registry(session: Session, current: CurrentRegistry) -> RegistryRead:
                 auth_type=entry.auth.type,
                 auth_title=entry.auth.title,
                 auth_description=entry.auth.description,
+                auth_headers=[
+                    EntryHeaderRead(
+                        name=h.name, label=h.label, description=h.description
+                    )
+                    for h in entry.auth.headers or []
+                ],
+                user_client=entry.auth.user_client,
+                transport=entry.transport or "streamable_http",
                 hosts=entry.hosts,
                 server_host=_server_host(entry.url),
                 sign_in_hosts=[

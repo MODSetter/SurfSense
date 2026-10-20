@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.installed.models import InstalledPlugin, PluginTool
 from modules.plugins.lists.registry.delisted import delisted_reason, delisted_reasons
+from modules.plugins.remote.mcp_client.transports import entry_transport
+from modules.plugins.remote.sign_in.headers.headers_credential import header_names
 
 
 class ToolRead(BaseModel):
@@ -27,8 +29,14 @@ class PluginRead(BaseModel):
     source: str
     url: str
     hosts: list[str]
-    # How it signs in: `none`, `token`, `license` or `oauth`.
+    # How it signs in: `none`, `token`, `headers`, `license` or `oauth`.
     auth_type: str
+    # A `headers` plugin's header names, never their values; empty otherwise.
+    header_names: list[str] = []
+    # `streamable_http`, or `sse` for a server on the older HTTP+SSE transport.
+    transport: str = "streamable_http"
+    # Scopes the server's `403 insufficient_scope` asked for; Sign in again asks for them.
+    needs_scopes: list[str] = []
     enabled: bool
     # Disconnected by the user: kept with its tool settings, signed out, never offered.
     disconnected: bool
@@ -58,6 +66,9 @@ def read_plugin(
         url=plugin.url,
         hosts=plugin.entry.get("hosts", []),
         auth_type=plugin.credential_kind or "none",
+        header_names=header_names(plugin),
+        transport=entry_transport(plugin.entry),
+        needs_scopes=plugin.entry.get("auth", {}).get("needs_scopes", []),
         enabled=plugin.enabled,
         disconnected=plugin.disconnected_at is not None,
         connected_at=plugin.connected_at,

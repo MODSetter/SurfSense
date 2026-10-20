@@ -55,8 +55,8 @@ export function SignInAgainButton({
         {start.isPending ? <Spinner data-icon="inline-start" /> : null}
         {label ??
           intl.formatMessage({
-            id: "plugins_row_sign_in_again_button",
-            defaultMessage: "Sign in again",
+            id: "plugins_row_sign_in_button",
+            defaultMessage: "Sign in",
           })}
       </Button>
       {start.error ? (

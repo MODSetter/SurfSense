@@ -121,13 +121,13 @@ async def test_a_custom_server_asking_for_oauth_signs_in_and_lists_its_tools(
 async def test_a_registry_plugin_signing_in_with_oauth_connects_once_signed_in(
     client: AsyncClient, registry: RegistryServers
 ) -> None:
-    """Connect answers with the page to open; the plugin exists only after the callback."""
+    """Connect answers with the page to open; the plugin waits, signed out, until the callback."""
     registry.registry.publish([entry("notes", auth={"type": "oauth"})])
     await allow_third_party(client)
 
     started = await client.post("/plugins/registry/notes")
     assert started.status_code == 202, started.text
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
 
     page = await approve_in_browser(client, started.json()["authorization_url"])
 
@@ -197,7 +197,7 @@ async def test_a_state_the_app_did_not_issue_is_refused_and_changes_nothing(
     assert servers.authorization.token_requests == []
 
 
-async def test_a_provider_refusal_ends_the_sign_in_with_no_plugin(
+async def test_a_provider_refusal_ends_the_sign_in_keeping_the_plugin_to_sign_in(
     client: AsyncClient, servers: SignInServers
 ) -> None:
     """The user clicking Deny comes back as `error=access_denied`."""
@@ -213,10 +213,10 @@ async def test_a_provider_refusal_ends_the_sign_in_with_no_plugin(
         "failed",
         "The sign-in was declined.",
     )
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
 
 
-async def test_an_abandoned_sign_in_expires_leaving_no_plugin(
+async def test_an_abandoned_sign_in_expires_keeping_the_plugin_to_sign_in(
     client: AsyncClient, servers: SignInServers, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Once it expires, the browser's late answer finds nothing to finish."""
@@ -232,11 +232,11 @@ async def test_an_abandoned_sign_in_expires_leaving_no_plugin(
         "The sign-in was not finished in time.",
     )
     assert late.status_code == 400
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
     assert servers.authorization.token_requests == []
 
 
-async def test_a_cancelled_sign_in_is_forgotten_leaving_no_plugin(
+async def test_a_cancelled_sign_in_is_forgotten_keeping_the_plugin_to_sign_in(
     client: AsyncClient, servers: SignInServers
 ) -> None:
     """Cancel on the screen ends it; finishing it in the browser afterwards does nothing."""
@@ -248,8 +248,32 @@ async def test_a_cancelled_sign_in_is_forgotten_leaving_no_plugin(
     assert cancelled.status_code == 204
     assert (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).status_code == 404
     assert late.status_code == 400
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
     assert servers.authorization.token_requests == []
+
+
+async def test_a_plugin_left_signed_out_signs_in_later_from_its_row(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """Nothing is typed again: Sign in on the kept plugin finishes what Add started."""
+    first = await start_custom(client, servers)
+    await client.delete(f"/plugins/sign-ins/{first['id']}")
+
+    again = await client.post("/plugins/notes/sign-in")
+    await approve_in_browser(client, again.json()["authorization_url"])
+
+    listed = (await client.get("/plugins")).json()
+    assert len(listed) == 1
+    assert listed[0]["check_failure"] is None
+    assert [t["name"] for t in listed[0]["tools"]] == ["search", "count"]
+
+
+async def _waiting_to_sign_in(client: AsyncClient) -> None:
+    """Kept as the user added it, signed out, with nothing to offer until they sign in."""
+    (plugin,) = (await client.get("/plugins")).json()
+    assert (plugin["id"], plugin["auth_type"]) == ("notes", "oauth")
+    assert plugin["check_failure"] == "sign_in"
+    assert plugin["tools"] == []
 
 
 async def test_the_authorization_servers_host_is_asked_about_before_any_request(

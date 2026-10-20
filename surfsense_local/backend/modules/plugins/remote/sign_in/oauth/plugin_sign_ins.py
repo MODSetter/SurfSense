@@ -201,11 +201,15 @@ class PluginSignIns:
                 allowed_hosts,
                 open_browser,
                 code_returned,
+                draft.confidential,
             )
             tools = await RemoteMcpSource(
                 draft.url, token_headers(credential.tokens.access_token)
             ).list_tools()
-            await asyncio.to_thread(_store, session_factory, draft, credential, tools)
+            # The draft as it is now: saved before the browser came back, it signs in again.
+            await asyncio.to_thread(
+                _store, session_factory, pending.draft, credential, tools
+            )
             pending.status = "connected"
         except Exception as error:
             if not pending.started.done():
@@ -226,7 +230,10 @@ def _known_client(
     if draft.client_id:
         return OAuthClientInformationFull(
             client_id=draft.client_id,
-            token_endpoint_auth_method="none",
+            client_secret=draft.client_secret,
+            token_endpoint_auth_method=(
+                "client_secret_post" if draft.client_secret else "none"
+            ),
             redirect_uris=[client.redirect_uri],
         )
     previous = draft.previous_client

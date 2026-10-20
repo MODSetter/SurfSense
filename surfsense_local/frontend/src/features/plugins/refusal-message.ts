@@ -22,6 +22,24 @@ export function refusalMessage(error: unknown) {
           defaultMessage:
             "Couldn’t reach this server. Check the URL and that the server is running.",
         })
+      case "plugin_not_mcp":
+        return intl.formatMessage({
+          id: "plugins_error_plugin_not_mcp",
+          defaultMessage:
+            "This address doesn’t answer as an MCP server. Check the URL.",
+        })
+      case "plugin_oauth_needs_client":
+        return intl.formatMessage({
+          id: "plugins_error_plugin_oauth_needs_client",
+          defaultMessage:
+            "This server’s sign-in accepts only apps registered with it. Register one with the callback address below, then connect.",
+        })
+      case "plugin_oauth_refused":
+        return intl.formatMessage({
+          id: "plugins_error_plugin_oauth_refused",
+          defaultMessage:
+            "This server’s sign-in refused SurfSense. It may accept only apps it approved; you can try your own registered app below.",
+        })
       case "plugin_needs_https":
         return intl.formatMessage({
           id: "plugins_error_plugin_needs_https",

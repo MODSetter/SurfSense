@@ -42,7 +42,9 @@ def store_signed_in(
             url=draft.url,
         )
         session.add(plugin)
-    plugin.entry = draft.entry
+    # A sign-in that asked for the scopes a server wanted has given them.
+    auth = {k: v for k, v in draft.entry.get("auth", {}).items() if k != "needs_scopes"}
+    plugin.entry = {**draft.entry, "auth": auth}
     write_credential(plugin, credential)
     plugin.disconnected_at = None
     session.flush()

@@ -91,10 +91,18 @@ SEARCH = SourceTool(
 )
 
 
-def connect_plugin(engine: Engine, url: str, *, third_party_on: bool = True) -> None:
+def connect_plugin(
+    engine: Engine,
+    url: str,
+    *,
+    third_party_on: bool = True,
+    transport: str = "streamable_http",
+) -> None:
     """A connected custom plugin at `url`, with the notes server's read-only search."""
     with create_session_factory(engine)() as session:
-        store_custom_plugin(session, "notes", "Notes", url, None, [SEARCH])
+        store_custom_plugin(
+            session, "notes", "Notes", url, None, [SEARCH], transport=transport
+        )
         set_third_party_on(session, third_party_on)
         session.commit()
 

@@ -18,7 +18,9 @@ import { connectedToast, connectFailedToast } from "../connect-toasts"
 import { SignInProgress } from "../sign-in/sign-in-progress"
 import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 import { CommunityReminderDialog } from "./community-reminder-dialog"
+import { RegistryHeadersDialog } from "./registry-headers-dialog"
 import { RegistryKeyDialog } from "./registry-key-dialog"
+import { RegistryOwnAppDialog } from "./registry-own-app-dialog"
 
 /**
  * Connect for any listed plugin, or "Connected": SurfSense's with the license, a
@@ -27,6 +29,8 @@ import { RegistryKeyDialog } from "./registry-key-dialog"
 export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
   const queryClient = useQueryClient()
   const [askingKey, setAskingKey] = useState(false)
+  const [askingHeaders, setAskingHeaders] = useState(false)
+  const [askingOwnApp, setAskingOwnApp] = useState(false)
   const [reminding, setReminding] = useState(false)
   const registry = isRegistryEntry(entry) ? entry : null
   const refresh = () =>
@@ -55,8 +59,13 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
     },
   })
   const waiting = signIn.state.phase === "waiting"
-  const start = () =>
-    registry?.auth_type === "token" ? setAskingKey(true) : connect.mutate()
+  const start = () => {
+    if (registry?.auth_type === "token") setAskingKey(true)
+    else if (registry?.auth_type === "headers") setAskingHeaders(true)
+    else if (registry?.auth_type === "oauth" && registry.user_client)
+      setAskingOwnApp(true)
+    else connect.mutate()
+  }
   return (
     <div className="flex shrink-0 flex-col items-end gap-1">
       {entry.connected ? (
@@ -102,6 +111,28 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
           onConnected={() => {
             setAskingKey(false)
             connected()
+          }}
+        />
+      ) : null}
+      {registry?.auth_type === "headers" ? (
+        <RegistryHeadersDialog
+          entry={registry}
+          open={askingHeaders}
+          onOpenChange={setAskingHeaders}
+          onConnected={() => {
+            setAskingHeaders(false)
+            connected()
+          }}
+        />
+      ) : null}
+      {registry?.auth_type === "oauth" && registry.user_client ? (
+        <RegistryOwnAppDialog
+          entry={registry}
+          open={askingOwnApp}
+          onOpenChange={setAskingOwnApp}
+          onStarted={(started) => {
+            setAskingOwnApp(false)
+            signIn.follow(started)
           }}
         />
       ) : null}

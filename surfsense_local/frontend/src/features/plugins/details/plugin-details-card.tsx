@@ -11,6 +11,9 @@ import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
+import { OwnAppSignInButton } from "../sign-in/own-app/own-app-sign-in-button"
+import { EditConnectionButton } from "../connection/edit-connection-button"
+import { EditHeadersButton } from "./edit-headers-button"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
@@ -23,10 +26,16 @@ function checkLabel(plugin: Plugin) {
       defaultMessage: "Couldn’t connect",
     })
   }
+  if (plugin.check_failure === "sign_in" && plugin.needs_scopes.length) {
+    return intl.formatMessage({
+      id: "plugins_row_needs_scopes_status",
+      defaultMessage: "Needs more access",
+    })
+  }
   if (plugin.check_failure === "sign_in" && plugin.auth_type === "oauth") {
     return intl.formatMessage({
-      id: "plugins_row_signed_out_status",
-      defaultMessage: "Signed out",
+      id: "plugins_row_needs_sign_in_status",
+      defaultMessage: "Needs sign-in",
     })
   }
   if (plugin.check_failure === "sign_in") {
@@ -173,9 +182,24 @@ export function PluginDetailsCard({
           {plugin.check_failure === "sign_in" ? (
             plugin.auth_type === "oauth" ? (
               <SignInAgainButton plugin={plugin} />
+            ) : plugin.auth_type === "headers" ? (
+              plugin.source === "custom" ? (
+                <EditConnectionButton plugin={plugin} />
+              ) : (
+                <EditHeadersButton plugin={plugin} />
+              )
             ) : (
               <ReplaceKeyButton plugin={plugin} />
             )
+          ) : plugin.disconnected ? null : plugin.source === "custom" &&
+            (plugin.auth_type === "headers" || plugin.auth_type === "none") ? (
+            // A key that still works can change too, and an open server can take an optional one.
+            <EditConnectionButton plugin={plugin} />
+          ) : plugin.auth_type === "headers" ? (
+            <EditHeadersButton plugin={plugin} />
+          ) : null}
+          {plugin.auth_type === "oauth" && !plugin.disconnected ? (
+            <OwnAppSignInButton plugin={plugin} />
           ) : null}
           {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
             <Button

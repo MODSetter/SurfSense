@@ -1,23 +1,33 @@
 """Starting a sign-in from a connect route: discovery, consent for the authorization
 server's hosts, then the authorization URL. The plugin's own hosts are allowed already."""
 
+from dataclasses import replace
 from typing import Annotated
 from urllib.parse import urlsplit
 
 import httpx2
 from fastapi import Depends, HTTPException, Request, status
 from mcp.client.auth import OAuthFlowError
+from mcp.client.auth.exceptions import OAuthRegistrationError
 from sqlalchemy.orm import Session
 
 from api.config import get_settings
 from api.dependencies import transact
+from modules.plugins.installed.awaiting_sign_in import store_awaiting_sign_in
 from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.oauth_discovery import discover_oauth
+from modules.plugins.remote.sign_in.oauth.own_app import (
+    needs_own_app,
+    registration_refused,
+)
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.plugin_sign_ins import (
     PluginSignIns,
     SignInEndedError,
+)
+from modules.plugins.remote.sign_in.oauth.registration_offered import (
+    registration_offered,
 )
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted, started
 
@@ -53,17 +63,40 @@ async def start_sign_in(
 
     draft = draft.with_hosts(discovery.authorization_server_hosts)
     try:
-        pending = await get_sign_ins(request).start(
-            draft,
-            set(_draft_hosts(draft)),
-            request.app.state.session_factory,
-            get_settings().port,
-        )
+        pending = await _started(request, draft)
+    except OAuthRegistrationError as error:
+        raise await _registration_failure(draft) from error
     except HostNotAllowedError as unasked:
         raise await _refusal(session, unasked) from unasked
     except (OAuthFlowError, httpx2.HTTPError, TimeoutError, SignInEndedError) as error:
         raise _sign_in_failed() from error
+    if not pending.draft.existing:
+        # Kept from here, signed out, so closing the browser loses nothing typed.
+        await transact(session, store_awaiting_sign_in, pending.draft)
+        pending.draft = replace(pending.draft, existing=True)
     return started(pending)
+
+
+async def _started(request: Request, draft: PluginDraft):
+    """A public client first; refused, a client with a secret of this install's own."""
+    start = get_sign_ins(request).start
+    hosts = set(_draft_hosts(draft))
+    factory, port = request.app.state.session_factory, get_settings().port
+    try:
+        return await start(draft, hosts, factory, port)
+    except OAuthRegistrationError:
+        if draft.client_id or draft.confidential:
+            raise
+        return await start(replace(draft, confidential=True), hosts, factory, port)
+
+
+async def _registration_failure(draft: PluginDraft) -> HTTPException:
+    """No registration at all is the user's own app; registration that refused us is said so."""
+    try:
+        offered = await registration_offered(draft.url, set(_draft_hosts(draft)))
+    except (HostNotAllowedError, httpx2.HTTPError):
+        offered = False
+    return registration_refused() if offered else needs_own_app()
 
 
 def _draft_hosts(draft: PluginDraft) -> list[str]:

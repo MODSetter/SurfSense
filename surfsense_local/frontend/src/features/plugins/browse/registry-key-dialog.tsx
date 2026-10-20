@@ -37,7 +37,7 @@ function RegistryKeyForm({
     setBusy(true)
     setError(null)
     try {
-      await connectRegistryPlugin(entry.id, key)
+      await connectRegistryPlugin(entry.id, { token: key })
       onConnected()
     } catch (refused) {
       setError(

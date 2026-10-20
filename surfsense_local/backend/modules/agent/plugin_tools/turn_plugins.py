@@ -10,6 +10,11 @@ from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.plugin_host import on_plugin_host
+from modules.plugins.remote.mcp_client.transports import (
+    STREAMABLE_HTTP,
+    Transport,
+    entry_transport,
+)
 from modules.plugins.remote.sign_in.plugin_headers import LICENSE, sign_in_headers
 
 # More tools than this crowd the model's choice and its prompt; the plugins connected first win.
@@ -27,6 +32,8 @@ class TurnPlugin:
     title: str
     url: str
     headers: dict[str, str]
+    # How its server is reached; opencode finds the older SSE from the URL itself.
+    transport: Transport = STREAMABLE_HTTP
     # `<plugin>_<tool>` to `allow` or `ask`; every other tool of the plugin is denied.
     rules: dict[str, str] = field(default_factory=dict)
     # The same rules by the tool's own name, for an engine that names tools otherwise.
@@ -75,6 +82,7 @@ def turn_plugins(
                 title=tool.plugin_name,
                 url=row.url,
                 headers=headers,
+                transport=entry_transport(row.entry),
                 on_plugin_host=ours,
                 licensed=row.credential_kind == LICENSE,
             )

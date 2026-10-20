@@ -43,15 +43,20 @@ export function pluginStatus(
       )
     case "sign_in":
       return failure(
-        plugin.auth_type === "oauth"
+        plugin.needs_scopes.length
           ? intl.formatMessage({
-              id: "plugins_list_signed_out_status",
-              defaultMessage: "Signed out",
+              id: "plugins_list_needs_scopes_status",
+              defaultMessage: "Needs more access",
             })
-          : intl.formatMessage({
-              id: "plugins_list_sign_in_status",
-              defaultMessage: "Needs a new key",
-            })
+          : plugin.auth_type === "oauth"
+            ? intl.formatMessage({
+                id: "plugins_list_needs_sign_in_status",
+                defaultMessage: "Needs sign-in",
+              })
+            : intl.formatMessage({
+                id: "plugins_list_sign_in_status",
+                defaultMessage: "Needs a new key",
+              })
       )
     case "needs_license":
       return failure(

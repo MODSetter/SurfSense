@@ -132,6 +132,25 @@ async def test_claude_code_works_in_the_threads_folder_with_surfsenses_tools(
     assert servers["surfsense"]["headers"]["Authorization"].startswith("Bearer ")
 
 
+async def test_a_plugin_on_the_older_sse_transport_is_given_as_one(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """Claude Code names the transport; opencode finds it from the same URL itself."""
+    connect_plugin(engine, "https://localhost:1/sse", transport="sse")
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    await _send(client, thread["id"], "Hello")
+
+    (run,) = claude_agent.started
+    servers = json.loads(Path(run.options.mcp_servers).read_text())["mcpServers"]
+    assert servers["notes"]["type"] == "sse"
+    assert servers["notes"]["url"] == "https://localhost:1/sse"
+
+
 async def test_the_thread_reads_back_as_it_streamed(
     client: AsyncClient, claude_on_this_machine, claude_agent: ClaudeAgent
 ) -> None:
