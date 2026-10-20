@@ -12,7 +12,6 @@ import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
 import { ChangeOwnAppButton } from "../sign-in/own-app/change-own-app-button"
-import { PluginOwnAppDialog } from "../sign-in/own-app/plugin-own-app-dialog"
 import { EditConnectionButton } from "../connection/edit-connection-button"
 import { EditHeadersButton } from "./edit-headers-button"
 import { ReplaceKeyButton } from "./replace-key-button"
@@ -114,7 +113,6 @@ export function PluginDetailsCard({
 }) {
   const nameId = useId()
   const [removeOpen, setRemoveOpen] = useState(false)
-  const [ownAppOpen, setOwnAppOpen] = useState(false)
   const unused = plugin.source !== "first_party" && !thirdPartyAllowed
   return (
     <section aria-labelledby={nameId}>
@@ -150,13 +148,6 @@ export function PluginDetailsCard({
             checking={checking}
             onCheck={onCheck}
             onRemove={() => setRemoveOpen(true)}
-            onOwnApp={() => setOwnAppOpen(true)}
-          />
-          <PluginOwnAppDialog
-            plugin={plugin}
-            reason="chosen"
-            open={ownAppOpen}
-            onOpenChange={setOwnAppOpen}
           />
           <RemovePluginDialog
             name={plugin.name}

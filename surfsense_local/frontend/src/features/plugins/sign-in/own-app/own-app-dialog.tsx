@@ -42,7 +42,7 @@ function why(reason: OwnAppReason, plugin: string): string {
       {
         id: "plugins_own_app_needs_client_body",
         defaultMessage:
-          "{plugin} accepts only apps registered with it. Register an OAuth app in its developer settings, then enter what it gives you.",
+          "{plugin} accepts only apps registered with it. Connecting with your own takes a minute.",
       },
       { plugin }
     )
@@ -52,7 +52,7 @@ function why(reason: OwnAppReason, plugin: string): string {
       {
         id: "plugins_own_app_refused_body",
         defaultMessage:
-          "{plugin} refused to register SurfSense; it may accept only apps it approved. Register your own, then enter what it gives you.",
+          "{plugin} refused to register SurfSense; it may accept only apps it approved. Connecting with your own takes a minute.",
       },
       { plugin }
     )
@@ -60,15 +60,17 @@ function why(reason: OwnAppReason, plugin: string): string {
   return intl.formatMessage({
     id: "plugins_own_app_chosen_body",
     defaultMessage:
-      "For an organization that allows only its own approved app. Your tool settings stay.",
+      "For an organization that allows only its own approved app.",
   })
 }
 
 function OwnAppForm({
+  provider,
   start,
   onCancel,
   onConnected,
 }: {
+  provider: string
   start: (app: OwnApp) => Promise<Plugin | SignInStarted>
   onCancel: () => void
   onConnected: () => void
@@ -107,6 +109,7 @@ function OwnAppForm({
       >
         <FieldGroup>
           <OwnAppFields
+            provider={provider}
             value={draft}
             onChange={setDraft}
             redirectUri={redirectUri.data ?? null}
@@ -168,7 +171,7 @@ export function OwnAppDialog({
             {intl.formatMessage(
               {
                 id: "plugins_own_app_title",
-                defaultMessage: "Sign in to {plugin} with your own app",
+                defaultMessage: "Connect {plugin} with your own app",
               },
               { plugin }
             )}
@@ -177,6 +180,7 @@ export function OwnAppDialog({
         </DialogHeader>
         {/* The popup unmounts after closing, so each opening starts blank. */}
         <OwnAppForm
+          provider={plugin}
           start={start}
           onCancel={() => onOpenChange(false)}
           onConnected={onConnected}

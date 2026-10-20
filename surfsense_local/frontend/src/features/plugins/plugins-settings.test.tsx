@@ -830,10 +830,14 @@ describe("plugins settings", () => {
     const dialog = await addDialog(user)
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
     const ownApp = await screen.findByRole("dialog", {
-      name: "Sign in to Notes with your own app",
+      name: "Connect Notes with your own app",
     })
     expect(
       within(ownApp).getByText(/accepts only apps registered with it/)
+    ).toBeTruthy()
+    // Three steps: register an app, give it the callback, paste what it gives.
+    expect(
+      within(ownApp).getByText("Register an OAuth app with Notes")
     ).toBeTruthy()
     const callback = await within(ownApp).findByLabelText("Callback address")
     await waitFor(() =>
@@ -841,6 +845,26 @@ describe("plugins settings", () => {
         "http://127.0.0.1:8000/plugins/oauth/callback"
       )
     )
+    // Not selected on opening: the copy button is how it is copied.
+    const field = callback as HTMLInputElement
+    expect(field.selectionEnd! - field.selectionStart!).toBe(0)
+    const copy = within(ownApp).getByRole("button", {
+      name: "Copy the callback address",
+    })
+    await user.click(copy)
+    expect(await navigator.clipboard.readText()).toBe(
+      "http://127.0.0.1:8000/plugins/oauth/callback"
+    )
+    expect(copy.dataset.copied).toBe("true")
+    // The tick turns back into the copy icon, as every copy button does.
+    await waitFor(() => expect(copy.dataset.copied).toBe("false"), {
+      timeout: 4_000,
+    })
+    // A build signing in on this computer's own port says it changes.
+    expect(
+      within(ownApp).getByText(/changes each time the app restarts/)
+    ).toBeTruthy()
+    expect(within(ownApp).queryByLabelText("Scopes")).toBeNull()
     await user.type(within(ownApp).getByLabelText("Client ID"), "own-1")
     await user.type(within(ownApp).getByLabelText("Client secret"), "s-1")
     await user.click(within(ownApp).getByRole("button", { name: "Sign in" }))
@@ -1953,40 +1977,58 @@ describe("plugins settings", () => {
     expect(within(wiki).getByRole("button", { name: "Connect" })).toBeTruthy()
   })
 
-  it("offers the user's own OAuth app only from the menu of a plugin that signs in by itself", async () => {
-    browser()
-    const calls = api({
-      plugins: [notes({ auth_type: "oauth" })],
-      allowed: true,
-    })
+  it("offers no OAuth app of the user's own on a plugin that signs in by itself", async () => {
+    api({ plugins: [notes({ auth_type: "oauth" })], allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
     expect(
-      within(plugin).queryByRole("button", { name: "Use your own OAuth app" })
+      within(plugin).queryByRole("button", { name: /own OAuth app/ })
     ).toBeNull()
     const menu = await actions(user, plugin, "Notes")
+
+    expect(
+      within(menu).queryByRole("menuitem", { name: /OAuth app/ })
+    ).toBeNull()
+  })
+
+  it("adds a server signing in with the user's own OAuth app, chosen in Advanced settings", async () => {
+    browser()
+    const calls = api({ plugins: [], allowed: true, customSignsIn: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const dialog = await addDialog(user)
     await user.click(
-      within(menu).getByRole("menuitem", { name: "Use your own OAuth app" })
+      within(dialog).getByRole("button", { name: "Advanced settings" })
     )
-    const dialog = await screen.findByRole("dialog", {
-      name: "Sign in to Notes with your own app",
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Sign in with your own OAuth app",
+      })
+    )
+    const ownApp = await screen.findByRole("dialog", {
+      name: "Connect Notes with your own app",
     })
-    await user.type(within(dialog).getByLabelText("Client ID"), "own-1")
-    await user.type(within(dialog).getByLabelText("Scopes"), "repo read:org")
-    await user.click(within(dialog).getByRole("button", { name: "Sign in" }))
+    expect(
+      within(ownApp).getByText(/allows only its own approved app/)
+    ).toBeTruthy()
+    await user.type(within(ownApp).getByLabelText("Client ID"), "own-1")
+    await user.click(within(ownApp).getByRole("button", { name: "Scopes" }))
+    await user.type(within(ownApp).getByLabelText("Scopes"), "repo read:org")
+    await user.click(within(ownApp).getByRole("button", { name: "Sign in" }))
 
     await waitFor(() =>
-      expect(changes(calls)).toEqual([
-        {
-          method: "POST",
-          path: "/plugins/notes/sign-in",
-          body: {
-            oauth_client: { client_id: "own-1", scopes: ["repo", "read:org"] },
-          },
+      expect(changes(calls).at(-1)).toEqual({
+        method: "POST",
+        path: "/plugins/custom",
+        body: {
+          url: "https://notes.example/mcp",
+          name: "Notes",
+          oauth_client: { client_id: "own-1", scopes: ["repo", "read:org"] },
         },
-      ])
+      })
     )
   })
 
@@ -2005,7 +2047,7 @@ describe("plugins settings", () => {
 
     expect(
       await screen.findByRole("dialog", {
-        name: "Sign in to Notes with your own app",
+        name: "Connect Notes with your own app",
       })
     ).toBeTruthy()
   })
@@ -2023,7 +2065,7 @@ describe("plugins settings", () => {
     await user.click(within(plugin).getByRole("button", { name: "Sign in" }))
 
     const dialog = await screen.findByRole("dialog", {
-      name: "Sign in to Notes with your own app",
+      name: "Connect Notes with your own app",
     })
     expect(
       within(dialog).getByText(/accepts only apps registered with it/)

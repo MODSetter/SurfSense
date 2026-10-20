@@ -1,6 +1,7 @@
 """Starting a sign-in from a connect route: discovery, consent for the authorization
 server's hosts, then the authorization URL. The plugin's own hosts are allowed already."""
 
+import logging
 from dataclasses import replace
 from typing import Annotated
 from urllib.parse import urlsplit
@@ -16,6 +17,7 @@ from api.dependencies import transact
 from modules.plugins.installed.awaiting_sign_in import store_awaiting_sign_in
 from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
+from modules.plugins.remote.sign_in.oauth.handled_refusals import quiet_handled_refusals
 from modules.plugins.remote.sign_in.oauth.oauth_discovery import discover_oauth
 from modules.plugins.remote.sign_in.oauth.own_app import (
     needs_own_app,
@@ -26,10 +28,15 @@ from modules.plugins.remote.sign_in.oauth.plugin_sign_ins import (
     PluginSignIns,
     SignInEndedError,
 )
-from modules.plugins.remote.sign_in.oauth.registration_offered import (
-    registration_offered,
+from modules.plugins.remote.sign_in.oauth.registration_offer import (
+    RegistrationOffer,
+    registration_offer,
 )
+from modules.plugins.remote.sign_in.oauth.sign_in_client import sign_in_client
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted, started
+
+logger = logging.getLogger(__name__)
+quiet_handled_refusals()
 
 
 def get_sign_ins(request: Request) -> PluginSignIns:
@@ -62,6 +69,11 @@ async def start_sign_in(
         raise refusal
 
     draft = draft.with_hosts(discovery.authorization_server_hosts)
+    offer = None if draft.client_id else await _offer(draft)
+    if offer is not None and not _can_register(offer):
+        # Said at once: registering would only be refused, after requests sent for nothing.
+        logger.info("%s registers no apps; asking for the user's own", _host(draft))
+        raise needs_own_app()
     try:
         pending = await _started(request, draft)
     except OAuthRegistrationError as error:
@@ -87,16 +99,39 @@ async def _started(request: Request, draft: PluginDraft):
     except OAuthRegistrationError:
         if draft.client_id or draft.confidential:
             raise
+        logger.info(
+            "%s refused SurfSense as a public client; registering with a secret",
+            _host(draft),
+        )
         return await start(replace(draft, confidential=True), hosts, factory, port)
+
+
+async def _offer(draft: PluginDraft) -> RegistrationOffer | None:
+    """None when it cannot be read: the sign-in then tries, as the spec has a client do."""
+    try:
+        return await registration_offer(draft.url, set(_draft_hosts(draft)))
+    except (HostNotAllowedError, httpx2.HTTPError):
+        return None
+
+
+def _can_register(offer: RegistrationOffer) -> bool:
+    """Dynamic registration, or a client document where this build signs in with one."""
+    documents = sign_in_client(get_settings().port).client_metadata_url is not None
+    return offer.registers or (offer.client_documents and documents)
 
 
 async def _registration_failure(draft: PluginDraft) -> HTTPException:
     """No registration at all is the user's own app; registration that refused us is said so."""
-    try:
-        offered = await registration_offered(draft.url, set(_draft_hosts(draft)))
-    except (HostNotAllowedError, httpx2.HTTPError):
-        offered = False
-    return registration_refused() if offered else needs_own_app()
+    offer = await _offer(draft)
+    if offer and offer.registers:
+        logger.info("%s refused to register SurfSense", _host(draft))
+        return registration_refused()
+    logger.info("%s registers no apps; asking for the user's own", _host(draft))
+    return needs_own_app()
+
+
+def _host(draft: PluginDraft) -> str:
+    return urlsplit(draft.url).hostname or draft.url
 
 
 def _draft_hosts(draft: PluginDraft) -> list[str]:

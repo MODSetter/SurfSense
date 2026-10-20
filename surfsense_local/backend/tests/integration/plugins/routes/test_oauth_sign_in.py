@@ -321,6 +321,21 @@ async def test_a_packaged_app_signs_in_as_surfsenses_app_through_the_plugin_host
     assert page.status_code == 200
 
 
+async def test_a_packaged_app_signs_in_where_only_client_documents_are_taken(
+    client: AsyncClient, servers: SignInServers, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No registration endpoint is not "needs your own app" while SurfSense's document is taken."""
+    monkeypatch.setattr(registry_origin, "reads_repository", lambda: False)
+    servers.authorization.supports_client_metadata_document = True
+    servers.authorization.registration = False
+
+    sign_in = await start_custom(client, servers)
+    query = parse_qs(urlsplit(sign_in["authorization_url"]).query)
+
+    assert query["client_id"] == ["https://plugins.surfsense.com/oauth/client.json"]
+    assert servers.authorization.registration_attempts == 0
+
+
 async def sign_in_custom(client: AsyncClient, servers: SignInServers) -> None:
     """Add the notes server by URL and approve its sign-in in the browser."""
     sign_in = await start_custom(client, servers)

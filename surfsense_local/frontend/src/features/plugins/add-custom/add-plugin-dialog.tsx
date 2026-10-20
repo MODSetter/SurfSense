@@ -185,11 +185,31 @@ function AddPluginForm({
               </Button>
             </div>
             {advanced ? (
-              <ConnectionEditor
-                rows={rows}
-                onChange={setRows}
-                disabled={locked}
-              />
+              <>
+                <ConnectionEditor
+                  rows={rows}
+                  onChange={setRows}
+                  disabled={locked}
+                />
+                {/* Chosen when adding, as Claude Code takes it: for an organization that
+                    allows only its approved app, which no server says. */}
+                <div className="flex">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="-ml-2"
+                    disabled={locked || name.trim() === "" || url.trim() === ""}
+                    onClick={() => setOwnApp("chosen")}
+                  >
+                    {intl.formatMessage({
+                      id: "plugins_add_own_app_button",
+                      defaultMessage: "Sign in with your own OAuth app",
+                    })}
+                    <ChevronRightIcon data-icon="inline-end" />
+                  </Button>
+                </div>
+              </>
             ) : null}
             <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
           </FieldGroup>

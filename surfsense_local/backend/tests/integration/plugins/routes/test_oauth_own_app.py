@@ -1,5 +1,6 @@
 """Signing in with the user's own OAuth app, and signing in again for more access."""
 
+import logging
 from collections.abc import Iterator
 from urllib.parse import parse_qs, urlsplit
 
@@ -66,6 +67,9 @@ async def test_a_sign_in_that_cannot_register_asks_for_the_users_own_app(
 
     assert refused.status_code == 422, refused.text
     assert refused.json()["detail"]["code"] == "plugin_oauth_needs_client"
+    # Its metadata names no registration, so none is tried: no request is sent only to fail.
+    assert registered_only.authorization.registration_attempts == 0
+    assert not [p for p in registered_only.protected.paths if p.endswith("/register")]
     # The address to register the app with, which is the API's own in a developer's build.
     assert refused.json()["detail"]["redirect_uri"] == (
         "http://127.0.0.1:8000/plugins/oauth/callback"
@@ -175,9 +179,10 @@ async def test_a_provider_registering_only_clients_with_a_secret_issues_one(
 
 
 async def test_a_provider_refusing_to_register_surfsense_says_so(
-    client: AsyncClient,
+    client: AsyncClient, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Told apart from a provider with no registration at all, and nothing is kept."""
+    caplog.set_level(logging.INFO)
     authorization = StandInAuthorizationServer(refuse_registration=True)
     with serving(authorization.app()) as issuer:
         authorization.issuer = issuer
@@ -192,6 +197,9 @@ async def test_a_provider_refusing_to_register_surfsense_says_so(
     assert refused.status_code == 422, refused.text
     assert refused.json()["detail"]["code"] == "plugin_oauth_refused"
     assert (await client.get("/plugins")).json() == []
+    # An answer SurfSense handles: one line saying so, never the SDK's traceback.
+    assert not [r for r in caplog.records if r.exc_info]
+    assert "refused to register SurfSense" in caplog.text
 
 
 async def test_the_list_says_which_plugins_sign_in_with_the_users_own_app(

@@ -67,6 +67,7 @@ function RegistryOwnAppForm({
     <form onSubmit={(event) => void start(event)}>
       <FieldGroup>
         <OwnAppFields
+          provider={entry.name}
           value={draft}
           onChange={setDraft}
           redirectUri={redirectUri.data ?? null}

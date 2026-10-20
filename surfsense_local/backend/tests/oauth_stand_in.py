@@ -45,6 +45,8 @@ class StandInAuthorizationServer:
     # True: refuses every registration, as a provider taking only apps it approved.
     refuse_registration: bool = False
     registered: list[dict] = field(default_factory=list)
+    # Every registration asked for, accepted or not.
+    registration_attempts: int = 0
     authorize_requests: list[dict[str, str]] = field(default_factory=list)
     token_requests: list[dict[str, str]] = field(default_factory=list)
     access_tokens: set[str] = field(default_factory=set)
@@ -87,6 +89,7 @@ class StandInAuthorizationServer:
         return JSONResponse(metadata)
 
     async def _register(self, request: Request) -> Response:
+        self.registration_attempts += 1
         if not self.registration:
             return Response(status_code=404)
         metadata = await request.json()
@@ -187,6 +190,8 @@ class ProtectedByStandIn:
         self.required_scope: str | None = None
         # A scope only a tool call needs, as a server checks each operation's own.
         self.call_scope: str | None = None
+        # Every path asked for, the SDK's guessed `/register` included.
+        self.paths: list[str] = []
         # Every access token expires when a tool call arrives, as one does mid-turn.
         self.expire_at_call = False
 
@@ -196,6 +201,7 @@ class ProtectedByStandIn:
             return
         request = Request(scope)
         url = str(request.url.replace(query=""))
+        self.paths.append(request.url.path)
         if url.endswith("/prm"):
             await JSONResponse(
                 {
