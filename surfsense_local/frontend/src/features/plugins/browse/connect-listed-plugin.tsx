@@ -20,8 +20,6 @@ import {
   connectFailedToast,
   keptToast,
 } from "../connect-toasts"
-import { SignInProgress } from "../sign-in/sign-in-progress"
-import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 import { CommunityReminderDialog } from "./community-reminder-dialog"
 import { RegistryHeadersDialog } from "./registry-headers-dialog"
 import { RegistryKeyDialog } from "./registry-key-dialog"
@@ -50,20 +48,15 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
     void refresh()
   }
   const openPlugin = useOpenPlugin()
-  // Followed here only outside Settings › Plugins, which otherwise follows it in Yours.
-  const signIn = usePluginSignIn(connected)
   const connect = useMutation({
     mutationFn: () =>
       registry ? connectRegistryPlugin(entry.id) : connectFirstParty(entry.id),
     onSuccess: (answer) => {
-      if (isSignInStarted(answer)) {
-        if (openPlugin) openPlugin(answer.plugin_id, answer)
-        else signIn.follow(answer)
-      } else if (answer.needs_own_app) {
-        // Kept, signed out: its details set up the app its provider needs.
+      // Followed in its details in Yours, where the sign-in or its own app is finished.
+      if (isSignInStarted(answer)) openPlugin(answer.plugin_id, answer)
+      else if (answer.needs_own_app) {
         keptToast(entry.name)
-        if (openPlugin) openPlugin(answer.id)
-        else void refresh()
+        openPlugin(answer.id)
       } else connected()
     },
     onError: (error) => {
@@ -71,7 +64,6 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
       void refresh()
     },
   })
-  const waiting = signIn.state.phase === "waiting"
   const start = () => {
     if (registry?.auth_type === "token") setAskingKey(true)
     else if (registry?.auth_type === "headers") setAskingHeaders(true)
@@ -86,7 +78,7 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
           type="button"
           size="sm"
           variant="secondary"
-          disabled={waiting || connect.isPending}
+          disabled={connect.isPending}
           // A community plugin's author is not proven: say so before anything is sent.
           onClick={() =>
             registry && !registry.verified ? setReminding(true) : start()
@@ -99,7 +91,6 @@ export function ConnectListedPlugin({ entry }: { entry: ListedEntry }) {
           })}
         </Button>
       )}
-      <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
       {registry && !registry.verified ? (
         <CommunityReminderDialog
           plugin={entry.name}

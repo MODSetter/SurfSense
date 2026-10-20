@@ -169,6 +169,7 @@ async def test_a_pre_registered_client_and_its_scopes_are_used_without_registeri
 
 async def start_custom(client: AsyncClient, servers: SignInServers) -> dict:
     """Add the notes server by URL; it asks for OAuth, so a sign-in starts."""
+    await allow_third_party(client)
     started = await client.post(
         "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
     )
@@ -275,6 +276,20 @@ async def test_a_cancelled_sign_in_is_forgotten_keeping_the_plugin_to_sign_in(
     assert (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).status_code == 404
     assert late.status_code == 400
     await _waiting_to_sign_in(client)
+    assert servers.authorization.token_requests == []
+
+
+async def test_turning_third_party_plugins_off_ends_a_sign_in_under_way(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """It would reach the provider once the browser came back; it is forgotten instead."""
+    sign_in = await start_custom(client, servers)
+
+    await client.put("/plugins/third-party", json={"allowed": False})
+    late = await approve_in_browser(client, sign_in["authorization_url"])
+
+    assert (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).status_code == 404
+    assert late.status_code == 400
     assert servers.authorization.token_requests == []
 
 

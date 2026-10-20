@@ -11,6 +11,7 @@ from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin
 from modules.plugins.installed.registry_plugin import store_registry_plugin
 from modules.plugins.installed.third_party import third_party_on
+from modules.plugins.installed.third_party_off import third_party_refusal
 from modules.plugins.lists.icon_response import icon_response
 from modules.plugins.lists.registry import registry_origin
 from modules.plugins.lists.registry.current_registry import (
@@ -81,14 +82,9 @@ async def connect_registry_plugin(
     An `oauth` entry answers `202` with the sign-in's page; it is stored once signed in.
     """
     token = payload.token if payload else None
-    if not await transact(session, third_party_on):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            {
-                "code": "third_party_off",
-                "message": "Allow third-party plugins to connect this one.",
-            },
-        )
+    refusal = await transact(session, third_party_refusal, PluginSource.REGISTRY)
+    if refusal is not None:
+        raise refusal
     entry = (await _registry(session)).document.entry(plugin_id)
     if entry is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not listed")

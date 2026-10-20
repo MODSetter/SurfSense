@@ -116,8 +116,6 @@ function api({
   customNeedsOwnApp = false,
   signInNeedsOwnApp = false,
   registryNeedsOwnApp = false,
-  probe = { transport: "streamable_http", sign_in: "none", tools: 2 },
-  probeFails = false,
   signInEnds = "connected",
 }: {
   plugins?: Plugin[]
@@ -133,10 +131,6 @@ function api({
   signInNeedsOwnApp?: boolean
   /** Connecting a listed OAuth plugin reaches a provider taking only registered apps. */
   registryNeedsOwnApp?: boolean
-  /** What Check finds at the URL. */
-  probe?: { transport: string; sign_in: string; tools: number | null }
-  /** Check reaches nothing at the URL. */
-  probeFails?: boolean
   /** What the second poll of a sign-in says; `waiting` never ends. */
   signInEnds?: "connected" | "failed" | "waiting"
 } = {}): Call[] {
@@ -331,19 +325,6 @@ function api({
         return method === "PUT"
           ? new Response(null, { status: 204 })
           : Response.json({ allowed: thirdParty })
-      }
-      if (url.pathname === "/plugins/custom/probe") {
-        return probeFails
-          ? Response.json(
-              {
-                detail: {
-                  code: "plugin_unreachable",
-                  message: "The plugin's server could not be reached.",
-                },
-              },
-              { status: 502 }
-            )
-          : Response.json(probe)
       }
       if (url.pathname === "/plugins/custom") {
         if (refuse) {
@@ -893,6 +874,7 @@ describe("plugins settings", () => {
   it("opens Advanced settings on the key when the server needs one", async () => {
     api({
       plugins: [],
+      allowed: true,
       refuse: {
         status: 422,
         code: "plugin_needs_sign_in",
@@ -915,6 +897,7 @@ describe("plugins settings", () => {
   it("says an address that isn't an MCP server", async () => {
     api({
       plugins: [],
+      allowed: true,
       refuse: {
         status: 422,
         code: "plugin_not_mcp",
@@ -935,6 +918,7 @@ describe("plugins settings", () => {
   it("says an address its server retired, rather than that it is not MCP", async () => {
     api({
       plugins: [],
+      allowed: true,
       refuse: {
         status: 422,
         code: "plugin_gone",
@@ -1497,6 +1481,82 @@ describe("plugins settings", () => {
     expect(
       await screen.findByRole("row", { name: "Notes Custom On" })
     ).toBeTruthy()
+  })
+
+  it("offers no Connect on a third-party plugin while they are off, in its row or its details", async () => {
+    api({
+      plugins: [
+        notes({
+          id: "notion",
+          name: "Notion",
+          source: "registry",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          never_signed_in: true,
+          tools: [],
+        }),
+        notes({
+          name: "GitHub",
+          id: "github",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          never_signed_in: true,
+          needs_own_app: "needs_client",
+          tools: [],
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    for (const name of [
+      "Notion Third-party Third-party plugins are off",
+      "GitHub Custom Third-party plugins are off",
+    ]) {
+      expect(await screen.findByRole("row", { name })).toBeTruthy()
+    }
+    expect(screen.queryByRole("button", { name: "Connect" })).toBeNull()
+
+    const plugin = await details(user, "Notion")
+    expect(within(plugin).getByText("Not used")).toBeTruthy()
+    expect(within(plugin).queryByRole("button", { name: "Connect" })).toBeNull()
+    expect(
+      within(plugin).queryByRole("button", { name: "Disconnect Notion" })
+    ).toBeNull()
+    // Nothing that would reach its server; removing touches only this computer.
+    const menu = await actions(user, plugin, "Notion")
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent)
+    ).toEqual(["Remove"])
+  })
+
+  it("adds a server by URL only once third-party plugins are allowed, from the dialog", async () => {
+    const calls = api({ plugins: [] })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const dialog = await addDialog(user)
+    const connect = within(dialog).getByRole("button", {
+      name: "Connect",
+    }) as HTMLButtonElement
+    expect(connect.disabled).toBe(true)
+    await user.click(
+      within(dialog).getByRole("switch", { name: "Allow third-party plugins" })
+    )
+    const consent = await screen.findByRole("alertdialog")
+    await user.click(within(consent).getByRole("button", { name: "Allow" }))
+    await waitFor(() => expect(connect.disabled).toBe(false))
+    await user.click(connect)
+
+    expect(
+      await screen.findByRole("row", { name: "Notes Custom On" })
+    ).toBeTruthy()
+    expect(changes(calls).map((call) => call.path)).toEqual([
+      "/plugins/third-party",
+      "/plugins/custom",
+    ])
   })
 
   it("says a server could not be reached, and checks it again on request", async () => {

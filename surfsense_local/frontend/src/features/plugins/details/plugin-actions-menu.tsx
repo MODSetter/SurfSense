@@ -39,12 +39,15 @@ type Editing = "connection" | "headers" | "own_app"
  * be removed. On and off is the composer's "+ › Plugins". */
 export function PluginActionsMenu({
   plugin,
+  held,
   checking,
   onCheck,
   onRemove,
   onOpenLicense,
 }: {
   plugin: Plugin
+  /** Held by the third-party switch: only removing, which reaches no server, is offered. */
+  held: boolean
   checking: boolean
   onCheck: () => void
   onRemove: () => void
@@ -52,7 +55,8 @@ export function PluginActionsMenu({
 }) {
   const [editing, setEditing] = useState<Editing | null>(null)
   // Connected, so a change goes in place; a plugin not connected connects from its main action.
-  const working = !plugin.disconnected && plugin.check_failure !== "sign_in"
+  const working =
+    !held && !plugin.disconnected && plugin.check_failure !== "sign_in"
   // A key that still works can change, and an open server can take an optional one.
   const editsConnection =
     working &&
@@ -61,7 +65,7 @@ export function PluginActionsMenu({
   const editsHeaders =
     working && plugin.source !== "custom" && plugin.auth_type === "headers"
   const changesOwnApp =
-    plugin.own_app && !plugin.disconnected && !plugin.check_failure
+    !held && plugin.own_app && !plugin.disconnected && !plugin.check_failure
   const editingOpen = (open: boolean) => {
     if (!open) setEditing(null)
   }
@@ -87,7 +91,7 @@ export function PluginActionsMenu({
           }
         />
         <DropdownMenuContent align="end" sideOffset={8} className="w-52">
-          {plugin.disconnected ? null : (
+          {plugin.disconnected || held ? null : (
             <>
               <DropdownMenuGroup>
                 <DropdownMenuItem disabled={checking} onClick={onCheck}>

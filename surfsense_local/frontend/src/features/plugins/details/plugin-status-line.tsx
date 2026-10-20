@@ -87,6 +87,17 @@ function checkLabel(plugin: Plugin) {
 
 /** What the line says: its state, in its colour, and at most one reason why, behind its info button. */
 function statusOf(plugin: Plugin, unused: boolean) {
+  if (unused) {
+    // First, as in the list: nothing about it can be acted on until the switch is on.
+    return {
+      label: intl.formatMessage({
+        id: "plugins_row_not_used_status",
+        defaultMessage: "Not used",
+      }),
+      tone: "text-muted-foreground",
+      reason: thirdPartyOff(),
+    }
+  }
   if (plugin.disconnected) {
     return {
       label: intl.formatMessage({
@@ -108,23 +119,12 @@ function statusOf(plugin: Plugin, unused: boolean) {
       reason: plugin.removed_reason,
     }
   }
-  if (unused && !plugin.check_failure) {
-    // Connected but never offered: the state says so, as the list does.
-    return {
-      label: intl.formatMessage({
-        id: "plugins_row_not_used_status",
-        defaultMessage: "Not used",
-      }),
-      tone: "text-muted-foreground",
-      reason: thirdPartyOff(),
-    }
-  }
   return {
     label: checkLabel(plugin),
     tone: plugin.check_failure
       ? TONE_CLASS[checkTone(plugin)]
       : "text-muted-foreground",
-    reason: ownAppReason(plugin) ?? (unused ? thirdPartyOff() : null),
+    reason: ownAppReason(plugin),
   }
 }
 

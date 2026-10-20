@@ -11,7 +11,9 @@ export type OpenPlugin = (pluginId: string, signIn?: SignInStarted) => void
 
 export const OpenPluginContext = createContext<OpenPlugin | null>(null)
 
-/** Null outside Settings › Plugins, where a caller follows its sign-in itself. */
-export function useOpenPlugin(): OpenPlugin | null {
-  return useContext(OpenPluginContext)
+/** Every caller is inside Settings › Plugins, which provides it. */
+export function useOpenPlugin(): OpenPlugin {
+  const openPlugin = useContext(OpenPluginContext)
+  if (!openPlugin) throw new Error("useOpenPlugin outside Settings › Plugins")
+  return openPlugin
 }

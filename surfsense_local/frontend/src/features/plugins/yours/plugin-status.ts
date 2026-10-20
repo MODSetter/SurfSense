@@ -1,6 +1,7 @@
 import { intl } from "@/i18n/intl"
 
 import type { Plugin } from "../api"
+import { thirdPartyHeld } from "../third-party-held"
 import { checkTone, type StatusTone } from "./status-tone"
 
 export type PluginStatus = {
@@ -20,6 +21,16 @@ export function pluginStatus(
     label,
     tone: checkTone(plugin),
   })
+  // Before anything else: nothing about it can be acted on until the switch is on.
+  if (thirdPartyHeld(plugin, thirdPartyAllowed)) {
+    return {
+      label: intl.formatMessage({
+        id: "plugins_list_third_party_off_status",
+        defaultMessage: "Third-party plugins are off",
+      }),
+      tone: "idle",
+    }
+  }
   if (plugin.disconnected) {
     return {
       label: intl.formatMessage({
@@ -104,15 +115,6 @@ export function pluginStatus(
       )
     case null:
       break
-  }
-  if (plugin.source !== "first_party" && !thirdPartyAllowed) {
-    return {
-      label: intl.formatMessage({
-        id: "plugins_list_third_party_off_status",
-        defaultMessage: "Third-party plugins are off",
-      }),
-      tone: "idle",
-    }
   }
   if (!plugin.enabled) {
     return {

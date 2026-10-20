@@ -8,6 +8,7 @@ from api.config import get_settings
 from api.dependencies import SessionDep, transact
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_hosts import plugin_hosts, refused_hosts
+from modules.plugins.installed.third_party_off import plugin_third_party_refusal
 from modules.plugins.remote.sign_in.oauth.callback_page import (
     failed_page,
     signed_in_page,
@@ -102,6 +103,9 @@ async def sign_in_again(
     `oauth_client` switches it to the user's own app, or gives that app's secret again
     once disconnecting dropped it.
     """
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
 
     def draft_of(s):
         plugin = s.get(InstalledPlugin, plugin_id)

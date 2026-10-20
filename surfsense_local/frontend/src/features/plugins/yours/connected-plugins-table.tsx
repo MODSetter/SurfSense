@@ -111,7 +111,7 @@ export function ConnectedPluginsTable({
               <TableCell className={cn(CELL, TONE_CLASS[status.tone])}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
-                    {notConnected(plugin) ? (
+                    {notConnected(plugin, thirdPartyAllowed) ? (
                       <>
                         {/* Positioned, so it sits above the row's stretched link. */}
                         <span className="relative flex shrink-0 items-center">

@@ -850,6 +850,7 @@
   "plugins_add_error": "यह सर्वर कनेक्ट नहीं हो सका।",
   "plugins_add_name_label": "नाम",
   "plugins_add_name_placeholder": "टीम विकी",
+  "plugins_add_third_party_body": "URL से जोड़ा गया सर्वर एक थर्ड-पार्टी प्लगइन है। इसे जोड़ने के लिए उन्हें अनुमति दें।",
   "plugins_add_title": "MCP सर्वर जोड़ें",
   "plugins_add_url_label": "सर्वर URL",
   "plugins_community_reminder_body": "{plugin} SurfSense द्वारा सत्यापित नहीं है। आपके अनुरोध और साइन इन {author} के सर्वर पर जाते हैं, इसलिए इसे तभी कनेक्ट करें जब आपको {author} पर भरोसा हो।",

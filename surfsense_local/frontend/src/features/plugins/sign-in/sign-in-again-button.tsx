@@ -6,14 +6,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import { pluginsQueryKey, signInAgain, type Plugin } from "../api"
-import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 import { PluginOwnAppDialog } from "./own-app/plugin-own-app-dialog"
 import { ownAppReason, type OwnAppReason } from "./own-app/own-app-reason"
 import { useOpenPlugin } from "../open-plugin"
 import { useOpenedSignIn } from "./opened-sign-in"
 import { SignInProgress } from "./sign-in-progress"
-import { usePluginSignIn } from "./use-plugin-sign-in"
 
 /** An OAuth plugin signed out, or disconnected, signs in again; its tool settings stay. A
  * provider taking only registered apps opens the user's own app instead of an error. */
@@ -30,10 +28,6 @@ export function SignInAgainButton({
   className?: string
 }) {
   const queryClient = useQueryClient()
-  const signIn = usePluginSignIn(() => {
-    connectedToast(plugin.name)
-    void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
-  })
   // Started when the plugin was connected elsewhere, and followed above this button.
   const opened = useOpenedSignIn(plugin.id)
   const openPlugin = useOpenPlugin()
@@ -41,31 +35,23 @@ export function SignInAgainButton({
   const start = useMutation({
     mutationFn: () => signInAgain(plugin.id),
     // Followed in the plugin's details, which a row's Connect opens, so leaving the row keeps it.
-    onSuccess: (started) =>
-      openPlugin ? openPlugin(plugin.id, started) : signIn.follow(started),
+    onSuccess: (started) => openPlugin(plugin.id, started),
     onError: (refused) => {
       setOwnApp(ownAppReason(refused))
       // Marked as needing the user's app, which its status now says.
       void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
     },
   })
-  const following =
-    signIn.state.phase === "waiting"
-      ? signIn
-      : opened?.state.phase === "waiting"
-        ? opened
-        : null
-  if (following) {
+  if (opened?.state.phase === "waiting") {
     return (
       <SignInProgress
-        state={following.state}
-        onCancel={following.cancel}
+        state={opened.state}
+        onCancel={opened.cancel}
         className=""
       />
     )
   }
-  const failed =
-    signIn.state.phase === "failed" || opened?.state.phase === "failed"
+  const failed = opened?.state.phase === "failed"
   return (
     <>
       <Button

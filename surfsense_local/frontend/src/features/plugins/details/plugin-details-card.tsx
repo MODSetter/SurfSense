@@ -4,6 +4,7 @@ import { intl } from "@/i18n/intl"
 
 import type { Plugin, ToolChange } from "../api"
 import { PluginIcon } from "../plugin-icon"
+import { thirdPartyHeld } from "../third-party-held"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
 import { PluginMainAction } from "./plugin-main-action"
@@ -38,7 +39,7 @@ export function PluginDetailsCard({
 }) {
   const nameId = useId()
   const [removeOpen, setRemoveOpen] = useState(false)
-  const unused = plugin.source !== "first_party" && !thirdPartyAllowed
+  const unused = thirdPartyHeld(plugin, thirdPartyAllowed)
   return (
     <section aria-labelledby={nameId}>
       <div className="flex items-center justify-between gap-6">
@@ -63,11 +64,13 @@ export function PluginDetailsCard({
         <div className="flex shrink-0 items-center gap-1">
           <PluginMainAction
             plugin={plugin}
+            thirdPartyAllowed={thirdPartyAllowed}
             disconnecting={disconnecting}
             onDisconnect={onDisconnect}
           />
           <PluginActionsMenu
             plugin={plugin}
+            held={unused}
             checking={checking}
             onCheck={onCheck}
             onRemove={() => setRemoveOpen(true)}
@@ -94,7 +97,8 @@ export function PluginDetailsCard({
             })}
           </p>
         ) : null}
-        {plugin.tools.length === 0 ? (
+        {/* Held by the third-party switch, it lists nothing; its status says why. */}
+        {plugin.tools.length === 0 && !unused ? (
           <p className="text-xs text-muted-foreground">
             {plugin.check_failure === "sign_in" && plugin.never_signed_in
               ? intl.formatMessage({

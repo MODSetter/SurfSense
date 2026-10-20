@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,8 @@ import {
   addCustomPlugin,
   isSignInStarted,
   pluginsQueryKey,
+  thirdPartyAllowed,
+  thirdPartyQueryKey,
   type SignInHeader,
 } from "../api"
 import { connectedToast, keptToast } from "../connect-toasts"
@@ -38,10 +40,10 @@ import {
   SCROLLING_FIELDS_VIEWPORT,
   SCROLLING_FORM,
 } from "../connection/scrolling-dialog"
+import { ThirdPartySwitch } from "../browse/third-party-switch"
+import { usePluginChanges } from "../details/use-plugin-changes"
 import { useOpenPlugin } from "../open-plugin"
 import { refusalMessage } from "../refusal-message"
-import { SignInProgress } from "../sign-in/sign-in-progress"
-import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 
 /**
  * Name, URL and Connect. Connect does the rest: an open server connects, one asking for a
@@ -58,6 +60,14 @@ function AddPluginForm({
   const fieldId = useId()
   const queryClient = useQueryClient()
   const openPlugin = useOpenPlugin()
+  // A server added by URL is a third-party plugin: adding one reaches it, so it waits for
+  // the switch, allowed here with the same consent as in Browse.
+  const thirdParty = useQuery({
+    queryKey: thirdPartyQueryKey,
+    queryFn: ({ signal }) => thirdPartyAllowed(signal),
+  })
+  const changes = usePluginChanges()
+  const allowed = thirdParty.data ?? false
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [rows, setRows] = useState<SignInHeader[]>(STARTING_HEADERS)
@@ -69,9 +79,6 @@ function AddPluginForm({
     void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
     onAdded()
   }
-  // Followed here only outside Settings › Plugins, which otherwise follows it in Yours.
-  const signIn = usePluginSignIn(added)
-  const locked = busy || signIn.state.phase === "waiting"
   const ready = name.trim() !== "" && url.trim() !== "" && headersComplete(rows)
 
   const connect = async (event: SubmitEvent) => {
@@ -86,15 +93,12 @@ function AddPluginForm({
         ...(headers.length ? { headers } : {}),
       })
       if (isSignInStarted(answer)) {
-        if (openPlugin) openPlugin(answer.plugin_id, answer)
-        else signIn.follow(answer)
-        // Already in Yours, waiting to sign in, should the browser be closed.
-        void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+        // Followed in its details in Yours, so closing this dialog keeps it.
+        openPlugin(answer.plugin_id, answer)
       } else if (answer.needs_own_app) {
         // Kept, signed out: its details set up the app it needs.
         keptToast(answer.name)
-        if (openPlugin) openPlugin(answer.id)
-        else onAdded()
+        openPlugin(answer.id)
       } else {
         added()
       }
@@ -118,6 +122,21 @@ function AddPluginForm({
         viewportClassName={SCROLLING_FIELDS_VIEWPORT}
       >
         <FieldGroup>
+          {thirdParty.data === false ? (
+            <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/50 p-3">
+              <p className="text-sm text-pretty text-muted-foreground">
+                {intl.formatMessage({
+                  id: "plugins_add_third_party_body",
+                  defaultMessage:
+                    "A server added by URL is a third-party plugin. Allow them to add one.",
+                })}
+              </p>
+              <ThirdPartySwitch
+                allowed={false}
+                onChange={(next) => changes.thirdParty.mutate(next)}
+              />
+            </div>
+          ) : null}
           <Field>
             <FieldLabel htmlFor={`${fieldId}-name`}>
               {intl.formatMessage({
@@ -133,7 +152,7 @@ function AddPluginForm({
                 id: "plugins_add_name_placeholder",
                 defaultMessage: "Team wiki",
               })}
-              disabled={locked}
+              disabled={busy}
             />
           </Field>
           <Field>
@@ -149,7 +168,7 @@ function AddPluginForm({
               value={url}
               onChange={(event) => setUrl(event.target.value)}
               placeholder="https://example.com/mcp"
-              disabled={locked}
+              disabled={busy}
             />
           </Field>
           {error ? (
@@ -164,7 +183,7 @@ function AddPluginForm({
               variant="ghost"
               className="-ml-2"
               aria-expanded={advanced}
-              disabled={locked}
+              disabled={busy}
               onClick={() => setAdvanced(!advanced)}
             >
               {advanced ? (
@@ -179,13 +198,8 @@ function AddPluginForm({
             </Button>
           </div>
           {advanced ? (
-            <ConnectionEditor
-              rows={rows}
-              onChange={setRows}
-              disabled={locked}
-            />
+            <ConnectionEditor rows={rows} onChange={setRows} disabled={busy} />
           ) : null}
-          <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
         </FieldGroup>
       </ScrollFade>
       <DialogFooter>
@@ -195,7 +209,7 @@ function AddPluginForm({
             defaultMessage: "Cancel",
           })}
         </Button>
-        <Button type="submit" disabled={locked || !ready}>
+        <Button type="submit" disabled={busy || !ready || !allowed}>
           {busy ? <Spinner data-icon="inline-start" /> : null}
           {intl.formatMessage({
             id: "plugins_add_connect_button",

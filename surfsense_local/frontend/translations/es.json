@@ -850,6 +850,7 @@
   "plugins_add_error": "No se pudo conectar este servidor.",
   "plugins_add_name_label": "Nombre",
   "plugins_add_name_placeholder": "Wiki del equipo",
+  "plugins_add_third_party_body": "Un servidor añadido por URL es un plugin de terceros. Permítelos para añadir uno.",
   "plugins_add_title": "Añadir un servidor MCP",
   "plugins_add_url_label": "URL del servidor",
   "plugins_community_reminder_body": "{plugin} no está verificado por SurfSense. Tus solicitudes y tu inicio de sesión van al servidor de {author}, así que conéctalo solo si confías en {author}.",

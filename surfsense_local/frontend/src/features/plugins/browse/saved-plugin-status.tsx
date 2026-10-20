@@ -26,7 +26,8 @@ export function SavedPluginStatus({ pluginId }: { pluginId: string }) {
     queryFn: ({ signal }) => thirdPartyAllowed(signal),
   })
   const plugin = plugins.data?.find((saved) => saved.id === pluginId)
-  if (!plugin || !openPlugin) {
+  // Saved a moment ago, before the list caught up.
+  if (!plugin) {
     return (
       <span className="text-xs text-muted-foreground">
         {intl.formatMessage({

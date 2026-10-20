@@ -28,6 +28,10 @@ from modules.plugins.installed.remove import remove
 from modules.plugins.installed.replace_headers import replace_headers
 from modules.plugins.installed.server_url import server_url
 from modules.plugins.installed.third_party import set_third_party_on, third_party_on
+from modules.plugins.installed.third_party_off import (
+    plugin_third_party_refusal,
+    third_party_refusal,
+)
 from modules.plugins.installed.tool_settings import set_tool
 from modules.plugins.lists.first_party.entry_read import (
     FirstPartyEntryRead,
@@ -57,7 +61,7 @@ from modules.plugins.remote.sign_in.oauth.own_app import OwnApp, own_app_auth
 from modules.plugins.remote.sign_in.oauth.own_app_needed import OwnAppNeededError
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
-from modules.plugins.remote.sign_in.oauth.start_sign_in import start_sign_in
+from modules.plugins.remote.sign_in.oauth.start_sign_in import SignInsDep, start_sign_in
 from modules.plugins.remote.sign_in.plugin_headers import (
     LICENSE,
     license_headers,
@@ -143,6 +147,9 @@ async def add_custom_plugin(
     session: SessionDep,
 ) -> PluginRead | SignInStarted:
     """A server whose refusal asks for OAuth starts a sign-in instead: `202` with its page."""
+    refusal = await transact(session, third_party_refusal, PluginSource.CUSTOM)
+    if refusal is not None:
+        raise refusal
     headers = given_headers(payload.headers, payload.token)
     url = server_url(payload.url)
     plugin_id = custom_plugin_id(payload.name)
@@ -304,6 +311,9 @@ async def connect_first_party(plugin_id: str, session: SessionDep) -> PluginRead
 )
 async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
     """Records what the server lists now, or why it could not be listed."""
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
 
     def address(s):
         plugin = s.get(InstalledPlugin, plugin_id)
@@ -343,6 +353,9 @@ async def write_key(
     plugin_id: str, payload: KeyWrite, session: SessionDep
 ) -> PluginRead:
     """The server lists its tools with the new key first; a key it refuses is not saved."""
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
     address = await transact(session, _address, plugin_id)
     if address is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
@@ -375,6 +388,9 @@ async def write_headers(
 
     A registry plugin's go only in the headers its entry names, with their prefixes.
     """
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
     found = await transact(session, _named_headers, plugin_id)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
@@ -428,8 +444,12 @@ def read_third_party(session: SessionDep) -> ThirdPartyAllowed:
 @router.put(
     "/third-party", status_code=204, summary="Allow or refuse third-party plugins"
 )
-def write_third_party(payload: ThirdPartyAllowed, session: SessionDep) -> None:
+def write_third_party(
+    payload: ThirdPartyAllowed, session: SessionDep, sign_ins: SignInsDep
+) -> None:
     set_third_party_on(session, payload.allowed)
+    if not payload.allowed:
+        sign_ins.cancel_third_party()
 
 
 @router.put("/{plugin_id}", response_model=PluginRead, summary="Switch a plugin")
@@ -465,6 +485,9 @@ async def connect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
     As at first connect, only an unreachable server refuses; a refused license connects
     with its reason as the status.
     """
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
 
     def address(s):
         plugin = s.get(InstalledPlugin, plugin_id)

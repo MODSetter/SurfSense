@@ -850,6 +850,7 @@
   "plugins_add_error": "无法连接此服务器。",
   "plugins_add_name_label": "名称",
   "plugins_add_name_placeholder": "团队 Wiki",
+  "plugins_add_third_party_body": "通过 URL 添加的服务器属于第三方插件。允许第三方插件后才能添加。",
   "plugins_add_title": "添加 MCP 服务器",
   "plugins_add_url_label": "服务器网址",
   "plugins_community_reminder_body": "{plugin} 未经 SurfSense 验证。你的请求和登录会发送到 {author} 的服务器，因此只有在你信任 {author} 时才连接它。",

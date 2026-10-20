@@ -18,6 +18,7 @@ from mcp.client.auth import OAuthFlowError
 from mcp.shared.auth import AuthorizationCodeResult, OAuthClientInformationFull
 from sqlalchemy.orm import Session
 
+from modules.plugins.installed.models import PluginSource
 from modules.plugins.remote.either_transport import listed_on_either
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
@@ -92,6 +93,12 @@ class PluginSignIns:
         if pending.task is not None:
             pending.task.cancel()
         return True
+
+    def cancel_third_party(self) -> None:
+        """Third-party plugins turned off: no sign-in under way reaches its provider after."""
+        for sign_in_id, pending in list(self._pending.items()):
+            if pending.draft.source != PluginSource.FIRST_PARTY:
+                self.cancel(sign_in_id)
 
     async def start(
         self,
