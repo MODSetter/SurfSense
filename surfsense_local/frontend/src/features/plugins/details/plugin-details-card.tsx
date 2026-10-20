@@ -11,15 +11,28 @@ import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
-import { ChangeOwnAppButton } from "../sign-in/own-app/change-own-app-button"
+import { OwnAppButton } from "../sign-in/own-app/own-app-button"
 import { EditConnectionButton } from "../connection/edit-connection-button"
 import { EditHeadersButton } from "./edit-headers-button"
 import { ReplaceKeyButton } from "./replace-key-button"
 import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
+import { checkTone, TONE_CLASS } from "../yours/status-tone"
 import { ToolGroup } from "./tool-group"
 
 function checkLabel(plugin: Plugin) {
+  if (plugin.check_failure === "sign_in" && plugin.needs_own_app) {
+    return intl.formatMessage({
+      id: "plugins_row_needs_own_app_status",
+      defaultMessage: "Needs an OAuth app",
+    })
+  }
+  if (plugin.check_failure === "sign_in" && plugin.never_signed_in) {
+    return intl.formatMessage({
+      id: "plugins_row_not_connected_status",
+      defaultMessage: "Not connected",
+    })
+  }
   if (plugin.check_failure === "unreachable") {
     return intl.formatMessage({
       id: "plugins_row_unreachable_status",
@@ -136,6 +149,18 @@ export function PluginDetailsCard({
         <div className="flex shrink-0 items-center gap-1">
           {plugin.disconnected ? (
             <ConnectPluginButton plugin={plugin} size="sm" />
+          ) : plugin.never_signed_in ? (
+            // Nothing to disconnect yet; one needing an OAuth app sets it up below.
+            plugin.needs_own_app ? null : (
+              <SignInAgainButton
+                plugin={plugin}
+                size="sm"
+                label={intl.formatMessage({
+                  id: "plugins_details_connect_button",
+                  defaultMessage: "Connect",
+                })}
+              />
+            )
           ) : (
             <DisconnectPluginButton
               name={plugin.name}
@@ -170,7 +195,7 @@ export function PluginDetailsCard({
           <span
             className={
               plugin.check_failure
-                ? "text-destructive"
+                ? TONE_CLASS[checkTone(plugin)]
                 : "text-muted-foreground"
             }
           >
@@ -180,8 +205,21 @@ export function PluginDetailsCard({
             <Spinner className="size-3 text-muted-foreground" />
           ) : null}
           {plugin.check_failure === "sign_in" ? (
-            plugin.auth_type === "oauth" ? (
-              <SignInAgainButton plugin={plugin} />
+            plugin.auth_type === "oauth" && plugin.needs_own_app ? (
+              <OwnAppButton
+                plugin={plugin}
+                reason={plugin.needs_own_app}
+                primary
+                label={intl.formatMessage({
+                  id: "plugins_row_set_up_own_app_button",
+                  defaultMessage: "Set up OAuth app",
+                })}
+              />
+            ) : plugin.auth_type === "oauth" ? (
+              // A plugin never signed in connects from its header instead.
+              plugin.never_signed_in ? null : (
+                <SignInAgainButton plugin={plugin} />
+              )
             ) : plugin.auth_type === "headers" ? (
               plugin.source === "custom" ? (
                 <EditConnectionButton plugin={plugin} />
@@ -198,8 +236,15 @@ export function PluginDetailsCard({
           ) : plugin.auth_type === "headers" ? (
             <EditHeadersButton plugin={plugin} />
           ) : null}
-          {plugin.own_app && !plugin.disconnected ? (
-            <ChangeOwnAppButton plugin={plugin} />
+          {plugin.own_app && !plugin.disconnected && !plugin.check_failure ? (
+            <OwnAppButton
+              plugin={plugin}
+              reason="chosen"
+              label={intl.formatMessage({
+                id: "plugins_own_app_change_button",
+                defaultMessage: "Change OAuth app",
+              })}
+            />
           ) : null}
           {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
             <Button
@@ -225,8 +270,29 @@ export function PluginDetailsCard({
           })}
         </p>
       ) : null}
+      {plugin.needs_own_app && plugin.check_failure === "sign_in" ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {plugin.needs_own_app === "refused"
+            ? intl.formatMessage(
+                {
+                  id: "plugins_row_own_app_refused_body",
+                  defaultMessage:
+                    "{plugin} refused to register SurfSense; it may accept only apps it approved.",
+                },
+                { plugin: plugin.name }
+              )
+            : intl.formatMessage(
+                {
+                  id: "plugins_row_own_app_needs_client_body",
+                  defaultMessage:
+                    "{plugin} accepts only apps registered with it.",
+                },
+                { plugin: plugin.name }
+              )}
+        </p>
+      ) : null}
       {plugin.removed_reason ? (
-        <p className="mt-2 text-xs text-destructive">
+        <p className="mt-2 text-xs text-warning">
           {intl.formatMessage(
             {
               id: "plugins_row_removed_body",
@@ -246,16 +312,21 @@ export function PluginDetailsCard({
       ) : null}
       {plugin.tools.length === 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          {plugin.check_failure === "sign_in"
-            ? // Its tools are listed with the token a sign-in gives.
-              intl.formatMessage({
-                id: "plugins_row_sign_in_for_tools_empty",
-                defaultMessage: "Sign in to see its tools.",
+          {plugin.check_failure === "sign_in" && plugin.never_signed_in
+            ? intl.formatMessage({
+                id: "plugins_row_connect_for_tools_empty",
+                defaultMessage: "Connect to see its tools.",
               })
-            : intl.formatMessage({
-                id: "plugins_row_no_tools_empty",
-                defaultMessage: "This server lists no tools.",
-              })}
+            : plugin.check_failure === "sign_in"
+              ? // Its tools are listed with the token a sign-in gives.
+                intl.formatMessage({
+                  id: "plugins_row_sign_in_for_tools_empty",
+                  defaultMessage: "Sign in to see its tools.",
+                })
+              : intl.formatMessage({
+                  id: "plugins_row_no_tools_empty",
+                  defaultMessage: "This server lists no tools.",
+                })}
         </p>
       ) : null}
       <ToolGroup

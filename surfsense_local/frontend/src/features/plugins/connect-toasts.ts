@@ -17,6 +17,19 @@ export function connectedToast(plugin: string) {
   )
 }
 
+/** A server kept to finish from its row, as one needing the user's own OAuth app. */
+export function keptToast(plugin: string) {
+  toast(
+    intl.formatMessage(
+      {
+        id: "plugins_kept_needs_own_app_toast",
+        defaultMessage: "{plugin} saved. Set up an OAuth app to connect it.",
+      },
+      { plugin }
+    )
+  )
+}
+
 /** A refused Connect, said in a toast rather than squeezed beside the button. */
 export function connectFailedToast(plugin: string, error: unknown) {
   errorToast(

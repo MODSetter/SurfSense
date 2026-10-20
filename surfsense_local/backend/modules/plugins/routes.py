@@ -54,6 +54,7 @@ from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
 )
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH
 from modules.plugins.remote.sign_in.oauth.own_app import OwnApp, own_app_auth
+from modules.plugins.remote.sign_in.oauth.own_app_needed import OwnAppNeededError
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
 from modules.plugins.remote.sign_in.oauth.start_sign_in import start_sign_in
@@ -67,6 +68,10 @@ from modules.plugins.remote.source import RemoteMcpSource
 from modules.plugins.remote.transport_moved import listed_where_it_moved
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
+
+
+def _read_by_id(session, plugin_id: str) -> PluginRead:
+    return read_plugin(session, session.get_one(InstalledPlugin, plugin_id))
 
 
 def _named_headers(session, plugin_id: str):
@@ -176,32 +181,36 @@ async def add_custom_plugin(
     try:
         transport, tools = await listed_on_either(url, as_sent(headers))
     except ServerError as error:
-        sign_in = (
-            await start_sign_in(
-                session,
-                request,
-                PluginDraft(
-                    plugin_id=plugin_id,
-                    name=payload.name,
-                    url=url,
-                    source=PluginSource.CUSTOM,
-                    entry={
-                        "name": payload.name,
-                        "hosts": [url_host(url)],
-                        "auth": (
-                            own_app_auth(payload.oauth_client)
-                            if payload.oauth_client
-                            else {"type": "oauth"}
-                        ),
-                    },
-                    scopes=app.scopes if (app := payload.oauth_client) else None,
-                    client_id=app.client_id.strip() if app else None,
-                    client_secret=app.client_secret if app else None,
-                ),
+        try:
+            sign_in = (
+                await start_sign_in(
+                    session,
+                    request,
+                    PluginDraft(
+                        plugin_id=plugin_id,
+                        name=payload.name,
+                        url=url,
+                        source=PluginSource.CUSTOM,
+                        entry={
+                            "name": payload.name,
+                            "hosts": [url_host(url)],
+                            "auth": (
+                                own_app_auth(payload.oauth_client)
+                                if payload.oauth_client
+                                else {"type": "oauth"}
+                            ),
+                        },
+                        scopes=app.scopes if (app := payload.oauth_client) else None,
+                        client_id=app.client_id.strip() if app else None,
+                        client_secret=app.client_secret if app else None,
+                    ),
+                )
+                if error.status == 401 and not headers
+                else None
             )
-            if error.status == 401 and not headers
-            else None
-        )
+        except OwnAppNeededError:
+            # Kept, needing the user's own app, and set up from its row.
+            return await transact(session, _read_by_id, plugin_id)
         if sign_in is None:
             raise connect_refusal(error) from error
         response.status_code = status.HTTP_202_ACCEPTED

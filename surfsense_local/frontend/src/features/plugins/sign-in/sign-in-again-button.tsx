@@ -10,6 +10,7 @@ import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 import { PluginOwnAppDialog } from "./own-app/plugin-own-app-dialog"
 import { ownAppReason, type OwnAppReason } from "./own-app/own-app-reason"
+import { useOpenedSignIn } from "./opened-sign-in"
 import { SignInProgress } from "./sign-in-progress"
 import { usePluginSignIn } from "./use-plugin-sign-in"
 
@@ -33,21 +34,35 @@ export function SignInAgainButton({
     connectedToast(plugin.name)
     void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
   })
+  // Started when the plugin was connected elsewhere, and followed above this button.
+  const opened = useOpenedSignIn(plugin.id)
   const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const start = useMutation({
     mutationFn: () => signInAgain(plugin.id),
     onSuccess: signIn.follow,
-    onError: (refused) => setOwnApp(ownAppReason(refused)),
+    onError: (refused) => {
+      setOwnApp(ownAppReason(refused))
+      // Marked as needing the user's app, which its status now says.
+      void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+    },
   })
-  if (signIn.state.phase === "waiting") {
+  const following =
+    signIn.state.phase === "waiting"
+      ? signIn
+      : opened?.state.phase === "waiting"
+        ? opened
+        : null
+  if (following) {
     return (
       <SignInProgress
-        state={signIn.state}
-        onCancel={signIn.cancel}
+        state={following.state}
+        onCancel={following.cancel}
         className=""
       />
     )
   }
+  const failed =
+    signIn.state.phase === "failed" || opened?.state.phase === "failed"
   return (
     <>
       <Button
@@ -56,7 +71,10 @@ export function SignInAgainButton({
         variant={label ? "secondary" : "ghost"}
         className={className}
         disabled={start.isPending}
-        onClick={() => start.mutate()}
+        onClick={() => {
+          opened?.cancel()
+          start.mutate()
+        }}
       >
         {start.isPending ? <Spinner data-icon="inline-start" /> : null}
         {label ??
@@ -80,7 +98,7 @@ export function SignInAgainButton({
           }}
         />
       ) : null}
-      {signIn.state.phase === "failed" ? (
+      {failed ? (
         <span role="alert" className="text-destructive">
           {intl.formatMessage({
             id: "plugins_row_sign_in_again_error",

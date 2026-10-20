@@ -39,6 +39,11 @@ class PluginRead(BaseModel):
     needs_scopes: list[str] = []
     # Signs in with the user's own OAuth app, which they may change.
     own_app: bool = False
+    # Needs the user's own app to sign in: the provider registers no app (`needs_client`),
+    # or it refused SurfSense (`refused`). None once signed in.
+    needs_own_app: str | None = None
+    # An OAuth plugin saved before its first sign-in: it connects, rather than signs in again.
+    never_signed_in: bool = False
     enabled: bool
     # Disconnected by the user: kept with its tool settings, signed out, never offered.
     disconnected: bool
@@ -72,6 +77,11 @@ def read_plugin(
         transport=entry_transport(plugin.entry),
         needs_scopes=plugin.entry.get("auth", {}).get("needs_scopes", []),
         own_app=plugin.entry.get("auth", {}).get("own_app") is True,
+        needs_own_app=plugin.entry.get("auth", {}).get("needs_own_app"),
+        # Disconnecting clears the credential too, so only a plugin never connected lacks one.
+        never_signed_in=plugin.credential_kind == "oauth"
+        and plugin.credential_ciphertext is None
+        and plugin.disconnected_at is None,
         enabled=plugin.enabled,
         disconnected=plugin.disconnected_at is not None,
         connected_at=plugin.connected_at,

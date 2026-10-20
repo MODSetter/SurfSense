@@ -17,6 +17,7 @@ from modules.plugins.remote.sign_in.oauth.oauth_credential import (
     read_credential,
 )
 from modules.plugins.remote.sign_in.oauth.own_app import OwnApp, own_app_auth
+from modules.plugins.remote.sign_in.oauth.own_app_needed import OwnAppNeededError
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.sign_in_client import sign_in_client
 from modules.plugins.remote.sign_in.oauth.sign_in_read import (
@@ -124,7 +125,11 @@ async def sign_in_again(
     refusal = await transact(session, refused_hosts, hosts)
     if refusal is not None:
         raise refusal
-    sign_in = await start_sign_in(session, request, draft)
+    try:
+        sign_in = await start_sign_in(session, request, draft)
+    except OwnAppNeededError as needed:
+        # Marked on the plugin; the screen answers with the user's own app.
+        raise needed.refusal() from needed
     if sign_in is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

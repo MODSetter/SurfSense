@@ -19,6 +19,8 @@ const NOTES: Plugin = {
   transport: "streamable_http",
   needs_scopes: [],
   own_app: false,
+  needs_own_app: null,
+  never_signed_in: false,
   enabled: true,
   disconnected: false,
   connected_at: "2026-10-01T00:00:00Z",

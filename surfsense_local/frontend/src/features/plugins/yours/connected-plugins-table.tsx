@@ -18,13 +18,8 @@ import type { Plugin } from "../api"
 import { ConnectPluginButton } from "../details/connect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
 import { pluginStatus } from "./plugin-status"
+import { TONE_CLASS } from "./status-tone"
 import { pluginTypeLabel } from "./plugin-type-label"
-
-const TONE = {
-  failure: "text-destructive",
-  idle: "text-muted-foreground",
-  ok: "text-foreground",
-} as const
 
 /** One row per connected plugin; the name is a button that opens its details, stretched over the row. */
 
@@ -111,7 +106,7 @@ export function ConnectedPluginsTable({
               <TableCell className={cn(CELL, "truncate text-muted-foreground")}>
                 {pluginTypeLabel(plugin.source)}
               </TableCell>
-              <TableCell className={cn(CELL, TONE[status.tone])}>
+              <TableCell className={cn(CELL, TONE_CLASS[status.tone])}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
                     {plugin.disconnected ? (

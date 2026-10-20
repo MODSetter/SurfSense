@@ -23,6 +23,8 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
     transport: "streamable_http",
     needs_scopes: [],
     own_app: false,
+    needs_own_app: null,
+    never_signed_in: false,
     enabled: true,
     disconnected: false,
     connected_at: "2026-10-01T00:00:00Z",
@@ -113,6 +115,7 @@ function api({
   customSignsIn = false,
   customNeedsOwnApp = false,
   signInNeedsOwnApp = false,
+  registryNeedsOwnApp = false,
   probe = { transport: "streamable_http", sign_in: "none", tools: 2 },
   probeFails = false,
   signInEnds = "connected",
@@ -128,6 +131,8 @@ function api({
   customNeedsOwnApp?: boolean
   /** Signing in again reaches a provider taking only apps registered in advance. */
   signInNeedsOwnApp?: boolean
+  /** Connecting a listed OAuth plugin reaches a provider taking only registered apps. */
+  registryNeedsOwnApp?: boolean
   /** What Check finds at the URL. */
   probe?: { transport: string; sign_in: string; tools: number | null }
   /** Check reaches nothing at the URL. */
@@ -141,8 +146,19 @@ function api({
   let signingIn: Plugin | null = null
   let polls = 0
   const startSignIn = (plugin: Plugin) => {
-    signingIn = plugin
+    signingIn = { ...plugin, never_signed_in: false }
     polls = 0
+    // Saved at the start, waiting to sign in, as the API keeps it.
+    if (!connected.some((saved) => saved.id === plugin.id)) {
+      const waiting: Plugin = {
+        ...plugin,
+        auth_type: "oauth",
+        check_failure: "sign_in",
+        never_signed_in: true,
+        tools: [],
+      }
+      connected = [...connected, waiting]
+    }
     return Response.json(
       {
         id: "s-1",
@@ -240,7 +256,7 @@ function api({
           redirect_uri: "http://127.0.0.1:8000/plugins/oauth/callback",
         })
       }
-      if (url.pathname === "/plugins/notes/sign-in") {
+      if (url.pathname === `/plugins/${id}/sign-in`) {
         if (signInNeedsOwnApp && !body?.oauth_client) {
           return Response.json(
             {
@@ -254,7 +270,7 @@ function api({
           )
         }
         return startSignIn({
-          ...connected.find((plugin) => plugin.id === "notes")!,
+          ...connected.find((plugin) => plugin.id === id)!,
           check_failure: null,
         })
       }
@@ -268,6 +284,20 @@ function api({
           hosts: entry.hosts,
           auth_type: entry.auth_type,
         })
+        // An entry declaring it takes only registered apps is kept before any request.
+        if (
+          entry.auth_type === "oauth" &&
+          (registryNeedsOwnApp || entry.user_client)
+        ) {
+          const kept = {
+            ...added,
+            check_failure: "sign_in" as const,
+            needs_own_app: "needs_client" as const,
+            tools: [],
+          }
+          connected = [...connected, kept]
+          return Response.json(kept, { status: 201 })
+        }
         if (entry.auth_type === "oauth") return startSignIn(added)
         connected = [...connected, added]
         return Response.json(added, { status: 201 })
@@ -321,20 +351,19 @@ function api({
           return Response.json({ detail }, { status })
         }
         const added = notes({ name: body.name, url: body.url })
-        if (customNeedsOwnApp && !body.oauth_client) {
-          return Response.json(
-            {
-              detail: {
-                code: "plugin_oauth_needs_client",
-                message: "This server accepts only apps registered in advance.",
-                redirect_uri: "http://127.0.0.1:8000/plugins/oauth/callback",
-              },
-            },
-            { status: 422 }
-          )
+        if (customNeedsOwnApp) {
+          const kept = notes({
+            name: body.name,
+            url: body.url,
+            auth_type: "oauth",
+            check_failure: "sign_in",
+            needs_own_app: "needs_client",
+            tools: [],
+          })
+          connected = [...connected, kept]
+          return Response.json(kept, { status: 201 })
         }
-        if (customSignsIn || customNeedsOwnApp)
-          return startSignIn({ ...added, auth_type: "oauth" })
+        if (customSignsIn) return startSignIn({ ...added, auth_type: "oauth" })
         connected = [...connected, added]
         return Response.json(added, { status: 201 })
       }
@@ -835,14 +864,22 @@ describe("plugins settings", () => {
     const dialog = await addDialog(user)
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
-    expect(await within(dialog).findByText("Waiting for sign-in…")).toBeTruthy()
+    // Add closes; the plugin's details follow the sign-in the browser opened.
     expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
+    await waitFor(
+      () => expect(within(plugin).queryByText("Not connected")).toBeNull(),
+      AFTER_POLLS
+    )
+    await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
-      await screen.findByRole("row", { name: "Notes Custom On" }, AFTER_POLLS)
+      await screen.findByRole("row", { name: "Notes Custom On" })
     ).toBeTruthy()
   })
 
-  it("asks for the user's own OAuth app in a dialog of its own when the server takes only registered ones", async () => {
+  it("keeps a server needing the user's own OAuth app, and opens it to set one up", async () => {
     browser()
     const calls = api({ plugins: [], allowed: true, customNeedsOwnApp: true })
     const user = userEvent.setup()
@@ -850,12 +887,21 @@ describe("plugins settings", () => {
 
     const dialog = await addDialog(user)
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    // Add closes; the kept plugin's details open, saying what it needs.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    const needs = within(plugin).getByText("Needs an OAuth app")
+    expect(needs.className).toContain("text-warning")
+    expect(
+      within(plugin).getByText("Notes accepts only apps registered with it.")
+    ).toBeTruthy()
+    await user.click(
+      within(plugin).getByRole("button", { name: "Set up OAuth app" })
+    )
     const ownApp = await screen.findByRole("dialog", {
       name: "Connect Notes with your own app",
     })
-    expect(
-      within(ownApp).getByText(/accepts only apps registered with it/)
-    ).toBeTruthy()
     // Three steps: register an app, give it the callback, paste what it gives.
     expect(
       within(ownApp).getByText("Register an OAuth app with Notes")
@@ -893,14 +939,10 @@ describe("plugins settings", () => {
     expect(await within(ownApp).findByText("Waiting for sign-in…")).toBeTruthy()
     expect(changes(calls).at(-1)).toEqual({
       method: "POST",
-      path: "/plugins/custom",
-      body: {
-        url: "https://notes.example/mcp",
-        name: "Notes",
-        oauth_client: { client_id: "own-1", client_secret: "s-1" },
-      },
+      path: "/plugins/notes/sign-in",
+      body: { oauth_client: { client_id: "own-1", client_secret: "s-1" } },
     })
-  })
+  }, 15_000)
 
   it("keeps Advanced settings to headers, with no OAuth app", async () => {
     api({ plugins: [], allowed: true })
@@ -913,6 +955,9 @@ describe("plugins settings", () => {
     )
 
     expect(within(dialog).getByLabelText("Header value")).toBeTruthy()
+    expect(
+      within(dialog).queryByRole("button", { name: /OAuth app/ })
+    ).toBeNull()
     expect(within(dialog).queryByLabelText("Client ID")).toBeNull()
     expect(within(dialog).queryByLabelText("Callback address")).toBeNull()
   })
@@ -1460,7 +1505,10 @@ describe("plugins settings", () => {
     )
     await user.click(within(surfsense).getByRole("button", { name: "Connect" }))
 
-    expect(await within(surfsense).findByText("Connected")).toBeTruthy()
+    // Saved, its card says what Yours says of it.
+    expect(
+      await within(surfsense).findByRole("button", { name: "Needs a license" })
+    ).toBeTruthy()
     await yours(user)
     const row = await screen.findByRole("row", {
       name: "Reddit By SurfSense Needs a license",
@@ -1663,7 +1711,7 @@ describe("plugins settings", () => {
     const acme = within(section).getByRole("listitem", { name: "Acme" })
     expect(within(acme).getByRole("img", { name: "Verified" })).toBeTruthy()
     await user.click(within(acme).getByRole("button", { name: "Connect" }))
-    expect(await within(acme).findByText("Connected")).toBeTruthy()
+    expect(await within(acme).findByRole("button", { name: "On" })).toBeTruthy()
     expect(screen.queryByRole("alertdialog")).toBeNull()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/registry/acme", body: null },
@@ -1718,7 +1766,7 @@ describe("plugins settings", () => {
     expect(within(page).getByText("Your Wiki account")).toBeTruthy()
   })
 
-  it("shows a connected plugin's public page from Browse, the same but Connected", async () => {
+  it("shows a saved plugin's public page from Browse with its state, which opens it in Yours", async () => {
     api({
       plugins: [notes({ id: "reddit", name: "Reddit", source: "first_party" })],
     })
@@ -1732,12 +1780,21 @@ describe("plugins settings", () => {
     await user.click(within(surfsense).getByRole("button", { name: "Reddit" }))
 
     const page = await screen.findByRole("region", { name: "Reddit" })
-    expect(within(page).getByText("Connected")).toBeTruthy()
     expect(within(page).getByText(REDDIT.about)).toBeTruthy()
     expect(within(page).queryByText(REDDIT.description)).toBeNull()
     expect(within(page).getByText("scrape")).toBeTruthy()
     expect(within(page).queryByRole("switch")).toBeNull()
     expect(within(page).queryByRole("button", { name: "Connect" })).toBeNull()
+    await user.click(await within(page).findByRole("button", { name: "On" }))
+
+    // Its settings, in Yours.
+    expect(
+      screen.getByRole("tab", { name: "Yours" }).getAttribute("aria-selected")
+    ).toBe("true")
+    const plugin = await screen.findByRole("region", { name: "Reddit" })
+    expect(
+      within(plugin).getByRole("button", { name: "More actions for Reddit" })
+    ).toBeTruthy()
   })
 
   it("shows a plugin's settings in Yours, with no public details", async () => {
@@ -1814,7 +1871,7 @@ describe("plugins settings", () => {
     await user.type(within(dialog).getByLabelText("Exa API key"), "k-9")
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
-    expect(await within(exa).findByText("Connected")).toBeTruthy()
+    expect(await within(exa).findByRole("button", { name: "On" })).toBeTruthy()
     expect(changes(calls)).toEqual([
       {
         method: "POST",
@@ -1824,7 +1881,7 @@ describe("plugins settings", () => {
     ])
   })
 
-  it("connects a registry plugin taking only registered apps with the user's own", async () => {
+  it("saves a registry plugin taking only registered apps, and opens it to set one up", async () => {
     browser()
     const calls = api({
       plugins: [],
@@ -1845,21 +1902,29 @@ describe("plugins settings", () => {
     const section = await screen.findByRole("region", { name: "Third-party" })
     const hub = await within(section).findByRole("listitem", { name: "Hub" })
     await user.click(within(hub).getByRole("button", { name: "Connect" }))
-    const dialog = await screen.findByRole("dialog", {
-      name: "Sign in to Hub with your own app",
-    })
-    await user.type(within(dialog).getByLabelText("Client ID"), "own-1")
-    await user.click(within(dialog).getByRole("button", { name: "Sign in" }))
 
-    expect(await within(hub).findByText("Waiting for sign-in…")).toBeTruthy()
+    // Saved at once, and finished in its details in Yours.
+    const plugin = await screen.findByRole("region", { name: "Hub" })
+    expect(within(plugin).getByText("Needs an OAuth app")).toBeTruthy()
+    await user.click(
+      within(plugin).getByRole("button", { name: "Set up OAuth app" })
+    )
+    const ownApp = await screen.findByRole("dialog", {
+      name: "Connect Hub with your own app",
+    })
+    await user.type(within(ownApp).getByLabelText("Client ID"), "own-1")
+    await user.click(within(ownApp).getByRole("button", { name: "Sign in" }))
+
+    expect(await within(ownApp).findByText("Waiting for sign-in…")).toBeTruthy()
     expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/registry/hub", body: null },
       {
         method: "POST",
-        path: "/plugins/registry/hub",
+        path: "/plugins/hub/sign-in",
         body: { oauth_client: { client_id: "own-1" } },
       },
     ])
-  })
+  }, 15_000)
 
   it("connects a registry plugin, asking for its key when it needs one", async () => {
     const calls = api({
@@ -1883,7 +1948,7 @@ describe("plugins settings", () => {
     const wiki = await within(section).findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
     await trustCommunity(user)
-    expect(await within(wiki).findByText("Connected")).toBeTruthy()
+    expect(await within(wiki).findByRole("button", { name: "On" })).toBeTruthy()
 
     const acme = within(section).getByRole("listitem", { name: "Acme" })
     await user.click(within(acme).getByRole("button", { name: "Connect" }))
@@ -1895,7 +1960,7 @@ describe("plugins settings", () => {
     await user.type(within(dialog).getByLabelText("Acme API key"), "k-1")
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
-    expect(await within(acme).findByText("Connected")).toBeTruthy()
+    expect(await within(acme).findByRole("button", { name: "On" })).toBeTruthy()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/registry/wiki", body: null },
       {
@@ -1929,20 +1994,51 @@ describe("plugins settings", () => {
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
     await trustCommunity(user)
 
-    expect(await within(wiki).findByText("Waiting for sign-in…")).toBeTruthy()
+    // Saved and opened in Yours, the browser open at once.
     expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
-    expect(
-      await within(wiki).findByText("Connected", {}, AFTER_POLLS)
-    ).toBeTruthy()
+    const plugin = await screen.findByRole("region", { name: "Wiki" })
+    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
     // The sign-in ends in the browser, so a toast says it worked.
-    expect(await screen.findByText("Wiki connected")).toBeTruthy()
-    await yours(user)
+    expect(
+      await screen.findByText("Wiki connected", {}, AFTER_POLLS)
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
       await screen.findByRole("row", { name: "Wiki Third-party On" })
     ).toBeTruthy()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/registry/wiki", body: null },
     ])
+  })
+
+  it("says a listed plugin was kept to set up, not connected, when it needs the user's own app", async () => {
+    api({
+      plugins: [],
+      allowed: true,
+      registry: [listed({ auth_type: "oauth" })],
+      registryNeedsOwnApp: true,
+    })
+    const user = userEvent.setup()
+    render(
+      <>
+        <Toaster />
+        <PluginsSettings />
+      </>
+    )
+
+    const wiki = await screen.findByRole("listitem", { name: "Wiki" })
+    await user.click(within(wiki).getByRole("button", { name: "Connect" }))
+    await trustCommunity(user)
+
+    expect(
+      await screen.findByText("Wiki saved. Set up an OAuth app to connect it.")
+    ).toBeTruthy()
+    expect(screen.queryByText("Wiki connected")).toBeNull()
+    const plugin = await screen.findByRole("region", { name: "Wiki" })
+    expect(within(plugin).getByText("Needs an OAuth app")).toBeTruthy()
+    expect(
+      within(plugin).getByRole("button", { name: "Set up OAuth app" })
+    ).toBeTruthy()
   })
 
   it("abandons a sign-in on Cancel", async () => {
@@ -1959,14 +2055,17 @@ describe("plugins settings", () => {
     const wiki = await screen.findByRole("listitem", { name: "Wiki" })
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
     await trustCommunity(user)
+    const plugin = await screen.findByRole("region", { name: "Wiki" })
     await user.click(
-      await within(wiki).findByRole("button", { name: "Cancel" })
+      await within(plugin).findByRole("button", { name: "Cancel" })
     )
 
-    expect(within(wiki).queryByText("Waiting for sign-in…")).toBeNull()
+    // Kept, signed out, to sign in from here later.
+    expect(within(plugin).queryByText("Waiting for sign-in…")).toBeNull()
+    expect(within(plugin).getByText("Not connected")).toBeTruthy()
     expect(
       (
-        within(wiki).getByRole("button", {
+        within(plugin).getByRole("button", {
           name: "Connect",
         }) as HTMLButtonElement
       ).disabled
@@ -1992,10 +2091,11 @@ describe("plugins settings", () => {
     await user.click(within(wiki).getByRole("button", { name: "Connect" }))
     await trustCommunity(user)
 
+    const plugin = await screen.findByRole("region", { name: "Wiki" })
     expect(
-      await within(wiki).findByRole("alert", {}, AFTER_POLLS)
-    ).toHaveProperty("textContent", "The sign-in didn’t finish. Try again.")
-    expect(within(wiki).getByRole("button", { name: "Connect" })).toBeTruthy()
+      await within(plugin).findByRole("alert", {}, AFTER_POLLS)
+    ).toHaveProperty("textContent", "The sign-in didn’t finish.")
+    expect(within(plugin).getByRole("button", { name: "Connect" })).toBeTruthy()
   })
 
   it("offers no OAuth app of the user's own on a plugin that signs in by itself", async () => {
@@ -2014,43 +2114,86 @@ describe("plugins settings", () => {
     ).toBeNull()
   })
 
-  it("adds a server signing in with the user's own OAuth app, chosen in Advanced settings", async () => {
+  it("connects a plugin saved before its first sign-in, with nothing to disconnect", async () => {
     browser()
-    const calls = api({ plugins: [], allowed: true, customSignsIn: true })
+    const calls = api({
+      plugins: [
+        notes({
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          never_signed_in: true,
+          tools: [],
+        }),
+      ],
+      allowed: true,
+    })
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const dialog = await addDialog(user)
-    await user.click(
-      within(dialog).getByRole("button", { name: "Advanced settings" })
-    )
-    await user.click(
-      within(dialog).getByRole("button", {
-        name: "Sign in with your own OAuth app",
-      })
-    )
-    const ownApp = await screen.findByRole("dialog", {
-      name: "Connect Notes with your own app",
+    const row = await screen.findByRole("row", {
+      name: "Notes Custom Not connected",
     })
     expect(
-      within(ownApp).getByText(/allows only its own approved app/)
-    ).toBeTruthy()
-    await user.type(within(ownApp).getByLabelText("Client ID"), "own-1")
-    await user.click(within(ownApp).getByRole("button", { name: "Scopes" }))
-    await user.type(within(ownApp).getByLabelText("Scopes"), "repo read:org")
-    await user.click(within(ownApp).getByRole("button", { name: "Sign in" }))
+      within(row).getByText("Not connected").closest("td")?.className
+    ).toContain("text-muted-foreground")
+    const plugin = await details(user, "Notes")
+    expect(within(plugin).getByText("Connect to see its tools.")).toBeTruthy()
+    expect(
+      within(plugin).queryByRole("button", { name: "Disconnect Notes" })
+    ).toBeNull()
+    expect(within(plugin).queryByRole("button", { name: "Sign in" })).toBeNull()
+    expect(
+      within(plugin).queryByRole("button", { name: /OAuth app/ })
+    ).toBeNull()
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
 
-    await waitFor(() =>
-      expect(changes(calls).at(-1)).toEqual({
-        method: "POST",
-        path: "/plugins/custom",
-        body: {
-          url: "https://notes.example/mcp",
-          name: "Notes",
-          oauth_client: { client_id: "own-1", scopes: ["repo", "read:org"] },
-        },
-      })
+    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/sign-in", body: null },
+    ])
+  })
+
+  it("offers no OAuth app of the user's own on a plugin whose sign-in ran out", async () => {
+    api({
+      plugins: [notes({ auth_type: "oauth", check_failure: "sign_in" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    expect(within(plugin).getByText("Needs sign-in").className).toContain(
+      "text-warning"
     )
+    expect(within(plugin).getByRole("button", { name: "Sign in" })).toBeTruthy()
+    expect(
+      within(plugin).getByRole("button", { name: "Disconnect Notes" })
+    ).toBeTruthy()
+    expect(
+      within(plugin).queryByRole("button", { name: /OAuth app/ })
+    ).toBeNull()
+  })
+
+  it("colours a status needing a step amber, and a failure red", async () => {
+    api({
+      plugins: [
+        notes({ auth_type: "oauth", check_failure: "sign_in" }),
+        notes({
+          id: "wiki",
+          name: "Wiki",
+          url: "https://wiki.example/mcp",
+          check_failure: "unreachable",
+        }),
+      ],
+      allowed: true,
+    })
+    render(<PluginsSettings />)
+
+    const signIn = await screen.findByRole("cell", { name: "Needs sign-in" })
+    const down = screen.getByRole("cell", { name: "Couldn’t connect" })
+
+    expect(signIn.className).toContain("text-warning")
+    expect(down.className).toContain("text-destructive")
   })
 
   it("offers to change the OAuth app of a plugin signed in with the user's own", async () => {

@@ -19,9 +19,10 @@ from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.handled_refusals import quiet_handled_refusals
 from modules.plugins.remote.sign_in.oauth.oauth_discovery import discover_oauth
-from modules.plugins.remote.sign_in.oauth.own_app import (
-    needs_own_app,
-    registration_refused,
+from modules.plugins.remote.sign_in.oauth.own_app_needed import (
+    OwnAppNeededError,
+    OwnAppReason,
+    keep_needing_own_app,
 )
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.plugin_sign_ins import (
@@ -73,11 +74,12 @@ async def start_sign_in(
     if offer is not None and not _can_register(offer):
         # Said at once: registering would only be refused, after requests sent for nothing.
         logger.info("%s registers no apps; asking for the user's own", _host(draft))
-        raise needs_own_app()
+        raise await _own_app_needed(session, draft, "needs_client")
     try:
         pending = await _started(request, draft)
     except OAuthRegistrationError as error:
-        raise await _registration_failure(draft) from error
+        reason = await _registration_failure(draft)
+        raise await _own_app_needed(session, draft, reason) from error
     except HostNotAllowedError as unasked:
         raise await _refusal(session, unasked) from unasked
     except (OAuthFlowError, httpx2.HTTPError, TimeoutError, SignInEndedError) as error:
@@ -120,14 +122,22 @@ def _can_register(offer: RegistrationOffer) -> bool:
     return offer.registers or (offer.client_documents and documents)
 
 
-async def _registration_failure(draft: PluginDraft) -> HTTPException:
+async def _registration_failure(draft: PluginDraft) -> OwnAppReason:
     """No registration at all is the user's own app; registration that refused us is said so."""
     offer = await _offer(draft)
     if offer and offer.registers:
         logger.info("%s refused to register SurfSense", _host(draft))
-        return registration_refused()
+        return "refused"
     logger.info("%s registers no apps; asking for the user's own", _host(draft))
-    return needs_own_app()
+    return "needs_client"
+
+
+async def _own_app_needed(
+    session: Session, draft: PluginDraft, reason: OwnAppReason
+) -> OwnAppNeededError:
+    """Kept, a new plugin stored and a saved one marked, before the caller is told."""
+    await transact(session, keep_needing_own_app, draft, reason)
+    return OwnAppNeededError(reason)
 
 
 def _host(draft: PluginDraft) -> str:

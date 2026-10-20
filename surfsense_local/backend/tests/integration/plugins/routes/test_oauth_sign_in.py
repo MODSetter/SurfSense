@@ -291,6 +291,7 @@ async def test_a_plugin_left_signed_out_signs_in_later_from_its_row(
     listed = (await client.get("/plugins")).json()
     assert len(listed) == 1
     assert listed[0]["check_failure"] is None
+    assert listed[0]["never_signed_in"] is False
     assert [t["name"] for t in listed[0]["tools"]] == ["search", "count"]
 
 
@@ -299,6 +300,7 @@ async def _waiting_to_sign_in(client: AsyncClient) -> None:
     (plugin,) = (await client.get("/plugins")).json()
     assert (plugin["id"], plugin["auth_type"]) == ("notes", "oauth")
     assert plugin["check_failure"] == "sign_in"
+    assert plugin["never_signed_in"] is True
     assert plugin["tools"] == []
 
 
@@ -396,6 +398,8 @@ async def test_a_refused_refresh_marks_the_plugin_to_sign_in_again(
     checked = await client.post("/plugins/notes/check")
 
     assert checked.json()["check_failure"] == "sign_in"
+    # Signed in once: it signs in again, not connects for the first time.
+    assert checked.json()["never_signed_in"] is False
     assert [r["grant_type"] for r in servers.authorization.token_requests] == [
         "authorization_code",
         "refresh_token",

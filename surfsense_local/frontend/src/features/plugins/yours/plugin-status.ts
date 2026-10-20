@@ -1,11 +1,11 @@
 import { intl } from "@/i18n/intl"
 
 import type { Plugin } from "../api"
+import { checkTone, type StatusTone } from "./status-tone"
 
 export type PluginStatus = {
   label: string
-  /** `failure` needs the user; `idle` is not in use; `ok` is working. */
-  tone: "failure" | "idle" | "ok"
+  tone: StatusTone
   /** Something new beside the state, not a state of its own. */
   badge?: string
 }
@@ -15,7 +15,11 @@ export function pluginStatus(
   plugin: Plugin,
   thirdPartyAllowed: boolean
 ): PluginStatus {
-  const failure = (label: string): PluginStatus => ({ label, tone: "failure" })
+  // Red when something broke, amber when it needs a step from the user.
+  const failure = (label: string): PluginStatus => ({
+    label,
+    tone: checkTone(plugin),
+  })
   if (plugin.disconnected) {
     return {
       label: intl.formatMessage({
@@ -26,12 +30,14 @@ export function pluginStatus(
     }
   }
   if (plugin.removed_reason) {
-    return failure(
-      intl.formatMessage({
+    // Nothing broke: whether to keep it is the user's call.
+    return {
+      label: intl.formatMessage({
         id: "plugins_list_removed_status",
         defaultMessage: "No longer listed",
-      })
-    )
+      }),
+      tone: "warning",
+    }
   }
   switch (plugin.check_failure) {
     case "unreachable":
@@ -43,20 +49,30 @@ export function pluginStatus(
       )
     case "sign_in":
       return failure(
-        plugin.needs_scopes.length
+        plugin.needs_own_app
           ? intl.formatMessage({
-              id: "plugins_list_needs_scopes_status",
-              defaultMessage: "Needs more access",
+              id: "plugins_list_needs_own_app_status",
+              defaultMessage: "Needs an OAuth app",
             })
-          : plugin.auth_type === "oauth"
+          : plugin.never_signed_in
             ? intl.formatMessage({
-                id: "plugins_list_needs_sign_in_status",
-                defaultMessage: "Needs sign-in",
+                id: "plugins_list_not_connected_status",
+                defaultMessage: "Not connected",
               })
-            : intl.formatMessage({
-                id: "plugins_list_sign_in_status",
-                defaultMessage: "Needs a new key",
-              })
+            : plugin.needs_scopes.length
+              ? intl.formatMessage({
+                  id: "plugins_list_needs_scopes_status",
+                  defaultMessage: "Needs more access",
+                })
+              : plugin.auth_type === "oauth"
+                ? intl.formatMessage({
+                    id: "plugins_list_needs_sign_in_status",
+                    defaultMessage: "Needs sign-in",
+                  })
+                : intl.formatMessage({
+                    id: "plugins_list_sign_in_status",
+                    defaultMessage: "Needs a new key",
+                  })
       )
     case "needs_license":
       return failure(

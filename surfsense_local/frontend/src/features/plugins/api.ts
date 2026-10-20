@@ -32,6 +32,10 @@ export type Plugin = {
   needs_scopes: string[]
   // Signs in with the user's own OAuth app, which they may change.
   own_app: boolean
+  // Needs the user's own app to sign in: the provider registers no app, or refused SurfSense.
+  needs_own_app: "needs_client" | "refused" | null
+  /** An OAuth plugin saved before its first sign-in: it connects, rather than signs in again. */
+  never_signed_in: boolean
   enabled: boolean
   /** Disconnected by the user: kept with its tool settings, signed out, never offered. */
   disconnected: boolean

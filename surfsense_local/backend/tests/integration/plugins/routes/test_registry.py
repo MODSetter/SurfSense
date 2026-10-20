@@ -485,20 +485,22 @@ async def test_a_header_the_entry_does_not_name_is_refused(
     assert refused.json()["detail"]["code"] == "plugin_header_not_allowed"
 
 
-async def test_an_entry_taking_only_registered_apps_asks_for_the_users_own(
+async def test_an_entry_taking_only_registered_apps_is_kept_needing_the_users_own(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
-    """Said before any request: the entry already knows the provider takes no other."""
+    """Kept before any request: the entry already knows the provider takes no other."""
     registry.publish([entry("notes", auth={"type": "oauth", "user_client": True})])
     await allow_third_party(client)
 
     listed = (await client.get("/plugins/registry")).json()["plugins"][0]
-    refused = await client.post("/plugins/registry/notes", json={})
+    kept = await client.post("/plugins/registry/notes", json={})
 
     assert listed["user_client"] is True
-    assert refused.status_code == 422
-    assert refused.json()["detail"]["code"] == "plugin_oauth_needs_client"
-    assert "redirect_uri" in refused.json()["detail"]
+    assert kept.status_code == 201, kept.text
+    assert kept.json()["needs_own_app"] == "needs_client"
+    assert kept.json()["check_failure"] == "sign_in"
+    (plugin,) = (await client.get("/plugins")).json()
+    assert plugin["source"] == "registry"
 
 
 async def test_an_entrys_transport_is_listed(

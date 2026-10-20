@@ -30,8 +30,11 @@ from modules.plugins.remote.sign_in.headers.given_headers import as_sent
 from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
 from modules.plugins.remote.sign_in.oauth.own_app import (
     OwnApp,
-    needs_own_app,
     own_app_auth,
+)
+from modules.plugins.remote.sign_in.oauth.own_app_needed import (
+    OwnAppNeededError,
+    keep_needing_own_app,
 )
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
@@ -112,8 +115,20 @@ async def connect_registry_plugin(
     if entry.auth.type == "oauth":
         app = payload.oauth_client if payload else None
         if entry.auth.user_client and app is None:
-            raise needs_own_app()
-        sign_in = await start_sign_in(session, request, _draft(entry, app))
+            # Kept before any request, set up from its row like any other needing one.
+            await transact(session, keep_needing_own_app, _draft(entry), "needs_client")
+            return await transact(
+                session,
+                lambda s: read_plugin(s, s.get_one(InstalledPlugin, plugin_id)),
+            )
+        try:
+            sign_in = await start_sign_in(session, request, _draft(entry, app))
+        except OwnAppNeededError:
+            # Kept, needing the user's own app, and set up from its row.
+            return await transact(
+                session,
+                lambda s: read_plugin(s, s.get_one(InstalledPlugin, plugin_id)),
+            )
         if sign_in is None:
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY,

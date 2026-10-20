@@ -25,7 +25,7 @@ import {
   pluginsQueryKey,
   type SignInHeader,
 } from "../api"
-import { connectedToast } from "../connect-toasts"
+import { connectedToast, keptToast } from "../connect-toasts"
 import {
   headersComplete,
   sentHeaders,
@@ -38,19 +38,15 @@ import {
   SCROLLING_FIELDS_VIEWPORT,
   SCROLLING_FORM,
 } from "../connection/scrolling-dialog"
+import { useOpenPlugin } from "../open-plugin"
 import { refusalMessage } from "../refusal-message"
-import { OwnAppDialog } from "../sign-in/own-app/own-app-dialog"
-import {
-  ownAppReason,
-  type OwnAppReason,
-} from "../sign-in/own-app/own-app-reason"
 import { SignInProgress } from "../sign-in/sign-in-progress"
 import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 
 /**
- * Name, URL and Connect. Connect does the rest: an open server connects, one asking for
- * an account opens the browser, one asking for a key opens Advanced settings, and one
- * taking only registered apps opens the user's own app, in a dialog of its own.
+ * Name, URL and Connect. Connect does the rest: an open server connects, one asking for a
+ * key opens Advanced settings, and one asking for an account is saved and opened in Yours,
+ * where it signs in, or sets up the user's own app if its provider takes only those.
  */
 function AddPluginForm({
   onCancel,
@@ -61,18 +57,19 @@ function AddPluginForm({
 }) {
   const fieldId = useId()
   const queryClient = useQueryClient()
+  const openPlugin = useOpenPlugin()
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
   const [rows, setRows] = useState<SignInHeader[]>(STARTING_HEADERS)
   const [advanced, setAdvanced] = useState(false)
-  const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const added = () => {
     connectedToast(name.trim())
+    void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
     onAdded()
   }
-  // A server asking for OAuth is kept from the start, and connected once signed in.
+  // Followed here only outside Settings › Plugins, which otherwise follows it in Yours.
   const signIn = usePluginSignIn(added)
   const locked = busy || signIn.state.phase === "waiting"
   const ready = name.trim() !== "" && url.trim() !== "" && headersComplete(rows)
@@ -89,18 +86,19 @@ function AddPluginForm({
         ...(headers.length ? { headers } : {}),
       })
       if (isSignInStarted(answer)) {
-        signIn.follow(answer)
+        if (openPlugin) openPlugin(answer.plugin_id, answer)
+        else signIn.follow(answer)
         // Already in Yours, waiting to sign in, should the browser be closed.
         void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+      } else if (answer.needs_own_app) {
+        // Kept, signed out: its details set up the app it needs.
+        keptToast(answer.name)
+        if (openPlugin) openPlugin(answer.id)
+        else onAdded()
       } else {
         added()
       }
     } catch (refused) {
-      const reason = ownAppReason(refused)
-      if (reason !== null) {
-        setOwnApp(reason)
-        return
-      }
       setError(refusalMessage(refused))
       if (
         refused instanceof ApiError &&
@@ -114,148 +112,98 @@ function AddPluginForm({
   }
 
   return (
-    <>
-      <form
-        className={SCROLLING_FORM}
-        onSubmit={(event) => void connect(event)}
+    <form className={SCROLLING_FORM} onSubmit={(event) => void connect(event)}>
+      <ScrollFade
+        className={SCROLLING_FIELDS}
+        viewportClassName={SCROLLING_FIELDS_VIEWPORT}
       >
-        <ScrollFade
-          className={SCROLLING_FIELDS}
-          viewportClassName={SCROLLING_FIELDS_VIEWPORT}
-        >
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor={`${fieldId}-name`}>
-                {intl.formatMessage({
-                  id: "plugins_add_name_label",
-                  defaultMessage: "Name",
-                })}
-              </FieldLabel>
-              <Input
-                id={`${fieldId}-name`}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder={intl.formatMessage({
-                  id: "plugins_add_name_placeholder",
-                  defaultMessage: "Team wiki",
-                })}
-                disabled={locked}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`${fieldId}-url`}>
-                {intl.formatMessage({
-                  id: "plugins_add_url_label",
-                  defaultMessage: "Server URL",
-                })}
-              </FieldLabel>
-              <Input
-                id={`${fieldId}-url`}
-                type="url"
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://example.com/mcp"
-                disabled={locked}
-              />
-            </Field>
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            ) : null}
-            <div className="flex">
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                className="-ml-2"
-                aria-expanded={advanced}
-                disabled={locked}
-                onClick={() => setAdvanced(!advanced)}
-              >
-                {advanced ? (
-                  <ChevronDownIcon data-icon="inline-start" />
-                ) : (
-                  <ChevronRightIcon data-icon="inline-start" />
-                )}
-                {intl.formatMessage({
-                  id: "plugins_add_advanced_button",
-                  defaultMessage: "Advanced settings",
-                })}
-              </Button>
-            </div>
-            {advanced ? (
-              <>
-                <ConnectionEditor
-                  rows={rows}
-                  onChange={setRows}
-                  disabled={locked}
-                />
-                {/* Chosen when adding, as Claude Code takes it: for an organization that
-                    allows only its approved app, which no server says. */}
-                <div className="flex">
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="-ml-2"
-                    disabled={locked || name.trim() === "" || url.trim() === ""}
-                    onClick={() => setOwnApp("chosen")}
-                  >
-                    {intl.formatMessage({
-                      id: "plugins_add_own_app_button",
-                      defaultMessage: "Sign in with your own OAuth app",
-                    })}
-                    <ChevronRightIcon data-icon="inline-end" />
-                  </Button>
-                </div>
-              </>
-            ) : null}
-            <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
-          </FieldGroup>
-        </ScrollFade>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            {intl.formatMessage({
-              id: "plugins_add_cancel_button",
-              defaultMessage: "Cancel",
-            })}
-          </Button>
-          <Button type="submit" disabled={locked || !ready}>
-            {busy ? <Spinner data-icon="inline-start" /> : null}
-            {intl.formatMessage({
-              id: "plugins_add_connect_button",
-              defaultMessage: "Connect",
-            })}
-          </Button>
-        </DialogFooter>
-      </form>
-      {/* Beside the form, not in it: a submit inside would also submit the form. */}
-      {ownApp ? (
-        <OwnAppDialog
-          plugin={name.trim()}
-          reason={ownApp}
-          open
-          onOpenChange={(open) => {
-            if (!open) setOwnApp(null)
-          }}
-          start={(app) =>
-            addCustomPlugin({
-              url: url.trim(),
-              name: name.trim(),
-              ...(sentHeaders(rows).length
-                ? { headers: sentHeaders(rows) }
-                : {}),
-              oauth_client: app,
-            })
-          }
-          onConnected={() => {
-            setOwnApp(null)
-            added()
-          }}
-        />
-      ) : null}
-    </>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${fieldId}-name`}>
+              {intl.formatMessage({
+                id: "plugins_add_name_label",
+                defaultMessage: "Name",
+              })}
+            </FieldLabel>
+            <Input
+              id={`${fieldId}-name`}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={intl.formatMessage({
+                id: "plugins_add_name_placeholder",
+                defaultMessage: "Team wiki",
+              })}
+              disabled={locked}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${fieldId}-url`}>
+              {intl.formatMessage({
+                id: "plugins_add_url_label",
+                defaultMessage: "Server URL",
+              })}
+            </FieldLabel>
+            <Input
+              id={`${fieldId}-url`}
+              type="url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder="https://example.com/mcp"
+              disabled={locked}
+            />
+          </Field>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex">
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="-ml-2"
+              aria-expanded={advanced}
+              disabled={locked}
+              onClick={() => setAdvanced(!advanced)}
+            >
+              {advanced ? (
+                <ChevronDownIcon data-icon="inline-start" />
+              ) : (
+                <ChevronRightIcon data-icon="inline-start" />
+              )}
+              {intl.formatMessage({
+                id: "plugins_add_advanced_button",
+                defaultMessage: "Advanced settings",
+              })}
+            </Button>
+          </div>
+          {advanced ? (
+            <ConnectionEditor
+              rows={rows}
+              onChange={setRows}
+              disabled={locked}
+            />
+          ) : null}
+          <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
+        </FieldGroup>
+      </ScrollFade>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          {intl.formatMessage({
+            id: "plugins_add_cancel_button",
+            defaultMessage: "Cancel",
+          })}
+        </Button>
+        <Button type="submit" disabled={locked || !ready}>
+          {busy ? <Spinner data-icon="inline-start" /> : null}
+          {intl.formatMessage({
+            id: "plugins_add_connect_button",
+            defaultMessage: "Connect",
+          })}
+        </Button>
+      </DialogFooter>
+    </form>
   )
 }
 
@@ -267,7 +215,8 @@ export function AddPluginDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdded: () => void
+  /** Connected at once; one still to finish is opened in Yours instead. */
+  onAdded?: () => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -290,7 +239,13 @@ export function AddPluginDialog({
           </DialogDescription>
         </DialogHeader>
         {/* The popup unmounts after closing, so each opening starts blank. */}
-        <AddPluginForm onCancel={() => onOpenChange(false)} onAdded={onAdded} />
+        <AddPluginForm
+          onCancel={() => onOpenChange(false)}
+          onAdded={() => {
+            onOpenChange(false)
+            onAdded?.()
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

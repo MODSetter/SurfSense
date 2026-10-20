@@ -57,24 +57,62 @@ async def _signed_in(client: AsyncClient, url: str, **write) -> dict:
     return started.json()
 
 
-async def test_a_sign_in_that_cannot_register_asks_for_the_users_own_app(
+async def test_a_server_registering_no_app_is_kept_needing_the_users_own(
     client: AsyncClient, registered_only: SignInServers
 ) -> None:
-    """Said before any browser opens, and nothing is stored."""
-    refused = await client.post(
+    """Saved before any browser opens, as Needs an OAuth app, to set up from its row."""
+    added = await client.post(
         "/plugins/custom", json={"url": registered_only.mcp_url, "name": "Notes"}
     )
 
-    assert refused.status_code == 422, refused.text
-    assert refused.json()["detail"]["code"] == "plugin_oauth_needs_client"
+    assert added.status_code == 201, added.text
+    assert added.json()["needs_own_app"] == "needs_client"
+    assert added.json()["check_failure"] == "sign_in"
+    assert added.json()["tools"] == []
     # Its metadata names no registration, so none is tried: no request is sent only to fail.
     assert registered_only.authorization.registration_attempts == 0
     assert not [p for p in registered_only.protected.paths if p.endswith("/register")]
+    (listed,) = (await client.get("/plugins")).json()
+    assert listed["needs_own_app"] == "needs_client"
+
+
+async def test_sign_in_on_a_plugin_needing_the_users_own_app_says_so(
+    client: AsyncClient, registered_only: SignInServers
+) -> None:
+    """With the callback to register one; the plugin stays as it was."""
+    await client.post(
+        "/plugins/custom", json={"url": registered_only.mcp_url, "name": "Notes"}
+    )
+
+    refused = await client.post("/plugins/notes/sign-in")
+
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_oauth_needs_client"
     # The address to register the app with, which is the API's own in a developer's build.
     assert refused.json()["detail"]["redirect_uri"] == (
         "http://127.0.0.1:8000/plugins/oauth/callback"
     )
-    assert (await client.get("/plugins")).json() == []
+    (listed,) = (await client.get("/plugins")).json()
+    assert listed["needs_own_app"] == "needs_client"
+
+
+async def test_signing_in_with_the_users_own_app_clears_the_need(
+    client: AsyncClient, registered_only: SignInServers
+) -> None:
+    """It is no longer marked, and offers to change the app rather than set one up."""
+    await client.post(
+        "/plugins/custom", json={"url": registered_only.mcp_url, "name": "Notes"}
+    )
+
+    started = await client.post(
+        "/plugins/notes/sign-in", json={"oauth_client": OWN_APP}
+    )
+    await approve_in_browser(client, started.json()["authorization_url"])
+
+    (listed,) = (await client.get("/plugins")).json()
+    assert listed["needs_own_app"] is None
+    assert listed["own_app"] is True
+    assert listed["check_failure"] is None
 
 
 async def test_the_users_own_app_signs_in_with_its_secret_and_keeps_it(
@@ -181,7 +219,7 @@ async def test_a_provider_registering_only_clients_with_a_secret_issues_one(
 async def test_a_provider_refusing_to_register_surfsense_says_so(
     client: AsyncClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Told apart from a provider with no registration at all, and nothing is kept."""
+    """Told apart from a provider with no registration at all, and kept to set up."""
     caplog.set_level(logging.INFO)
     authorization = StandInAuthorizationServer(refuse_registration=True)
     with serving(authorization.app()) as issuer:
@@ -194,9 +232,8 @@ async def test_a_provider_refusing_to_register_surfsense_says_so(
                 "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
             )
 
-    assert refused.status_code == 422, refused.text
-    assert refused.json()["detail"]["code"] == "plugin_oauth_refused"
-    assert (await client.get("/plugins")).json() == []
+    assert refused.status_code == 201, refused.text
+    assert refused.json()["needs_own_app"] == "refused"
     # An answer SurfSense handles: one line saying so, never the SDK's traceback.
     assert not [r for r in caplog.records if r.exc_info]
     assert "refused to register SurfSense" in caplog.text
