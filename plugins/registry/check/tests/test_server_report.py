@@ -8,6 +8,7 @@ from tests.live_servers import (
     authorization_server,
     closed_port,
     docs_server,
+    docs_sse_server,
     not_mcp,
     oauth_server,
     serving,
@@ -46,13 +47,24 @@ def test_a_server_naming_an_authorization_server_signs_in_with_oauth():
     assert found.problems == []
 
 
-def test_an_oauth_server_the_app_cannot_register_with_is_a_problem():
+def test_an_oauth_server_taking_only_registered_apps_asks_for_the_users_own():
+    """Not a problem: the app asks each user for their own app when they connect."""
     with (
         serving(authorization_server(registration=False)) as issuer,
         serving(oauth_server(issuer)) as url,
     ):
         found = report(f"{url}/mcp")
-    assert any("neither a client metadata document" in p for p in found.problems)
+    assert found.auth == {"type": "oauth", "user_client": True}
+    assert found.problems == []
+
+
+def test_a_server_on_the_older_sse_transport_is_found():
+    """Found when the Streamable HTTP POST is refused, as the app finds it."""
+    with serving(docs_sse_server()) as url:
+        found = report(f"{url}/sse")
+    assert found.transport == "sse"
+    assert found.tools == ["read_page", "search_docs"]
+    assert found.problems == []
 
 
 def test_a_server_nothing_answers_on_is_a_problem():
@@ -67,13 +79,3 @@ def test_a_server_refusing_with_another_code_is_asked_to_check_its_url():
         "does not answer MCP over Streamable HTTP: it answered 404. Check it is "
         "your MCP endpoint"
     ]
-
-
-def test_an_oauth_server_taking_only_registered_clients_passes_with_a_client_id():
-    with (
-        serving(authorization_server(registration=False)) as issuer,
-        serving(oauth_server(issuer)) as url,
-    ):
-        found = anyio.run(report_server, f"{url}/mcp", "surfsense-docs")
-    assert found.auth == {"type": "oauth", "client_id": "surfsense-docs"}
-    assert found.problems == []

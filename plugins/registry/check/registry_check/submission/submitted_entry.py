@@ -31,6 +31,7 @@ def submitted_entry(
         "description": answers[form.DESCRIPTION],
         "author": answers[form.PUBLISHER],
         "url": answers[form.URL],
+        **({"transport": "sse"} if server.transport == "sse" else {}),
         "auth": auth,
         "hosts": server.hosts,
         "access": "external" if paid else "free",

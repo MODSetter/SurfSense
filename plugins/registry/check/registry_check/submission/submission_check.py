@@ -36,11 +36,11 @@ QUESTION_OF_FIELD = {
     "homepage": form.HOMEPAGE,
     "access": form.ACCESS,
     "access_note": form.ACCESS_NOTE,
-    "auth": form.CLIENT_ID,
+    "auth": form.URL,
     "tools": form.TOOLS,
 }
 
-ReportServer = Callable[[str, str | None], Awaitable[ServerReport]]
+ReportServer = Callable[[str], Awaitable[ServerReport]]
 FetchIcon = Callable[[str], Awaitable[bytes]]
 
 
@@ -82,12 +82,14 @@ async def _checked(
     unreachable = address_problem(answers[form.URL])
     if unreachable:
         return Submission(None, problems=[f"{form.URL}: {unreachable}"])
-    server = await report_server(
-        answers[form.URL],
-        answers.get(form.CLIENT_ID) or None,
-    )
+    server = await report_server(answers[form.URL])
     found = Submission(None, warnings=list(server.warnings))
-    found.problems += [_server_problem(p) for p in server.problems]
+    found.problems += [f"{form.URL}: {p}" for p in server.problems]
+    if server.auth.get("user_client"):
+        found.warnings.append(
+            f"{form.URL}: your sign-in accepts only apps registered with it in advance, "
+            "so each user registers their own and signs in with it when connecting"
+        )
     tools = _named_tools(answers)
     if not server.problems:
         _compare_tools(found, tools, server)
@@ -108,17 +110,6 @@ async def _checked(
     if not found.problems:
         found.entry = entry
     return found
-
-
-def _server_problem(problem: str) -> str:
-    # The one sign-in problem the submitter can fix in the form: no way for SurfSense to register.
-    if problem.startswith("auth: ") and "client_id" in problem:
-        return (
-            f"{form.CLIENT_ID}: your sign-in takes neither a client metadata document "
-            "nor dynamic registration. Register SurfSense with the redirect "
-            "https://plugins.surfsense.com/oauth/callback and give its client id"
-        )
-    return f"{form.URL}: {problem}"
 
 
 def _compare_tools(

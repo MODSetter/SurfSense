@@ -37,7 +37,7 @@ def issue_body(**changes: str | None) -> str:
 
 
 def keyless_server(*tools: str) -> Any:
-    async def report(url: str, client_id: str | None = None) -> ServerReport:
+    async def report(url: str) -> ServerReport:
         return ServerReport(
             auth={"type": "none"},
             hosts=["mcp.acme.example"],

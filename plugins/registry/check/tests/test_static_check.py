@@ -54,6 +54,20 @@ def test_a_valid_entry_has_no_problems(tmp_path):
         ({"added": "2026-13"}, "added"),
         ({"added": "October 2026"}, "added"),
         ({"added": "2026-10-12"}, "added"),
+        ({"transport": "websocket"}, "transport"),
+        ({"auth": {"type": "headers"}}, "auth"),
+        ({"auth": {"type": "headers", "headers": []}}, "auth"),
+        ({"auth": {"type": "headers", "headers": [{"name": "bad name"}]}}, "auth"),
+        ({"auth": {"type": "headers", "headers": [{"name": "Cookie"}]}}, "auth"),
+        (
+            {"auth": {"type": "headers", "headers": [{"name": "a"}, {"name": "A"}]}},
+            "auth",
+        ),
+        (
+            {"auth": {"type": "headers", "headers": [{"name": "a", "prefix": "x\n"}]}},
+            "auth",
+        ),
+        ({"auth": {"type": "oauth", "user_client": "yes"}}, "auth"),
     ],
 )
 def test_a_broken_field_is_named(tmp_path, overrides, field):
@@ -73,6 +87,30 @@ def test_optional_and_unknown_fields_are_allowed(tmp_path):
         future_field={"anything": True},
         auth={"type": "oauth", "client_id": "abc", "scopes": ["read"]},
     )
+    assert problems(tmp_path, [entry]) == []
+
+
+def test_a_headers_entry_names_and_words_each_header(tmp_path):
+    """The entry names where the user's key goes; it never holds a value."""
+    entry = valid_entry(
+        transport="sse",
+        auth={
+            "type": "headers",
+            "headers": [
+                {
+                    "name": "x-api-key",
+                    "label": "Exa API key",
+                    "description": "From exa.ai.",
+                },
+                {"name": "Authorization", "prefix": "Bearer "},
+            ],
+        },
+    )
+    assert problems(tmp_path, [entry]) == []
+
+
+def test_an_oauth_entry_may_ask_for_the_users_own_app(tmp_path):
+    entry = valid_entry(auth={"type": "oauth", "user_client": True})
     assert problems(tmp_path, [entry]) == []
 
 

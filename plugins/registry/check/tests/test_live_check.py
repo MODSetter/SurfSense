@@ -14,6 +14,7 @@ from tests.live_servers import (
     authorization_server,
     closed_port,
     docs_server,
+    docs_sse_server,
     entry,
     not_mcp,
     oauth_server,
@@ -194,3 +195,31 @@ def test_a_key_server_refusing_with_another_code_only_warns(tmp_path, capsys):
         )
         assert live(tmp_path, [listed]) == 0
     assert "answered 404 without a key" in capsys.readouterr().err
+
+
+def test_an_entry_on_the_sse_transport_is_listed_over_it(tmp_path, capsys):
+    """Contacted over the transport its entry names."""
+    with serving(docs_sse_server()) as url:
+        assert live(tmp_path, [entry(f"{url}/sse", transport="sse")]) == 0
+    assert "live check: passed" in capsys.readouterr().err
+
+
+def test_a_headers_entry_is_expected_to_refuse_without_its_key(tmp_path):
+    """As a token entry is: CI holds no key, so a refusal is what a keyed server says."""
+    headers = {"type": "headers", "headers": [{"name": "x-api-key"}]}
+    with serving(RequiringKey(docs_server())) as url:
+        assert live(tmp_path, [entry(f"{url}/mcp", auth=headers)]) == 0
+
+
+def test_an_oauth_entry_for_the_users_own_app_needs_no_registration(tmp_path):
+    """Its users bring a registered app, so a provider without registration is fine."""
+    with (
+        serving(authorization_server(registration=False)) as issuer,
+        serving(oauth_server(issuer)) as url,
+    ):
+        listed = entry(
+            f"{url}/mcp",
+            auth={"type": "oauth", "user_client": True},
+            hosts=["127.0.0.1"],
+        )
+        assert live(tmp_path, [listed]) == 0

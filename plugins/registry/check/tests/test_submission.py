@@ -95,12 +95,6 @@ def test_a_server_taking_a_key_asks_the_submitter_nothing_about_it(tmp_path):
     assert not any(w.startswith("Key") for w in found.warnings)
 
 
-def test_an_oauth_client_id_from_the_form_is_kept(tmp_path):
-    body = issue_body(OAuth_client_ID="surfsense-acme")
-    found = check(tmp_path, body, server=signing_in_server("oauth"))
-    assert found.entry["auth"] == {"type": "oauth", "client_id": "surfsense-acme"}
-
-
 def test_a_paid_plugin_says_what_users_must_buy(tmp_path):
     paid = "Needs an account or subscription the publisher sells"
     found = check(tmp_path, issue_body(Who_can_use_it=paid))
@@ -154,19 +148,33 @@ def test_a_server_address_the_runner_must_not_reach_is_never_contacted(tmp_path)
     assert found.problems == ["MCP server URL: must be on a public host"]
 
 
-def test_a_sign_in_the_app_cannot_register_with_asks_for_a_client_id(tmp_path):
-    async def unregistrable(url: str, client_id=None):
+def test_a_sign_in_taking_only_registered_apps_lists_it_for_users_own(tmp_path):
+    """Not a problem for the publisher: each user brings their own app when connecting."""
+
+    async def registered_only(url: str):
         from registry_check.submission.server_report import ServerReport
 
         return ServerReport(
-            {"type": "oauth"},
-            ["mcp.acme.example"],
-            None,
-            problems=["auth: the authorization server takes neither a client "
-                      "metadata document nor dynamic registration, and the entry "
-                      "has no client_id"],
-        )  # fmt: skip
+            {"type": "oauth", "user_client": True}, ["mcp.acme.example"], None
+        )
 
-    found = check(tmp_path, issue_body(), server=unregistrable)
-    assert len(found.problems) == 1
-    assert found.problems[0].startswith("OAuth client ID: ")
+    found = check(tmp_path, issue_body(), server=registered_only)
+    assert found.problems == []
+    assert found.entry["auth"] == {"type": "oauth", "user_client": True}
+    assert any("own" in w for w in found.warnings)
+
+
+def test_a_server_on_the_older_sse_transport_is_listed_as_one(tmp_path):
+    async def older(url: str):
+        from registry_check.submission.server_report import ServerReport
+
+        return ServerReport(
+            {"type": "none"},
+            ["mcp.acme.example"],
+            ["read_page", "search_docs"],
+            transport="sse",
+        )
+
+    found = check(tmp_path, issue_body(), server=older)
+    assert found.problems == []
+    assert found.entry["transport"] == "sse"

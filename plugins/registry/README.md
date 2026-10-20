@@ -48,9 +48,10 @@ So there is nothing SurfSense-specific to build. **If your server works in other
   |---|---|---|
   | `none` | Does nothing | No credentials |
   | `token` | Pastes a key you give them | `Authorization: Bearer <key>` |
+  | `headers` | Pastes a key you give them | The key in the header your entry names, such as `x-api-key` |
   | `oauth` | Signs in on your page in their browser | `Authorization: Bearer <access token>` |
 
-  OAuth follows [MCP's authorization spec](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization): serve protected resource metadata, and accept Client ID Metadata Documents or dynamic client registration. SurfSense signs in as `https://plugins.surfsense.com/oauth/client.json` and comes back to `https://plugins.surfsense.com/oauth/callback`. If you only accept clients registered in advance, register SurfSense with those values and put its client id in your entry's `auth.client_id`. SurfSense never holds a client secret.
+  OAuth follows [MCP's authorization spec](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization): serve protected resource metadata, and accept Client ID Metadata Documents or dynamic client registration. SurfSense signs in as `https://plugins.surfsense.com/oauth/client.json` and comes back to `https://plugins.surfsense.com/oauth/callback`. If you only accept clients registered in advance, each user registers their own app with you and enters its client ID, and secret if you give one, in SurfSense; your entry says `auth.user_client: true`, which the bot sets for you. SurfSense itself never holds a client secret.
 
 - **Have a privacy policy.** The user's requests and sign-in reach your server, so the policy must be yours, not your API provider's.
 
@@ -59,7 +60,7 @@ So there is nothing SurfSense-specific to build. **If your server works in other
 The form is the only step: nothing needs checking before you send it, since the bot checks your server itself.
 
 
-Fill in the **[Submit a plugin](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-submit.yml)** form. It asks only what your server cannot say about itself: a name, your server's URL, who runs it, a one-line description and a short about, your privacy policy, your tools' names, and an icon you can drag straight into the form. Nothing about keys: if your server takes one, each user pastes their own when they connect. Only if your sign-in accepts clients registered in advance do you give SurfSense's client id.
+Fill in the **[Submit a plugin](https://github.com/MODSetter/SurfSense/issues/new?template=plugin-submit.yml)** form. It asks only what your server cannot say about itself: a name, your server's URL, who runs it, a one-line description and a short about, your privacy policy, your tools' names, and an icon you can drag straight into the form. Nothing about keys: if your server takes one, each user pastes their own when they connect.
 
 A bot then connects to your server the way the app does and comments on the issue within a few minutes, with either:
 
@@ -128,7 +129,8 @@ Add one object to the `plugins` array in [`plugins.json`](plugins.json):
 | `name`, `author` | Up to 80 characters. `author` is the company or project that runs the server, not a person |
 | `description` | Up to 200 characters: the one line on your card |
 | `url` | Your server's MCP endpoint, `https`, with no credentials in it |
-| `auth` | `{"type": "none"}`; `{"type": "token"}`, with an optional `title` and `description` to word the key prompt, which otherwise uses the app's own; or `{"type": "oauth"}`, with an optional `client_id` and `scopes`. Never a secret |
+| `auth` | `{"type": "none"}`; `{"type": "token"}`, with an optional `title` and `description` to word the key prompt, which otherwise uses the app's own; `{"type": "headers", "headers": [{"name": "x-api-key", "label": "Acme API key"}]}` for a key in any other header, each with an optional `prefix` such as `Bearer `, `label` and `description`; or `{"type": "oauth"}`, with an optional `client_id` and `scopes`, and `"user_client": true` when your sign-in takes only apps registered in advance. Never a secret or a key |
+| `transport` | Optional: `sse` if your server offers only the older HTTP+SSE transport |
 | `hosts` | Every host SurfSense contacts for your plugin: your server's, and for OAuth your authorization server's. The user agrees to each before anything is sent |
 | `access` | `free`, or `external` with an `access_note` (up to 200 characters) saying what the user must buy or have, such as an Acme subscription |
 | `privacy_policy` | Required, `https` |

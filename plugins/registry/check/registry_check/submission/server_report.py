@@ -9,8 +9,13 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx2
+from mcp.client.auth.utils import should_use_client_metadata_url
 
-from registry_check.live.oauth_findings import discovered, sign_in_endpoints
+from registry_check.live.oauth_findings import (
+    SURFSENSE_CLIENT,
+    discovered,
+    sign_in_endpoints,
+)
 from registry_check.live.server_check import server_findings
 from registry_check.live.server_contact import (
     Listed,
@@ -29,12 +34,22 @@ class ServerReport:
     tools: list[str] | None
     problems: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    # `sse` when it answered only on the older HTTP+SSE transport.
+    transport: str = "streamable_http"
 
 
-async def report_server(url: str, client_id: str | None = None) -> ServerReport:
-    """`client_id`: one registered with the publisher's sign-in, for a server taking no other."""
+# What a server without Streamable HTTP answers its POST, as the app reads it.
+NOT_STREAMABLE = {400, 404, 405}
+
+
+async def report_server(url: str) -> ServerReport:
     host = urlsplit(url).hostname or ""
+    transport = "streamable_http"
     reached = await contact(url)
+    if isinstance(reached, NotMcp) and reached.status in NOT_STREAMABLE:
+        older = await contact(url, "sse")
+        if isinstance(older, Listed | SignInAsked):
+            transport, reached = "sse", older
     match reached:
         case Unreachable(reason):
             return _refused(host, f"could not be reached: {reason}")
@@ -50,10 +65,15 @@ async def report_server(url: str, client_id: str | None = None) -> ServerReport:
             )
         case SignInAsked():
             report = await _signing_in(url, host)
-    if report.auth["type"] == "oauth" and client_id:
-        report.auth["client_id"] = client_id
+    report.transport = transport
     found = await server_findings(
-        {"url": url, "auth": report.auth, "hosts": report.hosts, "tools": report.tools}
+        {
+            "url": url,
+            "auth": report.auth,
+            "hosts": report.hosts,
+            "tools": report.tools,
+            "transport": transport,
+        }
     )
     report.problems += found.problems
     report.warnings += found.warnings
@@ -73,7 +93,14 @@ async def _signing_in(url: str, host: str) -> ServerReport:
         reached = urlsplit(endpoint).hostname
         if reached and reached not in hosts:
             hosts.append(reached)
-    return ServerReport({"type": "oauth"}, hosts, None)
+    auth: dict[str, Any] = {"type": "oauth"}
+    if not (
+        metadata.registration_endpoint
+        or should_use_client_metadata_url(metadata, SURFSENSE_CLIENT)
+    ):
+        # Neither way for SurfSense to register: each user brings their own app.
+        auth["user_client"] = True
+    return ServerReport(auth, hosts, None)
 
 
 def _refused(host: str, problem: str) -> ServerReport:

@@ -17,11 +17,13 @@ from registry_check.live.tool_findings import tool_findings
 async def server_findings(entry: dict[str, Any]) -> Findings:
     found = Findings()
     auth = (entry.get("auth") or {}).get("type")
-    reached = await contact(entry["url"])
+    reached = await contact(entry["url"], entry.get("transport", "streamable_http"))
     match reached:
         case Unreachable(reason):
             found.problems.append(f"url: could not be reached: {reason}")
-        case NotMcp(_, status) if auth == "token" and _is_client_error(status):
+        case NotMcp(_, status) if auth in ("token", "headers") and _is_client_error(
+            status
+        ):
             # Some servers refuse a missing key with 400 or 404 rather than 401.
             found.warnings.append(
                 f"url: answered {status} without a key; checked when a maintainer "
@@ -36,7 +38,7 @@ async def server_findings(entry: dict[str, Any]) -> Findings:
                 f"auth: none, but the server asks for sign-in ({status})"
             )
         case Listed(tools):
-            if auth in ("token", "oauth"):
+            if auth in ("token", "headers", "oauth"):
                 found.warnings.append(
                     f"auth: {auth}, but the server listed its tools without a key"
                 )

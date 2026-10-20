@@ -56,7 +56,9 @@ async def oauth_findings(entry: dict[str, Any]) -> Findings:
     for host in reached:
         # The app asks the user about every host first, and refuses one not listed.
         found.problems.append(f"hosts: sign-in reaches {host}, which hosts leaves out")
-    registered = (entry.get("auth") or {}).get("client_id")
+    auth = entry.get("auth") or {}
+    # A `user_client` entry's users bring an app the provider registered in advance.
+    registered = auth.get("client_id") or auth.get("user_client")
     if not (
         registered
         or metadata.registration_endpoint

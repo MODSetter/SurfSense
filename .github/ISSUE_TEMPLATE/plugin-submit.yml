@@ -82,11 +82,6 @@ body:
       label: What users must buy or have
       description: Only if it is not free. Up to 200 characters.
       placeholder: An Acme Pro plan.
-  - type: input
-    id: client_id
-    attributes:
-      label: OAuth client ID
-      description: Only if your sign-in accepts clients registered in advance, with neither Client ID Metadata Documents nor dynamic registration. Register SurfSense with redirect https://plugins.surfsense.com/oauth/callback and paste its client id; never a secret.
   - type: textarea
     id: tools
     attributes:
