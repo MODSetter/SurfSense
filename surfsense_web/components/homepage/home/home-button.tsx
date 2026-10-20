@@ -5,18 +5,18 @@ import type * as React from "react";
 import { siteText } from "@/components/site/site-text";
 import { cn } from "@/lib/utils";
 
+// Colours ease out in 150ms. Scale presses in the same way but returns over
+// 250ms on a no-overshoot spring curve: the held state's timing applies while
+// pressed, the resting one on release.
+const TRANSITION =
+	"transition-[color,background-color,border-color,box-shadow,opacity,scale] duration-[150ms,150ms,150ms,150ms,150ms,250ms] ease-[ease-out,ease-out,ease-out,ease-out,ease-out,cubic-bezier(0.2,0,0,1)] active:duration-150 active:ease-out";
+
 /**
  * Homepage button.
  *
  * Ported from the desktop app's button (`surfsense_local/frontend/src/components/ui/button.tsx`)
  * so the marketing site and the product press the same way: the same size
- * ladder, the same `translate-y-px` press, the same focus ring, the same
- * `--radius` corners.
- *
- * One deliberate difference from the desktop original: `transition-all` is
- * replaced by an explicit property list. Blanket transitions also animate size
- * and radius changes, which makes a button visibly stretch when a variant or
- * breakpoint changes it.
+ * ladder, the same scale press, the same focus ring, the same `--radius` corners.
  *
  * Colours come from the canonical palette via semantic tokens only. There is no
  * marketing-accent variant: the accent on this page marks text, not actions.
@@ -26,10 +26,8 @@ const homeButtonVariants = cva(
 		"group/button inline-flex shrink-0 cursor-pointer items-center justify-center",
 		"rounded-lg border border-transparent bg-clip-padding",
 		"text-sm font-medium whitespace-nowrap select-none outline-none",
-		"transition-[color,background-color,border-color,box-shadow,opacity,translate]",
-		"duration-150 ease-out",
+		TRANSITION,
 		"focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-		"active:not-aria-[haspopup]:translate-y-px",
 		"disabled:pointer-events-none disabled:opacity-50",
 		"[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 	].join(" "),
@@ -58,22 +56,49 @@ const homeButtonVariants = cva(
 	}
 );
 
+type Variant = NonNullable<VariantProps<typeof homeButtonVariants>["variant"]>;
+
+// 0.95 is the polish guide's floor: deeper reads as exaggerated.
+const PRESS_SCALE = "active:not-disabled:scale-[0.95] motion-reduce:active:scale-100";
+
+// A static button presses by colour instead, one step past its hover.
+const PRESSED_FILL: Record<Variant | "bare", string> = {
+	default: "active:bg-primary/70",
+	outline: "active:bg-[color-mix(in_oklch,var(--accent),var(--foreground)_8%)]",
+	secondary: "active:bg-secondary/70",
+	ghost: "active:bg-[color-mix(in_oklch,var(--accent),var(--foreground)_8%)]",
+	link: "",
+	bare: "",
+};
+
+// Behaviour without looks, for a pill, tile or link that brings its own layout,
+// colours and focus outline. A static bare element brings its own pressed fill.
+const BARE = `${TRANSITION} cursor-pointer disabled:pointer-events-none disabled:opacity-50`;
+
 function HomeButton({
 	className,
-	variant,
+	variant = "default",
 	size,
 	asChild = false,
+	static: isStatic = false,
 	...props
 }: React.ComponentProps<"button"> &
-	VariantProps<typeof homeButtonVariants> & {
+	Omit<VariantProps<typeof homeButtonVariants>, "variant"> & {
+		variant?: Variant | "bare";
 		asChild?: boolean;
+		/** No press scale, for wide buttons where 5% is a visible jump. */
+		static?: boolean;
 	}) {
 	const Comp = asChild ? Slot : "button";
 
 	return (
 		<Comp
 			data-slot="button"
-			className={cn(homeButtonVariants({ variant, size, className }))}
+			className={cn(
+				variant === "bare" ? BARE : homeButtonVariants({ variant, size }),
+				isStatic ? PRESSED_FILL[variant] : PRESS_SCALE,
+				className
+			)}
 			{...props}
 		/>
 	);
