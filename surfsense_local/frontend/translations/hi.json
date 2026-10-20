@@ -879,6 +879,7 @@
   "plugins_empty_title": "कोई प्लगइन कनेक्ट नहीं है",
   "plugins_error_egress_disabled": "SurfSense को इस सर्वर से संपर्क करने की अनुमति नहीं है। इसे कनेक्ट करने के लिए इसके होस्ट को अनुमति दें।",
   "plugins_error_plugin_already_connected": "यह सर्वर पहले से {name} नाम से कनेक्ट है।",
+  "plugins_error_plugin_gone": "यह पता अब उपलब्ध नहीं है; हो सकता है इसके सर्वर ने इसे बदल दिया हो। नए पते के लिए इसके दस्तावेज़ देखें।",
   "plugins_error_plugin_name_taken": "{name} नाम का प्लगइन पहले से कनेक्ट है। कोई दूसरा नाम चुनें।",
   "plugins_error_plugin_needs_https": "किसी दूसरे कंप्यूटर पर चल रहे सर्वर को https:// URL इस्तेमाल करना होगा।",
   "plugins_error_plugin_needs_sign_in": "इस सर्वर को कुंजी चाहिए। कुंजी जोड़ें और फिर से कोशिश करें।",

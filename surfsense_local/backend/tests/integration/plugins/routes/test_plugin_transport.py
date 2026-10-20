@@ -122,6 +122,72 @@ async def test_a_web_page_refusing_the_post_and_missing_the_stream_is_refused(
     assert (await client.get("/plugins")).json() == []
 
 
+async def test_an_address_its_server_retired_is_said_to_be_gone(
+    client: AsyncClient,
+) -> None:
+    """As DeepWiki's `/sse`: 405 to the POST, then 410 for the stream. Not "not MCP"."""
+
+    async def not_allowed(_):
+        return Response(status_code=405)
+
+    async def retired(_):
+        return JSONResponse({"error": "SSE transport is deprecated"}, 410)
+
+    app = Starlette(
+        routes=[
+            Route("/sse", not_allowed, methods=["POST"]),
+            Route("/sse", retired, methods=["GET"]),
+        ]
+    )
+    with serving(app) as base:
+        refused = await client.post(
+            "/plugins/custom", json={"url": f"{base}/sse", "name": "Wiki"}
+        )
+
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_gone"
+    assert "deprecated" not in refused.text
+
+
+def _sse_only(stream_status: int) -> Starlette:
+    """A server refusing the POST as one with only SSE, and its stream with `stream_status`."""
+
+    async def not_allowed(_):
+        return Response(status_code=405)
+
+    async def stream(_):
+        return Response(status_code=stream_status)
+
+    return Starlette(
+        routes=[
+            Route("/sse", not_allowed, methods=["POST"]),
+            Route("/sse", stream, methods=["GET"]),
+        ]
+    )
+
+
+async def test_an_sse_only_server_needing_a_key_says_so(client: AsyncClient) -> None:
+    """Its stream's 401 is the answer, not the POST's 405: the address is right."""
+    with serving(_sse_only(401)) as base:
+        refused = await client.post(
+            "/plugins/custom", json={"url": f"{base}/sse", "name": "Wiki"}
+        )
+
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_needs_sign_in"
+
+
+async def test_an_sse_only_server_that_is_down_says_so(client: AsyncClient) -> None:
+    """A 5xx on its stream is a server down, retried first, not an address that is wrong."""
+    with serving(_sse_only(503)) as base:
+        refused = await client.post(
+            "/plugins/custom", json={"url": f"{base}/sse", "name": "Wiki"}
+        )
+
+    assert refused.status_code == 502, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_unreachable"
+
+
 async def test_a_refusal_with_a_json_rpc_body_still_asks_for_a_key(
     client: AsyncClient,
 ) -> None:

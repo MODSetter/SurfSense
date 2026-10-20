@@ -879,6 +879,7 @@
   "plugins_empty_title": "没有已连接的插件",
   "plugins_error_egress_disabled": "SurfSense 未获准访问此服务器。允许它的主机后即可连接。",
   "plugins_error_plugin_already_connected": "此服务器已作为 {name} 连接。",
+  "plugins_error_plugin_gone": "此地址已不再提供服务，服务器可能已将其迁移。请在其文档中查找新地址。",
   "plugins_error_plugin_name_taken": "名为 {name} 的插件已连接。请换一个名称。",
   "plugins_error_plugin_needs_https": "其他电脑上的服务器必须使用 https:// 网址。",
   "plugins_error_plugin_needs_sign_in": "此服务器需要密钥。请添加后重试。",

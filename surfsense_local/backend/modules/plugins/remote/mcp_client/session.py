@@ -14,7 +14,7 @@ from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import MCPError
 
-from modules.plugins.remote.mcp_client.http_failure import unreachable
+from modules.plugins.remote.mcp_client.http_failure import refused, unreachable
 from modules.plugins.remote.mcp_client.remote_tool import RemoteTool
 from modules.plugins.remote.mcp_client.retries import retried
 from modules.plugins.remote.mcp_client.scope_challenge import challenged_scopes
@@ -75,7 +75,11 @@ class McpSession:
                 raise translated(error, status, reason, asked) from error
             if isinstance(error, httpx2.TransportError):
                 raise unreachable(error) from error
+            if isinstance(error, httpx2.HTTPStatusError):
+                raise _stream_refused(error, reasons, scopes) from error
             raise
+        except httpx2.HTTPStatusError as error:
+            raise _stream_refused(error, reasons, scopes) from error
 
     @asynccontextmanager
     async def _client(
@@ -130,3 +134,16 @@ async def _every_page(client: Client) -> list[RemoteTool]:
         cursor = page.next_cursor
         if not cursor:
             return tools
+
+
+def _stream_refused(
+    error: httpx2.HTTPStatusError,
+    reasons: list[str | None],
+    scopes: list[list[str] | None],
+) -> Exception:
+    """The SSE client raises a refused stream as is: kept as the status it answered."""
+    return refused(
+        error.response.status_code,
+        reasons[-1] if reasons else None,
+        scopes[-1] if scopes else None,
+    )

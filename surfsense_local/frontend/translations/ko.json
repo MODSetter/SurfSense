@@ -879,6 +879,7 @@
   "plugins_empty_title": "연결된 플러그인이 없습니다",
   "plugins_error_egress_disabled": "SurfSense가 이 서버에 접속하도록 허용되지 않았습니다. 연결하려면 호스트를 허용하세요.",
   "plugins_error_plugin_already_connected": "이 서버는 이미 {name}(으)로 연결되어 있습니다.",
+  "plugins_error_plugin_gone": "이 주소는 더 이상 제공되지 않습니다. 서버가 주소를 옮겼을 수 있습니다. 문서에서 새 주소를 확인하세요.",
   "plugins_error_plugin_name_taken": "이름이 {name}인 플러그인이 이미 연결되어 있습니다. 다른 이름을 선택하세요.",
   "plugins_error_plugin_needs_https": "다른 컴퓨터에 있는 서버는 https:// URL을 사용해야 합니다.",
   "plugins_error_plugin_needs_sign_in": "이 서버에는 키가 필요합니다. 키를 추가하고 다시 시도하세요.",

@@ -16,7 +16,9 @@ async def listed_on_either(
 ) -> tuple[Transport, list[SourceTool]]:
     """Streamable HTTP first; SSE only when the POST was refused as a server without it.
 
-    Raises the Streamable HTTP refusal when neither answers, since that is the one to report.
+    When neither answers: an SSE address that answered anything but "nothing here" exists,
+    so its answer is reported, a key it asks for, an address retired, or a server down;
+    otherwise the Streamable HTTP refusal is.
     """
     try:
         return STREAMABLE_HTTP, await _listed(url, headers, STREAMABLE_HTTP)
@@ -25,8 +27,12 @@ async def listed_on_either(
             raise
         try:
             return SSE, await _listed(url, headers, SSE)
+        except ServerError as sse_error:
+            if sse_error.status is not None and sse_error.status not in NOT_STREAMABLE:
+                raise
+            raise error from None
         except Exception:
-            # Any failure there means no SSE either: the Streamable HTTP refusal says why.
+            # Any other failure there means no SSE either: the Streamable HTTP refusal says why.
             raise error from None
 
 

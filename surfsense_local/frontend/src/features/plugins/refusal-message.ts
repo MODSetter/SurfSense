@@ -22,6 +22,12 @@ export function refusalMessage(error: unknown) {
           defaultMessage:
             "Couldn’t reach this server. Check the URL and that the server is running.",
         })
+      case "plugin_gone":
+        return intl.formatMessage({
+          id: "plugins_error_plugin_gone",
+          defaultMessage:
+            "This address is no longer served; its server may have moved it. Check its documentation for a new one.",
+        })
       case "plugin_not_mcp":
         return intl.formatMessage({
           id: "plugins_error_plugin_not_mcp",

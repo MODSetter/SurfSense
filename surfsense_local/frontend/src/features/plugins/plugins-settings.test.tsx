@@ -805,6 +805,27 @@ describe("plugins settings", () => {
     )
   })
 
+  it("says an address its server retired, rather than that it is not MCP", async () => {
+    api({
+      plugins: [],
+      refuse: {
+        status: 422,
+        code: "plugin_gone",
+        message:
+          "This address is no longer served; its server may have moved it.",
+      },
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const dialog = await addDialog(user)
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(
+      "This address is no longer served; its server may have moved it. Check its documentation for a new one."
+    )
+  })
+
   it("starts the sign-in for a server that asks for an account", async () => {
     const openExternal = browser()
     api({ plugins: [], allowed: true, customSignsIn: true })

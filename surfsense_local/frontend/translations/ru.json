@@ -879,6 +879,7 @@
   "plugins_empty_title": "Нет подключённых плагинов",
   "plugins_error_egress_disabled": "SurfSense не может обращаться к этому серверу. Разрешите его хост, чтобы подключить.",
   "plugins_error_plugin_already_connected": "Этот сервер уже подключён как {name}.",
+  "plugins_error_plugin_gone": "Этот адрес больше не обслуживается; возможно, сервер его перенёс. Найдите новый в его документации.",
   "plugins_error_plugin_name_taken": "Плагин с именем {name} уже подключён. Выберите другое имя.",
   "plugins_error_plugin_needs_https": "Сервер на другом компьютере должен использовать URL https://.",
   "plugins_error_plugin_needs_sign_in": "Этому серверу нужен ключ. Добавьте его и попробуйте снова.",

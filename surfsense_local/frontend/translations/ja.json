@@ -879,6 +879,7 @@
   "plugins_empty_title": "接続済みのプラグインはありません",
   "plugins_error_egress_disabled": "SurfSenseはこのサーバーへの接続を許可されていません。接続するにはホストを許可してください。",
   "plugins_error_plugin_already_connected": "このサーバーは{name}としてすでに接続されています。",
+  "plugins_error_plugin_gone": "このアドレスは提供されなくなりました。サーバー側で移転した可能性があります。ドキュメントで新しいアドレスを確認してください。",
   "plugins_error_plugin_name_taken": "{name}という名前のプラグインはすでに接続されています。別の名前を選んでください。",
   "plugins_error_plugin_needs_https": "別のコンピューター上のサーバーにはhttps://のURLが必要です。",
   "plugins_error_plugin_needs_sign_in": "このサーバーにはキーが必要です。キーを追加して再試行してください。",

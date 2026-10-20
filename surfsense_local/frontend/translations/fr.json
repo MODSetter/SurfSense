@@ -879,6 +879,7 @@
   "plugins_empty_title": "Aucun plugin connecté",
   "plugins_error_egress_disabled": "SurfSense n’est pas autorisé à contacter ce serveur. Autorisez son hôte pour le connecter.",
   "plugins_error_plugin_already_connected": "Ce serveur est déjà connecté sous le nom {name}.",
+  "plugins_error_plugin_gone": "Cette adresse n’est plus servie ; son serveur l’a peut-être déplacée. Cherchez-en une nouvelle dans sa documentation.",
   "plugins_error_plugin_name_taken": "Un plugin nommé {name} est déjà connecté. Choisissez un autre nom.",
   "plugins_error_plugin_needs_https": "Un serveur sur un autre ordinateur doit utiliser une URL https://.",
   "plugins_error_plugin_needs_sign_in": "Ce serveur demande une clé. Ajoutez-en une et réessayez.",

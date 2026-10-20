@@ -9,6 +9,8 @@ from fastapi import HTTPException, status
 from modules.plugins.remote.mcp_client.server_error import ServerError
 
 SIGN_IN_STATUSES = frozenset({401, 403})
+# The server retired the address, as DeepWiki did its `/sse` for `/mcp`.
+GONE = 410
 
 
 def connect_refusal(error: ServerError) -> HTTPException:
@@ -18,6 +20,14 @@ def connect_refusal(error: ServerError) -> HTTPException:
             {
                 "code": "plugin_needs_sign_in",
                 "message": "This server needs a key or a sign-in before it lists its tools.",
+            },
+        )
+    if error.status == GONE:
+        return HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {
+                "code": "plugin_gone",
+                "message": "This address is no longer served; its server may have moved it.",
             },
         )
     if _not_mcp(error):
