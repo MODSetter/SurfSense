@@ -66,7 +66,12 @@ export type SignInProgress = {
   id: string
   plugin_id: string
   status: "waiting" | "connected" | "failed"
+  /** Why it failed: a code the screen has words for, and the API's sentence; null otherwise. */
+  code: string | null
   message: string | null
+  /** The host not allowed, or the name the server is connected as, for the screen's sentence. */
+  host: string | null
+  name: string | null
 }
 
 /** A connect that answered with a sign-in to finish rather than a plugin. */

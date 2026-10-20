@@ -11,6 +11,7 @@ import {
   releaseNotesUrl,
 } from "./about-links"
 import { CopyVersionButton } from "./copy-version-button"
+import { DataFolder } from "./data-folder"
 import { ExternalLink } from "./external-link"
 import { useAppDetails } from "./use-app-details"
 
@@ -66,6 +67,7 @@ export function AboutSettings() {
     >
       <AppIdentity version={details?.version} />
       <UpdateSettings />
+      <DataFolder />
 
       <div className="mt-8 flex flex-col gap-1">
         <h3 className="text-sm font-medium">

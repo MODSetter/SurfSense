@@ -1,4 +1,4 @@
-# ADR 0064: A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own
+# ADR 0065: A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own
 
 - **Status:** Accepted
 - **Date:** 2026-10-20

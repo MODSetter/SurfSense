@@ -3,6 +3,7 @@ import enum
 import httpx
 
 from modules.egress.service import EgressDeniedError
+from modules.llm.providers.openai_compatible.chat import StreamedError
 from modules.llm.providers.openai_responses import PlanLimitError, SignInRequiredError
 from modules.llm.subscriptions.claude.errors import (
     ClaudePlanLimitError,
@@ -104,8 +105,11 @@ _LOCAL_RUNTIME = "llamacpp"
 
 # What llama.cpp says when replies sharing one unified cache overflow it. It
 # ends every request involved, as a 500 like a model that failed to load, so
-# the message is the only thing that tells the two apart.
+# the message is the only thing that tells the two apart. At b11050 each
+# request is told "Context size has been exceeded." (server-context.cpp); the
+# other two are what its log says.
 _CACHE_FULL = (
+    "context size has been exceeded",
     "failed to find free space in the kv cache",
     "failed to find a memory slot",
 )
@@ -114,9 +118,8 @@ _CACHE_FULL = (
 def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, str]:
     """Sort a generation failure into a kind, with the plain-language text to show.
 
-    Classification is by exception type and HTTP status only, never by parsing
-    the exception's text, so this holds for any provider that raises through
-    httpx (every provider in modules/llm/providers does).
+    Classification is by exception type, HTTP status and provider; an error's
+    own words are read only where those leave it ambiguous.
     """
     if isinstance(exc, UnreadableSecretError):
         # Not `unknown`: the fix is specific and the user can do it. The stored
@@ -160,6 +163,13 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
         else:
             kind = ChatErrorKind.PROVIDER_UNAVAILABLE
         return kind, _MESSAGES[kind]
+    # The same overflow reaches a reply already streaming as an error chunk.
+    if (
+        isinstance(exc, StreamedError)
+        and provider == _LOCAL_RUNTIME
+        and _says_cache_full(str(exc))
+    ):
+        return ChatErrorKind.RUNTIME_BUSY, _MESSAGES[ChatErrorKind.RUNTIME_BUSY]
     if isinstance(exc, httpx.TimeoutException):
         return ChatErrorKind.TIMEOUT, _MESSAGES[ChatErrorKind.TIMEOUT]
     if isinstance(exc, httpx.TransportError):
@@ -194,7 +204,11 @@ def _is_cache_full(response: httpx.Response) -> bool:
         return False
     error = payload.get("error") if isinstance(payload, dict) else None
     said = error.get("message") if isinstance(error, dict) else None
-    return isinstance(said, str) and said.casefold().startswith(_CACHE_FULL)
+    return isinstance(said, str) and _says_cache_full(said)
+
+
+def _says_cache_full(said: str) -> bool:
+    return said.casefold().startswith(_CACHE_FULL)
 
 
 def empty_reply_error() -> tuple[ChatErrorKind, str]:

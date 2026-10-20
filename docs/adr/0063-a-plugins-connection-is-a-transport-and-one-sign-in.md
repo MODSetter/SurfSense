@@ -1,4 +1,4 @@
-# ADR 0062: A plugin's connection is a transport and one sign-in, detected from the server
+# ADR 0063: A plugin's connection is a transport and one sign-in, detected from the server
 
 - **Status:** Accepted
 - **Date:** 2026-10-20

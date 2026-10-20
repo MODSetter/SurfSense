@@ -11,6 +11,7 @@ import { PluginOwnAppDialog } from "./own-app/plugin-own-app-dialog"
 import { ownAppReason, type OwnAppReason } from "./own-app/own-app-reason"
 import { useOpenPlugin } from "../open-plugin"
 import { useOpenedSignIn } from "./opened-sign-in"
+import { signInFailureMessage } from "./sign-in-failure-text"
 import { SignInProgress } from "./sign-in-progress"
 
 /** An OAuth plugin signed out, or disconnected, signs in again; its tool settings stay. A
@@ -51,7 +52,8 @@ export function SignInAgainButton({
       />
     )
   }
-  const failed = opened?.state.phase === "failed"
+  // Why it ended, as the opened sign-in reported it.
+  const failure = opened?.state.phase === "failed" ? opened.state : null
   return (
     <>
       <Button
@@ -83,12 +85,13 @@ export function SignInAgainButton({
           }}
         />
       ) : null}
-      {failed ? (
+      {failure ? (
         <span role="alert" className="text-destructive">
-          {intl.formatMessage({
-            id: "plugins_row_sign_in_again_error",
-            defaultMessage: "The sign-in didn’t finish.",
-          })}
+          {signInFailureMessage(failure) ??
+            intl.formatMessage({
+              id: "plugins_row_sign_in_again_error",
+              defaultMessage: "The sign-in didn’t finish.",
+            })}
         </span>
       ) : null}
     </>

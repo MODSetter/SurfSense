@@ -1,4 +1,4 @@
-# ADR 0063: Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential
+# ADR 0064: Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential
 
 - **Status:** Accepted
 - **Date:** 2026-10-20

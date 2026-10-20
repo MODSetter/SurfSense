@@ -12,7 +12,7 @@ class ClaudeHosts(AllowedHosts):
     """Anthropic's hosts, each only while its egress is on, and nothing else.
 
     Its own list, not opencode's: opencode must never reach Anthropic directly
-    (ADR 0050), and Claude Code reaches plugins only through the gateway (ADR 0063).
+    (ADR 0050), and Claude Code reaches plugins only through the gateway (ADR 0064).
     """
 
     def __init__(

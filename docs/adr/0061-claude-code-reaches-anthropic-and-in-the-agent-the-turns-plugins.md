@@ -1,6 +1,6 @@
 # ADR 0061: Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins
 
-- **Status:** Accepted; an agent run reaching the plugins' hosts and holding their sign-in headers is superseded by [ADR 0063](0063-agent-runtimes-reach-plugins-through-surfsenses-gateway.md)
+- **Status:** Accepted; an agent run reaching the plugins' hosts and holding their sign-in headers is superseded by [ADR 0064](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md)
 - **Date:** 2026-10-16
 
 ## Context
