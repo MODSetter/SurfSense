@@ -1,9 +1,4 @@
 import { Badge } from "@/components/ui/badge"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -11,7 +6,7 @@ import type { Plugin, PluginTool } from "../api"
 import { ToolPermissionControl } from "./tool-permission-control"
 import type { ToolPermission } from "./tool-permission"
 
-/** One tool: its name, its description on hover, and whether the agent may use it. */
+/** One tool: its name and whether the agent may use it. */
 export function PluginToolRow({
   plugin,
   tool,
@@ -31,19 +26,7 @@ export function PluginToolRow({
           !tool.enabled && "text-muted-foreground"
         )}
       >
-        <Tooltip>
-          <TooltipTrigger render={<span className="truncate" />}>
-            {label}
-          </TooltipTrigger>
-          {/* Server text, often long: kept off the row so tools scan as a list. */}
-          <TooltipContent
-            side="bottom"
-            align="start"
-            className="max-w-sm font-normal"
-          >
-            {tool.description}
-          </TooltipContent>
-        </Tooltip>
+        <span className="truncate">{label}</span>
         <span className="sr-only">{tool.description}</span>
         {tool.change ? (
           <Badge variant="secondary" className="shrink-0">

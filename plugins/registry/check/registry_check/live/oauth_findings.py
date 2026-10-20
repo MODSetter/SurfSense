@@ -38,7 +38,7 @@ async def oauth_findings(entry: dict[str, Any]) -> Findings:
     found = Findings()
     url = entry["url"]
     try:
-        issuer, metadata = await _discovered(url)
+        issuer, metadata = await discovered(url)
     except httpx2.HTTPError as error:
         found.problems.append(
             f"auth: sign-in could not be checked: {failure_reason(error)}"
@@ -50,22 +50,15 @@ async def oauth_findings(entry: dict[str, Any]) -> Findings:
             "(RFC 9728 protected resource metadata, or RFC 8414 on its origin)"
         )
         return found
-    endpoints = [
-        issuer or url,
-        str(metadata.authorization_endpoint),
-        str(metadata.token_endpoint),
-        *(
-            [str(metadata.registration_endpoint)]
-            if metadata.registration_endpoint
-            else []
-        ),
-    ]
+    endpoints = sign_in_endpoints(url, issuer, metadata)
     listed = set(entry.get("hosts") or [])
     reached = sorted({urlsplit(e).hostname or "" for e in endpoints} - listed)
     for host in reached:
         # The app asks the user about every host first, and refuses one not listed.
         found.problems.append(f"hosts: sign-in reaches {host}, which hosts leaves out")
-    registered = (entry.get("auth") or {}).get("client_id")
+    auth = entry.get("auth") or {}
+    # A `user_client` entry's users bring an app the provider registered in advance.
+    registered = auth.get("client_id") or auth.get("user_client")
     if not (
         registered
         or metadata.registration_endpoint
@@ -78,7 +71,23 @@ async def oauth_findings(entry: dict[str, Any]) -> Findings:
     return found
 
 
-async def _discovered(url: str) -> tuple[str | None, OAuthMetadata | None]:
+def sign_in_endpoints(
+    url: str, issuer: str | None, metadata: OAuthMetadata
+) -> list[str]:
+    """Every address the app's sign-in reaches, so each host is listed and agreed to."""
+    return [
+        issuer or url,
+        str(metadata.authorization_endpoint),
+        str(metadata.token_endpoint),
+        *(
+            [str(metadata.registration_endpoint)]
+            if metadata.registration_endpoint
+            else []
+        ),
+    ]
+
+
+async def discovered(url: str) -> tuple[str | None, OAuthMetadata | None]:
     """The authorization server and its metadata, as the app's sign-in finds them."""
     async with web_client() as http:
         probe = await http.post(url, json=_INITIALIZE, headers=_ACCEPT)

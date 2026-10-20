@@ -87,7 +87,7 @@ export function opencodeSpec(ctx: SidecarContext): SidecarSpec | null {
       opencodeBinariesDir,
       opencodePassword,
       agentDir,
-      ctx.pluginProxyPort == null ? NOWHERE : `http://${ctx.host}:${ctx.pluginProxyPort}`
+      ctx.opencodeProxyPort == null ? NOWHERE : `http://${ctx.host}:${ctx.opencodeProxyPort}`
     ),
     inheritEnv: false,
   }

@@ -90,3 +90,6 @@ The Date is the day the decision was first written down. Source links are permal
 | 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted |
 | 0061 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |
 | 0062 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0062-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |
+| 0063 | [A plugin's connection is a transport and one sign-in, detected from the server](0063-a-plugins-connection-is-a-transport-and-one-sign-in.md) | Accepted |
+| 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
+| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |

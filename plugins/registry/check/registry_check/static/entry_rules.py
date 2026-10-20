@@ -27,6 +27,23 @@ TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 ABOUT_LENGTH = 600
 # The month the plugin joined the list.
 ADDED_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+TRANSPORTS = {"streamable_http", "sse"}
+# An HTTP token (RFC 9110), as the app checks the headers a user gives.
+HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$")
+# The transport sets these; an entry naming one would replace them.
+REFUSED_HEADERS = {
+    "host",
+    "content-length",
+    "content-type",
+    "accept",
+    "connection",
+    "transfer-encoding",
+    "cookie",
+    "mcp-session-id",
+    "mcp-protocol-version",
+    "last-event-id",
+}
+HEADER_WORDING_LENGTHS = {"label": 80, "description": 200}
 
 
 def entry_problems(entry: dict[str, Any]) -> list[str]:
@@ -39,6 +56,9 @@ def entry_problems(entry: dict[str, Any]) -> list[str]:
     problems += _access_problems(entry)
     problems += _page_problems(entry)
     problems += _listing_problems(entry)
+    transport = entry.get("transport")
+    if transport is not None and transport not in TRANSPORTS:
+        problems.append("transport: must be streamable_http or sse")
     version = entry.get("min_app_version")
     if version is not None and not (
         isinstance(version, str) and SEMVER_PATTERN.match(version)
@@ -88,15 +108,51 @@ def _auth_problems(auth: Any) -> list[str]:
     if kind == "none":
         return []
     if kind == "token":
-        if all(_is_text(auth.get(f), n) for f, n in TOKEN_LABEL_LENGTHS.items()):
+        # Optional: without them the app asks in its own translated words.
+        given = {
+            f: n for f, n in TOKEN_LABEL_LENGTHS.items() if auth.get(f) is not None
+        }
+        if all(_is_text(auth[f], n) for f, n in given.items()):
             return []
-        return ["auth: token needs a title (1-80) and a description (1-200)"]
+        return ["auth: a token's title is 1-80 characters, its description 1-200"]
+    if kind == "headers":
+        return _headers_problems(auth.get("headers"))
     if kind == "oauth":
         return _oauth_problems(auth)
-    return ["auth: type must be none, token or oauth"]
+    return ["auth: type must be none, token, headers or oauth"]
+
+
+def _headers_problems(headers: Any) -> list[str]:
+    """Where the user's key goes, worded for them; an entry never holds a value."""
+    if not (isinstance(headers, list) and headers):
+        return ["auth: headers must name at least one header"]
+    seen: set[str] = set()
+    for header in headers:
+        name = header.get("name") if isinstance(header, dict) else None
+        if not (isinstance(name, str) and HEADER_NAME.match(name)):
+            return [f"auth: {name!r} is not a header name"]
+        if name.lower() in REFUSED_HEADERS:
+            return [f"auth: {name} is set by the app itself"]
+        if name.lower() in seen:
+            return [f"auth: {name} is named twice"]
+        seen.add(name.lower())
+        prefix = header.get("prefix")
+        if prefix is not None and not (
+            isinstance(prefix, str)
+            and len(prefix) <= 32
+            and not set(prefix) & set("\r\n\0")
+        ):
+            return [f"auth: {name}'s prefix must be up to 32 characters, one line"]
+        for field, longest in HEADER_WORDING_LENGTHS.items():
+            value = header.get(field)
+            if value is not None and not _is_text(value, longest):
+                return [f"auth: {name}'s {field} must be 1 to {longest} characters"]
+    return []
 
 
 def _oauth_problems(auth: dict[str, Any]) -> list[str]:
+    if not isinstance(auth.get("user_client", False), bool):
+        return ["auth: user_client must be true or false"]
     client_id = auth.get("client_id")
     if client_id is not None and not _is_text(client_id, 255):
         return ["auth: client_id must be a string"]
@@ -153,7 +209,10 @@ def _listing_problems(entry: dict[str, Any]) -> list[str]:
     if about is not None and not _is_text(about, ABOUT_LENGTH):
         problems.append(f"about: must be 1 to {ABOUT_LENGTH} characters")
     tools = entry.get("tools")
-    if tools is not None:
+    # The plugin's page lists them before anyone connects.
+    if tools is None:
+        problems.append("tools: required")
+    else:
         problems += _tool_list_problems(tools)
     added = entry.get("added")
     if added is not None and not (

@@ -10,15 +10,30 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ToolName = Annotated[str, Field(pattern=r"^[A-Za-z0-9_.-]{1,128}$")]
 
 
+class EntryHeader(BaseModel):
+    """A header the user's key goes in; the entry names and words it, never a value."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    name: str
+    # Put before the value the user types, such as `Bearer `.
+    prefix: str | None = None
+    label: str | None = None
+    description: str | None = None
+
+
 class EntryAuth(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
-    type: Literal["none", "token", "oauth", "license"]
+    type: Literal["none", "token", "headers", "oauth", "license"]
     title: str | None = None
     description: str | None = None
+    headers: list[EntryHeader] | None = None
     # OAuth only: SurfSense's app where a provider registers clients in advance. Never a secret.
     client_id: str | None = None
     scopes: list[str] | None = None
+    # OAuth only: the provider takes only apps registered in advance; the user brings theirs.
+    user_client: bool = False
 
 
 class ListEntry(BaseModel):
@@ -35,6 +50,8 @@ class ListEntry(BaseModel):
     description: str = Field(min_length=1, max_length=200)
     author: str = Field(min_length=1, max_length=80)
     url: str
+    # `sse` for a server on the older HTTP+SSE transport; Streamable HTTP otherwise.
+    transport: Literal["streamable_http", "sse"] | None = None
     auth: EntryAuth
     hosts: list[str] = Field(min_length=1)
     access: Literal["free", "external", "license"]

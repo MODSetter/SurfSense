@@ -1,8 +1,8 @@
-"""The proxy opencode's outbound connections go through: a tunnel to a ready plugin's host, and nothing else.
+"""The proxy a runtime's outbound connections go through: a tunnel to a host it allows, and nothing else.
 
-Only `CONNECT` passes, so opencode's TLS reaches the plugin untouched and SurfSense
-sees the host, never the content. Everything else opencode might fetch is refused,
-as the discard port it pointed at before refused it.
+opencode's allows none, so anything it might fetch is refused; Claude Code's allows
+Anthropic's hosts. Only `CONNECT` passes, so a runtime's TLS reaches its host untouched
+and SurfSense sees the host, never the content.
 """
 
 import asyncio
@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
-from modules.agent.plugin_proxy.allowed_hosts import AllowedHosts
+from modules.agent.runtime_proxy.allowed_hosts import AllowedHosts
 
 # A request line and its headers; a client that sends more, or takes longer, is not opencode.
 _HEAD_BYTES = 8192
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextlib.asynccontextmanager
-async def serving_plugin_proxy(
+async def serving_runtime_proxy(
     sessions: sessionmaker[Session],
     host: str,
     port: int,
@@ -39,7 +39,7 @@ async def serving_plugin_proxy(
 ) -> AsyncIterator[int]:
     """The proxy on `host`, yielding the port it listens on.
 
-    `allowed` decides which hosts pass: a ready plugin's by default. `client`
+    `allowed` decides which hosts pass: none by default, as for opencode. `client`
     names the program it serves in the log, so a refusal says whose it was.
     """
     allowed = allowed if allowed is not None else AllowedHosts(sessions)
@@ -57,9 +57,9 @@ async def serving_plugin_proxy(
             asyncio.LimitOverrunError,
             TimeoutError,
         ):
-            logger.debug("a plugin connection ended", exc_info=True)
+            logger.debug("a proxied connection ended", exc_info=True)
         except Exception:
-            logger.warning("a plugin connection failed", exc_info=True)
+            logger.warning("a proxied connection failed", exc_info=True)
         finally:
             writer.close()
 

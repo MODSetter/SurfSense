@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, sessionmaker
 
-from modules.agent.plugin_proxy.allowed_hosts import HTTPS_PORT, AllowedHosts
+from modules.agent.runtime_proxy.allowed_hosts import HTTPS_PORT, AllowedHosts
 from modules.egress.models import EgressDestination
 from modules.egress.service import host_destination
 from modules.llm.subscriptions.claude.hosts import CLAUDE_HOSTS
@@ -11,8 +11,8 @@ DEFAULT_HOSTS = tuple((host, HTTPS_PORT) for host in CLAUDE_HOSTS)
 class ClaudeHosts(AllowedHosts):
     """Anthropic's hosts, each only while its egress is on, and nothing else.
 
-    Its own list, not the plugin proxy's: opencode must never reach Anthropic
-    directly (ADR 0050), and Claude Code must never reach a plugin.
+    Its own list, not opencode's: opencode must never reach Anthropic directly
+    (ADR 0050), and Claude Code reaches plugins only through the gateway (ADR 0064).
     """
 
     def __init__(
