@@ -13,16 +13,13 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api"
 
-import {
-  addCustomPlugin,
-  isSignInStarted,
-  oauthRedirectUri,
-  pluginsQueryKey,
-} from "../api"
+import { addCustomPlugin, isSignInStarted, pluginsQueryKey } from "../api"
 import { connectedToast } from "../connect-toasts"
 import {
   connectionHeaders,
@@ -31,22 +28,25 @@ import {
   type ConnectionDraft,
 } from "../connection/connection-draft"
 import { ConnectionEditor } from "../connection/connection-editor"
+import {
+  SCROLLING_DIALOG,
+  SCROLLING_FIELDS,
+  SCROLLING_FIELDS_VIEWPORT,
+  SCROLLING_FORM,
+} from "../connection/scrolling-dialog"
 import { refusalMessage } from "../refusal-message"
-import { asOwnApp } from "../sign-in/own-app/own-app-draft"
+import { OwnAppDialog } from "../sign-in/own-app/own-app-dialog"
+import {
+  ownAppReason,
+  type OwnAppReason,
+} from "../sign-in/own-app/own-app-reason"
 import { SignInProgress } from "../sign-in/sign-in-progress"
 import { usePluginSignIn } from "../sign-in/use-plugin-sign-in"
 
-// Refusals Advanced settings answers: a key, or the user's own OAuth app.
-const ADVANCED_REFUSALS = new Set([
-  "plugin_needs_sign_in",
-  "plugin_oauth_needs_client",
-  "plugin_oauth_refused",
-])
-
 /**
  * Name, URL and Connect. Connect does the rest: an open server connects, one asking for
- * an account opens the browser, and only a refusal opens Advanced settings, at the field
- * that answers it.
+ * an account opens the browser, one asking for a key opens Advanced settings, and one
+ * taking only registered apps opens the user's own app, in a dialog of its own.
  */
 function AddPluginForm({
   onCancel,
@@ -61,7 +61,7 @@ function AddPluginForm({
   const [url, setUrl] = useState("")
   const [draft, setDraft] = useState<ConnectionDraft>(EMPTY_CONNECTION)
   const [advanced, setAdvanced] = useState(false)
-  const [redirectUri, setRedirectUri] = useState<string | null>(null)
+  const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const added = () => {
@@ -76,17 +76,6 @@ function AddPluginForm({
     url.trim() !== "" &&
     (!draft.key || keyComplete(draft))
 
-  const openAdvanced = () => {
-    setAdvanced(true)
-    if (redirectUri === null) {
-      oauthRedirectUri()
-        .then(setRedirectUri)
-        .catch(() => {
-          // The field stays empty; Connect still says what is missing.
-        })
-    }
-  }
-
   const connect = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
@@ -97,9 +86,6 @@ function AddPluginForm({
         url: url.trim(),
         name: name.trim(),
         ...(headers.length ? { headers } : {}),
-        ...(draft.ownApp.clientId.trim()
-          ? { oauth_client: asOwnApp(draft.ownApp) }
-          : {}),
       })
       if (isSignInStarted(answer)) {
         signIn.follow(answer)
@@ -109,14 +95,17 @@ function AddPluginForm({
         added()
       }
     } catch (refused) {
+      const reason = ownAppReason(refused)
+      if (reason !== null) {
+        setOwnApp(reason)
+        return
+      }
       setError(refusalMessage(refused))
       if (
         refused instanceof ApiError &&
-        ADVANCED_REFUSALS.has(refused.code ?? "")
+        refused.code === "plugin_needs_sign_in"
       ) {
-        const redirect = refused.detail.redirect_uri
-        if (typeof redirect === "string") setRedirectUri(redirect)
-        openAdvanced()
+        setAdvanced(true)
       }
     } finally {
       setBusy(false)
@@ -124,95 +113,128 @@ function AddPluginForm({
   }
 
   return (
-    <form onSubmit={(event) => void connect(event)}>
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor={`${fieldId}-name`}>
-            {intl.formatMessage({
-              id: "plugins_add_name_label",
-              defaultMessage: "Name",
-            })}
-          </FieldLabel>
-          <Input
-            id={`${fieldId}-name`}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder={intl.formatMessage({
-              id: "plugins_add_name_placeholder",
-              defaultMessage: "Team wiki",
-            })}
-            disabled={locked}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${fieldId}-url`}>
-            {intl.formatMessage({
-              id: "plugins_add_url_label",
-              defaultMessage: "Server URL",
-            })}
-          </FieldLabel>
-          <Input
-            id={`${fieldId}-url`}
-            type="url"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://example.com/mcp"
-            disabled={locked}
-          />
-        </Field>
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-        <div className="flex">
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            className="-ml-2"
-            aria-expanded={advanced}
-            disabled={locked}
-            onClick={() => (advanced ? setAdvanced(false) : openAdvanced())}
-          >
+    <>
+      <form
+        className={SCROLLING_FORM}
+        onSubmit={(event) => void connect(event)}
+      >
+        <ScrollFade
+          className={SCROLLING_FIELDS}
+          viewportClassName={SCROLLING_FIELDS_VIEWPORT}
+        >
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor={`${fieldId}-name`}>
+                {intl.formatMessage({
+                  id: "plugins_add_name_label",
+                  defaultMessage: "Name",
+                })}
+              </FieldLabel>
+              <Input
+                id={`${fieldId}-name`}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={intl.formatMessage({
+                  id: "plugins_add_name_placeholder",
+                  defaultMessage: "Team wiki",
+                })}
+                disabled={locked}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${fieldId}-url`}>
+                {intl.formatMessage({
+                  id: "plugins_add_url_label",
+                  defaultMessage: "Server URL",
+                })}
+              </FieldLabel>
+              <Input
+                id={`${fieldId}-url`}
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://example.com/mcp"
+                disabled={locked}
+              />
+            </Field>
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex">
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                className="-ml-2"
+                aria-expanded={advanced}
+                disabled={locked}
+                onClick={() => setAdvanced(!advanced)}
+              >
+                {advanced ? (
+                  <ChevronDownIcon data-icon="inline-start" />
+                ) : (
+                  <ChevronRightIcon data-icon="inline-start" />
+                )}
+                {intl.formatMessage({
+                  id: "plugins_add_advanced_button",
+                  defaultMessage: "Advanced settings",
+                })}
+              </Button>
+            </div>
             {advanced ? (
-              <ChevronDownIcon data-icon="inline-start" />
-            ) : (
-              <ChevronRightIcon data-icon="inline-start" />
-            )}
+              <ConnectionEditor
+                draft={draft}
+                onChange={setDraft}
+                disabled={locked}
+              />
+            ) : null}
+            <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
+          </FieldGroup>
+        </ScrollFade>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
             {intl.formatMessage({
-              id: "plugins_add_advanced_button",
-              defaultMessage: "Advanced settings",
+              id: "plugins_add_cancel_button",
+              defaultMessage: "Cancel",
             })}
           </Button>
-        </div>
-        {advanced ? (
-          <ConnectionEditor
-            draft={draft}
-            onChange={setDraft}
-            withOAuth
-            redirectUri={redirectUri}
-            disabled={locked}
-          />
-        ) : null}
-        <SignInProgress state={signIn.state} onCancel={signIn.cancel} />
-      </FieldGroup>
-      <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {intl.formatMessage({
-            id: "plugins_add_cancel_button",
-            defaultMessage: "Cancel",
-          })}
-        </Button>
-        <Button type="submit" disabled={locked || !ready}>
-          {busy ? <Spinner data-icon="inline-start" /> : null}
-          {intl.formatMessage({
-            id: "plugins_add_connect_button",
-            defaultMessage: "Connect",
-          })}
-        </Button>
-      </DialogFooter>
-    </form>
+          <Button type="submit" disabled={locked || !ready}>
+            {busy ? <Spinner data-icon="inline-start" /> : null}
+            {intl.formatMessage({
+              id: "plugins_add_connect_button",
+              defaultMessage: "Connect",
+            })}
+          </Button>
+        </DialogFooter>
+      </form>
+      {/* Beside the form, not in it: a submit inside would also submit the form. */}
+      {ownApp ? (
+        <OwnAppDialog
+          plugin={name.trim()}
+          reason={ownApp}
+          open
+          onOpenChange={(open) => {
+            if (!open) setOwnApp(null)
+          }}
+          start={(app) =>
+            addCustomPlugin({
+              url: url.trim(),
+              name: name.trim(),
+              ...(connectionHeaders(draft).length
+                ? { headers: connectionHeaders(draft) }
+                : {}),
+              oauth_client: app,
+            })
+          }
+          onConnected={() => {
+            setOwnApp(null)
+            added()
+          }}
+        />
+      ) : null}
+    </>
   )
 }
 
@@ -228,7 +250,9 @@ export function AddPluginDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="select-none sm:max-w-lg">
+      <DialogContent
+        className={cn("select-none sm:max-w-lg", SCROLLING_DIALOG)}
+      >
         <DialogHeader>
           <DialogTitle>
             {intl.formatMessage({

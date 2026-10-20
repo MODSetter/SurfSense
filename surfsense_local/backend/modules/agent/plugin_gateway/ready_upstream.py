@@ -19,10 +19,17 @@ class Upstream:
     transport: Transport
     # Signed in with an OAuth token SurfSense can refresh.
     oauth: bool = False
+    # As the turn names it.
+    title: str = ""
+    # Its tools ready now, by the server's names: any other call is refused.
+    tools: frozenset[str] = frozenset()
 
 
 def ready_upstream(session: Session, plugin_id: str, thread_id: int) -> Upstream | None:
-    if all(tool.plugin_id != plugin_id for tool in list_tools(session)):
+    tools = frozenset(
+        tool.tool for tool in list_tools(session) if tool.plugin_id == plugin_id
+    )
+    if not tools:
         return None
     plugin = session.get_one(InstalledPlugin, plugin_id)
     return Upstream(
@@ -30,4 +37,6 @@ def ready_upstream(session: Session, plugin_id: str, thread_id: int) -> Upstream
         upstream_headers(session, plugin, thread_id),
         entry_transport(plugin.entry),
         plugin.credential_kind == OAUTH,
+        plugin.entry.get("name", plugin.id),
+        tools,
     )

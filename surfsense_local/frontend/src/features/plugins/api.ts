@@ -30,6 +30,8 @@ export type Plugin = {
   transport: "streamable_http" | "sse"
   /** Scopes the server's `insufficient_scope` asked for; Sign in asks for them. */
   needs_scopes: string[]
+  // Signs in with the user's own OAuth app, which they may change.
+  own_app: boolean
   enabled: boolean
   /** Disconnected by the user: kept with its tool settings, signed out, never offered. */
   disconnected: boolean

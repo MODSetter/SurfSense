@@ -59,9 +59,11 @@ def turn_plugins(
     launch_key: str,
     mentioned: frozenset[str] = frozenset(),
     budget: int | None = None,
+    text: str = "",
 ) -> list[TurnPlugin]:
-    """The ready tools that fit `budget` tokens of definitions, or every one with none."""
-    chosen = offered_tools(list_tools(session), mentioned, budget)
+    """The ready tools that fit `budget` tokens of definitions, the ones `text` asks for
+    first, or every one with no budget."""
+    chosen = offered_tools(list_tools(session), mentioned, budget, text)
     plugins: dict[str, TurnPlugin] = {}
     for tool in chosen:
         if tool.plugin_id not in plugins:

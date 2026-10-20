@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -7,10 +8,13 @@ import { intl } from "@/i18n/intl"
 import { pluginsQueryKey, signInAgain, type Plugin } from "../api"
 import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
+import { PluginOwnAppDialog } from "./own-app/plugin-own-app-dialog"
+import { ownAppReason, type OwnAppReason } from "./own-app/own-app-reason"
 import { SignInProgress } from "./sign-in-progress"
 import { usePluginSignIn } from "./use-plugin-sign-in"
 
-/** An OAuth plugin signed out, or disconnected, signs in again; its tool settings stay. */
+/** An OAuth plugin signed out, or disconnected, signs in again; its tool settings stay. A
+ * provider taking only registered apps opens the user's own app instead of an error. */
 export function SignInAgainButton({
   plugin,
   label,
@@ -29,9 +33,11 @@ export function SignInAgainButton({
     connectedToast(plugin.name)
     void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
   })
+  const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const start = useMutation({
     mutationFn: () => signInAgain(plugin.id),
     onSuccess: signIn.follow,
+    onError: (refused) => setOwnApp(ownAppReason(refused)),
   })
   if (signIn.state.phase === "waiting") {
     return (
@@ -59,10 +65,20 @@ export function SignInAgainButton({
             defaultMessage: "Sign in",
           })}
       </Button>
-      {start.error ? (
+      {start.error && ownAppReason(start.error) === null ? (
         <span role="alert" className="text-destructive">
           {refusalMessage(start.error)}
         </span>
+      ) : null}
+      {ownApp ? (
+        <PluginOwnAppDialog
+          plugin={plugin}
+          reason={ownApp}
+          open
+          onOpenChange={(open) => {
+            if (!open) setOwnApp(null)
+          }}
+        />
       ) : null}
       {signIn.state.phase === "failed" ? (
         <span role="alert" className="text-destructive">

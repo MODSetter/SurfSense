@@ -1,13 +1,12 @@
 """A call refused with `403 insufficient_scope`: recorded as a check records it, and named in
 the thread's running turn, whichever runtime made the call. The refusal still goes back."""
 
-import json
-
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from api.dependencies import transact
 from modules.agent.plugin_gateway.forwarded import Sent
+from modules.agent.plugin_gateway.turn_notice import tell_turn
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.remote.mcp_client.scope_challenge import challenged_scopes
@@ -22,13 +21,7 @@ async def note_missing_scopes(
         return
     plugin_id, thread_id = where
     title = await transact(session, _needs_scopes, plugin_id, scopes)
-    run = request.app.state.chat_runs.get(thread_id)
-    if run is not None:
-        notice = {
-            "type": "agent-plugins-unavailable",
-            "plugins": [{"title": title, "reason": "needs_scopes"}],
-        }
-        run.add(f"data: {json.dumps(notice)}\n\n".encode())
+    tell_turn(request, thread_id, title, "needs_scopes")
 
 
 def _needs_scopes(session: Session, plugin_id: str, scopes: list[str]) -> str:

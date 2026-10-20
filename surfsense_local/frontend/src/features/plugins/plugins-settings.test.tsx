@@ -22,6 +22,7 @@ function notes(extra: Partial<Plugin> = {}): Plugin {
     header_names: [],
     transport: "streamable_http",
     needs_scopes: [],
+    own_app: false,
     enabled: true,
     disconnected: false,
     connected_at: "2026-10-01T00:00:00Z",
@@ -111,6 +112,7 @@ function api({
   registryHostAllowed = true,
   customSignsIn = false,
   customNeedsOwnApp = false,
+  signInNeedsOwnApp = false,
   probe = { transport: "streamable_http", sign_in: "none", tools: 2 },
   probeFails = false,
   signInEnds = "connected",
@@ -124,6 +126,8 @@ function api({
   customSignsIn?: boolean
   /** Adding by URL reaches a provider taking only apps registered in advance. */
   customNeedsOwnApp?: boolean
+  /** Signing in again reaches a provider taking only apps registered in advance. */
+  signInNeedsOwnApp?: boolean
   /** What Check finds at the URL. */
   probe?: { transport: string; sign_in: string; tools: number | null }
   /** Check reaches nothing at the URL. */
@@ -237,6 +241,18 @@ function api({
         })
       }
       if (url.pathname === "/plugins/notes/sign-in") {
+        if (signInNeedsOwnApp && !body?.oauth_client) {
+          return Response.json(
+            {
+              detail: {
+                code: "plugin_oauth_needs_client",
+                message: "This server accepts only apps registered in advance.",
+                redirect_uri: "http://127.0.0.1:8000/plugins/oauth/callback",
+              },
+            },
+            { status: 422 }
+          )
+        }
         return startSignIn({
           ...connected.find((plugin) => plugin.id === "notes")!,
           check_failure: null,
@@ -677,7 +693,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const dialog = await addDialog(user)
-    expect(within(dialog).queryByLabelText("API key")).toBeNull()
+    expect(within(dialog).queryByLabelText("Header value")).toBeNull()
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
     expect(
@@ -692,7 +708,7 @@ describe("plugins settings", () => {
     ])
   })
 
-  it("sends a key from Advanced settings in a custom header", async () => {
+  it("sends a key in the header the user names", async () => {
     const calls = api({ plugins: [], allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
@@ -701,11 +717,9 @@ describe("plugins settings", () => {
     await user.click(
       within(dialog).getByRole("button", { name: "Advanced settings" })
     )
-    await user.type(within(dialog).getByLabelText("API key"), "k-1")
-    await user.click(
-      within(dialog).getByRole("radio", { name: "Custom header" })
-    )
+    await user.clear(within(dialog).getByLabelText("Header name"))
     await user.type(within(dialog).getByLabelText("Header name"), "x-api-key")
+    await user.type(within(dialog).getByLabelText("Header value"), "k-1")
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
     expect(
@@ -724,7 +738,7 @@ describe("plugins settings", () => {
     ])
   })
 
-  it("sends a key as Bearer by default", async () => {
+  it("starts with an Authorization header, sent as the user writes it", async () => {
     const calls = api({ plugins: [], allowed: true })
     const user = userEvent.setup()
     render(<PluginsSettings />)
@@ -733,7 +747,11 @@ describe("plugins settings", () => {
     await user.click(
       within(dialog).getByRole("button", { name: "Advanced settings" })
     )
-    await user.type(within(dialog).getByLabelText("API key"), "k-1")
+    expect(
+      (within(dialog).getByLabelText("Header name") as HTMLInputElement).value
+    ).toBe("Authorization")
+    expect(within(dialog).queryByRole("radio")).toBeNull()
+    await user.type(within(dialog).getByLabelText("Header value"), "Bearer k-1")
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
     await waitFor(() =>
@@ -764,7 +782,7 @@ describe("plugins settings", () => {
     expect((await within(dialog).findByRole("alert")).textContent).toBe(
       "This server needs a key. Add one and try again."
     )
-    expect(within(dialog).getByLabelText("API key")).toBeTruthy()
+    expect(within(dialog).getByLabelText("Header value")).toBeTruthy()
   })
 
   it("says an address that isn't an MCP server", async () => {
@@ -803,7 +821,7 @@ describe("plugins settings", () => {
     ).toBeTruthy()
   })
 
-  it("asks for the user's own OAuth app when the server takes only registered ones", async () => {
+  it("asks for the user's own OAuth app in a dialog of its own when the server takes only registered ones", async () => {
     browser()
     const calls = api({ plugins: [], allowed: true, customNeedsOwnApp: true })
     const user = userEvent.setup()
@@ -811,15 +829,23 @@ describe("plugins settings", () => {
 
     const dialog = await addDialog(user)
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
-    const callback = await within(dialog).findByLabelText("Callback address")
-    expect((callback as HTMLInputElement).value).toBe(
-      "http://127.0.0.1:8000/plugins/oauth/callback"
+    const ownApp = await screen.findByRole("dialog", {
+      name: "Sign in to Notes with your own app",
+    })
+    expect(
+      within(ownApp).getByText(/accepts only apps registered with it/)
+    ).toBeTruthy()
+    const callback = await within(ownApp).findByLabelText("Callback address")
+    await waitFor(() =>
+      expect((callback as HTMLInputElement).value).toBe(
+        "http://127.0.0.1:8000/plugins/oauth/callback"
+      )
     )
-    await user.type(within(dialog).getByLabelText("Client ID"), "own-1")
-    await user.type(within(dialog).getByLabelText("Client secret"), "s-1")
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.type(within(ownApp).getByLabelText("Client ID"), "own-1")
+    await user.type(within(ownApp).getByLabelText("Client secret"), "s-1")
+    await user.click(within(ownApp).getByRole("button", { name: "Sign in" }))
 
-    expect(await within(dialog).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(await within(ownApp).findByText("Waiting for sign-in…")).toBeTruthy()
     expect(changes(calls).at(-1)).toEqual({
       method: "POST",
       path: "/plugins/custom",
@@ -829,6 +855,21 @@ describe("plugins settings", () => {
         oauth_client: { client_id: "own-1", client_secret: "s-1" },
       },
     })
+  })
+
+  it("keeps Advanced settings to headers, with no OAuth app", async () => {
+    api({ plugins: [], allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const dialog = await addDialog(user)
+    await user.click(
+      within(dialog).getByRole("button", { name: "Advanced settings" })
+    )
+
+    expect(within(dialog).getByLabelText("Header value")).toBeTruthy()
+    expect(within(dialog).queryByLabelText("Client ID")).toBeNull()
+    expect(within(dialog).queryByLabelText("Callback address")).toBeNull()
   })
 
   it("edits a custom plugin's connection, asking for the key again", async () => {
@@ -849,7 +890,7 @@ describe("plugins settings", () => {
     expect(
       (within(dialog).getByLabelText("Header name") as HTMLInputElement).value
     ).toBe("x-api-key")
-    await user.type(within(dialog).getByLabelText("API key"), "k-2")
+    await user.type(within(dialog).getByLabelText("Header value"), "k-2")
     await user.click(within(dialog).getByRole("button", { name: "Save" }))
 
     await waitFor(() =>
@@ -880,7 +921,7 @@ describe("plugins settings", () => {
     const plugin = await details(user, "Notes")
     await user.click(within(plugin).getByRole("button", { name: "Connect" }))
     const dialog = await screen.findByRole("dialog", { name: "Connect Notes" })
-    await user.type(within(dialog).getByLabelText("API key"), "k-3")
+    await user.type(within(dialog).getByLabelText("Header value"), "Bearer k-3")
     await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
     expect(await within(plugin).findByText("Connected")).toBeTruthy()
@@ -1912,7 +1953,7 @@ describe("plugins settings", () => {
     expect(within(wiki).getByRole("button", { name: "Connect" })).toBeTruthy()
   })
 
-  it("signs in again with the user's own OAuth app", async () => {
+  it("offers the user's own OAuth app only from the menu of a plugin that signs in by itself", async () => {
     browser()
     const calls = api({
       plugins: [notes({ auth_type: "oauth" })],
@@ -1922,8 +1963,12 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
+    expect(
+      within(plugin).queryByRole("button", { name: "Use your own OAuth app" })
+    ).toBeNull()
+    const menu = await actions(user, plugin, "Notes")
     await user.click(
-      within(plugin).getByRole("button", { name: "Use your own OAuth app" })
+      within(menu).getByRole("menuitem", { name: "Use your own OAuth app" })
     )
     const dialog = await screen.findByRole("dialog", {
       name: "Sign in to Notes with your own app",
@@ -1943,6 +1988,62 @@ describe("plugins settings", () => {
         },
       ])
     )
+  })
+
+  it("offers to change the OAuth app of a plugin signed in with the user's own", async () => {
+    api({
+      plugins: [notes({ auth_type: "oauth", own_app: true })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    await user.click(
+      within(plugin).getByRole("button", { name: "Change OAuth app" })
+    )
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Sign in to Notes with your own app",
+      })
+    ).toBeTruthy()
+  })
+
+  it("opens the user's own OAuth app when Sign in reaches a server taking only registered ones", async () => {
+    api({
+      plugins: [notes({ auth_type: "oauth", check_failure: "sign_in" })],
+      allowed: true,
+      signInNeedsOwnApp: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+    await user.click(within(plugin).getByRole("button", { name: "Sign in" }))
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Sign in to Notes with your own app",
+    })
+    expect(
+      within(dialog).getByText(/accepts only apps registered with it/)
+    ).toBeTruthy()
+  })
+
+  it("says a plugin waiting to sign in shows its tools once signed in", async () => {
+    api({
+      plugins: [
+        notes({ auth_type: "oauth", check_failure: "sign_in", tools: [] }),
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+
+    expect(within(plugin).getByText("Sign in to see its tools.")).toBeTruthy()
+    expect(within(plugin).queryByText("This server lists no tools.")).toBeNull()
   })
 
   it("says a plugin whose server wants more access needs it, with Sign in", async () => {

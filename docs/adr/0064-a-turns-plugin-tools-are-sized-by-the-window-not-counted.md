@@ -17,9 +17,9 @@ The limit exists because a model can call only the tools in its request, and a r
 
 - **No count.** Neither runtime is limited to a number of tools.
 - **Claude Code is given every ready tool** and finds them with its own tool search. `ENABLE_TOOL_SEARCH` is set to `auto`, so an update cannot change it: tools load up front under a tenth of the window, and are all deferred past it. SurfSense's own server is always loaded.
-- **opencode is given what fits a tenth of the model's window,** the same share Claude Code defers at, each tool costed by its definition's length. A mentioned plugin's tools go first, whatever they cost; then the plugins take turns, one tool each, so no plugin crowds out the rest.
+- **opencode is given what fits a tenth of the model's window,** the same share Claude Code defers at, each tool costed by its definition's length. A mentioned plugin's tools go first, whatever they cost; then the plugins take turns, one tool each, so no plugin crowds out the rest, the tools the user's message matches first, scored as opencode's code-mode search scores them.
 - **A plugin left out is said,** to the user in the turn's notice and to the agent in a note naming how to bring it in: a mention.
-- Left for opencode 2.x: its code mode, whose search would replace the budget. Building SurfSense's own tool search on 1.18.34 was rejected, since that upgrade would replace it.
+- **No search of SurfSense's own on opencode 1.x.** Measured on 1.18.34 on 20 Oct 2026: a session rule allowing a tool mid-turn changes nothing until the next turn, since opencode fixes a turn's tools when it starts, so a tool the model searched for could not be offered to it. Choosing by the message, before the turn, is the search 1.x allows. opencode 2.x's code mode, whose `search(...)` runs mid-turn, would replace the budget.
 
 ## Consequences
 

@@ -418,7 +418,7 @@ async def _prepare_tools(
         mentions = await transact(session, mentioned_plugins, text)
         mentioned = frozenset(m.plugin_id for m in mentions)
         planned = await transact(
-            session, turn_plugins, where, launch_key, mentioned, budget
+            session, turn_plugins, where, launch_key, mentioned, budget, text
         )
         checked = asyncio.create_task(
             _timed(took, "check", check_changed_tools(sessions))
@@ -450,7 +450,7 @@ async def _prepare_tools(
         # Read as the check left them, not as rows the planned read still holds.
         session.expire_all()
         plugins = await transact(
-            session, turn_plugins, where, launch_key, mentioned, budget
+            session, turn_plugins, where, launch_key, mentioned, budget, text
         )
         added = given.added
         if servers(plugins) != servers(planned):

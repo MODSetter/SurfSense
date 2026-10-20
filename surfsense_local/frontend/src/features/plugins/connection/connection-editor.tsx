@@ -1,33 +1,26 @@
 import { useId } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldLabel, FieldSeparator } from "@/components/ui/field"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { PlusIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { intl } from "@/i18n/intl"
 
 import { HeaderRows } from "../headers/header-rows"
-import { OwnAppFields } from "../sign-in/own-app/own-app-fields"
 import type { ConnectionDraft } from "./connection-draft"
 import { SendAsControl } from "./send-as-control"
 
 /**
- * How a plugin's server is reached once it asks for something: a key and how it is sent,
- * further headers, and, for an OAuth provider taking only registered apps, the user's own.
- * The same fields in Add custom plugin and in Edit connection.
+ * A key and how it is sent, and further headers: the same fields in Add custom plugin and
+ * in Edit connection. The user's own OAuth app is never here: it has a dialog of its own.
  */
 export function ConnectionEditor({
   draft,
   onChange,
-  withOAuth,
-  redirectUri,
   disabled,
 }: {
   draft: ConnectionDraft
   onChange: (draft: ConnectionDraft) => void
-  // The OAuth app fields, where a sign-in may need them.
-  withOAuth: boolean
-  redirectUri: string | null
   disabled: boolean
 }) {
   const fieldId = useId()
@@ -102,17 +95,6 @@ export function ConnectionEditor({
           </Button>
         </div>
       )}
-      {withOAuth ? (
-        <>
-          <FieldSeparator />
-          <OwnAppFields
-            value={draft.ownApp}
-            onChange={(ownApp) => change({ ownApp })}
-            redirectUri={redirectUri}
-            disabled={disabled}
-          />
-        </>
-      ) : null}
     </>
   )
 }

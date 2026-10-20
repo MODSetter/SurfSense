@@ -17,7 +17,8 @@ class OwnApp(BaseModel):
 
 
 def own_app_auth(app: OwnApp) -> dict:
-    auth: dict = {"type": "oauth", "client_id": app.client_id.strip()}
+    # `own_app` tells it from a registry entry's own client ID, which the publisher set.
+    auth: dict = {"type": "oauth", "client_id": app.client_id.strip(), "own_app": True}
     if app.scopes:
         auth["scopes"] = app.scopes
     return auth

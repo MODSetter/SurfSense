@@ -192,3 +192,20 @@ async def test_a_provider_refusing_to_register_surfsense_says_so(
     assert refused.status_code == 422, refused.text
     assert refused.json()["detail"]["code"] == "plugin_oauth_refused"
     assert (await client.get("/plugins")).json() == []
+
+
+async def test_the_list_says_which_plugins_sign_in_with_the_users_own_app(
+    client: AsyncClient,
+    registered_only: SignInServers,
+    servers: SignInServers,
+) -> None:
+    """Only those offer to change it; one SurfSense registered itself offers nothing."""
+    await _signed_in(client, registered_only.mcp_url, oauth_client=OWN_APP)
+    started = await client.post(
+        "/plugins/custom", json={"url": servers.mcp_url, "name": "Wiki"}
+    )
+    await approve_in_browser(client, started.json()["authorization_url"])
+
+    listed = {p["id"]: p["own_app"] for p in (await client.get("/plugins")).json()}
+
+    assert listed == {"notes": True, "wiki": False}

@@ -31,6 +31,7 @@ function plugin(extra: Partial<Plugin>): Plugin {
     header_names: [],
     transport: "streamable_http",
     needs_scopes: [],
+    own_app: false,
     enabled: true,
     disconnected: false,
     connected_at: "2026-10-01T00:00:00Z",

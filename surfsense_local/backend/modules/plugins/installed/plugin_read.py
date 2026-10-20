@@ -37,6 +37,8 @@ class PluginRead(BaseModel):
     transport: str = "streamable_http"
     # Scopes the server's `403 insufficient_scope` asked for; Sign in again asks for them.
     needs_scopes: list[str] = []
+    # Signs in with the user's own OAuth app, which they may change.
+    own_app: bool = False
     enabled: bool
     # Disconnected by the user: kept with its tool settings, signed out, never offered.
     disconnected: bool
@@ -69,6 +71,7 @@ def read_plugin(
         header_names=header_names(plugin),
         transport=entry_transport(plugin.entry),
         needs_scopes=plugin.entry.get("auth", {}).get("needs_scopes", []),
+        own_app=plugin.entry.get("auth", {}).get("own_app") is True,
         enabled=plugin.enabled,
         disconnected=plugin.disconnected_at is not None,
         connected_at=plugin.connected_at,

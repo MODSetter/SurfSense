@@ -11,7 +11,8 @@ import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
-import { OwnAppSignInButton } from "../sign-in/own-app/own-app-sign-in-button"
+import { ChangeOwnAppButton } from "../sign-in/own-app/change-own-app-button"
+import { PluginOwnAppDialog } from "../sign-in/own-app/plugin-own-app-dialog"
 import { EditConnectionButton } from "../connection/edit-connection-button"
 import { EditHeadersButton } from "./edit-headers-button"
 import { ReplaceKeyButton } from "./replace-key-button"
@@ -113,6 +114,7 @@ export function PluginDetailsCard({
 }) {
   const nameId = useId()
   const [removeOpen, setRemoveOpen] = useState(false)
+  const [ownAppOpen, setOwnAppOpen] = useState(false)
   const unused = plugin.source !== "first_party" && !thirdPartyAllowed
   return (
     <section aria-labelledby={nameId}>
@@ -148,6 +150,13 @@ export function PluginDetailsCard({
             checking={checking}
             onCheck={onCheck}
             onRemove={() => setRemoveOpen(true)}
+            onOwnApp={() => setOwnAppOpen(true)}
+          />
+          <PluginOwnAppDialog
+            plugin={plugin}
+            reason="chosen"
+            open={ownAppOpen}
+            onOpenChange={setOwnAppOpen}
           />
           <RemovePluginDialog
             name={plugin.name}
@@ -198,8 +207,8 @@ export function PluginDetailsCard({
           ) : plugin.auth_type === "headers" ? (
             <EditHeadersButton plugin={plugin} />
           ) : null}
-          {plugin.auth_type === "oauth" && !plugin.disconnected ? (
-            <OwnAppSignInButton plugin={plugin} />
+          {plugin.own_app && !plugin.disconnected ? (
+            <ChangeOwnAppButton plugin={plugin} />
           ) : null}
           {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
             <Button
@@ -246,10 +255,16 @@ export function PluginDetailsCard({
       ) : null}
       {plugin.tools.length === 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          {intl.formatMessage({
-            id: "plugins_row_no_tools_empty",
-            defaultMessage: "This server lists no tools.",
-          })}
+          {plugin.check_failure === "sign_in"
+            ? // Its tools are listed with the token a sign-in gives.
+              intl.formatMessage({
+                id: "plugins_row_sign_in_for_tools_empty",
+                defaultMessage: "Sign in to see its tools.",
+              })
+            : intl.formatMessage({
+                id: "plugins_row_no_tools_empty",
+                defaultMessage: "This server lists no tools.",
+              })}
         </p>
       ) : null}
       <ToolGroup

@@ -116,7 +116,8 @@ async def set_plugin_rules(
     held: dict[str, str],
     plugins: list[TurnPlugin],
 ) -> None:
-    """Replace the session's rules, whichever servers could be given, so no earlier turn's allow survives."""
+    """Set the session's rules, whichever servers could be given; they start by denying every
+    plugin tool, so no earlier turn's allow survives under them."""
     # Each server opencode holds is denied first, so a tool SurfSense has not
     # reviewed is refused and left out of what the model is offered.
     ready = {plugin.name for plugin in plugins}

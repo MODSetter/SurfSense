@@ -1,9 +1,5 @@
 import type { SignInHeader } from "../api"
 import { filledHeaders } from "../headers/filled-headers"
-import {
-  EMPTY_OWN_APP,
-  type OwnAppDraft,
-} from "../sign-in/own-app/own-app-draft"
 
 /** How a key goes: most servers read `Authorization: Bearer`, some Basic, some their own header. */
 export type SendAs = "bearer" | "basic" | "custom"
@@ -16,7 +12,6 @@ export type ConnectionDraft = {
   headerName: string
   // Further headers, for a server reading more than one.
   extra: SignInHeader[]
-  ownApp: OwnAppDraft
 }
 
 export const EMPTY_CONNECTION: ConnectionDraft = {
@@ -24,7 +19,6 @@ export const EMPTY_CONNECTION: ConnectionDraft = {
   sendAs: "bearer",
   headerName: "",
   extra: [],
-  ownApp: EMPTY_OWN_APP,
 }
 
 /** A stored plugin's header names, so editing asks only for the values again. */

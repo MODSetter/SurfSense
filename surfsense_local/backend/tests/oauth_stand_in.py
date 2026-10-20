@@ -187,6 +187,8 @@ class ProtectedByStandIn:
         self.required_scope: str | None = None
         # A scope only a tool call needs, as a server checks each operation's own.
         self.call_scope: str | None = None
+        # Every access token expires when a tool call arrives, as one does mid-turn.
+        self.expire_at_call = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -204,6 +206,12 @@ class ProtectedByStandIn:
                 }
             )(scope, receive, send)
             return
+        if self.expire_at_call:
+            body = await _whole_body(receive)
+            if b'"tools/call"' in body:
+                self.expire_at_call = False
+                self.server.expire_access_tokens()
+            receive = _replaying(body, receive)
         authorization = request.headers.get("authorization")
         self.authorizations.append(authorization)
         token = (authorization or "").removeprefix("Bearer ")

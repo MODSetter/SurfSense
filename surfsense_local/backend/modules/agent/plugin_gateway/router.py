@@ -4,6 +4,7 @@ import httpx2
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from api.dependencies import SessionDep, transact
+from modules.agent.plugin_gateway.blocked_call import blocked_reply
 from modules.agent.plugin_gateway.expired_token import sent_with_fresh_token
 from modules.agent.plugin_gateway.forwarded import send_on, streamed_back, unreachable
 from modules.agent.plugin_gateway.gateway_key import require_gateway_key
@@ -36,6 +37,13 @@ async def plugin(
     thread_id: int, plugin_id: str, request: Request, session: SessionDep
 ) -> Response:
     upstream = await _ready(session, plugin_id, thread_id)
+    if request.method == "GET" and upstream.transport != SSE:
+        # The stream a server would send unasked messages on, which SurfSense uses none of:
+        # MCP lets a client do without it, and one held open kept Claude Code from quitting.
+        return Response(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            headers={"allow": "POST, DELETE"},
+        )
     return await _forwarded(
         session, request, (plugin_id, thread_id), upstream, upstream.url
     )
@@ -70,6 +78,9 @@ async def _forwarded(
     url: str,
 ) -> Response:
     body = await request.body()
+    refused = blocked_reply(body, upstream.tools, upstream.transport != SSE)
+    if refused is not None:
+        return refused
     await record_call(session, url)
     try:
         sent = await send_on(request, body, url, upstream.headers)

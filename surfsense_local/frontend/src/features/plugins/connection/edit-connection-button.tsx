@@ -11,8 +11,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { FieldGroup } from "@/components/ui/field"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api"
 
 import { pluginsQueryKey, replacePluginHeaders, type Plugin } from "../api"
@@ -25,6 +27,12 @@ import {
   type ConnectionDraft,
 } from "./connection-draft"
 import { ConnectionEditor } from "./connection-editor"
+import {
+  SCROLLING_DIALOG,
+  SCROLLING_FIELDS,
+  SCROLLING_FIELDS_VIEWPORT,
+  SCROLLING_FORM,
+} from "./scrolling-dialog"
 
 function EditConnectionForm({
   plugin,
@@ -70,22 +78,21 @@ function EditConnectionForm({
   }
 
   return (
-    <form onSubmit={(event) => void save(event)}>
-      <FieldGroup>
-        <ConnectionEditor
-          draft={draft}
-          onChange={setDraft}
-          withOAuth={false}
-          redirectUri={null}
-          disabled={busy}
-        />
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </FieldGroup>
-      <DialogFooter className="mt-6">
+    <form className={SCROLLING_FORM} onSubmit={(event) => void save(event)}>
+      <ScrollFade
+        className={SCROLLING_FIELDS}
+        viewportClassName={SCROLLING_FIELDS_VIEWPORT}
+      >
+        <FieldGroup>
+          <ConnectionEditor draft={draft} onChange={setDraft} disabled={busy} />
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </FieldGroup>
+      </ScrollFade>
+      <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           {intl.formatMessage({
             id: "plugins_connection_cancel_button",
@@ -141,7 +148,9 @@ export function EditConnectionButton({
           })}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="select-none sm:max-w-lg">
+        <DialogContent
+          className={cn("select-none sm:max-w-lg", SCROLLING_DIALOG)}
+        >
           <DialogHeader>
             <DialogTitle>
               {connecting

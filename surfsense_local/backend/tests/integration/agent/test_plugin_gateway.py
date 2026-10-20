@@ -365,3 +365,43 @@ async def test_a_registry_plugins_delisting_is_refused_at_once(
         refused = await gateway.http.post(url, json={}, headers=headers)
 
     assert refused.status_code == 403
+
+
+async def test_a_tool_blocked_mid_session_is_refused_without_reaching_the_server(
+    gateway: Gateway,
+) -> None:
+    """The runtime still lists it until its next turn; the gateway answers for the user."""
+    recording = RecordingMethods(notes_server().streamable_http_app())
+    with serving(recording) as base:
+        await gateway.connect(f"{base}/mcp")
+        async with gateway.runtime() as runtime:
+            await runtime.call_tool("search", {"query": "a"})
+            await gateway.http.put(
+                "/plugins/notes/tools/search", json={"enabled": False}
+            )
+
+            refused = await runtime.call_tool("search", {"query": "b"})
+            counted = await runtime.call_tool("count", {"text": "two words"})
+
+    assert refused.is_error
+    assert "blocked" in refused.content[0].text
+    assert recording.methods.count("tools/call") == 2
+    assert not counted.is_error
+
+
+async def test_a_streamable_plugins_listening_stream_is_declined(
+    gateway: Gateway,
+) -> None:
+    """MCP lets a client do without it; held open, a runtime waited on it minutes to quit."""
+    recorded = RecordingHeaders(notes_server().streamable_http_app())
+    with serving(recorded) as base:
+        await gateway.connect(f"{base}/mcp")
+        seen = len(recorded.authorizations)
+        url, headers = given_server("notes", WHERE, gateway.launch_key)
+
+        answer = await gateway.http.get(
+            url, headers={**headers, "accept": "text/event-stream"}
+        )
+
+    assert answer.status_code == 405
+    assert len(recorded.authorizations) == seen

@@ -10,6 +10,7 @@ import {
 import {
   EllipsisIcon,
   ExternalLinkIcon,
+  KeyIcon,
   RefreshCwIcon,
   Trash2Icon,
 } from "@/components/ui/icons"
@@ -18,17 +19,19 @@ import { intl } from "@/i18n/intl"
 import type { Plugin } from "../api"
 import { openRegistrySubmission } from "./registry-submission"
 
-/** A plugin's less frequent actions; a disconnected plugin can only be removed. On and off is the composer's "+ › Plugins". A custom one can be offered to the registry. */
+/** A plugin's less frequent actions; a disconnected plugin can only be removed. On and off is the composer's "+ › Plugins". A custom one can be offered to the registry, and one signing in by itself can sign in with the user's own app, for an organization allowing only its approved one. */
 export function PluginActionsMenu({
   plugin,
   checking,
   onCheck,
   onRemove,
+  onOwnApp,
 }: {
   plugin: Plugin
   checking: boolean
   onCheck: () => void
   onRemove: () => void
+  onOwnApp: () => void
 }) {
   return (
     <DropdownMenu>
@@ -69,6 +72,15 @@ export function PluginActionsMenu({
                   {intl.formatMessage({
                     id: "plugins_actions_submit_label",
                     defaultMessage: "Submit to the registry",
+                  })}
+                </DropdownMenuItem>
+              ) : null}
+              {plugin.auth_type === "oauth" && !plugin.own_app ? (
+                <DropdownMenuItem onClick={onOwnApp}>
+                  <KeyIcon />
+                  {intl.formatMessage({
+                    id: "plugins_actions_own_app_label",
+                    defaultMessage: "Use your own OAuth app",
                   })}
                 </DropdownMenuItem>
               ) : null}

@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+import httpx
 import pytest
 from mcp_types import ToolAnnotations
 
@@ -586,3 +587,56 @@ async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway
 
     assert of_type(frames, "agent-step")[-1]["status"] == "completed"
     assert of_type(frames, "agent-plugins-unavailable") == []
+
+
+async def test_a_sign_in_refused_mid_turn_names_the_plugin_in_the_turn(
+    agent_api: AgentAPI,
+) -> None:
+    """The token expires at the call and its refresh is refused: the turn says to sign in."""
+    with signed_in_notes(expires_in=3600) as (authorization, protected, _, url):
+        await sign_in_to_notes(agent_api, url)
+        protected.expire_at_call = True
+        authorization.refuse_refresh = True
+        agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "sign_in"}]
+    assert of_type(frames, "agent-step")[-1]["status"] == "error"
+
+
+class _OnFirstRequest(list):
+    """The model's requests, running `then` once the first arrives: after the turn's rules."""
+
+    def __init__(self, then) -> None:
+        super().__init__()
+        self.then = then
+
+    def append(self, request: dict) -> None:
+        super().append(request)
+        if len(self) == 1:
+            self.then()
+
+
+async def test_a_tool_blocked_mid_turn_is_refused_by_the_gateway(
+    agent_api: AgentAPI, notes_url: str
+) -> None:
+    """opencode was told to allow it at the turn's start; the call never reaches the plugin."""
+    await connect_notes(agent_api, notes_url)
+    await agent_api.http.put("/plugins/notes/tools/search", json={"approval": "always"})
+    base = str(agent_api.http.base_url)
+    agent_api.model.requests = _OnFirstRequest(
+        lambda: httpx.put(
+            f"{base}/plugins/notes/tools/search", json={"enabled": False}
+        ).raise_for_status()
+    )
+    agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "Search")
+
+    step = of_type(frames, "agent-step")[-1]
+    assert step["status"] == "error"
+    assert "blocked" in json.dumps(step)
