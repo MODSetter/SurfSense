@@ -43,7 +43,7 @@ import { AGENTIC_GATES, type NewChatChoice } from "./modes/new-chat-mode"
 import type { LiveThreadSource } from "./live-thread-runtime"
 import { isClaudeCodeRefusal } from "./claude-code-refusal"
 import { chatKeys } from "./query-keys"
-import { clearDraftScope, draftScopeSnapshot } from "./use-thread-scope"
+import { clearDraftScope } from "./use-thread-scope"
 import type { LivePair } from "./runs/apply-frame"
 import {
   beginRun,
@@ -643,7 +643,6 @@ export function useChatRuntime({
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
-          const draft = draftScopeSnapshot(workspaceId)
           const thread = await createThreadMutation.mutateAsync({
             title: "New chat",
             mode: newChatMode,
@@ -653,9 +652,10 @@ export function useChatRuntime({
           if (requestVersion.current !== version) {
             return
           }
-          // The thread holds the ticks now, whatever its first message does;
-          // a draft written meanwhile belongs to a newer chat and stays.
-          clearDraftScope(workspaceId, draft)
+          // The thread holds the ticks now, whatever its first message does. A
+          // tick made meanwhile waits for the thread (useThreadScope), and a
+          // newer chat has already returned above.
+          clearDraftScope(workspaceId)
           threadId = thread.id
           usesAgent = thread.uses_agent
           queryClient.setQueryData<ChatThread[]>(
