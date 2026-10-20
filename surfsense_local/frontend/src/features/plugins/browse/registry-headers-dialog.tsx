@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -38,7 +38,7 @@ function RegistryHeadersForm({
   const [error, setError] = useState<string | null>(null)
   const complete = entry.auth_headers.every((h) => values[h.name])
 
-  const connect = async (event: FormEvent) => {
+  const connect = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)

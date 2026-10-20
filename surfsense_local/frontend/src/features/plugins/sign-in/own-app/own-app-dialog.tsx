@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useState, type FormEvent } from "react"
+import { useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -86,7 +86,7 @@ function OwnAppForm({
   const signIn = usePluginSignIn(onConnected)
   const locked = busy || signIn.state.phase === "waiting"
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)

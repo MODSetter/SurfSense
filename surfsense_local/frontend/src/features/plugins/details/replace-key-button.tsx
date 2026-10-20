@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -34,7 +34,7 @@ function ReplaceKeyForm({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const save = async (event: FormEvent) => {
+  const save = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)

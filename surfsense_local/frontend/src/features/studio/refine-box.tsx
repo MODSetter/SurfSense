@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
   type FocusEvent,
-  type FormEvent,
+  type SubmitEvent,
   type KeyboardEvent,
 } from "react"
 
@@ -91,7 +91,7 @@ export function RefineBox({
     }
   }
 
-  const onSubmit = (event: FormEvent) => {
+  const onSubmit = (event: SubmitEvent) => {
     event.preventDefault()
     void send()
   }

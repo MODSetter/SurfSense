@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { useState, type FormEvent } from "react"
+import { useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -48,7 +48,7 @@ function EditHeadersForm({
   const complete =
     filled.length > 0 && filled.every((row) => row.name && row.value)
 
-  const save = async (event: FormEvent) => {
+  const save = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query"
-import { useId, useState, type FormEvent } from "react"
+import { useId, useState, type SubmitEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -74,7 +74,7 @@ function AddPluginForm({
   const locked = busy || signIn.state.phase === "waiting"
   const ready = name.trim() !== "" && url.trim() !== "" && headersComplete(rows)
 
-  const connect = async (event: FormEvent) => {
+  const connect = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
