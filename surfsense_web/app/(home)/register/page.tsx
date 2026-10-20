@@ -8,9 +8,9 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { Logo } from "@/components/Logo";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/hooks/use-session";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
@@ -198,7 +198,7 @@ export default function RegisterPage() {
 											<p className="text-sm font-semibold mb-1">{error.title}</p>
 											<p className="text-sm text-red-700 dark:text-red-300">{error.message}</p>
 										</div>
-										<Button
+										<HomeButton
 											variant="ghost"
 											size="icon"
 											onClick={() => {
@@ -223,7 +223,7 @@ export default function RegisterPage() {
 												<line x1="18" y1="6" x2="6" y2="18" />
 												<line x1="6" y1="6" x2="18" y2="18" />
 											</svg>
-										</Button>
+										</HomeButton>
 									</div>
 								</motion.div>
 							)}
@@ -296,7 +296,8 @@ export default function RegisterPage() {
 							/>
 						</div>
 
-						<Button
+						<HomeButton
+							static
 							type="submit"
 							disabled={isRegistering}
 							className="relative h-auto w-full px-4 py-1.5 text-sm md:py-2 md:text-base"
@@ -307,7 +308,7 @@ export default function RegisterPage() {
 									<Spinner size="sm" className="text-primary-foreground" />
 								</span>
 							)}
-						</Button>
+						</HomeButton>
 					</form>
 
 					<div className="mt-4 text-center text-sm">

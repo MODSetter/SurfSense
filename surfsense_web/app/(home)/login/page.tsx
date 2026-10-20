@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { Logo } from "@/components/Logo";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { siteText } from "@/components/site/site-text";
-import { Button } from "@/components/ui/button";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { setRedirectPath } from "@/lib/auth-utils";
 import { cn } from "@/lib/utils";
@@ -146,7 +146,7 @@ function LoginContent() {
 									<p className="text-sm font-semibold mb-1">{urlError.title}</p>
 									<p className="text-sm text-destructive/90">{urlError.message}</p>
 								</div>
-								<Button
+								<HomeButton
 									type="button"
 									variant="ghost"
 									size="icon"
@@ -169,7 +169,7 @@ function LoginContent() {
 										<line x1="18" y1="6" x2="6" y2="18" />
 										<line x1="6" y1="6" x2="18" y2="18" />
 									</svg>
-								</Button>
+								</HomeButton>
 							</div>
 						</motion.div>
 					)}

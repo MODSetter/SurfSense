@@ -4,10 +4,11 @@ import { IconChevronDown } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { DOWNLOADS_URL, NAV_LINKS, NAV_RESOURCES } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { siteText } from "@/components/site/site-text";
-import { ArrowRightIcon, MenuTwoLineIcon } from "@/components/ui/icons";
+import { MenuTwoLineIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -63,22 +64,11 @@ function Wordmark() {
 
 function DownloadLink({ onClick, className }: { onClick?: () => void; className?: string }) {
 	return (
-		<Link
-			href={DOWNLOADS_URL}
-			onClick={onClick}
-			className={cn(
-				"group inline-flex h-9 items-center gap-2.5 rounded-full bg-foreground pr-1.5 pl-4 text-sm font-semibold whitespace-nowrap text-background shadow-lg transition-[background-color,translate] duration-150 hover:bg-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px",
-				className
-			)}
-		>
-			Download
-			<span
-				aria-hidden="true"
-				className="grid size-6.5 place-items-center rounded-full bg-background text-foreground"
-			>
-				<ArrowRightIcon className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" />
-			</span>
-		</Link>
+		<HomeButton asChild size="lg" className={cn("rounded-full px-4", className)}>
+			<Link href={DOWNLOADS_URL} onClick={onClick}>
+				Download
+			</Link>
+		</HomeButton>
 	);
 }
 

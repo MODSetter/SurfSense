@@ -1,9 +1,9 @@
 "use client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { Logo } from "@/components/Logo";
 import { siteText } from "@/components/site/site-text";
-import { Button } from "@/components/ui/button";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -60,7 +60,8 @@ export function GoogleLoginButton() {
 				<Logo className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
 				<h1 className={cn(siteText.h2, "mt-6 mb-8")}>{t("sign_in")}</h1>
 
-				<Button
+				<HomeButton
+					static
 					variant="outline"
 					className="w-full max-w-md gap-2 rounded-md border-white bg-white px-6 py-5 font-medium text-[#1f1f1f] shadow-sm hover:bg-zinc-100 hover:text-[#1f1f1f] dark:border-white md:py-5"
 					disabled={isRedirecting}
@@ -68,7 +69,7 @@ export function GoogleLoginButton() {
 				>
 					<GoogleGLogo className="h-5 w-5" />
 					<span className="text-base font-medium">{t("continue_with_google")}</span>
-				</Button>
+				</HomeButton>
 			</div>
 		</section>
 	);

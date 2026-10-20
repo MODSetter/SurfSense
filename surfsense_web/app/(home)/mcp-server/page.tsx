@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ConnectorFaq } from "@/components/connectors-marketing/connector-faq";
 import { Reveal } from "@/components/connectors-marketing/reveal";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { MarketingSection } from "@/components/marketing/section";
 import { AgentSetupTabs } from "@/components/mcp/agent-setup-tabs";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	ArrowRightIcon,
 	CheckIcon,
@@ -236,16 +236,16 @@ export default function McpServerPage() {
 								key, typed tools, pay as you go.
 							</p>
 							<div className="mt-8 flex flex-wrap items-center gap-3">
-								<Button asChild size="lg">
+								<HomeButton asChild size="lg">
 									<Link href="/register">
 										Get your API key
 										<ArrowRightIcon className="size-4" />
 									</Link>
-								</Button>
-								<Button asChild variant="outline" size="lg">
+								</HomeButton>
+								<HomeButton asChild variant="outline" size="lg">
 									<Link href="/docs">Read the docs</Link>
-								</Button>
-								<Button asChild variant="ghost" size="lg">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="lg">
 									<Link
 										href="https://github.com/MODSetter/SurfSense"
 										target="_blank"
@@ -254,7 +254,7 @@ export default function McpServerPage() {
 										<IconBrandGithub className="size-4" />
 										GitHub
 									</Link>
-								</Button>
+								</HomeButton>
 							</div>
 						</div>
 						<ConfigCard />
@@ -389,47 +389,47 @@ export default function McpServerPage() {
 								. Start with $5 of free credit, no credit card required.
 							</p>
 							<div className="mt-7 flex flex-wrap justify-center gap-3">
-								<Button asChild size="lg">
+								<HomeButton asChild size="lg">
 									<Link href="/register">
 										Start for free
 										<ArrowRightIcon className="size-4" />
 									</Link>
-								</Button>
-								<Button asChild variant="outline" size="lg">
+								</HomeButton>
+								<HomeButton asChild variant="outline" size="lg">
 									<Link href="/pricing">See pricing</Link>
-								</Button>
+								</HomeButton>
 							</div>
 
 							<Separator className="my-8" />
 
 							<nav aria-label="Other connectors" className="flex flex-wrap justify-center gap-2">
-								<Button asChild variant="ghost" size="sm">
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/plugins">All plugins</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/external-mcp-connectors">External MCP Connectors</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/reddit">Reddit API</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/youtube">YouTube API</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/instagram">Instagram API</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/tiktok">TikTok API</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/google-maps">Google Maps API</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/google-search">SERP API</Link>
-								</Button>
-								<Button asChild variant="ghost" size="sm">
+								</HomeButton>
+								<HomeButton asChild variant="ghost" size="sm">
 									<Link href="/web-crawl">Web Crawl API</Link>
-								</Button>
+								</HomeButton>
 							</nav>
 						</div>
 					</Reveal>

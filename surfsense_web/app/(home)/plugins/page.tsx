@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
 import { REPO_URL } from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
@@ -80,14 +81,17 @@ export default async function PluginsPage() {
 							Settings › Plugins. Publishers list theirs in the registry with a short form.
 						</p>
 					</div>
-					<a
-						href={registryUrl}
-						target="_blank"
-						rel="noreferrer noopener"
-						className="inline-flex h-12 shrink-0 items-center rounded-full border border-border px-6 text-sm font-semibold text-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+					<HomeButton
+						asChild
+						variant="bare"
+						className={cn(
+							"inline-flex h-12 shrink-0 items-center rounded-full border border-border px-6 text-sm font-semibold text-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+						)}
 					>
-						See the registry
-					</a>
+						<a href={registryUrl} target="_blank" rel="noreferrer noopener">
+							See the registry
+						</a>
+					</HomeButton>
 				</div>
 			</section>
 		</>
