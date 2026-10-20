@@ -30,7 +30,7 @@
     {
       "id": "notion",
       "kind": "remote",
-      "verification": "community",
+      "verification": "verified",
       "name": "Notion",
       "description": "Search, read and edit the pages and databases in your Notion workspace.",
       "author": "Notion",
