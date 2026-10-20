@@ -10,6 +10,7 @@ import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 import { PluginOwnAppDialog } from "./own-app/plugin-own-app-dialog"
 import { ownAppReason, type OwnAppReason } from "./own-app/own-app-reason"
+import { useOpenPlugin } from "../open-plugin"
 import { useOpenedSignIn } from "./opened-sign-in"
 import { SignInProgress } from "./sign-in-progress"
 import { usePluginSignIn } from "./use-plugin-sign-in"
@@ -23,8 +24,7 @@ export function SignInAgainButton({
   className,
 }: {
   plugin: Plugin
-  /** The button's text when signing in is how the plugin connects again. Shown as a secondary button. */
-  label?: string
+  label: string
   /** The button's size and extra classes, for a place whose text is larger than `xs`. */
   size?: "xs" | "sm"
   className?: string
@@ -36,10 +36,13 @@ export function SignInAgainButton({
   })
   // Started when the plugin was connected elsewhere, and followed above this button.
   const opened = useOpenedSignIn(plugin.id)
+  const openPlugin = useOpenPlugin()
   const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const start = useMutation({
     mutationFn: () => signInAgain(plugin.id),
-    onSuccess: signIn.follow,
+    // Followed in the plugin's details, which a row's Connect opens, so leaving the row keeps it.
+    onSuccess: (started) =>
+      openPlugin ? openPlugin(plugin.id, started) : signIn.follow(started),
     onError: (refused) => {
       setOwnApp(ownAppReason(refused))
       // Marked as needing the user's app, which its status now says.
@@ -68,7 +71,7 @@ export function SignInAgainButton({
       <Button
         type="button"
         size={size}
-        variant={label ? "secondary" : "ghost"}
+        variant="secondary"
         className={className}
         disabled={start.isPending}
         onClick={() => {
@@ -77,11 +80,7 @@ export function SignInAgainButton({
         }}
       >
         {start.isPending ? <Spinner data-icon="inline-start" /> : null}
-        {label ??
-          intl.formatMessage({
-            id: "plugins_row_sign_in_button",
-            defaultMessage: "Sign in",
-          })}
+        {label}
       </Button>
       {start.error && ownAppReason(start.error) === null ? (
         <span role="alert" className="text-destructive">

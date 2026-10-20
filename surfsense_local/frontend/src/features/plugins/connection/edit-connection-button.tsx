@@ -121,6 +121,66 @@ function EditConnectionForm({
 }
 
 /** A custom plugin's key or headers, replaced in place so it keeps its choices per tool. */
+export function EditConnectionDialog({
+  plugin,
+  connecting = false,
+  open,
+  onOpenChange,
+}: {
+  plugin: Plugin
+  /** Asks to connect a disconnected plugin rather than to save a change. */
+  connecting?: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const queryClient = useQueryClient()
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn("select-none sm:max-w-lg", SCROLLING_DIALOG)}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {connecting
+              ? intl.formatMessage(
+                  {
+                    id: "plugins_connection_connect_title",
+                    defaultMessage: "Connect {plugin}",
+                  },
+                  { plugin: plugin.name }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "plugins_connection_title",
+                    defaultMessage: "Edit the connection to {plugin}",
+                  },
+                  { plugin: plugin.name }
+                )}
+          </DialogTitle>
+          <DialogDescription>
+            {intl.formatMessage({
+              id: "plugins_connection_body",
+              defaultMessage:
+                "Enter the key again; a saved one is never shown. SurfSense tries it before saving, and your tool settings stay.",
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        {/* The popup unmounts after closing, so each opening starts blank. */}
+        <EditConnectionForm
+          plugin={plugin}
+          connecting={connecting}
+          onCancel={() => onOpenChange(false)}
+          onSaved={() => {
+            onOpenChange(false)
+            void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Connects a custom plugin again with its key or headers. */
 export function EditConnectionButton({
   plugin,
   label,
@@ -129,70 +189,28 @@ export function EditConnectionButton({
 }: {
   plugin: Plugin
   /** The button's text when this is how a disconnected plugin connects again. */
-  label?: string
+  label: string
   size?: "xs" | "sm"
   className?: string
 }) {
-  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const connecting = label !== undefined
   return (
     <>
       <Button
         type="button"
         size={size}
-        variant={connecting ? "secondary" : "ghost"}
+        variant="secondary"
         className={className}
         onClick={() => setOpen(true)}
       >
-        {label ??
-          intl.formatMessage({
-            id: "plugins_connection_edit_button",
-            defaultMessage: "Edit connection",
-          })}
+        {label}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          className={cn("select-none sm:max-w-lg", SCROLLING_DIALOG)}
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {connecting
-                ? intl.formatMessage(
-                    {
-                      id: "plugins_connection_connect_title",
-                      defaultMessage: "Connect {plugin}",
-                    },
-                    { plugin: plugin.name }
-                  )
-                : intl.formatMessage(
-                    {
-                      id: "plugins_connection_title",
-                      defaultMessage: "Edit the connection to {plugin}",
-                    },
-                    { plugin: plugin.name }
-                  )}
-            </DialogTitle>
-            <DialogDescription>
-              {intl.formatMessage({
-                id: "plugins_connection_body",
-                defaultMessage:
-                  "Enter the key again; a saved one is never shown. SurfSense tries it before saving, and your tool settings stay.",
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          {/* The popup unmounts after closing, so each opening starts blank. */}
-          <EditConnectionForm
-            plugin={plugin}
-            connecting={connecting}
-            onCancel={() => setOpen(false)}
-            onSaved={() => {
-              setOpen(false)
-              void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditConnectionDialog
+        plugin={plugin}
+        connecting
+        open={open}
+        onOpenChange={setOpen}
+      />
     </>
   )
 }

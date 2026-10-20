@@ -104,6 +104,64 @@ function EditHeadersForm({
 }
 
 /** A plugin's headers replaced in place, refused or dropped at disconnect, so it keeps its choices per tool. */
+export function EditHeadersDialog({
+  plugin,
+  connecting = false,
+  open,
+  onOpenChange,
+}: {
+  plugin: Plugin
+  /** Asks to connect a disconnected plugin rather than to save a change. */
+  connecting?: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const queryClient = useQueryClient()
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="select-none sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {connecting
+              ? intl.formatMessage(
+                  {
+                    id: "plugins_headers_connect_title",
+                    defaultMessage: "Connect {plugin}",
+                  },
+                  { plugin: plugin.name }
+                )
+              : intl.formatMessage(
+                  {
+                    id: "plugins_headers_title",
+                    defaultMessage: "Edit the headers for {plugin}",
+                  },
+                  { plugin: plugin.name }
+                )}
+          </DialogTitle>
+          <DialogDescription>
+            {intl.formatMessage({
+              id: "plugins_headers_body",
+              defaultMessage:
+                "Enter each value again; saved values are never shown. SurfSense tries them before saving, and your tool settings stay.",
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        {/* The popup unmounts after closing, so each opening starts blank. */}
+        <EditHeadersForm
+          plugin={plugin}
+          connecting={connecting}
+          onCancel={() => onOpenChange(false)}
+          onSaved={() => {
+            onOpenChange(false)
+            void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Connects a registry plugin again with the headers its entry names. */
 export function EditHeadersButton({
   plugin,
   label,
@@ -111,69 +169,29 @@ export function EditHeadersButton({
   className,
 }: {
   plugin: Plugin
-  /** The button's text when headers are how a disconnected plugin connects again. */
-  label?: string
+  /** The button's text when this is how a disconnected plugin connects again. */
+  label: string
   size?: "xs" | "sm"
   className?: string
 }) {
-  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const connecting = label !== undefined
   return (
     <>
       <Button
         type="button"
         size={size}
-        variant={connecting ? "secondary" : "ghost"}
+        variant="secondary"
         className={className}
         onClick={() => setOpen(true)}
       >
-        {label ??
-          intl.formatMessage({
-            id: "plugins_headers_edit_button",
-            defaultMessage: "Edit headers",
-          })}
+        {label}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="select-none sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {connecting
-                ? intl.formatMessage(
-                    {
-                      id: "plugins_headers_connect_title",
-                      defaultMessage: "Connect {plugin}",
-                    },
-                    { plugin: plugin.name }
-                  )
-                : intl.formatMessage(
-                    {
-                      id: "plugins_headers_title",
-                      defaultMessage: "Edit the headers for {plugin}",
-                    },
-                    { plugin: plugin.name }
-                  )}
-            </DialogTitle>
-            <DialogDescription>
-              {intl.formatMessage({
-                id: "plugins_headers_body",
-                defaultMessage:
-                  "Enter each value again; saved values are never shown. SurfSense tries them before saving, and your tool settings stay.",
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          {/* The popup unmounts after closing, so each opening starts blank. */}
-          <EditHeadersForm
-            plugin={plugin}
-            connecting={connecting}
-            onCancel={() => setOpen(false)}
-            onSaved={() => {
-              setOpen(false)
-              void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <EditHeadersDialog
+        plugin={plugin}
+        connecting
+        open={open}
+        onOpenChange={setOpen}
+      />
     </>
   )
 }

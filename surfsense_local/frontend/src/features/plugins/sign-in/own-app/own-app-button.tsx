@@ -6,27 +6,28 @@ import type { Plugin } from "../../api"
 import type { OwnAppReason } from "./own-app-reason"
 import { PluginOwnAppDialog } from "./plugin-own-app-dialog"
 
-/** Opens the user's own OAuth app for a saved plugin: to set one up where its provider takes
- * no other, to use one where an organization blocks the sign-in, or to change it. */
+/** Connects a plugin whose provider takes only apps registered with it, through the user's own. */
 export function OwnAppButton({
   plugin,
   reason,
   label,
-  primary = false,
+  size = "xs",
+  className,
 }: {
   plugin: Plugin
   reason: OwnAppReason
   label: string
-  /** The plugin's one way to connect, shown as its main action. */
-  primary?: boolean
+  size?: "xs" | "sm"
+  className?: string
 }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <Button
         type="button"
-        size="xs"
-        variant={primary ? "secondary" : "ghost"}
+        size={size}
+        variant="secondary"
+        className={className}
         onClick={() => setOpen(true)}
       >
         {label}

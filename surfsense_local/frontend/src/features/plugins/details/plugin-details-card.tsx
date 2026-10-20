@@ -1,21 +1,14 @@
 import { useId, useState } from "react"
 
-import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import type { Plugin, ToolChange } from "../api"
-import { ConnectPluginButton } from "./connect-plugin-button"
-import { DisconnectPluginButton } from "./disconnect-plugin-button"
 import { PluginIcon } from "../plugin-icon"
 import { pluginTypeLabel } from "../yours/plugin-type-label"
 import { PluginActionsMenu } from "./plugin-actions-menu"
+import { PluginMainAction } from "./plugin-main-action"
 import { RemovePluginDialog } from "./remove-plugin-dialog"
-import { OwnAppButton } from "../sign-in/own-app/own-app-button"
-import { EditConnectionButton } from "../connection/edit-connection-button"
-import { EditHeadersButton } from "./edit-headers-button"
-import { ReplaceKeyButton } from "./replace-key-button"
-import { SignInAgainButton } from "../sign-in/sign-in-again-button"
 import { isReadOnly } from "./tool-kind"
 import { checkTone, TONE_CLASS } from "../yours/status-tone"
 import { ToolGroup } from "./tool-group"
@@ -93,14 +86,7 @@ function checkLabel(plugin: Plugin) {
   })
 }
 
-const LICENSE_FAILURES = new Set<Plugin["check_failure"]>([
-  "needs_license",
-  "license_expired",
-  "license_revoked",
-  "license_invalid",
-])
-
-/** A plugin's details: Disconnect or Connect, the rest in a menu, then its status and tools. */
+/** A plugin's details: Connect or Disconnect, the rest in a menu, then its status and tools. */
 export function PluginDetailsCard({
   plugin,
   thirdPartyAllowed,
@@ -147,32 +133,17 @@ export function PluginDetailsCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {plugin.disconnected ? (
-            <ConnectPluginButton plugin={plugin} size="sm" />
-          ) : plugin.never_signed_in ? (
-            // Nothing to disconnect yet; one needing an OAuth app sets it up below.
-            plugin.needs_own_app ? null : (
-              <SignInAgainButton
-                plugin={plugin}
-                size="sm"
-                label={intl.formatMessage({
-                  id: "plugins_details_connect_button",
-                  defaultMessage: "Connect",
-                })}
-              />
-            )
-          ) : (
-            <DisconnectPluginButton
-              name={plugin.name}
-              disconnecting={disconnecting}
-              onDisconnect={onDisconnect}
-            />
-          )}
+          <PluginMainAction
+            plugin={plugin}
+            disconnecting={disconnecting}
+            onDisconnect={onDisconnect}
+          />
           <PluginActionsMenu
             plugin={plugin}
             checking={checking}
             onCheck={onCheck}
             onRemove={() => setRemoveOpen(true)}
+            onOpenLicense={onOpenLicense}
           />
           <RemovePluginDialog
             name={plugin.name}
@@ -203,61 +174,6 @@ export function PluginDetailsCard({
           </span>
           {checking ? (
             <Spinner className="size-3 text-muted-foreground" />
-          ) : null}
-          {plugin.check_failure === "sign_in" ? (
-            plugin.auth_type === "oauth" && plugin.needs_own_app ? (
-              <OwnAppButton
-                plugin={plugin}
-                reason={plugin.needs_own_app}
-                primary
-                label={intl.formatMessage({
-                  id: "plugins_row_set_up_own_app_button",
-                  defaultMessage: "Set up OAuth app",
-                })}
-              />
-            ) : plugin.auth_type === "oauth" ? (
-              // A plugin never signed in connects from its header instead.
-              plugin.never_signed_in ? null : (
-                <SignInAgainButton plugin={plugin} />
-              )
-            ) : plugin.auth_type === "headers" ? (
-              plugin.source === "custom" ? (
-                <EditConnectionButton plugin={plugin} />
-              ) : (
-                <EditHeadersButton plugin={plugin} />
-              )
-            ) : (
-              <ReplaceKeyButton plugin={plugin} />
-            )
-          ) : plugin.disconnected ? null : plugin.source === "custom" &&
-            (plugin.auth_type === "headers" || plugin.auth_type === "none") ? (
-            // A key that still works can change too, and an open server can take an optional one.
-            <EditConnectionButton plugin={plugin} />
-          ) : plugin.auth_type === "headers" ? (
-            <EditHeadersButton plugin={plugin} />
-          ) : null}
-          {plugin.own_app && !plugin.disconnected && !plugin.check_failure ? (
-            <OwnAppButton
-              plugin={plugin}
-              reason="chosen"
-              label={intl.formatMessage({
-                id: "plugins_own_app_change_button",
-                defaultMessage: "Change OAuth app",
-              })}
-            />
-          ) : null}
-          {LICENSE_FAILURES.has(plugin.check_failure) && onOpenLicense ? (
-            <Button
-              type="button"
-              size="xs"
-              variant="ghost"
-              onClick={onOpenLicense}
-            >
-              {intl.formatMessage({
-                id: "plugins_row_license_settings_button",
-                defaultMessage: "License settings",
-              })}
-            </Button>
           ) : null}
         </div>
       )}

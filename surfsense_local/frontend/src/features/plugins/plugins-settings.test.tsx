@@ -503,6 +503,104 @@ describe("plugins settings", () => {
     ).toBe("true")
   })
 
+  it("offers Connect on every plugin not connected, with why muted beside it", async () => {
+    api({
+      allowed: true,
+      plugins: [
+        notes({ disconnected: true }),
+        notes({
+          id: "asana",
+          name: "Asana",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          never_signed_in: true,
+        }),
+        notes({
+          id: "github",
+          name: "GitHub",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          never_signed_in: true,
+          needs_own_app: "needs_client",
+        }),
+        notes({
+          id: "linear",
+          name: "Linear",
+          source: "registry",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+        }),
+        notes({
+          id: "slack",
+          name: "Slack",
+          source: "registry",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          needs_scopes: ["chat:write"],
+        }),
+        notes({
+          id: "exa",
+          name: "Exa",
+          source: "registry",
+          auth_type: "token",
+          check_failure: "sign_in",
+        }),
+        notes({ id: "docs", name: "Docs", check_failure: "unreachable" }),
+        notes({
+          id: "reddit",
+          name: "Reddit",
+          source: "first_party",
+          check_failure: "license_expired",
+        }),
+      ],
+    })
+    render(<PluginsSettings />)
+
+    const table = await screen.findByRole("table")
+    for (const name of [
+      "Notes Custom Connect",
+      "Asana Custom Connect",
+      "GitHub Custom Connect Needs an OAuth app",
+      "Linear Third-party Connect Sign-in expired",
+      "Slack Third-party Connect Needs more access",
+      "Exa Third-party Connect Key refused",
+      // Connecting fixes neither: the server is down, or the license is.
+      "Docs Custom Couldn’t connect",
+      "Reddit By SurfSense License expired",
+    ]) {
+      expect(within(table).getByRole("row", { name })).toBeTruthy()
+    }
+    const linear = within(table).getByRole("row", { name: /Linear/ })
+    expect(within(linear).getByText("Sign-in expired").className).toContain(
+      "text-muted-foreground"
+    )
+  })
+
+  it("signs in from a row's Connect in the plugin's details, the browser open at once", async () => {
+    const openExternal = browser()
+    const calls = api({
+      allowed: true,
+      plugins: [
+        notes({ auth_type: "oauth", check_failure: "sign_in", tools: [] }),
+      ],
+      signInEnds: "waiting",
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const row = await screen.findByRole("row", {
+      name: "Notes Custom Connect Sign-in expired",
+    })
+    await user.click(within(row).getByRole("button", { name: "Connect" }))
+
+    expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
+    const plugin = await screen.findByRole("region", { name: "Notes" })
+    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(changes(calls)).toEqual([
+      { method: "POST", path: "/plugins/notes/sign-in", body: null },
+    ])
+  })
+
   it("shows each connected plugin's type and status, failures first", async () => {
     const base = notes()
     api({
@@ -896,9 +994,7 @@ describe("plugins settings", () => {
     expect(
       within(plugin).getByText("Notes accepts only apps registered with it.")
     ).toBeTruthy()
-    await user.click(
-      within(plugin).getByRole("button", { name: "Set up OAuth app" })
-    )
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
     const ownApp = await screen.findByRole("dialog", {
       name: "Connect Notes with your own app",
     })
@@ -971,8 +1067,9 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
+    const menu = await actions(user, plugin, "Notes")
     await user.click(
-      within(plugin).getByRole("button", { name: "Edit connection" })
+      within(menu).getByRole("menuitem", { name: "Edit connection" })
     )
     const dialog = await screen.findByRole("dialog", {
       name: "Edit the connection to Notes",
@@ -1231,7 +1328,12 @@ describe("plugins settings", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent)
-    ).toEqual(["Refresh tools", "Submit to the registry", "Remove"])
+    ).toEqual([
+      "Refresh tools",
+      "Edit connection",
+      "Submit to the registry",
+      "Remove",
+    ])
   })
 
   it("offers a custom plugin to the registry through the submission form, filled in", async () => {
@@ -1423,12 +1525,10 @@ describe("plugins settings", () => {
 
     const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Needs a new key")).toBeTruthy()
-    await user.click(
-      within(plugin).getByRole("button", { name: "Replace key" })
-    )
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
     const dialog = await screen.findByRole("dialog")
-    await user.type(within(dialog).getByLabelText("New key"), "k-2")
-    await user.click(within(dialog).getByRole("button", { name: "Save" }))
+    await user.type(within(dialog).getByLabelText("Key"), "k-2")
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
     expect(await within(plugin).findByText("Connected")).toBeTruthy()
     expect(changes(calls)).toEqual([
@@ -1451,12 +1551,10 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
-    await user.click(
-      within(plugin).getByRole("button", { name: "Replace key" })
-    )
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
     const dialog = await screen.findByRole("dialog")
-    await user.type(within(dialog).getByLabelText("New key"), "wrong")
-    await user.click(within(dialog).getByRole("button", { name: "Save" }))
+    await user.type(within(dialog).getByLabelText("Key"), "wrong")
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
 
     expect((await within(dialog).findByRole("alert")).textContent).toBe(
       "The server refused this key. Check it and try again."
@@ -1582,8 +1680,9 @@ describe("plugins settings", () => {
     await user.click(screen.getByRole("button", { name: "Back" }))
     const missing = await details(user, "Wiki")
     expect(within(missing).getByText("Needs a license")).toBeTruthy()
+    const menu = await actions(user, missing, "Wiki")
     await user.click(
-      within(missing).getByRole("button", { name: "License settings" })
+      within(menu).getByRole("menuitem", { name: "License settings" })
     )
 
     expect(onOpenLicense).toHaveBeenCalledOnce()
@@ -1906,9 +2005,7 @@ describe("plugins settings", () => {
     // Saved at once, and finished in its details in Yours.
     const plugin = await screen.findByRole("region", { name: "Hub" })
     expect(within(plugin).getByText("Needs an OAuth app")).toBeTruthy()
-    await user.click(
-      within(plugin).getByRole("button", { name: "Set up OAuth app" })
-    )
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
     const ownApp = await screen.findByRole("dialog", {
       name: "Connect Hub with your own app",
     })
@@ -2036,9 +2133,7 @@ describe("plugins settings", () => {
     expect(screen.queryByText("Wiki connected")).toBeNull()
     const plugin = await screen.findByRole("region", { name: "Wiki" })
     expect(within(plugin).getByText("Needs an OAuth app")).toBeTruthy()
-    expect(
-      within(plugin).getByRole("button", { name: "Set up OAuth app" })
-    ).toBeTruthy()
+    expect(within(plugin).getByRole("button", { name: "Connect" })).toBeTruthy()
   })
 
   it("abandons a sign-in on Cancel", async () => {
@@ -2130,12 +2225,9 @@ describe("plugins settings", () => {
     const user = userEvent.setup()
     render(<PluginsSettings />)
 
-    const row = await screen.findByRole("row", {
-      name: "Notes Custom Not connected",
-    })
     expect(
-      within(row).getByText("Not connected").closest("td")?.className
-    ).toContain("text-muted-foreground")
+      await screen.findByRole("row", { name: "Notes Custom Connect" })
+    ).toBeTruthy()
     const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Connect to see its tools.")).toBeTruthy()
     expect(
@@ -2153,9 +2245,11 @@ describe("plugins settings", () => {
     ])
   })
 
-  it("offers no OAuth app of the user's own on a plugin whose sign-in ran out", async () => {
+  it("offers only Connect on a plugin whose sign-in ran out, beside its menu", async () => {
     api({
-      plugins: [notes({ auth_type: "oauth", check_failure: "sign_in" })],
+      plugins: [
+        notes({ auth_type: "oauth", check_failure: "sign_in", tools: [] }),
+      ],
       allowed: true,
     })
     const user = userEvent.setup()
@@ -2165,19 +2259,23 @@ describe("plugins settings", () => {
     expect(within(plugin).getByText("Needs sign-in").className).toContain(
       "text-warning"
     )
-    expect(within(plugin).getByRole("button", { name: "Sign in" })).toBeTruthy()
+    // One action, no second row of buttons under the name.
     expect(
-      within(plugin).getByRole("button", { name: "Disconnect Notes" })
-    ).toBeTruthy()
-    expect(
-      within(plugin).queryByRole("button", { name: /OAuth app/ })
-    ).toBeNull()
+      within(plugin)
+        .getAllByRole("button")
+        .map(
+          (button) => button.getAttribute("aria-label") ?? button.textContent
+        )
+    ).toEqual(["Connect", "More actions for Notes"])
   })
 
   it("colours a status needing a step amber, and a failure red", async () => {
     api({
       plugins: [
-        notes({ auth_type: "oauth", check_failure: "sign_in" }),
+        notes({
+          source: "first_party",
+          check_failure: "license_expired",
+        }),
         notes({
           id: "wiki",
           name: "Wiki",
@@ -2189,10 +2287,10 @@ describe("plugins settings", () => {
     })
     render(<PluginsSettings />)
 
-    const signIn = await screen.findByRole("cell", { name: "Needs sign-in" })
+    const expired = await screen.findByRole("cell", { name: "License expired" })
     const down = screen.getByRole("cell", { name: "Couldn’t connect" })
 
-    expect(signIn.className).toContain("text-warning")
+    expect(expired.className).toContain("text-warning")
     expect(down.className).toContain("text-destructive")
   })
 
@@ -2205,8 +2303,9 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
+    const menu = await actions(user, plugin, "Notes")
     await user.click(
-      within(plugin).getByRole("button", { name: "Change OAuth app" })
+      within(menu).getByRole("menuitem", { name: "Change OAuth app" })
     )
 
     expect(
@@ -2216,7 +2315,7 @@ describe("plugins settings", () => {
     ).toBeTruthy()
   })
 
-  it("opens the user's own OAuth app when Sign in reaches a server taking only registered ones", async () => {
+  it("opens the user's own OAuth app when Connect reaches a server taking only registered ones", async () => {
     api({
       plugins: [notes({ auth_type: "oauth", check_failure: "sign_in" })],
       allowed: true,
@@ -2226,7 +2325,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
-    await user.click(within(plugin).getByRole("button", { name: "Sign in" }))
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
 
     const dialog = await screen.findByRole("dialog", {
       name: "Connect Notes with your own app",
@@ -2252,7 +2351,7 @@ describe("plugins settings", () => {
     expect(within(plugin).queryByText("This server lists no tools.")).toBeNull()
   })
 
-  it("says a plugin whose server wants more access needs it, with Sign in", async () => {
+  it("says a plugin whose server wants more access needs it, with Connect", async () => {
     api({
       plugins: [
         notes({
@@ -2267,11 +2366,13 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     expect(
-      await screen.findByRole("row", { name: "Notes Custom Needs more access" })
+      await screen.findByRole("row", {
+        name: "Notes Custom Connect Needs more access",
+      })
     ).toBeTruthy()
     const plugin = await details(user, "Notes")
     expect(within(plugin).getByText("Needs more access")).toBeTruthy()
-    expect(within(plugin).getByRole("button", { name: "Sign in" })).toBeTruthy()
+    expect(within(plugin).getByRole("button", { name: "Connect" })).toBeTruthy()
   })
 
   it("asks an account's plugin to sign in again, not for a new key", async () => {
@@ -2288,7 +2389,7 @@ describe("plugins settings", () => {
     expect(
       within(plugin).queryByRole("button", { name: "Replace key" })
     ).toBeNull()
-    await user.click(within(plugin).getByRole("button", { name: "Sign in" }))
+    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
 
     expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
     expect(
