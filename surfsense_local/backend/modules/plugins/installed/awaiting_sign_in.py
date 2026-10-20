@@ -1,7 +1,7 @@
 """An OAuth plugin kept before its sign-in finishes, so an abandoned one is not lost.
 
-Saved once the sign-in's page is ready, never before: a host still to be allowed retries
-the same request, which would find the plugin already taken.
+Saved once the authorization server's hosts are allowed, never before: a host still to be
+allowed retries the same request, which would find the plugin already taken.
 """
 
 from datetime import UTC, datetime

@@ -58,7 +58,7 @@ export function PluginsSettings({
   const [tab, setTab] = useState<Tab | null>(
     start === "browse" ? "browse" : null
   )
-  // A plugin connected from Add, Browse or search is finished in its details in Yours.
+  // Followed here, so a sign-in outlives the row, page or dialog that started it.
   const [signingIn, setSigningIn] = useState<string | null>(null)
   const refresh = () =>
     Promise.all(
@@ -73,15 +73,17 @@ export function PluginsSettings({
     if (name) connectedToast(name)
     void refresh()
   })
+  const followSignIn = (pluginId: string, started: SignInStarted) => {
+    setSigningIn(pluginId)
+    signIn.follow(started)
+  }
+  // Browse, its pages and search finish a plugin in its details in Yours.
   const openPlugin = async (pluginId: string, started?: SignInStarted) => {
     setAdding(false)
     setQuery("")
     setTab("yours")
-    if (started) {
-      // The browser opens at once; the details follow once the list has the plugin.
-      setSigningIn(pluginId)
-      signIn.follow(started)
-    }
+    // The browser opens at once; the details follow once the list has the plugin.
+    if (started) followSignIn(pluginId, started)
     await refresh()
     setOpenId(pluginId)
   }
@@ -107,15 +109,12 @@ export function PluginsSettings({
         value={(id, started) => void openPlugin(id, started)}
       >
         <OpenedSignInContext.Provider
-          value={
-            signingIn
-              ? {
-                  pluginId: signingIn,
-                  state: signIn.state,
-                  cancel: signIn.cancel,
-                }
-              : null
-          }
+          value={{
+            pluginId: signingIn,
+            state: signIn.state,
+            cancel: signIn.cancel,
+            follow: followSignIn,
+          }}
         >
           <Tabs
             value={tab ?? "yours"}

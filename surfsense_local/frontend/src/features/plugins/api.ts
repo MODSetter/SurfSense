@@ -97,7 +97,6 @@ export type CustomPluginWrite = {
   name: string
   token?: string
   headers?: SignInHeader[]
-  oauth_client?: OwnApp
 }
 
 /** One of SurfSense's own plugins, from the list packaged into the app. */
@@ -219,10 +218,8 @@ export function firstPartyIconUrl(id: string): string {
 }
 
 /** A server asking for OAuth answers with a sign-in to finish in the browser. */
-export function addCustomPlugin(
-  write: CustomPluginWrite
-): Promise<Plugin | SignInStarted> {
-  return requestJson<Plugin | SignInStarted>("/plugins/custom", {
+export function addCustomPlugin(write: CustomPluginWrite): Promise<Plugin> {
+  return requestJson<Plugin>("/plugins/custom", {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify(write),

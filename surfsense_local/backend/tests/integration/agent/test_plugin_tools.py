@@ -482,7 +482,9 @@ def signed_in_notes(
 async def sign_in_to_notes(api: AgentAPI, url: str) -> None:
     """Connect the notes server through its sign-in, and let its search run without asking."""
     await api.http.put("/plugins/third-party", json={"allowed": True})
-    started = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
+    added = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
+    assert added.status_code == 201, added.text
+    started = await api.http.post("/plugins/notes/sign-in")
     assert started.status_code == 202, started.text
     page = await approve_in_browser(api.http, started.json()["authorization_url"])
     assert page.status_code == 200, page.text

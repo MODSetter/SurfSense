@@ -198,9 +198,11 @@ def behind_sign_in() -> Iterator[SignedIn]:
 async def sign_in(gateway: Gateway, url: str) -> None:
     """Add the server by URL and finish its sign-in, as the screen and the browser do."""
     await gateway.http.put("/plugins/third-party", json={"allowed": True})
-    started = await gateway.http.post(
+    added = await gateway.http.post(
         "/plugins/custom", json={"url": url, "name": "Notes"}
     )
+    assert added.status_code == 201, added.text
+    started = await gateway.http.post("/plugins/notes/sign-in")
     assert started.status_code == 202, started.text
     page = await approve_in_browser(gateway.http, started.json()["authorization_url"])
     assert page.status_code == 200, page.text

@@ -88,15 +88,26 @@ async def approve_in_browser(
     return await client.get(f"{path}?{back.query}")
 
 
+async def test_a_custom_server_asking_for_oauth_is_added_to_connect_from_its_row(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """Add saves it, signed out: nothing is registered and no sign-in starts until Connect."""
+    added = await client.post(
+        "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
+    )
+
+    assert added.status_code == 201, added.text
+    assert added.json()["never_signed_in"] is True
+    assert added.json()["check_failure"] == "sign_in"
+    assert servers.authorization.registered == []
+    await _waiting_to_sign_in(client)
+
+
 async def test_a_custom_server_asking_for_oauth_signs_in_and_lists_its_tools(
     client: AsyncClient, servers: SignInServers
 ) -> None:
     """Discovery, registration and PKCE, the code back on the API's port, a stored token."""
-    started = await client.post(
-        "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
-    )
-    assert started.status_code == 202, started.text
-    sign_in = started.json()
+    sign_in = await start_custom(client, servers)
     query = parse_qs(urlsplit(sign_in["authorization_url"]).query)
     assert query["redirect_uri"] == ["http://127.0.0.1:8000/plugins/oauth/callback"]
     assert query["code_challenge_method"] == ["S256"]
@@ -168,11 +179,13 @@ async def test_a_pre_registered_client_and_its_scopes_are_used_without_registeri
 
 
 async def start_custom(client: AsyncClient, servers: SignInServers) -> dict:
-    """Add the notes server by URL; it asks for OAuth, so a sign-in starts."""
+    """Add the notes server by URL, then Connect on its row, as the screen does."""
     await allow_third_party(client)
-    started = await client.post(
+    added = await client.post(
         "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
     )
+    assert added.status_code == 201, added.text
+    started = await client.post("/plugins/notes/sign-in")
     assert started.status_code == 202, started.text
     return started.json()
 

@@ -364,7 +364,18 @@ function api({
           connected = [...connected, kept]
           return Response.json(kept, { status: 201 })
         }
-        if (customSignsIn) return startSignIn({ ...added, auth_type: "oauth" })
+        if (customSignsIn) {
+          // Saved signed out, for Connect on its row.
+          const saved: Plugin = {
+            ...added,
+            auth_type: "oauth",
+            check_failure: "sign_in",
+            never_signed_in: true,
+            tools: [],
+          }
+          connected = [...connected, saved]
+          return Response.json(saved, { status: 201 })
+        }
         connected = [...connected, added]
         return Response.json(added, { status: 201 })
       }
@@ -577,7 +588,7 @@ describe("plugins settings", () => {
     )
   })
 
-  it("signs in from a row's Connect in the plugin's details, the browser open at once", async () => {
+  it("signs in from a row's Connect in the row, the browser open at once, and Cancel ends it", async () => {
     const openExternal = browser()
     const calls = api({
       allowed: true,
@@ -594,11 +605,16 @@ describe("plugins settings", () => {
     })
     await user.click(within(row).getByRole("button", { name: "Connect" }))
 
+    // The list stays; the row follows the sign-in.
     expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
-    const plugin = await screen.findByRole("region", { name: "Notes" })
-    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(await within(row).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
+    await user.click(within(row).getByRole("button", { name: "Cancel" }))
+
+    expect(within(row).getByRole("button", { name: "Connect" })).toBeTruthy()
     expect(changes(calls)).toEqual([
       { method: "POST", path: "/plugins/notes/sign-in", body: null },
+      { method: "DELETE", path: "/plugins/sign-ins/s-1", body: null },
     ])
   })
 
@@ -822,7 +838,7 @@ describe("plugins settings", () => {
 
     const dialog = await addDialog(user)
     expect(within(dialog).queryByLabelText("Header value")).toBeNull()
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     expect(
       await screen.findByRole("row", { name: "Notes Custom On" })
@@ -848,7 +864,7 @@ describe("plugins settings", () => {
     await user.clear(within(dialog).getByLabelText("Header name"))
     await user.type(within(dialog).getByLabelText("Header name"), "x-api-key")
     await user.type(within(dialog).getByLabelText("Header value"), "k-1")
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     expect(
       await screen.findByRole("row", { name: "Notes Custom On" })
@@ -880,7 +896,7 @@ describe("plugins settings", () => {
     ).toBe("Authorization")
     expect(within(dialog).queryByRole("radio")).toBeNull()
     await user.type(within(dialog).getByLabelText("Header value"), "Bearer k-1")
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     await waitFor(() =>
       expect(changes(calls)[0]?.body).toEqual({
@@ -906,7 +922,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const dialog = await addDialog(user)
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     expect((await within(dialog).findByRole("alert")).textContent).toBe(
       "This server needs a key. Add one and try again."
@@ -928,7 +944,7 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const dialog = await addDialog(user)
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     expect((await within(dialog).findByRole("alert")).textContent).toBe(
       "This address doesn’t answer as an MCP server. Check the URL."
@@ -950,57 +966,73 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const dialog = await addDialog(user)
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     expect((await within(dialog).findByRole("alert")).textContent).toBe(
       "This address is no longer served; its server may have moved it. Check its documentation for a new one."
     )
   })
 
-  it("starts the sign-in for a server that asks for an account", async () => {
+  it("adds a server that asks for an account, to connect from its row in Yours", async () => {
     const openExternal = browser()
-    api({ plugins: [], allowed: true, customSignsIn: true })
+    const calls = api({ plugins: [], allowed: true, customSignsIn: true })
     const user = userEvent.setup()
-    render(<PluginsSettings />)
+    render(
+      <>
+        <Toaster />
+        <PluginsSettings />
+      </>
+    )
 
     const dialog = await addDialog(user)
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
-    // Add closes; the plugin's details follow the sign-in the browser opened.
-    expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
+    // Add only saves it: the list shows it, nothing opened, no sign-in started.
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
-    const plugin = await screen.findByRole("region", { name: "Notes" })
-    expect(await within(plugin).findByText("Waiting for sign-in…")).toBeTruthy()
-    await waitFor(
-      () => expect(within(plugin).queryByText("Not connected")).toBeNull(),
-      AFTER_POLLS
-    )
-    await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
-      await screen.findByRole("row", { name: "Notes Custom On" })
+      await screen.findByText("Notes added. Connect it to sign in.")
     ).toBeTruthy()
+    const row = await screen.findByRole("row", { name: "Notes Custom Connect" })
+    expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
+    expect(openExternal).not.toHaveBeenCalled()
+
+    // Connect on its row signs in, followed in the row.
+    await user.click(within(row).getByRole("button", { name: "Connect" }))
+    expect(openExternal).toHaveBeenCalledWith(SIGN_IN_PAGE)
+    expect(await within(row).findByText("Waiting for sign-in…")).toBeTruthy()
+    expect(
+      await screen.findByRole("row", { name: "Notes Custom On" }, AFTER_POLLS)
+    ).toBeTruthy()
+    expect(changes(calls).map((call) => call.path)).toEqual([
+      "/plugins/custom",
+      "/plugins/notes/sign-in",
+    ])
   })
 
-  it("keeps a server needing the user's own OAuth app, and opens it to set one up", async () => {
+  it("adds a server needing the user's own OAuth app, which its row's Connect sets up", async () => {
     browser()
     const calls = api({ plugins: [], allowed: true, customNeedsOwnApp: true })
     const user = userEvent.setup()
-    render(<PluginsSettings />)
+    render(
+      <>
+        <Toaster />
+        <PluginsSettings />
+      </>
+    )
 
     const dialog = await addDialog(user)
-    await user.click(within(dialog).getByRole("button", { name: "Connect" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
-    // Add closes; the kept plugin's details open, saying what it needs.
+    // Add closes on Yours, the row saying what Connect will ask for.
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
-    const plugin = await screen.findByRole("region", { name: "Notes" })
-    const needs = within(plugin).getByText("Needs an OAuth app")
-    expect(needs.className).toContain("text-warning")
     expect(
-      within(plugin).getByRole("button", {
-        name: "Notes accepts only apps registered with it.",
-      })
+      await screen.findByText("Notes added. Connect it to set up an OAuth app.")
     ).toBeTruthy()
-    await user.click(within(plugin).getByRole("button", { name: "Connect" }))
+    const row = await screen.findByRole("row", {
+      name: "Notes Custom Connect Needs an OAuth app",
+    })
+    expect(screen.queryByRole("region", { name: "Notes" })).toBeNull()
+    await user.click(within(row).getByRole("button", { name: "Connect" }))
     const ownApp = await screen.findByRole("dialog", {
       name: "Connect Notes with your own app",
     })
@@ -1559,7 +1591,7 @@ describe("plugins settings", () => {
 
     const dialog = await addDialog(user)
     const connect = within(dialog).getByRole("button", {
-      name: "Connect",
+      name: "Add",
     }) as HTMLButtonElement
     expect(connect.disabled).toBe(true)
     await user.click(

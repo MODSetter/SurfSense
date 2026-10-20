@@ -9,8 +9,7 @@ import { pluginsQueryKey, signInAgain, type Plugin } from "../api"
 import { refusalMessage } from "../refusal-message"
 import { PluginOwnAppDialog } from "./own-app/plugin-own-app-dialog"
 import { ownAppReason, type OwnAppReason } from "./own-app/own-app-reason"
-import { useOpenPlugin } from "../open-plugin"
-import { useOpenedSignIn } from "./opened-sign-in"
+import { useFollowSignIn, useOpenedSignIn } from "./opened-sign-in"
 import { signInFailureMessage } from "./sign-in-failure-text"
 import { SignInProgress } from "./sign-in-progress"
 
@@ -31,12 +30,12 @@ export function SignInAgainButton({
   const queryClient = useQueryClient()
   // Started when the plugin was connected elsewhere, and followed above this button.
   const opened = useOpenedSignIn(plugin.id)
-  const openPlugin = useOpenPlugin()
+  const follow = useFollowSignIn()
   const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const start = useMutation({
     mutationFn: () => signInAgain(plugin.id),
-    // Followed in the plugin's details, which a row's Connect opens, so leaving the row keeps it.
-    onSuccess: (started) => openPlugin(plugin.id, started),
+    // Followed by Settings › Plugins and shown here, so leaving the row or page keeps it.
+    onSuccess: (started) => follow(plugin.id, started),
     onError: (refused) => {
       setOwnApp(ownAppReason(refused))
       // Marked as needing the user's app, which its status now says.

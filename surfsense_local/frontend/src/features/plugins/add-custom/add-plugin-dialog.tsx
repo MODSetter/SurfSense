@@ -21,13 +21,12 @@ import { ApiError } from "@/lib/api"
 
 import {
   addCustomPlugin,
-  isSignInStarted,
   pluginsQueryKey,
   thirdPartyAllowed,
   thirdPartyQueryKey,
   type SignInHeader,
 } from "../api"
-import { connectedToast, keptToast } from "../connect-toasts"
+import { addedToast } from "../connect-toasts"
 import {
   headersComplete,
   sentHeaders,
@@ -42,13 +41,12 @@ import {
 } from "../connection/scrolling-dialog"
 import { ThirdPartySwitch } from "../browse/third-party-switch"
 import { usePluginChanges } from "../details/use-plugin-changes"
-import { useOpenPlugin } from "../open-plugin"
 import { refusalMessage } from "../refusal-message"
 
 /**
- * Name, URL and Connect. Connect does the rest: an open server connects, one asking for a
- * key opens Advanced settings, and one asking for an account is saved and opened in Yours,
- * where it signs in, or sets up the user's own app if its provider takes only those.
+ * Name, URL and Add. Add puts the server in Yours: an open server or one with its key works at
+ * once, one asking for a key it was not given opens Advanced settings, and one asking for an
+ * account waits for Connect on its row, as Claude's custom connectors do.
  */
 function AddPluginForm({
   onCancel,
@@ -59,7 +57,6 @@ function AddPluginForm({
 }) {
   const fieldId = useId()
   const queryClient = useQueryClient()
-  const openPlugin = useOpenPlugin()
   // A server added by URL is a third-party plugin: adding one reaches it, so it waits for
   // the switch, allowed here with the same consent as in Browse.
   const thirdParty = useQuery({
@@ -74,34 +71,22 @@ function AddPluginForm({
   const [advanced, setAdvanced] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const added = () => {
-    connectedToast(name.trim())
-    void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
-    onAdded()
-  }
   const ready = name.trim() !== "" && url.trim() !== "" && headersComplete(rows)
 
-  const connect = async (event: SubmitEvent) => {
+  const add = async (event: SubmitEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
     const headers = sentHeaders(rows)
     try {
-      const answer = await addCustomPlugin({
+      const plugin = await addCustomPlugin({
         url: url.trim(),
         name: name.trim(),
         ...(headers.length ? { headers } : {}),
       })
-      if (isSignInStarted(answer)) {
-        // Followed in its details in Yours, so closing this dialog keeps it.
-        openPlugin(answer.plugin_id, answer)
-      } else if (answer.needs_own_app) {
-        // Kept, signed out: its details set up the app it needs.
-        keptToast(answer.name)
-        openPlugin(answer.id)
-      } else {
-        added()
-      }
+      addedToast(plugin)
+      void queryClient.invalidateQueries({ queryKey: pluginsQueryKey })
+      onAdded()
     } catch (refused) {
       setError(refusalMessage(refused))
       if (
@@ -116,7 +101,7 @@ function AddPluginForm({
   }
 
   return (
-    <form className={SCROLLING_FORM} onSubmit={(event) => void connect(event)}>
+    <form className={SCROLLING_FORM} onSubmit={(event) => void add(event)}>
       <ScrollFade
         className={SCROLLING_FIELDS}
         viewportClassName={SCROLLING_FIELDS_VIEWPORT}
@@ -212,8 +197,8 @@ function AddPluginForm({
         <Button type="submit" disabled={busy || !ready || !allowed}>
           {busy ? <Spinner data-icon="inline-start" /> : null}
           {intl.formatMessage({
-            id: "plugins_add_connect_button",
-            defaultMessage: "Connect",
+            id: "plugins_add_submit_button",
+            defaultMessage: "Add",
           })}
         </Button>
       </DialogFooter>

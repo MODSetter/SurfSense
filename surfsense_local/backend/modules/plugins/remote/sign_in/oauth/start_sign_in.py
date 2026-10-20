@@ -1,5 +1,6 @@
-"""Starting a sign-in from a connect route: discovery, consent for the authorization
-server's hosts, then the authorization URL. The plugin's own hosts are allowed already."""
+"""A sign-in from a connect route: discovery, consent for the authorization server's hosts,
+then the authorization URL; or, for a server added by URL, the plugin saved to connect from
+its row. The plugin's own hosts are allowed already."""
 
 import logging
 from dataclasses import replace
@@ -50,30 +51,27 @@ def get_sign_ins(request: Request) -> PluginSignIns:
 SignInsDep = Annotated[PluginSignIns, Depends(get_sign_ins)]
 
 
+async def save_for_sign_in(session: Session, draft: PluginDraft) -> bool:
+    """Added by URL, saved signed out for Connect on its row: nothing is registered and no
+    sign-in starts until then. False when the server's refusal does not ask for OAuth."""
+    draft = await _discovered(session, draft)
+    if draft is None:
+        return False
+    if await _registers_none(draft):
+        await transact(session, keep_needing_own_app, draft, "needs_client")
+    else:
+        await transact(session, store_awaiting_sign_in, draft)
+    return True
+
+
 async def start_sign_in(
     session: Session, request: Request, draft: PluginDraft
 ) -> SignInStarted | None:
     """None when the server's refusal does not ask for OAuth."""
-    allowed = set(_draft_hosts(draft))
-    try:
-        discovery = await discover_oauth(draft.url, allowed)
-    except HostNotAllowedError as unasked:
-        raise await _refusal(session, unasked) from unasked
-    except httpx2.HTTPError as error:
-        raise _sign_in_failed() from error
-    if discovery is None:
+    draft = await _discovered(session, draft)
+    if draft is None:
         return None
-    refusal = await transact(
-        session, refused_hosts, discovery.authorization_server_hosts
-    )
-    if refusal is not None:
-        raise refusal
-
-    draft = draft.with_hosts(discovery.authorization_server_hosts)
-    offer = None if draft.client_id else await _offer(draft)
-    if offer is not None and not _can_register(offer):
-        # Said at once: registering would only be refused, after requests sent for nothing.
-        logger.info("%s registers no apps; asking for the user's own", _host(draft))
+    if await _registers_none(draft):
         raise await _own_app_needed(session, draft, "needs_client")
     try:
         pending = await _started(request, draft)
@@ -89,6 +87,33 @@ async def start_sign_in(
         await transact(session, store_awaiting_sign_in, pending.draft)
         pending.draft = replace(pending.draft, existing=True)
     return started(pending)
+
+
+async def _discovered(session: Session, draft: PluginDraft) -> PluginDraft | None:
+    """The draft with its authorization server's hosts, once the user allowed them."""
+    try:
+        discovery = await discover_oauth(draft.url, set(_draft_hosts(draft)))
+    except HostNotAllowedError as unasked:
+        raise await _refusal(session, unasked) from unasked
+    except httpx2.HTTPError as error:
+        raise _sign_in_failed() from error
+    if discovery is None:
+        return None
+    refusal = await transact(
+        session, refused_hosts, discovery.authorization_server_hosts
+    )
+    if refusal is not None:
+        raise refusal
+    return draft.with_hosts(discovery.authorization_server_hosts)
+
+
+async def _registers_none(draft: PluginDraft) -> bool:
+    """Read before any registration, which would only be refused after requests sent for nothing."""
+    offer = None if draft.client_id else await _offer(draft)
+    if offer is None or _can_register(offer):
+        return False
+    logger.info("%s registers no apps; asking for the user's own", _host(draft))
+    return True
 
 
 async def _started(request: Request, draft: PluginDraft):

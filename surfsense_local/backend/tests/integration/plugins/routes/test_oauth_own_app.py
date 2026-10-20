@@ -48,9 +48,10 @@ def servers() -> Iterator[SignInServers]:
 
 
 async def _signed_in(client: AsyncClient, url: str, **write) -> dict:
-    started = await client.post(
-        "/plugins/custom", json={"url": url, "name": "Notes", **write}
-    )
+    """Added, then Connect on its row, with the user's own app when one is given."""
+    added = await client.post("/plugins/custom", json={"url": url, "name": "Notes"})
+    assert added.status_code == 201, added.text
+    started = await client.post("/plugins/notes/sign-in", json=write or None)
     assert started.status_code == 202, started.text
     page = await approve_in_browser(client, started.json()["authorization_url"])
     assert "Signed in to Notes" in page.text, page.text
@@ -219,7 +220,8 @@ async def test_a_provider_registering_only_clients_with_a_secret_issues_one(
 async def test_a_provider_refusing_to_register_surfsense_says_so(
     client: AsyncClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Told apart from a provider with no registration at all, and kept to set up."""
+    """Found at Connect, as only registering tells; told apart from a provider with no
+    registration at all, and kept to set up."""
     caplog.set_level(logging.INFO)
     authorization = StandInAuthorizationServer(refuse_registration=True)
     with serving(authorization.app()) as issuer:
@@ -228,12 +230,16 @@ async def test_a_provider_refusing_to_register_surfsense_says_so(
             notes_server().streamable_http_app(), authorization
         )
         with serving(protected) as base:
-            refused = await client.post(
+            added = await client.post(
                 "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
             )
+            refused = await client.post("/plugins/notes/sign-in")
 
-    assert refused.status_code == 201, refused.text
-    assert refused.json()["needs_own_app"] == "refused"
+    assert added.json()["needs_own_app"] is None
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_oauth_refused"
+    (plugin,) = (await client.get("/plugins")).json()
+    assert plugin["needs_own_app"] == "refused"
     # An answer SurfSense handles: one line saying so, never the SDK's traceback.
     assert not [r for r in caplog.records if r.exc_info]
     assert "refused to register SurfSense" in caplog.text
@@ -246,9 +252,8 @@ async def test_the_list_says_which_plugins_sign_in_with_the_users_own_app(
 ) -> None:
     """Only those offer to change it; one SurfSense registered itself offers nothing."""
     await _signed_in(client, registered_only.mcp_url, oauth_client=OWN_APP)
-    started = await client.post(
-        "/plugins/custom", json={"url": servers.mcp_url, "name": "Wiki"}
-    )
+    await client.post("/plugins/custom", json={"url": servers.mcp_url, "name": "Wiki"})
+    started = await client.post("/plugins/wiki/sign-in")
     await approve_in_browser(client, started.json()["authorization_url"])
 
     listed = {p["id"]: p["own_app"] for p in (await client.get("/plugins")).json()}

@@ -1,6 +1,6 @@
 """The `/plugins` routes: connecting, listing and switching plugins, the same for every kind."""
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
@@ -57,11 +57,11 @@ from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
     listed_after_refresh,
 )
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH
-from modules.plugins.remote.sign_in.oauth.own_app import OwnApp, own_app_auth
-from modules.plugins.remote.sign_in.oauth.own_app_needed import OwnAppNeededError
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
-from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
-from modules.plugins.remote.sign_in.oauth.start_sign_in import SignInsDep, start_sign_in
+from modules.plugins.remote.sign_in.oauth.start_sign_in import (
+    SignInsDep,
+    save_for_sign_in,
+)
 from modules.plugins.remote.sign_in.plugin_headers import (
     LICENSE,
     license_headers,
@@ -121,8 +121,6 @@ class CustomPluginWrite(BaseModel):
     # Any key, in whichever headers the server reads; `token` is one Bearer header.
     headers: list[SignInHeader] | None = None
     token: str | None = None
-    # For a provider taking only apps registered in advance.
-    oauth_client: OwnApp | None = None
 
 
 class HeadersWrite(BaseModel):
@@ -136,17 +134,14 @@ def list_plugins(session: SessionDep) -> list[PluginRead]:
 
 @router.post(
     "/custom",
-    response_model=PluginRead | SignInStarted,
+    response_model=PluginRead,
     status_code=status.HTTP_201_CREATED,
     summary="Add a remote server by URL",
 )
 async def add_custom_plugin(
-    payload: CustomPluginWrite,
-    request: Request,
-    response: Response,
-    session: SessionDep,
-) -> PluginRead | SignInStarted:
-    """A server whose refusal asks for OAuth starts a sign-in instead: `202` with its page."""
+    payload: CustomPluginWrite, session: SessionDep
+) -> PluginRead:
+    """A server whose refusal asks for OAuth is saved signed out, to Connect from its row."""
     refusal = await transact(session, third_party_refusal, PluginSource.CUSTOM)
     if refusal is not None:
         raise refusal
@@ -188,40 +183,25 @@ async def add_custom_plugin(
     try:
         transport, tools = await listed_on_either(url, as_sent(headers))
     except ServerError as error:
-        try:
-            sign_in = (
-                await start_sign_in(
-                    session,
-                    request,
-                    PluginDraft(
-                        plugin_id=plugin_id,
-                        name=payload.name,
-                        url=url,
-                        source=PluginSource.CUSTOM,
-                        entry={
-                            "name": payload.name,
-                            "hosts": [url_host(url)],
-                            "auth": (
-                                own_app_auth(payload.oauth_client)
-                                if payload.oauth_client
-                                else {"type": "oauth"}
-                            ),
-                        },
-                        scopes=app.scopes if (app := payload.oauth_client) else None,
-                        client_id=app.client_id.strip() if app else None,
-                        client_secret=app.client_secret if app else None,
-                    ),
-                )
-                if error.status == 401 and not headers
-                else None
-            )
-        except OwnAppNeededError:
-            # Kept, needing the user's own app, and set up from its row.
+        # A server asking for an account is saved, signed out, for Connect on its row.
+        draft = PluginDraft(
+            plugin_id=plugin_id,
+            name=payload.name,
+            url=url,
+            source=PluginSource.CUSTOM,
+            entry={
+                "name": payload.name,
+                "hosts": [url_host(url)],
+                "auth": {"type": "oauth"},
+            },
+        )
+        if (
+            error.status == 401
+            and not headers
+            and await save_for_sign_in(session, draft)
+        ):
             return await transact(session, _read_by_id, plugin_id)
-        if sign_in is None:
-            raise connect_refusal(error) from error
-        response.status_code = status.HTTP_202_ACCEPTED
-        return sign_in
+        raise connect_refusal(error) from error
 
     def store(s):
         plugin = store_custom_plugin(
