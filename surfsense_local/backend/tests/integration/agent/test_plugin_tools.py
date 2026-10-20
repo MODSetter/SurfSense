@@ -640,3 +640,23 @@ async def test_a_tool_blocked_mid_turn_is_refused_by_the_gateway(
     step = of_type(frames, "agent-step")[-1]
     assert step["status"] == "error"
     assert "blocked" in json.dumps(step)
+
+
+async def test_a_plugin_on_the_older_sse_transport_signed_in_with_oauth_is_called(
+    agent_api: AgentAPI,
+) -> None:
+    """As Asana's `/sse`: signed in like any other, then called over SSE through the gateway."""
+    authorization = StandInAuthorizationServer()
+    with serving(authorization.app()) as issuer:
+        authorization.issuer = issuer
+        protected = ProtectedByStandIn(notes_server().sse_app(), authorization)
+        with serving(protected) as base:
+            await sign_in_to_notes(agent_api, f"{base}/sse")
+            agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+            thread = await open_thread(agent_api)
+
+            frames = await send(agent_api, thread["id"], "Search")
+
+    assert of_type(frames, "agent-plugins-unavailable") == []
+    step = of_type(frames, "agent-step")[-1]
+    assert (step["tool"], step["status"]) == ("notes_search", "completed")

@@ -176,6 +176,32 @@ async def start_custom(client: AsyncClient, servers: SignInServers) -> dict:
     return started.json()
 
 
+@pytest.fixture
+def sse_servers() -> Iterator[SignInServers]:
+    """The notes server on the older SSE transport only, behind sign-in, as Asana's `/sse`
+    is: its POST answers 401 before any transport is chosen."""
+    authorization = StandInAuthorizationServer()
+    with serving(authorization.app()) as issuer:
+        authorization.issuer = issuer
+        protected = ProtectedByStandIn(notes_server().sse_app(), authorization)
+        with serving(protected) as base:
+            yield SignInServers(authorization, protected, f"{base}/sse")
+
+
+async def test_a_server_on_the_older_sse_transport_signs_in_and_lists_over_it(
+    client: AsyncClient, sse_servers: SignInServers
+) -> None:
+    """Signed in as any other; its tools are listed over SSE, and the plugin recorded on it."""
+    sign_in = await start_custom(client, sse_servers)
+    page = await approve_in_browser(client, sign_in["authorization_url"])
+
+    assert page.status_code == 200, page.text
+    (plugin,) = (await client.get("/plugins")).json()
+    assert plugin["transport"] == "sse"
+    assert plugin["check_failure"] is None
+    assert sorted(tool["name"] for tool in plugin["tools"]) == ["count", "search"]
+
+
 async def test_a_state_the_app_did_not_issue_is_refused_and_changes_nothing(
     client: AsyncClient, servers: SignInServers
 ) -> None:

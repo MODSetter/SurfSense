@@ -26,4 +26,4 @@ A plugin connected to a remote MCP server over Streamable HTTP, signed in with n
 - Any remote server that keys in headers, or signs in with OAuth by any of the spec's registrations, can be connected, and the dialog asks only for what its server needs.
 - A provider taking only registered apps works once the user registers one; SurfSense registers nothing with providers itself.
 - A server is not asked what it needs before it is added: Connect is that question, so the screen shows no tool count or sign-in kind ahead of time.
-- A server both on SSE only and behind OAuth cannot be signed in to: OAuth starts from a Streamable HTTP `401`.
+- A server on SSE only signs in when its POST asks for it, as Asana's, Atlassian's and PayPal's `/sse` do; one asking only on its stream cannot, since a sign-in starts from the POST's `401`.
