@@ -17,15 +17,19 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api"
 
-import { pluginsQueryKey, replacePluginHeaders, type Plugin } from "../api"
+import {
+  pluginsQueryKey,
+  replacePluginHeaders,
+  type Plugin,
+  type SignInHeader,
+} from "../api"
 import { connectedToast } from "../connect-toasts"
 import { refusalMessage } from "../refusal-message"
 import {
-  connectionHeaders,
-  draftFromNames,
-  keyComplete,
-  type ConnectionDraft,
-} from "./connection-draft"
+  headersComplete,
+  rowsFromNames,
+  sentHeaders,
+} from "./connection-headers"
 import { ConnectionEditor } from "./connection-editor"
 import {
   SCROLLING_DIALOG,
@@ -46,13 +50,13 @@ function EditConnectionForm({
   onSaved: () => void
 }) {
   // Names come back from the API; values never do, so each is typed again.
-  const [draft, setDraft] = useState<ConnectionDraft>(() =>
-    draftFromNames(plugin.header_names)
+  const [rows, setRows] = useState<SignInHeader[]>(() =>
+    rowsFromNames(plugin.header_names)
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const headers = connectionHeaders(draft)
-  const ready = headers.length > 0 && keyComplete(draft)
+  const headers = sentHeaders(rows)
+  const ready = headers.length > 0 && headersComplete(rows)
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -84,7 +88,7 @@ function EditConnectionForm({
         viewportClassName={SCROLLING_FIELDS_VIEWPORT}
       >
         <FieldGroup>
-          <ConnectionEditor draft={draft} onChange={setDraft} disabled={busy} />
+          <ConnectionEditor rows={rows} onChange={setRows} disabled={busy} />
           {error ? (
             <p role="alert" className="text-sm text-destructive">
               {error}

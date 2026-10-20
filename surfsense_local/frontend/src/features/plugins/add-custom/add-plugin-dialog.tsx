@@ -19,14 +19,18 @@ import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api"
 
-import { addCustomPlugin, isSignInStarted, pluginsQueryKey } from "../api"
+import {
+  addCustomPlugin,
+  isSignInStarted,
+  pluginsQueryKey,
+  type SignInHeader,
+} from "../api"
 import { connectedToast } from "../connect-toasts"
 import {
-  connectionHeaders,
-  EMPTY_CONNECTION,
-  keyComplete,
-  type ConnectionDraft,
-} from "../connection/connection-draft"
+  headersComplete,
+  sentHeaders,
+  STARTING_HEADERS,
+} from "../connection/connection-headers"
 import { ConnectionEditor } from "../connection/connection-editor"
 import {
   SCROLLING_DIALOG,
@@ -59,7 +63,7 @@ function AddPluginForm({
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
-  const [draft, setDraft] = useState<ConnectionDraft>(EMPTY_CONNECTION)
+  const [rows, setRows] = useState<SignInHeader[]>(STARTING_HEADERS)
   const [advanced, setAdvanced] = useState(false)
   const [ownApp, setOwnApp] = useState<OwnAppReason | null>(null)
   const [busy, setBusy] = useState(false)
@@ -71,16 +75,13 @@ function AddPluginForm({
   // A server asking for OAuth is kept from the start, and connected once signed in.
   const signIn = usePluginSignIn(added)
   const locked = busy || signIn.state.phase === "waiting"
-  const ready =
-    name.trim() !== "" &&
-    url.trim() !== "" &&
-    (!draft.key || keyComplete(draft))
+  const ready = name.trim() !== "" && url.trim() !== "" && headersComplete(rows)
 
   const connect = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     setError(null)
-    const headers = connectionHeaders(draft)
+    const headers = sentHeaders(rows)
     try {
       const answer = await addCustomPlugin({
         url: url.trim(),
@@ -185,8 +186,8 @@ function AddPluginForm({
             </div>
             {advanced ? (
               <ConnectionEditor
-                draft={draft}
-                onChange={setDraft}
+                rows={rows}
+                onChange={setRows}
                 disabled={locked}
               />
             ) : null}
@@ -222,8 +223,8 @@ function AddPluginForm({
             addCustomPlugin({
               url: url.trim(),
               name: name.trim(),
-              ...(connectionHeaders(draft).length
-                ? { headers: connectionHeaders(draft) }
+              ...(sentHeaders(rows).length
+                ? { headers: sentHeaders(rows) }
                 : {}),
               oauth_client: app,
             })

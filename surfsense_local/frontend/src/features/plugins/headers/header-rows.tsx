@@ -46,6 +46,14 @@ export function HeaderRows({
             type="password"
             autoComplete="off"
             value={row.value}
+            placeholder={
+              row.name.trim().toLowerCase() === "authorization"
+                ? intl.formatMessage({
+                    id: "plugins_headers_bearer_placeholder",
+                    defaultMessage: "Bearer your-key",
+                  })
+                : undefined
+            }
             onChange={(event) => change(index, { value: event.target.value })}
             className="flex-1"
             disabled={disabled}
