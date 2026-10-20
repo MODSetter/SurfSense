@@ -992,7 +992,9 @@ describe("plugins settings", () => {
     const needs = within(plugin).getByText("Needs an OAuth app")
     expect(needs.className).toContain("text-warning")
     expect(
-      within(plugin).getByText("Notes accepts only apps registered with it.")
+      within(plugin).getByRole("button", {
+        name: "Notes accepts only apps registered with it.",
+      })
     ).toBeTruthy()
     await user.click(within(plugin).getByRole("button", { name: "Connect" }))
     const ownApp = await screen.findByRole("dialog", {
@@ -1468,8 +1470,11 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
+    expect(within(plugin).getByText("Not used")).toBeTruthy()
     expect(
-      within(plugin).getByText("Not used until third-party plugins are allowed")
+      within(plugin).getByRole("button", {
+        name: "Not used until third-party plugins are allowed",
+      })
     ).toBeTruthy()
     await browse(user)
     await user.click(
@@ -2447,9 +2452,52 @@ describe("plugins settings", () => {
     render(<PluginsSettings />)
 
     const plugin = await details(user, "Notes")
+    expect(within(plugin).getByText("No longer listed").className).toContain(
+      "text-warning"
+    )
+    // Why is one hover or focus away, the registry's own words.
+    await user.hover(
+      within(plugin).getByRole("button", { name: "The service shut down." })
+    )
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "The service shut down."
+    )
+  })
+
+  it("says a plugin's state, why behind its info button, and its tools' notes with its tools", async () => {
+    api({
+      plugins: [
+        notes({
+          name: "GitHub",
+          auth_type: "oauth",
+          check_failure: "sign_in",
+          never_signed_in: true,
+          needs_own_app: "needs_client",
+          tools: [],
+        }),
+      ],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "GitHub")
+    const state = within(plugin).getByText("Needs an OAuth app")
+    const line = state.parentElement!
+    // The state alone shows; why is behind the info button beside it.
+    expect(line.textContent).toBe("Needs an OAuth app")
+    await user.hover(
+      within(line).getByRole("button", {
+        name: "GitHub accepts only apps registered with it.",
+      })
+    )
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "GitHub accepts only apps registered with it."
+    )
+    // Not part of the state: it says why no tools show.
     expect(
-      within(plugin).getByText("No longer listed: The service shut down.")
-    ).toBeTruthy()
+      line.contains(within(plugin).getByText("Connect to see its tools."))
+    ).toBe(false)
   })
 })
 
