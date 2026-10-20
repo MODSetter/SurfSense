@@ -13,7 +13,11 @@ const TONES = {
 /** The download call to action. */
 export function HomeDownloadButton({ tone = "light" }: { tone?: keyof typeof TONES }) {
 	return (
-		<HomeButton asChild size="xl" className={cn("rounded-full px-5", TONES[tone])}>
+		<HomeButton
+			asChild
+			size="xl"
+			className={cn("h-11 rounded-full px-5 text-[0.9375rem]", TONES[tone])}
+		>
 			<Link href={DOWNLOADS_URL}>Download for desktop</Link>
 		</HomeButton>
 	);
