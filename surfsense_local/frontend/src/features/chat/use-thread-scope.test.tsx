@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { SourceScope } from "@/features/sources/tree/scope-state"
 
 import type { ChatThread } from "./api"
+import type { NumberedEvent } from "./sse"
+import { beginRun, pump, resetChatRuns } from "./runs/run-store"
 import {
   clearDraftScope,
   readDraftScope,
@@ -37,8 +39,12 @@ const without = (ids: number[]): SourceScope => ({
 
 afterEach(() => {
   localStorage.clear()
+  resetChatRuns()
   vi.mocked(storeThreadScope).mockReset()
 })
+
+/** A reply that ends as soon as it is followed. */
+async function* noFrames(): AsyncGenerator<NumberedEvent> {}
 
 describe("a new chat's draft", () => {
   it("reads only a whole draft back", () => {
@@ -117,5 +123,40 @@ describe("storing a thread's ticks", () => {
       [10, without([20, 21])],
     ])
     expect(setSourceScope).toHaveBeenCalledTimes(1)
+    // The thread's stores outlive the page: leave none pending behind.
+    await act(async () => {
+      settle[1]?.()
+    })
+  })
+
+  it("holds a tick made while the reply runs, and stores it once the reply ends even after the page is gone", async () => {
+    vi.mocked(storeThreadScope).mockResolvedValue({
+      source_scope: draft,
+      counts: { ready: 0, indexing: 0, failed: 0, removed: 0 },
+    })
+    beginRun(10, { workspaceId: 1 })
+    const { rerender, unmount } = renderHook(
+      (props: { scope: SourceScope; edits: number }) =>
+        useThreadScope({
+          workspaceId: 1,
+          view: { status: "active", threadId: 10 },
+          activeThread: thread,
+          sourceScope: props.scope,
+          scopeEdits: props.edits,
+          setSourceScope: vi.fn(),
+        }),
+      { wrapper, initialProps: { scope: without([]), edits: 0 } }
+    )
+    rerender({ scope: without([20]), edits: 1 })
+    await act(async () => {})
+    expect(storeThreadScope).not.toHaveBeenCalled()
+    // The user leaves the page while the reply is still coming in.
+    unmount()
+    await act(async () => {
+      await pump(10, noFrames())
+    })
+    expect(vi.mocked(storeThreadScope).mock.calls).toEqual([
+      [10, without([20])],
+    ])
   })
 })

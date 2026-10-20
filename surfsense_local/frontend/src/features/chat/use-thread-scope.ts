@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react"
+import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { errorToast } from "@/features/feedback/error-toast"
@@ -7,7 +7,7 @@ import { intl } from "@/i18n/intl"
 
 import { type ChatThread, storeThreadScope } from "./api"
 import { chatKeys } from "./query-keys"
-import { runSummaries, subscribeToRuns } from "./runs/run-store"
+import { onRunEnded, runSummaries } from "./runs/run-store"
 import type { ConversationView } from "./use-chat-runtime"
 
 const EVERY_SOURCE: SourceScope = {
@@ -73,6 +73,62 @@ export function clearDraftScope(workspaceId: number) {
   writeDraftScope(workspaceId, null)
 }
 
+// A run outlives the page, so what waits on it lives here, not in a hook: the
+// ticks held while a thread's reply runs, and the order of a thread's stores.
+const stores = new Map<number, Promise<void>>()
+const heldScopes = new Map<number, SourceScope>()
+// Each mounted page keeps its threads cache in step with what is stored.
+const cacheWriters = new Set<(threadId: number, scope: SourceScope) => void>()
+
+// Each thread's stores run one after another, so an older one cannot land
+// after a newer one and leave the thread with ticks the user has changed.
+function queueStore(threadId: number, scope: SourceScope) {
+  for (const write of cacheWriters) write(threadId, scope)
+  const previous = stores.get(threadId) ?? Promise.resolve()
+  const pending = previous
+    .then(() => storeThreadScope(threadId, scope))
+    .then(
+      () => undefined,
+      () => {
+        // The next turn sends the ticks anyway; until then the thread
+        // would open with its earlier ticks after a reload.
+        errorToast(
+          intl.formatMessage({
+            id: "chat_scope_save_error",
+            defaultMessage: "Couldn’t save which sources this chat uses",
+          }),
+          {
+            description: intl.formatMessage({
+              id: "chat_scope_save_body",
+              defaultMessage: "They go with your next message anyway.",
+            }),
+          }
+        )
+      }
+    )
+  stores.set(threadId, pending)
+  void pending.then(() => {
+    if (stores.get(threadId) === pending) stores.delete(threadId)
+  })
+}
+
+/**
+ * Stores now, or once the thread's reply has ended: the agent's tools read
+ * the stored scope on every call, and a turn keeps the ticks it started with.
+ */
+function storeWhenIdle(threadId: number, scope: SourceScope) {
+  const run = runSummaries()[threadId]
+  if (run !== undefined && !run.ended) heldScopes.set(threadId, scope)
+  else queueStore(threadId, scope)
+}
+
+onRunEnded((threadId) => {
+  const scope = heldScopes.get(threadId)
+  if (scope === undefined) return
+  heldScopes.delete(threadId)
+  queueStore(threadId, scope)
+})
+
 /**
  * Keeps the sources panel's ticks with the chat they belong to. Opening a
  * thread puts its stored scope on screen; a tick made in it between turns is
@@ -101,75 +157,29 @@ export function useThreadScope({
 }) {
   const queryClient = useQueryClient()
   const threadId = view.status === "active" ? view.threadId : null
-  const runs = useSyncExternalStore(subscribeToRuns, runSummaries)
-  const replyRunning = (id: number) => {
-    const run = runs[id]
-    return run !== undefined && !run.ended
-  }
   // The chat whose ticks are on screen; a thread not in the list yet waits.
   const shown = useRef<{ workspaceId: number; threadId: number | null } | null>(
     null
   )
   const seenEdits = useRef(scopeEdits)
-  // Each thread's stores run one after another, so an older one cannot land
-  // after a newer one and leave the thread with ticks the user has changed.
-  const stores = useRef(new Map<number, Promise<void>>())
-  // Ticks made while a thread's reply runs, stored once it ends.
-  const held = useRef(new Map<number, SourceScope>())
 
-  // Keeps the thread's cached entry in step, so reopening it shows the ticks
-  // before the list is read again, and stores them.
-  const store = (threadId: number, scope: SourceScope) => {
-    queryClient.setQueryData<ChatThread[]>(
-      chatKeys.threads(workspaceId),
-      (threads) =>
-        threads?.map((thread) =>
-          thread.id === threadId ? { ...thread, source_scope: scope } : thread
-        )
-    )
-    const previous = stores.current.get(threadId) ?? Promise.resolve()
-    const pending = previous
-      .then(() => storeThreadScope(threadId, scope))
-      .then(
-        () => undefined,
-        () => {
-          // The next turn sends the ticks anyway; until then the thread
-          // would open with its earlier ticks after a reload.
-          errorToast(
-            intl.formatMessage({
-              id: "chat_scope_save_error",
-              defaultMessage: "Couldn’t save which sources this chat uses",
-            }),
-            {
-              description: intl.formatMessage({
-                id: "chat_scope_save_body",
-                defaultMessage: "They go with your next message anyway.",
-              }),
-            }
-          )
-        }
-      )
-    stores.current.set(threadId, pending)
-    void pending.then(() => {
-      if (stores.current.get(threadId) === pending) {
-        stores.current.delete(threadId)
-      }
-    })
-  }
-
-  // Stores now, or once the thread's reply has ended.
-  const storeWhenIdle = (threadId: number, scope: SourceScope) => {
-    if (replyRunning(threadId)) held.current.set(threadId, scope)
-    else store(threadId, scope)
-  }
-
+  // Keeps the thread's cached entry in step with each store, so reopening the
+  // thread shows the ticks before the list is read again.
   useEffect(() => {
-    for (const [id, scope] of held.current) {
-      if (replyRunning(id)) continue
-      held.current.delete(id)
-      store(id, scope)
+    const write = (threadId: number, scope: SourceScope) => {
+      queryClient.setQueryData<ChatThread[]>(
+        chatKeys.threads(workspaceId),
+        (threads) =>
+          threads?.map((thread) =>
+            thread.id === threadId ? { ...thread, source_scope: scope } : thread
+          )
+      )
     }
-  })
+    cacheWriters.add(write)
+    return () => {
+      cacheWriters.delete(write)
+    }
+  }, [queryClient, workspaceId])
 
   useEffect(() => {
     const current = shown.current
@@ -190,7 +200,7 @@ export function useThreadScope({
       seenEdits.current = scopeEdits
       storeWhenIdle(threadId, sourceScope)
     } else {
-      const waiting = held.current.get(threadId)
+      const waiting = heldScopes.get(threadId)
       if (waiting !== undefined) {
         setSourceScope(waiting)
       } else if (activeThread.source_scope !== undefined) {
