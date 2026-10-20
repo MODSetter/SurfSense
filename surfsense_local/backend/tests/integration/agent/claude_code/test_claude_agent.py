@@ -9,7 +9,10 @@ from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.chat.models import AgentEngineKind, ChatThread
+from modules.plugins.gateway.source_tool import SourceTool
+from modules.plugins.installed.custom_plugin import store_custom_plugin
 from modules.plugins.installed.models import InstalledPlugin, PluginTool
+from modules.plugins.installed.third_party import set_third_party_on
 from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
 from modules.plugins.remote.sign_in.headers.headers_credential import write_headers
 from shared.config import get_agent_settings, get_storage_settings
@@ -175,6 +178,42 @@ async def test_claude_code_is_given_the_gateway_and_never_a_plugins_key(
     assert "/agent/plugins/" in servers["notes"]["url"]
     assert "localhost:1" not in written
     assert "k-secret-1" not in written
+
+
+async def test_claude_code_is_given_every_ready_tool_and_finds_them_by_search(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """No count limits a Claude Code turn: its own tool search defers what it need not load."""
+    many = [
+        SourceTool(
+            name=f"tool_{n}",
+            title=None,
+            description=f"Tool number {n}.",
+            input_schema={},
+            annotations={"readOnlyHint": True},
+        )
+        for n in range(40)
+    ]
+    with create_session_factory(engine)() as session:
+        store_custom_plugin(
+            session, "notes", "Notes", "https://localhost:1/mcp", None, many
+        )
+        set_third_party_on(session, True)
+        session.commit()
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    await _send(client, thread["id"], "Hello")
+
+    (run,) = claude_agent.started
+    servers = json.loads(Path(run.options.mcp_servers).read_text())["mcpServers"]
+    assert not [t for t in run.options.disallowed_tools if "tool_" in t]
+    assert run.options.env["ENABLE_TOOL_SEARCH"] == "auto"
+    assert servers["surfsense"]["alwaysLoad"] is True
+    assert "alwaysLoad" not in servers["notes"]
 
 
 async def test_the_thread_reads_back_as_it_streamed(

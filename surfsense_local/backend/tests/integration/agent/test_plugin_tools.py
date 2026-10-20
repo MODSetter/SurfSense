@@ -7,9 +7,9 @@ from contextlib import contextmanager
 import pytest
 from mcp_types import ToolAnnotations
 
+from modules.agent.agent_threads import turn as agent_turn
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.plugin_gateway import upstream_headers
-from modules.agent.plugin_tools import turn_plugins
 from shared.config import get_plugin_host_settings
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
@@ -391,11 +391,16 @@ async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> N
     assert saved.status_code == 409
 
 
-async def test_a_mentioned_plugin_gives_all_its_tools_past_the_limit_and_is_named(
+def no_room_for_plugin_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A model window whose share for plugin tools fits none of them."""
+    monkeypatch.setattr(agent_turn, "window_budget", lambda _window: 1)
+
+
+async def test_a_mentioned_plugin_gives_all_its_tools_past_the_budget_and_is_named(
     agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`@notes` is the user's choice: every ready tool of it is given, even past the limit."""
-    monkeypatch.setattr(turn_plugins, "MAX_TOOLS", 1)
+    """`@notes` is the user's choice: every ready tool of it is given, whatever they cost."""
+    no_room_for_plugin_tools(monkeypatch)
     await connect_notes(agent_api, notes_url)
     agent_api.model.replies = [("text", "Counting.")]
     thread = await open_thread(agent_api)
@@ -407,6 +412,24 @@ async def test_a_mentioned_plugin_gives_all_its_tools_past_the_limit_and_is_name
     assert "The user asked you to use the Notes plugin for this." in told
     listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
     assert listed.json()[0]["content"]["text"] == "How many words? @notes"
+
+
+async def test_a_plugin_left_out_for_its_size_is_named_to_the_user_and_the_agent(
+    agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The agent learns it is connected and how to reach it, rather than saying it is not."""
+    no_room_for_plugin_tools(monkeypatch)
+    await connect_notes(agent_api, notes_url)
+    agent_api.model.replies = [("text", "Hi.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "Search my notes")
+
+    assert offered(agent_api) == []
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "left_out"}]
+    told = json.dumps(agent_api.model.requests[0]["messages"])
+    assert "Notes (@notes)" in told
 
 
 async def test_mentioning_a_plugin_never_unblocks_its_tools(

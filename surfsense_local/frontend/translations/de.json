@@ -23,6 +23,7 @@
   "agent_approval_others_body": "{count, plural, one {Wenn du ablehnst, wird auch # weitere wartende Anfrage in diesem Chat abgelehnt.} other {Wenn du ablehnst, werden auch # weitere wartende Anfragen in diesem Chat abgelehnt.}}",
   "agent_approval_shell_body": "Der Agent möchte diesen Befehl auf deinem Computer ausführen, mit deinen Berechtigungen.",
   "agent_approval_step_body": "Diesen Schritt ausführen lassen?",
+  "agent_plugin_left_out_label": "Nicht alle Tools von {plugin} passten in diese Runde. Erwähne es mit @, um alle zu nutzen.",
   "agent_plugin_license_label": "{plugin} braucht eine SurfSense-Lizenz",
   "agent_plugin_needs_scopes_label": "{plugin} braucht mehr Zugriff",
   "agent_plugin_sign_in_label": "Melde dich erneut bei {plugin} an",

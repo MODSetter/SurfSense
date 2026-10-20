@@ -23,6 +23,7 @@
   "agent_approval_others_body": "{count, plural, other {拒绝后，此对话中另外 # 个等待中的请求也会被拒绝。}}",
   "agent_approval_shell_body": "智能体想以你的权限在这台电脑上运行此命令。",
   "agent_approval_step_body": "允许运行这一步吗？",
+  "agent_plugin_left_out_label": "{plugin} 的工具未能全部放入本轮。用 @ 提及它即可使用全部工具。",
   "agent_plugin_license_label": "{plugin} 需要 SurfSense 许可证",
   "agent_plugin_needs_scopes_label": "{plugin} 需要更多访问权限",
   "agent_plugin_sign_in_label": "请重新登录 {plugin}",

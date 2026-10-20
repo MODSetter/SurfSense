@@ -434,7 +434,7 @@ async def _prepare_tools(
 
 
 def _hidden_tools(session: Session, plugins: list[TurnPlugin]) -> list[str]:
-    """Each given plugin's tools with no rule: switched off, unreviewed, or past the cap."""
+    """Each given plugin's tools with no rule: switched off or unreviewed."""
     hidden = []
     for plugin in plugins:
         for tool in session.scalars(
@@ -473,6 +473,8 @@ def _servers(
             "type": "http",
             "url": thread_tools_url(workspace_id, thread_id),
             "headers": {"Authorization": f"Bearer {launch_key}"},
+            # SurfSense's own tools are seen every turn, never behind a search.
+            "alwaysLoad": True,
         }
     }
     for plugin in plugins:

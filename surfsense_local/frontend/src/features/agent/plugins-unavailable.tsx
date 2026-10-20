@@ -12,6 +12,15 @@ function label({ title, reason }: UnavailablePlugin) {
       },
       { plugin: title }
     )
+  if (reason === "left_out")
+    return intl.formatMessage(
+      {
+        id: "agent_plugin_left_out_label",
+        defaultMessage:
+          "Not all of {plugin}’s tools fit this turn. Mention it with @ to use them all.",
+      },
+      { plugin: title }
+    )
   if (reason === "needs_scopes")
     return intl.formatMessage(
       {

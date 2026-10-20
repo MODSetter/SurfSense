@@ -108,14 +108,14 @@ Prepared as opencode's is: the folder synced, the scope note, sign-ins refreshed
 |---|---|
 | `cwd` | the thread's folder |
 | `tools` | `Read`, `Glob`, `Grep`, `Write`, `Edit`, `Skill`. No Bash ([ADR 0039](../adr/0039-document-scripts-run-without-approval.md)), web, subagents or notebooks |
-| `mcp_servers` | a file only the user can read ([`mcp_config.py`](../../surfsense_local/backend/modules/agent/engines/claude_code/mcp_config.py)), removed with the client: `surfsense`, the thread's tool endpoint with the launch key, and each ready plugin with its sign-in header. Given as a dict, the SDK would put the headers on the command line |
-| `disallowed_tools` | each given plugin's tools with no rule, so the model is never offered them |
+| `mcp_servers` | a file only the user can read ([`mcp_config.py`](../../surfsense_local/backend/modules/agent/engines/claude_code/mcp_config.py)), removed with the client: `surfsense`, the thread's tool endpoint with the launch key, always loaded (`alwaysLoad`), and every ready plugin as its gateway address with the thread's gateway key, never its sign-in ([agent](agent.md#the-gateway)). Given as a dict, the SDK would put the headers on the command line |
+| `disallowed_tools` | each given plugin's tools with no rule, switched off or unreviewed, so the model is never offered them. No count limits the rest: Claude Code's tool search finds them |
 | `plugins`, `skills` | SurfSense's skills as a local plugin, `surfsense`, rebuilt at start with SurfSense's tools named as Claude Code lists them ([`skills_plugin.py`](../../surfsense_local/backend/modules/agent/engines/claude_code/skills_plugin.py)) |
 | `system_prompt` | the agent prompt, renamed the same way ([`tool_names.py`](../../surfsense_local/backend/modules/agent/engines/claude_code/tool_names.py)) |
 | `hooks`, `can_use_tool` | [the gate](#the-gate) |
 | `session_id` or `resume` | the thread's `claude_session_id`, chosen by SurfSense when the thread first needs Claude Code |
 | `session_store` | SurfSense's copy of the transcript ([Sessions](#sessions)) |
-| `env` | `MCP_TIMEOUT` 25 s, the limit both engines give a plugin to connect; `MCP_TOOL_TIMEOUT` 300 s; `MAX_MCP_OUTPUT_TOKENS` 100,000 |
+| `env` | `MCP_TIMEOUT` 25 s, the limit both engines give a plugin to connect; `MCP_TOOL_TIMEOUT` 300 s; `MAX_MCP_OUTPUT_TOKENS` 100,000; `ENABLE_TOOL_SEARCH` `auto`, set so an update cannot change it: plugin tools load up front while their definitions are under 10% of the window, and all are deferred behind Claude Code's tool search past it ([Claude Code docs](https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search), [ADR 0064](../adr/0064-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md)) |
 
 The user's words go as the last text block of the user message, with SurfSense's notes (handover, scope, mentioned plugins) as blocks before it, and the message's uuid chosen by SurfSense, so the live frames and the thread read back use one id.
 

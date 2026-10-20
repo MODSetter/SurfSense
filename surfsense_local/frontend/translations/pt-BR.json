@@ -23,6 +23,7 @@
   "agent_approval_others_body": "{count, plural, one {Negar também nega # outra solicitação pendente neste chat.} many {Negar também nega # outras solicitações pendentes neste chat.} other {Negar também nega # outras solicitações pendentes neste chat.}}",
   "agent_approval_shell_body": "O agente quer executar este comando no seu computador, com as suas permissões.",
   "agent_approval_step_body": "Permitir que esta etapa seja executada?",
+  "agent_plugin_left_out_label": "Nem todas as ferramentas de {plugin} couberam nesta vez. Mencione-o com @ para usar todas.",
   "agent_plugin_license_label": "{plugin} precisa de uma licença do SurfSense",
   "agent_plugin_needs_scopes_label": "{plugin} precisa de mais acesso",
   "agent_plugin_sign_in_label": "Entre novamente em {plugin}",

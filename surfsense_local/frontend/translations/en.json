@@ -23,6 +23,7 @@
   "agent_approval_others_body": "{count, plural, one {Denying also denies # other request waiting in this chat.} other {Denying also denies # other requests waiting in this chat.}}",
   "agent_approval_shell_body": "The agent wants to run this command on your computer, with your permissions.",
   "agent_approval_step_body": "Allow this step to run?",
+  "agent_plugin_left_out_label": "Not all of {plugin}’s tools fit this turn. Mention it with @ to use them all.",
   "agent_plugin_license_label": "{plugin} needs a SurfSense license",
   "agent_plugin_needs_scopes_label": "{plugin} needs more access",
   "agent_plugin_sign_in_label": "Sign in to {plugin} again",

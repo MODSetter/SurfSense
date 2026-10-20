@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from modules.agent.plugin_gateway.given_server import given_server
 from modules.agent.plugin_gateway.ready_upstream import Upstream
 from modules.agent.plugin_gateway.upstream_headers import upstream_headers
+from modules.agent.plugin_tools.tool_budget import offered_tools
 from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
@@ -18,9 +19,6 @@ from modules.plugins.remote.mcp_client.transports import (
     entry_transport,
 )
 from modules.plugins.remote.sign_in.plugin_headers import LICENSE
-
-# More tools than this crowd the model's choice and its prompt; the plugins connected first win.
-MAX_TOOLS = 24
 
 
 @dataclass(frozen=True)
@@ -60,12 +58,10 @@ def turn_plugins(
     where: tuple[int, int],
     launch_key: str,
     mentioned: frozenset[str] = frozenset(),
+    budget: int | None = None,
 ) -> list[TurnPlugin]:
-    """The first MAX_TOOLS ready tools, and every one past them of a plugin the user mentioned."""
-    ready = list_tools(session)
-    chosen = ready[:MAX_TOOLS] + [
-        tool for tool in ready[MAX_TOOLS:] if tool.plugin_id in mentioned
-    ]
+    """The ready tools that fit `budget` tokens of definitions, or every one with none."""
+    chosen = offered_tools(list_tools(session), mentioned, budget)
     plugins: dict[str, TurnPlugin] = {}
     for tool in chosen:
         if tool.plugin_id not in plugins:
