@@ -24,6 +24,7 @@
   "agent_approval_shell_body": "एजेंट आपकी अनुमतियों के साथ आपके कंप्यूटर पर यह कमांड चलाना चाहता है।",
   "agent_approval_step_body": "इस चरण को चलने की अनुमति दें?",
   "agent_plugin_license_label": "{plugin} के लिए SurfSense लाइसेंस ज़रूरी है",
+  "agent_plugin_needs_scopes_label": "{plugin} को और पहुँच चाहिए",
   "agent_plugin_sign_in_label": "{plugin} में फिर से साइन इन करें",
   "agent_plugin_unreachable_label": "{plugin} तक नहीं पहुँचा जा सका",
   "agent_scope_count_label": "{count, plural, one {# स्रोत} other {# स्रोतों}} से काम कर रहा है",

@@ -24,6 +24,7 @@
   "agent_approval_shell_body": "智能体想以你的权限在这台电脑上运行此命令。",
   "agent_approval_step_body": "允许运行这一步吗？",
   "agent_plugin_license_label": "{plugin} 需要 SurfSense 许可证",
+  "agent_plugin_needs_scopes_label": "{plugin} 需要更多访问权限",
   "agent_plugin_sign_in_label": "请重新登录 {plugin}",
   "agent_plugin_unreachable_label": "无法连接 {plugin}",
   "agent_scope_count_label": "使用 {count, plural, other {# 个来源}}",

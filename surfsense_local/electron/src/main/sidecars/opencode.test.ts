@@ -108,9 +108,9 @@ test("switches off every fetch and sends anything missed nowhere", () => {
   assert.equal(spec.env.NO_PROXY, "127.0.0.1,localhost,::1")
 })
 
-test("reaches the network only through the API's plugin proxy", () => {
-  // The API tunnels a ready plugin's host there and refuses every other.
-  const spec = opencodeSpec({ ...staged(), pluginProxyPort: 5555 })
+test("reaches the network only through the API's proxy", () => {
+  // The API refuses every host there; plugins are reached through its gateway on loopback.
+  const spec = opencodeSpec({ ...staged(), opencodeProxyPort: 5555 })
   assert.ok(spec)
   for (const proxy of ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "https_proxy"]) {
     assert.equal(spec.env[proxy], "http://127.0.0.1:5555", proxy)

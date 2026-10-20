@@ -38,7 +38,7 @@ A plugin is a remote MCP server whose tools the agent can use. The user connects
 
 ## The MCP client
 
-SurfSense lists a server's tools itself, to connect it and to notice tools that change; it never calls one, which is opencode's ([`mcp_client/session.py`](../../surfsense_local/backend/modules/plugins/remote/mcp_client/session.py)). It speaks Streamable HTTP, and the older HTTP+SSE for a plugin whose entry records `transport: sse`, through the official MCP SDK, pinned to `mcp` 2.3.x ([`transports.py`](../../surfsense_local/backend/modules/plugins/remote/mcp_client/transports.py)); the SDK refuses an SSE `endpoint` event on another origin. A server started by a command cannot be connected.
+SurfSense lists a server's tools itself, to connect it and to notice tools that change; it never calls one, which the agent's runtime does, through the gateway ([agent](agent.md#the-gateway)) ([`mcp_client/session.py`](../../surfsense_local/backend/modules/plugins/remote/mcp_client/session.py)). It speaks Streamable HTTP, and the older HTTP+SSE for a plugin whose entry records `transport: sse`, through the official MCP SDK, pinned to `mcp` 2.3.x ([`transports.py`](../../surfsense_local/backend/modules/plugins/remote/mcp_client/transports.py)); the SDK refuses an SSE `endpoint` event on another origin. A server started by a command cannot be connected.
 
 - Each listing opens its own connection and closes it, since the SDK's tasks must close where they opened; nothing stays open between listings.
 - `tools/list` is followed page by page through its cursor.
@@ -64,7 +64,7 @@ A registry entry with `auth: oauth`, or a server added by URL that asks for it, 
 
 **Signing in again.** `POST /plugins/{id}/sign-in` signs the same row in again, so its tool settings stay, reusing the client an earlier sign-in registered when its redirect still matches, and the user's own app with its secret; `{oauth_client}` switches to another. A plugin that does not sign in with an account is `422 plugin_not_oauth`.
 
-**More access.** A listing the server refuses with `403` and `error="insufficient_scope"` records `check_failure: sign_in` and the scopes it named as the entry's `auth.needs_scopes`, which the screen reads as Needs more access; signing in again asks for them with the scopes asked before, and a sign-in that succeeds clears them.
+**More access.** A listing the server refuses with `403` and `error="insufficient_scope"`, or an agent's tool call the gateway sees refused so ([agent](agent.md#the-gateway)), records `check_failure: sign_in` and the scopes it named as the entry's `auth.needs_scopes`, which the screen reads as Needs more access; signing in again asks for them with the scopes asked before, and a sign-in that succeeds clears them.
 
 ## Tables
 
@@ -149,7 +149,7 @@ A plugin's server gets the arguments of the calls opencode makes to it, and noth
 
 - Only remote MCP servers, reached over HTTP. A local server started by a command, such as `npx` or `uvx`, cannot be added: local servers come with [bundles](../proposals/plugins/README.md#local-mcp-servers).
 - A server both on the older SSE transport only and behind OAuth cannot be signed in to: a sign-in starts from a Streamable HTTP `401`.
-- A `403 insufficient_scope` is seen only when SurfSense lists the server itself; one inside an agent's tool call is opencode's, and the plugin stays as it was until its next check.
+- A server that reports missing access inside a tool's result, rather than as a `403 insufficient_scope`, is not seen as needing more access.
 - A key in a custom plugin's URL is kept as typed, stored in the clear with the URL; nothing warns.
 - OAuth sign-in has been tried only against a stand-in authorization server, never a live provider.
 - The tests stand in for the callback page's forward to the API by calling the API's callback themselves; the deployed page is not exercised by any test.

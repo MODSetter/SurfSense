@@ -90,3 +90,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted |
 | 0061 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |
 | 0062 | [A plugin's connection is a transport and one sign-in, detected from the server](0062-a-plugins-connection-is-a-transport-and-one-sign-in.md) | Accepted |
+| 0063 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0063-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |

@@ -185,6 +185,8 @@ class ProtectedByStandIn:
         self.authorizations: list[str | None] = []
         # A scope every request's token must carry; without it, `403 insufficient_scope`.
         self.required_scope: str | None = None
+        # A scope only a tool call needs, as a server checks each operation's own.
+        self.call_scope: str | None = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -213,12 +215,43 @@ class ProtectedByStandIn:
             return
         granted = self.server.token_scopes.get(token, "").split()
         if self.required_scope and self.required_scope not in granted:
-            challenge = (
-                f'Bearer error="insufficient_scope", scope="{self.required_scope}", '
-                f'resource_metadata="{url}/prm"'
-            )
-            await Response(status_code=403, headers={"www-authenticate": challenge})(
-                scope, receive, send
-            )
+            await _scope_refusal(self.required_scope, url)(scope, receive, send)
             return
+        if self.call_scope and self.call_scope not in granted:
+            body = await _whole_body(receive)
+            if b'"tools/call"' in body:
+                await _scope_refusal(self.call_scope, url)(scope, receive, send)
+                return
+            receive = _replaying(body, receive)
         await self.app(scope, receive, send)
+
+
+def _scope_refusal(needed: str, url: str) -> Response:
+    challenge = (
+        f'Bearer error="insufficient_scope", scope="{needed}", '
+        f'resource_metadata="{url}/prm"'
+    )
+    return Response(status_code=403, headers={"www-authenticate": challenge})
+
+
+async def _whole_body(receive: Receive) -> bytes:
+    body = b""
+    while True:
+        message = await receive()
+        body += message.get("body", b"")
+        if not message.get("more_body"):
+            return body
+
+
+def _replaying(body: bytes, receive: Receive) -> Receive:
+    """The body read once more, then the connection's own messages, such as its disconnect."""
+    sent = False
+
+    async def replayed() -> dict:
+        nonlocal sent
+        if sent:
+            return await receive()
+        sent = True
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    return replayed

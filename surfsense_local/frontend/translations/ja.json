@@ -24,6 +24,7 @@
   "agent_approval_shell_body": "エージェントが、このコンピューター上であなたの権限でこのコマンドを実行しようとしています。",
   "agent_approval_step_body": "このステップの実行を許可しますか？",
   "agent_plugin_license_label": "{plugin}にはSurfSenseライセンスが必要です",
+  "agent_plugin_needs_scopes_label": "{plugin}にはさらにアクセス権が必要です",
   "agent_plugin_sign_in_label": "{plugin}に再度サインインしてください",
   "agent_plugin_unreachable_label": "{plugin}に接続できませんでした",
   "agent_scope_count_label": "{count, plural, other {#件のソース}}を使用",

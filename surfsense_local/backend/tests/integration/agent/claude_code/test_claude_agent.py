@@ -9,13 +9,15 @@ from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.chat.models import AgentEngineKind, ChatThread
-from modules.plugins.installed.models import PluginTool
+from modules.plugins.installed.models import InstalledPlugin, PluginTool
+from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
+from modules.plugins.remote.sign_in.headers.headers_credential import write_headers
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_session_factory
 from tests.claude_agent_stand_in import Call, Fail, Hang, Limits, Say
 from tests.claude_run_stand_in import RESETS_AT
 from tests.integration.agent.claude_code.conftest import ClaudeAgent
-from tests.integration.agent.test_plugin_proxy import connect_plugin
+from tests.integration.agent.test_runtime_proxy import connect_plugin
 
 pytestmark = pytest.mark.integration
 SONNET = "claude-sonnet-5-5"
@@ -148,7 +150,31 @@ async def test_a_plugin_on_the_older_sse_transport_is_given_as_one(
     (run,) = claude_agent.started
     servers = json.loads(Path(run.options.mcp_servers).read_text())["mcpServers"]
     assert servers["notes"]["type"] == "sse"
-    assert servers["notes"]["url"] == "https://localhost:1/sse"
+
+
+async def test_claude_code_is_given_the_gateway_and_never_a_plugins_key(
+    client: AsyncClient,
+    engine: Engine,
+    claude_on_this_machine,
+    claude_agent: ClaudeAgent,
+) -> None:
+    """Its MCP file names the gateway and the thread's key; the plugin's key stays SurfSense's."""
+    connect_plugin(engine, "https://localhost:1/mcp")
+    with create_session_factory(engine)() as session:
+        plugin = session.get_one(InstalledPlugin, "notes")
+        write_headers(plugin, [SignInHeader(name="x-api-key", value="k-secret-1")])
+        session.commit()
+    claude_agent.turns = [[Say("Hi.")]]
+    thread = await _agentic_thread(client, claude_on_this_machine)
+
+    await _send(client, thread["id"], "Hello")
+
+    (run,) = claude_agent.started
+    written = Path(run.options.mcp_servers).read_text()
+    servers = json.loads(written)["mcpServers"]
+    assert "/agent/plugins/" in servers["notes"]["url"]
+    assert "localhost:1" not in written
+    assert "k-secret-1" not in written
 
 
 async def test_the_thread_reads_back_as_it_streamed(

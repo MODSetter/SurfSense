@@ -13,7 +13,6 @@ from httpx import AsyncClient
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy import Engine
 
-from modules.agent.engines.claude_code.agent_proxy import serving_agent_proxy
 from modules.agent.engines.thread_engine import close_engines
 from modules.llm.subscriptions.claude.proxy import serving_claude_proxy
 from modules.plugins.gateway.source_tool import SourceTool
@@ -94,10 +93,7 @@ async def test_an_agentic_turn_reads_a_large_plugin_result_claude_code_saved(
     there, with no plugin named unreachable and no read refused."""
     _connect(engine, ledger_plugin)
     sessions = create_session_factory(engine)
-    async with (
-        serving_claude_proxy(sessions, "127.0.0.1"),
-        serving_agent_proxy(sessions, "127.0.0.1"),
-    ):
+    async with serving_claude_proxy(sessions, "127.0.0.1"):
         await client.put(
             "/egress",
             json={

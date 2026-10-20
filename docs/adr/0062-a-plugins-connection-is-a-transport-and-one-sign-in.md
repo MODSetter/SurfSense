@@ -27,4 +27,3 @@ A plugin connected to a remote MCP server over Streamable HTTP, signed in with n
 - A provider taking only registered apps works once the user registers one; SurfSense registers nothing with providers itself.
 - A server is not asked what it needs before it is added: Connect is that question, so the screen shows no tool count or sign-in kind ahead of time.
 - A server both on SSE only and behind OAuth cannot be signed in to: OAuth starts from a Streamable HTTP `401`.
-- SurfSense sees a server's `403 insufficient_scope` only when it lists the server's tools itself; a refusal inside an agent's tool call is opencode's and goes unseen.

@@ -56,7 +56,6 @@ from modules.agent.plugin_tools.stop_plugin_calls import (
     HostCalls,
     stop_plugin_calls,
 )
-from modules.agent.plugin_tools.thread_calls import thread_calls_token
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
@@ -408,8 +407,7 @@ async def _prepare_tools(
         ]
         mentions = await transact(session, mentioned_plugins, text)
         mentioned = frozenset(m.plugin_id for m in mentions)
-        calls_token = thread_calls_token(thread_id)
-        planned = await transact(session, turn_plugins, mentioned, calls_token)
+        planned = await transact(session, turn_plugins, where, launch_key, mentioned)
         checked = asyncio.create_task(
             _timed(took, "check", check_changed_tools(sessions))
         )
@@ -439,7 +437,7 @@ async def _prepare_tools(
         took["listed"] = await checked
         # Read as the check left them, not as rows the planned read still holds.
         session.expire_all()
-        plugins = await transact(session, turn_plugins, mentioned, calls_token)
+        plugins = await transact(session, turn_plugins, where, launch_key, mentioned)
         added = given.added
         if servers(plugins) != servers(planned):
             # A server that failed already is not waited on twice.

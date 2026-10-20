@@ -24,6 +24,7 @@
   "agent_approval_shell_body": "Агент хочет выполнить эту команду на вашем компьютере с вашими правами.",
   "agent_approval_step_body": "Разрешить выполнить этот шаг?",
   "agent_plugin_license_label": "{plugin} требуется лицензия SurfSense",
+  "agent_plugin_needs_scopes_label": "Плагину {plugin} нужен больший доступ",
   "agent_plugin_sign_in_label": "Снова войдите в {plugin}",
   "agent_plugin_unreachable_label": "Не удалось подключиться к {plugin}",
   "agent_scope_count_label": "Работает с {count, plural, one {# источником} few {# источниками} many {# источниками} other {# источника}}",

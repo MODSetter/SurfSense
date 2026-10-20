@@ -7,6 +7,8 @@ from contextlib import contextmanager
 import pytest
 from mcp_types import ToolAnnotations
 
+from modules.agent.opencode_client import OpencodeClient
+from modules.agent.plugin_gateway import upstream_headers
 from modules.agent.plugin_tools import turn_plugins
 from shared.config import get_plugin_host_settings
 from tests.integration.agent.conftest import AgentAPI
@@ -171,10 +173,18 @@ async def test_a_disconnected_plugin_leaves_the_threads_opencode(
         assert (await opencode.tool_servers(folder)).get("notes") != "connected"
 
 
-async def test_a_plugins_key_reaches_its_server_through_opencode(
-    agent_api: AgentAPI,
+async def test_a_plugins_key_reaches_its_server_and_opencode_never_holds_it(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The key is stored encrypted and given to opencode as a header for the thread's turn."""
+    """opencode is given the gateway and the thread's key; SurfSense adds the plugin's."""
+    given: list[tuple[str, str, dict[str, str]]] = []
+    add = OpencodeClient.add_tool_server
+
+    async def recording(self, directory, name, url, headers, **options):
+        given.append((name, url, headers))
+        return await add(self, directory, name, url, headers, **options)
+
+    monkeypatch.setattr(OpencodeClient, "add_tool_server", recording)
     with serving(RequiringToken(notes_server().streamable_http_app(), "k-1")) as base:
         added = await agent_api.http.post(
             "/plugins/custom",
@@ -192,6 +202,10 @@ async def test_a_plugins_key_reaches_its_server_through_opencode(
 
     assert of_type(frames, "agent-step")[-1]["status"] == "completed"
     assert of_type(frames, "agent-plugins-unavailable") == []
+    ((_, url, headers),) = [server for server in given if server[0] == "notes"]
+    assert "/agent/plugins/" in url
+    assert base not in url
+    assert "k-1" not in str(headers)
 
 
 async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
@@ -239,7 +253,7 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
 
     host = plugin_host("amazon", amazon_server(), around, cancels)
     texts = RecordingHeaders(
-        notes_server().streamable_http_app(), turn_plugins.TEXT_ONLY_HEADER
+        notes_server().streamable_http_app(), upstream_headers.TEXT_ONLY_HEADER
     )
     others = RecordingHeaders(texts, "x-surfsense-calls")
     with serving(host) as base, serving(others) as third_party:
@@ -454,7 +468,7 @@ async def sign_in_to_notes(api: AgentAPI, url: str) -> None:
 async def test_a_token_expiring_within_half_an_hour_is_refreshed_before_the_turn(
     agent_api: AgentAPI,
 ) -> None:
-    """opencode is given the plugin again with the new token, before the model is asked."""
+    """Before the model is asked; the gateway sends the server the new token, never opencode."""
     with signed_in_notes(expires_in=600) as (authorization, protected, _, url):
         await sign_in_to_notes(agent_api, url)
         agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
@@ -511,3 +525,41 @@ async def test_a_refused_refresh_leaves_the_plugin_out_of_the_turn_and_says_so(
     assert notice["plugins"] == [{"title": "Notes", "reason": "sign_in"}]
     plugins = (await agent_api.http.get("/plugins")).json()
     assert plugins[0]["check_failure"] == "sign_in"
+
+
+async def test_a_call_refused_for_a_missing_scope_names_the_plugin_in_the_turn(
+    agent_api: AgentAPI,
+) -> None:
+    """Seen by the gateway, mid-turn, though opencode made the call."""
+    with signed_in_notes(expires_in=3600) as (_, protected, _, url):
+        await sign_in_to_notes(agent_api, url)
+        protected.call_scope = "notes:write"
+        agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "needs_scopes"}]
+
+
+async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway(
+    agent_api: AgentAPI,
+) -> None:
+    """opencode's POST is refused, so it opens the stream, whose endpoint leads back to SurfSense."""
+    with serving(notes_server().sse_app()) as base:
+        added = await agent_api.http.post(
+            "/plugins/custom", json={"url": f"{base}/sse", "name": "Notes"}
+        )
+        assert added.status_code == 201, added.text
+        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
+        await agent_api.http.put(
+            "/plugins/notes/tools/search", json={"approval": "always"}
+        )
+        agent_api.model.replies = [call("notes_search", query="old"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
+    assert of_type(frames, "agent-plugins-unavailable") == []

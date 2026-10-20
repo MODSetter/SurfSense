@@ -24,6 +24,7 @@
   "agent_approval_shell_body": "Der Agent möchte diesen Befehl auf deinem Computer ausführen, mit deinen Berechtigungen.",
   "agent_approval_step_body": "Diesen Schritt ausführen lassen?",
   "agent_plugin_license_label": "{plugin} braucht eine SurfSense-Lizenz",
+  "agent_plugin_needs_scopes_label": "{plugin} braucht mehr Zugriff",
   "agent_plugin_sign_in_label": "Melde dich erneut bei {plugin} an",
   "agent_plugin_unreachable_label": "{plugin} nicht erreichbar",
   "agent_scope_count_label": "Arbeitet mit {count, plural, one {# Quelle} other {# Quellen}}",
