@@ -18,6 +18,7 @@ def _refused_as_off(answer) -> None:
     assert answer.json()["detail"]["code"] == "third_party_off"
 
 
+@pytest.mark.third_party_off
 async def test_no_server_is_added_by_url_while_third_party_plugins_are_off(
     client: AsyncClient,
 ) -> None:

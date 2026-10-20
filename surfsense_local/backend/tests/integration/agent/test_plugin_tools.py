@@ -49,10 +49,10 @@ def notes_url() -> Iterator[str]:
 
 
 async def connect_notes(api: AgentAPI, url: str) -> None:
-    """Connect the notes server by URL and allow third-party plugins, as the screen does."""
+    """Allow third-party plugins and connect the notes server by URL, as the screen does."""
+    await api.http.put("/plugins/third-party", json={"allowed": True})
     added = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
     assert added.status_code == 201, added.text
-    await api.http.put("/plugins/third-party", json={"allowed": True})
 
 
 def call(tool: str, **arguments: object) -> tuple[str, str]:
@@ -187,12 +187,12 @@ async def test_a_plugins_key_reaches_its_server_and_opencode_never_holds_it(
 
     monkeypatch.setattr(OpencodeClient, "add_tool_server", recording)
     with serving(RequiringToken(notes_server().streamable_http_app(), "k-1")) as base:
+        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         added = await agent_api.http.post(
             "/plugins/custom",
             json={"url": f"{base}/mcp", "name": "Notes", "token": "k-1"},
         )
         assert added.status_code == 201, added.text
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         await agent_api.http.put(
             "/plugins/notes/tools/search", json={"approval": "always"}
         )
@@ -481,11 +481,11 @@ def signed_in_notes(
 
 async def sign_in_to_notes(api: AgentAPI, url: str) -> None:
     """Connect the notes server through its sign-in, and let its search run without asking."""
+    await api.http.put("/plugins/third-party", json={"allowed": True})
     started = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
     assert started.status_code == 202, started.text
     page = await approve_in_browser(api.http, started.json()["authorization_url"])
     assert page.status_code == 200, page.text
-    await api.http.put("/plugins/third-party", json={"allowed": True})
     await api.http.put("/plugins/notes/tools/search", json={"approval": "always"})
 
 
@@ -572,11 +572,11 @@ async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway
 ) -> None:
     """opencode's POST is refused, so it opens the stream, whose endpoint leads back to SurfSense."""
     with serving(notes_server().sse_app()) as base:
+        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         added = await agent_api.http.post(
             "/plugins/custom", json={"url": f"{base}/sse", "name": "Notes"}
         )
         assert added.status_code == 201, added.text
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         await agent_api.http.put(
             "/plugins/notes/tools/search", json={"approval": "always"}
         )

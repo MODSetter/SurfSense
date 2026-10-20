@@ -52,6 +52,7 @@ async def allow_third_party(client: AsyncClient) -> None:
     assert allowed.status_code == 204
 
 
+@pytest.mark.third_party_off
 async def test_nothing_is_fetched_while_third_party_plugins_are_off(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:
@@ -515,6 +516,7 @@ async def test_an_entrys_transport_is_listed(
     assert [p["transport"] for p in listed] == ["sse", "streamable_http"]
 
 
+@pytest.mark.third_party_off
 async def test_nothing_connects_from_the_registry_while_third_party_plugins_are_off(
     client: AsyncClient, registry: StandInRegistry
 ) -> None:

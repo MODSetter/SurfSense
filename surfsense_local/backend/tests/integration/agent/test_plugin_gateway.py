@@ -63,10 +63,10 @@ class Gateway:
 
     async def connect(self, url: str, token: str | None = None) -> None:
         """A custom plugin named Notes at `url`, with third-party plugins allowed."""
+        await self.http.put("/plugins/third-party", json={"allowed": True})
         body = {"url": url, "name": "Notes", **({"token": token} if token else {})}
         added = await self.http.post("/plugins/custom", json=body)
         assert added.status_code == 201, added.text
-        await self.http.put("/plugins/third-party", json={"allowed": True})
 
     @asynccontextmanager
     async def runtime(
@@ -197,13 +197,13 @@ def behind_sign_in() -> Iterator[SignedIn]:
 
 async def sign_in(gateway: Gateway, url: str) -> None:
     """Add the server by URL and finish its sign-in, as the screen and the browser do."""
+    await gateway.http.put("/plugins/third-party", json={"allowed": True})
     started = await gateway.http.post(
         "/plugins/custom", json={"url": url, "name": "Notes"}
     )
     assert started.status_code == 202, started.text
     page = await approve_in_browser(gateway.http, started.json()["authorization_url"])
     assert page.status_code == 200, page.text
-    await gateway.http.put("/plugins/third-party", json={"allowed": True})
 
 
 async def test_a_token_that_expires_mid_session_is_refreshed_and_the_call_sent_again(
@@ -268,6 +268,7 @@ async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway
         RequiringHeader(notes_server().sse_app(), "x-api-key", "k-1"), "x-api-key"
     )
     with serving(recorded) as base:
+        await gateway.http.put("/plugins/third-party", json={"allowed": True})
         added = await gateway.http.post(
             "/plugins/custom",
             json={
@@ -277,7 +278,6 @@ async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway
             },
         )
         assert added.status_code == 201, added.text
-        await gateway.http.put("/plugins/third-party", json={"allowed": True})
         url, headers = given_server("notes", WHERE, gateway.launch_key)
 
         async with Client(sse_client(url, headers=headers)) as runtime:
