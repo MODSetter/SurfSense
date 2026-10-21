@@ -7,6 +7,7 @@ import { sectionSpacing } from "@/components/homepage/home/home-section-spacing"
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { DOWNLOADS_URL } from "@/components/site/site-content";
 import { siteText } from "@/components/site/site-text";
+import { DotIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { ACCESS_LABEL } from "../access-label";
 import { allPlugins, findPlugin } from "../all-plugins";
@@ -99,11 +100,11 @@ export default async function PluginPage({ params }: PageProps) {
 						</h1>
 						<p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
 							<span>by {plugin.author}</span>
-							<span aria-hidden="true">·</span>
+							<DotIcon aria-hidden="true" className="size-3 shrink-0" />
 							<span>{ACCESS_LABEL[plugin.access]}</span>
 							{plugin.verification === "community" ? (
 								<>
-									<span aria-hidden="true">·</span>
+									<DotIcon aria-hidden="true" className="size-3 shrink-0" />
 									<span>Community</span>
 								</>
 							) : null}

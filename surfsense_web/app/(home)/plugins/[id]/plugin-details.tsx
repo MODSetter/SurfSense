@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { siteText } from "@/components/site/site-text";
+import { ArrowUpRight01Icon } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
 import type { PluginListing, PluginSignIn } from "../plugin-listing";
 
 // What connecting asks of the user, as the app's plugin page names it.
@@ -30,15 +32,22 @@ function Fact({ term, children }: { term: string; children: ReactNode }) {
 	return (
 		<div className="grid grid-cols-1 gap-1 border-b border-border py-3 text-sm last:border-b-0 sm:grid-cols-[10rem_1fr] sm:gap-4">
 			<dt className="text-muted-foreground">{term}</dt>
-			<dd className="m-0 min-w-0 break-words">{children}</dd>
+			<dd className="m-0 min-w-0 wrap-break-word">{children}</dd>
 		</div>
 	);
 }
 
 function PageLink({ url }: { url: string }) {
 	return (
-		<a href={url} target="_blank" rel="noreferrer noopener" className={siteText.link}>
-			{new URL(url).host}
+		<a
+			href={url}
+			target="_blank"
+			rel="noreferrer noopener"
+			className={cn(siteText.link, "inline-flex max-w-full items-center gap-1")}
+		>
+			<span className="min-w-0 break-all">{new URL(url).host}</span>
+			{/* The app's external-link mark. */}
+			<ArrowUpRight01Icon aria-hidden="true" className="size-3.5 shrink-0" />
 		</a>
 	);
 }
