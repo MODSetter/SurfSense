@@ -77,6 +77,49 @@ describe("agent steps", () => {
     )
   })
 
+  it("opens the version a saved web page made in Studio", async () => {
+    const openArtifact = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <OpenArtifactContext.Provider value={openArtifact}>
+        <AgentSteps
+          steps={[
+            rendered({
+              tool: "surfsense_save_page",
+              input: { path: "outputs/q3.html", title: "Q3 revenue" },
+              artifact: { id: 52, title: "Q3 revenue", version: 1 },
+            }),
+          ]}
+        />
+      </OpenArtifactContext.Provider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Created Q3 revenue v1" })
+    )
+    expect(openArtifact).toHaveBeenCalledExactlyOnceWith(52)
+  })
+
+  it("names a page save that made nothing by the page it was for", () => {
+    render(
+      <AgentSteps
+        steps={[
+          rendered({
+            tool: "surfsense_save_page",
+            status: "error",
+            input: { path: "outputs/q3.html", title: "Q3 revenue" },
+            artifact: undefined,
+            output: "The page is not UTF-8 text: save it as UTF-8.",
+          }),
+        ]}
+      />
+    )
+
+    expect(screen.getByText(/Saved the web page/).textContent).toBe(
+      "Saved the web page Q3 revenue"
+    )
+  })
+
   it("names reading a document’s script and listing source images", () => {
     render(
       <AgentSteps

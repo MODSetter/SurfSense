@@ -7,6 +7,7 @@ from modules.agent.tool_endpoint.convert_document import TOOL_NAME as CONVERT_TO
 from modules.agent.tool_endpoint.registration import SERVER
 from modules.agent.tool_endpoint.rendered_label import TOOL_NAME, rendered_artifact
 from modules.agent.tool_endpoint.revise_document import TOOL_NAME as REVISE_TOOL
+from modules.agent.tool_endpoint.save_page import TOOL_NAME as SAVE_PAGE_TOOL
 
 # A shell command or a read can return a whole file; the step keeps the start.
 MAX_OUTPUT_CHARS = 4000
@@ -22,7 +23,9 @@ RENDER_STEP = f"{SERVER}_{TOOL_NAME}"
 REVISE_STEP = f"{SERVER}_{REVISE_TOOL}"
 # A conversion's result opens the same way, naming the PDF it made.
 CONVERT_STEP = f"{SERVER}_{CONVERT_TOOL}"
-VERSION_STEPS = (RENDER_STEP, REVISE_STEP, CONVERT_STEP)
+# A saved page's result opens as a render's does.
+SAVE_PAGE_STEP = f"{SERVER}_{SAVE_PAGE_TOOL}"
+VERSION_STEPS = (RENDER_STEP, REVISE_STEP, CONVERT_STEP, SAVE_PAGE_STEP)
 
 
 def step_of(part: dict[str, Any]) -> dict[str, Any]:

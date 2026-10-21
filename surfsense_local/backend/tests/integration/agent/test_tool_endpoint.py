@@ -86,6 +86,7 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
         "search_sources",
         "create_artifact",
         "render_document",
+        "save_page",
         "read_document",
         "list_images",
         "convert_document",
@@ -102,6 +103,9 @@ async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> Non
     # Office files and PDFs are scripts the agent renders, kept as versions it can edit.
     assert not {"docx", "pdf", "pptx", "xlsx"} & set(studio_formats["enum"])
     assert not {"docx", "pptx", "xlsx"} & set(studio_formats["description"].split())
+    # A web page is the agent's own HTML, kept with save_page (ADR 0066).
+    assert "html" not in studio_formats["enum"]
+    assert listed["save_page"]["required"] == ["path", "title"]
     render = listed["render_document"]
     assert render["required"] == ["title", "format", "script"]
     assert render["properties"]["format"]["enum"] == ["docx", "pdf", "pptx", "xlsx"]
@@ -164,6 +168,7 @@ async def test_a_model_that_reads_images_is_also_offered_source_pages(
         "search_sources",
         "create_artifact",
         "render_document",
+        "save_page",
         "read_document",
         "list_images",
         "source_pages",

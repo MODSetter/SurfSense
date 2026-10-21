@@ -5,6 +5,7 @@ import { FileIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
+import { withoutNetwork } from "./no-network-page"
 import { VIEWER_PADDING } from "./viewer-layout"
 import { studioKeys } from "../query-keys"
 
@@ -34,7 +35,7 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
       if (!response.ok) {
         throw new Error(`Could not load page (${response.status})`)
       }
-      return response.text()
+      return withoutNetwork(await response.text())
     },
     enabled: primary != null,
   })
@@ -89,7 +90,9 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
     <iframe
       title={artifact.title}
       srcDoc={html}
-      sandbox="allow-scripts allow-popups"
+      // An opaque origin with no popups: the page runs, but reaches neither
+      // the app nor, with its policy, any host (ADR 0066).
+      sandbox="allow-scripts"
       className="h-full w-full border-0 bg-white"
     />
   )

@@ -60,6 +60,7 @@ from worker.studio.script_document import pipeline as script_document
 from worker.studio.script_document.pipeline import ScriptRunFailedError
 from worker.studio.shared import gather, persist
 from worker.studio.shared.artifact import Built
+from worker.studio.web.html.written import page as written_page
 
 logger = logging.getLogger(__name__)
 
@@ -276,6 +277,12 @@ def _refine(
 ) -> Built:
     """One call rewrites the base version's spec; the figures it may place are its draft's."""
     model = _choose_model(session, ModelType.TEXT_GEN)
+    if refining.base.format == "html":
+        title = document.title
+        session.commit()
+        raise_if_cancelled(session, document)
+        with cancellation.watching(lambda: _check_cancelled(session, document)):
+            return written_page.refine(model, refining, title)
     figures = figure_shelf.figures_of(
         session, artifact.workspace_id, figure_sources(artifact.artifact_metadata)
     )

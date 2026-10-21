@@ -25,6 +25,7 @@ import { managedOriginalPath } from "./document-files.ts"
 import { printInHiddenWindow } from "./docx-snapshot/print-in-hidden-window.ts"
 import { serveDocxSnapshots } from "./docx-snapshot/serve-snapshots.ts"
 import { allowedExternalUrl, confirmedExternalUrl } from "./external-url.ts"
+import { frameMayNavigate } from "./framed-navigation.ts"
 import { pluginPageUrl, type PluginPage } from "./plugin-page-url.ts"
 import { loadSecret } from "./secret.ts"
 import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
@@ -485,6 +486,10 @@ function denyAppWindows(contents: Electron.WebContents): void {
     if (!url.startsWith("https:")) return
     event.preventDefault()
     openAllowedExternal(url)
+  })
+  // will-navigate covers the window's own page only; a viewer's frame navigating itself is this.
+  contents.on("will-frame-navigate", (event) => {
+    if (!event.isMainFrame && !frameMayNavigate(event.url)) event.preventDefault()
   })
 }
 
