@@ -96,7 +96,7 @@ def test_a_server_taking_a_key_asks_the_submitter_nothing_about_it(tmp_path):
 
 
 def test_a_paid_plugin_says_what_users_must_buy(tmp_path):
-    paid = "Needs an account or subscription the publisher sells"
+    paid = "Paid: users need a plan or subscription you sell"
     found = check(tmp_path, issue_body(Who_can_use_it=paid))
     assert any(p.startswith("What users must buy or have: ") for p in found.problems)
 
@@ -130,7 +130,7 @@ def test_an_icon_dropped_into_the_form_is_read_from_its_markdown(tmp_path):
 
 
 def test_without_the_box_ticked_nothing_is_contacted(tmp_path):
-    body = issue_body().replace("- [X] I removed", "- [ ] I removed")
+    body = issue_body().replace("- [X] There's no key", "- [ ] There's no key")
 
     async def never(url: str):
         raise AssertionError("contacted")

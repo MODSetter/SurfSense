@@ -31,8 +31,8 @@ REQUIRED = (
     TOOLS,
     PROMPT,
 )
-FREE = "Free for anyone"
-PAID = "Needs an account or subscription the publisher sells"
+FREE = "Free (a free account is fine)"
+PAID = "Paid: users need a plan or subscription you sell"
 
 _HEADING = re.compile(r"^### (.+?)\s*$", re.MULTILINE)
 _BLANK = "_No response_"
