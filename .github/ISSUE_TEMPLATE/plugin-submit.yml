@@ -6,11 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        A SurfSense plugin is a remote MCP server: Streamable HTTP, on HTTPS. Fill this in and a bot checks your server the way the app connects to it, then comments with the entry it makes or what to fix. Edit the issue to fix anything; the checks run again on every edit. Nothing here needs git.
+        Fill this in and a bot checks your server, then comments with what to fix or what happens next. To fix something, edit the issue and it checks again.
 
-        Nothing needs checking first. To see your tools yourself anyway, `npx @modelcontextprotocol/inspector` or the desktop app's **Settings → Plugins → Add custom plugin** both work.
+        **We support** remote MCP servers on a public HTTPS address:
+        - **Transport:** Streamable HTTP, or the older HTTP+SSE.
+        - **Sign-in:** none, a key each user pastes, or OAuth.
 
-        **Never put a key, token or password in this issue.** If a reviewer needs to sign in, say so below and a maintainer will arrange it with you.
+        Local (stdio) servers can't be listed yet.
+
   - type: input
     id: name
     attributes:
@@ -39,7 +42,7 @@ body:
     id: description
     attributes:
       label: One-line description
-      description: The line on your plugin's card. Up to 200 characters.
+      description: The line on your plugin's page. Up to 200 characters.
       placeholder: Search and read Acme's public documentation.
     validations:
       required: true
@@ -72,8 +75,8 @@ body:
     attributes:
       label: Who can use it
       options:
-        - Free for anyone
-        - Needs an account or subscription the publisher sells
+        - Free (a free account is fine)
+        - "Paid: users need a plan or subscription you sell"
     validations:
       required: true
   - type: input
@@ -86,7 +89,7 @@ body:
     id: tools
     attributes:
       label: Tool names
-      description: Every tool your server offers, one per line, as users will see them on your plugin's public page. Include the ones that appear only after sign-in.
+      description: The name of every tool your server has, one per line, including the ones it lists only after sign-in. The plugin's page shows them.
       placeholder: |
         search_docs
         read_page
@@ -110,5 +113,5 @@ body:
     attributes:
       label: Before you send
       options:
-        - label: I removed every key, token and password from this issue.
+        - label: There's no key, token or password in this issue.
           required: true
