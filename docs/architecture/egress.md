@@ -22,7 +22,7 @@ State is one table, `egress_destinations`: a row per destination with `enabled`,
 
 A plugin's hosts are asked about before it connects: the refusal carries `hosts`, every host still to allow, and `purpose: "plugin"`, which the prompt words its question by, saying the host gets what a tool is sent rather than every chat. A refused plugin host with no row is recorded off, so Settings › Network lists it ([plugins](plugins.md)). An OAuth plugin's authorization server is asked about the same way, once discovery names it and before any request reaches it.
 
-Fetching the registry is refused with `purpose: "plugin_registry"`, and its prompt says the list is fetched from `plugins.surfsense.com`, sending the IP address and nothing else, and that SurfSense's own plugins run on the same host, so the one answer covers both ([`features/egress/api.ts`](../../surfsense_local/frontend/src/features/egress/api.ts)).
+Fetching the registry is refused with `purpose: "plugin_registry"`, and its prompt says the list is fetched from `plugins.surfsense.com`, sending the IP address and nothing else, and that SurfSense's own plugins run on the same host, so the one answer covers both: using them sends what each tool needs and, for the paid ones, the license key, so the host can check it. A `plugin` question that names `plugins.surfsense.com` says the same about the license key ([`features/egress/api.ts`](../../surfsense_local/frontend/src/features/egress/api.ts)).
 
 ## Where the check runs
 
