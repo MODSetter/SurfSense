@@ -23,15 +23,15 @@ export function PluginLine({ plugin }: { plugin: PluginListing }) {
 				<span className="flex min-w-0 items-center gap-1.5">
 					<span className="truncate font-medium">{plugin.name}</span>
 					<VerifiedMark plugin={plugin} />
+					{/* SurfSense's own sit under their own heading, so only another publisher is named. */}
+					{plugin.publisher === "third-party" ? (
+						<span className="ml-1 min-w-0 truncate text-sm text-muted-foreground">
+							by {plugin.author}
+						</span>
+					) : null}
 				</span>
 				<span className="truncate text-sm text-muted-foreground">{plugin.description}</span>
 			</span>
-			{/* SurfSense's own sit under their own heading, so only another publisher is named. */}
-			{plugin.publisher === "third-party" ? (
-				<span className="hidden shrink-0 text-sm text-muted-foreground sm:block">
-					By {plugin.author}
-				</span>
-			) : null}
 		</Link>
 	);
 }

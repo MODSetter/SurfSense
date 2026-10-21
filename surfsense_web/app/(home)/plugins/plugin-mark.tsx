@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
 import type { PluginListing } from "./plugin-listing";
 
-// Registry marks are light or coloured, so they sit on a grey tile, as in the app.
+// A registry mark may be white (DeepWiki's) or black, so it sits on taupe, in the site's
+// warm palette: 4.2:1 against white and 5.0:1 against black, above icons' 3:1.
 export function markTile(plugin: PluginListing) {
-	return plugin.logo.kind === "inline" ? undefined : "bg-muted-foreground/20";
+	return plugin.logo.kind === "inline" ? undefined : "border-transparent bg-[#857a6e]";
 }
 
 /** A plugin's logo, its registry icon, or its first letter. */
@@ -17,7 +18,8 @@ export function PluginMark({ plugin, size }: { plugin: PluginListing; size: "sm"
 			<span
 				aria-hidden="true"
 				className={cn(
-					"font-medium text-muted-foreground uppercase",
+					// White on the taupe tile `markTile` gives it.
+					"font-medium text-white uppercase",
 					{ sm: "text-sm", md: "text-2xl", lg: "text-4xl" }[size]
 				)}
 			>
