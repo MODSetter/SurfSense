@@ -9,7 +9,7 @@ export const NO_NETWORK_POLICY =
 
 const META = `<meta http-equiv="Content-Security-Policy" content="${NO_NETWORK_POLICY}">`
 // Only what may precede a doctype: a byte order mark, whitespace and comments.
-const LEADING_DOCTYPE = /^﻿?\s*(?:<!--[\s\S]*?-->\s*)*<!doctype[^>]*>/i
+const LEADING_DOCTYPE = /^\uFEFF?\s*(?:<!--[\s\S]*?-->\s*)*<!doctype[^>]*>/i
 
 /** The page with the policy first, so no script it wrote runs before it. */
 export function withoutNetwork(page: string): string {

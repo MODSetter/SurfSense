@@ -15,7 +15,7 @@ NO_NETWORK_POLICY = (
 _META = f'<meta http-equiv="Content-Security-Policy" content="{NO_NETWORK_POLICY}">'
 # Only what may precede a doctype: a byte order mark, whitespace and comments.
 _LEADING_DOCTYPE = re.compile(
-    r"\A﻿?\s*(?:<!--.*?-->\s*)*<!doctype[^>]*>", re.IGNORECASE | re.DOTALL
+    r"\A\uFEFF?\s*(?:<!--.*?-->\s*)*<!doctype[^>]*>", re.IGNORECASE | re.DOTALL
 )
 
 
