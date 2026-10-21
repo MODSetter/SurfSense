@@ -26,5 +26,8 @@ def test_every_question_the_intake_reads_is_on_the_form():
 
 def test_both_access_choices_are_offered():
     text = TEMPLATE.read_text(encoding="utf-8")
-    assert f"- {form.FREE}\n" in text
-    assert f"- {form.PAID}\n" in text
+    # A choice with a colon in it is quoted, or YAML reads it as a mapping.
+    choices = {
+        c.strip('"') for c in re.findall(r"^        - (.+)$", text, re.MULTILINE)
+    }
+    assert {form.FREE, form.PAID} <= choices

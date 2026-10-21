@@ -14,7 +14,7 @@ ANSWERS = {
     "Privacy policy URL": "https://acme.example/privacy",
     "Homepage": "https://acme.example",
     "Icon": "https://acme.example/icon.svg",
-    "Who can use it": "Free for anyone",
+    "Who can use it": "Free (a free account is fine)",
     "Tool names": "search_docs\nread_page",
     "A prompt to try": "What do Acme's docs say about rate limits?",
 }
@@ -30,8 +30,7 @@ def issue_body(**changes: str | None) -> str:
         for label, value in answers.items()
     ]
     sections.append(
-        "### Before you send\n\n"
-        "- [X] I removed every key, token and password from this issue."
+        "### Before you send\n\n- [X] There's no key, token or password in this issue."
     )
     return "\n\n".join(sections) + "\n"
 
