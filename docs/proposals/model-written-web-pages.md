@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/agent/tool_endpoint/
   - surfsense_local/backend/modules/agent/skills/surfsense-html/

@@ -41,6 +41,8 @@ REVISIONS_SKILL = "surfsense-revisions"
 DATA_SKILL = "surfsense-data"
 # Which PDF tool fits a request, and how pages are named.
 PDF_SKILL = "surfsense-pdf"
+# How to write a web page and keep it with surfsense_save_page (ADR 0066).
+HTML_SKILL = "surfsense-html"
 
 
 def skills_folder() -> Path:
@@ -108,6 +110,7 @@ def _permission(skills: Path) -> dict[str, Any]:
             REVISIONS_SKILL: "allow",
             DATA_SKILL: "allow",
             PDF_SKILL: "allow",
+            HTML_SKILL: "allow",
         },
     }
 

@@ -181,6 +181,7 @@ def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
         "surfsense-revisions",
         "surfsense-data",
         "surfsense-pdf",
+        "surfsense-html",
     ):
         assert (Path(skills) / name / "SKILL.md").is_file()
     assert list(config["permission"]["skill"].items()) == [
@@ -189,6 +190,7 @@ def test_only_surfsenses_own_skills_load_from_the_shipped_folder(
         ("surfsense-revisions", "allow"),
         ("surfsense-data", "allow"),
         ("surfsense-pdf", "allow"),
+        ("surfsense-html", "allow"),
     ]
 
 

@@ -178,3 +178,16 @@ def test_a_ready_revise_links_the_revised_copy_it_made() -> None:
     step = step_of(_tool_part("surfsense_revise_document", "completed", output=output))
 
     assert step["artifact"] == {"id": 51, "title": "MSA_Acme (revised)", "version": 2}
+
+
+def test_a_saved_page_links_the_version_it_made() -> None:
+    """A page the agent saved opens in Studio from its step, as a render does."""
+    (done,) = _steps(
+        _tool_part(
+            "surfsense_save_page",
+            "completed",
+            output="Rendered artifact 52, version 2: Q3 revenue\nA web page of 4 KB.",
+        )
+    )
+
+    assert done["artifact"] == {"id": 52, "title": "Q3 revenue", "version": 2}

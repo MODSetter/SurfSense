@@ -69,9 +69,10 @@ datas += copy_metadata("surfsense-local-backend")
 # Chat's three prompts are read through importlib.resources, not imported.
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 # So is the agent's, which the API writes into opencode's configuration, and
-# its skills folder, which that configuration points opencode at by path.
+# its skills folder, which that configuration points opencode at by path: each
+# skill's files beside its SKILL.md too, and the figure kit save_page inlines.
 datas += collect_data_files(
-    "modules.agent", includes=["prompts/*.md", "skills/*/SKILL.md"]
+    "modules.agent", includes=["prompts/*.md", "skills/**/*.md", "skills/**/*.js"]
 )
 
 # uvicorn loads its loop, protocol, and lifespan implementations by string.
