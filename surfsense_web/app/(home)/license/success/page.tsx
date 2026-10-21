@@ -30,8 +30,9 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 				<Link className={siteText.link} href="/license/activate">
 					activation guide
 				</Link>{" "}
-				shows each step. SurfSense never contacts a license server: the file is checked on your own
-				machine, so it works offline and on every computer you install SurfSense on.
+				shows each step. The file is checked on your own machine, so it works offline and on every
+				computer you install SurfSense on. Only the paid plugins send its key, to our plugin
+				service, which checks it.
 			</>
 		),
 	},
