@@ -147,6 +147,16 @@ class TriggerService:
             permission,
             f"You don't have permission to {permission.split(':')[1]} automations in this workspace",
         )
+        # Runs execute as the creator: only the creator, or a member holding
+        # ``automations:manage_all``, may add, change or remove what fires them.
+        if automation.created_by_user_id != self.auth.user.id:
+            await check_permission(
+                self.session,
+                self.auth,
+                automation.workspace_id,
+                Permission.AUTOMATIONS_MANAGE_ALL.value,
+                "Only the creator of this automation, or a member with automations:manage_all, can change its triggers",
+            )
         return automation
 
     async def _get_trigger_or_raise(

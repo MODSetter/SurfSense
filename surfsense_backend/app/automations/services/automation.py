@@ -132,6 +132,7 @@ class AutomationService:
         await self._authorize(
             automation.workspace_id, Permission.AUTOMATIONS_UPDATE.value
         )
+        await self._authorize_edit(automation)
 
         data = patch.model_dump(exclude_unset=True)
 
@@ -278,6 +279,15 @@ class AutomationService:
             )
         except AutomationModelPolicyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    async def _authorize_edit(self, automation: Automation) -> None:
+        """Runs execute as ``created_by_user_id`` (their memory, connectors and role), so only
+        that user, or a member holding ``automations:manage_all``, may change what runs as them."""
+        if automation.created_by_user_id == self.user.id:
+            return
+        await self._authorize(
+            automation.workspace_id, Permission.AUTOMATIONS_MANAGE_ALL.value
+        )
 
     async def _authorize(self, workspace_id: int, permission: str) -> None:
         await check_permission(

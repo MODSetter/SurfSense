@@ -402,6 +402,8 @@ class Permission(StrEnum):
     AUTOMATIONS_UPDATE = "automations:update"
     AUTOMATIONS_DELETE = "automations:delete"
     AUTOMATIONS_EXECUTE = "automations:execute"
+    # Edit or re-trigger an automation created by another member (Owner has it through "*").
+    AUTOMATIONS_MANAGE_ALL = "automations:manage_all"
 
     # Full access wildcard
     FULL_ACCESS = "*"
