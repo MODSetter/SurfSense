@@ -12,6 +12,7 @@ import {
 	Cards01Icon as Cards01IconData,
 	ChartHistogramIcon as ChartHistogramIconData,
 	CheckIcon as CheckIconData,
+	CheckmarkBadge02Icon as CheckmarkBadge02IconData,
 	ChevronDownIcon as ChevronDownIconData,
 	ChevronRightIcon as ChevronRightIconData,
 	ChipIcon as ChipIconData,
@@ -99,6 +100,7 @@ export const Cancel01Icon = createIcon(Cancel01IconData);
 export const Cards01Icon = createIcon(Cards01IconData);
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData);
 export const CheckIcon = createIcon(CheckIconData);
+export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData);
 export const ChevronDownIcon = createIcon(ChevronDownIconData);
 export const ChevronRightIcon = createIcon(ChevronRightIconData);
 export const ChipIcon = createIcon(ChipIconData);

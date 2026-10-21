@@ -1,13 +1,13 @@
 import { IconBrandGithub } from "@tabler/icons-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ConnectorFaq } from "@/components/connectors-marketing/connector-faq";
-import { Reveal } from "@/components/connectors-marketing/reveal";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { MarketingSection } from "@/components/marketing/section";
 import { AgentSetupTabs } from "@/components/mcp/agent-setup-tabs";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
+import { type FaqItem, SiteFaq } from "@/components/site/site-faq";
+import { Reveal } from "@/components/site/site-reveal";
 import { Badge } from "@/components/ui/badge";
 import {
 	ArrowRightIcon,
@@ -18,7 +18,6 @@ import {
 	ServerStack01Icon,
 } from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
-import type { FaqItem } from "@/lib/connectors-marketing/types";
 
 const canonicalUrl = "https://www.surfsense.com/mcp-server";
 
@@ -369,7 +368,7 @@ export default function McpServerPage() {
 					</Reveal>
 					<Reveal>
 						<div className="mt-6 max-w-3xl">
-							<ConnectorFaq items={FAQ} />
+							<SiteFaq items={FAQ} />
 						</div>
 					</Reveal>
 				</MarketingSection>
@@ -410,25 +409,19 @@ export default function McpServerPage() {
 									<Link href="/external-mcp-connectors">External MCP Connectors</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/reddit">Reddit API</Link>
+									<Link href="/plugins/youtube">YouTube</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/youtube">YouTube API</Link>
+									<Link href="/plugins/tiktok">TikTok</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/instagram">Instagram API</Link>
+									<Link href="/plugins/google-maps">Google Maps</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/tiktok">TikTok API</Link>
+									<Link href="/plugins/google-search">Google Search</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/google-maps">Google Maps API</Link>
-								</HomeButton>
-								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/google-search">SERP API</Link>
-								</HomeButton>
-								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/web-crawl">Web Crawl API</Link>
+									<Link href="/plugins/web-crawl">Web Crawl</Link>
 								</HomeButton>
 							</nav>
 						</div>

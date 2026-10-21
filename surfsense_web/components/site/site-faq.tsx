@@ -6,9 +6,13 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import type { FaqItem } from "@/lib/connectors-marketing/types";
 
-export function ConnectorFaq({ items }: { items: FaqItem[] }) {
+export interface FaqItem {
+	question: string;
+	answer: string;
+}
+
+export function SiteFaq({ items }: { items: FaqItem[] }) {
 	return (
 		<Accordion type="single" collapsible className="w-full">
 			{items.map((item, i) => (
