@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { trackReferralLanding } from "@/lib/posthog/events";
 
-const REF_STORAGE_KEY = "surfsense_ref_code";
+export const REF_STORAGE_KEY = "surfsense_ref_code";
 
 /**
  * Captures the ?ref=<code> URL parameter on first landing and fires a
