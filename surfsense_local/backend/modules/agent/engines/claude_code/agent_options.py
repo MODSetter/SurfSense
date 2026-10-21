@@ -23,6 +23,8 @@ MAX_RESULT_TOKENS = 100_000
 TOOL_CALL_MS = 300_000
 # The hook only decides, so this never runs out; an approval waits in can_use_tool.
 HOOK_SECONDS = 30
+# Every ready plugin is given; Claude Code defers their tools past 10% of its window.
+TOOL_SEARCH = "auto"
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,9 @@ def agent_options(launch: AgentLaunch) -> ClaudeAgentOptions:
             "MAX_MCP_OUTPUT_TOKENS": str(MAX_RESULT_TOKENS),
             "MCP_TOOL_TIMEOUT": str(TOOL_CALL_MS),
             "MCP_TIMEOUT": str(CONNECT_SECONDS * 1000),
+            # Set, so an update cannot change it: tools load up front while their definitions
+            # are under a tenth of the window, and are found by search past it.
+            "ENABLE_TOOL_SEARCH": TOOL_SEARCH,
         },
         **session,
     )

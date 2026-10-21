@@ -43,6 +43,8 @@ class ReadyAgent:
 
     client: OpencodeClient
     model: str
+    # The window opencode was configured for, which sizes the turn's plugin tools.
+    window: int
 
 
 async def ready_opencode(
@@ -89,7 +91,7 @@ async def ready_opencode(
     except BaseException:
         await client.close()
         raise
-    return ReadyAgent(client=client, model=model)
+    return ReadyAgent(client=client, model=model, window=window)
 
 
 def connect_opencode() -> OpencodeClient:

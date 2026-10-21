@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { HomeBadge } from "@/components/homepage/home/home-badge";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import meadow from "@/components/homepage/home/home-confidential/confidential-meadow.png";
 import { CONFIDENTIAL } from "@/components/homepage/home/home-content";
 import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
@@ -36,18 +37,23 @@ export function HomeConfidential() {
 					<p className={cn(siteText.body, "max-w-2xl text-foreground/75 md:text-lg")}>
 						{CONFIDENTIAL.body}
 					</p>
-					<Link
-						href={CONFIDENTIAL.action.href}
-						className="group inline-flex h-12 shrink-0 items-center gap-2.5 rounded-full bg-foreground pr-1.5 pl-6 text-sm font-semibold text-background shadow-lg transition-colors duration-150 hover:bg-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+					<HomeButton
+						asChild
+						variant="bare"
+						className={cn(
+							"group inline-flex h-12 shrink-0 items-center gap-2.5 rounded-full bg-foreground pr-1.5 pl-6 text-sm font-semibold text-background shadow-lg hover:bg-foreground/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+						)}
 					>
-						{CONFIDENTIAL.action.label}
-						<span className="grid size-9 place-items-center rounded-full bg-background text-foreground">
-							<ArrowRightIcon
-								aria-hidden="true"
-								className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
-							/>
-						</span>
-					</Link>
+						<Link href={CONFIDENTIAL.action.href}>
+							{CONFIDENTIAL.action.label}
+							<span className="grid size-9 place-items-center rounded-full bg-background text-foreground">
+								<ArrowRightIcon
+									aria-hidden="true"
+									className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+								/>
+							</span>
+						</Link>
+					</HomeButton>
 				</div>
 			</div>
 		</section>

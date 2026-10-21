@@ -4,10 +4,13 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+import httpx
 import pytest
 from mcp_types import ToolAnnotations
 
-from modules.agent.plugin_tools import turn_plugins
+from modules.agent.agent_threads import turn as agent_turn
+from modules.agent.opencode_client import OpencodeClient
+from modules.agent.plugin_gateway import upstream_headers
 from shared.config import get_plugin_host_settings
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
@@ -46,10 +49,10 @@ def notes_url() -> Iterator[str]:
 
 
 async def connect_notes(api: AgentAPI, url: str) -> None:
-    """Connect the notes server by URL and allow third-party plugins, as the screen does."""
+    """Allow third-party plugins and connect the notes server by URL, as the screen does."""
+    await api.http.put("/plugins/third-party", json={"allowed": True})
     added = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
     assert added.status_code == 201, added.text
-    await api.http.put("/plugins/third-party", json={"allowed": True})
 
 
 def call(tool: str, **arguments: object) -> tuple[str, str]:
@@ -171,17 +174,25 @@ async def test_a_disconnected_plugin_leaves_the_threads_opencode(
         assert (await opencode.tool_servers(folder)).get("notes") != "connected"
 
 
-async def test_a_plugins_key_reaches_its_server_through_opencode(
-    agent_api: AgentAPI,
+async def test_a_plugins_key_reaches_its_server_and_opencode_never_holds_it(
+    agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The key is stored encrypted and given to opencode as a header for the thread's turn."""
+    """opencode is given the gateway and the thread's key; SurfSense adds the plugin's."""
+    given: list[tuple[str, str, dict[str, str]]] = []
+    add = OpencodeClient.add_tool_server
+
+    async def recording(self, directory, name, url, headers, **options):
+        given.append((name, url, headers))
+        return await add(self, directory, name, url, headers, **options)
+
+    monkeypatch.setattr(OpencodeClient, "add_tool_server", recording)
     with serving(RequiringToken(notes_server().streamable_http_app(), "k-1")) as base:
+        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         added = await agent_api.http.post(
             "/plugins/custom",
             json={"url": f"{base}/mcp", "name": "Notes", "token": "k-1"},
         )
         assert added.status_code == 201, added.text
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         await agent_api.http.put(
             "/plugins/notes/tools/search", json={"approval": "always"}
         )
@@ -192,6 +203,10 @@ async def test_a_plugins_key_reaches_its_server_through_opencode(
 
     assert of_type(frames, "agent-step")[-1]["status"] == "completed"
     assert of_type(frames, "agent-plugins-unavailable") == []
+    ((_, url, headers),) = [server for server in given if server[0] == "notes"]
+    assert "/agent/plugins/" in url
+    assert base not in url
+    assert "k-1" not in str(headers)
 
 
 async def test_surfsense_s_plugin_gets_the_license_key_through_opencode(
@@ -239,7 +254,7 @@ async def test_stop_ends_the_thread_s_calls_on_surfsense_s_plugin_host(
 
     host = plugin_host("amazon", amazon_server(), around, cancels)
     texts = RecordingHeaders(
-        notes_server().streamable_http_app(), turn_plugins.TEXT_ONLY_HEADER
+        notes_server().streamable_http_app(), upstream_headers.TEXT_ONLY_HEADER
     )
     others = RecordingHeaders(texts, "x-surfsense-calls")
     with serving(host) as base, serving(others) as third_party:
@@ -377,11 +392,16 @@ async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> N
     assert saved.status_code == 409
 
 
-async def test_a_mentioned_plugin_gives_all_its_tools_past_the_limit_and_is_named(
+def no_room_for_plugin_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A model window whose share for plugin tools fits none of them."""
+    monkeypatch.setattr(agent_turn, "window_budget", lambda _window: 1)
+
+
+async def test_a_mentioned_plugin_gives_all_its_tools_past_the_budget_and_is_named(
     agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`@notes` is the user's choice: every ready tool of it is given, even past the limit."""
-    monkeypatch.setattr(turn_plugins, "MAX_TOOLS", 1)
+    """`@notes` is the user's choice: every ready tool of it is given, whatever they cost."""
+    no_room_for_plugin_tools(monkeypatch)
     await connect_notes(agent_api, notes_url)
     agent_api.model.replies = [("text", "Counting.")]
     thread = await open_thread(agent_api)
@@ -393,6 +413,24 @@ async def test_a_mentioned_plugin_gives_all_its_tools_past_the_limit_and_is_name
     assert "The user asked you to use the Notes plugin for this." in told
     listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
     assert listed.json()[0]["content"]["text"] == "How many words? @notes"
+
+
+async def test_a_plugin_left_out_for_its_size_is_named_to_the_user_and_the_agent(
+    agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The agent learns it is connected and how to reach it, rather than saying it is not."""
+    no_room_for_plugin_tools(monkeypatch)
+    await connect_notes(agent_api, notes_url)
+    agent_api.model.replies = [("text", "Hi.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "Search my notes")
+
+    assert offered(agent_api) == []
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "left_out"}]
+    told = json.dumps(agent_api.model.requests[0]["messages"])
+    assert "Notes (@notes)" in told
 
 
 async def test_mentioning_a_plugin_never_unblocks_its_tools(
@@ -443,18 +481,20 @@ def signed_in_notes(
 
 async def sign_in_to_notes(api: AgentAPI, url: str) -> None:
     """Connect the notes server through its sign-in, and let its search run without asking."""
-    started = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
+    await api.http.put("/plugins/third-party", json={"allowed": True})
+    added = await api.http.post("/plugins/custom", json={"url": url, "name": "Notes"})
+    assert added.status_code == 201, added.text
+    started = await api.http.post("/plugins/notes/sign-in")
     assert started.status_code == 202, started.text
     page = await approve_in_browser(api.http, started.json()["authorization_url"])
     assert page.status_code == 200, page.text
-    await api.http.put("/plugins/third-party", json={"allowed": True})
     await api.http.put("/plugins/notes/tools/search", json={"approval": "always"})
 
 
 async def test_a_token_expiring_within_half_an_hour_is_refreshed_before_the_turn(
     agent_api: AgentAPI,
 ) -> None:
-    """opencode is given the plugin again with the new token, before the model is asked."""
+    """Before the model is asked; the gateway sends the server the new token, never opencode."""
     with signed_in_notes(expires_in=600) as (authorization, protected, _, url):
         await sign_in_to_notes(agent_api, url)
         agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
@@ -511,3 +551,114 @@ async def test_a_refused_refresh_leaves_the_plugin_out_of_the_turn_and_says_so(
     assert notice["plugins"] == [{"title": "Notes", "reason": "sign_in"}]
     plugins = (await agent_api.http.get("/plugins")).json()
     assert plugins[0]["check_failure"] == "sign_in"
+
+
+async def test_a_call_refused_for_a_missing_scope_names_the_plugin_in_the_turn(
+    agent_api: AgentAPI,
+) -> None:
+    """Seen by the gateway, mid-turn, though opencode made the call."""
+    with signed_in_notes(expires_in=3600) as (_, protected, _, url):
+        await sign_in_to_notes(agent_api, url)
+        protected.call_scope = "notes:write"
+        agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "needs_scopes"}]
+
+
+async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway(
+    agent_api: AgentAPI,
+) -> None:
+    """opencode's POST is refused, so it opens the stream, whose endpoint leads back to SurfSense."""
+    with serving(notes_server().sse_app()) as base:
+        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
+        added = await agent_api.http.post(
+            "/plugins/custom", json={"url": f"{base}/sse", "name": "Notes"}
+        )
+        assert added.status_code == 201, added.text
+        await agent_api.http.put(
+            "/plugins/notes/tools/search", json={"approval": "always"}
+        )
+        agent_api.model.replies = [call("notes_search", query="old"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
+    assert of_type(frames, "agent-plugins-unavailable") == []
+
+
+async def test_a_sign_in_refused_mid_turn_names_the_plugin_in_the_turn(
+    agent_api: AgentAPI,
+) -> None:
+    """The token expires at the call and its refresh is refused: the turn says to sign in."""
+    with signed_in_notes(expires_in=3600) as (authorization, protected, _, url):
+        await sign_in_to_notes(agent_api, url)
+        protected.expire_at_call = True
+        authorization.refuse_refresh = True
+        agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        frames = await send(agent_api, thread["id"], "Search")
+
+    (notice,) = of_type(frames, "agent-plugins-unavailable")
+    assert notice["plugins"] == [{"title": "Notes", "reason": "sign_in"}]
+    assert of_type(frames, "agent-step")[-1]["status"] == "error"
+
+
+class _OnFirstRequest(list):
+    """The model's requests, running `then` once the first arrives: after the turn's rules."""
+
+    def __init__(self, then) -> None:
+        super().__init__()
+        self.then = then
+
+    def append(self, request: dict) -> None:
+        super().append(request)
+        if len(self) == 1:
+            self.then()
+
+
+async def test_a_tool_blocked_mid_turn_is_refused_by_the_gateway(
+    agent_api: AgentAPI, notes_url: str
+) -> None:
+    """opencode was told to allow it at the turn's start; the call never reaches the plugin."""
+    await connect_notes(agent_api, notes_url)
+    await agent_api.http.put("/plugins/notes/tools/search", json={"approval": "always"})
+    base = str(agent_api.http.base_url)
+    agent_api.model.requests = _OnFirstRequest(
+        lambda: httpx.put(
+            f"{base}/plugins/notes/tools/search", json={"enabled": False}
+        ).raise_for_status()
+    )
+    agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+    thread = await open_thread(agent_api)
+
+    frames = await send(agent_api, thread["id"], "Search")
+
+    step = of_type(frames, "agent-step")[-1]
+    assert step["status"] == "error"
+    assert "blocked" in json.dumps(step)
+
+
+async def test_a_plugin_on_the_older_sse_transport_signed_in_with_oauth_is_called(
+    agent_api: AgentAPI,
+) -> None:
+    """As Asana's `/sse`: signed in like any other, then called over SSE through the gateway."""
+    authorization = StandInAuthorizationServer()
+    with serving(authorization.app()) as issuer:
+        authorization.issuer = issuer
+        protected = ProtectedByStandIn(notes_server().sse_app(), authorization)
+        with serving(protected) as base:
+            await sign_in_to_notes(agent_api, f"{base}/sse")
+            agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
+            thread = await open_thread(agent_api)
+
+            frames = await send(agent_api, thread["id"], "Search")
+
+    assert of_type(frames, "agent-plugins-unavailable") == []
+    step = of_type(frames, "agent-step")[-1]
+    assert (step["tool"], step["status"]) == ("notes_search", "completed")

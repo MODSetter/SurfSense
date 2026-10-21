@@ -46,6 +46,11 @@ from modules.agent.plugin_tools.give_plugins import (
     servers,
     set_plugin_rules,
 )
+from modules.agent.plugin_tools.left_out import (
+    LeftOut,
+    left_out_note,
+    left_out_plugins,
+)
 from modules.agent.plugin_tools.mentions import (
     Mention,
     mention_note,
@@ -56,7 +61,7 @@ from modules.agent.plugin_tools.stop_plugin_calls import (
     HostCalls,
     stop_plugin_calls,
 )
-from modules.agent.plugin_tools.thread_calls import thread_calls_token
+from modules.agent.plugin_tools.tool_budget import window_budget
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
@@ -103,6 +108,7 @@ class _Tools:
     mentions: list[Mention]
     plugins: list[TurnPlugin]
     unavailable: list[UnavailablePlugin]
+    left_out: list[LeftOut]
 
 
 @dataclass(frozen=True)
@@ -230,6 +236,7 @@ async def _stream(
                     launch_key,
                     session_id,
                     sending.text,
+                    window_budget(ready.window),
                     took,
                 )
             )
@@ -291,6 +298,7 @@ async def _stream(
                                         sending.handover,
                                         sending.sources.note,
                                         mention_note(mentions),
+                                        left_out_note(tools.left_out),
                                     )
                                     if note is not None
                                 ],
@@ -389,6 +397,7 @@ async def _prepare_tools(
     launch_key: str,
     session_id: str,
     text: str,
+    budget: int,
     took: dict[str, float],
 ) -> _Tools:
     """SurfSense's tools and the ready plugins given to the folder's opencode, and the session's rules set.
@@ -408,8 +417,9 @@ async def _prepare_tools(
         ]
         mentions = await transact(session, mentioned_plugins, text)
         mentioned = frozenset(m.plugin_id for m in mentions)
-        calls_token = thread_calls_token(thread_id)
-        planned = await transact(session, turn_plugins, mentioned, calls_token)
+        planned = await transact(
+            session, turn_plugins, where, launch_key, mentioned, budget, text
+        )
         checked = asyncio.create_task(
             _timed(took, "check", check_changed_tools(sessions))
         )
@@ -439,7 +449,9 @@ async def _prepare_tools(
         took["listed"] = await checked
         # Read as the check left them, not as rows the planned read still holds.
         session.expire_all()
-        plugins = await transact(session, turn_plugins, mentioned, calls_token)
+        plugins = await transact(
+            session, turn_plugins, where, launch_key, mentioned, budget, text
+        )
         added = given.added
         if servers(plugins) != servers(planned):
             # A server that failed already is not waited on twice.
@@ -460,7 +472,14 @@ async def _prepare_tools(
                 raise
             logger.warning("%s's plugin rules were not set", folder, exc_info=True)
         took["registered"] = await registered
-    return _Tools(mentions, plugins, signed_out + licensed_out + given.unavailable)
+        left_out = await transact(session, left_out_plugins, plugins)
+    unavailable = signed_out + licensed_out + given.unavailable
+    return _Tools(
+        mentions,
+        plugins,
+        unavailable + [UnavailablePlugin(p.title, "left_out") for p in left_out],
+        left_out,
+    )
 
 
 async def _timed[T](took: dict[str, float], stage: str, work: Awaitable[T]) -> T:

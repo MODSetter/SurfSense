@@ -226,7 +226,8 @@ class OpencodeClient:
     async def set_session_rules(
         self, directory: Path, session_id: str, rules: list[dict[str, str]]
     ) -> None:
-        """Replace the session's own permission rules; they apply from its next call.
+        """Add rules after the session's own; the last that matches wins. opencode keeps
+        every earlier set, and reads them when a turn starts, not during one.
 
         A denied tool is also left out of what the model is offered.
         """

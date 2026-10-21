@@ -37,7 +37,8 @@ repos:
             .*alembic/versions/.*\.py|
             .*\.mdx$|
             .*/messages/.*\.json$|
-            surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json
+            surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json|
+            plugins/registry/published/plugins\.json
           )$
 
   # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting.

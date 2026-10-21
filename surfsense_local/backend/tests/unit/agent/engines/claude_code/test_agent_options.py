@@ -74,7 +74,7 @@ def test_the_first_turn_names_the_session_and_later_ones_resume_it(
     assert (later.session_id, later.resume) == (None, "s-1")
 
 
-def test_traffic_goes_through_the_agent_proxy_and_results_reach_the_model(
+def test_traffic_goes_through_claude_codes_proxy_and_results_reach_the_model(
     tmp_path: Path,
 ) -> None:
     """A long result is never written into ~/.claude; a plugin's long call is not cut short."""

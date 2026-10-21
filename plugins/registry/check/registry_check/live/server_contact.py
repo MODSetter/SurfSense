@@ -6,6 +6,7 @@ from typing import Any
 import anyio
 import httpx2
 from mcp.client.client import Client
+from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
 from registry_check.live.failure_reason import failure_reason
@@ -32,13 +33,18 @@ class Unreachable:
 @dataclass(frozen=True)
 class NotMcp:
     reason: str
+    # The 4xx a server refusing without a key answered, other than 401 or 403.
+    status: int | None = None
 
 
 Contact = Listed | SignInAsked | Unreachable | NotMcp
 
 
-async def contact(url: str) -> Contact:
-    """With no credentials: what a user's app meets before signing in."""
+async def contact(url: str, transport: str = "streamable_http") -> Contact:
+    """With no credentials: what a user's app meets before signing in.
+
+    `transport` is `sse` for the older HTTP+SSE transport an entry names.
+    """
     refused: list[int] = []
     failed: list[int] = []
 
@@ -51,6 +57,15 @@ async def contact(url: str) -> Contact:
     try:
         # Listing pages through a cursor can take a few requests.
         with anyio.fail_after(TIMEOUT_SECONDS * 2):
+            if transport == "sse":
+
+                def http_client(headers=None, timeout=None, auth=None):
+                    return web_client(on_response=record)
+
+                async with Client(
+                    sse_client(url, httpx_client_factory=http_client)
+                ) as client:
+                    return Listed(await _every_page(client))
             async with (
                 web_client(on_response=record) as http,
                 Client(streamable_http_client(url, http_client=http)) as client,
@@ -65,7 +80,7 @@ async def contact(url: str) -> Contact:
         if isinstance(error, httpx2.TransportError):
             return Unreachable(failure_reason(error))
         if failed:
-            return NotMcp(f"it answered {failed[-1]}")
+            return NotMcp(f"it answered {failed[-1]}", failed[-1])
         return NotMcp("its answer is not MCP")
 
 

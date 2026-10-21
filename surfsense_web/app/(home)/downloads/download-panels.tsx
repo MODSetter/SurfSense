@@ -67,7 +67,7 @@ export function OSDownloadGrid({ assets }: { assets: ReleaseAsset[] }) {
 								<a
 									key={asset.name}
 									href={asset.url}
-									className="flex h-11 items-center justify-between gap-3 rounded-full bg-secondary px-5 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+									className="flex h-11 items-center justify-between gap-3 rounded-full bg-secondary px-5 text-sm font-medium text-foreground transition-colors duration-150 ease-out hover:bg-accent active:bg-[color-mix(in_oklch,var(--accent),var(--foreground)_8%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 								>
 									{getAssetLabel(asset.name)}
 									<DownloadIcon aria-hidden="true" className="size-4 shrink-0" />

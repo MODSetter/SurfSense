@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-14T09:48:15Z",
+  "generated_at": "2026-10-20T21:56:06Z",
   "plugins": [
     {
       "id": "deepwiki",
@@ -32,7 +32,7 @@
     {
       "id": "notion",
       "kind": "remote",
-      "verification": "community",
+      "verification": "verified",
       "name": "Notion",
       "description": "Search, read and edit the pages and databases in your Notion workspace.",
       "author": "Notion",

@@ -48,6 +48,15 @@ def closed_port() -> str:
 
 def docs_server(annotated: bool = True) -> ASGIApp:
     """An MCP server with two tools, served at `/mcp` without sessions."""
+    return _docs(annotated).streamable_http_app(stateless_http=True)
+
+
+def docs_sse_server() -> ASGIApp:
+    """The same tools on the older HTTP+SSE transport, at `/sse`."""
+    return _docs(True).sse_app()
+
+
+def _docs(annotated: bool) -> MCPServer:
     server = MCPServer("docs")
     hints = ToolAnnotations(readOnlyHint=True) if annotated else None
 
@@ -61,7 +70,7 @@ def docs_server(annotated: bool = True) -> ASGIApp:
         """Read one page."""
         return f"page {path}"
 
-    return server.streamable_http_app(stateless_http=True)
+    return server
 
 
 class RequiringKey:

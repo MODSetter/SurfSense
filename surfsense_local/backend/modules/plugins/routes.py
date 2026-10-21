@@ -1,6 +1,6 @@
 """The `/plugins` routes: connecting, listing and switching plugins, the same for every kind."""
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel
 
 from api.dependencies import SessionDep, transact
@@ -25,8 +25,13 @@ from modules.plugins.installed.plugin_key import replace_key
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin, read_plugins
 from modules.plugins.installed.plugin_switch import set_plugin_enabled
 from modules.plugins.installed.remove import remove
+from modules.plugins.installed.replace_headers import replace_headers
 from modules.plugins.installed.server_url import server_url
 from modules.plugins.installed.third_party import set_third_party_on, third_party_on
+from modules.plugins.installed.third_party_off import (
+    plugin_third_party_refusal,
+    third_party_refusal,
+)
 from modules.plugins.installed.tool_settings import set_tool
 from modules.plugins.lists.first_party.entry_read import (
     FirstPartyEntryRead,
@@ -35,16 +40,28 @@ from modules.plugins.lists.first_party.entry_read import (
 from modules.plugins.lists.first_party.first_party_icon import first_party_icon
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
 from modules.plugins.lists.icon_response import icon_response
+from modules.plugins.lists.list_entry import EntryAuth
+from modules.plugins.lists.registry.entry_headers import filled_headers
 from modules.plugins.remote.connect_refusal import connect_refusal
+from modules.plugins.remote.either_transport import listed_on_either
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.mcp_client.transports import entry_transport
+from modules.plugins.remote.sign_in.headers.given_headers import (
+    as_sent,
+    given_headers,
+)
+from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
+from modules.plugins.remote.sign_in.headers.headers_credential import HEADERS
 from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
     list_once,
     listed_after_refresh,
 )
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAUTH
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
-from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
-from modules.plugins.remote.sign_in.oauth.start_sign_in import start_sign_in
+from modules.plugins.remote.sign_in.oauth.start_sign_in import (
+    SignInsDep,
+    save_for_sign_in,
+)
 from modules.plugins.remote.sign_in.plugin_headers import (
     LICENSE,
     license_headers,
@@ -52,8 +69,33 @@ from modules.plugins.remote.sign_in.plugin_headers import (
 )
 from modules.plugins.remote.sign_in.token_headers import token_headers
 from modules.plugins.remote.source import RemoteMcpSource
+from modules.plugins.remote.transport_moved import listed_where_it_moved
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
+
+
+def _read_by_id(session, plugin_id: str) -> PluginRead:
+    return read_plugin(session, session.get_one(InstalledPlugin, plugin_id))
+
+
+def _named_headers(session, plugin_id: str):
+    """A plugin's URL, transport, and the headers its registry entry names, if it names any."""
+    plugin = session.get(InstalledPlugin, plugin_id)
+    if plugin is None:
+        return None
+    auth = plugin.entry.get("auth") or {}
+    named = (
+        EntryAuth.model_validate(auth).headers
+        if plugin.source == PluginSource.REGISTRY and auth.get("type") == HEADERS
+        else None
+    )
+    return plugin.url, entry_transport(plugin.entry), named
+
+
+def _address(session, plugin_id: str):
+    """A connected plugin's URL and transport, or None."""
+    plugin = session.get(InstalledPlugin, plugin_id)
+    return None if plugin is None else (plugin.url, entry_transport(plugin.entry))
 
 
 class ToolWrite(BaseModel):
@@ -76,7 +118,13 @@ class KeyWrite(BaseModel):
 class CustomPluginWrite(BaseModel):
     url: str
     name: str
+    # Any key, in whichever headers the server reads; `token` is one Bearer header.
+    headers: list[SignInHeader] | None = None
     token: str | None = None
+
+
+class HeadersWrite(BaseModel):
+    headers: list[SignInHeader]
 
 
 @router.get("", response_model=list[PluginRead], summary="List connected plugins")
@@ -86,17 +134,18 @@ def list_plugins(session: SessionDep) -> list[PluginRead]:
 
 @router.post(
     "/custom",
-    response_model=PluginRead | SignInStarted,
+    response_model=PluginRead,
     status_code=status.HTTP_201_CREATED,
     summary="Add a remote server by URL",
 )
 async def add_custom_plugin(
-    payload: CustomPluginWrite,
-    request: Request,
-    response: Response,
-    session: SessionDep,
-) -> PluginRead | SignInStarted:
-    """A server whose refusal asks for OAuth starts a sign-in instead: `202` with its page."""
+    payload: CustomPluginWrite, session: SessionDep
+) -> PluginRead:
+    """A server whose refusal asks for OAuth is saved signed out, to Connect from its row."""
+    refusal = await transact(session, third_party_refusal, PluginSource.CUSTOM)
+    if refusal is not None:
+        raise refusal
+    headers = given_headers(payload.headers, payload.token)
     url = server_url(payload.url)
     plugin_id = custom_plugin_id(payload.name)
     if await transact(session, lambda s: s.get(InstalledPlugin, plugin_id)) is not None:
@@ -131,37 +180,32 @@ async def add_custom_plugin(
     if refusal is not None:
         raise refusal
 
-    source = RemoteMcpSource(url, token_headers(payload.token))
     try:
-        tools = await source.list_tools()
+        transport, tools = await listed_on_either(url, as_sent(headers))
     except ServerError as error:
-        sign_in = (
-            await start_sign_in(
-                session,
-                request,
-                PluginDraft(
-                    plugin_id=plugin_id,
-                    name=payload.name,
-                    url=url,
-                    source=PluginSource.CUSTOM,
-                    entry={
-                        "name": payload.name,
-                        "hosts": [url_host(url)],
-                        "auth": {"type": "oauth"},
-                    },
-                ),
-            )
-            if error.status == 401 and not payload.token
-            else None
+        # A server asking for an account is saved, signed out, for Connect on its row.
+        draft = PluginDraft(
+            plugin_id=plugin_id,
+            name=payload.name,
+            url=url,
+            source=PluginSource.CUSTOM,
+            entry={
+                "name": payload.name,
+                "hosts": [url_host(url)],
+                "auth": {"type": "oauth"},
+            },
         )
-        if sign_in is None:
-            raise connect_refusal(error) from error
-        response.status_code = status.HTTP_202_ACCEPTED
-        return sign_in
+        if (
+            error.status == 401
+            and not headers
+            and await save_for_sign_in(session, draft)
+        ):
+            return await transact(session, _read_by_id, plugin_id)
+        raise connect_refusal(error) from error
 
     def store(s):
         plugin = store_custom_plugin(
-            s, plugin_id, payload.name, url, payload.token, tools
+            s, plugin_id, payload.name, url, headers, tools, transport=transport
         )
         return read_plugin(s, plugin)
 
@@ -247,12 +291,15 @@ async def connect_first_party(plugin_id: str, session: SessionDep) -> PluginRead
 )
 async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
     """Records what the server lists now, or why it could not be listed."""
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
 
     def address(s):
         plugin = s.get(InstalledPlugin, plugin_id)
         if plugin is None or plugin.disconnected_at is not None:
             return plugin
-        return plugin.url, sign_in_headers(s, plugin)
+        return plugin.url, sign_in_headers(s, plugin), entry_transport(plugin.entry)
 
     found = await transact(session, address)
     if found is None:
@@ -267,10 +314,13 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
         )
     listed = await list_once(*found)
     listed = await listed_after_refresh(session, plugin_id, found[1], listed)
+    transport, listed = await listed_where_it_moved(*found, listed)
 
     def record(s):
         plugin = s.get_one(InstalledPlugin, plugin_id)
         record_check(s, plugin, listed)
+        if not isinstance(listed, ServerError):
+            plugin.entry = {**plugin.entry, "transport": transport}
         return read_plugin(s, plugin)
 
     return await transact(session, record)
@@ -283,12 +333,14 @@ async def write_key(
     plugin_id: str, payload: KeyWrite, session: SessionDep
 ) -> PluginRead:
     """The server lists its tools with the new key first; a key it refuses is not saved."""
-    url = await transact(
-        session, lambda s: getattr(s.get(InstalledPlugin, plugin_id), "url", None)
-    )
-    if url is None:
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
+    address = await transact(session, _address, plugin_id)
+    if address is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
-    source = RemoteMcpSource(url, token_headers(payload.token))
+    url, transport = address
+    source = RemoteMcpSource(url, token_headers(payload.token), transport)
     try:
         tools = await source.list_tools()
     except ServerError as error:
@@ -299,6 +351,46 @@ async def write_key(
     def store(s):
         plugin = s.get_one(InstalledPlugin, plugin_id)
         replace_key(s, plugin, payload.token, tools)
+        return read_plugin(s, plugin)
+
+    return await transact(session, store)
+
+
+@router.put(
+    "/{plugin_id}/headers",
+    response_model=PluginRead,
+    summary="Replace the headers a plugin signs in with",
+)
+async def write_headers(
+    plugin_id: str, payload: HeadersWrite, session: SessionDep
+) -> PluginRead:
+    """The server lists its tools with the new headers first; ones it refuses are not saved.
+
+    A registry plugin's go only in the headers its entry names, with their prefixes.
+    """
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
+    found = await transact(session, _named_headers, plugin_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
+    url, transport, named = found
+    headers = (
+        filled_headers(named, payload.headers)
+        if named is not None
+        else given_headers(payload.headers) or []
+    )
+    source = RemoteMcpSource(url, as_sent(headers), transport)
+    try:
+        tools = await source.list_tools()
+    except ServerError as error:
+        raise connect_refusal(error) from error
+    finally:
+        await source.close()
+
+    def store(s):
+        plugin = s.get_one(InstalledPlugin, plugin_id)
+        replace_headers(s, plugin, headers, tools)
         return read_plugin(s, plugin)
 
     return await transact(session, store)
@@ -332,8 +424,12 @@ def read_third_party(session: SessionDep) -> ThirdPartyAllowed:
 @router.put(
     "/third-party", status_code=204, summary="Allow or refuse third-party plugins"
 )
-def write_third_party(payload: ThirdPartyAllowed, session: SessionDep) -> None:
+def write_third_party(
+    payload: ThirdPartyAllowed, session: SessionDep, sign_ins: SignInsDep
+) -> None:
     set_third_party_on(session, payload.allowed)
+    if not payload.allowed:
+        sign_ins.cancel_third_party()
 
 
 @router.put("/{plugin_id}", response_model=PluginRead, summary="Switch a plugin")
@@ -364,23 +460,31 @@ def disconnect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
     summary="Connect a disconnected plugin that needs nothing entered",
 )
 async def connect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
-    """A key or an account sign-in comes back through `/key` or `/sign-in` instead.
+    """A key or an account sign-in comes back through `/key`, `/headers` or `/sign-in` instead.
 
     As at first connect, only an unreachable server refuses; a refused license connects
     with its reason as the status.
     """
+    refusal = await transact(session, plugin_third_party_refusal, plugin_id)
+    if refusal is not None:
+        raise refusal
 
     def address(s):
         plugin = s.get(InstalledPlugin, plugin_id)
         if plugin is None:
             return None
-        return plugin.credential_kind, plugin.url, sign_in_headers(s, plugin)
+        return (
+            plugin.credential_kind,
+            plugin.url,
+            sign_in_headers(s, plugin),
+            entry_transport(plugin.entry),
+        )
 
     found = await transact(session, address)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
-    kind, url, headers = found
-    if kind == "token":
+    kind, url, headers, transport = found
+    if kind in ("token", HEADERS):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             {"code": "plugin_needs_key", "message": "Enter the plugin's key."},
@@ -393,7 +497,7 @@ async def connect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
                 "message": "Sign in to the plugin with your account.",
             },
         )
-    source = RemoteMcpSource(url, headers)
+    source = RemoteMcpSource(url, headers, transport)
     try:
         listed = await source.list_tools()
     except ServerError as error:

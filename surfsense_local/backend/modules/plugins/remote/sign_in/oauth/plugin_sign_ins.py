@@ -9,7 +9,7 @@ import contextlib
 import logging
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
@@ -18,6 +18,8 @@ from mcp.client.auth import OAuthFlowError
 from mcp.shared.auth import AuthorizationCodeResult, OAuthClientInformationFull
 from sqlalchemy.orm import Session
 
+from modules.plugins.installed.models import PluginSource
+from modules.plugins.remote.either_transport import listed_on_either
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAuthCredential
@@ -35,7 +37,6 @@ from modules.plugins.remote.sign_in.oauth.signed_in_plugin import (
     store_signed_in,
 )
 from modules.plugins.remote.sign_in.token_headers import token_headers
-from modules.plugins.remote.source import RemoteMcpSource
 
 # Long enough to sign in and approve in a browser; an abandoned one is then forgotten.
 SIGN_IN_SECONDS = 600
@@ -104,6 +105,12 @@ class PluginSignIns:
         if pending.task is not None:
             pending.task.cancel()
         return True
+
+    def cancel_third_party(self) -> None:
+        """Third-party plugins turned off: no sign-in under way reaches its provider after."""
+        for sign_in_id, pending in list(self._pending.items()):
+            if pending.draft.source != PluginSource.FIRST_PARTY:
+                self.cancel(sign_in_id)
 
     async def start(
         self,
@@ -217,11 +224,18 @@ class PluginSignIns:
                 allowed_hosts,
                 open_browser,
                 code_returned,
+                draft.confidential,
             )
-            tools = await RemoteMcpSource(
+            # As adding a server without a sign-in does: Streamable HTTP, then the older
+            # SSE, whose address may sign in first, as Asana's `/sse` does.
+            transport, tools = await listed_on_either(
                 draft.url, token_headers(credential.tokens.access_token)
-            ).list_tools()
-            await asyncio.to_thread(_store, session_factory, draft, credential, tools)
+            )
+            # The draft as it is now: saved before the browser came back, it signs in again.
+            stored = replace(
+                pending.draft, entry={**pending.draft.entry, "transport": transport}
+            )
+            await asyncio.to_thread(_store, session_factory, stored, credential, tools)
             pending.status = "connected"
         except Exception as error:
             if not pending.started.done():
@@ -246,7 +260,10 @@ def _known_client(
     if draft.client_id:
         return OAuthClientInformationFull(
             client_id=draft.client_id,
-            token_endpoint_auth_method="none",
+            client_secret=draft.client_secret,
+            token_endpoint_auth_method=(
+                "client_secret_post" if draft.client_secret else "none"
+            ),
             redirect_uris=[client.redirect_uri],
         )
     previous = draft.previous_client

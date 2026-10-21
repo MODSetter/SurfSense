@@ -54,6 +54,20 @@ def test_a_valid_entry_has_no_problems(tmp_path):
         ({"added": "2026-13"}, "added"),
         ({"added": "October 2026"}, "added"),
         ({"added": "2026-10-12"}, "added"),
+        ({"transport": "websocket"}, "transport"),
+        ({"auth": {"type": "headers"}}, "auth"),
+        ({"auth": {"type": "headers", "headers": []}}, "auth"),
+        ({"auth": {"type": "headers", "headers": [{"name": "bad name"}]}}, "auth"),
+        ({"auth": {"type": "headers", "headers": [{"name": "Cookie"}]}}, "auth"),
+        (
+            {"auth": {"type": "headers", "headers": [{"name": "a"}, {"name": "A"}]}},
+            "auth",
+        ),
+        (
+            {"auth": {"type": "headers", "headers": [{"name": "a", "prefix": "x\n"}]}},
+            "auth",
+        ),
+        ({"auth": {"type": "oauth", "user_client": "yes"}}, "auth"),
     ],
 )
 def test_a_broken_field_is_named(tmp_path, overrides, field):
@@ -76,8 +90,42 @@ def test_optional_and_unknown_fields_are_allowed(tmp_path):
     assert problems(tmp_path, [entry]) == []
 
 
-def test_a_token_entry_names_what_to_paste(tmp_path):
-    found = problems(tmp_path, [valid_entry(auth={"type": "token"})])
+def test_a_headers_entry_names_and_words_each_header(tmp_path):
+    """The entry names where the user's key goes; it never holds a value."""
+    entry = valid_entry(
+        transport="sse",
+        auth={
+            "type": "headers",
+            "headers": [
+                {
+                    "name": "x-api-key",
+                    "label": "Exa API key",
+                    "description": "From exa.ai.",
+                },
+                {"name": "Authorization", "prefix": "Bearer "},
+            ],
+        },
+    )
+    assert problems(tmp_path, [entry]) == []
+
+
+def test_an_oauth_entry_may_ask_for_the_users_own_app(tmp_path):
+    entry = valid_entry(auth={"type": "oauth", "user_client": True})
+    assert problems(tmp_path, [entry]) == []
+
+
+def test_an_entry_lists_its_tools_for_its_page(tmp_path):
+    entry = valid_entry()
+    del entry["tools"]
+    assert problems(tmp_path, [entry]) == ['plugins[0] "acme": tools: required']
+
+
+def test_a_token_entry_may_leave_the_wording_to_the_app(tmp_path):
+    assert problems(tmp_path, [valid_entry(auth={"type": "token"})]) == []
+
+
+def test_a_token_entry_wording_given_is_within_its_lengths(tmp_path):
+    found = problems(tmp_path, [valid_entry(auth={"type": "token", "title": "x" * 81})])
     assert len(found) == 1
     assert "auth:" in found[0]
 

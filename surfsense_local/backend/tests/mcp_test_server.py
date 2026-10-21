@@ -258,6 +258,25 @@ class RequiringToken:
         await self.app(scope, receive, send)
 
 
+class RequiringHeader:
+    """Answers 401 unless `name` carries `value`, as a server reading its key from any header does."""
+
+    def __init__(self, app: ASGIApp, name: str, value: str) -> None:
+        self.app = app
+        self.name = name.lower().encode()
+        self.expected = value.encode()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] == "http"
+            and dict(scope["headers"]).get(self.name) != self.expected
+        ):
+            await send({"type": "http.response.start", "status": 401, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+            return
+        await self.app(scope, receive, send)
+
+
 def amazon_server() -> MCPServer:
     """A stand-in for SurfSense's Amazon plugin: one read-only search."""
     server = MCPServer("amazon")

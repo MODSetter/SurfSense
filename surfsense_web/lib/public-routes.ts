@@ -35,22 +35,11 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/announcements",
 	"/blog",
 	"/sunset",
-	// Plugins coming-soon page.
+	// The plugins gallery and each plugin's page, `/plugins/<id>`.
 	"/plugins",
-	// Connector marketing pages (see lib/connectors-marketing)
 	"/connectors",
 	"/mcp-server",
 	"/external-mcp-connectors",
-	"/reddit",
-	"/instagram",
-	"/tiktok",
-	"/youtube",
-	"/google-maps",
-	"/google-search",
-	"/indeed",
-	"/web-crawl",
-	"/amazon",
-	"/walmart",
 ];
 
 /**
