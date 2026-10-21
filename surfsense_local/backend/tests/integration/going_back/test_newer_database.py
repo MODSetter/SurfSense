@@ -174,3 +174,26 @@ def test_it_offers_no_copy_that_fails_its_integrity_check(tmp_path: Path) -> Non
         )
 
     assert going_back_options(engine, tmp_path).backup is None
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "x = 1" + "+1" * 200_000,  # RecursionError
+        "x = " + "-" * 100_000 + "1",  # MemoryError: the parser's stack overflows
+        "x = 1\0",  # ValueError: a null byte
+    ],
+    ids=["too-deep", "too-complex", "null-byte"],
+)
+def test_a_saved_script_the_parser_rejects_still_leaves_the_backup(
+    tmp_path: Path, source: str
+) -> None:
+    """Otherwise the options fail and the dialog says no copy was found."""
+    engine = _newer_library(tmp_path)
+    script = next((tmp_path / "migrations").glob(f"{newer_head()}_*.py"))
+    script.write_text(source, encoding="utf-8")
+
+    options = going_back_options(engine, tmp_path)
+
+    assert not options.can_undo
+    assert options.backup == tmp_path / "backups" / f"{this_head()}-{newer_head()}.db"

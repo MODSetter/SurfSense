@@ -36,7 +36,16 @@ def read_saved_scripts(migrations_dir: Path) -> dict[str, SavedScript]:
 def _read(path: Path) -> SavedScript | None:
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"))
-    except (OSError, SyntaxError, UnicodeDecodeError):
+    # Deep nesting overflows the parser as RecursionError or MemoryError; older
+    # Pythons call a null byte a ValueError rather than a SyntaxError.
+    except (
+        OSError,
+        SyntaxError,
+        UnicodeDecodeError,
+        ValueError,
+        RecursionError,
+        MemoryError,
+    ):
         return None
     values = _module_strings(tree)
     revision = values.get("revision")
