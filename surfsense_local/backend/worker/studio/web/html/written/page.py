@@ -1,0 +1,140 @@
+"""A model at the agent's bar writes the whole page in one reply (ADR 0066).
+
+No screenshot comes back to Studio, so a page is checked for structure only:
+a reply that is no page, too large or cut off before </html> is shown back,
+three times at most, as an Office script's failure is.
+"""
+
+import re
+from html.parser import HTMLParser
+from importlib.resources import files
+
+from modules.artifacts.web_pages.no_network import without_network
+from modules.artifacts.web_pages.page_checks import PageCheckError, checked_page
+from modules.artifacts.web_pages.page_text import page_text
+from modules.llm import prompting
+from modules.llm.resolution import ResolvedGeneration
+from shared import cancellation
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source, fallback_title
+from worker.studio.shared.text import file_stem
+
+ATTEMPTS = 3
+# About the most one reply carries; the agent's pages, written over many
+# calls, may be far larger (save_page.PAGE_BYTES).
+PAGE_BYTES = 300 * 1024
+MIME = "text/html"
+_FENCED = re.compile(r"```(?:html)?\s*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE)
+_PAGE_START = re.compile(r"<!doctype html|<html\b", re.IGNORECASE)
+_PAGE_END = re.compile(r"</html\s*>", re.IGNORECASE)
+
+
+class PageDraftFailedError(RuntimeError):
+    """Three replies were no page to keep; Retry asks the model again."""
+
+
+class _NoPageError(ValueError):
+    """Why a reply is no page, as the model is shown it."""
+
+
+def draft(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    system = prompting.load(
+        __package__,
+        model.tier,
+        focus=prompting.focus(user_prompt),
+        design=design_guide(),
+        limit=f"{PAGE_BYTES // 1024} KB",
+    )
+    fallback = fallback_title(user_prompt, sources, "Web page")
+    repair: generate.Repair | None = None
+    for attempt in range(ATTEMPTS):
+        cancellation.raise_if_cancelled()
+        raw = generate.run_model(model, system, sources, repair=repair)
+        try:
+            return built(reply_page(raw), fallback)
+        except _NoPageError as error:
+            if attempt == ATTEMPTS - 1:
+                raise PageDraftFailedError(f"The web page failed: {error}") from error
+            repair = generate.Repair(
+                reply=raw,
+                instruction=(
+                    f"That was no page to keep: {error} Return the whole page "
+                    "again, from <!doctype html> to </html>, and nothing else."
+                ),
+            )
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def design_guide() -> str:
+    """The guide the agent's skill reads, so both paths make the same kind of page."""
+    guide = files("modules.agent").joinpath("skills", "surfsense-html", "design.md")
+    return guide.read_text(encoding="utf-8").strip()
+
+
+def reply_page(raw: str) -> str:
+    """The page in the reply: out of a code fence, from its doctype to </html>."""
+    fenced = _FENCED.search(raw)
+    text = fenced.group(1) if fenced else raw
+    start = _PAGE_START.search(text)
+    if start is None:
+        raise _NoPageError("The reply has no HTML page in it.")
+    text = text[start.start() :]
+    ends = list(_PAGE_END.finditer(text))
+    if not ends:
+        raise _NoPageError(
+            "The page was cut off before </html>. Make it shorter so it ends in "
+            "one reply."
+        )
+    return text[: ends[-1].end()]
+
+
+def built(page: str, fallback: str) -> Built:
+    stored = without_network(page)
+    try:
+        checked_page(stored.encode("utf-8"), PAGE_BYTES)
+    except PageCheckError as error:
+        raise _NoPageError(str(error)) from error
+    body = page_text(page)
+    title = _title(page) or _first_heading(body) or fallback
+    return Built(
+        title=title,
+        markdown=body or f"# {title}",
+        primary=stored.encode("utf-8"),
+        primary_mime=MIME,
+        primary_filename=f"{file_stem(title, 'page')}.html",
+    )
+
+
+class _Title(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._in_title = False
+        self._in_svg = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._in_svg += tag == "svg"
+        self._in_title = tag == "title" and not self._in_svg and not self.parts
+
+    def handle_endtag(self, tag: str) -> None:
+        self._in_svg -= tag == "svg" and self._in_svg > 0
+        if tag == "title":
+            self._in_title = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_title:
+            self.parts.append(data)
+
+
+def _title(page: str) -> str | None:
+    reader = _Title()
+    reader.feed(page)
+    title = " ".join("".join(reader.parts).split())
+    return title[:200] or None
+
+
+def _first_heading(body: str) -> str | None:
+    first = body.split("\n", 1)[0]
+    return first[2:].strip() or None if first.startswith("# ") else None
