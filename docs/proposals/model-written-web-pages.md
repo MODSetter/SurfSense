@@ -60,7 +60,7 @@ Word needs a script because python-docx builds the file. A page is already the f
 - **Notes, not refusals:** each external URL in `src`, `href`, `@import` or `url()` is listed as "blocked by the viewer", as the hosted verifier did. Links (`<a href>`) are left out of the notes.
 - **Same title.** A call without `artifact_id` whose title matches a page this thread saved is refused naming that page's id, through [`same_title_documents.py`](../../surfsense_local/backend/modules/agent/tool_endpoint/same_title_documents.py), whose format check widens to `html`.
 - **Version.** v1 of a new page, or the next version of `artifact_id`'s root. Only a page this tool saved continues: a Studio-made page, or another format, is refused with "make a new page".
-- **Store.** The bytes are written at once, as [`made_file.py`](../../surfsense_local/backend/modules/artifacts/made_file.py)'s `keep_made_file` does, with the CSP `<meta>` (below) inserted as the first child of `<head>` (or a `<head>` added). The artifact's metadata holds `made_by: "save_page"`, the `version`, and `spec: {"kind": "html"}`; the HTML is the file, not a copy in metadata.
+- **Store.** The bytes are written at once, as [`made_file.py`](../../surfsense_local/backend/modules/artifacts/made_file.py)'s `keep_made_file` does, with the kit inlined where asked and the CSP `<meta>` (below) inserted right after the doctype, before anything the page wrote, so no script of the page runs without it. The artifact's metadata holds `made_by: {"tool": "save_page", "path": …}` and the `version`; the HTML is the file, not a copy in metadata.
 - **Index.** Studio's job takes the made-file branch. [`made_file/pipeline.py`](../../surfsense_local/backend/worker/studio/made_file/pipeline.py) gains `html` beside `pdf`, `docx`, `pptx` and `xlsx`: its text comes from a new extractor on the standard library's `html.parser` that keeps headings, paragraphs, list items, table cells and `alt` text, drops `<script>`, `<style>` and `<template>`, and writes Markdown headings so the body chunks as other artifacts do.
 - **Wait and answer** as `render_document` does: up to 150 seconds inside the call's deadline, then the `Rendered artifact <id>, version <n>: <title>` line, the first 1,500 characters of the text, the notes, and the screenshots; or `Queued artifact…` if the index is still behind.
 
@@ -80,7 +80,7 @@ Word needs a script because python-docx builds the file. A page is already the f
 The page runs, and it is built from the user's sources, which can carry instructions aimed at the model. A page that could reach the network could send what it read anywhere. The frame already has an opaque origin (no `allow-same-origin`), so it cannot touch the app. Three holes remain:
 
 - **Requests.** The sandbox does not stop `fetch`, `<img src>`, fonts or CSS `url()`. The stored page carries `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; form-action 'none'; base-uri 'none'">`. The viewer inserts the same `<meta>` before setting `srcDoc` too, so an older or edited file is held as well. The downloaded copy carries it, so a browser holds it there.
-- **Popups.** `allow-popups` lets `window.open("https://…?d=…")` out, and no CSP directive covers it. The viewer drops it. Links in a page do not open from the viewer in this version.
+- **Popups.** `allow-popups` lets `window.open("https://…?d=…")` reach Electron, and no CSP directive covers it. Electron already sends every new window from the app's own window through its link allowlist and refuses the rest (`denyAppWindows`), so the viewer drops `allow-popups` as a second line. Links in a page do not open from the viewer in this version.
 - **Navigating the frame itself.** A sandboxed frame may still set its own `location`, and the app's guard ([`index.ts`](../../surfsense_local/electron/src/main/index.ts), `denyAppWindows`) listens only to `will-navigate`, the main frame's. A `will-frame-navigate` handler refuses any subframe navigation to an origin other than the app's.
 
 Google Fonts, which the hosted viewer allowed, are not allowed: a stylesheet URL is itself a request that can carry data. A page uses system font stacks, or a font as a `data:` URI.
@@ -91,11 +91,20 @@ One file, `skills/surfsense-html/design.md`, is how every model-written page loo
 
 ## Motion
 
-The guide adapts the motion rules of [anatomy](https://github.com/wheresryan22/anatomy) (MIT), as rules, not its kit: motion is time-based (`requestAnimationFrame` timestamps, `dt` clamped), parts ease toward a target rather than snap, a loop stops when settled or off screen (`IntersectionObserver`), and under `prefers-reduced-motion: reduce` the page shows its final state and still answers input. Animate what carries meaning, a chart drawing in or a figure counting up, never every card. The agent's screenshots are taken with reduced motion on, so a page that only works animated shows the agent so.
+The guide's motion rules: motion is time-based (`requestAnimationFrame` timestamps, `dt` clamped), values ease toward a target rather than snap, a loop stops when settled or off screen (`IntersectionObserver`), and under `prefers-reduced-motion: reduce` the page shows its final state and still answers input. Animate what carries meaning, a chart drawing in or a figure counting up, never every card. The agent's screenshots are taken with reduced motion on, so a page that only works animated shows the agent so.
 
-## Reading a page back
+## Figures
 
-`surfsense_read_document` gains the html kind: given a page's `artifact_id`, it returns the stored HTML in pages of at most 1,000 lines and 40,000 bytes, as it does a script ([`script_page.py`](../../surfsense_local/backend/modules/agent/tool_endpoint/script_page.py)), with the `artifact_id` to save to. The working file in `outputs/` is the usual place to edit; this is for when it is gone, or the page came from another turn's compaction.
+A page may carry an explanatory figure: an isometric drawing of a real object whose working is the idea, a pin-tumbler lock for a cache key rather than boxes and arrows. It is optional; the skill says when one helps (a mechanism or a process) and when it does not (a report, a summary, a dashboard).
+
+- **SurfSense's own kit,** `skills/surfsense-html/kit/fig.js`, about 250 lines with no dependency: a camera with azimuth and elevation, a fit to the viewBox, boxes, cylinders and prisms shaded by the way each side faces through CSS custom properties (so a figure follows the page's light and dark scheme), lines, SVG output in painter's order, and the motion helpers: easing, a spring, and a loop that stops when settled or off screen and honours reduced motion.
+- **SurfSense inlines it, not the agent.** The page writes `<script data-kit="fig"></script>` before its own script, and `surfsense_save_page` replaces that element with the kit's code. The model never copies the kit, and the stored page stays self-contained, so the no-network CSP holds it.
+- **The skill splits** so a plain page loads little: `SKILL.md` and `design.md` always, `figures.md` (how to find the object, plan its parts, order them back to front, frame the figure with a title and a live readout) and `kit.md` (the kit's functions) only when the agent draws a figure.
+- **No WebGL** in this version: whether Electron's hidden window draws it is not checked.
+
+## Editing a page
+
+The page's working file is the agent's own, under `outputs/`, and the save records its path in the artifact's metadata. A change edits that file and saves it with the `artifact_id`. The stored page is not handed back to edit: it holds the inlined kit and the CSP, which the agent did not write.
 
 ## The thread
 
@@ -116,7 +125,7 @@ Whether the template is kept is measured, not assumed. The levels were set on do
 ## Build order
 
 1. **Shared:** the viewer's hardening, the CSP insertion, the text extractor and the design guide. The hardening holds every html artifact, Studio's template pages included.
-2. **Agent path:** `surfsense_save_page`, the skill, screenshots, versions, and `read_document` for pages.
+2. **Agent path:** `surfsense_save_page`, the skill with the kit, screenshots and versions.
 3. **Studio's path at the bar:** the tier prompt, the checks and attempts, Refine and Regenerate; then the ladder measurement.
 
 ## Not in this
@@ -128,7 +137,7 @@ Whether the template is kept is measured, not assumed. The levels were set on do
 
 ## Tests
 
-- `tests/integration/agent/test_page_tools.py`, beside `test_document_tools.py`: a page saved and listed with its version, the next version through `artifact_id`, each refusal, same title, a Studio page refused as a base, the CSP inserted, the notes, the text indexed without script, and `read_document` paging a page.
+- `tests/integration/agent/test_page_tools.py`, beside `test_document_tools.py`: a page saved and listed with its version, the next version through `artifact_id`, each refusal, same title, a Studio page refused as a base, the CSP inserted, the notes, the kit inlined where the page asks for it, and the text indexed without script.
 - `test_previews.py` with a stand-in Electron: the page served inline with its CSP header, a PNG delivered and tiled, no Electron giving the reason.
 - Studio, with a stub model: a model at the bar gets the HTML prompt and one below it the JSON prompt; a cut-off page, an oversized one and one without markup sent back with their reasons; the third failure failing the job; the stored page carrying the CSP and its spec; Refine refused past the window.
 - `test_tool_endpoint.py`, `test_tool_registration.py`, `test_tool_names.py`, `test_skills_plugin.py`, `test_render_steps.py` for the listing, the names and the step.
