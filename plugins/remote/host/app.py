@@ -1,4 +1,4 @@
-"""The plugin host: `/health`, `/cancel`, `/license`, and each plugin's MCP server at `/<id>/mcp`."""
+"""The plugin host: `/health`, `/cancel`, `/license`, `/admin/usage`, and each plugin's MCP server at `/<id>/mcp`."""
 
 import logging
 from collections.abc import AsyncIterator, Collection
@@ -20,6 +20,9 @@ from host.license_route import license_route
 from host.mounted_plugins import MountedPlugin, mounted_plugins
 from host.post_only import PostOnly
 from host.refused_unless_allowed import RefusedUnlessAllowed
+from host.usage_meter.admin_routes import usage_admin_routes
+from host.usage_meter.metered_calls import MeteredCalls
+from host.usage_meter.usage_meter import UsageMeter
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +37,14 @@ def host_app(
     plugins: Collection[str] | None = None,
     broadcast: CancelBroadcast | None = None,
     lifespans: bool = True,
+    meter: UsageMeter | None = None,
+    usage_admin_token: str | None = None,
 ) -> Starlette:
     """`plugins` limits the container to some; `broadcast` reaches the other copies.
 
     `lifespans=False` holds no plugin's `lifespan`: nothing is warmed at startup, and
-    no shared pool is closed at shutdown.
+    no shared pool is closed at shutdown. `meter` counts each plugin's tool calls;
+    `usage_admin_token` serves its records at `/admin/usage`.
     """
     mounted = mounted_plugins(root, plugins)
     calls = CallsInFlight()
@@ -55,6 +61,9 @@ def host_app(
             for plugin in kept:
                 held.start_soon(plugin.run)
             stack.push_async_callback(_close, kept)
+            if meter is not None:
+                # Entered before the servers, so it writes once more after their calls end.
+                await stack.enter_async_context(meter.running())
             for plugin in mounted:
                 await stack.enter_async_context(plugin.server.session_manager.run())
             listening = await stack.enter_async_context(anyio.create_task_group())
@@ -67,11 +76,17 @@ def host_app(
     paid = next((plugin.access for plugin in mounted if plugin.access), None)
     if paid is not None:
         routes.append(license_route(paid))
-    routes += [Mount(f"/{plugin.id}", app=_served(plugin, calls)) for plugin in mounted]
+    if meter is not None and usage_admin_token:
+        routes += usage_admin_routes(meter, usage_admin_token)
+    routes += [
+        Mount(f"/{plugin.id}", app=_served(plugin, calls, meter)) for plugin in mounted
+    ]
     return Starlette(routes=routes, lifespan=lifespan)
 
 
-def _served(plugin: MountedPlugin, calls: CallsInFlight) -> ASGIApp:
+def _served(
+    plugin: MountedPlugin, calls: CallsInFlight, meter: UsageMeter | None
+) -> ASGIApp:
     # No session is kept, so any copy of the host answers any request. Reached by
     # its public hostname, not a user's loopback, so the SDK's DNS-rebinding guard
     # for local servers does not apply.
@@ -82,6 +97,9 @@ def _served(plugin: MountedPlugin, calls: CallsInFlight) -> ASGIApp:
     # yet; one will be limited per IP address here, as the plugins proposal says.
     if plugin.access is not None:
         app = RefusedUnlessAllowed(app, plugin.access)
+    # Outside the license check, so refused calls are counted too.
+    if meter is not None:
+        app = MeteredCalls(app, plugin.id, plugin.server, meter)
     # Outermost, so a refused GET costs no license check.
     return PostOnly(app)
 
