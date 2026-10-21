@@ -213,9 +213,18 @@ test("GitHub failing outright is a 502", async () => {
 	assert.equal(response.status, 502);
 });
 
-test("a huge upstream body is a 502", async () => {
-	const { response } = await check("stable.yml", stable + "#".repeat(70 * 1024));
-	assert.equal(response.status, 502);
+test("a manifest over 64 KB is a 502, even when every line is valid", async () => {
+	// Repeats the fixture's own file entry, so only the size cap can refuse it.
+	const cap = 64 * 1024;
+	const entry = `${stable.split("\n").slice(2, 5).join("\n")}\n`;
+	const withEntries = (count: number) =>
+		stable.replace("files:\n", `files:\n${entry.repeat(count)}`);
+	const under = withEntries(Math.floor((cap - stable.length) / entry.length));
+	const over = withEntries(Math.floor((cap - stable.length) / entry.length) + 1);
+	assert.ok(under.length <= cap && over.length > cap);
+
+	assert.equal((await check("stable.yml", under)).response.status, 200);
+	assert.equal((await check("stable.yml", over)).response.status, 502);
 });
 
 test("each check records one desktop_update_check with exactly the contract's fields", async () => {
