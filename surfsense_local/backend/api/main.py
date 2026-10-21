@@ -82,6 +82,7 @@ from shared.db import (
     import_models,
     serving_request,
 )
+from shared.going_back.saved_migrations import save_migrations
 from shared.migrations import upgrade_to_head
 from shared.secrets import UnreadableSecretError
 
@@ -111,6 +112,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     storage = get_storage_settings()
     engine = create_db_engine(storage.database_path)
     try:
+        # First: upgraded data without its undo steps could only go back by restore.
+        save_migrations(storage.data_dir / "migrations")
         upgrade_to_head(engine, backups_dir=storage.data_dir / "backups")
         session_factory = create_session_factory(engine)
         with session_factory() as session:

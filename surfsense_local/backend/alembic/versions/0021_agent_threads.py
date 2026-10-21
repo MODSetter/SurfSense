@@ -27,5 +27,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("chat_threads") as table:
-        table.drop_column("opencode_session_id")
+    # In place: a batch rebuild drops chat_threads, which cascades away every
+    # chat message and unlinks every artifact from its thread.
+    op.drop_column("chat_threads", "opencode_session_id")

@@ -97,6 +97,14 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
   }
 }
 
+/** The API's binary and environment for a one-shot command that prints and exits. */
+export function apiCommand(
+  ctx: SidecarContext,
+  args: string[],
+): { cmd: string; args: string[]; cwd: string; env: Record<string, string> } {
+  return { ...pythonCmd(ctx, "api", "main.py", args), env: pythonEnv(ctx) }
+}
+
 export type WorkerQueue = "ingest" | "studio"
 
 export function workerSpec(ctx: SidecarContext, queue: WorkerQueue): SidecarSpec {

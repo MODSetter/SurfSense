@@ -94,3 +94,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
 | 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |
 | 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Proposed |
+| 0067 | [An older release goes back by running the undo steps a newer release left in the data folder](0067-an-older-release-goes-back-with-the-newer-releases-undo-steps.md) | Accepted |
