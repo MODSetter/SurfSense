@@ -6,7 +6,10 @@ from html.parser import HTMLParser
 # A link is the reader's to follow, not something the page loads.
 _LINK_TAGS = frozenset({"a", "area"})
 _LOADING_ATTRIBUTES = frozenset({"src", "href", "poster", "data", "srcset"})
-_CSS_URL = re.compile(r"""(?:@import\s+|url\(\s*)["']?([^"')\s;]+)""", re.IGNORECASE)
+# An @import names its address bare, quoted, or wrapped in url(...) like any other.
+_CSS_URL = re.compile(
+    r"""(?:@import\s+(?:url\(\s*)?|url\(\s*)["']?([^"')\s;]+)""", re.IGNORECASE
+)
 
 
 def _loads(value: str) -> bool:
