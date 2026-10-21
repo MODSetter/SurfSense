@@ -95,13 +95,13 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      # Starts the registry checks, which a push or pull request from GITHUB_TOKEN does not.
+      actions: write
     concurrency:
       group: registry-submission-${{ github.event.issue.number }}
       cancel-in-progress: false
     env:
-      # A pull request opened with GITHUB_TOKEN starts no workflow, so without this
-      # secret a maintainer runs plugins-registry.yml on the branch by hand.
-      GH_TOKEN: ${{ secrets.REGISTRY_BOT_TOKEN || github.token }}
+      GH_TOKEN: ${{ github.token }}
       ISSUE: ${{ github.event.issue.number }}
 
     steps:
@@ -109,7 +109,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: dev
-          token: ${{ secrets.REGISTRY_BOT_TOKEN || github.token }}
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v10.2.0
@@ -166,3 +165,5 @@ jobs:
             gh pr create --repo "$GITHUB_REPOSITORY" --base dev --head "$branch" \
               --title "feat(registry): list $name" --body-file "$RUNNER_TEMP/body.md"
           fi
+          # On the branch's commit, so the checks show on its pull request.
+          gh workflow run plugins-registry.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"
