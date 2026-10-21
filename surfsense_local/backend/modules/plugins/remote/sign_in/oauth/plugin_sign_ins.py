@@ -9,7 +9,7 @@ import contextlib
 import logging
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
@@ -18,6 +18,8 @@ from mcp.client.auth import OAuthFlowError
 from mcp.shared.auth import AuthorizationCodeResult, OAuthClientInformationFull
 from sqlalchemy.orm import Session
 
+from modules.plugins.installed.models import PluginSource
+from modules.plugins.remote.either_transport import listed_on_either
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAuthCredential
@@ -27,6 +29,7 @@ from modules.plugins.remote.sign_in.oauth.sign_in_client import (
     SignInClient,
     sign_in_client,
 )
+from modules.plugins.remote.sign_in.oauth.sign_in_failure import SignInFailure
 from modules.plugins.remote.sign_in.oauth.sign_in_flow import sign_in
 from modules.plugins.remote.sign_in.oauth.sign_in_state import nonce_of, state_for
 from modules.plugins.remote.sign_in.oauth.signed_in_plugin import (
@@ -34,7 +37,6 @@ from modules.plugins.remote.sign_in.oauth.signed_in_plugin import (
     store_signed_in,
 )
 from modules.plugins.remote.sign_in.token_headers import token_headers
-from modules.plugins.remote.source import RemoteMcpSource
 
 # Long enough to sign in and approve in a browser; an abandoned one is then forgotten.
 SIGN_IN_SECONDS = 600
@@ -54,6 +56,10 @@ logger = logging.getLogger(__name__)
 class SignInEndedError(Exception):
     """The provider refused, the user took too long, or the sign-in was cancelled."""
 
+    def __init__(self, code: SignInFailure, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
 
 @dataclass
 class PendingSignIn:
@@ -61,7 +67,12 @@ class PendingSignIn:
     draft: PluginDraft
     expires_at: float
     status: SignInStatus = "waiting"
+    # Why it failed, once it has: the code, its sentence, and the host or the
+    # name the sentence names, as raw values for the screen's own sentence.
+    failure: SignInFailure | None = None
     message: str | None = None
+    failure_host: str | None = None
+    failure_name: str | None = None
     authorization_url: str = ""
     nonce: str | None = None
     started: asyncio.Future[None] = field(
@@ -87,11 +98,19 @@ class PluginSignIns:
             return False
         if not pending.started.done():
             pending.started.set_exception(
-                SignInEndedError("The sign-in was cancelled.")
+                SignInEndedError(
+                    SignInFailure.NOT_FINISHED, "The sign-in was cancelled."
+                )
             )
         if pending.task is not None:
             pending.task.cancel()
         return True
+
+    def cancel_third_party(self) -> None:
+        """Third-party plugins turned off: no sign-in under way reaches its provider after."""
+        for sign_in_id, pending in list(self._pending.items()):
+            if pending.draft.source != PluginSource.FIRST_PARTY:
+                self.cancel(sign_in_id)
 
     async def start(
         self,
@@ -138,10 +157,14 @@ class PluginSignIns:
             return None
         if "error" in query:
             pending.code.set_exception(
-                SignInEndedError(_provider_refusal(query["error"]))
+                SignInEndedError(*_provider_refusal(query["error"]))
             )
         elif not query.get("code"):
-            pending.code.set_exception(SignInEndedError("The sign-in carried no code."))
+            pending.code.set_exception(
+                SignInEndedError(
+                    SignInFailure.NOT_FINISHED, "The sign-in carried no code."
+                )
+            )
         else:
             pending.code.set_result(
                 AuthorizationCodeResult(
@@ -189,7 +212,7 @@ class PluginSignIns:
                 return await asyncio.wait_for(pending.code, max(remaining, 0))
             except TimeoutError:
                 raise SignInEndedError(
-                    "The sign-in was not finished in time."
+                    SignInFailure.TIMED_OUT, "The sign-in was not finished in time."
                 ) from None
 
         try:
@@ -201,18 +224,29 @@ class PluginSignIns:
                 allowed_hosts,
                 open_browser,
                 code_returned,
+                draft.confidential,
             )
-            tools = await RemoteMcpSource(
+            # As adding a server without a sign-in does: Streamable HTTP, then the older
+            # SSE, whose address may sign in first, as Asana's `/sse` does.
+            transport, tools = await listed_on_either(
                 draft.url, token_headers(credential.tokens.access_token)
-            ).list_tools()
-            await asyncio.to_thread(_store, session_factory, draft, credential, tools)
+            )
+            # The draft as it is now: saved before the browser came back, it signs in again.
+            stored = replace(
+                pending.draft, entry={**pending.draft.entry, "transport": transport}
+            )
+            await asyncio.to_thread(_store, session_factory, stored, credential, tools)
             pending.status = "connected"
         except Exception as error:
             if not pending.started.done():
                 pending.started.set_exception(error)
                 return
             pending.status = "failed"
-            pending.message = _failure(error)
+            pending.failure, pending.message = _failure(error)
+            if isinstance(error, HostNotAllowedError):
+                pending.failure_host = error.host
+            elif isinstance(error, NotStoredError):
+                pending.failure_name = error.name
             # The type alone: an SDK message can quote a provider's response.
             logger.warning(
                 "signing in to %s failed: %s", draft.plugin_id, type(error).__name__
@@ -226,7 +260,10 @@ def _known_client(
     if draft.client_id:
         return OAuthClientInformationFull(
             client_id=draft.client_id,
-            token_endpoint_auth_method="none",
+            client_secret=draft.client_secret,
+            token_endpoint_auth_method=(
+                "client_secret_post" if draft.client_secret else "none"
+            ),
             redirect_uris=[client.redirect_uri],
         )
     previous = draft.previous_client
@@ -248,21 +285,30 @@ def _store(
         session.commit()
 
 
-def _provider_refusal(error: str) -> str:
+def _provider_refusal(error: str) -> tuple[SignInFailure, str]:
     if error == "access_denied":
-        return "The sign-in was declined."
-    return f"The sign-in was refused ({error})."
+        return SignInFailure.DECLINED, "The sign-in was declined."
+    return SignInFailure.REFUSED, f"The sign-in was refused ({error})."
 
 
-def _failure(error: Exception) -> str:
+def _failure(error: Exception) -> tuple[SignInFailure, str]:
     if isinstance(error, (SignInEndedError, NotStoredError)):
-        return str(error)
+        return error.code, str(error)
     if isinstance(error, HostNotAllowedError):
-        return f"SurfSense isn't allowed to contact {error.host}."
+        return (
+            SignInFailure.HOST_NOT_ALLOWED,
+            f"SurfSense isn't allowed to contact {error.host}.",
+        )
     if isinstance(error, ServerError):
-        return f"Signed in, but the server could not list its tools: {error}."
+        return (
+            SignInFailure.TOOLS_NOT_LISTED,
+            f"Signed in, but the server could not list its tools: {error}.",
+        )
     if isinstance(error, httpx2.HTTPError):
-        return "The sign-in server could not be reached."
+        return (
+            SignInFailure.SERVER_UNREACHABLE,
+            "The sign-in server could not be reached.",
+        )
     if isinstance(error, OAuthFlowError):
-        return "The sign-in could not be finished."
-    return "The sign-in failed."
+        return SignInFailure.NOT_FINISHED, "The sign-in could not be finished."
+    return SignInFailure.FAILED, "The sign-in failed."

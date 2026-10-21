@@ -88,15 +88,26 @@ async def approve_in_browser(
     return await client.get(f"{path}?{back.query}")
 
 
+async def test_a_custom_server_asking_for_oauth_is_added_to_connect_from_its_row(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """Add saves it, signed out: nothing is registered and no sign-in starts until Connect."""
+    added = await client.post(
+        "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
+    )
+
+    assert added.status_code == 201, added.text
+    assert added.json()["never_signed_in"] is True
+    assert added.json()["check_failure"] == "sign_in"
+    assert servers.authorization.registered == []
+    await _waiting_to_sign_in(client)
+
+
 async def test_a_custom_server_asking_for_oauth_signs_in_and_lists_its_tools(
     client: AsyncClient, servers: SignInServers
 ) -> None:
     """Discovery, registration and PKCE, the code back on the API's port, a stored token."""
-    started = await client.post(
-        "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
-    )
-    assert started.status_code == 202, started.text
-    sign_in = started.json()
+    sign_in = await start_custom(client, servers)
     query = parse_qs(urlsplit(sign_in["authorization_url"]).query)
     assert query["redirect_uri"] == ["http://127.0.0.1:8000/plugins/oauth/callback"]
     assert query["code_challenge_method"] == ["S256"]
@@ -121,13 +132,13 @@ async def test_a_custom_server_asking_for_oauth_signs_in_and_lists_its_tools(
 async def test_a_registry_plugin_signing_in_with_oauth_connects_once_signed_in(
     client: AsyncClient, registry: RegistryServers
 ) -> None:
-    """Connect answers with the page to open; the plugin exists only after the callback."""
+    """Connect answers with the page to open; the plugin waits, signed out, until the callback."""
     registry.registry.publish([entry("notes", auth={"type": "oauth"})])
     await allow_third_party(client)
 
     started = await client.post("/plugins/registry/notes")
     assert started.status_code == 202, started.text
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
 
     page = await approve_in_browser(client, started.json()["authorization_url"])
 
@@ -168,12 +179,41 @@ async def test_a_pre_registered_client_and_its_scopes_are_used_without_registeri
 
 
 async def start_custom(client: AsyncClient, servers: SignInServers) -> dict:
-    """Add the notes server by URL; it asks for OAuth, so a sign-in starts."""
-    started = await client.post(
+    """Add the notes server by URL, then Connect on its row, as the screen does."""
+    await allow_third_party(client)
+    added = await client.post(
         "/plugins/custom", json={"url": servers.mcp_url, "name": "Notes"}
     )
+    assert added.status_code == 201, added.text
+    started = await client.post("/plugins/notes/sign-in")
     assert started.status_code == 202, started.text
     return started.json()
+
+
+@pytest.fixture
+def sse_servers() -> Iterator[SignInServers]:
+    """The notes server on the older SSE transport only, behind sign-in, as Asana's `/sse`
+    is: its POST answers 401 before any transport is chosen."""
+    authorization = StandInAuthorizationServer()
+    with serving(authorization.app()) as issuer:
+        authorization.issuer = issuer
+        protected = ProtectedByStandIn(notes_server().sse_app(), authorization)
+        with serving(protected) as base:
+            yield SignInServers(authorization, protected, f"{base}/sse")
+
+
+async def test_a_server_on_the_older_sse_transport_signs_in_and_lists_over_it(
+    client: AsyncClient, sse_servers: SignInServers
+) -> None:
+    """Signed in as any other; its tools are listed over SSE, and the plugin recorded on it."""
+    sign_in = await start_custom(client, sse_servers)
+    page = await approve_in_browser(client, sign_in["authorization_url"])
+
+    assert page.status_code == 200, page.text
+    (plugin,) = (await client.get("/plugins")).json()
+    assert plugin["transport"] == "sse"
+    assert plugin["check_failure"] is None
+    assert sorted(tool["name"] for tool in plugin["tools"]) == ["count", "search"]
 
 
 async def test_a_state_the_app_did_not_issue_is_refused_and_changes_nothing(
@@ -197,7 +237,7 @@ async def test_a_state_the_app_did_not_issue_is_refused_and_changes_nothing(
     assert servers.authorization.token_requests == []
 
 
-async def test_a_provider_refusal_ends_the_sign_in_with_no_plugin(
+async def test_a_provider_refusal_ends_the_sign_in_keeping_the_plugin_to_sign_in(
     client: AsyncClient, servers: SignInServers
 ) -> None:
     """The user clicking Deny comes back as `error=access_denied`."""
@@ -209,14 +249,35 @@ async def test_a_provider_refusal_ends_the_sign_in_with_no_plugin(
     assert page.status_code == 400
     assert "Couldn't sign in to Notes" in page.text
     status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
-    assert (status["status"], status["message"]) == (
+    assert (status["status"], status["code"], status["message"]) == (
         "failed",
+        "sign_in_declined",
         "The sign-in was declined.",
     )
-    assert (await client.get("/plugins")).json() == []
+    assert (status["host"], status["name"]) == (None, None)
+    await _waiting_to_sign_in(client)
 
 
-async def test_an_abandoned_sign_in_expires_leaving_no_plugin(
+async def test_any_other_provider_refusal_ends_the_sign_in_as_refused(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """An `error` other than `access_denied` is the provider's refusal, named in the sentence."""
+    servers.authorization.deny_with = "server_error"
+    sign_in = await start_custom(client, servers)
+
+    page = await approve_in_browser(client, sign_in["authorization_url"])
+
+    assert page.status_code == 400
+    status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
+    assert (status["status"], status["code"], status["message"]) == (
+        "failed",
+        "sign_in_refused",
+        "The sign-in was refused (server_error).",
+    )
+    await _waiting_to_sign_in(client)
+
+
+async def test_an_abandoned_sign_in_expires_keeping_the_plugin_to_sign_in(
     client: AsyncClient, servers: SignInServers, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Once it expires, the browser's late answer finds nothing to finish."""
@@ -227,16 +288,17 @@ async def test_an_abandoned_sign_in_expires_leaving_no_plugin(
     status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
     late = await approve_in_browser(client, sign_in["authorization_url"])
 
-    assert (status["status"], status["message"]) == (
+    assert (status["status"], status["code"], status["message"]) == (
         "failed",
+        "sign_in_timed_out",
         "The sign-in was not finished in time.",
     )
     assert late.status_code == 400
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
     assert servers.authorization.token_requests == []
 
 
-async def test_a_cancelled_sign_in_is_forgotten_leaving_no_plugin(
+async def test_a_cancelled_sign_in_is_forgotten_keeping_the_plugin_to_sign_in(
     client: AsyncClient, servers: SignInServers
 ) -> None:
     """Cancel on the screen ends it; finishing it in the browser afterwards does nothing."""
@@ -248,8 +310,48 @@ async def test_a_cancelled_sign_in_is_forgotten_leaving_no_plugin(
     assert cancelled.status_code == 204
     assert (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).status_code == 404
     assert late.status_code == 400
-    assert (await client.get("/plugins")).json() == []
+    await _waiting_to_sign_in(client)
     assert servers.authorization.token_requests == []
+
+
+async def test_turning_third_party_plugins_off_ends_a_sign_in_under_way(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """It would reach the provider once the browser came back; it is forgotten instead."""
+    sign_in = await start_custom(client, servers)
+
+    await client.put("/plugins/third-party", json={"allowed": False})
+    late = await approve_in_browser(client, sign_in["authorization_url"])
+
+    assert (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).status_code == 404
+    assert late.status_code == 400
+    assert servers.authorization.token_requests == []
+
+
+async def test_a_plugin_left_signed_out_signs_in_later_from_its_row(
+    client: AsyncClient, servers: SignInServers
+) -> None:
+    """Nothing is typed again: Sign in on the kept plugin finishes what Add started."""
+    first = await start_custom(client, servers)
+    await client.delete(f"/plugins/sign-ins/{first['id']}")
+
+    again = await client.post("/plugins/notes/sign-in")
+    await approve_in_browser(client, again.json()["authorization_url"])
+
+    listed = (await client.get("/plugins")).json()
+    assert len(listed) == 1
+    assert listed[0]["check_failure"] is None
+    assert listed[0]["never_signed_in"] is False
+    assert [t["name"] for t in listed[0]["tools"]] == ["search", "count"]
+
+
+async def _waiting_to_sign_in(client: AsyncClient) -> None:
+    """Kept as the user added it, signed out, with nothing to offer until they sign in."""
+    (plugin,) = (await client.get("/plugins")).json()
+    assert (plugin["id"], plugin["auth_type"]) == ("notes", "oauth")
+    assert plugin["check_failure"] == "sign_in"
+    assert plugin["never_signed_in"] is True
+    assert plugin["tools"] == []
 
 
 async def test_the_authorization_servers_host_is_asked_about_before_any_request(
@@ -297,6 +399,21 @@ async def test_a_packaged_app_signs_in_as_surfsenses_app_through_the_plugin_host
     assert page.status_code == 200
 
 
+async def test_a_packaged_app_signs_in_where_only_client_documents_are_taken(
+    client: AsyncClient, servers: SignInServers, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No registration endpoint is not "needs your own app" while SurfSense's document is taken."""
+    monkeypatch.setattr(registry_origin, "reads_repository", lambda: False)
+    servers.authorization.supports_client_metadata_document = True
+    servers.authorization.registration = False
+
+    sign_in = await start_custom(client, servers)
+    query = parse_qs(urlsplit(sign_in["authorization_url"]).query)
+
+    assert query["client_id"] == ["https://plugins.surfsense.com/oauth/client.json"]
+    assert servers.authorization.registration_attempts == 0
+
+
 async def sign_in_custom(client: AsyncClient, servers: SignInServers) -> None:
     """Add the notes server by URL and approve its sign-in in the browser."""
     sign_in = await start_custom(client, servers)
@@ -331,6 +448,8 @@ async def test_a_refused_refresh_marks_the_plugin_to_sign_in_again(
     checked = await client.post("/plugins/notes/check")
 
     assert checked.json()["check_failure"] == "sign_in"
+    # Signed in once: it signs in again, not connects for the first time.
+    assert checked.json()["never_signed_in"] is False
     assert [r["grant_type"] for r in servers.authorization.token_requests] == [
         "authorization_code",
         "refresh_token",

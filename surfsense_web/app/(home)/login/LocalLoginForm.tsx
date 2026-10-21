@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
-import { Button } from "@/components/ui/button";
 import { ViewIcon, ViewOffSlashIcon } from "@/components/ui/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
@@ -118,7 +118,7 @@ export function LocalLoginForm() {
 									<p className="text-sm font-semibold mb-1">{error.title}</p>
 									<p className="text-sm text-destructive">{error.message}</p>
 								</div>
-								<Button
+								<HomeButton
 									variant="ghost"
 									size="icon"
 									onClick={() => {
@@ -143,7 +143,7 @@ export function LocalLoginForm() {
 										<line x1="18" y1="6" x2="6" y2="18" />
 										<line x1="6" y1="6" x2="18" y2="18" />
 									</svg>
-								</Button>
+								</HomeButton>
 							</div>
 						</motion.div>
 					)}
@@ -191,7 +191,7 @@ export function LocalLoginForm() {
 							}`}
 							disabled={isLoggingIn}
 						/>
-						<Button
+						<HomeButton
 							type="button"
 							variant="ghost"
 							size="icon"
@@ -204,11 +204,12 @@ export function LocalLoginForm() {
 							) : (
 								<ViewIcon className="h-4 w-4" />
 							)}
-						</Button>
+						</HomeButton>
 					</div>
 				</div>
 
-				<Button
+				<HomeButton
+					static
 					type="submit"
 					disabled={isLoggingIn}
 					className="relative h-auto w-full px-4 py-1.5 text-sm md:py-2 md:text-base"
@@ -219,7 +220,7 @@ export function LocalLoginForm() {
 							<Spinner size="sm" className="text-primary-foreground" />
 						</span>
 					)}
-				</Button>
+				</HomeButton>
 			</form>
 
 			{authType === "LOCAL" && (

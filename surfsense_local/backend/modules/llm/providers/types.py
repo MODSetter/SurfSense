@@ -44,6 +44,15 @@ class PromptProgress:
 
 
 @dataclass(frozen=True)
+class PlanUsage:
+    """Where a plan stands after a reply: past its limit on extra usage, or not, until `resets_at`."""
+
+    using_extra: bool
+    # Unix seconds; None when the plan did not say.
+    resets_at: int | None
+
+
+@dataclass(frozen=True)
 class Delta:
     """One streamed piece of a reply: answer text, the model's reasoning, or,
     with no text, how far it has read the prompt."""
@@ -51,6 +60,8 @@ class Delta:
     text: str
     reasoning: bool = False
     progress: PromptProgress | None = None
+    # With no text: where the plan answering stands, so the chat can say before the next reply.
+    plan_usage: PlanUsage | None = None
 
 
 @dataclass(frozen=True)

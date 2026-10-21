@@ -23,9 +23,9 @@ _stopping: set[asyncio.Task[None]] = set()
 async def stop_plugin_calls(plugins: list[TurnPlugin]) -> None:
     """Once per host and sign-in; a host that cannot be reached leaves its call to run out."""
     stops = {
-        (_origin(plugin.url), plugin.headers.get("authorization", "")): plugin.headers
-        for plugin in plugins
-        if CALLS_HEADER in plugin.headers
+        (_origin(server.url), server.headers.get("authorization", "")): server.headers
+        for server in (plugin.upstream for plugin in plugins if plugin.on_plugin_host)
+        if server is not None and CALLS_HEADER in server.headers
     }
     async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as http:
         for (origin, _), headers in stops.items():
@@ -91,7 +91,7 @@ def _on_host(frame: dict, plugins: list[TurnPlugin]) -> TurnPlugin | None:
         (
             plugin
             for plugin in plugins
-            if CALLS_HEADER in plugin.headers and frame.get("tool") in plugin.rules
+            if plugin.on_plugin_host and frame.get("tool") in plugin.rules
         ),
         None,
     )

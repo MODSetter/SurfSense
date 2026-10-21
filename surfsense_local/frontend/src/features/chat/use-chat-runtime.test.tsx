@@ -95,6 +95,8 @@ class FakeApi {
   // Each new chat's request, and a refusal to answer it with instead.
   creates: Array<Record<string, unknown>> = []
   refuseCreate: { status: number; code: string } | null = null
+  // A refusal to answer the next send with, before any frame.
+  refuseSend: { status: number; code: string } | null = null
   sendStreams: Stream[] = []
   stops: number[] = []
   follows: number[] = []
@@ -137,8 +139,15 @@ class FakeApi {
           this.nextReads[threadId]?.shift() ?? this.messages[threadId] ?? []
         )
       }
-      const stream = new Stream()
       this.sends.push({ threadId, body: JSON.parse(String(init?.body)) })
+      if (this.refuseSend) {
+        const { status, code } = this.refuseSend
+        return Response.json(
+          { detail: { code, message: "refused" } },
+          { status }
+        )
+      }
+      const stream = new Stream()
       this.sendStreams.push(stream)
       init?.signal?.addEventListener("abort", () => stream.hangUp())
       return new Response(stream.body, {
@@ -202,6 +211,7 @@ function renderRuntime({
   workspaceId = WORKSPACE,
   // The app's one client, kept across a switch of workspace.
   client = createQueryClient(),
+  onModelCheck = vi.fn(),
 } = {}) {
   const result = { current: undefined as unknown as Rendered }
   const renders = { page: 0, thread: 0 }
@@ -224,6 +234,7 @@ function renderRuntime({
       canSkipThinking: false,
       newChatMode,
       onModelRequired: vi.fn(),
+      onModelCheck,
     })
     renders.page += 1
     return (
@@ -1032,4 +1043,24 @@ describe("a new chat's mode", () => {
       returned: { text: "Draft the board pack", images: [] },
     })
   })
+
+  it.each(["claude_too_old", "claude_sign_in_required"])(
+    "hands back a send Claude Code was refused for, with no reply, and asks the model check again (%s)",
+    async (code) => {
+      api.refuseSend = { status: 409, code }
+      const onModelCheck = vi.fn()
+      const { result } = renderRuntime({ onModelCheck })
+      await openThread(result, 1)
+
+      sendIn(result, "What about Q4?")
+
+      await waitFor(() => expect(onModelCheck).toHaveBeenCalledTimes(1))
+      expect(result.current.conversationView).toEqual({
+        status: "active",
+        threadId: 1,
+        returned: { text: "What about Q4?", images: [] },
+      })
+      expect(result.current.thread.getState().messages).toEqual([])
+    }
+  )
 })

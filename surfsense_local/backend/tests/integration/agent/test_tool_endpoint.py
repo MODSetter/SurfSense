@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from sqlalchemy import Engine, select
 
+from modules.chat.models import AgentEngineKind, ChatThread
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.model_type import ModelType
@@ -516,3 +517,23 @@ async def test_a_call_naming_nothing_says_what_to_name(tools: ToolEndpoint) -> N
     assert "quiz" in no_format["result"]["content"][0]["text"]
     assert no_sources["result"]["isError"] is True
     assert "sources/" in no_sources["result"]["content"][0]["text"]
+
+
+async def test_a_claude_code_thread_is_offered_the_tools_that_show_images(
+    tools: ToolEndpoint,
+) -> None:
+    """Every Claude model reads images; opencode's configuration describes opencode's model."""
+    workspace_id = await tools.workspace()
+    with tools.sessions() as session:
+        thread = ChatThread(
+            workspace_id=workspace_id,
+            agent_engine=AgentEngineKind.CLAUDE_CODE,
+            claude_session_id="s-1",
+        )
+        session.add(thread)
+        session.commit()
+        thread_id = thread.id
+
+    reply = await tools.request(workspace_id, "tools/list", thread=thread_id)
+
+    assert "source_pages" in {tool["name"] for tool in reply["result"]["tools"]}

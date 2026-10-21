@@ -48,6 +48,9 @@ from modules.llm.selectable import selectable_for
 from modules.llm.subscriptions.chatgpt import revocation
 from modules.llm.subscriptions.chatgpt.account import CHATGPT
 from modules.llm.subscriptions.chatgpt.tokens import read_tokens
+from modules.llm.subscriptions.claude.account import CLAUDE_PLAN
+from modules.llm.subscriptions.claude.errors import ClaudeSignInRequiredError
+from modules.llm.subscriptions.claude.hosts import SIGN_IN_HOST, require_claude_hosts
 
 router = APIRouter(prefix="/connections")
 
@@ -63,7 +66,7 @@ CHAT_TEST_MAX_TOKENS = 1024
 CHAT_TEST_MAX_CHARS = 600
 
 
-def _read(connection: ProviderConnection) -> ConnectionRead:
+def connection_read(connection: ProviderConnection) -> ConnectionRead:
     tokens = read_tokens(connection) if connection.auth_kind == CHATGPT else None
     return ConnectionRead(
         id=connection.id,
@@ -135,6 +138,9 @@ def allowed_connection(session: Session, connection_id: int) -> ProviderConnecti
     """The stored connection, once egress to its host is allowed."""
     connection = _stored(session, connection_id)
     egress.require(session, egress.host_destination(connection.base_url))
+    if connection.auth_kind == CLAUDE_PLAN:
+        # Claude Code also refreshes its sign-in on a host of its own.
+        require_claude_hosts(session)
     return connection
 
 
@@ -156,7 +162,7 @@ def _save(session: Session, connection: ProviderConnection) -> ConnectionRead:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "a connection with this label already exists"
         ) from error
-    return _read(connection)
+    return connection_read(connection)
 
 
 async def _probe_or_reject(
@@ -182,7 +188,7 @@ def list_connections(session: SessionDep) -> list[ConnectionRead]:
     connections = session.scalars(
         select(ProviderConnection).order_by(ProviderConnection.label)
     ).all()
-    return [_read(connection) for connection in connections]
+    return [connection_read(connection) for connection in connections]
 
 
 @router.post("", response_model=ConnectionRead, status_code=status.HTTP_201_CREATED)
@@ -206,7 +212,7 @@ async def update_connection(
     connection_id: int, payload: ConnectionWrite, session: SessionDep
 ) -> ConnectionRead:
     connection = await transact(session, _stored, connection_id)
-    if connection.auth_kind == CHATGPT:
+    if connection.auth_kind in (CHATGPT, CLAUDE_PLAN):
         return await transact(session, _rename, connection, payload)
     label, base_url, submitted_key = _candidate(payload)
     api_key = (
@@ -224,7 +230,7 @@ async def update_connection(
 def _rename(
     session: Session, connection: ProviderConnection, payload: ConnectionWrite
 ) -> ConnectionRead:
-    """A ChatGPT connection's address and sign-in are the app's; only its name is the user's."""
+    """A plan's address and sign-in are not the user's to edit; only its name is."""
     label = payload.label.strip()
     if not label:
         raise HTTPException(
@@ -248,6 +254,9 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
     session.delete(connection)
     session.flush()
     egress.forget_if_unused(session, egress.host_destination(connection.base_url))
+    if connection.auth_kind == CLAUDE_PLAN:
+        # No connection names the sign-in host, so nothing else would clear it.
+        egress.forget_if_unused(session, f"host:{SIGN_IN_HOST}")
     # Committed first: the delete stands even if OpenAI never answers.
     session.commit()
     if revoke:
@@ -408,7 +417,13 @@ async def test_connection_speech(
 
 def _sign_in_required(error: SignInRequiredError) -> HTTPException:
     """409 like `unreadable_secret`: the request is fine, the stored sign-in is not."""
+    # A Claude plan's sign-in is Claude Code's, fixed in a terminal.
+    code = (
+        "claude_sign_in_required"
+        if isinstance(error, ClaudeSignInRequiredError)
+        else "sign_in_required"
+    )
     return HTTPException(
         status.HTTP_409_CONFLICT,
-        detail={"code": "sign_in_required", "message": str(error)},
+        detail={"code": code, "message": str(error)},
     )

@@ -46,11 +46,21 @@ function messageFrom(error: unknown) {
 function Explanation({
   modelType,
   model,
+  plan,
 }: {
   modelType: ModelType
   model: ConnectionModel
+  plan: boolean
 }) {
   const image = modelType === "image_gen"
+  // A plan bills nothing per prompt; it fills the chat slot alone.
+  if (plan && modelType === "text_gen") {
+    return intl.formatMessage({
+      id: "models_try_dialog_chat_plan_body",
+      defaultMessage:
+        "Chat support is confirmed. Testing sends one short prompt, which counts toward your plan’s limits.",
+    })
+  }
   if (modelType === "audio_gen") {
     return model.capability_source === "unknown"
       ? intl.formatMessage({
@@ -100,6 +110,7 @@ export function TryModelDialog({
   modelType,
   model,
   unlisted,
+  plan = false,
   onOpenChange,
   onOpenChangeComplete,
   onSelected,
@@ -108,6 +119,8 @@ export function TryModelDialog({
   modelType: ModelType
   model: ConnectionModel
   unlisted: boolean
+  /** A ChatGPT or Claude plan: a test uses the plan's limits, not money. */
+  plan?: boolean
   onOpenChange: (open: boolean) => void
   onOpenChangeComplete: (open: boolean) => void
   onSelected?: (selection: ModelSelection) => void
@@ -204,7 +217,7 @@ export function TryModelDialog({
             )}
           </DialogTitle>
           <DialogDescription>
-            <Explanation modelType={modelType} model={model} />
+            <Explanation modelType={modelType} model={model} plan={plan} />
           </DialogDescription>
         </DialogHeader>
         {modelType === "audio_gen" ? (

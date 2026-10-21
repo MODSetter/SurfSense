@@ -1,22 +1,24 @@
-"""The plugin servers a turn gives opencode, and a rule for each of their tools."""
+"""The plugin servers a turn gives its runtime, and a rule for each of their tools."""
 
 import re
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from modules.agent.plugin_tools.thread_calls import CALLS_HEADER
+from modules.agent.plugin_gateway.given_server import given_server
+from modules.agent.plugin_gateway.ready_upstream import Upstream
+from modules.agent.plugin_gateway.upstream_headers import upstream_headers
+from modules.agent.plugin_tools.tool_budget import offered_tools
 from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.plugin_host import on_plugin_host
-from modules.plugins.remote.sign_in.plugin_headers import LICENSE, sign_in_headers
-
-# More tools than this crowd the model's choice and its prompt; the plugins connected first win.
-MAX_TOOLS = 24
-# Asks SurfSense's plugin host for a call's items in the text alone: opencode reads
-# only the text when there is any, so the structured copy would be sent for nothing.
-TEXT_ONLY_HEADER = "x-surfsense-text-only"
+from modules.plugins.remote.mcp_client.transports import (
+    STREAMABLE_HTTP,
+    Transport,
+    entry_transport,
+)
+from modules.plugins.remote.sign_in.plugin_headers import LICENSE
 
 
 @dataclass(frozen=True)
@@ -25,14 +27,21 @@ class TurnPlugin:
 
     name: str
     title: str
+    # The gateway's address for it and the thread's key: all a runtime is given.
     url: str
     headers: dict[str, str]
+    # How its server is reached; opencode finds the older SSE from the URL itself.
+    transport: Transport = STREAMABLE_HTTP
     # `<plugin>_<tool>` to `allow` or `ask`; every other tool of the plugin is denied.
     rules: dict[str, str] = field(default_factory=dict)
+    # The same rules by the tool's own name, for an engine that names tools otherwise.
+    tools: dict[str, str] = field(default_factory=dict)
     # On SurfSense's plugin host, whose calls run longer and which Stop can reach.
     on_plugin_host: bool = False
     # Signs in with the SurfSense license, so a refusal is the license, not a sign-in.
     licensed: bool = False
+    # The server itself, for SurfSense's own requests to it; never given to a runtime.
+    upstream: Upstream | None = None
 
 
 def opencode_tool_name(server: str, tool: str) -> str:
@@ -46,37 +55,35 @@ def opencode_tool_name(server: str, tool: str) -> str:
 
 def turn_plugins(
     session: Session,
+    where: tuple[int, int],
+    launch_key: str,
     mentioned: frozenset[str] = frozenset(),
-    calls_token: str | None = None,
+    budget: int | None = None,
+    text: str = "",
 ) -> list[TurnPlugin]:
-    """The first MAX_TOOLS ready tools, and every one past them of a plugin the user mentioned.
-
-    A plugin on SurfSense's plugin host also gets the thread's `calls_token`, so Stop can end its calls,
-    and asks for text-only results; no other server is sent either.
-    """
-    ready = list_tools(session)
-    chosen = ready[:MAX_TOOLS] + [
-        tool for tool in ready[MAX_TOOLS:] if tool.plugin_id in mentioned
-    ]
+    """The ready tools that fit `budget` tokens of definitions, the ones `text` asks for
+    first, or every one with no budget."""
+    chosen = offered_tools(list_tools(session), mentioned, budget, text)
     plugins: dict[str, TurnPlugin] = {}
     for tool in chosen:
         if tool.plugin_id not in plugins:
             row = session.get_one(InstalledPlugin, tool.plugin_id)
-            headers = sign_in_headers(session, row)
-            ours = on_plugin_host(row.url)
-            if ours:
-                headers[TEXT_ONLY_HEADER] = "1"
-            if calls_token and ours:
-                headers[CALLS_HEADER] = calls_token
+            url, headers = given_server(row.id, where, launch_key)
+            transport = entry_transport(row.entry)
             plugins[tool.plugin_id] = TurnPlugin(
                 name=row.id,
                 title=tool.plugin_name,
-                url=row.url,
+                url=url,
                 headers=headers,
-                on_plugin_host=ours,
+                transport=transport,
+                on_plugin_host=on_plugin_host(row.url),
                 licensed=row.credential_kind == LICENSE,
+                upstream=Upstream(
+                    row.url, upstream_headers(session, row, where[1]), transport
+                ),
             )
         rule = "ask" if needs_approval(tool) else "allow"
         name = opencode_tool_name(tool.plugin_id, tool.tool)
         plugins[tool.plugin_id].rules[name] = rule
+        plugins[tool.plugin_id].tools[tool.tool] = rule
     return list(plugins.values())

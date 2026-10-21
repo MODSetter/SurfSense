@@ -42,10 +42,14 @@ from modules.agent.plugin_tools.changed_tools import (
     check_changed_tools,
 )
 from modules.agent.plugin_tools.give_plugins import (
-    UnavailablePlugin,
     give_plugins,
     servers,
     set_plugin_rules,
+)
+from modules.agent.plugin_tools.left_out import (
+    LeftOut,
+    left_out_note,
+    left_out_plugins,
 )
 from modules.agent.plugin_tools.mentions import (
     Mention,
@@ -57,8 +61,9 @@ from modules.agent.plugin_tools.stop_plugin_calls import (
     HostCalls,
     stop_plugin_calls,
 )
-from modules.agent.plugin_tools.thread_calls import thread_calls_token
+from modules.agent.plugin_tools.tool_budget import window_budget
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
 from modules.agent.tool_endpoint.failed_renders import begin_turn
 from modules.agent.tool_endpoint.registration import SERVER, register_thread_tools
@@ -92,6 +97,8 @@ class _Sending:
     text: str
     sources: TurnSources
     title: str | None
+    # What another engine did in this thread while opencode was away.
+    handover: str | None = None
 
 
 @dataclass(frozen=True)
@@ -101,6 +108,7 @@ class _Tools:
     mentions: list[Mention]
     plugins: list[TurnPlugin]
     unavailable: list[UnavailablePlugin]
+    left_out: list[LeftOut]
 
 
 @dataclass(frozen=True)
@@ -119,6 +127,7 @@ async def agent_turn(
     payload: MessageCreate,
     launch_key: str,
     place: RunPlace,
+    handover: str | None = None,
 ) -> StreamingResponse:
     """Start the turn as a run and follow it, or refuse before anything is sent."""
     session_id = thread.opencode_session_id
@@ -146,13 +155,13 @@ async def agent_turn(
                 "The selected model cannot run the agent. Choose another model, "
                 "or start a new chat to use this one.",
             )
-        title = _first_title(thread, payload.text)
+        title = first_title(thread, payload.text)
         if title is not None:
             await transact(session, _rename, thread, title)
     except BaseException:
         await ready.client.close()
         raise
-    sending = _Sending(payload.text, sources, title)
+    sending = _Sending(payload.text, sources, title, handover)
     thread_id, workspace_id = thread.id, thread.workspace_id
 
     async def frames(run: Run) -> AsyncIterator[bytes]:
@@ -227,6 +236,7 @@ async def _stream(
                     launch_key,
                     session_id,
                     sending.text,
+                    window_budget(ready.window),
                     took,
                 )
             )
@@ -285,8 +295,10 @@ async def _stream(
                                 notes=[
                                     note
                                     for note in (
+                                        sending.handover,
                                         sending.sources.note,
                                         mention_note(mentions),
+                                        left_out_note(tools.left_out),
                                     )
                                     if note is not None
                                 ],
@@ -297,7 +309,7 @@ async def _stream(
                             break
                         continue
                     for frame in turn.frames(event):
-                        _follow_approvals(run, waiting, frame)
+                        follow_approvals(run, waiting, frame)
                         host_calls.follow(frame, plugins)
                         if frame.get("artifact") is not None:
                             # Whether it made the document, as the stored step says.
@@ -385,6 +397,7 @@ async def _prepare_tools(
     launch_key: str,
     session_id: str,
     text: str,
+    budget: int,
     took: dict[str, float],
 ) -> _Tools:
     """SurfSense's tools and the ready plugins given to the folder's opencode, and the session's rules set.
@@ -404,8 +417,9 @@ async def _prepare_tools(
         ]
         mentions = await transact(session, mentioned_plugins, text)
         mentioned = frozenset(m.plugin_id for m in mentions)
-        calls_token = thread_calls_token(thread_id)
-        planned = await transact(session, turn_plugins, mentioned, calls_token)
+        planned = await transact(
+            session, turn_plugins, where, launch_key, mentioned, budget, text
+        )
         checked = asyncio.create_task(
             _timed(took, "check", check_changed_tools(sessions))
         )
@@ -435,7 +449,9 @@ async def _prepare_tools(
         took["listed"] = await checked
         # Read as the check left them, not as rows the planned read still holds.
         session.expire_all()
-        plugins = await transact(session, turn_plugins, mentioned, calls_token)
+        plugins = await transact(
+            session, turn_plugins, where, launch_key, mentioned, budget, text
+        )
         added = given.added
         if servers(plugins) != servers(planned):
             # A server that failed already is not waited on twice.
@@ -456,7 +472,14 @@ async def _prepare_tools(
                 raise
             logger.warning("%s's plugin rules were not set", folder, exc_info=True)
         took["registered"] = await registered
-    return _Tools(mentions, plugins, signed_out + licensed_out + given.unavailable)
+        left_out = await transact(session, left_out_plugins, plugins)
+    unavailable = signed_out + licensed_out + given.unavailable
+    return _Tools(
+        mentions,
+        plugins,
+        unavailable + [UnavailablePlugin(p.title, "left_out") for p in left_out],
+        left_out,
+    )
 
 
 async def _timed[T](took: dict[str, float], stage: str, work: Awaitable[T]) -> T:
@@ -521,7 +544,7 @@ async def _note_stop(
         logger.warning("could not note the stop of %s's reply", session_id)
 
 
-def _follow_approvals(run: Run, waiting: set[str], frame: dict) -> None:
+def follow_approvals(run: Run, waiting: set[str], frame: dict) -> None:
     """Say the run needs approval while any request waits, and running once none does."""
     if frame["type"] == "permission-request":
         waiting.add(frame["id"])
@@ -569,7 +592,7 @@ async def _refuse_a_legacy_thread(
         raise HTTPException(status.HTTP_409_CONFLICT, LEGACY_TURN)
 
 
-def _first_title(thread: ChatThread, text: str) -> str | None:
+def first_title(thread: ChatThread, text: str) -> str | None:
     """A name for a thread still called "New chat", from its first message."""
     if (thread.title or "").casefold() != "new chat":
         return None

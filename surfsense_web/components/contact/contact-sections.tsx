@@ -8,6 +8,7 @@ import {
 	EMAIL,
 } from "@/components/contact/contact-content";
 import { HomeBadge } from "@/components/homepage/home/home-badge";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { sectionSpacing } from "@/components/homepage/home/home-section-spacing";
 import { DiscordLogo } from "@/components/homepage/icons/discord-logo";
 import { GithubLogo } from "@/components/homepage/icons/github-logo";
@@ -48,10 +49,12 @@ export function ContactHero() {
 				nowhere. Pick whichever of the four below matches what you need.
 			</p>
 			<div className="mt-10 flex justify-center">
-				<a className={PILL} href={CALL_URL} target="_blank" rel="noreferrer noopener">
-					Book a call
-					<ArrowUpRight01Icon aria-hidden="true" className="size-4" />
-				</a>
+				<HomeButton asChild variant="bare" className={PILL}>
+					<a href={CALL_URL} target="_blank" rel="noreferrer noopener">
+						Book a call
+						<ArrowUpRight01Icon aria-hidden="true" className="size-4" />
+					</a>
+				</HomeButton>
 			</div>
 		</section>
 	);
@@ -161,10 +164,12 @@ export function ContactEnterprise() {
 						needs, and you will get a reply from a person rather than a form.
 					</p>
 				</div>
-				<a className={PILL} href={`mailto:${EMAIL}`}>
-					<Mail01Icon aria-hidden="true" className="size-4" />
-					{EMAIL}
-				</a>
+				<HomeButton asChild variant="bare" className={PILL}>
+					<a href={`mailto:${EMAIL}`}>
+						<Mail01Icon aria-hidden="true" className="size-4" />
+						{EMAIL}
+					</a>
+				</HomeButton>
 			</div>
 		</section>
 	);

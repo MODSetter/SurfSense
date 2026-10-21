@@ -1,6 +1,6 @@
 # ADR 0057: A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential
 
-- **Status:** Accepted
+- **Status:** Accepted; its network decision superseded by [ADR 0061](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md)
 - **Date:** 2026-10-16
 - **Supersedes:** [ADR 0038](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) in part: its consequence that a Claude subscription is not offered. [ADR 0050](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) in part: that SurfSense owns a plan's sign-in for both engines, which now holds for the ChatGPT plan only
 - **Source:** [Use your Claude plan proposal, decisions and Anthropic's terms L59–84](https://github.com/MODSetter/SurfSense/blob/e1332966dd2ec2cfcf636331da6f770d836fcff1/docs/proposals/claude-plan/README.md#L59-L84)
@@ -33,4 +33,4 @@ A Claude plan has no HTTP endpoint SurfSense may call, so opencode cannot reach 
 
 ## Where the code stands
 
-Not built. The work is laid out in the [Use your Claude plan](../proposals/claude-plan/README.md) proposal.
+Built: chat, titles, Studio and Agentic mode ([Claude plan](../architecture/claude-plan.md)). It is untested on Windows and Linux on a real install. The contract tests against the real binary that the consequences name run only on a developer's machine, opted in; a Claude Code newer than the one they last passed on is named in the log, and the version SurfSense calls tested is raised only once they pass again ([Tests](../architecture/claude-plan.md#tests), [Known gaps](../architecture/claude-plan.md#known-gaps)).

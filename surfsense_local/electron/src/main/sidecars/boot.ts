@@ -139,8 +139,8 @@ export async function bootSidecars(
     ctx.opencodePassword = randomBytes(32).toString("base64url")
     ctx.docxSnapshotKey = randomBytes(32).toString("base64url")
     ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
-    // opencode reaches plugins only through SurfSense's proxy; the API listens here.
-    ctx.pluginProxyPort = await getFreePort(host)
+    // opencode's way out, which the API serves and which refuses every host.
+    ctx.opencodeProxyPort = await getFreePort(host)
     ctx.agentDir = join(dataDir, "agent")
     mkdirSync(ctx.agentDir, { recursive: true })
     await stopLeftoverOpencode(ctx.agentDir, host)

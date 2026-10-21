@@ -41,7 +41,9 @@ def offered(api: AgentAPI, request: int = 0) -> set[str]:
 
 
 async def connect_custom(api: AgentAPI, url: str, name: str) -> None:
-    """Connect a server by URL under `name`, its id the name in lower case."""
+    """Connect a server by URL under `name`, its id the name in lower case, with
+    third-party plugins allowed, as adding one requires."""
+    await api.http.put("/plugins/third-party", json={"allowed": True})
     added = await api.http.post("/plugins/custom", json={"url": url, "name": name})
     assert added.status_code == 201, added.text
 
@@ -52,7 +54,7 @@ async def test_plugins_are_given_at_once_and_one_that_hangs_is_named_alone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Two slow servers connect side by side; a hung one costs the turn its own wait, not the others."""
-    monkeypatch.setattr(give_plugins, "ADD_SECONDS", 4)
+    monkeypatch.setattr(give_plugins, "CONNECT_SECONDS", 4)
     caplog.set_level(logging.INFO, logger="modules.agent.agent_threads.turn")
     slow = [
         Delaying(notes_server().streamable_http_app(), "initialize", 2) for _ in "ab"
@@ -64,7 +66,6 @@ async def test_plugins_are_given_at_once_and_one_that_hangs_is_named_alone(
             base = servers.enter_context(serving(app))
             await connect_custom(agent_api, f"{base}/mcp", name)
             app.on = True
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         agent_api.model.replies = [("text", "Hi.")]
         thread = await open_thread(agent_api)
 
@@ -87,7 +88,7 @@ async def test_the_rules_are_set_even_when_a_plugin_cannot_be_given(
     agent_api: AgentAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A tool switched off since the last turn is not offered, though another plugin's connect fails."""
-    monkeypatch.setattr(give_plugins, "ADD_SECONDS", 2)
+    monkeypatch.setattr(give_plugins, "CONNECT_SECONDS", 2)
     hung = Delaying(notes_server().streamable_http_app(), "initialize", 3600)
     with serving(notes_server().streamable_http_app()) as notes, serving(hung) as base:
         await connect_notes(agent_api, f"{notes}/mcp")
@@ -183,7 +184,6 @@ async def test_a_plugin_its_check_makes_not_ready_is_taken_back_before_the_model
     server = one_tool_server()
     with serving(server.streamable_http_app()) as base:
         await connect_custom(agent_api, f"{base}/mcp", "Solo")
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         server.remove_tool("search")
         server.add_tool(
             lambda query: query,

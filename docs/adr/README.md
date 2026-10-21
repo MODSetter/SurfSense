@@ -84,6 +84,12 @@ The Date is the day the decision was first written down. Source links are permal
 | 0054 | [SurfSense's own plugins, free and paid, run on one plugin host, with the registry served beside it](0054-surfsenses-plugins-run-on-one-plugin-host.md) | Accepted |
 | 0055 | [Verified is a maintainer's judgement, and CI contacts each server a pull request adds](0055-verified-is-a-maintainers-judgement-and-ci-contacts-each-server.md) | Accepted |
 | 0056 | [Speech recognition runs on a second audio.cpp server that only the API calls](0056-speech-recognition-runs-on-a-second-audiocpp-server.md) | Accepted |
-| 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted |
+| 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted, its network decision superseded by 0061 |
 | 0058 | [The bundled embedder runs at FP32 on x86-64, upcast in memory, and its vector space is still the pinned FP16 file](0058-the-bundled-embedder-runs-at-fp32-on-x86-64.md) | Accepted |
 | 0059 | [A born-digital PDF is read from its own text layer, and Docling reads only a PDF with a page that needs it](0059-a-born-digital-pdf-is-read-from-its-text-layer.md) | Accepted |
+| 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted |
+| 0061 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |
+| 0062 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0062-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |
+| 0063 | [A plugin's connection is a transport and one sign-in, detected from the server](0063-a-plugins-connection-is-a-transport-and-one-sign-in.md) | Accepted |
+| 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
+| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |

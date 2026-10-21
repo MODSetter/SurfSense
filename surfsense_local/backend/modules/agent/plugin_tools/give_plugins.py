@@ -1,6 +1,6 @@
 """Before a turn: the folder's opencode holds exactly the ready plugins, and the session's rules say what each tool may do.
 
-The servers are given all at once, each within ADD_SECONDS, so a turn waits for the
+The servers are given all at once, each within CONNECT_SECONDS, so a turn waits for the
 slowest rather than the sum, and a server that hangs is named unavailable alone.
 """
 
@@ -8,13 +8,14 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import httpx
 
 from modules.agent.opencode_client import OpencodeClient
+from modules.agent.plugin_tools.connect_limit import CONNECT_SECONDS
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
+from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.tool_endpoint.registration import (
     PLUGIN_CALL_SECONDS,
     SERVER,
@@ -24,14 +25,6 @@ from modules.agent.tool_endpoint.registration import (
 logger = logging.getLogger(__name__)
 
 _SIGN_IN = {"needs_auth", "needs_client_registration"}
-# Under OpencodeClient's 30 s, so one server's hang fails its own add, not the turn's.
-ADD_SECONDS = 25
-
-
-@dataclass(frozen=True)
-class UnavailablePlugin:
-    title: str
-    reason: Literal["unreachable", "sign_in", "license"]
 
 
 @dataclass(frozen=True)
@@ -86,7 +79,7 @@ async def give_plugins(
                         else TOOL_CALL_SECONDS
                     ),
                 ),
-                ADD_SECONDS,
+                CONNECT_SECONDS,
             )
         except (httpx.HTTPError, TimeoutError):
             logger.warning(
@@ -123,7 +116,8 @@ async def set_plugin_rules(
     held: dict[str, str],
     plugins: list[TurnPlugin],
 ) -> None:
-    """Replace the session's rules, whichever servers could be given, so no earlier turn's allow survives."""
+    """Set the session's rules, whichever servers could be given; they start by denying every
+    plugin tool, so no earlier turn's allow survives under them."""
     # Each server opencode holds is denied first, so a tool SurfSense has not
     # reviewed is refused and left out of what the model is offered.
     ready = {plugin.name for plugin in plugins}

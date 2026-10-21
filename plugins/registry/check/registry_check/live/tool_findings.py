@@ -17,8 +17,10 @@ def tool_findings(entry: dict[str, Any], listed: list[dict[str, Any]]) -> Findin
         missing = sorted(set(declared) - set(names))
         extra = sorted(set(names) - set(declared))
         if missing:
-            found.problems.append(
-                f"tools: the server does not list {', '.join(missing)}"
+            # Some servers list more once signed in; the maintainer confirms those.
+            found.warnings.append(
+                f"tools: {', '.join(missing)} not listed without sign-in; "
+                "a maintainer confirms them when connecting"
             )
         if extra:
             found.problems.append(

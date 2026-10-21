@@ -38,6 +38,7 @@ import {
 	PodcastIcon as PodcastIconData,
 	Presentation02Icon as Presentation02IconData,
 	Quiz02Icon as Quiz02IconData,
+	Search01Icon as Search01IconData,
 	SecurityCheckIcon as SecurityCheckIconData,
 	ServerStack01Icon as ServerStack01IconData,
 	SourceCodeIcon as SourceCodeIconData,
@@ -124,6 +125,7 @@ export const PlusIcon = createIcon(PlusIconData);
 export const PodcastIcon = createIcon(PodcastIconData);
 export const Presentation02Icon = createIcon(Presentation02IconData);
 export const Quiz02Icon = createIcon(Quiz02IconData);
+export const Search01Icon = createIcon(Search01IconData);
 export const SecurityCheckIcon = createIcon(SecurityCheckIconData);
 export const ServerStack01Icon = createIcon(ServerStack01IconData);
 export const SourceCodeIcon = createIcon(SourceCodeIconData);
