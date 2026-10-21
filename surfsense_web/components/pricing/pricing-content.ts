@@ -1,3 +1,4 @@
+import { EMAIL } from "@/components/contact/contact-content";
 import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
 
 /**
@@ -48,8 +49,14 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  *     this case: "If that is more than the pricing page should carry, move the
  *     comparison to a blog post and link it; do not fake it."
  *
- * Individual's primary button is the Stripe Payment Link in
+ * Individual's primary button goes to `/pricing/individual`, which says what
+ * the licence is before handing over to the Stripe Payment Link in
  * `NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`. Empty falls back to `/contact`.
+ *
+ * The Payment Link is a one-off payment, not a subscription: fulfilment
+ * (`surfsense_backend/app/license/purchase.py`) handles only a paid checkout
+ * session, so a recurring charge would never yield a new file. Renewal is a
+ * new licence at the list price.
  *
  * Free has one button, to `/downloads`, and not a second one to `/license` for
  * the 30-day licence: that licence is claimed by email on `/downloads` itself,
@@ -59,6 +66,15 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
 
 export const BUY_INDIVIDUAL_URL =
 	process.env.NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL || "/contact";
+
+/** The checkout landing page Individual's buttons lead to. */
+export const INDIVIDUAL_CHECKOUT_URL = "/pricing/individual";
+
+export const INDIVIDUAL_PRICE = "$60";
+export const INDIVIDUAL_LIST_PRICE = "$120";
+
+/** Decided by the maintainer on 21 Oct 2026; terms section 5 carries the same rules. */
+export const FEATURE_REQUEST_LINE = "1 feature build request a year";
 
 /**
  * The seven platforms behind the "7 platforms" feature line, in the same order
@@ -105,17 +121,18 @@ export const PLANS: Plan[] = [
 	},
 	{
 		name: "Individual",
-		price: "$60",
+		price: INDIVIDUAL_PRICE,
 		period: "/year",
-		note: "First year, then $120.",
+		note: `First year, then ${INDIVIDUAL_LIST_PRICE}.`,
 		summary: "Adds the scraper plugins and priority support for one person.",
 		features: [
 			"Everything in Free",
 			"Every SurfSense plugin: 7 platforms and the web crawler",
 			"Unlimited, with no per-item metering and no credits to buy",
 			"Priority support",
+			FEATURE_REQUEST_LINE,
 		],
-		action: [{ label: "Buy a licence", href: BUY_INDIVIDUAL_URL, external: true, primary: true }],
+		action: [{ label: "Buy a licence", href: INDIVIDUAL_CHECKOUT_URL, primary: true }],
 		featured: true,
 	},
 	{
@@ -143,47 +160,71 @@ export const PLANS: Plan[] = [
  * that can be answered about our own product without asserting anything about
  * Google's current tiers.
  */
-export const PRICING_FAQ = [
-	{
-		question: "Is SurfSense free?",
-		answer:
-			"Yes. The app and all of its updates are free forever, with no account, no trial clock and no usage cap. You download it, install it, and use it. A paid licence is only needed for the scraper plugins and priority support; everything the app itself does stays free.",
-	},
-	{
-		question: "What does a paid licence add?",
-		answer:
-			"A licence unlocks priority support and SurfSense's own plugins: Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, plus the web crawler. Plugins are unlimited at a flat price, so nothing is metered per item and there is no credit balance to top up. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.",
-	},
-	{
-		question: "Is there a free trial?",
-		answer:
-			"Yes. A 30-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 30 days.",
-	},
-	{
-		question: "Does the $60 early-bird price renew at $60?",
-		answer:
-			"No. The $60 covers the first year; it renews at the $120 list price. The early-bird window itself is open for 30 days after launch, so $60 is the first-year price for anyone who buys inside it. Enterprise agreements are priced separately.",
-	},
-	{
-		question: "What do you offer enterprises?",
-		answer:
-			"Enterprise is a deployment, not a bigger plan. It covers running SurfSense with no egress at all, with licensing and the plugin endpoints mirrored inside your own network. It also covers model and network policy you set centrally, a local audit log of outbound calls, installers your IT rolls out on a version you pin, connectors for your internal systems, and named support on an agreed response time. Pricing comes out of a conversation and is invoiced annually against a contract. Google's comparable product, NotebookLM Enterprise, publishes no price either, and is sold through Google Cloud in subscriptions of 15 to 5,000 licences.",
-	},
-	{
-		question: "What happens when my licence expires?",
-		answer:
-			"The app keeps working. A licence expiry never disables SurfSense: your documents, your index and every local feature carry on exactly as before. Only SurfSense's own plugins stop, because they run on our servers; third-party plugins keep working. Renewing is a new licence file.",
-	},
-	{
-		question: "Do I need an account to buy?",
-		answer:
-			"No. There is no account anywhere in the purchase flow. Checkout collects an email address, the licence file is sent to it and also offered on the confirmation page, and you can have it resent to that same address at any time.",
-	},
-	{
-		question: "Can I run NotebookLM locally?",
-		answer:
-			"No. NotebookLM is a Google cloud service: it requires a Google account, uploads your sources to Google's servers, and cannot be installed on your own machine. Running the same workflow locally means using an alternative built for it, such as SurfSense, which keeps sources and answers on your computer.",
-	},
+export type PricingQuestion = { question: string; answer: string };
+
+export const FAQ_IS_IT_FREE: PricingQuestion = {
+	question: "Is SurfSense free?",
+	answer:
+		"Yes. The app and all of its updates are free forever, with no account, no trial clock and no usage cap. You download it, install it, and use it. A paid licence is only needed for the scraper plugins and priority support; everything the app itself does stays free.",
+};
+
+export const FAQ_WHAT_A_LICENCE_ADDS: PricingQuestion = {
+	question: "What does a paid licence add?",
+	answer:
+		"A licence unlocks priority support and SurfSense's own plugins: Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, plus the web crawler. Plugins are unlimited at a flat price, so nothing is metered per item and there is no credit balance to top up. A paid licence also includes one feature build request a year. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.",
+};
+
+export const FAQ_FEATURE_REQUEST: PricingQuestion = {
+	question: "What is a feature build request?",
+	answer: `A paid Individual licence includes one feature build request per licence year. You email it to ${EMAIL} from the address the licence is registered to, and we reply within 5 business days with yes or no and the scope we would build. If it fits about a week of engineering work and the direction of the product, it goes to the top of the queue and ships in the open-source app for everyone. There is no fixed delivery date, and if we decline a request you can send another one instead.`,
+};
+
+export const FAQ_FREE_TRIAL: PricingQuestion = {
+	question: "Is there a free trial?",
+	answer:
+		"Yes. A 30-day licence comes with the free plan. It needs only an email address, with no card and no account. You enter your email on the download page, receive a licence file, import it in Settings › License, and every SurfSense plugin is unlocked for 30 days.",
+};
+
+export const FAQ_RENEWAL: PricingQuestion = {
+	question: "Does the $60 early-bird price renew at $60?",
+	answer:
+		"No. The $60 covers the first year, and a licence after that is $120 a year, the list price. It is a single payment, not a subscription, so nothing is charged again on its own: renewing is a new licence file. The early-bird window itself is open for 30 days after launch, so $60 is the first-year price for anyone who buys inside it. Enterprise agreements are priced separately.",
+};
+
+const FAQ_ENTERPRISE: PricingQuestion = {
+	question: "What do you offer enterprises?",
+	answer:
+		"Enterprise is a deployment, not a bigger plan. It covers running SurfSense with no egress at all, with licensing and the plugin endpoints mirrored inside your own network. It also covers model and network policy you set centrally, a local audit log of outbound calls, installers your IT rolls out on a version you pin, connectors for your internal systems, and named support on an agreed response time. Pricing comes out of a conversation and is invoiced annually against a contract. Google's comparable product, NotebookLM Enterprise, publishes no price either, and is sold through Google Cloud in subscriptions of 15 to 5,000 licences.",
+};
+
+export const FAQ_EXPIRY: PricingQuestion = {
+	question: "What happens when my licence expires?",
+	answer:
+		"The app keeps working. A licence expiry never disables SurfSense: your documents, your index and every local feature carry on exactly as before. Only SurfSense's own plugins stop, because they run on our servers; third-party plugins keep working. Renewing is a new licence file.",
+};
+
+export const FAQ_NO_ACCOUNT: PricingQuestion = {
+	question: "Do I need an account to buy?",
+	answer:
+		"No. There is no account anywhere in the purchase flow. Checkout collects an email address, the licence file is sent to it and also offered on the confirmation page, and you can have it resent to that same address at any time.",
+};
+
+const FAQ_NOTEBOOKLM_LOCALLY: PricingQuestion = {
+	question: "Can I run NotebookLM locally?",
+	answer:
+		"No. NotebookLM is a Google cloud service: it requires a Google account, uploads your sources to Google's servers, and cannot be installed on your own machine. Running the same workflow locally means using an alternative built for it, such as SurfSense, which keeps sources and answers on your computer.",
+};
+
+export const PRICING_FAQ: PricingQuestion[] = [
+	FAQ_IS_IT_FREE,
+	FAQ_WHAT_A_LICENCE_ADDS,
+	FAQ_FEATURE_REQUEST,
+	FAQ_FREE_TRIAL,
+	FAQ_RENEWAL,
+	FAQ_ENTERPRISE,
+	FAQ_EXPIRY,
+	FAQ_NO_ACCOUNT,
+	FAQ_NOTEBOOKLM_LOCALLY,
 ];
 
 export const SELF_BUILD_URL = REPO_URL;

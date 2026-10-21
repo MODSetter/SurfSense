@@ -60,7 +60,7 @@ export const metadata: Metadata = {
 };
 
 /** Update on every material change, for the reasons in the header note. */
-const LAST_UPDATED = "October 15, 2026";
+const LAST_UPDATED = "October 22, 2026";
 
 /**
  * The governing law and the seat of arbitration.
@@ -214,6 +214,15 @@ export default function TermsOfService() {
 						When a licence expires, the plugins and priority support stop. The application and every
 						future version of it keep working, and nothing you created with it is locked, degraded
 						or taken away.
+					</p>
+					<p>
+						A paid Individual licence includes one feature build request per licence year. Send it
+						by email to <a href="mailto:rohan@surfsense.com">rohan@surfsense.com</a> from the
+						address the licence is registered to. We reply within 5 business days with yes or no
+						and, for a yes, the scope we would build. A request that fits about a week of
+						engineering work and the direction of the product goes to the top of our queue and ships
+						in the open source application for everyone. There is no fixed delivery date. If we
+						decline a request, you can send another one in its place.
 					</p>
 					<p>
 						If a licence does not do what this site says it does, email us within 30 days of buying

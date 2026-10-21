@@ -91,8 +91,9 @@ const PRICING_SCHEMA = {
 			name: "Individual",
 			price: 60,
 			priceCurrency: "USD",
+			url: "https://www.surfsense.com/pricing/individual",
 			description:
-				"Adds every scraper plugin, unlimited and unmetered, plus priority support. Billed yearly at the early-bird price, down from $120.",
+				"Adds every scraper plugin, unlimited and unmetered, plus priority support and one feature build request a year. The early-bird price for the first year, down from $120.",
 		},
 	],
 };
