@@ -26,15 +26,19 @@ export async function serveUpdateManifest(
 ): Promise<Response> {
 	if (!isChannelFile(file)) return new Response("Not found\n", { status: 404, headers: NO_STORE });
 
-	// Counted whatever GitHub answers: the app checked either way.
-	deps.record({
-		event: "desktop_update_check",
-		properties: {
-			file,
-			...readUpdateCheckDimensions(request.headers),
-			country: requestCountry(request.headers),
-		},
-	});
+	// Counted whatever GitHub answers: the app checked either way. Next answers
+	// HEAD with this handler too, but the app only GETs, so a HEAD is a monitor
+	// or a scanner and is not an update check.
+	if (request.method !== "HEAD") {
+		deps.record({
+			event: "desktop_update_check",
+			properties: {
+				file,
+				...readUpdateCheckDimensions(request.headers),
+				country: requestCountry(request.headers),
+			},
+		});
+	}
 
 	try {
 		const manifest = pinManifestToRelease(

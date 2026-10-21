@@ -42,11 +42,13 @@ async function check(
 	{
 		status = 200,
 		headers = CLIENT_HEADERS,
-	}: { status?: number; headers?: Record<string, string> } = {}
+		method = "GET",
+	}: { status?: number; headers?: Record<string, string>; method?: string } = {}
 ) {
 	const events: PersonlessEvent[] = [];
 	const { calls, fetchManifest } = upstream(manifest, status);
 	const request = new Request(`https://updates.surfsense.com/api/updates/${file}?noCache=1`, {
+		method,
 		headers,
 	});
 	const response = await serveUpdateManifest(request, file, {
@@ -230,6 +232,12 @@ test("each check records one desktop_update_check with exactly the contract's fi
 			},
 		},
 	]);
+});
+
+test("a HEAD request is answered but not recorded, since the app only GETs", async () => {
+	const { response, events } = await check("stable.yml", stable, { method: "HEAD" });
+	assert.equal(response.status, 200);
+	assert.equal(events.length, 0);
 });
 
 test("a check is recorded even when GitHub fails, since the app still checked", async () => {
