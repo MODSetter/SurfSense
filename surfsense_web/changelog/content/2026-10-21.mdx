@@ -43,7 +43,6 @@ v2.2.3 lets you use your Claude plan in SurfSense, connects any remote MCP serve
 
 - **The first start needs free disk space**: v2.2.3 copies your library database before upgrading it, so the first start needs free space about the size of `~/.surfsense/surfsense.db`. Without it, SurfSense closes without a message. Free some space and start it again.
 - **Going back to v2.2.2 needs a manual restore**: v2.2.2 can't open the upgraded database. Quit SurfSense and replace `~/.surfsense/surfsense.db` with the copy saved at the upgrade, `~/.surfsense/backups/0030-0032.db`, before you reinstall v2.2.2. If `surfsense.db-wal` or `surfsense.db-shm` is still there, delete it too. Anything added since the update won't be in the copy. If you updated straight from v2.2.1, the copy is `0029-0032.db`.
-- **Claude plan on Windows and Linux is untested**: It was tested on a Mac. On Windows and Linux it hasn't been tried on a real install yet.
 
 ### Developers
 
