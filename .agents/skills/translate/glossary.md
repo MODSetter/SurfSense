@@ -61,6 +61,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, the HTTP s
 | server (a model server) | サーバー | 서버 | 服务器 | सर्वर | Server | servidor | serveur | servidor | сервер |
 | provider | プロバイダー | 제공업체 | 提供商 | प्रोवाइडर | Anbieter | proveedor | fournisseur | provedor | провайдер |
 | this computer | このコンピューター | 이 컴퓨터 | 这台电脑 | यह कंप्यूटर | dieser Computer | este equipo | cet ordinateur | este computador | этот компьютер |
+| license key (what SurfSense’s paid plugins send to check a license) | ライセンスキー | 라이선스 키 | 许可证密钥 | लाइसेंस कुंजी | Lizenzschlüssel | clave de licencia | clé de licence | chave de licença | лицензионный ключ |
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
 | plugin (an MCP server whose tools the agent can use) | プラグイン | 플러그인 | 插件 | प्लगइन | Plugin | plugin | plugin | plugin | плагин |
 | third-party (a plugin SurfSense does not publish) | サードパーティ | 서드파티 | 第三方 | थर्ड-पार्टी | Drittanbieter- | de terceros | tiers | de terceiros | сторонний |
