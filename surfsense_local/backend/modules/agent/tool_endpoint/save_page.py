@@ -1,8 +1,6 @@
-"""The page tool: keep a web page the agent wrote under outputs/ as a version in Studio (ADR 0066).
+"""Keep a web page the agent wrote as a version in Studio (ADR 0066).
 
-The agent writes the HTML with its own tools; this reads the file, adds the kit
-it asks for and the no-network policy, and waits for the index so the page is
-ready when the model looks at its screenshots.
+Waits for the index, so the page is ready when the model looks at its screenshots.
 """
 
 import time

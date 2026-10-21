@@ -35,7 +35,8 @@ export type Artifact = {
   version: ArtifactVersion | null
   /** What the artifact is rendered from, kept so an edit can change it. */
   spec_kind: "python" | "markdown" | "html" | null
-  /** A ready Word or PDF version Studio made, which Refine may rewrite. */
+  /** A ready Word or PDF version Studio made, or a web page a model wrote
+   *  there, which Refine may rewrite. */
   refinable: boolean
 }
 
