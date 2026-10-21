@@ -42,6 +42,9 @@ export async function captureWebPage(
   const close = () => win.destroy()
   signal.addEventListener("abort", close, { once: true })
   try {
+    // Emulation set before the window has a page never answers (measured on
+    // Electron 44), so the page loads after a blank one, already in reduced motion.
+    await win.loadURL("about:blank")
     win.webContents.debugger.attach("1.3")
     await win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {
       features: [{ name: "prefers-reduced-motion", value: "reduce" }],
@@ -54,7 +57,8 @@ export async function captureWebPage(
     win.setContentSize(CAPTURE_WIDTH, captureHeight(scrolled))
     await wait(RESIZE_MS)
     const image = await win.webContents.capturePage()
-    return image.toPNG()
+    // A 2x display captures twice as wide; the API cuts screens from 1,280 px.
+    return image.resize({ width: CAPTURE_WIDTH, quality: "best" }).toPNG()
   } finally {
     signal.removeEventListener("abort", close)
     if (!win.isDestroyed()) win.destroy()
