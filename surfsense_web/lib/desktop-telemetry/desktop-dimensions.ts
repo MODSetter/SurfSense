@@ -16,7 +16,8 @@ export const DESKTOP_PLATFORMS = [
 const FIXED_OS_NAMES = new Set(["windows-10", "windows-11", "linux"]);
 const MACOS_MAJOR = /^macos-[1-9][0-9]$/;
 
-// Plain x.y.z only: a pre-release tag is free text and could carry a name.
+// Plain x.y.z only: a pre-release tag is free text and could carry a name, so
+// a pre-release build's checks count as "invalid" and its usage reports get 400.
 export const APP_VERSION = /^(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$/;
 
 export function isDesktopPlatform(value: unknown): value is (typeof DESKTOP_PLATFORMS)[number] {

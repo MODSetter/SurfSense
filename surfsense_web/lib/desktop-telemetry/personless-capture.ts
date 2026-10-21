@@ -47,7 +47,11 @@ export function createPersonlessCapture({ apiKey, host, fetch }: CaptureConfig):
 
 let captureFromEnv: CapturePersonless | undefined;
 
-/** The routes' capture. Does nothing until DESKTOP_TELEMETRY_POSTHOG_KEY is set. */
+/**
+ * The routes' capture. Does nothing until DESKTOP_TELEMETRY_POSTHOG_KEY is set.
+ * The key's project must live on the instance NEXT_PUBLIC_POSTHOG_HOST names
+ * (fixed at build time), or PostHog drops every event without an error.
+ */
 export function capturePersonlessEvent(event: PersonlessEvent): Promise<void> {
 	captureFromEnv ??= createPersonlessCapture({
 		apiKey: process.env.DESKTOP_TELEMETRY_POSTHOG_KEY,

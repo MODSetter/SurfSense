@@ -9,8 +9,9 @@ export type FetchManifest = (
 
 /**
  * The channel file of the latest published release. "latest" only moves on
- * publish, so a draft merged to main early is never served, and 15 minutes of
- * caching keeps our own fetches out of GitHub's download counts.
+ * publish, so a draft merged to main early is never served. Each revalidation
+ * is still a download, so 15 minutes of caching adds about 96 a day per file
+ * (more if Vercel caches per region) to GitHub's stable*.yml counts.
  */
 export async function fetchLatestGithubManifest(
 	file: string,
