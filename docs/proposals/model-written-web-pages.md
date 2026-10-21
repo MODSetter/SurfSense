@@ -100,7 +100,7 @@ A page may carry an explanatory figure: an isometric drawing of a real object wh
 - **SurfSense's own kit,** `skills/surfsense-html/kit/fig.js`, about 250 lines with no dependency: a camera with azimuth and elevation, a fit to the viewBox, boxes, cylinders and prisms shaded by the way each side faces through CSS custom properties (so a figure follows the page's light and dark scheme), lines, SVG output in painter's order, and the motion helpers: easing, a spring, and a loop that stops when settled or off screen and honours reduced motion.
 - **SurfSense inlines it, not the agent.** The page writes `<script data-kit="fig"></script>` before its own script, and `surfsense_save_page` replaces that element with the kit's code. The model never copies the kit, and the stored page stays self-contained, so the no-network CSP holds it.
 - **The skill splits** so a plain page loads little: `SKILL.md` and `design.md` always, `figures.md` (how to find the object, plan its parts, order them back to front, frame the figure with a title and a live readout) and `kit.md` (the kit's functions) only when the agent draws a figure.
-- **No WebGL** in this version: whether Electron's hidden window draws it is not checked.
+- **No WebGL.** Pages draw with SVG and CSS only: WebGL, a 3D canvas or a shader makes a page heavy and laggy for what an SVG figure already shows. The design guide says so.
 
 ## Editing a page
 

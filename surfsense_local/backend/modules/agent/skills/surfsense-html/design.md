@@ -50,6 +50,8 @@ Draw them as inline SVG with a `viewBox`, so they scale. No chart library: the p
 
 Motion explains or it goes. A chart's bars growing to their values, a number counting up to its total, a step lighting as the reader reaches it, a part moving the way the real thing does: these carry meaning. Animating every card on scroll does not.
 
+Draw with SVG and CSS only. No WebGL, no 3D canvas and no shader: they make a page heavy and laggy, and an SVG figure or chart says the same thing.
+
 - **Time-based.** Move by elapsed time from `requestAnimationFrame` timestamps, with each step's `dt` clamped to 1/30 s so a background tab does not jump. Never move a fixed amount per frame.
 - **Ease toward a target.** Input sets a target; the value follows, `x += (target - x) * (1 - Math.exp(-dt / tau))` with `tau` 0.1 to 0.3 s, or a spring where the subject is springy. Nothing snaps to the pointer.
 - **One loop, and it stops.** One `tick(dt)` updates the state and writes the DOM directly (`setAttribute`, `textContent`, `style.transform`). Stop the loop once everything has reached its target, and while the element is off screen: an `IntersectionObserver` with `rootMargin: "120px 0px"`, reading the newest entry.
