@@ -7,7 +7,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from host.post_only import route_path
 from host.refused_unless_allowed import was_refused
-from host.replayed_body import read_body
+from host.replayed_body import read_body_up_to
 from host.usage_meter.call_counts import UNLICENSED, CallKey
 from host.usage_meter.call_outcome import CallOutcome
 from host.usage_meter.tool_call import ToolCall, tool_call
@@ -16,6 +16,9 @@ from mcp_server.access import checked_license
 
 # Kept in place of a name the plugin has no tool for, since the caller chose that name.
 UNKNOWN_TOOL = "unknown"
+# The most of a body read before the license check: an agent's tool call is a few
+# kilobytes, and a longer body goes to the server uncounted.
+MAX_READ_BYTES = 1024 * 1024
 
 
 class MeteredCalls:
@@ -42,8 +45,8 @@ class MeteredCalls:
         ):
             await self.app(scope, receive, send)
             return
-        body, replay = await read_body(receive)
-        started = await self._started(body)
+        body, replay = await read_body_up_to(receive, MAX_READ_BYTES)
+        started = await self._started(body) if body is not None else None
         if started is None:
             await self.app(scope, replay, send)
             return

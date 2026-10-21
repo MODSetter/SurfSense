@@ -139,6 +139,21 @@ async def test_what_a_call_carries_never_reaches_the_meter_s_file_or_rollup(
         assert secret not in daily.text
 
 
+def test_a_body_too_long_to_read_first_reaches_the_plugin_whole_and_uncounted(
+    tmp_path: Path,
+) -> None:
+    """Before the license check the meter reads at most 1 MiB, so no caller can make
+    the host hold more."""
+    meter = meter_in(tmp_path)
+    query = "q" * (2 * 1024 * 1024)
+    with serving(host_app(SAMPLES, meter=meter)) as base:
+        answer = raw_request(f"{base}/notes/mcp", tool_call("search", {"query": query}))
+
+    assert answer.status_code == 200
+    assert f"found {query}" in answer.text
+    assert anyio.run(meter.daily_usage, DAY).tools == []
+
+
 async def test_a_meter_that_raises_never_fails_the_call(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
