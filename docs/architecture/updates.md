@@ -44,6 +44,10 @@ A `v*` tag equal to `surfsense_local/VERSION` starts the workflow, which fails w
 | Linux x64 | `SurfSense.AppImage` | the AppImage |
 | Linux x64 | `SurfSense.deb` | likely the deb (Known gaps) |
 
+## What GitHub counts
+
+A daily job saves every asset's download count, and says which client each count measures: people, the 2.x updater or legacy clients ([release stats](release-stats.md)).
+
 ## Download links
 
 Artifact names carry no version, so the root README's links to `/releases/latest/download/<name>` always reach the release GitHub marks Latest. The site's downloads (`surfsense_web/lib/app-release.ts`) and the license email (`surfsense_backend/app/license/release.py`) pin a tag instead, `APP_RELEASE_VERSION`, which `surfsense_local/scripts/bump-version.sh` writes into both. Each reads that tag's assets from the GitHub API and picks installers by suffix, so a deployed page, or a mail already sent, keeps offering the build it was made for. The pin moves when the web app and the backend are deployed with the bump.
