@@ -17,11 +17,16 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from app.config import config
 from app.license.email.address import is_disposable, normalize_email
 from app.license.email.deliver import deliver_licenses
+from app.license.funnel.events import record_trial_issued
 from app.license.issue import certificate_for_checkout_session, issue_trial_license
 from app.license.models import TrialAlreadyClaimedError
 from app.license.rate_limit import enforce_license_rate_limit
 from app.license.records import certificates_for_email
-from app.license.schemas import LicenseAckResponse, LicenseEmailRequest
+from app.license.schemas import (
+    LicenseAckResponse,
+    LicenseEmailRequest,
+    LicenseTrialRequest,
+)
 from app.mailer import (
     MailerRejectedError,
     MailerUnavailableError,
@@ -138,7 +143,7 @@ async def resend_license(
 
 @router.post("/trial", response_model=LicenseAckResponse)
 async def claim_trial_license(
-    payload: LicenseEmailRequest,
+    payload: LicenseTrialRequest,
     request: Request,
 ) -> LicenseAckResponse:
     """Issue one trial per email, LICENSE_TRIAL_DAYS long, and mail it.
@@ -185,6 +190,9 @@ async def claim_trial_license(
                 "it keeps failing use 'resend my license'."
             ),
         ) from None
+
+    # Counted at issue, not at delivery: the address is spent either way.
+    record_trial_issued(payload.channel)
 
     try:
         await deliver_licenses(
