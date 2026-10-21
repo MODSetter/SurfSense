@@ -1,7 +1,18 @@
 import { siteText } from "@/components/site/site-text";
 import { DownloadIcon } from "@/components/ui/icons";
-import { GITHUB_RELEASES_URL, getAssetLabel, type ReleaseAsset } from "@/lib/app-release";
+import {
+	GITHUB_RELEASES_URL,
+	getAssetLabel,
+	platformOfAsset,
+	type ReleaseAsset,
+} from "@/lib/app-release";
 import { cn } from "@/lib/utils";
+
+/** Through the counting redirect (`./[platform]/route.ts`) when it knows the file. */
+function installerHref(asset: ReleaseAsset): string {
+	const platform = platformOfAsset(asset.name);
+	return platform ? `/downloads/${platform}?src=site` : asset.url;
+}
 
 /**
  * Server components: the assets are resolved in `page.tsx` and handed down,
@@ -66,7 +77,7 @@ export function OSDownloadGrid({ assets }: { assets: ReleaseAsset[] }) {
 							{panelAssets.map((asset) => (
 								<a
 									key={asset.name}
-									href={asset.url}
+									href={installerHref(asset)}
 									className="flex h-11 items-center justify-between gap-3 rounded-full bg-secondary px-5 text-sm font-medium text-foreground transition-colors duration-150 ease-out hover:bg-accent active:bg-[color-mix(in_oklch,var(--accent),var(--foreground)_8%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 								>
 									{getAssetLabel(asset.name)}

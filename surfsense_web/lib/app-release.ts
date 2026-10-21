@@ -36,3 +36,35 @@ export function getAssetLabel(name: string): string {
 	}
 	return name;
 }
+
+/**
+ * The installer behind each `/downloads/<platform>` redirect. Every release from
+ * 2.0.2 on publishes exactly these names; 2.0.0 and 2.0.1 put the version in
+ * them. Renaming one breaks the redirect for every tag already linked.
+ */
+export const INSTALLER_FILES = {
+	windows: "SurfSense-Setup.exe",
+	mac: "SurfSense-arm64.dmg",
+	"linux-appimage": "SurfSense.AppImage",
+	"linux-deb": "SurfSense.deb",
+} as const;
+
+export type InstallerPlatform = keyof typeof INSTALLER_FILES;
+
+/** The oldest release whose installers carry the names above. */
+export const FIRST_STABLE_NAMES_VERSION = "2.0.2";
+
+export function isInstallerPlatform(value: string): value is InstallerPlatform {
+	return Object.hasOwn(INSTALLER_FILES, value);
+}
+
+export function installerAssetUrl(version: string, platform: InstallerPlatform): string {
+	return `${GITHUB_RELEASES_URL}/download/v${version}/${INSTALLER_FILES[platform]}`;
+}
+
+export function platformOfAsset(name: string): InstallerPlatform | null {
+	for (const [platform, file] of Object.entries(INSTALLER_FILES)) {
+		if (name === file) return platform as InstallerPlatform;
+	}
+	return null;
+}
