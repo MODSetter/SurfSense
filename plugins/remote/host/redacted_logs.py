@@ -1,9 +1,11 @@
-"""Credentials never reach the host's logs.
+"""Credentials, and the pages users asked plugins for, never reach the host's logs.
 
 Scrapling logs a failed proxy as the URL it was given, user and password included,
 and a library's error can quote a URL or a request it sent. Each log record is
 redacted as it is made, its message, arguments, traceback and stack alike, so no
-logger or handler, the host's or a library's, can write a credential out.
+logger or handler, the host's or a library's, can write a credential out. A URL
+keeps only its scheme and host: its path and query name what a user asked for,
+and plugin records are kept only for rate limits, abuse and billing.
 """
 
 import logging
@@ -32,6 +34,14 @@ _REDACTIONS = (
             re.IGNORECASE,
         ),
         rf"\1{REDACTED}",
+    ),
+    # Last, so a credential in a query is hidden first: a web address's path and
+    # query, up to the punctuation that ends a sentence around it.
+    (
+        re.compile(
+            r"""(\b(?:https?|wss?)://[^\s/?#'"<>]+)[/?#][^\s'"<>]*[^\s'"<>.,;:!?)\]]"""
+        ),
+        rf"\1/{REDACTED}",
     ),
 )
 

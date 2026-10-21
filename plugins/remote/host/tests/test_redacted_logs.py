@@ -31,7 +31,7 @@ HIDDEN = "http://***@gw.dataimpulse.com:823"
         ('{"clientKey": "CAP-123", "task": {}}', '{"clientKey": "***", "task": {}}'),
         (
             "GET https://2captcha.com/res.php?key=abc123&action=get",
-            "GET https://2captcha.com/res.php?key=***&action=get",
+            "GET https://2captcha.com/***",
         ),
     ],
 )
@@ -40,9 +40,38 @@ def test_credentials_are_hidden(text: str, shown: str) -> None:
 
 
 @pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        (
+            "Amazon request failed for https://www.amazon.com/dp/B0CX23V2ZK?th=1: 403",
+            "Amazon request failed for https://www.amazon.com/***: 403",
+        ),
+        (
+            'navigating to "https://www.tiktok.com/@natgeo/video/7", waiting until "load"',
+            'navigating to "https://www.tiktok.com/***", waiting until "load"',
+        ),
+        (
+            "GET https://www.google.com/search?q=private+clinic+near+me failed",
+            "GET https://www.google.com/*** failed",
+        ),
+        (
+            "https://plugins.surfsense.com/web-crawl/mcp answered 502",
+            "https://plugins.surfsense.com/*** answered 502",
+        ),
+        (
+            "warmed https://www.indeed.com/ first",
+            "warmed https://www.indeed.com/ first",
+        ),
+    ],
+)
+def test_a_url_keeps_only_its_host(text: str, shown: str) -> None:
+    """The path and query name what a user asked a plugin for; the host is enough to debug."""
+    assert redacted(text) == shown
+
+
+@pytest.mark.parametrize(
     "text",
     [
-        "https://plugins.surfsense.com/web-crawl/mcp answered 502",
         "someone@example.com wrote at 10:30",
         "Instagram username natgeo has 3 posts",
     ],
@@ -80,6 +109,24 @@ def test_every_record_is_redacted_whoever_formats_it(
     ]
     assert "s3cr" not in caplog.text
     assert f"tunnel to {HIDDEN} refused" in caplog.text
+
+
+def test_a_url_inside_an_error_is_cut_to_its_host(
+    record_factory: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    redact_every_record()
+    logger = logging.getLogger("host.tests.redacted.url")
+    with caplog.at_level(logging.WARNING, logger=logger.name):
+        logger.warning(
+            "fetch failed: %s",
+            TimeoutError('page.goto: navigating to "https://www.amazon.com/dp/B0X1"'),
+        )
+
+    (record,) = caplog.records
+    assert record.getMessage() == (
+        'fetch failed: page.goto: navigating to "https://www.amazon.com/***"'
+    )
+    assert "B0X1" not in caplog.text
 
 
 def test_a_formatter_that_reads_the_arguments_still_formats(

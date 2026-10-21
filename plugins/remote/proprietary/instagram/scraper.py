@@ -40,6 +40,7 @@ from pydantic import ValidationError
 
 from proprietary.google_search.schemas import GoogleSearchScrapeInput
 from proprietary.google_search.scraper import scrape_serps
+from proprietary.scraping.logged_host import logged_host
 
 from .fetch import (
     InstagramAccessBlockedError,
@@ -367,7 +368,7 @@ def _resolve_inputs(input_model: InstagramScrapeInput) -> list[ResolvedUrl]:
     for url in input_model.directUrls:
         r = resolve_url(url)
         if r is None:
-            logger.warning("[instagram] unrecognized URL: %s", url)
+            logger.warning("[instagram] unrecognized URL on %s", logged_host(url))
             continue
         resolved.append(r)
     return resolved

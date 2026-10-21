@@ -33,6 +33,7 @@ from urllib.parse import urlsplit
 from proprietary.scraping import browser_pool, settle
 from proprietary.scraping.browser_pool import LaunchProfile
 from proprietary.scraping.concurrency import hedged
+from proprietary.scraping.logged_host import logged_host
 from proprietary.scraping.proxy import get_geo_proxy_url
 from proprietary.scraping.proxy.rotation import country_for_rotation
 
@@ -381,7 +382,9 @@ async def _drive(
             capture.empty += 1
             capture.responses += 1
             logger.info(
-                "[tiktok] empty or non-JSON %s body: %s", kind, response_url[:120]
+                "[tiktok] empty or non-JSON %s body from %s",
+                kind,
+                logged_host(response_url),
             )
             return
         # Counted once the items are in, so a wait that ends on it sees them.
@@ -426,7 +429,7 @@ async def _drive(
             kind,
             stage,
             type(exc).__name__,
-            _page_url(page),
+            logged_host(_page_url(page)),
         )
 
 
@@ -511,7 +514,7 @@ async def _draw(
         logger.warning(
             "[tiktok] %s browser attempt failed for %s (%s)",
             kind,
-            url,
+            logged_host(url),
             type(exc).__name__,
         )
         capture.exit_reason = capture.exit_reason or "page_error"
@@ -640,7 +643,7 @@ async def _fetch_with_rotation(
             "[tiktok] empty %s for %s (attempt %d/%d, country=%s, reason=%s); "
             "retrying on a fresh exit country",
             kind,
-            page_url,
+            logged_host(page_url),
             tried,
             attempts,
             ",".join(country for country, _ in drawn),
@@ -713,7 +716,7 @@ async def fetch_comments(page_url: str, target_count: int) -> list[dict[str, Any
             return comments
         logger.info(
             "[tiktok] comments API came back empty for %s; falling back to the browser",
-            page_url,
+            logged_host(page_url),
         )
     slots = BROWSER_SLOTS.get()
     if slots is None:

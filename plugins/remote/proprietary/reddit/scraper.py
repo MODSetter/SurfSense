@@ -18,6 +18,8 @@ import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+from proprietary.scraping.logged_host import logged_host
+
 from .fetch import (
     RedditAccessBlockedError,
     bind_proxy_holder,
@@ -406,7 +408,9 @@ async def iter_reddit(
         for entry in input_model.startUrls:
             r = resolve_url(entry.url)
             if r is None:
-                logger.warning("[reddit] unrecognized URL: %s", entry.url)
+                logger.warning(
+                    "[reddit] unrecognized URL on %s", logged_host(entry.url)
+                )
                 continue
             resolved.append(r)
         jobs = [

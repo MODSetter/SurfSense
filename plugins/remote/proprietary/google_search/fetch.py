@@ -891,7 +891,7 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
                 return html
         if sink is not None:
             sink.discard()
-        logger.warning("[google_search] gave up on %s (unproxied single render)", url)
+        logger.warning("[google_search] gave up on a SERP (unproxied single render)")
         return None
 
     deadline = time.monotonic() + _FETCH_DEADLINE_S
@@ -979,6 +979,6 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
         await _stage("walled; trying another IP")
         await _store.evict(proxy)
     logger.warning(
-        "[google_search] gave up on %s (deadline/%d-IP budget)", url, _MAX_IP_ATTEMPTS
+        "[google_search] gave up on a SERP (deadline/%d-IP budget)", _MAX_IP_ATTEMPTS
     )
     return None
