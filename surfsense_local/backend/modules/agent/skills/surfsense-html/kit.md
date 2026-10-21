@@ -1,6 +1,6 @@
 # The figure kit
 
-Put `<script data-kit="fig"></script>` before your own script and `surfsense_save_page` writes the kit there. Do not copy the kit into the page. Everything is on `Fig`; the code is `kit/fig.js` in this skill's folder.
+Put `<script data-kit="fig"></script>` before your own script and `surfsense_save_page` writes the kit there. Do not copy the kit into the page, and do not read `kit/fig.js`: this page is the whole API. Everything is on `Fig`.
 
 World points are `[x, y, z]`: x and y on the floor, z up, in units of about one pixel of the real thing. Screen points are `[x, y]` in the SVG's `viewBox`. Give the `<svg>` class `fig`.
 

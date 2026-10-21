@@ -23,9 +23,14 @@ If no object fits, a clean chart is better than a forced figure.
 
 Collect the real values the figure shows: counts, sizes, rates, thresholds. The motion, the readout and the caption all come from the same small model in your script, so they never disagree.
 
-## 3. A parts list before any drawing
+## 3. Build it in rounds, not in your head
 
-Write the list first, grouped, and aim for **40 to 80 parts**. Detail is what makes a figure look made; each part belongs to the mechanism and sits on another part.
+Do not work out every part or coordinate before writing code: plan in a few lines, then write. One reply has a limited budget, and a figure planned whole in thought runs out of it before any code is written.
+
+1. **First save:** the base, the structure and the moving subject, about 15 to 25 parts, with the motion and the readout working. Save it and look at the screenshot.
+2. **Then detail, in edits:** add the parts below a group at a time, saving after each, until the figure has **40 to 80 parts**. Each edit is small; the page grows by editing its file, not by writing it again.
+
+Detail is what makes a figure look made; each part belongs to the mechanism and sits on another part. The groups to work through:
 
 - **Base:** a plate with rounded corners, feet, corner screws, a groove or a ruler strip, a label plate.
 - **Structure:** posts, rails, end stops, brackets, a frame.

@@ -17,6 +17,7 @@ Before you write, read `design.md` in this skill's folder: how a page should loo
 - No `eval` or `new Function`; they are blocked too.
 - At most 5 MB, the figure kit included. A page is usually 10 to 80 KB.
 - Write it at `outputs/<short-name>.html` with your own file tools. It stays there for the next edit.
+- Keep the first write lean, about 300 lines at most, and grow the page with edits. One reply can only write so much: a page planned and written whole in one go can run out before it is saved. Plan in a few lines, then write.
 - Only what the sources and the user support. Every figure, date and name on the page is one you found or were given.
 
 ## Saving
