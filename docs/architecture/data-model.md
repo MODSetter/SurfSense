@@ -403,21 +403,22 @@ erDiagram
 
 ### Going back to an older release
 
-Releases after 2.2.1 do this ([`shared/going_back/`](../../surfsense_local/backend/shared/going_back/), [`going-back/`](../../surfsense_local/electron/src/main/going-back/)):
+Releases after 2.2.3 do this ([`shared/going_back/`](../../surfsense_local/backend/shared/going_back/), [`going-back/`](../../surfsense_local/electron/src/main/going-back/)):
 
 - Every API start copies the release's migrations to `<data>/migrations/` before migrating, keeping the files a later release left there; if the copy fails, nothing migrates.
 - An API that finds the database at a revision it does not know exits with code 75 before serving, and changes nothing. Not 3: uvicorn exits 3 on any failed startup. Electron stops every sidecar, runs `api --going-back-options`, and asks in a native dialog. Quit changes nothing. Both commands refuse a database that is not newer than the release.
 - When the saved scripts reach from the database's revision back to this release's head, and none imports more than the standard library, `sqlalchemy` and `alembic`, it offers to undo. The options read each script's `revision` and `down_revision` with `ast`; nothing in the data folder runs before the user chooses, and only `NNNN_*.py` files are ever loaded. `api --go-back undo` copies the database to `backups/set-aside/`, then runs those downgrades to this release's head. Rows added since the update stay, except what a downgrade drops. If any downgrade fails, the set-aside copy is loaded back.
 - Otherwise, or after a failed undo, it offers the copy in `backups/` holding the latest revision this release knows, read from the file rather than its name, the newest file among equals, skipping any that fails `PRAGMA quick_check`. `api --go-back restore` sets the database aside and loads that copy through SQLite's backup API, not a file swap, so the WAL stays consistent and Windows' file locks do not interfere.
 - With neither, the dialog says to install the newer release again.
-- `--go-back` has no time limit, since a kill would skip loading the set-aside copy back. A failure prints `{"data_unchanged": …}`, true only once that copy is back in place or nothing had changed; only then does the dialog say the data is as the newer release left it.
+- Neither command has a time limit: a kill of `--go-back` would skip loading the set-aside copy back, and checking large backups can take minutes. If `--going-back-options` fails, the dialog says SurfSense couldn't check, not that no copy was found. A failure prints `{"data_unchanged": …}`, true only once that copy is back in place or nothing had changed; only then does the dialog say the data is as the newer release left it.
 - After going back, Electron starts the app again.
 
 ## Known gaps
 
 - Deleting a folder is permanent: the Trash is designed, not built ([proposal](../proposals/file-agent/01-sources-and-folders.md)).
 - The snapshot needs free disk about the size of `surfsense.db`, and nothing checks for it first: when the copy fails, the API does not start and the app closes with no message ([overview](overview.md#known-gaps)).
-- Going back to 2.2.1 or earlier still means restoring the snapshot by hand: those releases do not go back on their own, and their API does not start. Going from 2.2.1 to 2.2.0 takes `backups/0027-0029.db`.
+- Going back to 2.2.3 or earlier still means restoring the snapshot by hand: those releases do not go back on their own, and their API does not start. Going from 2.2.3 to 2.2.2 takes `backups/0030-0032.db`.
 - Restoring a copy leaves the files of documents, chats and artifacts added after it under `data/workspaces/` with no row pointing at them.
+- Nothing is on screen while the options are read and while going back runs: the Dock stops bouncing once the dialog closes, Windows shows no taskbar button without a window, and launching the app again does nothing until it restarts. An undo of a 1.43 GiB database took 8.4 s on NVMe, so minutes on a hard disk.
 - The going-back dialog opens before any window. macOS brings it forward and bounces the Dock icon, and Windows flashes its taskbar button when it cannot; on Linux under Wayland the compositor may leave it behind other windows.
 - Copies in `backups/set-aside/` are never pruned, so each time the app goes back costs disk the size of `surfsense.db` until the user deletes them.

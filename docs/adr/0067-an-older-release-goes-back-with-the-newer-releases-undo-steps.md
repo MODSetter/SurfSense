@@ -22,5 +22,5 @@ Every revision has a `downgrade`, but it ships in the newer release, and install
 - Going back keeps what the user added after the update, except what a downgrade drops because the older release has no place for it.
 - An older release runs code it did not ship, once the user agrees to undo: the app's own migrations, from the user's own data folder.
 - A downgrade that does not work now breaks going back for users, so every revision's `downgrade` is held to the same bar as its `upgrade`. A test fills the tables downgrades rebuild, undoes to `0011` and redoes, and compares their rows; it found `0021`'s batch rebuild deleting every chat message.
-- It works only when going back to a release that has this code: going back to 2.2.1 or earlier still needs the hand restore.
+- It works only when going back to a release that has this code: going back to 2.2.3 or earlier still needs the hand restore.
 - Each time the app goes back, it keeps a set-aside copy of the database that is never pruned.

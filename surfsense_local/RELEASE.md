@@ -106,7 +106,7 @@ gh release view v2.3.0 --json assets --jq '.assets[].name' | grep -E '^(stable|l
 
 ### 7. Add Known issues to the draft
 
-The generated notes list pull requests. Above them, under `## Known issues`, write what a user must know before updating: what the first start needs, what going back to the previous version takes, and the bugs the release still has. 2.2.0's named the free disk its first start needs for the database snapshot, the hand restore of `~/.surfsense/backups/0023-0027.db` that going back to 2.1.0 takes, and the chats an interrupted import misses (#1958). Releases after 2.2.1 offer to go back on their own ([data model](../docs/architecture/data-model.md#going-back-to-an-older-release)), so only going back to 2.2.1 or earlier needs the hand restore in the notes.
+The generated notes list pull requests. Above them, under `## Known issues`, write what a user must know before updating: what the first start needs, what going back to the previous version takes, and the bugs the release still has. 2.2.0's named the free disk its first start needs for the database snapshot, the hand restore of `~/.surfsense/backups/0023-0027.db` that going back to 2.1.0 takes, and the chats an interrupted import misses (#1958). Releases after 2.2.3 offer to go back on their own ([data model](../docs/architecture/data-model.md#going-back-to-an-older-release)), so only going back to 2.2.3 or earlier needs the hand restore in the notes.
 
 ```bash
 gh release view v2.3.0 --json body --jq .body > notes.md
