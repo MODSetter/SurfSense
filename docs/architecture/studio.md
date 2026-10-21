@@ -284,7 +284,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 | `pptx` | rendered in the app with `@aiden0z/pptx-renderer` |
 | `xlsx` | parsed with ExcelJS |
 | `pdf` | pdf.js |
-| `html` | the file's text in an `<iframe sandbox="allow-scripts allow-popups">`, through `srcDoc` |
+| `html` | the file's text in an `<iframe sandbox="allow-scripts">`, through `srcDoc`, with the no-network policy's `<meta>` inserted after the doctype ([`no-network-page.ts`](../../surfsense_local/frontend/src/features/studio/viewers/no-network-page.ts), [ADR 0066](../adr/0066-web-pages-are-html-the-model-writes-without-network.md)): only inline script and style and `data:` or `blob:` images, fonts and media load. Electron refuses any frame's navigation in the app's window but to `about:srcdoc` or `about:blank` ([`framed-navigation.ts`](../../surfsense_local/electron/src/main/framed-navigation.ts)) |
 | `mindmap` | Markmap, with a fit control |
 | `flashcards` | one card at a time, marks saved through `flashcard-state` |
 | `quiz` | interactive, answers saved through `quiz-state` |
