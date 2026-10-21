@@ -139,3 +139,23 @@ def test_a_page_too_large_is_sent_back_to_be_made_smaller(
     html.render(_model("openai"), SOURCES, None)
 
     assert "larger than" in calls[1]["repair"].instruction
+
+
+SAMPLE = "<pre><code>```\nprint(1)\n```</code></pre>"
+WITH_SAMPLE = PAGE.replace("</body>", SAMPLE + "</body>")
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [WITH_SAMPLE, f"Here it is:\n\n```html\n{WITH_SAMPLE}\n```\n"],
+    ids=["unfenced", "fenced"],
+)
+def test_a_page_with_a_code_sample_in_it_is_taken_whole(reply: str) -> None:
+    """Backticks inside the page are part of it, whether or not the reply fences the page."""
+    assert written.reply_page(reply) == WITH_SAMPLE
+
+
+def test_prose_naming_an_html_tag_before_the_page_is_not_part_of_it() -> None:
+    """The page starts at its doctype, not at a tag the model mentioned first."""
+    reply = f"I kept the <html> element's lang attribute.\n\n```html\n{PAGE}\n```"
+    assert written.reply_page(reply) == PAGE

@@ -27,8 +27,10 @@ ATTEMPTS = 3
 # calls, may be far larger (save_page.PAGE_BYTES).
 PAGE_BYTES = 300 * 1024
 MIME = "text/html"
-_FENCED = re.compile(r"```(?:html)?\s*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE)
-_PAGE_START = re.compile(r"<!doctype html|<html\b", re.IGNORECASE)
+# A page is found by its own markers, never by a code fence: a page may hold
+# fenced samples of its own, and a fence round the page lies outside them.
+_DOCTYPE = re.compile(r"<!doctype html", re.IGNORECASE)
+_HTML_TAG = re.compile(r"<html\b", re.IGNORECASE)
 _PAGE_END = re.compile(r"</html\s*>", re.IGNORECASE)
 
 
@@ -117,13 +119,14 @@ def _request(refinement: Refinement) -> str:
 
 
 def reply_page(raw: str) -> str:
-    """The page in the reply: out of a code fence, from its doctype to </html>."""
-    fenced = _FENCED.search(raw)
-    text = fenced.group(1) if fenced else raw
-    start = _PAGE_START.search(text)
+    """The page in the reply: from its doctype, else its <html> tag, to the last </html>.
+
+    The doctype first, so an <html> named in prose before the page is not taken for it.
+    """
+    start = _DOCTYPE.search(raw) or _HTML_TAG.search(raw)
     if start is None:
         raise _NoPageError("The reply has no HTML page in it.")
-    text = text[start.start() :]
+    text = raw[start.start() :]
     ends = list(_PAGE_END.finditer(text))
     if not ends:
         raise _NoPageError(
