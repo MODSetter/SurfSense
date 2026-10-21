@@ -7,6 +7,7 @@ import { siteText } from "@/components/site/site-text";
 import { Search01Icon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { PluginCard } from "./plugin-card";
+import { PluginLine } from "./plugin-line";
 import { FEATURED_IDS, type PluginListing, SURFSENSE_PLUGINS } from "./plugin-list";
 
 function matches(plugin: PluginListing, query: string) {
@@ -22,11 +23,14 @@ function PluginRow({
 	title,
 	subtitle,
 	plugins,
+	layout = "lines",
 }: {
 	id: string;
 	title: string;
 	subtitle: React.ReactNode;
 	plugins: PluginListing[];
+	/** Cards for the hand picked few; a compact line for every other list. */
+	layout?: "cards" | "lines";
 }) {
 	return (
 		<section aria-labelledby={id} className="pt-16 md:pt-24">
@@ -34,13 +38,23 @@ function PluginRow({
 				{title}
 			</h2>
 			<p className={cn(siteText.body, "mt-1")}>{subtitle}</p>
-			<ul className="m-0 mt-8 grid list-none gap-x-6 gap-y-10 p-0 sm:grid-cols-2 lg:grid-cols-4">
-				{plugins.map((plugin) => (
-					<li key={plugin.id}>
-						<PluginCard plugin={plugin} />
-					</li>
-				))}
-			</ul>
+			{layout === "cards" ? (
+				<ul className="m-0 mt-8 grid list-none gap-x-6 gap-y-10 p-0 sm:grid-cols-2 lg:grid-cols-4">
+					{plugins.map((plugin) => (
+						<li key={plugin.id}>
+							<PluginCard plugin={plugin} />
+						</li>
+					))}
+				</ul>
+			) : (
+				<ul className="m-0 mt-6 grid list-none gap-x-10 gap-y-1 p-0 lg:grid-cols-2">
+					{plugins.map((plugin) => (
+						<li key={plugin.id} className="min-w-0">
+							<PluginLine plugin={plugin} />
+						</li>
+					))}
+				</ul>
+			)}
 		</section>
 	);
 }
@@ -121,13 +135,14 @@ export function PluginBrowser({
 						title="Featured"
 						subtitle="A selection of hand picked plugins."
 						plugins={featured}
+						layout="cards"
 					/>
 					<PluginRow
 						id="plugins-surfsense-label"
 						title="By SurfSense"
 						subtitle={
 							<>
-								Live data from the web, all unlocked by one licence.{" "}
+								Made by us. One licence for all.{" "}
 								<Link className={siteText.link} href="/pricing">
 									See pricing
 								</Link>
@@ -140,7 +155,7 @@ export function PluginBrowser({
 						<PluginRow
 							id="plugins-third-party-label"
 							title="From other publishers"
-							subtitle="Listed in the registry by their publishers. No SurfSense licence needed."
+							subtitle="Plugins other companies publish. No SurfSense licence needed."
 							plugins={registryPlugins}
 						/>
 					) : null}

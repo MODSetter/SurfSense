@@ -1,12 +1,12 @@
 import { IconBrandGithub } from "@tabler/icons-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ConnectorFaq } from "@/components/connectors-marketing/connector-faq";
-import { Reveal } from "@/components/connectors-marketing/reveal";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { MarketingSection } from "@/components/marketing/section";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
+import { type FaqItem, SiteFaq } from "@/components/site/site-faq";
+import { Reveal } from "@/components/site/site-reveal";
 import { Badge } from "@/components/ui/badge";
 import {
 	ArrowRightIcon,
@@ -16,7 +16,6 @@ import {
 	Wrench01Icon,
 } from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
-import type { FaqItem } from "@/lib/connectors-marketing/types";
 
 const canonicalUrl = "https://www.surfsense.com/external-mcp-connectors";
 
@@ -294,14 +293,14 @@ export default function ExternalMcpConnectorsPage() {
 							</Link>{" "}
 							does the reverse, exposing your workspace and scraper APIs like{" "}
 							<Link
-								href="/reddit"
+								href="/plugins/google-search"
 								className="font-medium text-foreground underline underline-offset-4"
 							>
-								Reddit
+								Google Search
 							</Link>{" "}
 							and{" "}
 							<Link
-								href="/google-maps"
+								href="/plugins/google-maps"
 								className="font-medium text-foreground underline underline-offset-4"
 							>
 								Google Maps
@@ -321,7 +320,7 @@ export default function ExternalMcpConnectorsPage() {
 					</Reveal>
 					<Reveal>
 						<div className="mt-6 max-w-3xl">
-							<ConnectorFaq items={FAQ} />
+							<SiteFaq items={FAQ} />
 						</div>
 					</Reveal>
 				</MarketingSection>
@@ -362,19 +361,16 @@ export default function ExternalMcpConnectorsPage() {
 									<Link href="/mcp-server">SurfSense MCP Server</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/reddit">Reddit API</Link>
+									<Link href="/plugins/youtube">YouTube</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/youtube">YouTube API</Link>
+									<Link href="/plugins/google-maps">Google Maps</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/google-maps">Google Maps API</Link>
+									<Link href="/plugins/google-search">Google Search</Link>
 								</HomeButton>
 								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/google-search">SERP API</Link>
-								</HomeButton>
-								<HomeButton asChild variant="ghost" size="sm">
-									<Link href="/web-crawl">Web Crawl API</Link>
+									<Link href="/plugins/web-crawl">Web Crawl</Link>
 								</HomeButton>
 							</nav>
 						</div>

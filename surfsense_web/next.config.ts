@@ -4,6 +4,20 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 import { docsRedirects } from "./lib/docs-redirects";
 
+// The per-scraper marketing pages gave way to each plugin's page under /plugins.
+const LISTED_SCRAPERS = [
+	"google-search",
+	"web-crawl",
+	"youtube",
+	"tiktok",
+	"google-maps",
+	"amazon",
+	"walmart",
+	"indeed",
+];
+// Written but left out of the app's list until they read without signing in.
+const UNLISTED_SCRAPERS = ["reddit", "instagram"];
+
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
@@ -20,6 +34,16 @@ const nextConfig: NextConfig = {
 			// The connectors index was renamed to /plugins, which is what the
 			// product calls them everywhere else.
 			{ source: "/connectors", destination: "/plugins", permanent: true },
+			...LISTED_SCRAPERS.map((id) => ({
+				source: `/${id}`,
+				destination: `/plugins/${id}`,
+				permanent: true,
+			})),
+			...UNLISTED_SCRAPERS.map((id) => ({
+				source: `/${id}`,
+				destination: "/plugins",
+				permanent: true,
+			})),
 			...docsRedirects,
 		];
 	},
