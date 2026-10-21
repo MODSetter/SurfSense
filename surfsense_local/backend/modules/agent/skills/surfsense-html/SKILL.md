@@ -51,15 +51,11 @@ A refusal names the fix: a path outside `outputs/`, a file that is not `.html`, 
 <title>Q3 revenue</title>
 <style>
   :root {
-    color-scheme: light dark;
-    --bg: #fbfaf7; --surface: #ffffff; --text: #1d1d1b; --muted: #6b6a65;
-    --border: #e4e2dc; --accent: #2f6f5e; --bar: #2f6f5e; --bar-muted: #c9d8d2;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #161614; --surface: #1f1f1d; --text: #ecebe6; --muted: #a3a29b;
-      --border: #34332f; --accent: #7cc4ad; --bar: #7cc4ad; --bar-muted: #34463f;
-    }
+    color-scheme: light;
+    /* The palette is yours to choose for the material: a light background, dark
+       text, and an accent that reads against it. Only the names are fixed here. */
+    --bg: …; --surface: …; --text: …; --muted: …;
+    --border: …; --accent: …; --bar: …; --bar-muted: …;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);

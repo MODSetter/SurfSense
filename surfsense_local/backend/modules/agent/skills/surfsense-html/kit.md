@@ -26,7 +26,7 @@ Each returns a solid: its visible faces and its depth.
 | `Fig.svg(solids, { sort })` | The solids as SVG markup, back to front. `sort: false` keeps your order. |
 | `Fig.css` | Default colours; put it in a `<style>` and add class `fig` to the `<svg>`. |
 
-Sides are shaded by the way they face; tops are lightest. Colours come from custom properties, so a figure follows the page's light and dark scheme: `--fig-top`, `--fig-lit`, `--fig-shade` and `--fig-edge` on `.fig`. A solid's `tone` puts its faces in a group with class `fig-<tone>`, which can set its own: `.fig-accent { --fig-top: …; --fig-lit: …; --fig-shade: …; }` for the subject.
+Sides are shaded by the way they face; tops are lightest. Colours come from custom properties: `--fig-top`, `--fig-lit`, `--fig-shade` and `--fig-edge` on `.fig`. `Fig.css` sets light neutral ones; set your own from the page's palette, keeping the edges in contrast with the faces. A solid's `tone` puts its faces in a group with class `fig-<tone>`, which can set its own: `.fig-accent { --fig-top: …; --fig-lit: …; --fig-shade: …; }` for the subject.
 
 ## Motion
 
@@ -53,7 +53,9 @@ Sides are shaded by the way they face; tops are lightest. Colours come from cust
 <script data-kit="fig"></script>
 <script>
   document.head.insertAdjacentHTML("beforeend", `<style>${Fig.css}
-    .fig-accent { --fig-top:#9fd3c1; --fig-lit:#5fae94; --fig-shade:#2f6f5e; }</style>`)
+    /* The subject in tints of the page's own --accent. */
+    .fig-accent { --fig-top: color-mix(in srgb, var(--accent) 35%, white);
+      --fig-lit: color-mix(in srgb, var(--accent) 70%, white); --fig-shade: var(--accent); }</style>`)
   const rig = document.getElementById("rig")
   const readout = document.getElementById("readout")
   const stops = [40, 160, 280]

@@ -118,14 +118,11 @@ const Fig = (() => {
     }).join("")
   }
 
-  // Colours as custom properties, so a figure follows the page's light and dark scheme.
+  // Light neutrals as custom properties; a page sets its own from its palette (pages are light only).
   // A tone class sets its own: .fig-accent { --fig-top: ...; --fig-lit: ...; --fig-shade: ... }
   const css = `
 .fig { --fig-top:#f4f4f2; --fig-lit:#dcdcd8; --fig-shade:#a9a9a3; --fig-edge:#55554f; }
-.fig path { stroke-width:.75; stroke-linejoin:round; }
-@media (prefers-color-scheme: dark) {
-  .fig { --fig-top:#3a3a37; --fig-lit:#2d2d2a; --fig-shade:#1c1c1a; --fig-edge:#8a8a84; }
-}`
+.fig path { stroke-width:.75; stroke-linejoin:round; }`
 
   // --- Motion -------------------------------------------------------------
 

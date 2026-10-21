@@ -25,9 +25,10 @@ A page made from the user's sources is read by someone who never saw them. It sh
 
 ## Colour
 
+- **Light only.** A page is a document, as a Word file or a PDF in Studio is: a light background with dark text. Set `color-scheme: light` and give `body` its background. Write no `prefers-color-scheme: dark` scheme.
+- **The palette is yours.** Choose colours that suit the material; nothing here fixes them.
+- **Contrast against what each thing sits on.** Text at least 4.5:1 against its own background, large text, chart marks and control borders at least 3:1. That holds for muted text, for text on a tinted surface, for the accent used as text, and for text on an accent fill. No pale grey or pastel text for content.
 - Define colours once as custom properties on `:root`, and use only those: a background, a raised surface, text, muted text, a border, one accent, and the few colours a chart's series need.
-- A dark scheme under `@media (prefers-color-scheme: dark)` that redefines the same properties. Set `color-scheme: light dark` and give `body` its background.
-- Text contrast at least 4.5:1, large text and chart marks 3:1. Muted text is for secondary words, never for the content.
 - One accent, used for what to look at first. Colour never carries meaning alone: label the series, mark the change with a sign or a word as well.
 
 ## Controls and access
@@ -62,6 +63,6 @@ Draw with SVG and CSS only. No WebGL, no 3D canvas and no shader: they make a pa
 ## Before you finish
 
 - At 360 px and at 1,280 px: nothing overflows, nothing overlaps, every chart is readable.
-- Light and dark: every colour comes from a custom property, and the text reads in both.
+- Contrast: every text and mark reads against the background it sits on, and every colour comes from a custom property.
 - With reduced motion: every animated thing shows its final state.
 - Every number on the page is one the sources state.
