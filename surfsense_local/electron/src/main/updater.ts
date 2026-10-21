@@ -1,10 +1,13 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs"
+import type { OutgoingHttpHeaders } from "node:http"
 
 // The subset of electron-updater's AppUpdater this module touches, so the
 // state machine runs under node --test without Electron.
 export type AutoUpdaterLike = {
   autoDownload: boolean
+  autoInstallOnAppQuit: boolean
   allowPrerelease: boolean
+  requestHeaders: OutgoingHttpHeaders | null
   on(event: string, listener: (...args: any[]) => void): unknown
   checkForUpdates(): Promise<unknown>
   downloadUpdate(): Promise<unknown>
@@ -52,6 +55,9 @@ export function parseUpdatePrefs(value: unknown): UpdatePrefs {
     : { automatic }
 }
 
+// What update requests send in place of the install ID.
+export const NO_INSTALL_ID = "0"
+
 export function attachUpdater(
   updater: AutoUpdaterLike,
   onState: (state: UpdateState) => void
@@ -63,8 +69,18 @@ export function attachUpdater(
   }
 
   // Downloading is still the user's call in spirit: it only starts after a
-  // check they enabled or clicked. Installing always waits for them.
+  // check they enabled or clicked.
   updater.autoDownload = false
+  // A downloaded update installs on Restart, or else the next time the user
+  // quits; the copy and docs say so.
+  updater.autoInstallOnAppQuit = true
+  // electron-updater sends its persistent install ID from userData/.updaterId
+  // as this header; ours are merged over it, so no ID leaves. Staged rollouts
+  // still read the local file.
+  updater.requestHeaders = {
+    ...updater.requestHeaders,
+    "x-user-staging-id": NO_INSTALL_ID,
+  }
   // Takes the newest entry of the releases feed rather than /releases/latest.
   // That pointer names a 2.x release again, so this is no longer required;
   // dropping it changes behaviour for shipped clients, so it ships on its own.

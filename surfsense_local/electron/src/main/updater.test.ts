@@ -1,7 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.ts"
+import {
+  attachUpdater,
+  NO_INSTALL_ID,
+  parseUpdatePrefs,
+  type UpdateState,
+} from "./updater.ts"
 
 type Listener = (...args: unknown[]) => void
 
@@ -13,7 +18,9 @@ function fakeAutoUpdater() {
     emit: (event: string, ...args: unknown[]) => listeners.get(event)?.(...args),
     updater: {
       autoDownload: true,
+      autoInstallOnAppQuit: false,
       allowPrerelease: false,
+      requestHeaders: null as Record<string, string> | null,
       on(event: string, listener: Listener) {
         listeners.set(event, listener)
       },
@@ -32,7 +39,7 @@ function fakeAutoUpdater() {
   }
 }
 
-test("a found update is downloaded and offered, never installed on its own", async () => {
+test("a found update is downloaded and offered, and waits for a restart or a quit", async () => {
   const fake = fakeAutoUpdater()
   const states: UpdateState[] = []
   const updates = attachUpdater(fake.updater, (state) => states.push(state))
@@ -54,6 +61,30 @@ test("a found update is downloaded and offered, never installed on its own", asy
 
   updates.install()
   assert.deepEqual(fake.calls, ["check", "download", "install"])
+})
+
+test("update requests carry a constant in place of the persistent install ID", () => {
+  const fake = fakeAutoUpdater()
+  fake.updater.requestHeaders = { accept: "*/*" }
+
+  attachUpdater(fake.updater, () => undefined)
+
+  // electron-updater merges these over its own x-user-staging-id, read from
+  // userData/.updaterId, on the feed, manifest and download requests alike.
+  assert.equal(NO_INSTALL_ID, "0")
+  assert.deepEqual(fake.updater.requestHeaders, {
+    accept: "*/*",
+    "x-user-staging-id": "0",
+  })
+})
+
+test("a downloaded update installs on restart or, failing that, on quit", () => {
+  const fake = fakeAutoUpdater()
+
+  attachUpdater(fake.updater, () => undefined)
+
+  // Set on purpose: the docs and the update prompt say quitting installs it.
+  assert.equal(fake.updater.autoInstallOnAppQuit, true)
 })
 
 test("no update and errors both settle back to a state the UI can show", async () => {
