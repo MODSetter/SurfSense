@@ -1,9 +1,9 @@
 import { loader } from "fumadocs-core/source";
 import type { MetadataRoute } from "next";
 import { blog } from "@/.source/server";
+import { allPlugins } from "@/app/(home)/plugins/all-plugins";
 import { getPublishedAnnouncementPosts } from "@/lib/announcements/announcements-source";
 import { announcementPath } from "@/lib/announcements/announcements-utils";
-import { getAllConnectorSlugs } from "@/lib/connectors-marketing";
 import { FREE_MODELS } from "@/lib/free-models";
 import { source as docsSource } from "@/lib/source";
 
@@ -76,8 +76,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		priority: 0.9,
 	}));
 
-	const connectorPages: MetadataRoute.Sitemap = getAllConnectorSlugs().map((slug) => ({
-		url: `${BASE_URL}/${slug}`,
+	const pluginPages: MetadataRoute.Sitemap = (await allPlugins()).map((plugin) => ({
+		url: `${BASE_URL}${plugin.href}`,
 		lastModified,
 		changeFrequency: "weekly" as const,
 		priority: 0.85,
@@ -107,7 +107,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 	return [
 		...staticPages,
-		...connectorPages,
+		...pluginPages,
 		...freeModelPages,
 		...docsPages,
 		...blogPages,

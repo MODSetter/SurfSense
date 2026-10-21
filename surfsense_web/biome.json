@@ -18,7 +18,8 @@
 			"!!test-results",
 			"!!playwright-report",
 			"!!blob-report",
-			"!!playwright/.auth"
+			"!!playwright/.auth",
+			"!app/(home)/plugins/first-party-plugins.json"
 		],
 		"maxSize": 1048576
 	},
