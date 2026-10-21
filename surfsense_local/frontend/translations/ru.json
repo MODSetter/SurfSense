@@ -1392,7 +1392,7 @@
   "studio_error_needs_chat_image": "Требуются модель для чата и модель для изображений.",
   "studio_error_needs_image": "Требуется модель для изображений.",
   "studio_error_no_sources": "Выберите хотя бы один источник.",
-  "studio_error_not_refinable": "Доработать можно только документ Word или PDF, созданный в Studio.",
+  "studio_error_not_refinable": "Доработать можно только документ Word, PDF или веб-страницу, созданные в Studio.",
   "studio_error_nothing_running": "Ничего не выполняется.",
   "studio_error_sources_gone": "Ни одного из источников этого артефакта не осталось.",
   "studio_error_sources_indexing": "Выбранные источники ещё индексируются.",

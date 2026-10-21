@@ -1392,7 +1392,7 @@
   "studio_error_needs_chat_image": "Needs a chat model and an image model.",
   "studio_error_needs_image": "Needs an image model.",
   "studio_error_no_sources": "Pick at least one source.",
-  "studio_error_not_refinable": "Only a Word document or PDF made in Studio can be refined.",
+  "studio_error_not_refinable": "Only a Word document, PDF or web page made in Studio can be refined.",
   "studio_error_nothing_running": "Nothing is running.",
   "studio_error_sources_gone": "None of this artifact’s sources are left.",
   "studio_error_sources_indexing": "The chosen sources are still indexing.",

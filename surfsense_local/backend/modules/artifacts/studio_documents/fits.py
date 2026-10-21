@@ -11,6 +11,7 @@ from modules.artifacts.studio_documents.window import (
     figure_list_chars,
     too_long_reason,
 )
+from modules.artifacts.web_pages.design_guide import design_guide
 from modules.llm.resolution import ModelResolutionError
 
 
@@ -19,6 +20,9 @@ async def require_rewrite_fits(
 ) -> None:
     """Checked against the model selected now, which may not be the one that refined."""
     figures_chars = await transact(session, _figures_chars, artifact_id)
+    # A page's prompt carries the whole design guide instead (ADR 0066).
+    if rewrite.base.format == "html":
+        figures_chars = len(design_guide())
     try:
         # A local model's window is what llama-server loads it with, so it may load.
         model, window = await selected_model_window(session)

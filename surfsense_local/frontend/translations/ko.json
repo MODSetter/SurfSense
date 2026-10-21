@@ -1392,7 +1392,7 @@
   "studio_error_needs_chat_image": "채팅 모델과 이미지 모델이 필요합니다.",
   "studio_error_needs_image": "이미지 모델이 필요합니다.",
   "studio_error_no_sources": "소스를 하나 이상 선택하세요.",
-  "studio_error_not_refinable": "Studio에서 만든 Word 문서나 PDF만 다듬을 수 있습니다.",
+  "studio_error_not_refinable": "Studio에서 만든 Word 문서, PDF, 웹 페이지만 다듬을 수 있습니다.",
   "studio_error_nothing_running": "실행 중인 작업이 없습니다.",
   "studio_error_sources_gone": "이 생성물의 소스가 하나도 남아 있지 않습니다.",
   "studio_error_sources_indexing": "선택한 소스가 아직 인덱싱 중입니다.",

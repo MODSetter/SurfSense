@@ -86,6 +86,8 @@ def test_a_model_at_the_bar_writes_the_page_from_the_design_guide(
         "text/html",
         "Freight in 2026.html",
     )
+    # Kept as the model wrote it, without the policy, so a Refine rewrites the page's words.
+    assert built.spec == {"kind": "html", "text": PAGE, "format": "html", "images": []}
 
 
 def test_a_page_in_a_code_fence_is_taken_out_of_it(

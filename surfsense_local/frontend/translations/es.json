@@ -1392,7 +1392,7 @@
   "studio_error_needs_chat_image": "Se necesitan un modelo de chat y uno de imagen.",
   "studio_error_needs_image": "Se necesita un modelo de imagen.",
   "studio_error_no_sources": "Elige al menos una fuente.",
-  "studio_error_not_refinable": "Solo se puede refinar un documento de Word o un PDF creado en Studio.",
+  "studio_error_not_refinable": "Solo se puede refinar un documento de Word, un PDF o una página web creados en Studio.",
   "studio_error_nothing_running": "No hay nada en curso.",
   "studio_error_sources_gone": "No queda ninguna de las fuentes de este artefacto.",
   "studio_error_sources_indexing": "Las fuentes elegidas aún se están indexando.",

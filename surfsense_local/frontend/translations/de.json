@@ -1392,7 +1392,7 @@
   "studio_error_needs_chat_image": "Ein Chatmodell und ein Bildmodell sind erforderlich.",
   "studio_error_needs_image": "Ein Bildmodell ist erforderlich.",
   "studio_error_no_sources": "Wähle mindestens eine Quelle aus.",
-  "studio_error_not_refinable": "Nur ein in Studio erstelltes Word-Dokument oder PDF kann überarbeitet werden.",
+  "studio_error_not_refinable": "Nur ein in Studio erstelltes Word-Dokument, PDF oder eine Webseite kann überarbeitet werden.",
   "studio_error_nothing_running": "Es läuft nichts.",
   "studio_error_sources_gone": "Keine der Quellen dieses Artefakts ist mehr vorhanden.",
   "studio_error_sources_indexing": "Die ausgewählten Quellen werden noch indexiert.",
