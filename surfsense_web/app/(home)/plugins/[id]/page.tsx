@@ -102,12 +102,6 @@ export default async function PluginPage({ params }: PageProps) {
 							<span>by {plugin.author}</span>
 							<DotIcon aria-hidden="true" className="size-3 shrink-0" />
 							<span>{ACCESS_LABEL[plugin.access]}</span>
-							{plugin.verification === "community" ? (
-								<>
-									<DotIcon aria-hidden="true" className="size-3 shrink-0" />
-									<span>Community</span>
-								</>
-							) : null}
 						</p>
 					</div>
 				</div>

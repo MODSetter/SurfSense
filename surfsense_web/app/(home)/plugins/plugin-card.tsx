@@ -38,7 +38,7 @@ export function PluginCard({ plugin }: { plugin: PluginListing }) {
 			<span className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
 				{plugin.description}
 			</span>
-			{/* Who pays, and Community, are on the plugin's page. */}
+			{/* Who pays is on the plugin's page. */}
 			<span className="mt-auto truncate text-sm text-muted-foreground">By {plugin.author}</span>
 		</Link>
 	);

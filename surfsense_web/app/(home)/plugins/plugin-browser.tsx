@@ -142,7 +142,7 @@ export function PluginBrowser({
 						title="By SurfSense"
 						subtitle={
 							<>
-								Live data from the web, all unlocked by one licence.{" "}
+								Made by us. One licence for all.{" "}
 								<Link className={siteText.link} href="/pricing">
 									See pricing
 								</Link>
@@ -155,7 +155,7 @@ export function PluginBrowser({
 						<PluginRow
 							id="plugins-third-party-label"
 							title="From other publishers"
-							subtitle="Listed in the registry by their publishers. No SurfSense licence needed."
+							subtitle="Plugins other companies publish. No SurfSense licence needed."
 							plugins={registryPlugins}
 						/>
 					) : null}
