@@ -19,7 +19,6 @@ from modules.agent.tool_endpoint.failed_renders import (
     stop_after_three_failures,
 )
 from modules.agent.tool_endpoint.job_outcome import wait_for_outcome
-from modules.agent.tool_endpoint.page_kit import with_kits
 from modules.agent.tool_endpoint.ready_version import read_ready
 from modules.agent.tool_endpoint.registration import TOOL_CALL_SECONDS
 from modules.agent.tool_endpoint.rendered_label import (
@@ -197,17 +196,14 @@ def _working_file(folder: Path, path: str) -> Path:
 
 
 def _page(file: Path) -> str:
-    """The page as it will be stored, its kit written in; refused when it is no page."""
+    """The page as the agent wrote it; refused when it is no page."""
     try:
         size = file.stat().st_size
         if size > PAGE_BYTES:  # refused before it is read
             raise too_large(size, PAGE_BYTES)
-        written = checked_page(file.read_bytes(), PAGE_BYTES)
-        page = with_kits(written)
-        checked_page(page.encode("utf-8"), PAGE_BYTES)
+        return checked_page(file.read_bytes(), PAGE_BYTES)
     except PageCheckError as refused:
         raise ToolCallError(str(refused)) from refused
-    return page
 
 
 def _blocked(page: str) -> list[str]:

@@ -7,7 +7,22 @@ description: Make or change a web page from the user's sources - a report, a bri
 
 You write the page yourself, as one HTML file under `outputs/`, and keep it with `surfsense_save_page`. SurfSense stores it as a version in Studio, where the user opens it, and shows you screenshots of it. To change it later you edit the same file and save again, which makes the next version.
 
-Before you write, read `design.md` in this skill's folder: how a page should look and move. Read `figures.md` and `kit.md` only when the page needs a figure of a mechanism.
+## The files in this skill
+
+| File | Read it |
+|---|---|
+| `design.md` | Always, before writing: how a page looks and moves. |
+| `figures.md` | When the page explains a mechanism or a process with an isometric figure. |
+| `isometric.md` | With `figures.md`: the drawing helper to copy into the page, and its rules. |
+| `examples/spring-scale.md`, `examples/pin-tumbler-lock.md`, `examples/job-queue-conveyor.md` | The one closest to your mechanism: a complete, working figure page to start from. |
+
+## How to make a page
+
+1. Read the sources and decide what the reader most needs, and whether the page needs a figure of a mechanism (most pages do not; charts and type carry a report, a summary or a dashboard).
+2. Read `design.md`. For a figure, read `figures.md`, `isometric.md` and the closest example too.
+3. Plan in a few lines, then write a first, lean version: the structure, the main content, and for a figure its main parts working.
+4. Save it with `surfsense_save_page` and look at every screenshot.
+5. Improve it with edits to the same file, a section or a group of parts at a time, saving and looking after each.
 
 ## The contract
 
@@ -15,7 +30,7 @@ Before you write, read `design.md` in this skill's folder: how a page should loo
 - Everything inline: CSS in `<style>`, code in `<script>`, images as `data:` URLs or inline SVG.
 - **The page has no network.** The viewer blocks every request: no CDN, no web font, no `fetch`, no image from a URL, no form that submits. Use system fonts, draw charts as SVG, and write the data into the page. A save lists anything the page asks to load, so you can take it out.
 - No `eval` or `new Function`; they are blocked too.
-- At most 5 MB, the figure kit included. A page is usually 10 to 80 KB.
+- At most 5 MB. A page is usually 10 to 80 KB.
 - Write it at `outputs/<short-name>.html` with your own file tools. It stays there for the next edit.
 - Keep the first write lean, about 300 lines at most, and grow the page with edits. One reply can only write so much: a page planned and written whole in one go can run out before it is saved. Plan in a few lines, then write.
 - Only what the sources and the user support. Every figure, date and name on the page is one you found or were given.
@@ -39,9 +54,9 @@ Look at every screenshot before you answer. Fix what is wrong: text that overflo
 
 ## When a save is refused or fails
 
-A refusal names the fix: a path outside `outputs/`, a file that is not `.html`, too large, not UTF-8, no HTML in it, an unknown kit. Fix it and save again. If this is your third failed save for this request, stop and tell the user what failed.
+A refusal names the fix: a path outside `outputs/`, a file that is not `.html`, too large, not UTF-8, no HTML in it. Fix it and save again. If this is your third failed save for this request, stop and tell the user what failed.
 
-## Example
+## Example: a report page
 
 ```html
 <!doctype html>

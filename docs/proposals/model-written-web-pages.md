@@ -60,7 +60,7 @@ Word needs a script because python-docx builds the file. A page is already the f
 - **Notes, not refusals:** each external URL in `src`, `href`, `@import` or `url()` is listed as "blocked by the viewer", as the hosted verifier did. Links (`<a href>`) are left out of the notes.
 - **Same title.** A call without `artifact_id` whose title matches a page this thread saved is refused naming that page's id, through [`same_title_documents.py`](../../surfsense_local/backend/modules/agent/tool_endpoint/same_title_documents.py), whose format check widens to `html`.
 - **Version.** v1 of a new page, or the next version of `artifact_id`'s root. Only a page this tool saved continues: a Studio-made page, or another format, is refused with "make a new page".
-- **Store.** The bytes are written at once, as [`made_file.py`](../../surfsense_local/backend/modules/artifacts/made_file.py)'s `keep_made_file` does, with the kit inlined where asked and the CSP `<meta>` (below) inserted right after the doctype, before anything the page wrote, so no script of the page runs without it. The artifact's metadata holds `made_by: {"tool": "save_page", "path": …}` and the `version`; the HTML is the file, not a copy in metadata.
+- **Store.** The bytes are written at once, as [`made_file.py`](../../surfsense_local/backend/modules/artifacts/made_file.py)'s `keep_made_file` does, with the CSP `<meta>` (below) inserted right after the doctype, before anything the page wrote, so no script of the page runs without it. The artifact's metadata holds `made_by: {"tool": "save_page", "path": …}` and the `version`; the HTML is the file, not a copy in metadata.
 - **Index.** Studio's job takes the made-file branch. [`made_file/pipeline.py`](../../surfsense_local/backend/worker/studio/made_file/pipeline.py) gains `html` beside `pdf`, `docx`, `pptx` and `xlsx`: its text comes from a new extractor on the standard library's `html.parser` that keeps headings, paragraphs, list items, table cells and `alt` text, drops `<script>`, `<style>` and `<template>`, and writes Markdown headings so the body chunks as other artifacts do.
 - **Wait and answer** as `render_document` does: up to 150 seconds inside the call's deadline, then the `Rendered artifact <id>, version <n>: <title>` line, the first 1,500 characters of the text, the notes, and the screenshots; or `Queued artifact…` if the index is still behind.
 
@@ -97,9 +97,8 @@ The guide's motion rules: motion is time-based (`requestAnimationFrame` timestam
 
 A page may carry an explanatory figure: an isometric drawing of a real object whose working is the idea, a pin-tumbler lock for a cache key rather than boxes and arrows. It is optional; the skill says when one helps (a mechanism or a process) and when it does not (a report, a summary, a dashboard).
 
-- **SurfSense's own kit,** `skills/surfsense-html/kit/fig.js`, with no dependency: a true isometric camera fitted to the mechanism; rounded boxes, cylinders and prisms shaded by the way each side faces, with silhouettes, glints and soft shadows; coil springs; small parts that paint with what they sit on (screws, hole grids, ticks, knurls, panels, slots, an engraved label); light colours the page sets from its own palette; SVG in painter's order; and the motion helpers: easing, a spring, and a loop that stops when settled or off screen and honours reduced motion. A first, smaller kit drew a turnstile as a few boxes on a mostly empty plate; detail and composition are what make a figure read as a made object.
-- **SurfSense inlines it, not the agent.** The page writes `<script data-kit="fig"></script>` before its own script, and `surfsense_save_page` replaces that element with the kit's code. The model never copies the kit, and the stored page stays self-contained, so the no-network CSP holds it.
-- **The skill splits** so a plain page loads little: `SKILL.md` and `design.md` always, `figures.md` (how to find the object, list 40 to 80 parts, put detail on every face, let the mechanism fill the frame, order the parts back to front, frame the figure with a live readout, and check the screenshot) and `kit.md` (the kit's functions) only when the agent draws a figure.
+- **Markdown only, built on examples.** `isometric.md` gives a helper of about 100 lines the agent copies into the page whole: an isometric camera fitted to the mechanism, rounded boxes, cylinders and prisms shaded by the way each side faces, outlines, glints and soft shadows, paths for parts of its own, painting in layers, and easing that honours reduced motion. Three complete example pages built on it, a spring scale, a pin-tumbler lock and a conveyor with three workers, cover one part moving with a value, many parts lining up, and things flowing through stations; the agent starts from the closest. Nothing is inlined by SurfSense, so the stored page is the agent's own. A shipped script the save inlined was tried first and dropped: the agent read its 25 KB of code anyway, and examples to copy are what models follow best.
+- **The skill splits** so a plain page loads little: `SKILL.md` and `design.md` always; `figures.md`, `isometric.md` and one example only for a figure. `figures.md` asks for a few lines of plan, a first save with the main parts, and detail added in edits: a model that planned a 40-to-80-part figure whole in thought spent its 32,000-token output on reasoning and saved nothing.
 - **No WebGL.** Pages draw with SVG and CSS only: WebGL, a 3D canvas or a shader makes a page heavy and laggy for what an SVG figure already shows. The design guide says so.
 
 ## Editing a page
@@ -125,7 +124,7 @@ Whether the template is kept is measured, not assumed. The levels were set on do
 ## Build order
 
 1. **Shared:** the viewer's hardening, the CSP insertion, the text extractor and the design guide. The hardening holds every html artifact, Studio's template pages included.
-2. **Agent path:** `surfsense_save_page`, the skill with the kit, screenshots and versions.
+2. **Agent path:** `surfsense_save_page`, the skill with its examples, screenshots and versions.
 3. **Studio's path at the bar:** the tier prompt, the checks and attempts, Refine and Regenerate; then the ladder measurement.
 
 ## Not in this
@@ -137,7 +136,7 @@ Whether the template is kept is measured, not assumed. The levels were set on do
 
 ## Tests
 
-- `tests/integration/agent/test_page_tools.py`, beside `test_document_tools.py`: a page saved and listed with its version, the next version through `artifact_id`, each refusal, same title, a Studio page refused as a base, the CSP inserted, the notes, the kit inlined where the page asks for it, and the text indexed without script.
+- `tests/integration/agent/test_page_tools.py`, beside `test_document_tools.py`: a page saved and listed with its version, the next version through `artifact_id`, each refusal, same title, a Studio page refused as a base, the CSP inserted and nothing else written into the page, the notes, and the text indexed without script.
 - `test_previews.py` with a stand-in Electron: the page served inline with its CSP header, a PNG delivered and tiled, no Electron giving the reason.
 - Studio, with a stub model: a model at the bar gets the HTML prompt and one below it the JSON prompt; a cut-off page, an oversized one and one without markup sent back with their reasons; the third failure failing the job; the stored page carrying the CSP and its spec; Refine refused past the window.
 - `test_tool_endpoint.py`, `test_tool_registration.py`, `test_tool_names.py`, `test_skills_plugin.py`, `test_render_steps.py` for the listing, the names and the step.

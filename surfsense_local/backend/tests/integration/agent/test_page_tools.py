@@ -222,38 +222,21 @@ async def test_a_page_over_the_size_limit_is_refused(
     assert "larger than" in text
 
 
-async def test_the_figure_kit_is_inlined_where_the_page_asks_for_it(
+async def test_the_page_is_stored_as_written_with_only_the_policy_added(
     tools: ToolEndpoint, studio_worker: None, engine: Engine
 ) -> None:
-    """The page names the kit; SurfSense writes its code and licence in its place."""
+    """Nothing is written into a page but the no-network policy: its script runs as the agent wrote it."""
     workspace_id = await tools.workspace()
-    page = PAGE.replace("<script>", '<script data-kit="fig"></script>\n<script>', 1)
-    path = _write(tools, workspace_id, "lock.html", page)
+    path = _write(tools, workspace_id, "lock.html", PAGE)
 
     text, is_error = await tools.call(
         workspace_id, "save_page", {"path": path, "title": "Lock"}
     )
 
     assert is_error is False, text
-    stored = _stored(engine, _artifact_id(text))
-    assert 'data-kit="fig"' not in stored
-    assert "const Fig = " in stored
-    assert stored.count("</script>") == page.count("</script>")
-
-
-async def test_a_kit_that_does_not_exist_is_refused(tools: ToolEndpoint) -> None:
-    """The refusal names the kits there are."""
-    workspace_id = await tools.workspace()
-    path = _write(
-        tools, workspace_id, "x.html", '<script data-kit="three"></script><p>x</p>'
+    assert _stored(engine, _artifact_id(text)) == PAGE.replace(
+        "<!doctype html>", f"<!doctype html>{META}", 1
     )
-
-    text, is_error = await tools.call(
-        workspace_id, "save_page", {"path": path, "title": "X"}
-    )
-
-    assert is_error is True
-    assert '"fig"' in text
 
 
 async def test_outside_resources_are_named_as_blocked_and_links_are_not(
@@ -352,10 +335,9 @@ async def test_studio_is_not_asked_for_a_web_page(tools: ToolEndpoint) -> None:
 async def test_the_agents_working_file_is_left_as_it_wrote_it(
     tools: ToolEndpoint, studio_worker: None
 ) -> None:
-    """The kit and the policy go into the stored copy, never into the file it edits."""
+    """The policy goes into the stored copy, never into the file it edits."""
     workspace_id = await tools.workspace()
-    page = '<script data-kit="fig"></script>' + PAGE
-    path = _write(tools, workspace_id, "q3.html", page)
+    path = _write(tools, workspace_id, "q3.html", PAGE)
 
     text, is_error = await tools.call(
         workspace_id, "save_page", {"path": path, "title": "Q3"}
@@ -363,4 +345,4 @@ async def test_the_agents_working_file_is_left_as_it_wrote_it(
 
     assert is_error is False, text
     working = tools.folder(workspace_id) / path
-    assert working.read_text(encoding="utf-8") == page
+    assert working.read_text(encoding="utf-8") == PAGE
