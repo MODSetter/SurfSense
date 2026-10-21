@@ -316,6 +316,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 ## Known gaps
 
+- Whether Studio's Web page template is still needed is not measured. The levels that send a model to the written path were set on document tasks; the ladder's models have not written pages yet. If `studio_only` models write pages that pass the structural checks and look right, the template and its three prompts go; if `agent` models fail, the bar needs an HTML case.
 - Outside a model call, a cancel stops a job only between steps. The podcast turn being voiced and ingest's parsing and embedding run to their end first, because jobs are threads that cannot be killed; stopping a step in flight means running each job in a process the worker can kill, as a script document's run already is.
 - Studio's own PPTX and XLSX scripts run in the runner without asking the user, like Word and PDF; nothing confines their network or file access (below).
 - A model not measured still takes the provisional rule ([model capabilities](model-capabilities.md)): a large model served from this computer writes Markdown, and a small remote one writes a script.
