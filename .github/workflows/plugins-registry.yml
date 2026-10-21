@@ -128,9 +128,13 @@ jobs:
 
       # Connects to each plugin the pull request adds or changes, after the entry
       # rules refused loopback and credentials. Pull requests only: a third-party
-      # server down for a minute must never hold up signing the list.
+      # server down for a minute must never hold up signing the list. A submission
+      # branch is one commit on dev, so its run, started by the bot, compares the same way.
       - name: Connect to each new or changed plugin
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_dispatch' &&
+          startsWith(github.ref, 'refs/heads/registry/plugin-submission-'))
         working-directory: plugins/registry/check
         run: |
           base="$RUNNER_TEMP/base-plugins.json"
