@@ -12,7 +12,7 @@ import {
 const SAVED_AT = new Date("2026-10-14T07:30:00Z")
 
 function fakes(
-  options: GoingBackOptions,
+  options: GoingBackOptions | null,
   {
     answers = [],
     fails = {},
@@ -116,5 +116,15 @@ test("going back that stopped partway does not claim the data is unchanged", asy
     kind: "cannot-go-back",
     reason: "failed-data-may-have-changed",
   })
+  assert.equal(outcome, "quit")
+})
+
+test("options it could not read say so, not that no copy was found", async () => {
+  const fake = fakes(null)
+
+  const outcome = await offerGoingBack(fake.deps)
+
+  assert.deepEqual(fake.asked, [{ kind: "cannot-go-back", reason: "could-not-check" }])
+  assert.deepEqual(fake.ran, [])
   assert.equal(outcome, "quit")
 })

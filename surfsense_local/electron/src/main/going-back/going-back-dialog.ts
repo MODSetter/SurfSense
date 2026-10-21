@@ -58,6 +58,12 @@ const cannotGoBackText = {
       "A newer version updated it, and no copy from before that update was found. " +
       "Install the newer version again to keep using your data.",
   },
+  "could-not-check": {
+    message: "SurfSense couldn't check your data.",
+    detail:
+      "A newer version updated it, and this version couldn't work out how to go back. " +
+      "Install the newer version again to keep using your data.",
+  },
   "failed-data-unchanged": {
     message: "SurfSense couldn't go back to this version.",
     detail:

@@ -21,11 +21,8 @@ test("no backup reads as none", () => {
   })
 })
 
-test("an answer it cannot read offers nothing rather than guessing", () => {
-  assert.deepEqual(parseGoingBackOptions("Traceback (most recent call last)"), {
-    canUndo: false,
-    backupSavedAt: null,
-  })
+test("an answer it cannot read is no answer, not an empty one", () => {
+  assert.equal(parseGoingBackOptions("Traceback (most recent call last)"), null)
 })
 
 test("going back that exits cleanly went back", () => {

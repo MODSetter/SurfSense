@@ -15,7 +15,10 @@ export interface GoingBackOptions {
 /** A failure is "unchanged" only when the backend loaded the set-aside copy back. */
 export type GoBackResult = "went-back" | "failed-data-unchanged" | "failed-data-may-have-changed"
 
-type CannotGoBackReason = "nothing-to-go-back-to" | Exclude<GoBackResult, "went-back">
+type CannotGoBackReason =
+  | "nothing-to-go-back-to"
+  | "could-not-check"
+  | Exclude<GoBackResult, "went-back">
 
 export type Question =
   | { kind: "undo" }
@@ -23,7 +26,8 @@ export type Question =
   | { kind: "cannot-go-back"; reason: CannotGoBackReason }
 
 export interface GoingBackDeps {
-  options: () => Promise<GoingBackOptions>
+  /** Null when the backend could not say, which is not the same as "nothing". */
+  options: () => Promise<GoingBackOptions | null>
   /** The backend logs why when it did not go back. */
   goBack: (way: Way) => Promise<GoBackResult>
   /** True when the user agreed. A cannot-go-back notice has only Quit. */
@@ -33,7 +37,9 @@ export interface GoingBackDeps {
 export type Outcome = "restart" | "quit"
 
 export async function offerGoingBack(deps: GoingBackDeps): Promise<Outcome> {
-  const { canUndo, backupSavedAt } = await deps.options()
+  const options = await deps.options()
+  if (options === null) return cannotGoBack(deps, "could-not-check")
+  const { canUndo, backupSavedAt } = options
 
   if (canUndo) {
     if (!(await deps.ask({ kind: "undo" }))) return "quit"

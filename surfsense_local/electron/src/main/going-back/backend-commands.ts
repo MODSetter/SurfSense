@@ -4,10 +4,8 @@ import { apiCommand } from "../sidecars/python.ts"
 import type { SidecarContext } from "../sidecars/types.ts"
 import type { GoBackResult, GoingBackOptions, Way } from "./offer-going-back.ts"
 
-const OPTIONS_TIMEOUT_MS = 60_000
-
 export interface BackendCommands {
-  options: () => Promise<GoingBackOptions>
+  options: () => Promise<GoingBackOptions | null>
   goBack: (way: Way) => Promise<GoBackResult>
 }
 
@@ -18,8 +16,12 @@ export function backendCommands(
 ): BackendCommands {
   return {
     options: async () => {
-      const result = await run(ctx, ["--going-back-options"], OPTIONS_TIMEOUT_MS)
-      if (!result.ok) log(`going back: could not read the options: ${result.stderr}`)
+      // No time limit either: checking large backups on a hard disk can take minutes.
+      const result = await run(ctx, ["--going-back-options"])
+      if (!result.ok) {
+        log(`going back: could not read the options: ${result.stderr}`)
+        return null
+      }
       return parseGoingBackOptions(result.stdout)
     },
     goBack: async (way) => {
@@ -32,7 +34,7 @@ export function backendCommands(
   }
 }
 
-export function parseGoingBackOptions(stdout: string): GoingBackOptions {
+export function parseGoingBackOptions(stdout: string): GoingBackOptions | null {
   try {
     const parsed = JSON.parse(stdout) as { can_undo?: unknown; backup_saved_at?: unknown }
     return {
@@ -41,7 +43,7 @@ export function parseGoingBackOptions(stdout: string): GoingBackOptions {
         typeof parsed.backup_saved_at === "string" ? new Date(parsed.backup_saved_at) : null,
     }
   } catch {
-    return { canUndo: false, backupSavedAt: null }
+    return null
   }
 }
 
@@ -63,13 +65,13 @@ interface RunResult {
   stderr: string
 }
 
-function run(ctx: SidecarContext, args: string[], timeout?: number): Promise<RunResult> {
+function run(ctx: SidecarContext, args: string[]): Promise<RunResult> {
   const command = apiCommand(ctx, args)
   return new Promise((resolve) => {
     execFile(
       command.cmd,
       command.args,
-      { cwd: command.cwd, env: { ...process.env, ...command.env }, timeout, windowsHide: true },
+      { cwd: command.cwd, env: { ...process.env, ...command.env }, windowsHide: true },
       (error, stdout, stderr) => {
         // A non-numeric code is a spawn failure such as ENOENT, not an exit.
         const code = error === null ? 0 : typeof error.code === "number" ? error.code : null
