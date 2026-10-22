@@ -87,6 +87,28 @@
       "about": "Connect YouTube to SurfSense to work with videos without watching every one. Read public videos, channels and playlists with their subtitles, and the comments and replies under a video. Useful for summarizing a talk or tutorial, pulling quotes from an interview, or seeing how viewers reacted to a launch."
     },
     {
+      "id": "instagram",
+      "kind": "remote",
+      "name": "Instagram",
+      "description": "Read Instagram profiles and their posts.",
+      "author": "SurfSense",
+      "url": "https://plugins.surfsense.com/instagram/mcp",
+      "auth": {
+        "type": "license"
+      },
+      "hosts": [
+        "plugins.surfsense.com"
+      ],
+      "access": "license",
+      "icon": "instagram.svg",
+      "tools": [
+        "scrape",
+        "details"
+      ],
+      "added": "2026-10",
+      "about": "Connect Instagram to SurfSense to look into public accounts from your chats. Read public posts and reels from a profile or a link, find profiles by search, and see a profile’s bio, follower and post counts and latest posts, without your own Instagram account. Useful for researching creators and brands, tracking a campaign, or comparing accounts in a niche."
+    },
+    {
       "id": "tiktok",
       "kind": "remote",
       "name": "TikTok",
