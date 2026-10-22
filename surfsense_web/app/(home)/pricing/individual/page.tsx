@@ -14,8 +14,8 @@ import {
 
 /**
  * The Individual licence's checkout landing page, between the `/pricing` card
- * and the Stripe Payment Link, which asks only for a name and an email. Its job
- * is that nobody reaches Stripe unsure what they are buying.
+ * and the Stripe Payment Link, which needs no account. Its job is that nobody
+ * reaches Stripe unsure what they are buying.
  *
  * Rendered in the site design (listed in `SITE_DESIGN_ROUTES`), public through
  * the `/pricing` prefix in `lib/public-routes.ts`, so the sunset redirect

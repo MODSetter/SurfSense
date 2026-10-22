@@ -142,7 +142,7 @@ export function FeatureRequestTerms() {
 const AFTER_PAYING: GuideStep[] = [
 	{
 		title: "Pay on Stripe",
-		body: "Checkout asks for your name and your email address, nothing else. The licence is registered to that email, and there is no account or password.",
+		body: "Stripe asks for your name, email and payment details. There is no account or password to create, and the licence is registered to that email.",
 	},
 	{
 		title: "Save your licence file",
