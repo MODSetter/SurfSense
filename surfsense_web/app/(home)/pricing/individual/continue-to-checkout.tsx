@@ -31,9 +31,15 @@ export function ContinueToCheckout({ className }: { className?: string }) {
 		if (!PAYMENT_LINK) return;
 		const channel = currentChannel();
 		trackCheckoutStarted(channel);
-		if (!isPlainClick(event)) return;
+		const checkout = checkoutHref(BUY_INDIVIDUAL_URL, channel);
+		if (!isPlainClick(event)) {
+			// A new tab follows the anchor, so it must carry the channel just counted.
+			event.currentTarget.href = checkout;
+			setHref(checkout);
+			return;
+		}
 		event.preventDefault();
-		window.location.assign(checkoutHref(BUY_INDIVIDUAL_URL, channel));
+		window.location.assign(checkout);
 	}
 
 	return (
