@@ -262,3 +262,16 @@ def test_without_a_license_the_plugin_answers_nothing(instagram: str) -> None:
     refused = httpx2.post(instagram, json={})
 
     assert (refused.status_code, refused.json()) == (401, {"reason": "missing_license"})
+
+
+async def test_scrape_says_where_a_video_s_url_comes_from(instagram: str) -> None:
+    """A feed's newest posts come without one; a post URL reads the post's own page."""
+    async with (
+        httpx2.AsyncClient(headers=LICENSE) as http,
+        Client(streamable_http_client(instagram, http_client=http)) as client,
+    ):
+        tools = {tool.name: tool for tool in (await client.list_tools()).tools}
+
+    description = tools["scrape"].description or ""
+    assert "video URL" in description
+    assert "instagram.com/p/<code>/" in description

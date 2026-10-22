@@ -151,7 +151,13 @@ def server() -> MCPServer:
             ),
         ] = 10,
     ) -> CallToolResult:
-        """Scrape public Instagram posts or reels from profile/post/reel URLs, or discover public profiles via search queries."""
+        """Scrape public Instagram posts or reels from profile/post/reel URLs, or discover public profiles via search queries.
+
+        A profile's posts feed gives its newest posts without a video URL; for a
+        video's file, scrape that post's URL (instagram.com/p/<code>/), which reads
+        its own page. Its signed URL expires within hours to days, so fetch it
+        when it is needed.
+        """
         _one_source(urls, search_queries)
 
         await stage(ctx, "scraping Instagram", total=max_items)
