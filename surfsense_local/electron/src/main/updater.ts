@@ -1,13 +1,19 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs"
 import type { OutgoingHttpHeaders } from "node:http"
 
+import type { UpdateFeed } from "./update-feed/latest-manifest.ts"
+import {
+  surfSenseFeedOptions,
+  type SurfSenseFeedOptions,
+} from "./update-feed/surfsense-feed-provider.ts"
+
 // The subset of electron-updater's AppUpdater this module touches, so the
 // state machine runs under node --test without Electron.
 export type AutoUpdaterLike = {
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
-  allowPrerelease: boolean
   requestHeaders: OutgoingHttpHeaders | null
+  setFeedURL(options: SurfSenseFeedOptions): void
   on(event: string, listener: (...args: any[]) => void): unknown
   checkForUpdates(): Promise<unknown>
   downloadUpdate(): Promise<unknown>
@@ -23,7 +29,12 @@ export type UpdateState =
   | { status: "error"; message: string }
 
 // lastCheckedAt: the "last call" shown in Settings > Network.
-export type UpdatePrefs = { automatic: boolean; lastCheckedAt?: string }
+// lastAutomaticDay: the UTC day (YYYY-MM-DD) of the last automatic check.
+export type UpdatePrefs = {
+  automatic: boolean
+  lastCheckedAt?: string
+  lastAutomaticDay?: string
+}
 
 export type Updates = {
   check(): Promise<void>
@@ -44,23 +55,29 @@ export function writeUpdatePrefs(path: string, prefs: UpdatePrefs): void {
   renameSync(`${path}.tmp`, path)
 }
 
+const UTC_DAY = /^\d{4}-\d{2}-\d{2}$/
+
 export function parseUpdatePrefs(value: unknown): UpdatePrefs {
   const record =
     typeof value === "object" && value !== null
       ? (value as Record<string, unknown>)
       : {}
-  const automatic = record.automatic === true
-  return typeof record.lastCheckedAt === "string"
-    ? { automatic, lastCheckedAt: record.lastCheckedAt }
-    : { automatic }
+  return {
+    automatic: record.automatic === true,
+    ...(typeof record.lastCheckedAt === "string"
+      ? { lastCheckedAt: record.lastCheckedAt }
+      : {}),
+    ...(typeof record.lastAutomaticDay === "string" &&
+    UTC_DAY.test(record.lastAutomaticDay)
+      ? { lastAutomaticDay: record.lastAutomaticDay }
+      : {}),
+  }
 }
-
-// What update requests send in place of the install ID.
-export const NO_INSTALL_ID = "0"
 
 export function attachUpdater(
   updater: AutoUpdaterLike,
-  onState: (state: UpdateState) => void
+  onState: (state: UpdateState) => void,
+  feed: UpdateFeed
 ): Updates {
   let current: UpdateState = { status: "idle" }
   const set = (state: UpdateState) => {
@@ -74,17 +91,12 @@ export function attachUpdater(
   // A downloaded update installs on Restart, or else the next time the user
   // quits; the copy and docs say so.
   updater.autoInstallOnAppQuit = true
-  // electron-updater sends its persistent install ID from userData/.updaterId
-  // as this header; ours are merged over it, so no ID leaves. Staged rollouts
-  // still read the local file.
-  updater.requestHeaders = {
-    ...updater.requestHeaders,
-    "x-user-staging-id": NO_INSTALL_ID,
-  }
-  // Takes the newest entry of the releases feed rather than /releases/latest.
-  // That pointer names a 2.x release again, so this is no longer required;
-  // dropping it changes behaviour for shipped clients, so it ships on its own.
-  updater.allowPrerelease = true
+  // Merged into every download's headers (AppUpdater.computeRequestHeaders), so
+  // nothing of ours rides along to GitHub.
+  updater.requestHeaders = null
+  // The manifest from updates.surfsense.com, falling back to GitHub; never
+  // `updater.channel`, whose setter turns on allowDowngrade.
+  updater.setFeedURL(surfSenseFeedOptions(feed))
   updater.on("update-available", (info: { version: string }) => {
     set({ status: "downloading", version: info.version })
     updater.downloadUpdate().catch(() => undefined)
