@@ -1,10 +1,14 @@
+import json
 import subprocess
 import sys
+import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
+from host.app import host_app
 from host.tests.serving import serving
 from host.tests.stand_in_posthog import StandInPostHog
 from host.usage_meter.call_counts import CallKey, Tally
@@ -15,6 +19,7 @@ from host.usage_meter.usage_store import UsageStore
 
 # plugins/remote/, the import root `python -m` runs from.
 IMPORT_ROOT = Path(__file__).resolve().parents[2]
+SAMPLES = Path(__file__).parent / "sample_plugins"
 TODAY = "2026-10-21"
 YESTERDAY = "2026-10-20"
 
@@ -35,6 +40,14 @@ def record_yesterday(meter: UsageMeter) -> None:
     meter.record(CallKey(YESTERDAY, "lic-a", "notes", "search", "ok"), 50)
     meter.record(CallKey(YESTERDAY, "lic-b", "notes", "search", "ok"), 10)
     meter.record(CallKey(YESTERDAY, "unlicensed", "notes", "search", "refused"), 5)
+
+
+def happens(condition: Callable[[], bool], seconds: float = 5) -> None:
+    deadline = time.monotonic() + seconds
+    while not condition():
+        if time.monotonic() > deadline:
+            raise AssertionError("it did not happen in time")
+        time.sleep(0.02)
 
 
 def personless(name: str, properties: dict) -> dict:
@@ -96,6 +109,38 @@ async def test_yesterday_s_totals_go_to_posthog_once_with_no_license_id(
     ]
     assert b"lic-a" not in posthog.bodies[0]
     assert b"lic-b" not in posthog.bodies[0]
+
+
+def test_the_serving_host_sends_yesterday_s_rollup_and_retries_until_it_is_taken(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """At startup, then every DAILY_JOBS_SECONDS (made short here) until PostHog takes it."""
+    monkeypatch.setattr("host.usage_meter.usage_meter.DAILY_JOBS_SECONDS", 0.05)
+    posthog = StandInPostHog()
+    posthog.failing = True
+    with serving(posthog.app) as url:
+        meter = meter_from_env(
+            {
+                "USAGE_DB_PATH": str(tmp_path / "usage.sqlite3"),
+                "POSTHOG_API_KEY": "phc_test",
+                "POSTHOG_HOST": url,
+            }
+        )
+        record_yesterday(meter)
+        with serving(host_app(SAMPLES, meter=meter)):
+            happens(lambda: len(posthog.bodies) >= 2)
+            posthog.failing = False
+            happens(lambda: bool(posthog.taken))
+            # A few more runs, which find the day already sent.
+            time.sleep(0.3)
+
+    assert len(posthog.taken) == 1
+    assert b"lic-a" not in posthog.taken[0]
+    assert [event["event"] for event in json.loads(posthog.taken[0])["batch"]] == [
+        "plugin_usage_daily",
+        "plugin_usage_daily",
+        "plugin_licences_daily",
+    ]
 
 
 async def test_nothing_is_sent_without_a_posthog_key(tmp_path: Path) -> None:

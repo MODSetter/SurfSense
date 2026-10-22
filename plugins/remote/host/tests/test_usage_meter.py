@@ -42,9 +42,13 @@ def tool_call(tool: str, arguments: dict, request_id: int = 7) -> dict:
     }
 
 
+def store_in(folder: Path) -> UsageStore:
+    return UsageStore(folder / "usage" / "plugin-usage.sqlite3")
+
+
 def meter_in(folder: Path) -> UsageMeter:
     return UsageMeter(
-        UsageStore(folder / "usage" / "plugin-usage.sqlite3"),
+        store_in(folder),
         clock=lambda: datetime.fromisoformat(f"{DAY}T12:00:00+00:00"),
     )
 
@@ -58,6 +62,11 @@ def counted(usage: DailyUsage) -> set[tuple[str, str, str, int, int]]:
     return {
         (t.plugin, t.tool, t.outcome, t.calls, t.distinct_licences) for t in usage.tools
     }
+
+
+def in_the_file(folder: Path) -> set[tuple[str, str, str, int, int]]:
+    """The day's counts read from a store of its own: the meter's reads write first."""
+    return counted(store_in(folder).daily_usage(DAY))
 
 
 async def test_each_tool_call_is_counted_by_plugin_tool_and_outcome(
@@ -78,6 +87,30 @@ async def test_each_tool_call_is_counted_by_plugin_tool_and_outcome(
         ("notes", "unknown", "tool_error", 1, 0),
     }
     assert all(t.total_ms >= 0 for t in usage.tools)
+
+
+def test_the_counts_are_written_when_the_host_stops(tmp_path: Path) -> None:
+    meter = meter_in(tmp_path)
+    with serving(host_app(SAMPLES, meter=meter)) as base:
+        raw_request(f"{base}/notes/mcp", tool_call("search", {"query": "a"}))
+
+    assert in_the_file(tmp_path) == {("notes", "search", "ok", 1, 0)}
+
+
+def test_the_counts_are_written_while_the_host_serves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every FLUSH_SECONDS, made short here."""
+    monkeypatch.setattr("host.usage_meter.usage_meter.FLUSH_SECONDS", 0.05)
+    meter = meter_in(tmp_path)
+    with serving(host_app(SAMPLES, meter=meter)) as base:
+        raw_request(f"{base}/notes/mcp", tool_call("search", {"query": "a"}))
+        deadline = time.monotonic() + 5
+        while not in_the_file(tmp_path) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        written = in_the_file(tmp_path)
+
+    assert written == {("notes", "search", "ok", 1, 0)}
 
 
 async def test_only_tool_calls_are_counted(tmp_path: Path) -> None:
