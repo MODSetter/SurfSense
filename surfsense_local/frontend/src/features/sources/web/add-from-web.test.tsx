@@ -376,6 +376,48 @@ describe("adding sources from the web", () => {
     ).toBeTruthy()
   })
 
+  it("ignores a page that answers after the links were opened again", async () => {
+    const user = userEvent.setup()
+    const pages: number[] = []
+    let answerStale: (response: Response) => void = () => {}
+    const sent = serving({
+      list: (body) => {
+        const page = (body as { page: number }).page
+        pages.push(page)
+        if (pages.length === 1) {
+          return new Promise<Response>((resolve) => {
+            answerStale = resolve
+          })
+        }
+        return Response.json(channelPage(page, false))
+      },
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, CHANNEL)
+    let channel = await within(dialog).findByRole("group", { name: CHANNEL })
+    await user.click(within(channel).getByRole("button", { name: "Show more" }))
+
+    // The box still holds the link: Enter opens it again.
+    await user.click(box(dialog))
+    await user.keyboard("{Enter}")
+    channel = await within(dialog).findByRole("group", { name: CHANNEL })
+    answerStale(Response.json(channelPage(1, false)))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(
+      within(channel).queryByRole("button", {
+        name: "Add Tides, page 2 video 1",
+      })
+    ).toBeNull()
+    await user.click(within(channel).getByRole("button", { name: "Show more" }))
+    await within(channel).findByRole("button", {
+      name: "Add Tides, page 2 video 1",
+    })
+    expect(pages).toEqual([1, 1])
+    expect(sent.filter((s) => s.path.endsWith("/web/open"))).toHaveLength(2)
+  })
+
   it("starts Add all over with each new search", async () => {
     const user = userEvent.setup()
     let answerSecond: (response: Response) => void = () => {}

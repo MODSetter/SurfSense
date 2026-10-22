@@ -101,6 +101,7 @@ export function AddFromWebDialog({
     setGroups(null)
     setLists(new Map())
     setPages(new Map())
+    setLoadingMore(new Set())
     // Added stays true across searches; an opened list belonged to the last rows.
     setStates(
       (current) =>
@@ -167,11 +168,14 @@ export function AddFromWebDialog({
     }
   }
 
+  // Like openList, a page belongs to the rows it was asked from.
   const showMore = async (link: string) => {
+    const shownRun = run.current
     const page = (pages.get(link) ?? 0) + 1
     setLoadingMore((current) => new Set(current).add(link))
     try {
       const next = await web.list(link, page)
+      if (run.current !== shownRun) return
       const grown = (group: WebGroup): WebGroup =>
         group.link === link
           ? {
@@ -195,13 +199,16 @@ export function AddFromWebDialog({
       })
       setPages((current) => new Map(current).set(link, page))
     } catch (cause) {
-      fail(cause)
+      if (run.current === shownRun) fail(cause)
     } finally {
-      setLoadingMore((current) => {
-        const next = new Set(current)
-        next.delete(link)
-        return next
-      })
+      // A newer search already cleared it, and may be loading this link again.
+      if (run.current === shownRun) {
+        setLoadingMore((current) => {
+          const next = new Set(current)
+          next.delete(link)
+          return next
+        })
+      }
     }
   }
 
