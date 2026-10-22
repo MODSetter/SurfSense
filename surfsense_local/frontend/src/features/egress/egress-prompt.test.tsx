@@ -214,22 +214,45 @@ describe("egress prompt", () => {
     expect(dialog.textContent).not.toContain("excerpts of your documents")
   })
 
-  it("tells the truth about update checks: a platform's file, no version, no ID", async () => {
+  it("tells the truth about update checks: version, system and architecture, no ID, GitHub behind", async () => {
     render(<EgressPrompt />)
 
     void askEgress({
       destination: "app_updates",
-      host: "github.com",
+      host: "updates.surfsense.com",
       allow: async () => undefined,
     })
 
     const dialog = await screen.findByRole("alertdialog", {
       name: "Allow SurfSense to check for updates?",
     })
-    expect(dialog.textContent).toContain("your IP address")
-    expect(dialog.textContent).toContain("with no version and no ID")
+    expect(dialog.textContent).toContain("asks updates.surfsense.com")
+    expect(dialog.textContent).toContain(
+      "the app’s version, your operating system and its architecture, and no ID"
+    )
+    expect(dialog.textContent).toContain(
+      "asks github.com instead, sending only your IP address"
+    )
     expect(dialog.textContent).toContain("the next time you quit")
-    expect(dialog.textContent).not.toContain("the version you are running")
+  })
+
+  it("names a policy's mirror as the only update host", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "updates.example.org",
+      purpose: "update_mirror",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain(
+      "the update server your organization set"
+    )
+    expect(dialog.textContent).not.toContain("github.com")
   })
 
   it.each(["plugin_registry", "plugin"])(

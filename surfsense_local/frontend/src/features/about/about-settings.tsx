@@ -1,3 +1,4 @@
+import { UsageStatisticsSettings } from "@/features/privacy-choices/usage-statistics-settings"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { UpdateSettings } from "@/features/updates/update-settings"
 import { intl } from "@/i18n/intl"
@@ -67,6 +68,7 @@ export function AboutSettings() {
     >
       <AppIdentity version={details?.version} />
       <UpdateSettings />
+      <UsageStatisticsSettings />
       <DataFolder />
 
       <div className="mt-8 flex flex-col gap-1">
