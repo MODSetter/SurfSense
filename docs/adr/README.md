@@ -95,3 +95,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |
 | 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Accepted |
 | 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Accepted |
+| 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted |

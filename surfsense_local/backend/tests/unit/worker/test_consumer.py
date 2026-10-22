@@ -65,6 +65,7 @@ def test_an_idle_queue_is_polled_at_least_every_second(
     monkeypatch.setattr(consumer, "wait_for_schema", lambda: None)
     monkeypatch.setattr(consumer, "fail_interrupted_documents", lambda _kinds: None)
     monkeypatch.setattr(consumer, "fail_interrupted_runs", lambda: None)
+    monkeypatch.setattr(consumer, "fail_interrupted_pulls", lambda: None)
     monkeypatch.setattr(consumer, "remove_leftover_run_folders", lambda: None)
 
     for name in ("ingest", "studio", "plugins"):

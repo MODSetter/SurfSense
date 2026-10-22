@@ -87,3 +87,40 @@ def test_the_api_ships_its_release_version() -> None:
         'copy_metadata("surfsense-local-backend")'
         in (BUNDLING / "api_inputs.py").read_text()
     )
+
+
+@pytest.mark.parametrize("name", ["api_inputs.py", "worker_inputs.py"])
+def test_every_role_that_reads_the_first_party_plugin_list_ships_it(
+    name: str,
+) -> None:
+    """The API lists SurfSense's plugins; the plugins worker finds the one a link's pull
+    calls. The list refuses an entry whose icon is not beside it, so both ship."""
+    bundled = literal_data_paths(BUNDLING / name)
+
+    assert "modules/plugins/lists/first_party/plugins.json" in bundled
+    assert "modules/plugins/lists/first_party/icons" in bundled
+
+
+def test_the_worker_names_every_module_that_registers_a_task() -> None:
+    """Huey runs a job by its task's name, so a frozen worker without the module
+    leaves that queue's jobs unrun: links added from the web stayed pending."""
+    queue = ast.parse((BACKEND / "shared" / "queue.py").read_text())
+    import_tasks = next(
+        node
+        for node in ast.walk(queue)
+        if isinstance(node, ast.FunctionDef) and node.name == "import_tasks"
+    )
+    registering = {
+        alias.name
+        for node in ast.walk(import_tasks)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    inputs = ast.parse((BUNDLING / "worker_inputs.py").read_text())
+    named = {
+        node.value
+        for node in ast.walk(inputs)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+
+    assert registering - named == set()

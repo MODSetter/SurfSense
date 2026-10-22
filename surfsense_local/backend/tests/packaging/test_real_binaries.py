@@ -138,7 +138,7 @@ def test_the_worker_role_starts(binary: Path, tmp_path: Path) -> None:
     assert "vision imports OK" in vision.stdout
 
     # A dropped hidden import crashes a consumer at startup; staying up is the proof.
-    for queue in ("ingest", "studio"):
+    for queue in ("ingest", "studio", "plugins"):
         proc = subprocess.Popen([str(binary), "worker", queue], env=_env(tmp_path))
         try:
             time.sleep(5)

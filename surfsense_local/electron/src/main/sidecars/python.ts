@@ -107,7 +107,10 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
   }
 }
 
-export type WorkerQueue = "ingest" | "studio"
+// One worker per backend queue (`backend/shared/queue.py`): ingest reads and
+// indexes, studio writes, plugins pulls links added from the web.
+export const WORKER_QUEUES = ["ingest", "studio", "plugins"] as const
+export type WorkerQueue = (typeof WORKER_QUEUES)[number]
 
 export function workerSpec(ctx: SidecarContext, queue: WorkerQueue): SidecarSpec {
   return {

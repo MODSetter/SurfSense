@@ -28,12 +28,13 @@ A workspace holds a library of sources: uploaded files, notes written in the app
 | `GET` | `/workspaces/{workspace_id}/documents` | list (below) |
 | `POST` | `/workspaces/{workspace_id}/documents` | write a note, with an optional `document_metadata` object and `folder_id`; `201` with its body, `422` for a field it does not know |
 | `POST` | `/workspaces/{workspace_id}/documents/upload` | upload files, with optional `folder_id` and `relative_paths` form fields; `201` with `created`, `duplicates` and `rejected` |
+| `POST` | `/workspaces/{workspace_id}/documents/web/search`, `…/web/open`, `…/web/list`, `…/documents/web` | search Google, open pasted links into rows, show more of a list, and add links as sources ([sources from the web](web-sources.md)) |
 | `POST` | `/workspaces/{workspace_id}/documents/move` | `{document_ids ≤ 1000, folder_id}`: file sources in a folder; `200` with `moved` and `skipped` ([Folders](#folders)) |
 | `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content` and `document_metadata`; `content` is `null` for a `FILE` the worker has not written yet |
 | `PATCH` | `/workspaces/{workspace_id}/documents/{document_id}` | rename; edit a note's content |
 | `DELETE` | `/workspaces/{workspace_id}/documents/{document_id}` | delete; `409` while `processing` |
-| `POST` | `/workspaces/{workspace_id}/documents/{document_id}/retry` | requeue a `failed` or `cancelled` document |
-| `POST` | `/workspaces/{workspace_id}/documents/{document_id}/cancel` | stop a `pending` or `processing` ingest |
+| `POST` | `/workspaces/{workspace_id}/documents/{document_id}/retry` | requeue a `failed` or `cancelled` document; a link's note with no text yet is pulled again ([sources from the web](web-sources.md#the-pull)) |
+| `POST` | `/workspaces/{workspace_id}/documents/{document_id}/cancel` | stop a `pending` or `processing` ingest, or a link's queued pull |
 | `GET` | `/workspaces/{workspace_id}/documents/{document_id}/original` | the uploaded file, as an attachment |
 | `GET` | `/workspaces/{workspace_id}/documents/by-chunk/{chunk_id}` | a cited chunk and its neighbours, for the citation panel ([`chat.md`](chat.md)) |
 
@@ -57,7 +58,7 @@ Chunks have no router of their own.
 
 A note is a document the user writes, with no file behind it. Creating one commits the row as `pending` and enqueues ingest: nothing needs parsing, but the note is not `ready` until it is chunked and indexed. A note never touches the filesystem and carries no dedup key, so two notes with the same text are two documents. **+ › New note** in the sources panel header writes one; **Edit note** reopens it with `GET /workspaces/{id}/documents/{doc}` and saves with `PATCH`, and the edited row comes back `pending`, so the panel's ingestion poll carries it to `ready` like any upload.
 
-A note may carry `document_metadata`, stored as given. A plugin names itself there on the notes it adds, with `plugin_id`, `plugin_version`, `action` and `run_id`; a note the user writes has none, and editing a note leaves it alone. Writing a note with a field the API does not know is refused rather than dropped, so a client that names a field differently finds out at once.
+A note may carry `document_metadata`, stored as given. A plugin names itself there on the notes it adds, with `plugin_id`, `plugin_version`, `action` and `run_id`. A link added from the web is a note too, with `source_url`, `puller`, `plugin_id` and `fetched_at` ([sources from the web](web-sources.md)). A note the user writes has none, and editing a note leaves it alone. Writing a note with a field the API does not know is refused rather than dropped, so a client that names a field differently finds out at once.
 
 ## The sources tree
 

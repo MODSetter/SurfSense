@@ -32,6 +32,7 @@ from modules.chat.router import router as chat_router
 from modules.chat.runs.registry import ChatRuns
 from modules.chat.runs.router import router as chat_runs_router
 from modules.documents.router import router as documents_router
+from modules.documents.web_sources.router import router as web_sources_router
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
 from modules.embedding.active import EmbeddingNotChosenError
@@ -238,6 +239,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
+    app.include_router(web_sources_router)
     app.include_router(folders_router)
     app.include_router(llm_router)
     app.include_router(model_route_router)
