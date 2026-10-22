@@ -44,6 +44,9 @@ jobs:
       UV_PYTHON_PREFERENCE: only-managed
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Nothing after the checkout talks to git; the build runs in a container.
+          persist-credentials: false
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
@@ -84,17 +87,25 @@ jobs:
             /opt/python/cp312-cp312/bin/python /io/surfsense_local/backend/scripts/opencv/build_wheel.py /work/opencv
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/opencv"
 
+      # Cheap, so a cached wheel is checked again too: the cache key does not
+      # cover this workflow, where a floor can move.
       - name: Gate on the app's Linux floor
-        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        if: runner.os == 'Linux'
         working-directory: ${{ runner.temp }}
-        # The floor is glibc 2.34, RHEL 9, whose libgcc_s is GCC 11's: nothing
-        # after GCC_7.0.0. The module links only the C and C++ runtimes and,
-        # as upstream's does, the system's zlib.
+        # The floor is glibc 2.34, RHEL 9, whose libgcc_s and libstdc++ are
+        # GCC 11's: nothing after GCC_7.0.0, GLIBCXX_3.4.29 or CXXABI_1.3.13.
+        # The module links only the C and C++ runtimes and, as upstream's does,
+        # the system's zlib.
         run: |
           rm -rf opencv-gate && unzip -q opencv/dist/*.whl -d opencv-gate
           files=$(find opencv-gate -name '*.so*' -type f)
-          too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do
-            case "$v" in GLIBC_*) floor=GLIBC_2.34 ;; GCC_*) floor=GCC_7.0.0 ;; esac
+          too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GLIBCXX|CXXABI|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do
+            case "$v" in
+              GLIBC_*) floor=GLIBC_2.34 ;;
+              GLIBCXX_*) floor=GLIBCXX_3.4.29 ;;
+              CXXABI_*) floor=CXXABI_1.3.13 ;;
+              GCC_*) floor=GCC_7.0.0 ;;
+            esac
             [ "$(printf '%s\n%s\n' "$v" "$floor" | sort -V | tail -1)" = "$floor" ] || echo "$v"
           done)
           if [ -n "$too_new" ]; then
@@ -107,7 +118,7 @@ jobs:
           if [ -n "$outside" ]; then echo "links $outside"; exit 1; fi
 
       - name: Gate on the app's macOS floor
-        if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
+        if: runner.os == 'macOS'
         working-directory: ${{ runner.temp }}
         # 13.3, as the native runtimes; upstream's wheel says 13.0. Every library
         # it loads is the system's: no Homebrew, so no FFmpeg.
