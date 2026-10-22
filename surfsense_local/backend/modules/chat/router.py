@@ -80,6 +80,10 @@ from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.source_scope.resolve import resolve_scope
 from modules.source_scope.schemas import SourceScope
 from modules.source_scope.thread_scope import store_thread_scope, thread_scope
+from modules.usage_statistics.activity_counts import (
+    count_agent_turn,
+    count_chat_answer,
+)
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import Hit, retrieve
 
@@ -268,6 +272,7 @@ async def send_message(
         # new session of the same, hands over.
         taking = await transact(session, selected_engine)
         handover = await take_over(session, thread, taking, launch_key)
+        await count_agent_turn(session)
         return await taking.run_turn(
             session, thread, payload, launch_key, place, handover
         )
@@ -331,6 +336,7 @@ async def send_message(
     except Exception:
         await model_activity.release_use(activity_key)
         raise
+    await count_chat_answer(selected.provider)
 
     # The run outlives this request, so it keeps its own session.
     session_factory = request.app.state.session_factory

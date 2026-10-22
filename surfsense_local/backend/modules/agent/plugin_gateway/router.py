@@ -18,6 +18,7 @@ from modules.agent.plugin_gateway.sse_endpoint import (
 )
 from modules.agent.tool_endpoint.allowed_callers import refuse_web_pages
 from modules.plugins.remote.mcp_client.transports import SSE
+from modules.usage_statistics.activity_counts import count_plugin_calls
 
 router = APIRouter(
     prefix="/agent/plugins",
@@ -82,6 +83,7 @@ async def _forwarded(
     if refused is not None:
         return refused
     await record_call(session, url)
+    await count_plugin_calls(body)
     try:
         sent = await send_on(request, body, url, upstream.headers)
         sent = await sent_with_fresh_token(
