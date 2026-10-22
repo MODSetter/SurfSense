@@ -1,6 +1,6 @@
 // Everything the agent's runtime is made from, pinned by version and sha256.
 // opencode ships often and its server API is unversioned, so the backend speaks
-// exactly this release (docs/proposals/opencode-v2/01-packaging-and-launch.md).
+// exactly this release (docs/architecture/packaging.md).
 
 export const VERSION = "2.1.2"
 // The release opencode itself downloads when `rg` is missing; shipped so it never does.

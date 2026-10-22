@@ -2,7 +2,7 @@
 
 Electron starts opencode when this file appears; opencode watches it and loads a
 rewrite within a second, so a write that changes nothing is skipped. Keys are
-opencode 2.x's own (docs/proposals/opencode-v2/03-config-and-permissions.md).
+opencode 2.x's own (docs/architecture/agent.md, The configuration).
 """
 
 import json

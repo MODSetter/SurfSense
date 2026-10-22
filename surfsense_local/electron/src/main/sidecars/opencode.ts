@@ -36,7 +36,7 @@ const FROM_THE_SYSTEM = [
 
 // What 2.x still switches off from its environment; the rest of what it would
 // fetch or load on its own is switched off in the configuration
-// (docs/proposals/opencode-v2/01-packaging-and-launch.md, Environment).
+// (docs/architecture/packaging.md).
 const SWITCHED_OFF = [
   "OPENCODE_DISABLE_MODELS_FETCH",
   "OPENCODE_DISABLE_CLAUDE_CODE",
