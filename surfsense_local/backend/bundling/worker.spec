@@ -110,7 +110,24 @@ hiddenimports += [
     "modules.documents.tasks",
     "modules.artifacts.tasks",
     "modules.agent.data_analysis.task",
+    "modules.documents.web_sources.background_pull.pull_task",
+    "modules.plugins.bundles.tasks",
 ]
+
+# The plugins worker pulls a link added from the web through one of SurfSense's
+# plugins, found in this list. The list refuses an entry whose icon is not beside it.
+datas.append(
+    (
+        str(BACKEND / "modules" / "plugins" / "lists" / "first_party" / "plugins.json"),
+        "modules/plugins/lists/first_party",
+    )
+)
+datas.append(
+    (
+        str(BACKEND / "modules" / "plugins" / "lists" / "first_party" / "icons"),
+        "modules/plugins/lists/first_party/icons",
+    )
+)
 
 # Document scripts (worker/document_script/) draw charts, and nothing imports
 # matplotlib statically. Naming pyplot runs PyInstaller's own hooks, which add

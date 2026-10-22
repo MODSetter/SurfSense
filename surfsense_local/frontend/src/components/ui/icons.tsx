@@ -49,6 +49,7 @@ import {
   FolderOpenIcon as FolderOpenIconData,
   FolderTransferIcon as FolderTransferIconData,
   FolderUploadIcon as FolderUploadIconData,
+  GlobalSearchIcon as GlobalSearchIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
   GridViewIcon as GridViewIconData,
@@ -175,6 +176,7 @@ export const FolderAddIcon = createIcon(FolderAddIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const FolderTransferIcon = createIcon(FolderTransferIconData)
 export const FolderUploadIcon = createIcon(FolderUploadIconData)
+export const GlobalSearchIcon = createIcon(GlobalSearchIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const PlayIcon = createIcon(PlayIconData)
