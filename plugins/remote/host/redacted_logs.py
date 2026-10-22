@@ -38,10 +38,13 @@ _REDACTIONS = (
         rf"\1{REDACTED}",
     ),
     # Last, so a credential in a query is hidden first: a web address's path and
-    # query, up to the punctuation that ends a sentence around it.
+    # query, up to the punctuation that ends a sentence around it. An apostrophe
+    # followed by a letter or digit is inside the address (patient's); any other
+    # one closes a quote around it.
     (
         re.compile(
-            r"""(\b(?:https?|wss?)://[^\s/?#'"<>]+)[/?#][^\s'"<>]*[^\s'"<>.,;:!?)\]]"""
+            r"""(\b(?:https?|wss?)://[^\s/?#'"<>]+)[/?#]"""
+            r"""(?:[^\s'"<>]|'(?=\w))*[^\s'"<>.,;:!?)\]]"""
         ),
         rf"\1/{REDACTED}",
     ),
