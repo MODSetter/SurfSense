@@ -108,6 +108,81 @@ async def test_a_subreddit_listing_is_read_from_its_page(
     ]
 
 
+async def test_a_post_is_read_with_its_comment_tree_from_its_page(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """The tree streams in after ``</html>``; a related post's body is not this post's."""
+    pages["served"]["comments/1xbnrhi/"] = fixture("post_page.html")
+
+    result = await call(
+        reddit,
+        "scrape",
+        {"urls": ["https://www.reddit.com/r/Python/comments/1xbnrhi/litellm/"]},
+        LICENSE,
+    )
+
+    assert not result.is_error, result.content[0].text
+    post, *comments = result.structured_content["items"]
+    assert (post["title"], post["body"], post["numberOfComments"]) == (
+        "litellm is compromised",
+        "The payload runs on every python start.\n\nRotate your keys.",
+        3,
+    )
+    assert [
+        (
+            c["id"],
+            c["username"],
+            c["body"],
+            c["upVotes"],
+            c["depth"],
+            c["parentId"],
+            c["postId"],
+            c["numberOfReplies"],
+            c["communityName"],
+        )
+        for c in comments
+    ] == [
+        (
+            "t1_aaa",
+            "mix",
+            "litellm again.",
+            159,
+            0,
+            "t3_1xbnrhi",
+            "1xbnrhi",
+            0,
+            "r/Python",
+        ),
+        (
+            "t1_bbb",
+            "boss",
+            "Pin your versions.",
+            148,
+            0,
+            "t3_1xbnrhi",
+            "1xbnrhi",
+            1,
+            "r/Python",
+        ),
+        (
+            "t1_ccc",
+            "joe",
+            "And check hashes.",
+            37,
+            1,
+            "t1_bbb",
+            "1xbnrhi",
+            0,
+            "r/Python",
+        ),
+    ]
+    assert (
+        comments[0]["url"]
+        == "https://www.reddit.com/r/Python/comments/1xbnrhi/comment/aaa/"
+    )
+    assert comments[0]["createdAt"] == "2026-10-21T14:01:11.424Z"
+
+
 async def test_search_results_are_read_from_the_search_page(
     reddit: str, pages: dict[str, Any]
 ) -> None:
@@ -199,3 +274,57 @@ async def test_a_search_in_one_subreddit_reads_that_subreddit_s_search_page_onwa
     first, second = pages["asked"][:2]
     assert first[0] == second[0] == "svc/shreddit/r/python/search/"
     assert second[1]["cursor"] == "eyJjYW5kaWRhdGVzIjoiMiJ9"
+
+
+async def test_a_post_s_later_comments_load_until_enough_are_read(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """Its page holds the first batch; the rest load from a POST with its cursor."""
+    pages["served"]["comments/1xbnrhi/"] = fixture("post_page.html")
+    more = "svc/shreddit/more-comments/Python/t3_1xbnrhi"
+    pages["served"][more] = fixture("more_comments.html")
+
+    result = await call(
+        reddit,
+        "scrape",
+        {
+            "urls": ["https://www.reddit.com/r/Python/comments/1xbnrhi/litellm/"],
+            "max_comments": 5,
+        },
+        LICENSE,
+    )
+
+    assert not result.is_error, result.content[0].text
+    _, *comments = result.structured_content["items"]
+    assert [c["id"] for c in comments] == [
+        "t1_aaa",
+        "t1_bbb",
+        "t1_ccc",
+        "t1_ddd",
+        "t1_eee",
+    ]
+    (loaded,) = [params for path, params in pages["asked"] if path == more]
+    assert loaded == {
+        "top-level": "1",
+        "comments-remaining": "2",
+        "commentPositionOffset": "3",
+        "form": {"cursor": "Y29tbWVudHRyZWU6MQ"},
+    }
+
+
+async def test_a_post_with_enough_comments_on_its_page_loads_no_more(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    pages["served"]["comments/1xbnrhi/"] = fixture("post_page.html")
+
+    await call(
+        reddit,
+        "scrape",
+        {
+            "urls": ["https://www.reddit.com/r/Python/comments/1xbnrhi/litellm/"],
+            "max_comments": 3,
+        },
+        LICENSE,
+    )
+
+    assert [path for path, _ in pages["asked"]] == ["comments/1xbnrhi/"]
