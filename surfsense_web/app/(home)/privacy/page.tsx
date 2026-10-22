@@ -270,10 +270,10 @@ export default function PrivacyPolicy() {
 						can carry out the fetch, along with the licence identifying the request. For each
 						licence, the service counts which plugins and tools were called on which days, whether
 						each call worked and how long it took, and notes the day the licence first used a
-						plugin. We use these counts to enforce rate limits, detect abuse, bill correctly and
-						decide which plugins to improve. They never include what you asked a plugin to fetch.
-						Daily totals with no licence in them, such as how many calls a tool received and how
-						many licences used it, are sent to PostHog.
+						plugin. We use these counts to detect abuse, to plan fair-use limits and to decide which
+						plugins to improve. They never include what you asked a plugin to fetch. Daily totals
+						with no licence in them, such as how many calls a tool received and how many licences
+						used it, are sent to PostHog.
 					</p>
 
 					<h3>4.5 Hosting and server logs</h3>
