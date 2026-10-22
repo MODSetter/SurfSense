@@ -71,7 +71,7 @@ export const FREE_STILL_APPLIES =
 export const RENEWAL_NOTE = `Then ${INDIVIDUAL_LIST_PRICE} a year, the list price. One payment, not a subscription: nothing charges again on its own, and renewing is a new licence file.`;
 
 export const CHECKOUT_NOTE =
-	"Checkout is on Stripe and asks only for your name and email, which the licence is registered to. There is no account to create.";
+	"Checkout is on Stripe and asks only for your name and email; the licence is registered to that email. There is no account to create.";
 
 export const REFUND_NOTE =
 	"Full refund within 30 days if the licence does not do what this page says.";
