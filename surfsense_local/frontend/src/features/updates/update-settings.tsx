@@ -5,8 +5,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { updatesLockedText } from "@/features/privacy-choices/locked-text"
+import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
+import { WhatsSentDialog } from "@/features/privacy-choices/whats-sent-dialog"
 import { intl } from "@/i18n/intl"
-import type { UpdateState } from "@/lib/api"
+import type { PrivacyState, UpdateState } from "@/lib/api"
 
 import { useCheckForUpdates } from "./use-check-for-updates"
 import {
@@ -53,15 +56,46 @@ function statusText(state: UpdateState) {
   }
 }
 
+// Where checks go: SurfSense's feed with GitHub behind it, or a policy's mirror.
+function bodyText(state: PrivacyState | null | undefined) {
+  // No privacy bridge: an Electron main that still reads GitHub's releases.
+  if (state === null)
+    return intl.formatMessage({
+      id: "updates_settings_github_body",
+      defaultMessage:
+        "Free updates from GitHub. Once you allow update checks, SurfSense also checks each time it starts.",
+    })
+  const updates = state?.updates
+  if (updates && updates.fallbackHost === null)
+    return intl.formatMessage(
+      {
+        id: "updates_settings_mirror_body",
+        defaultMessage:
+          "Free updates from {host}, the update server your organization set. Once you allow update checks, SurfSense asks it once a day.",
+      },
+      { host: updates.host }
+    )
+  return intl.formatMessage(
+    {
+      id: "updates_settings_body",
+      defaultMessage:
+        "Free updates. Once you allow update checks, SurfSense asks {host} once a day, and github.com whenever {host} cannot answer.",
+    },
+    { host: updates?.host ?? "updates.surfsense.com" }
+  )
+}
+
 export function UpdateSettings() {
   const updates = updatesBridge()
   const state = useUpdateState()
   const { prefs } = useUpdatePrefs()
   const onCheckClick = useCheckForUpdates()
+  const { state: privacy } = usePrivacyState()
 
   if (!updates || prefs === null) return null
 
   const text = statusText(state)
+  const locked = privacy ? updatesLockedText(privacy) : null
   return (
     <div className="mt-8 flex items-start justify-between gap-8">
       <div className="flex flex-col gap-1">
@@ -72,12 +106,11 @@ export function UpdateSettings() {
           })}
         </h3>
         <p className="text-sm text-pretty text-muted-foreground">
-          {intl.formatMessage({
-            id: "updates_settings_body",
-            defaultMessage:
-              "Free updates from GitHub. Once you allow update checks, SurfSense also checks each time it starts.",
-          })}
+          {bodyText(privacy)}
         </p>
+        {locked ? (
+          <p className="text-sm text-muted-foreground">{locked}</p>
+        ) : null}
         {state.status === "error" ? (
           <p role="alert" className="text-sm text-destructive">
             {intl.formatMessage(
@@ -90,6 +123,16 @@ export function UpdateSettings() {
           </p>
         ) : text ? (
           <p className="text-sm text-muted-foreground">{text}</p>
+        ) : null}
+        {privacy ? (
+          <WhatsSentDialog
+            topic="updates"
+            state={privacy}
+            label={intl.formatMessage({
+              id: "updates_settings_whats_sent_button",
+              defaultMessage: "Show exactly what’s sent",
+            })}
+          />
         ) : null}
       </div>
       {state.status === "ready" ? (
@@ -104,7 +147,9 @@ export function UpdateSettings() {
           type="button"
           variant="outline"
           disabled={
-            state.status === "checking" || state.status === "downloading"
+            locked !== null ||
+            state.status === "checking" ||
+            state.status === "downloading"
           }
           onClick={() => void onCheckClick()}
         >

@@ -24,6 +24,20 @@ declare global {
         // The app menu's Check for Updates…. Mirrors electron/src/preload/index.ts.
         onCheckRequested: (listener: () => void) => () => void
       }
+      // Update checks and usage statistics: where each goes, what it sent, and
+      // the switches (docs/contracts/05-desktop-telemetry.md, part C). Mirrors
+      // electron/src/preload/index.ts.
+      privacy?: {
+        // null outside the app's own window.
+        getState: () => Promise<PrivacyState | null>
+        setUsageStatistics: (enabled: boolean) => Promise<void>
+        // The updates bridge's own switch, so the two stay one setting.
+        setUpdatesAutomatic: (enabled: boolean) => Promise<void>
+        // The exact next report, built but not sent; null when none can be built.
+        previewUsageReport: () => Promise<unknown>
+        completeFirstRun: (choices: FirstRunChoices) => Promise<void>
+        onStateChanged: (listener: (state: PrivacyState) => void) => () => void
+      }
       setTitleBarOverlay?: (overlay: {
         color: string
         symbolColor: string
@@ -101,6 +115,32 @@ export type UpdateState =
   | { status: "downloading"; version: string }
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
+
+// Mirrors electron/src/main/privacy-choices/privacy-controller.ts.
+export type PrivacyState = {
+  updates: {
+    automatic: boolean
+    // An admin policy turned update checks off.
+    locked: boolean
+    // updates.surfsense.com, or the mirror an admin policy names.
+    host: string
+    // null with a mirror, which never falls back.
+    fallbackHost: "github.com" | null
+    lastCheckedAt: string | null
+    // The last request to `host`, exactly as sent.
+    lastRequest: { url: string; headers: Record<string, string> } | null
+  }
+  usageStatistics: {
+    // null: never asked.
+    enabled: boolean | null
+    locked: boolean
+    lockedReason: "policy" | "do_not_track" | null
+    host: string
+    lastSent: { at: string; body: object } | null
+  }
+  firstRunAsked: boolean
+}
+export type FirstRunChoices = { updates: boolean; usageStatistics: boolean }
 
 export type SidecarCrash = {
   name: string

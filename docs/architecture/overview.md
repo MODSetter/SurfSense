@@ -3,14 +3,14 @@
 SurfSense is a desktop app for research over your own documents: add files, ask questions that are answered with citations into them, and turn them into deliverables such as summaries, slides, quizzes and podcasts. It serves one person on one machine and works offline: the parser, the embedding model and the model runtimes run locally, and everything the app knows lives on this machine, in one SQLite file and the files under its data directory. This page is the map of `surfsense_local/`; each feature has its own page, listed at the end.
 
 **Code:** [`surfsense_local/backend/`](../../surfsense_local/backend/), [`surfsense_local/frontend/`](../../surfsense_local/frontend/), [`surfsense_local/electron/`](../../surfsense_local/electron/)
-**Decisions:** [ADR 0004](../adr/0004-desktop-app-is-its-own-tree.md), [ADR 0005](../adr/0005-hand-written-migrations.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0009](../adr/0009-freshness-by-invalidation.md), [ADR 0011](../adr/0011-llama-cpp-local-runtime.md), [ADR 0016](../adr/0016-no-telemetry.md), [ADR 0017](../adr/0017-egress-off-by-default.md)
+**Decisions:** [ADR 0004](../adr/0004-desktop-app-is-its-own-tree.md), [ADR 0005](../adr/0005-hand-written-migrations.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0009](../adr/0009-freshness-by-invalidation.md), [ADR 0011](../adr/0011-llama-cpp-local-runtime.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)
 
 ## Bird's-eye view
 
 A file is uploaded, parsed to markdown, cut into passages and embedded. A chat turn retrieves the passages nearest the question, and a model answers from them, citing each one. A Studio job hands the selected documents' text to a model and stores the result as a document, with a file for ten of its twelve formats. Every design choice follows from who this is for:
 
 - **One user.** There are no accounts, no auth and no users table. The API binds to `127.0.0.1` and accepts any origin, because the packaged renderer loads from `file://`.
-- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, TDF's archive for the optional [Office pack](office-pack.md), and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no telemetry or analytics code.
+- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, TDF's archive for the optional [Office pack](office-pack.md), and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no analytics SDK and no crash reporting. With the user's yes, it checks for updates once a day through `updates.surfsense.com` and sends a weekly usage report in ranges to `usage.surfsense.com`, neither with an ID ([`updates.md`](updates.md), [`usage-statistics.md`](usage-statistics.md)).
 - **SQLite.** `surfsense.db` holds every table, the search index included: FTS5 for keywords, sqlite-vec for vectors. `huey.db` holds the job queues. Next to the hosted stack there is no Postgres or Zero, no Celery or Redis, no LangGraph and no Docker.
 
 ## Processes
@@ -83,9 +83,10 @@ The rules that keep the processes out of each other's way:
 ~/.surfsense/                 ~/.surfsense-dev under `pnpm dev`
 ├── surfsense.db              every table and the search index
 ├── huey.db                   the ingest, studio and plugins queues
+├── usage-counts.json         hourly counts for usage statistics, pruned after 40 days, no content
 ├── models/                   GGUF weights and llama-server's models.ini
 ├── images/                   sd-server weights (hosts with sd-server staged)
-├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
+├── electron/                 Electron's userData: secret.bin, updates.json, privacy.json, window and theme prefs
 ├── agent/                    opencode.json, which the API writes, and opencode's own home (hosts with opencode staged)
 └── data/workspaces/<id>/
     ├── documents/<id>/       the upload, under its own name
@@ -138,7 +139,7 @@ The rules that keep the processes out of each other's way:
 - [Claude plan](claude-plan.md): a connection to the user's own Claude Code, answering chat and running Agentic threads as a second engine.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [admission and parallel slots](local-models/admission.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in ten languages.
-- [Egress](egress.md), [Office pack](office-pack.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).
+- [Egress](egress.md), [Office pack](office-pack.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [usage statistics](usage-statistics.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).
 - [Contracts](../contracts/README.md) between the trees.
 
 ## Known gaps

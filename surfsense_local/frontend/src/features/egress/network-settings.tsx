@@ -6,6 +6,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DotIcon } from "@/components/ui/icons"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  updatesLockedText,
+  usageLockedText,
+} from "@/features/privacy-choices/locked-text"
+import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { useUpdatePrefs } from "@/features/updates/use-update-state"
 import { intl } from "@/i18n/intl"
@@ -23,18 +28,24 @@ function DestinationRow({
   enabled,
   lastCallAt,
   onChange,
+  locked = null,
 }: {
   label: string
   host: string
   enabled: boolean
   lastCallAt: string | null
   onChange: (enabled: boolean) => void
+  /** Why a policy holds this row off, which also disables its checkbox. */
+  locked?: string | null
 }) {
   const checkboxId = useId()
   return (
     <li className="flex items-center justify-between gap-6 py-3">
       <div className="min-w-0">
         <p className="text-sm font-medium">{label}</p>
+        {locked ? (
+          <p className="text-xs text-muted-foreground">{locked}</p>
+        ) : null}
         <p className="truncate text-xs text-muted-foreground">
           {host}
           <DotIcon
@@ -61,6 +72,7 @@ function DestinationRow({
         <Checkbox
           id={checkboxId}
           checked={enabled}
+          disabled={locked !== null}
           onCheckedChange={(checked) => onChange(checked === true)}
         />
         <Label htmlFor={checkboxId} className="sr-only">
@@ -80,17 +92,50 @@ function DestinationRow({
 // Updates are an Electron pref, not an API destination.
 function UpdatesRow() {
   const { prefs, setAutomatic } = useUpdatePrefs()
+  const { state } = usePrivacyState()
   if (prefs === null) return null
+  const updates = state?.updates
   return (
     <DestinationRow
       label={intl.formatMessage({
         id: "egress_network_app_updates_label",
         defaultMessage: "App updates",
       })}
-      host="github.com"
+      host={
+        updates?.fallbackHost
+          ? intl.formatMessage(
+              {
+                id: "egress_network_app_updates_host_label",
+                defaultMessage: "{host}, falls back to {fallback}",
+              },
+              { host: updates.host, fallback: updates.fallbackHost }
+            )
+          : (updates?.host ?? "github.com")
+      }
       enabled={prefs.automatic}
       lastCallAt={prefs.lastCheckedAt ?? null}
+      locked={state ? updatesLockedText(state) : null}
       onChange={(automatic) => void setAutomatic(automatic)}
+    />
+  )
+}
+
+// Usage statistics are Electron main's to send, so they are its switch too.
+function UsageStatisticsRow() {
+  const { state, setUsageStatistics } = usePrivacyState()
+  if (!state) return null
+  const usage = state.usageStatistics
+  return (
+    <DestinationRow
+      label={intl.formatMessage({
+        id: "egress_network_usage_statistics_label",
+        defaultMessage: "Usage statistics",
+      })}
+      host={usage.host}
+      enabled={usage.enabled === true}
+      lastCallAt={usage.lastSent?.at ?? null}
+      locked={usageLockedText(state)}
+      onChange={(enabled) => void setUsageStatistics(enabled)}
     />
   )
 }
@@ -137,6 +182,7 @@ export function NetworkSettings() {
       ) : (
         <ul className="divide-y">
           <UpdatesRow />
+          <UsageStatisticsRow />
           {destinations.data?.map((row) => (
             <DestinationRow
               key={row.destination}

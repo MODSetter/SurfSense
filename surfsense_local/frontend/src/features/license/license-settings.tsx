@@ -18,11 +18,12 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { ExternalLink } from "@/features/about/external-link"
+import { useAppDetails } from "@/features/about/use-app-details"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
 import { translatedLicenseError } from "./license-error-text"
-import { PRICING_URL } from "./license-links"
+import { pricingUrl } from "./license-links"
 import {
   importLicense,
   readLicense,
@@ -47,7 +48,10 @@ function planLabel(plan: string) {
   )
 }
 
-function notice(status: LicenseStatus): {
+function notice(
+  status: LicenseStatus,
+  version: string | undefined
+): {
   title: string
   description: string
   link?: { href: string; label: string }
@@ -79,7 +83,7 @@ function notice(status: LicenseStatus): {
           "This license has expired. Renewing issues a new file to add here.",
       }),
       link: {
-        href: PRICING_URL,
+        href: pricingUrl("license_renew", version),
         label: intl.formatMessage({
           id: "license_expired_notice_link",
           defaultMessage: "Renew license",
@@ -260,6 +264,7 @@ function LicenseFormDialog({
 export function LicenseSettings() {
   const queryClient = useQueryClient()
   const license = useLicense()
+  const version = useAppDetails().data?.version
   const [editor, setEditor] = useState<"add" | "replace" | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const openEditor = (mode: "add" | "replace") => {
@@ -291,7 +296,8 @@ export function LicenseSettings() {
     }
   }
 
-  const shown = status && status.state !== "none" ? notice(status) : null
+  const shown =
+    status && status.state !== "none" ? notice(status, version) : null
   const error =
     actionError ?? (license.error ? messageFrom(license.error) : null)
   const loading = license.isPending
@@ -324,7 +330,7 @@ export function LicenseSettings() {
                 defaultMessage: "No license on this device",
               })}
             </p>
-            <ExternalLink href={PRICING_URL}>
+            <ExternalLink href={pricingUrl("license_pricing", version)}>
               {intl.formatMessage({
                 id: "license_settings_pricing_link",
                 defaultMessage: "See pricing",
