@@ -6,11 +6,13 @@ import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Progress } from "@/components/ui/progress"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { usePrivacyState } from "@/features/privacy-choices/use-privacy-state"
 import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
 import type { OnboardingStepKind } from "./model-step/kinds/step-kind"
 import { OnboardingDither } from "./onboarding-dither"
+import { PrivacyStep } from "./privacy-step/privacy-step"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
 /**
@@ -31,7 +33,9 @@ const STEPS = [
 ] as const satisfies readonly OnboardingStepKind[]
 
 type Step = (typeof STEPS)[number]
-type Screen = "welcome" | Step
+// The privacy choices sit between the welcome and the steps, and like the
+// welcome they are not a step the progress bar counts.
+type Screen = "welcome" | "privacy" | Step
 
 /** Finishing needs a chat model, so only this step cannot be skipped. */
 const REQUIRED_STEP: Step = "text_gen"
@@ -203,7 +207,13 @@ export function OnboardingPage({
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const [screen, setScreen] = useState<Screen>("welcome")
+  const [chosen, setScreen] = useState<Screen>("welcome")
+  const { state: privacy } = usePrivacyState()
+  // Asked once, on a new install: never outside the desktop app, or once answered.
+  const privacyAnswered = privacy === null || privacy?.firstRunAsked === true
+  // Left the welcome before the answer was read, and none was needed.
+  const screen: Screen =
+    chosen === "privacy" && privacyAnswered ? STEPS[0] : chosen
 
   return (
     <main
@@ -213,7 +223,7 @@ export function OnboardingPage({
       <OnboardingDither visible={screen === "welcome"} />
       <div className="mx-auto flex h-full max-h-190 min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
-        {screen === "welcome" ? (
+        {screen === "welcome" || screen === "privacy" ? (
           // The progress bar's height, kept so the hero sits exactly where it did.
           <div aria-hidden="true" className="h-1" />
         ) : (
@@ -221,7 +231,14 @@ export function OnboardingPage({
         )}
         <div className="flex min-h-0 flex-1 items-center justify-center">
           {screen === "welcome" ? (
-            <WelcomeStep onNext={() => setScreen(STEPS[0])} />
+            <WelcomeStep
+              onNext={() => setScreen(privacyAnswered ? STEPS[0] : "privacy")}
+            />
+          ) : screen === "privacy" ? (
+            // Shown once read; `screen` moves on by itself if it needs no answer.
+            privacy ? (
+              <PrivacyStep state={privacy} onDone={() => setScreen(STEPS[0])} />
+            ) : null
           ) : (
             // Keyed so each step starts fresh rather than inheriting the last.
             <OnboardingStep
