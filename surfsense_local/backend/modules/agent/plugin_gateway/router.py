@@ -83,7 +83,6 @@ async def _forwarded(
     if refused is not None:
         return refused
     await record_call(session, url)
-    await count_plugin_calls(body)
     try:
         sent = await send_on(request, body, url, upstream.headers)
         sent = await sent_with_fresh_token(
@@ -91,6 +90,8 @@ async def _forwarded(
         )
     except httpx2.HTTPError:
         return unreachable()
+    # Counted once it reached the plugin, however many sends that took.
+    await count_plugin_calls(body)
     await note_missing_scopes(session, request, where, sent)
     if upstream.transport == SSE and request.method == "GET":
         gateway_url = str(request.url.replace(query=""))
