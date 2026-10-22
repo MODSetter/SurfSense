@@ -22,7 +22,7 @@ An opt-in report that tells SurfSense this install was used, and once a week how
 
 One JSON body, schema 1, at most once per UTC day ([contract 5](../contracts/05-desktop-telemetry.md), part B):
 
-- Always: the schema number, the app's version, its platform (`win32-x64` and the like), its OS (`windows-11`, `macos-15`, `linux`), the interface language (`en`, `ja`, `de` or `other`), the ISO week the app first ran, and three flags: the install's first report ever, its first this ISO week, its first this UTC month. A day's reports therefore count the installs active that day, and the flags count weekly and monthly actives and new installs.
+- Always: the schema number, the app's version, its platform (`win32-x64` and the like), its OS (`windows-11`, `macos-15`, `linux`), the interface language (`en`, `ja`, `de` or `other`), the ISO week the app first ran, and three flags: the install's first report ever, its first this ISO week, its first this UTC month. A day's reports therefore count the reporting installs active that day, and the flags count weekly and monthly actives and installs reporting for the first time. An install that opts in late sends its first report then, so its age is `install_week`, not the first flag.
 - On the first report of an ISO week, the past seven days in ranges: Basic chat turns, Agentic turns, whether a local or a remote model answered, the documents in the library, Studio outputs, plugin tool calls, and the furthest onboarding step the library shows.
 - On the first report ever, the machine in ranges: memory, the GPU's vendor and its memory.
 
@@ -48,7 +48,7 @@ A locked row is already answered in the first-run step. An unpackaged developmen
 
 ## The summary endpoint
 
-`GET /usage-statistics/summary?since=<ISO time>` on the app's loopback API answers the report's `week`, `hardware` and `ui_language`, computed on each read and sent nowhere by the API itself. Electron main asks for it with `since` seven days back and adds the rest. A missing or malformed `since` is a 422.
+`GET /usage-statistics/summary?since=<ISO time>` on the app's local API answers the report's `week`, `hardware` and `ui_language`, computed on each read and sent nowhere by the API itself. The API binds to loopback unless `SURFSENSE_LOCAL_HOST` names another address, and this route is exposed exactly as every other route then is. Electron main asks for it with `since` seven days back and adds the rest. A missing or malformed `since` is a 422.
 
 | Value | Read from |
 |---|---|
