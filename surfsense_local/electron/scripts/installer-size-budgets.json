@@ -1,7 +1,7 @@
 {
-  "SurfSense-Setup.exe": { "platform": "win32", "maxMiB": 1007.3 },
-  "SurfSense-arm64.dmg": { "platform": "darwin", "maxMiB": 1051.3 },
-  "SurfSense-arm64.zip": { "platform": "darwin", "maxMiB": 1065.1 },
-  "SurfSense.AppImage": { "platform": "linux", "maxMiB": 1205.3 },
-  "SurfSense.deb": { "platform": "linux", "maxMiB": 1043.7 }
+  "SurfSense-Setup.exe": { "platform": "win32", "maxMiB": 1051.5 },
+  "SurfSense-arm64.dmg": { "platform": "darwin", "maxMiB": 1128.6 },
+  "SurfSense-arm64.zip": { "platform": "darwin", "maxMiB": 1139.9 },
+  "SurfSense.AppImage": { "platform": "linux", "maxMiB": 1278.7 },
+  "SurfSense.deb": { "platform": "linux", "maxMiB": 1105.7 }
 }

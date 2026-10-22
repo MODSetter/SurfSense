@@ -439,13 +439,6 @@ jobs:
             surfsense_local/electron/release/*.yml
           if-no-files-found: ignore
 
-      # After the upload, so a run that fails here still keeps its installers.
-      # Fails when one of this OS's installers is missing or over its budget in
-      # scripts/installer-size-budgets.json; prints every size either way.
-      - name: Check installer sizes
-        working-directory: surfsense_local/electron
-        run: node scripts/check-installer-size.mjs
-
       # The dmg is LZFSE (electron-builder.yml `dmg.format`). Checks hdiutil made it
       # so, that it verifies and mounts, that the app inside is signed, and times the
       # verify and the copy out a user waits through.
@@ -471,6 +464,14 @@ jobs:
           "$BIN" --check-retrieval-runtime
           "$BIN" --check-vision-runtime
           rm -rf "$COPY"
+
+      # Last, after the upload and the dmg's checks, so a run over budget still
+      # keeps its installers and still checks them. Fails when an installer is
+      # missing or over its budget in scripts/installer-size-budgets.json;
+      # prints every size either way.
+      - name: Check installer sizes
+        working-directory: surfsense_local/electron
+        run: node scripts/check-installer-size.mjs
 
   # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves
   # updates through /releases/latest and reads latest*.yml from whatever that
