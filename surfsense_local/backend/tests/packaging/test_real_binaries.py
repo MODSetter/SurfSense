@@ -46,12 +46,17 @@ def _env(tmp_path: Path, **extra: str) -> dict[str, str]:
 
 
 def _run(binary: Path, tmp_path: Path, *arguments: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        [str(binary), *arguments],
-        env=_env(tmp_path),
-        capture_output=True,
-        text=True,
-    )
+    # Bounded: a role that hangs must fail the release job, not stall it.
+    try:
+        return subprocess.run(
+            [str(binary), *arguments],
+            env=_env(tmp_path),
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"the frozen backend hung with {list(arguments)}")
 
 
 def test_the_bundle_ships_the_manifests_both_roles_read(binary: Path) -> None:
