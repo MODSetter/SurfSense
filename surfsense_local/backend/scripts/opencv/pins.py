@@ -14,14 +14,17 @@ DISTRIBUTION = "opencv-python-headless"
 
 # opencv-python's pyproject asks for these loosely; pinned so a cached wheel and a
 # fresh one build alike. numpy 2.0.2 is what upstream builds Python 3.12 against;
-# wheel stays below 0.46, which hands bdist_wheel to setuptools 70.1+.
+# wheel stays below 0.46, which hands bdist_wheel to setuptools 70.1+. distro is
+# scikit-build's own dependency. pip is pinned too: the Linux image carries 25.0.1
+# and uv's Python 26.2.2, the version every green build installed with.
 BUILD_TOOLS = (
     "numpy==2.0.2",
     "scikit-build==0.19.1",
     "setuptools==69.5.1",
     "wheel==0.45.1",
-    "packaging",
-    "pip",
+    "packaging==26.3",
+    "distro==1.9.0",
+    "pip==26.2.2",
 )
 
 # The image upstream built 5.0.0.93's Linux wheel in (the sdist's
