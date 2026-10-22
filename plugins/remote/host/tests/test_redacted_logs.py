@@ -87,6 +87,26 @@ def test_credentials_are_hidden(text: str, shown: str) -> None:
             "GET https://example.com/*** failed",
         ),
         (
+            "GET https://www.google.com/search?q=patients'+rights+lawyer failed",
+            "GET https://www.google.com/*** failed",
+        ),
+        (
+            "GET https://www.google.com/search?q=patients'%20rights failed",
+            "GET https://www.google.com/*** failed",
+        ),
+        (
+            "GET https://example.com/doctors'-notes/x failed",
+            "GET https://example.com/*** failed",
+        ),
+        (
+            "GET https://example.com/patients'/records failed",
+            "GET https://example.com/*** failed",
+        ),
+        (
+            "GET https://example.com/search?q=patients'#frag failed",
+            "GET https://example.com/*** failed",
+        ),
+        (
             "GET HTTPS://WWW.GOOGLE.COM/search?q=private+clinic failed",
             "GET HTTPS://WWW.GOOGLE.COM/*** failed",
         ),
