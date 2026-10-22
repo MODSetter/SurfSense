@@ -141,3 +141,14 @@ async def test_a_profile_s_reels_come_from_its_reels_tab(
         ("REEL000002", True, "Video", 600000, 20000),
         ("REEL000001", False, "Video", 1200000, 40000),
     ]
+
+
+async def test_a_reels_feed_does_not_ask_for_the_embed(
+    instagram: str, pages: list[str]
+) -> None:
+    """Each reel is read from its own page, for its video; the embed would go unused."""
+    await call(
+        instagram, "scrape", {"urls": ["natgeo"], "result_type": "reels"}, LICENSE
+    )
+
+    assert "natgeo/embed/" not in pages

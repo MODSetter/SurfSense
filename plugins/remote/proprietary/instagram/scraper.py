@@ -216,16 +216,24 @@ def _emit(
         return out
 
 
-async def _profile_pages(
-    username: str, *, tab: str = ""
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """The profile's page (or its ``reels`` tab) and its embed's context."""
-    page = await fetch_html(f"{username}/{tab + '/' if tab else ''}")
+async def _profile_pages(username: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The profile's page and its embed's context."""
+    page = await fetch_html(f"{username}/")
     user = profile_user(page) if page else {}
     if not user:
         return {}, {}
     embed = await fetch_html(f"{username}/embed/")
     return user, embed_context(embed) if embed else {}
+
+
+async def _reels_tab(username: str) -> dict[str, Any]:
+    """The profile's reels tab, without its embed.
+
+    Each reel is read from its own page for its video, which the embed lacks,
+    and an exit is rate-limited after about 14 reads.
+    """
+    page = await fetch_html(f"{username}/reels/")
+    return profile_user(page) if page else {}
 
 
 async def _profile_user(username: str) -> dict[str, Any] | None:
@@ -268,16 +276,17 @@ async def _media_flow(
     result_type = input_model.resultsType
     if resolved.kind == "profile":
         reels = result_type == "reels"
-        user, context = await _profile_pages(
-            resolved.value, tab="reels" if reels else ""
-        )
+        if reels:
+            user, context = await _reels_tab(resolved.value), {}
+        else:
+            user, context = await _profile_pages(resolved.value)
         full = {m.get("shortcode"): m for m in embed_media(context)}
         grid = clips(user) if reels else _pinned_posts(timeline(user), list(full))
         emitted = 0
         for post in grid:
             if input_model.skipPinnedPosts and post.pinned:
                 continue
-            item = await _grid_item(post.code, None if reels else full.get(post.code))
+            item = await _grid_item(post.code, full.get(post.code))
             if item is None:
                 continue
             if post.pinned is not None:
