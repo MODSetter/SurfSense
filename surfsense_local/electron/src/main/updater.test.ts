@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { createRequire } from "node:module"
 import test from "node:test"
 
 import {
@@ -9,6 +10,9 @@ import {
 } from "./updater.ts"
 
 type Listener = (...args: unknown[]) => void
+
+// computeFinalHeaders is private in electron-updater's types.
+const loadCommonJs = createRequire(import.meta.url)
 
 function fakeAutoUpdater() {
   const listeners = new Map<string, Listener>()
@@ -69,13 +73,28 @@ test("update requests carry a constant in place of the persistent install ID", (
 
   attachUpdater(fake.updater, () => undefined)
 
-  // electron-updater merges these over its own x-user-staging-id, read from
-  // userData/.updaterId, on the feed, manifest and download requests alike.
+  // electron-updater sends its own x-user-staging-id, read from
+  // userData/.updaterId, on the feed and manifest requests.
   assert.equal(NO_INSTALL_ID, "0")
   assert.deepEqual(fake.updater.requestHeaders, {
     accept: "*/*",
     "x-user-staging-id": "0",
   })
+})
+
+test("the installed electron-updater lets the constant win over the install ID", () => {
+  const fake = fakeAutoUpdater()
+  attachUpdater(fake.updater, () => undefined)
+
+  // The merge electron-updater runs before the feed and manifest requests, so
+  // a version that merged the other way fails here rather than in the field.
+  const { AppUpdater } = loadCommonJs("electron-updater/out/AppUpdater")
+  const sent = AppUpdater.prototype.computeFinalHeaders.call(
+    { requestHeaders: fake.updater.requestHeaders },
+    { "x-user-staging-id": "6f1c2c1e-7b8a-4f43-9a51-3c7e0f2d9b11" }
+  )
+
+  assert.equal(sent["x-user-staging-id"], NO_INSTALL_ID)
 })
 
 test("a downloaded update installs on restart or, failing that, on quit", () => {
