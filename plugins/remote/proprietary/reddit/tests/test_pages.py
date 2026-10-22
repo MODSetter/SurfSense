@@ -183,6 +183,55 @@ async def test_a_post_is_read_with_its_comment_tree_from_its_page(
     assert comments[0]["createdAt"] == "2026-10-21T14:01:11.424Z"
 
 
+async def test_a_subreddit_s_details_come_from_its_top_post_s_page(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """Its own pages can serve a JavaScript check; a post page carries its header."""
+    pages["served"]["svc/shreddit/community-more-posts/hot/"] = fixture(
+        "community_new.html"
+    )
+    pages["served"]["svc/shreddit/community-more-posts/new/"] = fixture(
+        "community_new.html"
+    )
+    pages["served"]["comments/1xcebo6/"] = fixture("post_page.html")
+
+    result = await call(
+        reddit,
+        "scrape",
+        {"community": "python", "skip_comments": True, "max_items": 1},
+        LICENSE,
+    )
+
+    assert not result.is_error, result.content[0].text
+    (community,) = result.structured_content["items"]
+    assert {
+        key: community[key]
+        for key in (
+            "dataType",
+            "id",
+            "parsedId",
+            "url",
+            "title",
+            "body",
+            "communityName",
+            "parsedCommunityName",
+            "numberOfMembers",
+            "over18",
+        )
+    } == {
+        "dataType": "community",
+        "id": "t5_2qh0y",
+        "parsedId": "2qh0y",
+        "url": "https://www.reddit.com/r/Python/",
+        "title": "Python",
+        "body": "The largest Python community for Reddit!",
+        "communityName": "r/Python",
+        "parsedCommunityName": "Python",
+        "numberOfMembers": 1518857,
+        "over18": False,
+    }
+
+
 async def test_search_results_are_read_from_the_search_page(
     reddit: str, pages: dict[str, Any]
 ) -> None:

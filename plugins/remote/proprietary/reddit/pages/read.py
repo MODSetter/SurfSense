@@ -8,6 +8,7 @@ from typing import Any
 from proprietary.reddit import fetch
 
 from .comments import comment_tree, count
+from .community import community_data
 from .cursor import next_cursor
 from .document import parse
 from .listing import listing, posts_listing
@@ -16,6 +17,7 @@ from .posts import post_data
 from .search import search_posts
 
 _POST = re.compile(r"(?:r/[^/]+/)?comments/(?P<id>[^/]+)")
+_ABOUT = re.compile(r"r/(?P<name>[^/]+)/about")
 _SEARCH = re.compile(r"(?:r/(?P<name>[^/]+)/)?search")
 # Past the first, a post's comment batches each cost a request.
 _MAX_COMMENT_BATCHES = 10
@@ -27,6 +29,8 @@ async def read_listing(path: str, params: dict[str, Any] | None = None) -> Any |
     params = params or {}
     if match := _POST.fullmatch(path):
         return await _post(match["id"], params.get("limit") or 0)
+    if match := _ABOUT.fullmatch(path):
+        return await _about(match["name"])
     if match := _SEARCH.fullmatch(path):
         return await _search(match["name"], params)
     if match := _COMMUNITY.fullmatch(path):
@@ -78,6 +82,27 @@ async def _post(post_id: str, limit: int) -> list[dict[str, Any]] | None:
         listing([{"kind": "t3", "data": post}]),
         listing(comment_tree(batches, post)),
     ]
+
+
+async def _about(name: str) -> dict[str, Any] | None:
+    """The subreddit's header from its top post's page.
+
+    Its own pages, ``/r/<name>/`` and ``/about/``, often serve a JavaScript check
+    instead (probe 2026-10-22); post pages and listings rarely do.
+    """
+    route = "svc/shreddit/community-more-posts/hot/"
+    text = await fetch.fetch_page(route, {"name": name})
+    if text is None:
+        return None
+    posts = parse(text).xpath("//shreddit-post")
+    if not posts:
+        return None
+    over_18 = "subreddit-nsfw" in posts[0].attrib
+    text = await fetch.fetch_page(f"comments/{posts[0].get('id', '')[3:]}/")
+    headers = parse(text).xpath("//shreddit-subreddit-header") if text else []
+    if not headers:
+        return None
+    return {"kind": "t5", "data": community_data(headers[0], over_18=over_18)}
 
 
 async def _search(name: str | None, params: dict[str, Any]) -> dict[str, Any] | None:
