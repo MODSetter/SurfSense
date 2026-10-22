@@ -28,32 +28,51 @@ SAVE_PAGE_STEP = f"{SERVER}_{SAVE_PAGE_TOOL}"
 VERSION_STEPS = (RENDER_STEP, REVISE_STEP, CONVERT_STEP, SAVE_PAGE_STEP)
 
 
-def step_of(part: dict[str, Any]) -> dict[str, Any]:
-    """The step a tool part of opencode's describes."""
-    state = part.get("state") or {}
+# opencode's state of a tool call, as the thread names it.
+_STATUS = {
+    "streaming": "pending",
+    "running": "running",
+    "completed": "completed",
+    "error": "error",
+}
+
+
+def step_of(item: dict[str, Any]) -> dict[str, Any]:
+    """The step a tool item of opencode's describes; its id is the call's."""
+    state = item.get("state") or {}
+    given = state.get("input")
     step: dict[str, Any] = {
-        "id": part["id"],
+        "id": item["id"],
         # What an approval names, to be asked on this step.
-        "call_id": part.get("callID"),
-        "tool": part.get("tool"),
-        "status": state.get("status"),
-        "title": state.get("title"),
-        "input": _shown_input(state.get("input") or {}),
+        "call_id": item["id"],
+        "tool": item.get("name"),
+        "status": _STATUS.get(state.get("status"), state.get("status")),
+        # Still streaming, the input is the model's unfinished JSON.
+        "input": _shown_input(given if isinstance(given, dict) else {}),
     }
-    if state.get("output") is not None:
-        step["output"] = str(state["output"])[:MAX_OUTPUT_CHARS]
+    output = tool_output(state)
+    if output is not None:
+        step["output"] = output[:MAX_OUTPUT_CHARS]
     if state.get("error") is not None:
-        step["error"] = str(state["error"])
+        step["error"] = state["error"].get("message") or state["error"].get("type")
     if step["tool"] in VERSION_STEPS:
         step["artifact"] = _rendered(state)
     return step
+
+
+def tool_output(state: dict[str, Any]) -> str | None:
+    """What a call returned to the model: its text items, joined; None before it answered."""
+    content = state.get("content")
+    if not content:
+        return None
+    return "\n".join(item["text"] for item in content if item.get("type") == "text")
 
 
 def _rendered(state: dict[str, Any]) -> dict[str, Any] | None:
     """The version a render made, once ready; None while it runs, when it failed or was not ready in time."""
     if state.get("status") != "completed":
         return None
-    made = rendered_artifact(str(state.get("output") or ""))
+    made = rendered_artifact(tool_output(state) or "")
     return asdict(made) if made is not None else None
 
 

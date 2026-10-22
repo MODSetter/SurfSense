@@ -92,7 +92,8 @@ The Date is the day the decision was first written down. Source links are permal
 | 0062 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0062-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |
 | 0063 | [A plugin's connection is a transport and one sign-in, detected from the server](0063-a-plugins-connection-is-a-transport-and-one-sign-in.md) | Accepted |
 | 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
-| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |
+| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted, superseded for opencode by 0069 |
 | 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Accepted |
 | 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Accepted |
 | 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted |
+| 0069 | [On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) | Accepted |

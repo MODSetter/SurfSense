@@ -1,8 +1,9 @@
 /**
  * An opencode left running by a run of the app that crashed. `serve` does not
  * notice its parent dying, so without this each crash leaves one more server
- * holding its memory and port. Only the recorded password proves a process is
- * ours: by the next boot, its pid may belong to anything.
+ * holding its memory and port. By the next boot its pid may belong to anything,
+ * so a process is ours only if the recorded port takes the recorded password and,
+ * on 2.x, names the recorded pid.
  */
 import { spawnSync } from "node:child_process"
 import { readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -11,8 +12,8 @@ import { join } from "node:path"
 import { isWindows } from "./platform.ts"
 
 const RECORD_FILE = "opencode-process.json"
-// A live opencode answers its health route at once; a wait longer than this is not one.
-const HEALTH_TIMEOUT_MS = 2000
+// A live opencode answers at once; a wait longer than this is not one.
+const ANSWER_TIMEOUT_MS = 2000
 
 interface Started {
   pid: number
@@ -40,15 +41,33 @@ export async function stopLeftoverOpencode(agentDir: string, host: string): Prom
 
 /** Whether the recorded port takes the recorded password, as only our opencode would. */
 async function answersAsOurs(host: string, started: Started): Promise<boolean> {
+  // 2.x names its pid even while booting, when it answers 503.
+  const info = await ask(host, started, "/api/info")
+  const pid = await pidIn(info)
+  if (pid != null) return pid === started.pid
+  // A 1.x leftover from the release before has no pid to give.
+  return (await ask(host, started, "/global/health"))?.ok ?? false
+}
+
+async function ask(host: string, started: Started, route: string): Promise<Response | null> {
   const credentials = Buffer.from(`opencode:${started.password}`).toString("base64")
   try {
-    const response = await fetch(`http://${host}:${started.port}/global/health`, {
+    return await fetch(`http://${host}:${started.port}${route}`, {
       headers: { Authorization: `Basic ${credentials}` },
-      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(ANSWER_TIMEOUT_MS),
     })
-    return response.ok
   } catch {
-    return false
+    return null
+  }
+}
+
+async function pidIn(response: Response | null): Promise<number | null> {
+  if (response == null || response.status === 401) return null
+  try {
+    const { pid } = (await response.json()) as { pid?: unknown }
+    return typeof pid === "number" ? pid : null
+  } catch {
+    return null
   }
 }
 

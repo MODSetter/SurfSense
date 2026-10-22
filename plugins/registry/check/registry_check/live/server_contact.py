@@ -6,7 +6,6 @@ from typing import Any
 import anyio
 import httpx2
 from mcp.client.client import Client
-from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
 from registry_check.live.failure_reason import failure_reason
@@ -40,11 +39,9 @@ class NotMcp:
 Contact = Listed | SignInAsked | Unreachable | NotMcp
 
 
-async def contact(url: str, transport: str = "streamable_http") -> Contact:
-    """With no credentials: what a user's app meets before signing in.
-
-    `transport` is `sse` for the older HTTP+SSE transport an entry names.
-    """
+async def contact(url: str) -> Contact:
+    """With no credentials: what a user's app meets before signing in, over
+    Streamable HTTP, the only transport the app speaks."""
     refused: list[int] = []
     failed: list[int] = []
 
@@ -57,15 +54,6 @@ async def contact(url: str, transport: str = "streamable_http") -> Contact:
     try:
         # Listing pages through a cursor can take a few requests.
         with anyio.fail_after(TIMEOUT_SECONDS * 2):
-            if transport == "sse":
-
-                def http_client(headers=None, timeout=None, auth=None):
-                    return web_client(on_response=record)
-
-                async with Client(
-                    sse_client(url, httpx_client_factory=http_client)
-                ) as client:
-                    return Listed(await _every_page(client))
             async with (
                 web_client(on_response=record) as http,
                 Client(streamable_http_client(url, http_client=http)) as client,
@@ -82,6 +70,20 @@ async def contact(url: str, transport: str = "streamable_http") -> Contact:
         if failed:
             return NotMcp(f"it answered {failed[-1]}", failed[-1])
         return NotMcp("its answer is not MCP")
+
+
+async def answers_sse(url: str) -> bool:
+    """Whether the address opens an event stream on GET, as a server on the
+    older HTTP+SSE transport does."""
+    try:
+        async with (
+            web_client() as http,
+            http.stream("GET", url, headers={"accept": "text/event-stream"}) as reply,
+        ):
+            kind = reply.headers.get("content-type", "")
+            return reply.status_code == 200 and kind.startswith("text/event-stream")
+    except httpx2.HTTPError:
+        return False
 
 
 async def _every_page(client: Client) -> list[dict[str, Any]]:

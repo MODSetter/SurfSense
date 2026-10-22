@@ -151,9 +151,8 @@ function turn(
 function stepFrom(
   event: Extract<ChatStreamEvent, { type: "agent-step" }>
 ): AgentStep {
-  const { id, call_id, tool, status, title, input, output, error, artifact } =
-    event
-  return { id, call_id, tool, status, title, input, output, error, artifact }
+  const { id, call_id, tool, status, input, output, error, artifact } = event
+  return { id, call_id, tool, status, input, output, error, artifact }
 }
 
 /** An agent turn's preparing line shows from its frame until any other arrives. */

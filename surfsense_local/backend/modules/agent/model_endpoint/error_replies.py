@@ -9,6 +9,9 @@ import json
 from fastapi.responses import JSONResponse
 
 MAX_MESSAGE_CHARS = 400
+# opencode 2.x retries a 409 or a 5xx as a server fault, with backoff, until the
+# turn is stopped; asking again changes nothing SurfSense refused itself.
+NO_RETRY = {"x-should-retry": "false"}
 
 
 def error_reply(
@@ -18,7 +21,7 @@ def error_reply(
     error: dict[str, str] = {"message": message}
     if code:
         error["code"] = code
-    return JSONResponse({"error": error}, status_code=status_code)
+    return JSONResponse({"error": error}, status_code=status_code, headers=NO_RETRY)
 
 
 def as_error_body(content: bytes, status_code: int) -> bytes:
@@ -33,6 +36,9 @@ def as_error_body(content: bytes, status_code: int) -> bytes:
             return content
         if isinstance(error, str):
             return json.dumps({"error": {"message": error}}).encode()
+        # The ChatGPT plan words a refused field as `detail`.
+        if isinstance(body.get("detail"), str):
+            return json.dumps({"error": {"message": body["detail"]}}).encode()
     text = content.decode(errors="replace").strip()[:MAX_MESSAGE_CHARS]
     return json.dumps(
         {"error": {"message": text or f"the model answered {status_code}"}}

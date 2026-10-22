@@ -202,18 +202,18 @@ def sse_servers() -> Iterator[SignInServers]:
             yield SignInServers(authorization, protected, f"{base}/sse")
 
 
-async def test_a_server_on_the_older_sse_transport_signs_in_and_lists_over_it(
+async def test_an_sse_address_asking_for_sign_in_is_refused_before_any_sign_in(
     client: AsyncClient, sse_servers: SignInServers
 ) -> None:
-    """Signed in as any other; its tools are listed over SSE, and the plugin recorded on it."""
-    sign_in = await start_custom(client, sse_servers)
-    page = await approve_in_browser(client, sign_in["authorization_url"])
+    """Its POST would ask for sign-in, for an address no engine could call: the user
+    is told at once, and never sent to sign in."""
+    refused = await client.post(
+        "/plugins/custom", json={"url": sse_servers.mcp_url, "name": "Notes"}
+    )
 
-    assert page.status_code == 200, page.text
-    (plugin,) = (await client.get("/plugins")).json()
-    assert plugin["transport"] == "sse"
-    assert plugin["check_failure"] is None
-    assert sorted(tool["name"] for tool in plugin["tools"]) == ["count", "search"]
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_sse_only"
+    assert (await client.get("/plugins")).json() == []
 
 
 async def test_a_state_the_app_did_not_issue_is_refused_and_changes_nothing(

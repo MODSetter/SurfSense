@@ -8,16 +8,10 @@ from sqlalchemy.orm import Session
 from modules.agent.plugin_gateway.given_server import given_server
 from modules.agent.plugin_gateway.ready_upstream import Upstream
 from modules.agent.plugin_gateway.upstream_headers import upstream_headers
-from modules.agent.plugin_tools.tool_budget import offered_tools
 from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.lists.plugin_host import on_plugin_host
-from modules.plugins.remote.mcp_client.transports import (
-    STREAMABLE_HTTP,
-    Transport,
-    entry_transport,
-)
 from modules.plugins.remote.sign_in.plugin_headers import LICENSE
 
 
@@ -30,8 +24,6 @@ class TurnPlugin:
     # The gateway's address for it and the thread's key: all a runtime is given.
     url: str
     headers: dict[str, str]
-    # How its server is reached; opencode finds the older SSE from the URL itself.
-    transport: Transport = STREAMABLE_HTTP
     # `<plugin>_<tool>` to `allow` or `ask`; every other tool of the plugin is denied.
     rules: dict[str, str] = field(default_factory=dict)
     # The same rules by the tool's own name, for an engine that names tools otherwise.
@@ -54,33 +46,23 @@ def opencode_tool_name(server: str, tool: str) -> str:
 
 
 def turn_plugins(
-    session: Session,
-    where: tuple[int, int],
-    launch_key: str,
-    mentioned: frozenset[str] = frozenset(),
-    budget: int | None = None,
-    text: str = "",
+    session: Session, where: tuple[int, int], launch_key: str
 ) -> list[TurnPlugin]:
-    """The ready tools that fit `budget` tokens of definitions, the ones `text` asks for
-    first, or every one with no budget."""
-    chosen = offered_tools(list_tools(session), mentioned, budget, text)
+    """Every ready plugin, with a rule for each of its ready tools; which of them a turn
+    holds is the engine's to choose."""
     plugins: dict[str, TurnPlugin] = {}
-    for tool in chosen:
+    for tool in list_tools(session):
         if tool.plugin_id not in plugins:
             row = session.get_one(InstalledPlugin, tool.plugin_id)
             url, headers = given_server(row.id, where, launch_key)
-            transport = entry_transport(row.entry)
             plugins[tool.plugin_id] = TurnPlugin(
                 name=row.id,
                 title=tool.plugin_name,
                 url=url,
                 headers=headers,
-                transport=transport,
                 on_plugin_host=on_plugin_host(row.url),
                 licensed=row.credential_kind == LICENSE,
-                upstream=Upstream(
-                    row.url, upstream_headers(session, row, where[1]), transport
-                ),
+                upstream=Upstream(row.url, upstream_headers(session, row, where[1])),
             )
         rule = "ask" if needs_approval(tool) else "allow"
         name = opencode_tool_name(tool.plugin_id, tool.tool)

@@ -9,7 +9,7 @@ body:
         Fill this in and a bot checks your server, then comments with what to fix or what happens next. To fix something, edit the issue and it checks again.
 
         **We support** remote MCP servers on a public HTTPS address:
-        - **Transport:** Streamable HTTP, or the older HTTP+SSE.
+        - **Transport:** Streamable HTTP only. Servers on the older HTTP+SSE can't be listed.
         - **Sign-in:** none, a key each user pastes, or OAuth.
 
         Local (stdio) servers can't be listed yet.

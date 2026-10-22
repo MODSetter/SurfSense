@@ -16,13 +16,19 @@ test("every platform the app ships has opencode and ripgrep pinned", () => {
 
 test("each archive is the pinned version's", () => {
   for (const host of SHIPPED) {
-    assert.match(HOSTS[host].opencode.url, new RegExp(`/v${VERSION}/`), host)
+    assert.match(HOSTS[host].opencode.url, new RegExp(`-${VERSION}\\.tgz$`), host)
     assert.match(HOSTS[host].ripgrep.url, new RegExp(`/${RIPGREP_VERSION}/`), host)
+  }
+})
+
+test("opencode comes from npm, the only place 2.x is published", () => {
+  for (const host of SHIPPED) {
+    assert.match(HOSTS[host].opencode.url, /^https:\/\/registry\.npmjs\.org\/@opencode\/cli-/, host)
   }
 })
 
 test("x64 takes the build made without AVX2, so older CPUs run it", () => {
   for (const host of ["linux-x64", "win32-x64"]) {
-    assert.match(HOSTS[host].opencode.url, /-x64-baseline\./, host)
+    assert.match(HOSTS[host].opencode.url, /-x64-baseline-/, host)
   }
 })
