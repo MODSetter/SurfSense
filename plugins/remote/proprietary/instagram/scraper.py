@@ -10,20 +10,19 @@ stays sequential. ``fan_out`` is ported from the Reddit plugin's ``scraper.py`` 
 to *this* module's proxy holders so every worker warms its own session once and
 reuses it.
 
-Anonymous-only. Every surface here is reachable without a login: profile web
-info, the media embedded in a profile page, single-post/reel pages, and
-Google-backed handle discovery. Login-walled surfaces (hashtag/place feeds,
-comment threads, IG's native keyword search) are deliberately absent.
+Anonymous-only. Every surface here is reachable without a login: a profile's
+page and its embed, its reels tab, single-post/reel pages, and Google-backed
+handle discovery. Login-walled surfaces (``web_profile_info``, hashtag/place
+feeds, comment threads, IG's native keyword search) are deliberately absent.
 
 Flows are selected by ``resultsType``:
 - ``posts`` / ``reels`` -> media items (profile feed, or a single
   ``/p/``/``/reel/`` page, or discovery search)
 - ``details`` -> profile metadata (by URL or discovery search)
 
-ponytail: deep feed pagination (past the first web page of media) needs the
-GraphQL cursor endpoint whose doc-id drifts; v1 emits the first page and stops.
-The upgrade path is a ``_paginate_feed`` helper in this file plus a doc-id in
-``fetch.py`` — contained to these two files, per the acquisition-seam rule.
+A profile's grid stops at its first page, 12 posts and 12 reels: the logged-out
+page's own next-page query answers ``null`` (probe 2026-10-22), as Instagram
+shows a logged-out visitor no more.
 """
 
 from __future__ import annotations
@@ -46,10 +45,12 @@ from .fetch import (
     InstagramLoginRequiredError,
     bind_proxy_holder,
     fetch_html,
-    fetch_json,
     now_iso,
     open_proxy_holder,
 )
+from .pages.embed import embed_context, embed_media
+from .pages.profile_page import GridPost, clips, profile_user, timeline
+from .pages.web_profile_info import profile_info
 from .parsers import parse_media, parse_post, parse_profile
 from .schemas import InstagramMediaItem, InstagramProfile, InstagramScrapeInput
 from .url_resolver import ResolvedUrl, resolve_url
@@ -66,8 +67,6 @@ __all__ = [
 # Instagram is the most hostile platform, so this stays low to avoid burning the
 # residential pool with parallel login walls.
 _FANOUT_CONCURRENCY = 8
-
-_PROFILE_PATH = "api/v1/users/web_profile_info/"
 
 # Instagram usernames: 1-30 chars of letters/digits/period/underscore. Used to
 # treat a profile/user discovery query as a direct (anonymous) handle lookup.
@@ -217,19 +216,59 @@ def _emit(
         return out
 
 
+async def _profile_pages(username: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The profile's page and its embed's context."""
+    page = await fetch_html(f"{username}/")
+    user = profile_user(page) if page else {}
+    if not user:
+        return {}, {}
+    embed = await fetch_html(f"{username}/embed/")
+    return user, embed_context(embed) if embed else {}
+
+
+async def _reels_tab(username: str) -> dict[str, Any]:
+    """The profile's reels tab, without its embed.
+
+    Each reel is read from its own page for its video, which the embed lacks,
+    and an exit is rate-limited after about 14 reads.
+    """
+    page = await fetch_html(f"{username}/reels/")
+    return profile_user(page) if page else {}
+
+
 async def _profile_user(username: str) -> dict[str, Any] | None:
-    """Fetch a profile's ``data.user`` node, or ``None``."""
-    data = await fetch_json(_PROFILE_PATH, {"username": username})
-    if isinstance(data, dict):
-        user = (
-            data.get("data", {}).get("user")
-            if isinstance(data.get("data"), dict)
-            else None
-        )
-        if isinstance(user, dict):
-            return user
-        return None
-    return None
+    """The profile as ``web_profile_info``'s ``data.user`` gave it, or ``None``."""
+    user, context = await _profile_pages(username)
+    return profile_info(user, context) if user else None
+
+
+def _pinned_posts(grid: list[GridPost], newest: list[str]) -> list[GridPost]:
+    """Mark the posts grid's pinned posts, which it lists first and the embed leaves out."""
+    if not newest or newest[0] not in (post.code for post in grid):
+        return grid
+    first = next(i for i, post in enumerate(grid) if post.code == newest[0])
+    return [post._replace(pinned=i < first) for i, post in enumerate(grid)]
+
+
+async def _grid_item(
+    post: GridPost, full: dict[str, Any] | None, user: dict[str, Any]
+) -> dict[str, Any] | None:
+    """One grid post in full: from the embed when it has it, else from its own page.
+
+    The embed lacks a post's product type, alt text, owner's name and video URL;
+    the first two come from the grid and the name from the profile. The video
+    URL stays missing rather than cost the post's own page.
+    """
+    if full is None:
+        url = f"https://www.instagram.com/p/{post.code}/"
+        html = await fetch_html(f"p/{post.code}/")
+        return parse_post(html, url=url, shortcode=post.code)
+    item = parse_media(full)
+    item["productType"] = item.get("productType") or post.product_type
+    item["alt"] = item.get("alt") or post.alt
+    if item.get("ownerUsername") == user.get("username"):
+        item["ownerFullName"] = item.get("ownerFullName") or user.get("full_name")
+    return item
 
 
 def _media_matches(item: dict[str, Any], result_type: str) -> bool:
@@ -247,19 +286,26 @@ async def _media_flow(
     per_target: int,
 ) -> AsyncIterator[dict[str, Any]]:
     """Emit media items for a profile feed, or a single ``/p/``/``/reel/`` page."""
-    from .parsers import _edges
-
     result_type = input_model.resultsType
     if resolved.kind == "profile":
-        user = await _profile_user(resolved.value)
-        if user is None:
-            return
-        nodes = _edges(user.get("edge_owner_to_timeline_media"))
+        reels = result_type == "reels"
+        if reels:
+            user, context = await _reels_tab(resolved.value), {}
+        else:
+            user, context = await _profile_pages(resolved.value)
+        full = {m.get("shortcode"): m for m in embed_media(context)}
+        grid = clips(user) if reels else _pinned_posts(timeline(user), list(full))
         emitted = 0
-        for node in nodes:
-            item = parse_media(node)
-            if input_model.skipPinnedPosts and item.get("isPinned"):
+        for post in grid:
+            if input_model.skipPinnedPosts and post.pinned:
                 continue
+            item = await _grid_item(post, full.get(post.code), user)
+            if item is None:
+                continue
+            if post.pinned is not None:
+                item["isPinned"] = post.pinned
+            if item.get("videoViewCount") is None and post.views is not None:
+                item["videoViewCount"] = post.views
             if not _media_matches(item, result_type):
                 continue
             if not _is_after(item.get("timestamp"), cutoff):
@@ -292,7 +338,7 @@ async def _media_flow(
 async def _details_flow(
     resolved: ResolvedUrl, *, input_model: InstagramScrapeInput
 ) -> AsyncIterator[dict[str, Any]]:
-    """Emit one profile detail item for a URL (anonymous web_profile_info)."""
+    """Emit one profile detail item for a URL, from its page and its embed."""
     if resolved.kind == "profile":
         user = await _profile_user(resolved.value)
         if user is not None:

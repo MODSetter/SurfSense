@@ -8,15 +8,15 @@ import { docsRedirects } from "./lib/docs-redirects";
 const LISTED_SCRAPERS = [
 	"google-search",
 	"web-crawl",
+	"reddit",
 	"youtube",
+	"instagram",
 	"tiktok",
 	"google-maps",
 	"amazon",
 	"walmart",
 	"indeed",
 ];
-// Written but left out of the app's list until they read without signing in.
-const UNLISTED_SCRAPERS = ["reddit", "instagram"];
 
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
@@ -37,11 +37,6 @@ const nextConfig: NextConfig = {
 			...LISTED_SCRAPERS.map((id) => ({
 				source: `/${id}`,
 				destination: `/plugins/${id}`,
-				permanent: true,
-			})),
-			...UNLISTED_SCRAPERS.map((id) => ({
-				source: `/${id}`,
-				destination: "/plugins",
 				permanent: true,
 			})),
 			...docsRedirects,
