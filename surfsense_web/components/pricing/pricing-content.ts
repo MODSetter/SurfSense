@@ -40,9 +40,9 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  * Two things the brief asks for are deliberately absent, because inventing them
  * would be worse than omitting them:
  *
- *   - **The early-bird end date.** The plan fixes it at launch + 30 days.
- *     Launch was 18 Sep 2026, so that is 18 Oct 2026; the copy has not been
- *     updated to state it and still gives the window.
+ *   - **The early-bird end date.** The plan put it at launch + 30 days,
+ *     18 Oct 2026, yet $60 is still the price the maintainer set on 21 Oct
+ *     2026, so the copy names no window rather than one that has passed.
  *   - **The six NotebookLM comparison H2s.** Each must open with a factual,
  *     dated answer about Google's tiers, prices and source limits, and no
  *     document in `plans/` carries those numbers. The brief is explicit about
@@ -171,7 +171,7 @@ export const FAQ_IS_IT_FREE: PricingQuestion = {
 export const FAQ_WHAT_A_LICENCE_ADDS: PricingQuestion = {
 	question: "What does a paid licence add?",
 	answer:
-		"A licence unlocks priority support and SurfSense's own plugins: Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, plus the web crawler. Plugins are unlimited at a flat price, so nothing is metered per item and there is no credit balance to top up. A paid licence also includes one feature build request a year. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.",
+		"A licence unlocks priority support and SurfSense's own plugins: Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart and Indeed, plus the web crawler. Plugins are unlimited at a flat price, so nothing is metered per item and there is no credit balance to top up. A paid Individual licence also includes one feature build request a year. The licence does not lock any of the app's own features, and third-party plugins and MCP servers you add yourself need no licence.",
 };
 
 export const FAQ_FEATURE_REQUEST: PricingQuestion = {
@@ -188,7 +188,7 @@ export const FAQ_FREE_TRIAL: PricingQuestion = {
 export const FAQ_RENEWAL: PricingQuestion = {
 	question: "Does the $60 early-bird price renew at $60?",
 	answer:
-		"No. The $60 covers the first year, and a licence after that is $120 a year, the list price. It is a single payment, not a subscription, so nothing is charged again on its own: renewing is a new licence file. The early-bird window itself is open for 30 days after launch, so $60 is the first-year price for anyone who buys inside it. Enterprise agreements are priced separately.",
+		"No. The $60 covers the first year, and a licence after that is $120 a year, the list price. It is a single payment, not a subscription, so nothing is charged again on its own: renewing is a new licence file. Enterprise agreements are priced separately.",
 };
 
 const FAQ_ENTERPRISE: PricingQuestion = {
