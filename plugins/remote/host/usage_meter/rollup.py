@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 TIMEOUT_SECONDS = 30.0
 # Personless events still need a distinct id; this one names the sender, not a person.
 DISTINCT_ID = "surfsense-plugin-host"
-# Fixed, so a day sent again carries the same event ids and PostHog keeps one copy.
+# Fixed, so a day sent again carries the same event ids and PostHog replaces the earlier copy.
 EVENT_ID_NAMESPACE = uuid.uuid5(
     uuid.NAMESPACE_URL, "https://plugins.surfsense.com/usage"
 )
