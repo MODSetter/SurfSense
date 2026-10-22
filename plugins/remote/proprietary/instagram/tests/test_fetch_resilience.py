@@ -425,3 +425,29 @@ async def test_a_rate_limit_redirect_to_the_login_page_moves_to_a_fresh_exit():
         _current_session.reset(token)
     assert result is not None
     assert holder.rotations == 1
+
+
+async def test_a_page_read_asks_for_no_warm_up_first():
+    """Every logged-out page works as an exit's first request (probe 2026-10-23).
+
+    The home page was fetched for its csrftoken, which only the JSON API needs.
+    """
+    holder = _FakeHolder([_FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        page = await fetch.fetch_html("natgeo/")
+    finally:
+        _current_session.reset(token)
+    assert page is not None
+    assert holder.session.warm_calls == 0
+    assert holder.session.json_calls == 1
+
+
+async def test_the_json_api_still_warms_for_its_csrftoken():
+    holder = _FakeHolder([_FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        await fetch.fetch_json("api/v1/users/web_profile_info/", {"username": "x"})
+    finally:
+        _current_session.reset(token)
+    assert holder.session.warm_calls == 1
