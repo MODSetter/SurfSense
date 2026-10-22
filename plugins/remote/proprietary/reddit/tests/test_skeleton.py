@@ -18,7 +18,7 @@ def test_input_has_no_auth_fields():
 
 def test_input_defaults():
     model = RedditScrapeInput()
-    assert model.sort == "new"
+    assert model.sort is None
     assert model.includeNSFW is True
     assert model.maxItems == 10
     assert model.startUrls == []
