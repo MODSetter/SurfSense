@@ -26,7 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          # Pinned: opencv-python's setup.py names Visual Studio 2022's generator,
+          # and windows-latest moved to Visual Studio 2026.
+          - os: windows-2022
             name: Windows x64
           - os: macos-15
             name: macOS arm64
