@@ -9,7 +9,10 @@ so the fake holder fakes minting a cookie jar instead of HTTP GETs to a warm URL
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
+
+import pytest
 
 from proprietary.reddit import fetch, scraper
 from proprietary.reddit.fetch import (
@@ -253,6 +256,32 @@ async def test_fan_out_closes_all_sessions_on_early_stop(monkeypatch):
 async def test_fan_out_empty_jobs_is_noop():
     out = [x async for x in scraper.fan_out([])]
     assert out == []
+
+
+async def test_a_refused_post_leaves_its_subreddit_and_id_out_of_the_log(
+    monkeypatch, caplog
+):
+    _no_sleep(monkeypatch)
+    holder = _FakeHolder([_FakeSession(403) for _ in range(fetch._MAX_ROTATIONS + 1)])
+
+    async def _open():
+        return holder
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", _open)
+
+    async def _post() -> AsyncIterator[dict]:
+        yield await fetch_json("r/privatesub/comments/abc123")
+
+    caplog.set_level(logging.DEBUG)
+    with pytest.raises(RedditAccessBlockedError) as refused:
+        async for _ in scraper.fan_out([_post()], concurrency=1):
+            pass
+
+    # The user still hears which post was refused; the log does not.
+    assert "r/privatesub/comments/abc123" in str(refused.value)
+    assert "fan-out job failed: RedditAccessBlockedError" in caplog.text
+    assert "privatesub" not in caplog.text
+    assert "abc123" not in caplog.text
 
 
 # Cross-country rotation lives in proprietary.scraping.proxy.rotation and is shared with the

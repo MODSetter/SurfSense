@@ -170,9 +170,12 @@ async def fan_out(
                     # Record it so a fully-blocked run can still surface the refusal.
                     if not isinstance(blocked, InstagramLoginRequiredError):
                         blocked = e
-                    logger.warning("[instagram] target blocked: %s", e)
+                    # The class only: a refusal's text names the post or profile.
+                    logger.warning("[instagram] target blocked: %s", type(e).__name__)
                 except Exception as e:  # one bad target must not kill the run
-                    logger.warning("[instagram] fan-out job failed: %s", e)
+                    logger.warning(
+                        "[instagram] fan-out job failed: %s", type(e).__name__
+                    )
                 await results.put(items)
         finally:
             if holder is not None:

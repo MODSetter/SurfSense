@@ -111,7 +111,8 @@ async def fan_out(
                     else:
                         items = [item async for item in job]
                 except Exception as e:  # one bad target must not kill the run
-                    logger.warning("[reddit] fan-out job failed: %s", e)
+                    # The class only: a refusal's text names the subreddit and post.
+                    logger.warning("[reddit] fan-out job failed: %s", type(e).__name__)
                     if isinstance(e, RedditAccessBlockedError):
                         refusals.append(e)
                 await results.put(items)

@@ -81,7 +81,8 @@ async def fan_out(
         try:
             return [item async for item in job]
         except Exception as e:  # one bad video/URL must not kill the run
-            logger.warning("[youtube] fan-out job failed: %s", e)
+            # The class only: an error's text can name the video.
+            logger.warning("[youtube] fan-out job failed: %s", type(e).__name__)
             return []
 
     async with aclosing(
