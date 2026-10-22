@@ -78,6 +78,26 @@ def test_credentials_are_hidden(text: str, shown: str) -> None:
             'navigating to "https://example.com/a\'s-record"',
             'navigating to "https://example.com/***"',
         ),
+        (
+            "GET https://example.com/search?q=patients'&location=clinic failed",
+            "GET https://example.com/*** failed",
+        ),
+        (
+            "GET https://example.com/search?patients'=clinic failed",
+            "GET https://example.com/*** failed",
+        ),
+        (
+            "GET HTTPS://WWW.GOOGLE.COM/search?q=private+clinic failed",
+            "GET HTTPS://WWW.GOOGLE.COM/*** failed",
+        ),
+        (
+            "WSS://example.com/socket?token=abc closed",
+            "WSS://example.com/*** closed",
+        ),
+        (
+            "GET https://example.com/?auth=!!!",
+            "GET https://example.com/***!",
+        ),
     ],
 )
 def test_a_url_keeps_only_its_host(text: str, shown: str) -> None:
