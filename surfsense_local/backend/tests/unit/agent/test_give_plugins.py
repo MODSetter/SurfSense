@@ -9,10 +9,8 @@ import httpx
 import pytest
 
 from modules.agent.plugin_tools import give_plugins as giving
-from modules.agent.plugin_tools import stop_plugin_calls as stopping
-from modules.agent.plugin_tools.give_plugins import give_plugins, set_plugin_rules
+from modules.agent.plugin_tools.give_plugins import give_plugins
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
-from modules.agent.plugin_tools.stop_plugin_calls import HostCalls, timed_out_plugin
 from modules.agent.plugin_tools.thread_calls import CALLS_HEADER
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
@@ -41,6 +39,7 @@ class _Opencode:
         headers: dict[str, str],
         *,
         timeout_seconds: int,
+        connect_seconds: int,
     ) -> str:
         self.timeouts[name] = timeout_seconds
         delay = self.delays[name]
@@ -53,7 +52,7 @@ class _Opencode:
         self.dropped.append(name)
 
     async def set_session_rules(
-        self, directory: Path, session_id: str, rules: list[dict[str, str]]
+        self, session_id: str, rules: list[dict[str, str]]
     ) -> None:
         self.rules = rules
 
@@ -134,30 +133,6 @@ async def test_surfsense_s_plugins_get_the_longer_call_timeout(tmp_path: Path) -
     }
 
 
-async def test_the_rules_deny_every_held_server_then_allow_the_ready_tools(
-    tmp_path: Path,
-) -> None:
-    """Set whichever servers could be given, so no earlier turn's allow survives."""
-    opencode = _Opencode({})
-    held = {"gone": "disabled", "surfsense": "connected"}
-
-    await set_plugin_rules(opencode, tmp_path, "s-1", held, [plugin("a")])
-
-    assert opencode.rules is not None
-    assert sorted(r["permission"] for r in opencode.rules if r["action"] == "deny") == [
-        "a_*",
-        "gone_*",
-    ]
-    assert [r for r in opencode.rules if r["action"] != "deny"] == [
-        {"permission": "a_search", "pattern": "*", "action": "allow"}
-    ]
-
-
-def step(tool: str, status: str, error: str | None = None) -> dict:
-    """A step frame as the turn relays it."""
-    return {"type": "agent-step", "tool": tool, "status": status, "error": error}
-
-
 async def test_a_server_that_failed_this_turn_is_not_waited_on_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -183,88 +158,6 @@ async def test_a_server_that_failed_this_turn_is_not_waited_on_again(
     assert (renewed.unavailable, renewed.added) == ([], 1)
 
 
-def test_a_call_opencode_gave_up_on_names_its_plugin_on_surfsense_s_host() -> None:
-    """Its host is told to end the call, which opencode's own cancel cannot reach."""
-    ours = plugin("ours", ours=True)
-    frame = step("ours_search", "error", "MCP error -32001: Request timed out")
-
-    assert timed_out_plugin(frame, [ours]) == ours
-
-
-@pytest.mark.parametrize(
-    "frame",
-    [
-        step("ours_search", "error", "Search failed: no results"),
-        # A plugin's own error that mentions a timeout is not opencode giving up.
-        step("ours_search", "error", "Upstream said: Request timed out"),
-        step("ours_search", "completed"),
-        step("theirs_search", "error", "MCP error -32001: Request timed out"),
-        {"type": "delta", "text": "Request timed out"},
-    ],
-)
-def test_no_other_step_stops_a_plugin_s_calls(frame: dict) -> None:
-    """Another failure, a finished call, or a third party's server, which is never sent the token."""
-    plugins = [plugin("ours", ours=True), plugin("theirs")]
-
-    assert timed_out_plugin(frame, plugins) is None
-
-
-def call_step(call: str, tool: str, status: str, error: str | None = None) -> dict:
-    """A step frame of one call."""
-    return {**step(tool, status, error), "id": call}
-
-
-TIMED_OUT = "MCP error -32001: Request timed out"
-
-
-def test_a_call_given_up_on_is_ended_once_no_other_call_on_the_host_runs(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The host ends all the thread's calls at once, so one still working is not cut short."""
-    stopped: list[list[TurnPlugin]] = []
-    monkeypatch.setattr(stopping, "stop_soon", stopped.append)
-    ours, other = plugin("ours", ours=True), plugin("other", ours=True)
-    plugins = [ours, other, plugin("theirs")]
-    calls = HostCalls()
-
-    for frame in (
-        call_step("1", "ours_search", "running"),
-        call_step("2", "other_search", "pending"),
-        call_step("2", "other_search", "running"),
-        call_step("3", "theirs_search", "running"),
-        call_step("1", "ours_search", "error", TIMED_OUT),
-    ):
-        calls.follow(frame, plugins)
-    waited = list(stopped)
-    calls.follow(call_step("2", "other_search", "completed"), plugins)
-
-    assert waited == []
-    # A third party's call, still running, is not the host's.
-    assert stopped == [[ours]]
-
-
-def test_a_call_given_up_on_alone_is_ended_at_once_and_one_left_at_the_turn_s_end(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Nothing else to wait for; and a turn that ends sends whatever still waits."""
-    stopped: list[list[TurnPlugin]] = []
-    monkeypatch.setattr(stopping, "stop_soon", stopped.append)
-    ours = plugin("ours", ours=True)
-    calls = HostCalls()
-
-    calls.follow(call_step("1", "ours_search", "running"), [ours])
-    calls.follow(call_step("1", "ours_search", "error", TIMED_OUT), [ours])
-    calls.follow(call_step("2", "ours_search", "running"), [ours])
-    calls.follow(call_step("3", "ours_search", "running"), [ours])
-    calls.follow(call_step("3", "ours_search", "error", TIMED_OUT), [ours])
-    at_once = list(stopped)
-    calls.end()
-    calls.end()
-
-    assert at_once == [[ours]]
-    assert stopped == [[ours], [ours]]
-
-
 class _AsksForSignIn(_Opencode):
     """Answers every server added as needing sign-in."""
 
@@ -276,6 +169,7 @@ class _AsksForSignIn(_Opencode):
         headers: dict[str, str],
         *,
         timeout_seconds: int,
+        connect_seconds: int,
     ) -> str:
         return "needs_auth"
 

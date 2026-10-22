@@ -202,8 +202,8 @@ async def test_a_plugin_its_check_makes_not_ready_is_taken_back_before_the_model
 
     assert of_type(frames, "completed")[0]["text"] == "Hi."
     assert "solo_search" not in offered(agent_api)
-    # Disconnected: opencode lists a dropped server as disabled.
-    assert held["solo"] == "disabled"
+    # Removed: opencode no longer holds a dropped server at all.
+    assert "solo" not in held
     (prepared,) = [r.message for r in caplog.records if " prepared in " in r.message]
     assert "(1 added)" in prepared
 
@@ -314,8 +314,14 @@ async def test_surfsense_s_tools_are_offered_again_after_opencode_forgets_them(
     async with agent_api.opencode() as opencode:
         await opencode.dispose_instance(folder)
     await send(agent_api, thread["id"], "Second")
-    async with agent_api.opencode() as opencode:
-        await opencode.reload_config()
+    # opencode's own reload drops every server added at runtime.
+    async with httpx.AsyncClient(
+        base_url=agent_api.opencode_url, auth=("opencode", agent_api.password)
+    ) as http:
+        reloaded = await http.post(
+            "/api/location/reload", params={"location[directory]": str(folder)}
+        )
+        assert reloaded.status_code < 300, reloaded.text
     await send(agent_api, thread["id"], "Third")
 
     for request in range(3):

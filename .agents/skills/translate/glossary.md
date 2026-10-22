@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, the HTTP sign-in schemes Bearer and Basic, and every model and provider name.
+SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, MCP's transports SSE and Streamable HTTP, the HTTP sign-in schemes Bearer and Basic, and every model and provider name.
 
 `workspace` is the one product word languages disagree on, and each keeps its own habit: German and Brazilian Portuguese write Workspace, because both say it routinely and the translation is three times as wide in the sidebar; Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake; the rest translate it.
 
@@ -78,6 +78,7 @@ SurfSense, Studio, Markdown, llama.cpp, GGUF, Hugging Face, API, MCP, the HTTP s
 | header (an HTTP header a plugin's server reads, such as its key in `x-api-key`) | ヘッダー | 헤더 | 请求头 | हेडर | Header | encabezado | en-tête | cabeçalho | заголовок |
 | OAuth app (a user's own, registered with a provider) | OAuthアプリ | OAuth 앱 | OAuth 应用 | OAuth ऐप | OAuth-App | app OAuth | app OAuth | app OAuth | приложение OAuth |
 | client ID (of an OAuth app) | クライアントID | 클라이언트 ID | 客户端 ID | क्लाइंट आईडी | Client-ID | ID de cliente | ID client | ID do cliente | ID клиента |
+| link (a web address the user adds as a source) | リンク | 링크 | 链接 | लिंक | Link | enlace | lien | link | ссылка |
 | client secret (of an OAuth app) | クライアントシークレット | 클라이언트 시크릿 | 客户端密钥 | क्लाइंट सीक्रेट | Client-Secret | secreto de cliente | secret client | segredo do cliente | секрет клиента |
 | scope (an OAuth permission) | スコープ | 범위 | 权限范围 | स्कोप | Scope | ámbito | portée | escopo | область доступа |
 | callback address (where a provider sends the browser back) | コールバックアドレス | 콜백 주소 | 回调地址 | कॉलबैक पता | Callback-Adresse | dirección de callback | adresse de rappel | endereço de callback | адрес обратного вызова |

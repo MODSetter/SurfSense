@@ -62,7 +62,8 @@ class RedditScrapeInput(BaseModel):
         return name or None
 
     # Sort / filter
-    sort: RedditSort = "new"
+    # Unset: a search asks for relevance, a listing for the newest.
+    sort: RedditSort | None = None
     time: RedditTime | None = None
     includeNSFW: bool = True
 

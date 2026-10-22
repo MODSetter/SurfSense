@@ -58,13 +58,33 @@ def test_an_oauth_server_taking_only_registered_apps_asks_for_the_users_own():
     assert found.problems == []
 
 
-def test_a_server_on_the_older_sse_transport_is_found():
-    """Found when the Streamable HTTP POST is refused, as the app finds it."""
+def test_a_server_on_the_older_sse_transport_is_refused_as_one():
+    """Told what to give instead, rather than that it is no MCP server."""
     with serving(docs_sse_server()) as url:
         found = report(f"{url}/sse")
-    assert found.transport == "sse"
-    assert found.tools == ["read_page", "search_docs"]
-    assert found.problems == []
+    assert found.problems == [
+        "is an address on the older HTTP+SSE transport, which SurfSense does not "
+        "speak. Give its Streamable HTTP address, which often ends in /mcp"
+    ]
+
+
+def test_an_sse_address_asking_for_sign_in_is_named_and_its_mcp_given():
+    """Its 401 would read as a key to take: reviewers are told it is SSE, and where MCP is."""
+    with serving(RequiringKey(docs_server())) as url:
+        found = report(f"{url}/sse")
+    assert found.problems == [
+        "is an address on the older HTTP+SSE transport, which SurfSense does not "
+        f"speak. Its server answers MCP at {url}/mcp: submit that address"
+    ]
+
+
+def test_an_sse_address_with_nothing_at_its_mcp_is_named():
+    with serving(not_mcp()) as url:
+        found = report(f"{url}/sse")
+    assert found.problems == [
+        "is an address on the older HTTP+SSE transport, which SurfSense does not "
+        "speak. Give its Streamable HTTP address, which often ends in /mcp"
+    ]
 
 
 def test_a_server_nothing_answers_on_is_a_problem():

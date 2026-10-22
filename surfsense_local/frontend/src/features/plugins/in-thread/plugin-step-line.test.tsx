@@ -44,7 +44,6 @@ const STEP: AgentStep = {
   id: "prt_9",
   tool: "notes_search",
   status: "completed",
-  title: null,
   input: { query: "ship" },
   output: "found ship, the start",
 }

@@ -2,16 +2,17 @@
  * opencode's home inside SurfSense's agent folder: its settings, sessions and
  * caches, kept apart from any opencode the user runs on their own.
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, rmSync } from "node:fs"
 import { join } from "node:path"
 
-/** The folders opencode finds through HOME and the four XDG variables. */
+/** The folders opencode finds through HOME, the four XDG variables and the temp ones. */
 export function opencodeFolders(agentDir: string): {
   home: string
   config: string
   data: string
   cache: string
   state: string
+  temp: string
 } {
   const home = join(agentDir, "opencode")
   return {
@@ -20,25 +21,18 @@ export function opencodeFolders(agentDir: string): {
     data: join(home, "data"),
     cache: join(home, "cache"),
     state: join(home, "state"),
+    temp: join(home, "temp"),
   }
 }
 
 /**
- * Create the folders, and keep opencode from reaching npm for its plugin package.
- *
- * At startup opencode installs `@opencode-ai/plugin` into its config folder
- * unless the folder holds a `node_modules` and a lockfile naming the package.
- * No plugin ever loads (OPENCODE_PURE), so the package itself is never needed.
+ * Create the folders, the temp one emptied: nothing runs from it before opencode
+ * starts, and Bun leaves 5.6 MB in it at every start on Windows.
  */
 export function prepareOpencodeHome(agentDir: string): void {
   const folders = opencodeFolders(agentDir)
-  for (const folder of [folders.config, folders.data, folders.cache, folders.state]) {
+  rmSync(folders.temp, { recursive: true, force: true })
+  for (const folder of [folders.config, folders.data, folders.cache, folders.state, folders.temp]) {
     mkdirSync(folder, { recursive: true })
   }
-  const configFolder = join(folders.config, "opencode")
-  mkdirSync(join(configFolder, "node_modules"), { recursive: true })
-  const lock = join(configFolder, "package-lock.json")
-  if (existsSync(lock)) return
-  const named = { "": { dependencies: { "@opencode-ai/plugin": "*" } } }
-  writeFileSync(lock, JSON.stringify({ lockfileVersion: 3, packages: named }, null, 2))
 }

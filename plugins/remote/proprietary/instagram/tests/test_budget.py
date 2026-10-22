@@ -1,8 +1,8 @@
 """Offline budget tests: per-target caps, cross-target de-dup, and the limit guard.
 
-No network. ``fetch_json`` is stubbed with a synthetic profile payload and the
-fan-out proxy holders are replaced with no-ops, so the orchestrator's paging and
-de-dup policy is exercised deterministically.
+No network. ``fetch_html`` serves built profile pages and the fan-out proxy
+holders are replaced with no-ops, so the orchestrator's paging and de-dup policy
+is exercised deterministically.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import pytest
 
 from proprietary.instagram import scraper
 from proprietary.instagram.schemas import InstagramScrapeInput
+from proprietary.instagram.tests.profile_pages import profile_pages
 
 
 class _NoopHolder:
@@ -33,28 +34,18 @@ def _stub_proxy(monkeypatch):
     monkeypatch.setattr(scraper, "bind_proxy_holder", _bind)
 
 
-def _profile_payload(n: int) -> dict:
-    return {
-        "data": {
-            "user": {
-                "id": "9",
-                "username": "acct",
-                "edge_owner_to_timeline_media": {
-                    "count": n,
-                    "edges": [
-                        {"node": {"id": str(i), "shortcode": f"S{i}"}} for i in range(n)
-                    ],
-                },
-            }
-        }
-    }
+def _serve(monkeypatch, n: int) -> None:
+    """Every profile with posts 0..n-1, the same ids for each."""
+
+    async def _fetch(path, params=None):
+        username = path.split("/", 1)[0]
+        return profile_pages(username, list(range(n))).get(path)
+
+    monkeypatch.setattr(scraper, "fetch_html", _fetch)
 
 
 async def test_per_target_cap_limits_media(_stub_proxy, monkeypatch):
-    async def _fetch(path, params=None):
-        return _profile_payload(50)
-
-    monkeypatch.setattr(scraper, "fetch_json", _fetch)
+    _serve(monkeypatch, 50)
     model = InstagramScrapeInput(
         resultsType="posts",
         directUrls=["https://www.instagram.com/acct/"],
@@ -65,10 +56,7 @@ async def test_per_target_cap_limits_media(_stub_proxy, monkeypatch):
 
 
 async def test_cross_target_dedup_by_id(_stub_proxy, monkeypatch):
-    async def _fetch(path, params=None):
-        return _profile_payload(3)  # both targets return ids 0,1,2
-
-    monkeypatch.setattr(scraper, "fetch_json", _fetch)
+    _serve(monkeypatch, 3)  # both targets return ids m0, m1, m2
     model = InstagramScrapeInput(
         resultsType="posts",
         directUrls=[
@@ -79,14 +67,11 @@ async def test_cross_target_dedup_by_id(_stub_proxy, monkeypatch):
     )
     items = [i async for i in scraper.iter_instagram(model)]
     ids = sorted(i["id"] for i in items)
-    assert ids == ["0", "1", "2"]
+    assert ids == ["m0", "m1", "m2"]
 
 
 async def test_scrape_instagram_honors_limit(_stub_proxy, monkeypatch):
-    async def _fetch(path, params=None):
-        return _profile_payload(50)
-
-    monkeypatch.setattr(scraper, "fetch_json", _fetch)
+    _serve(monkeypatch, 50)
     model = InstagramScrapeInput(
         resultsType="posts",
         directUrls=["https://www.instagram.com/acct/"],

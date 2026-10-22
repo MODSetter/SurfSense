@@ -43,9 +43,12 @@ from modules.plugins.lists.icon_response import icon_response
 from modules.plugins.lists.list_entry import EntryAuth
 from modules.plugins.lists.registry.entry_headers import filled_headers
 from modules.plugins.remote.connect_refusal import connect_refusal
-from modules.plugins.remote.either_transport import listed_on_either
 from modules.plugins.remote.mcp_client.server_error import ServerError
-from modules.plugins.remote.mcp_client.transports import entry_transport
+from modules.plugins.remote.mcp_client.transports import (
+    SSE_ONLY,
+    is_sse_address,
+    recorded_on_sse,
+)
 from modules.plugins.remote.sign_in.headers.given_headers import (
     as_sent,
     given_headers,
@@ -69,7 +72,7 @@ from modules.plugins.remote.sign_in.plugin_headers import (
 )
 from modules.plugins.remote.sign_in.token_headers import token_headers
 from modules.plugins.remote.source import RemoteMcpSource
-from modules.plugins.remote.transport_moved import listed_where_it_moved
+from modules.plugins.remote.streamable_only import listed_streamable
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
@@ -79,7 +82,7 @@ def _read_by_id(session, plugin_id: str) -> PluginRead:
 
 
 def _named_headers(session, plugin_id: str):
-    """A plugin's URL, transport, and the headers its registry entry names, if it names any."""
+    """A plugin's URL, and the headers its registry entry names, if it names any."""
     plugin = session.get(InstalledPlugin, plugin_id)
     if plugin is None:
         return None
@@ -89,13 +92,13 @@ def _named_headers(session, plugin_id: str):
         if plugin.source == PluginSource.REGISTRY and auth.get("type") == HEADERS
         else None
     )
-    return plugin.url, entry_transport(plugin.entry), named
+    return plugin.url, named
 
 
 def _address(session, plugin_id: str):
-    """A connected plugin's URL and transport, or None."""
+    """A connected plugin's URL, or None."""
     plugin = session.get(InstalledPlugin, plugin_id)
-    return None if plugin is None else (plugin.url, entry_transport(plugin.entry))
+    return None if plugin is None else plugin.url
 
 
 class ToolWrite(BaseModel):
@@ -147,6 +150,11 @@ async def add_custom_plugin(
         raise refusal
     headers = given_headers(payload.headers, payload.token)
     url = server_url(payload.url)
+    if is_sse_address(url):
+        # Refused before anything is reached: the user adds its Streamable HTTP address.
+        raise connect_refusal(
+            ServerError("This address is on the older SSE transport.", reason=SSE_ONLY)
+        )
     plugin_id = custom_plugin_id(payload.name)
     if await transact(session, lambda s: s.get(InstalledPlugin, plugin_id)) is not None:
         raise HTTPException(
@@ -181,7 +189,7 @@ async def add_custom_plugin(
         raise refusal
 
     try:
-        transport, tools = await listed_on_either(url, as_sent(headers))
+        tools = await listed_streamable(url, as_sent(headers))
     except ServerError as error:
         # A server asking for an account is saved, signed out, for Connect on its row.
         draft = PluginDraft(
@@ -204,9 +212,7 @@ async def add_custom_plugin(
         raise connect_refusal(error) from error
 
     def store(s):
-        plugin = store_custom_plugin(
-            s, plugin_id, payload.name, url, headers, tools, transport=transport
-        )
+        plugin = store_custom_plugin(s, plugin_id, payload.name, url, headers, tools)
         return read_plugin(s, plugin)
 
     return await transact(session, store)
@@ -299,7 +305,7 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
         plugin = s.get(InstalledPlugin, plugin_id)
         if plugin is None or plugin.disconnected_at is not None:
             return plugin
-        return plugin.url, sign_in_headers(s, plugin), entry_transport(plugin.entry)
+        return plugin.url, sign_in_headers(s, plugin), dict(plugin.entry)
 
     found = await transact(session, address)
     if found is None:
@@ -312,15 +318,18 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
                 "message": "Connect this plugin before checking it.",
             },
         )
-    listed = await list_once(*found)
-    listed = await listed_after_refresh(session, plugin_id, found[1], listed)
-    transport, listed = await listed_where_it_moved(*found, listed)
+    url, headers, entry = found
+    if recorded_on_sse(entry):
+        # Never contacted: it stays as it is until the user replaces it.
+        return await transact(
+            session, lambda s: read_plugin(s, s.get_one(InstalledPlugin, plugin_id))
+        )
+    listed = await list_once(url, headers)
+    listed = await listed_after_refresh(session, plugin_id, headers, listed)
 
     def record(s):
         plugin = s.get_one(InstalledPlugin, plugin_id)
         record_check(s, plugin, listed)
-        if not isinstance(listed, ServerError):
-            plugin.entry = {**plugin.entry, "transport": transport}
         return read_plugin(s, plugin)
 
     return await transact(session, record)
@@ -339,8 +348,7 @@ async def write_key(
     address = await transact(session, _address, plugin_id)
     if address is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
-    url, transport = address
-    source = RemoteMcpSource(url, token_headers(payload.token), transport)
+    source = RemoteMcpSource(address, token_headers(payload.token))
     try:
         tools = await source.list_tools()
     except ServerError as error:
@@ -374,13 +382,13 @@ async def write_headers(
     found = await transact(session, _named_headers, plugin_id)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
-    url, transport, named = found
+    url, named = found
     headers = (
         filled_headers(named, payload.headers)
         if named is not None
         else given_headers(payload.headers) or []
     )
-    source = RemoteMcpSource(url, as_sent(headers), transport)
+    source = RemoteMcpSource(url, as_sent(headers))
     try:
         tools = await source.list_tools()
     except ServerError as error:
@@ -477,13 +485,12 @@ async def connect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
             plugin.credential_kind,
             plugin.url,
             sign_in_headers(s, plugin),
-            entry_transport(plugin.entry),
         )
 
     found = await transact(session, address)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not connected")
-    kind, url, headers, transport = found
+    kind, url, headers = found
     if kind in ("token", HEADERS):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -497,7 +504,7 @@ async def connect_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
                 "message": "Sign in to the plugin with your account.",
             },
         )
-    source = RemoteMcpSource(url, headers, transport)
+    source = RemoteMcpSource(url, headers)
     try:
         listed = await source.list_tools()
     except ServerError as error:

@@ -7,11 +7,13 @@ from contextlib import contextmanager
 import httpx
 import pytest
 from mcp_types import ToolAnnotations
+from sqlalchemy import Engine
 
-from modules.agent.agent_threads import turn as agent_turn
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.plugin_gateway import upstream_headers
+from modules.plugins.installed.models import InstalledPlugin
 from shared.config import get_plugin_host_settings
+from shared.db import create_session_factory
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
     hang_up_mid_turn,
@@ -392,47 +394,6 @@ async def test_only_a_plugins_step_is_saved_to_sources(agent_api: AgentAPI) -> N
     assert saved.status_code == 409
 
 
-def no_room_for_plugin_tools(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A model window whose share for plugin tools fits none of them."""
-    monkeypatch.setattr(agent_turn, "window_budget", lambda _window: 1)
-
-
-async def test_a_mentioned_plugin_gives_all_its_tools_past_the_budget_and_is_named(
-    agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """`@notes` is the user's choice: every ready tool of it is given, whatever they cost."""
-    no_room_for_plugin_tools(monkeypatch)
-    await connect_notes(agent_api, notes_url)
-    agent_api.model.replies = [("text", "Counting.")]
-    thread = await open_thread(agent_api)
-
-    await send(agent_api, thread["id"], "How many words? @notes")
-
-    assert offered(agent_api) == ["notes_count", "notes_search"]
-    told = json.dumps(agent_api.model.requests[0]["messages"])
-    assert "The user asked you to use the Notes plugin for this." in told
-    listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
-    assert listed.json()[0]["content"]["text"] == "How many words? @notes"
-
-
-async def test_a_plugin_left_out_for_its_size_is_named_to_the_user_and_the_agent(
-    agent_api: AgentAPI, notes_url: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The agent learns it is connected and how to reach it, rather than saying it is not."""
-    no_room_for_plugin_tools(monkeypatch)
-    await connect_notes(agent_api, notes_url)
-    agent_api.model.replies = [("text", "Hi.")]
-    thread = await open_thread(agent_api)
-
-    frames = await send(agent_api, thread["id"], "Search my notes")
-
-    assert offered(agent_api) == []
-    (notice,) = of_type(frames, "agent-plugins-unavailable")
-    assert notice["plugins"] == [{"title": "Notes", "reason": "left_out"}]
-    told = json.dumps(agent_api.model.requests[0]["messages"])
-    assert "Notes (@notes)" in told
-
-
 async def test_mentioning_a_plugin_never_unblocks_its_tools(
     agent_api: AgentAPI, notes_url: str
 ) -> None:
@@ -569,26 +530,35 @@ async def test_a_call_refused_for_a_missing_scope_names_the_plugin_in_the_turn(
     assert notice["plugins"] == [{"title": "Notes", "reason": "needs_scopes"}]
 
 
-async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway(
-    agent_api: AgentAPI,
+def _recorded_on_sse(engine: Engine, url: str) -> None:
+    """As a plugin connected over SSE before this release was recorded."""
+    with create_session_factory(engine)() as session:
+        plugin = session.get_one(InstalledPlugin, "notes")
+        plugin.url = url
+        plugin.entry = {**plugin.entry, "transport": "sse"}
+        session.commit()
+
+
+async def test_a_plugin_left_on_sse_is_never_moved_nor_offered_to_a_turn(
+    agent_api: AgentAPI, engine: Engine
 ) -> None:
-    """opencode's POST is refused, so it opens the stream, whose endpoint leads back to SurfSense."""
-    with serving(notes_server().sse_app()) as base:
+    """Even with its server answering at `/mcp`: the user replaces it, nothing does it for them."""
+    with serving(notes_server().streamable_http_app()) as base:
         await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         added = await agent_api.http.post(
-            "/plugins/custom", json={"url": f"{base}/sse", "name": "Notes"}
+            "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
         )
         assert added.status_code == 201, added.text
-        await agent_api.http.put(
-            "/plugins/notes/tools/search", json={"approval": "always"}
-        )
-        agent_api.model.replies = [call("notes_search", query="old"), ("text", "Ok.")]
+        _recorded_on_sse(engine, f"{base}/sse")
+        agent_api.model.replies = [("text", "Ok.")]
         thread = await open_thread(agent_api)
 
-        frames = await send(agent_api, thread["id"], "Search")
+        await send(agent_api, thread["id"], "Search")
 
-    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
-    assert of_type(frames, "agent-plugins-unavailable") == []
+    offered = [t["function"]["name"] for t in agent_api.model.requests[0]["tools"]]
+    assert not any(name.startswith("notes_") for name in offered)
+    (plugin,) = (await agent_api.http.get("/plugins")).json()
+    assert (plugin["transport"], plugin["url"]) == ("sse", f"{base}/sse")
 
 
 async def test_a_sign_in_refused_mid_turn_names_the_plugin_in_the_turn(
@@ -642,23 +612,3 @@ async def test_a_tool_blocked_mid_turn_is_refused_by_the_gateway(
     step = of_type(frames, "agent-step")[-1]
     assert step["status"] == "error"
     assert "blocked" in json.dumps(step)
-
-
-async def test_a_plugin_on_the_older_sse_transport_signed_in_with_oauth_is_called(
-    agent_api: AgentAPI,
-) -> None:
-    """As Asana's `/sse`: signed in like any other, then called over SSE through the gateway."""
-    authorization = StandInAuthorizationServer()
-    with serving(authorization.app()) as issuer:
-        authorization.issuer = issuer
-        protected = ProtectedByStandIn(notes_server().sse_app(), authorization)
-        with serving(protected) as base:
-            await sign_in_to_notes(agent_api, f"{base}/sse")
-            agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
-            thread = await open_thread(agent_api)
-
-            frames = await send(agent_api, thread["id"], "Search")
-
-    assert of_type(frames, "agent-plugins-unavailable") == []
-    step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("notes_search", "completed")

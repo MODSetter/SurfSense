@@ -1,13 +1,11 @@
 """The Reddit plugin as the app reaches it: its MCP server on the host, behind the license.
 
-Reddit itself is faked at the scraper's network seam, `fetch_json`, and its proxy
+Reddit itself is faked at the scraper's read seam, `read_listing`, and its proxy
 sessions; the host, the license check, the tool and Reddit's parsing are real.
 """
 
 import json
 import time
-from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx2
@@ -15,33 +13,15 @@ import pytest
 from mcp.client.client import Client
 from mcp.client.streamable_http import streamable_http_client
 
-from host.app import host_app
 from host.tests.mcp_calls import call
-from host.tests.serving import serving
 from mcp_server import progress as progress_module
-from proprietary.license_check.tests.stand_in_keygen import (
-    ACCOUNT,
-    StandInKeygen,
-    accounts_url,
-)
 from proprietary.reddit import fetch, scraper
 from proprietary.reddit.fetch import RedditAccessBlockedError
-
-LICENSE = {"Authorization": "License k-1"}
-
-
-@pytest.fixture
-def reddit(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
-    """The real Reddit plugin on the host, its license checked by a stand-in Keygen."""
-    with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
-        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
-        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
-        with serving(host_app(plugins={"reddit"})) as base:
-            yield f"{base}/reddit/mcp"
+from proprietary.reddit.tests.on_the_host import LICENSE, no_proxy_sessions
 
 
 def post(number: int) -> dict[str, Any]:
-    """One search result as Reddit's `.json` lists it."""
+    """One search result in the listing shape the scraper reads."""
     return {
         "kind": "t3",
         "data": {
@@ -64,29 +44,13 @@ def reddit_answers(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict]]:
     """Reddit answering a search with three posts; keeps each path asked for."""
     asked: list[tuple[str, dict]] = []
 
-    async def fetch_json(path: str, params: dict | None = None) -> Any:
+    async def read_listing(path: str, params: dict | None = None) -> Any:
         asked.append((path, params or {}))
         return {"data": {"children": [post(n) for n in (1, 2, 3)], "after": None}}
 
     no_proxy_sessions(monkeypatch)
-    monkeypatch.setattr(scraper, "fetch_json", fetch_json)
+    monkeypatch.setattr(scraper, "read_listing", read_listing)
     return asked
-
-
-def no_proxy_sessions(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Holder:
-        async def close(self) -> None:
-            pass
-
-    async def open_holder() -> Holder:
-        return Holder()
-
-    @asynccontextmanager
-    async def bind(holder: Holder) -> AsyncIterator[Holder]:
-        yield holder
-
-    monkeypatch.setattr(scraper, "open_proxy_holder", open_holder)
-    monkeypatch.setattr(scraper, "bind_proxy_holder", bind)
 
 
 async def test_it_offers_one_read_only_tool_that_reaches_the_web(reddit: str) -> None:
@@ -176,14 +140,14 @@ async def test_warms_and_fetches_reach_the_client_as_progress(
     """A call spent warming browsers says so, instead of a silent stream."""
     monkeypatch.setattr(progress_module, "INTERVAL_SECONDS", 0.0)
 
-    async def fetch_json(path: str, params: dict | None = None) -> Any:
+    async def read_listing(path: str, params: dict | None = None) -> Any:
         # What fetch.py reports from inside the fan-out's own tasks.
         await fetch._stage("warming an anonymous session (us)")
         await fetch._stage(f"fetching {path}")
         return {"data": {"children": [post(1)], "after": None}}
 
     no_proxy_sessions(monkeypatch)
-    monkeypatch.setattr(scraper, "fetch_json", fetch_json)
+    monkeypatch.setattr(scraper, "read_listing", read_listing)
     heard: list[tuple[float, str | None]] = []
 
     async def on_progress(value: float, total: float | None, message: str | None):
@@ -220,7 +184,7 @@ async def test_reddit_refusing_every_address_reads_as_the_tool_s_error(
         raise RedditAccessBlockedError("every address was refused")
 
     no_proxy_sessions(monkeypatch)
-    monkeypatch.setattr(scraper, "fetch_json", refused)
+    monkeypatch.setattr(scraper, "read_listing", refused)
 
     result = await call(reddit, "scrape", {"search_queries": ["asyncio"]}, LICENSE)
 

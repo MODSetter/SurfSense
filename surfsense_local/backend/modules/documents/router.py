@@ -57,6 +57,8 @@ from modules.documents.tasks import (
     ingest_document,
 )
 from modules.documents.upload_order import cheapest_first
+from modules.documents.web_sources.background_pull.pull_task import pull_web_source
+from modules.documents.web_sources.background_pull.source_link import awaiting_pull
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import EventKind
@@ -68,6 +70,7 @@ from modules.source_roots.managed_root import ensure_managed_root
 from modules.workspaces.dependencies import WorkspaceDep
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
+from shared.queue import plugins_queue, revoke_pending
 from worker.jobs import cancel_ingest_job
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
@@ -441,7 +444,11 @@ def retry_document(
     document.error_message = None
     session.commit()
 
-    ingest_document(document.id)
+    # A link's source with no text yet is pulled again; indexing alone has nothing to read.
+    if awaiting_pull(document):
+        pull_web_source(document.id)
+    else:
+        ingest_document(document.id)
     notify_document_updates(broker, document)
     return document
 
@@ -457,6 +464,8 @@ def cancel_ingest(
     was = document.status
     if not cancel_ingest_job(session, document):
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
+    if awaiting_pull(document):
+        revoke_pending(plugins_queue, "pull_web_source", document.id)
     drop_when_cancelled_in_queue(document, was)
     docling_batches.drop_when_cancelled_in_queue(document, was)
     notify_document_updates(broker, document)

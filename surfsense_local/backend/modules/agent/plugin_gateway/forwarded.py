@@ -3,7 +3,7 @@
 HTTP, not MCP: the runtime's own client keeps its sessions, timeouts and cancellation.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import httpx2
@@ -56,18 +56,26 @@ async def send_on(
         raise
 
 
-def streamed_back(sent: Sent, body: AsyncIterator[bytes] | None = None) -> Response:
-    """`body` in place of the server's own, as the server's is rewritten."""
+def streamed_back(sent: Sent, then: Callable[[], None] | None = None) -> Response:
+    """`then` runs once the answer has ended, streamed whole or cut off."""
     headers = {
         name: sent.answer.headers[name]
         for name in _TO_RUNTIME
         if name in sent.answer.headers
     }
+
+    async def closed() -> None:
+        try:
+            await sent.close()
+        finally:
+            if then is not None:
+                then()
+
     return StreamingResponse(
-        sent.answer.aiter_bytes() if body is None else body,
+        sent.answer.aiter_bytes(),
         status_code=sent.answer.status_code,
         headers=headers,
-        background=BackgroundTask(sent.close),
+        background=BackgroundTask(closed),
     )
 
 
