@@ -25,6 +25,12 @@ function checkLabel(plugin: Plugin) {
       defaultMessage: "Not connected",
     })
   }
+  if (plugin.transport === "sse") {
+    return intl.formatMessage({
+      id: "plugins_row_sse_status",
+      defaultMessage: "Uses the older SSE transport",
+    })
+  }
   if (plugin.check_failure === "unreachable") {
     return intl.formatMessage({
       id: "plugins_row_unreachable_status",
@@ -124,8 +130,20 @@ function statusOf(plugin: Plugin, unused: boolean) {
     tone: plugin.check_failure
       ? TONE_CLASS[checkTone(plugin)]
       : "text-muted-foreground",
-    reason: ownAppReason(plugin),
+    reason: ownAppReason(plugin) ?? sseReason(plugin),
   }
+}
+
+function sseReason(plugin: Plugin) {
+  if (plugin.transport !== "sse") return null
+  return intl.formatMessage(
+    {
+      id: "plugins_row_sse_body",
+      defaultMessage:
+        "{plugin} answers only on the older SSE transport, which SurfSense no longer supports, and nothing answered at its Streamable HTTP address. Remove it and connect that address, which often ends in /mcp.",
+    },
+    { plugin: plugin.name }
+  )
 }
 
 function ownAppReason(plugin: Plugin) {

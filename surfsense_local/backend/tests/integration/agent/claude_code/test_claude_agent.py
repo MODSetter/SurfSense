@@ -137,13 +137,13 @@ async def test_claude_code_works_in_the_threads_folder_with_surfsenses_tools(
     assert servers["surfsense"]["headers"]["Authorization"].startswith("Bearer ")
 
 
-async def test_a_plugin_on_the_older_sse_transport_is_given_as_one(
+async def test_a_plugin_still_on_the_older_sse_transport_is_not_given(
     client: AsyncClient,
     engine: Engine,
     claude_on_this_machine,
     claude_agent: ClaudeAgent,
 ) -> None:
-    """Claude Code names the transport; opencode finds it from the same URL itself."""
+    """Claude Code still speaks SSE, but opencode does not: a thread behaves alike on either."""
     connect_plugin(engine, "https://localhost:1/sse", transport="sse")
     claude_agent.turns = [[Say("Hi.")]]
     thread = await _agentic_thread(client, claude_on_this_machine)
@@ -152,7 +152,7 @@ async def test_a_plugin_on_the_older_sse_transport_is_given_as_one(
 
     (run,) = claude_agent.started
     servers = json.loads(Path(run.options.mcp_servers).read_text())["mcpServers"]
-    assert servers["notes"]["type"] == "sse"
+    assert "notes" not in servers
 
 
 async def test_claude_code_is_given_the_gateway_and_never_a_plugins_key(

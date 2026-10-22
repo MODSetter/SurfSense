@@ -7,11 +7,14 @@ from contextlib import contextmanager
 import httpx
 import pytest
 from mcp_types import ToolAnnotations
+from sqlalchemy import Engine
 
 from modules.agent.agent_threads import turn as agent_turn
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.plugin_gateway import upstream_headers
+from modules.plugins.installed.models import InstalledPlugin
 from shared.config import get_plugin_host_settings
+from shared.db import create_session_factory
 from tests.integration.agent.conftest import AgentAPI
 from tests.integration.agent.test_agent_threads import (
     hang_up_mid_turn,
@@ -569,19 +572,29 @@ async def test_a_call_refused_for_a_missing_scope_names_the_plugin_in_the_turn(
     assert notice["plugins"] == [{"title": "Notes", "reason": "needs_scopes"}]
 
 
-async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway(
-    agent_api: AgentAPI,
+def _recorded_on_sse(engine: Engine, url: str) -> None:
+    """As a plugin connected over SSE before this release was recorded."""
+    with create_session_factory(engine)() as session:
+        plugin = session.get_one(InstalledPlugin, "notes")
+        plugin.url = url
+        plugin.entry = {**plugin.entry, "transport": "sse"}
+        session.commit()
+
+
+async def test_a_plugin_recorded_on_sse_is_moved_to_mcp_before_its_turn_and_called(
+    agent_api: AgentAPI, engine: Engine
 ) -> None:
-    """opencode's POST is refused, so it opens the stream, whose endpoint leads back to SurfSense."""
-    with serving(notes_server().sse_app()) as base:
+    """The turn's check finds its server's Streamable HTTP address first."""
+    with serving(notes_server().streamable_http_app()) as base:
         await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         added = await agent_api.http.post(
-            "/plugins/custom", json={"url": f"{base}/sse", "name": "Notes"}
+            "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
         )
         assert added.status_code == 201, added.text
         await agent_api.http.put(
             "/plugins/notes/tools/search", json={"approval": "always"}
         )
+        _recorded_on_sse(engine, f"{base}/sse")
         agent_api.model.replies = [call("notes_search", query="old"), ("text", "Ok.")]
         thread = await open_thread(agent_api)
 
@@ -589,6 +602,27 @@ async def test_a_plugin_on_the_older_sse_transport_is_called_through_the_gateway
 
     assert of_type(frames, "agent-step")[-1]["status"] == "completed"
     assert of_type(frames, "agent-plugins-unavailable") == []
+
+
+async def test_a_plugin_left_on_sse_is_never_offered_to_a_turn(
+    agent_api: AgentAPI, engine: Engine
+) -> None:
+    """Nothing answers at its `/mcp`, so no engine could call it."""
+    with serving(notes_server().streamable_http_app()) as base:
+        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
+        added = await agent_api.http.post(
+            "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
+        )
+        assert added.status_code == 201, added.text
+    with serving(notes_server().sse_app()) as base:
+        _recorded_on_sse(engine, f"{base}/sse")
+        agent_api.model.replies = [("text", "Ok.")]
+        thread = await open_thread(agent_api)
+
+        await send(agent_api, thread["id"], "Search")
+
+    offered = [t["function"]["name"] for t in agent_api.model.requests[0]["tools"]]
+    assert not any(name.startswith("notes_") for name in offered)
 
 
 async def test_a_sign_in_refused_mid_turn_names_the_plugin_in_the_turn(
@@ -642,23 +676,3 @@ async def test_a_tool_blocked_mid_turn_is_refused_by_the_gateway(
     step = of_type(frames, "agent-step")[-1]
     assert step["status"] == "error"
     assert "blocked" in json.dumps(step)
-
-
-async def test_a_plugin_on_the_older_sse_transport_signed_in_with_oauth_is_called(
-    agent_api: AgentAPI,
-) -> None:
-    """As Asana's `/sse`: signed in like any other, then called over SSE through the gateway."""
-    authorization = StandInAuthorizationServer()
-    with serving(authorization.app()) as issuer:
-        authorization.issuer = issuer
-        protected = ProtectedByStandIn(notes_server().sse_app(), authorization)
-        with serving(protected) as base:
-            await sign_in_to_notes(agent_api, f"{base}/sse")
-            agent_api.model.replies = [call("notes_search", query="x"), ("text", "Ok.")]
-            thread = await open_thread(agent_api)
-
-            frames = await send(agent_api, thread["id"], "Search")
-
-    assert of_type(frames, "agent-plugins-unavailable") == []
-    step = of_type(frames, "agent-step")[-1]
-    assert (step["tool"], step["status"]) == ("notes_search", "completed")

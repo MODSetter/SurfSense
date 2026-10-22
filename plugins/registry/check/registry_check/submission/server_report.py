@@ -22,6 +22,7 @@ from registry_check.live.server_contact import (
     NotMcp,
     SignInAsked,
     Unreachable,
+    answers_sse,
     contact,
 )
 
@@ -34,8 +35,6 @@ class ServerReport:
     tools: list[str] | None
     problems: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    # `sse` when it answered only on the older HTTP+SSE transport.
-    transport: str = "streamable_http"
 
 
 # What a server without Streamable HTTP answers its POST, as the app reads it.
@@ -44,12 +43,17 @@ NOT_STREAMABLE = {400, 404, 405}
 
 async def report_server(url: str) -> ServerReport:
     host = urlsplit(url).hostname or ""
-    transport = "streamable_http"
     reached = await contact(url)
-    if isinstance(reached, NotMcp) and reached.status in NOT_STREAMABLE:
-        older = await contact(url, "sse")
-        if isinstance(older, Listed | SignInAsked):
-            transport, reached = "sse", older
+    if (
+        isinstance(reached, NotMcp)
+        and reached.status in NOT_STREAMABLE
+        and await answers_sse(url)
+    ):
+        return _refused(
+            host,
+            "answers only the older HTTP+SSE transport, which SurfSense does not "
+            "speak. Give its Streamable HTTP address, which often ends in /mcp",
+        )
     match reached:
         case Unreachable(reason):
             return _refused(host, f"could not be reached: {reason}")
@@ -65,14 +69,12 @@ async def report_server(url: str) -> ServerReport:
             )
         case SignInAsked():
             report = await _signing_in(url, host)
-    report.transport = transport
     found = await server_findings(
         {
             "url": url,
             "auth": report.auth,
             "hosts": report.hosts,
             "tools": report.tools,
-            "transport": transport,
         }
     )
     report.problems += found.problems

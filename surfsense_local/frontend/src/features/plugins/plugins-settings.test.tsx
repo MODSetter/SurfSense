@@ -70,7 +70,6 @@ function listed(extra: Partial<RegistryEntry> = {}): RegistryEntry {
     auth_description: null,
     auth_headers: [],
     user_client: false,
-    transport: "streamable_http",
     hosts: ["wiki.example"],
     server_host: "wiki.example",
     sign_in_hosts: [],

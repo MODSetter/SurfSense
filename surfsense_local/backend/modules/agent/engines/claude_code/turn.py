@@ -63,7 +63,7 @@ from modules.agent.plugin_tools.changed_tools import (
 )
 from modules.agent.plugin_tools.mentions import mention_note, mentioned_plugins
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
-from modules.agent.plugin_tools.stop_plugin_calls import HostCalls, stop_plugin_calls
+from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
 from modules.agent.thread_folder.sync import ThreadGoneError, sync_thread_folder
@@ -91,7 +91,6 @@ from modules.llm.subscriptions.claude.usable_claude import usable_claude
 from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.plugins.installed.models import PluginTool
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
-from modules.plugins.remote.mcp_client.transports import SSE
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -226,7 +225,6 @@ async def _stream(
     frames = TurnFrames(session_id)
     shape = OpencodeShape(session_id)
     waiting: set[str] = set()
-    host_calls = HostCalls()
     tools = _Tools()
     held: HeldRun | None = None
     pump: asyncio.Task | None = None
@@ -344,7 +342,6 @@ async def _stream(
             for event in read:
                 for frame in frames.frames(event):
                     follow_approvals(run, waiting, frame)
-                    host_calls.follow(frame, tools.plugins)
                     if frame.get("artifact") is not None:
                         await transact(session, link_live_render, workspace_id, frame)
                     yield _frame(frame)
@@ -388,8 +385,6 @@ async def _stream(
             if stopped:
                 await transact(session, record_ending, thread_id, reply, STOPPED)
                 await stop_plugin_calls(tools.plugins)
-            else:
-                host_calls.end()
             setup.runs.release(thread_id)
             await run_in_threadpool(drop_transcript, session_id)
 
@@ -479,7 +474,7 @@ def _servers(
     }
     for plugin in plugins:
         servers[plugin.name] = {
-            "type": "sse" if plugin.transport == SSE else "http",
+            "type": "http",
             "url": plugin.url,
             "headers": plugin.headers,
         }

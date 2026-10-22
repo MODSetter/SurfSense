@@ -57,10 +57,7 @@ from modules.agent.plugin_tools.mentions import (
     mentioned_plugins,
 )
 from modules.agent.plugin_tools.refreshed_sign_ins import refresh_sign_ins
-from modules.agent.plugin_tools.stop_plugin_calls import (
-    HostCalls,
-    stop_plugin_calls,
-)
+from modules.agent.plugin_tools.stop_plugin_calls import stop_plugin_calls
 from modules.agent.plugin_tools.tool_budget import window_budget
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin, turn_plugins
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
@@ -210,7 +207,6 @@ async def _stream(
     turn = TurnFrames(session_id)
     # Approvals asked and not yet answered: the turn waits on the user meanwhile.
     waiting: set[str] = set()
-    host_calls = HostCalls()
     sent = False
     plugins: list[TurnPlugin] = []
     live_instances.turn_began(folder)
@@ -309,7 +305,6 @@ async def _stream(
                         continue
                     for frame in turn.frames(event):
                         follow_approvals(run, waiting, frame)
-                        host_calls.follow(frame, plugins)
                         if frame.get("artifact") is not None:
                             # Whether it made the document, as the stored step says.
                             await transact(
@@ -375,8 +370,6 @@ async def _stream(
                 # opencode stores a Stop as it stores a quit: only this note tells them apart.
                 await _note_stop(client, session_id, turn.user_message_id)
                 await stop_plugin_calls(plugins)
-            else:
-                host_calls.end()
             if sent and not turn.finished:
                 try:
                     await client.abort(session_id)

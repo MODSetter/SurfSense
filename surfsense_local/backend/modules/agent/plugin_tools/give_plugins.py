@@ -12,7 +12,10 @@ from pathlib import Path
 import httpx
 
 from modules.agent.opencode_client import OpencodeClient
-from modules.agent.plugin_tools.connect_limit import CONNECT_SECONDS
+from modules.agent.plugin_tools.connect_limit import (
+    CONNECT_SECONDS,
+    OPENCODE_CONNECT_SECONDS,
+)
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
@@ -78,6 +81,7 @@ async def give_plugins(
                         if plugin.on_plugin_host
                         else TOOL_CALL_SECONDS
                     ),
+                    connect_seconds=OPENCODE_CONNECT_SECONDS,
                 ),
                 CONNECT_SECONDS,
             )

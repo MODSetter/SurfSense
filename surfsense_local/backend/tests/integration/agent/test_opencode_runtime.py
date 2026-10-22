@@ -11,10 +11,10 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from modules.agent import opencode_config, opencode_runtime
 from modules.agent.model_window import selected_model_window
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
-from modules.agent import opencode_config, opencode_runtime
 from modules.agent.opencode_runtime import AgentUnavailableError, ready_opencode
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
@@ -289,6 +289,8 @@ async def test_a_value_opencode_refuses_stops_the_turn_rather_than_the_agent_van
     monkeypatch.setattr(opencode_config, "opencode_config", with_a_refused_value)
 
     task = asyncio.create_task(ready_opencode(session, launch_key="key"))
-    with StandInForElectron(agent_dir, port, password):
-        with pytest.raises(AgentUnavailableError, match="as written"):
-            await task
+    with (
+        StandInForElectron(agent_dir, port, password),
+        pytest.raises(AgentUnavailableError, match="as written"),
+    ):
+        await task

@@ -14,6 +14,7 @@ import httpx
 
 from api.config import get_settings
 from modules.agent.opencode_client import OpencodeClient
+from modules.agent.plugin_tools.connect_limit import OPENCODE_CONNECT_SECONDS
 from modules.agent.plugin_tools.given_servers import (
     given_as,
     remember_given,
@@ -22,12 +23,11 @@ from modules.agent.plugin_tools.given_servers import (
 
 # The tools reach the model as `<server>_<tool>`: surfsense_search_sources.
 SERVER = "surfsense"
-# Unset, a tool call gets the MCP SDK's 60 s (opencode's own 30 s default covers
-# connecting and listing only). A render waits up to 150 s for its job, then up
-# to 30 s for a Word preview, inside render_document.CALL_SECONDS.
+# A tool call's hard limit: opencode's own is 12 hours, and progress no longer
+# extends it. A render waits up to 150 s for its job, then up to 30 s for a Word
+# preview, inside render_document.CALL_SECONDS.
 TOOL_CALL_SECONDS = 200
-# A call to a plugin on SurfSense's plugin host: a scrape can run minutes, and opencode
-# ends a call this long without progress.
+# A call to a plugin on SurfSense's plugin host: a scrape can run minutes.
 PLUGIN_CALL_SECONDS = 300
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,12 @@ async def register_thread_tools(
         return False
     try:
         status = await client.add_tool_server(
-            folder, SERVER, url, headers, timeout_seconds=TOOL_CALL_SECONDS
+            folder,
+            SERVER,
+            url,
+            headers,
+            timeout_seconds=TOOL_CALL_SECONDS,
+            connect_seconds=OPENCODE_CONNECT_SECONDS,
         )
     except httpx.HTTPError:
         remember_given(folder, SERVER, None)

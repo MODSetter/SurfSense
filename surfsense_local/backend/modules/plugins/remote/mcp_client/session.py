@@ -1,4 +1,4 @@
-"""A plugin's MCP server, listed through the official SDK's client over its transport.
+"""A plugin's MCP server, listed through the official SDK's client over Streamable HTTP.
 
 SurfSense lists a plugin's tools itself, to connect it and to notice tools that change;
 the agent's opencode calls them with its own client. Each listing opens its own SDK
@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 
 import httpx2
 from mcp.client.client import Client
-from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import MCPError
 
@@ -20,24 +19,13 @@ from modules.plugins.remote.mcp_client.retries import retried
 from modules.plugins.remote.mcp_client.scope_challenge import challenged_scopes
 from modules.plugins.remote.mcp_client.sdk_errors import translated
 from modules.plugins.remote.mcp_client.session_expired import SessionExpiredError
-from modules.plugins.remote.mcp_client.transports import (
-    SSE,
-    STREAMABLE_HTTP,
-    Transport,
-)
 from modules.plugins.remote.mcp_client.unwrapped import unwrapped
 
 
 class McpSession:
-    def __init__(
-        self,
-        url: str,
-        headers: dict[str, str] | None = None,
-        transport: Transport = STREAMABLE_HTTP,
-    ) -> None:
+    def __init__(self, url: str, headers: dict[str, str] | None = None) -> None:
         self._url = url
         self._headers = headers or {}
-        self._transport = transport
 
     async def list_tools(self) -> list[RemoteTool]:
         return await retried(self._list_in_fresh_session)
@@ -86,23 +74,6 @@ class McpSession:
         self, on_response: Callable[[httpx2.Response], Awaitable[None]]
     ) -> AsyncIterator[Client]:
         hooks = {"response": [on_response]}
-        if self._transport == SSE:
-
-            def http_client(
-                headers=None, timeout=None, auth=None
-            ) -> httpx2.AsyncClient:
-                return httpx2.AsyncClient(
-                    headers=headers, timeout=timeout, auth=auth, event_hooks=hooks
-                )
-
-            # The SDK refuses an `endpoint` event on another origin, so a server cannot
-            # point SurfSense at a host the user did not allow.
-            transport = sse_client(
-                self._url, headers=self._headers, httpx_client_factory=http_client
-            )
-            async with Client(transport) as client:
-                yield client
-            return
         async with (
             httpx2.AsyncClient(headers=self._headers, event_hooks=hooks) as http,
             Client(streamable_http_client(self._url, http_client=http)) as client,
@@ -141,7 +112,7 @@ def _stream_refused(
     reasons: list[str | None],
     scopes: list[list[str] | None],
 ) -> Exception:
-    """The SSE client raises a refused stream as is: kept as the status it answered."""
+    """A stream refused outright is raised as is: kept as the status it answered."""
     return refused(
         error.response.status_code,
         reasons[-1] if reasons else None,

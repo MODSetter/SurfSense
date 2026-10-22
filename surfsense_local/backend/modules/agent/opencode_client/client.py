@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -17,6 +18,9 @@ _TIMEOUT = httpx.Timeout(30.0, connect=5.0)
 _HEALTH_TIMEOUT = httpx.Timeout(3.0, connect=2.0)
 # The most opencode returns in one page of a listing.
 _PAGE = 200
+# opencode rebuilds what a step is offered 100 ms after a server connects
+# (core/src/tool/mcp.ts); a prompt sent before then starts without its tools.
+_TOOLS_SETTLE_SECONDS = 0.4
 
 
 class OpencodeVersionError(RuntimeError):
@@ -191,17 +195,26 @@ class OpencodeClient:
         headers: dict[str, str],
         *,
         timeout_seconds: int,
+        connect_seconds: int,
     ) -> str:
         """Point the folder's opencode at a remote MCP server; its status once it tried to connect.
 
         Kept by that folder's instance alone, and forgotten when the instance goes.
-        A call to one of its tools fails after `timeout_seconds`.
+        A call to one of its tools fails after `timeout_seconds`, and connecting
+        after `connect_seconds`.
+
+        Added on, a server is connected under one lock with every other being
+        added to the folder, and listing waits on each (core/src/mcp/index.ts),
+        so one that hangs would hold the rest. Added off, then connected, each
+        connects on its own, and the connect answers once it has.
         """
+        location = _located(directory)
         added = await self._http.put(
             f"/api/experimental/mcp/{name}",
-            params=_located(directory),
+            params=location,
             json={
                 "config": {
+                    "disabled": True,
                     "type": "remote",
                     "url": url,
                     "headers": headers,
@@ -209,12 +222,24 @@ class OpencodeClient:
                     "oauth": False,
                     # Code Mode would store no output and link no approval to its calls.
                     "codemode": False,
-                    "timeout": {"execution": timeout_seconds * 1000},
+                    "timeout": {
+                        "startup": connect_seconds * 1000,
+                        "execution": timeout_seconds * 1000,
+                    },
                 }
             },
         )
         added.raise_for_status()
-        return (await self.tool_servers(directory)).get(name, "unknown")
+        connected = await self._http.post(
+            f"/api/experimental/mcp/{name}/connect",
+            params=location,
+            timeout=httpx.Timeout(connect_seconds + 10.0, connect=5.0),
+        )
+        connected.raise_for_status()
+        status = (await self.tool_servers(directory)).get(name, "unknown")
+        if status == "connected":
+            await asyncio.sleep(_TOOLS_SETTLE_SECONDS)
+        return status
 
     async def tool_servers(self, directory: Path) -> dict[str, str]:
         """Each MCP server the folder's instance holds, by name, with its status."""

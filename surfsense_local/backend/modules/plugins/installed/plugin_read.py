@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from modules.plugins.installed.models import InstalledPlugin, PluginTool
 from modules.plugins.lists.registry.delisted import delisted_reason, delisted_reasons
-from modules.plugins.remote.mcp_client.transports import entry_transport
+from modules.plugins.remote.mcp_client.transports import SSE, recorded_on_sse
 from modules.plugins.remote.sign_in.headers.headers_credential import header_names
 
 
@@ -33,7 +33,8 @@ class PluginRead(BaseModel):
     auth_type: str
     # A `headers` plugin's header names, never their values; empty otherwise.
     header_names: list[str] = []
-    # `streamable_http`, or `sse` for a server on the older HTTP+SSE transport.
+    # `sse` for a plugin still recorded on the older HTTP+SSE transport, which no
+    # engine speaks: it could not be moved to its Streamable HTTP address.
     transport: str = "streamable_http"
     # Scopes the server's `403 insufficient_scope` asked for; Sign in again asks for them.
     needs_scopes: list[str] = []
@@ -74,7 +75,7 @@ def read_plugin(
         hosts=plugin.entry.get("hosts", []),
         auth_type=plugin.credential_kind or "none",
         header_names=header_names(plugin),
-        transport=entry_transport(plugin.entry),
+        transport=SSE if recorded_on_sse(plugin.entry) else "streamable_http",
         needs_scopes=plugin.entry.get("auth", {}).get("needs_scopes", []),
         own_app=plugin.entry.get("auth", {}).get("own_app") is True,
         needs_own_app=plugin.entry.get("auth", {}).get("needs_own_app"),
