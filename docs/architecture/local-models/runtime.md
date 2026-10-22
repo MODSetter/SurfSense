@@ -347,7 +347,7 @@ logs one line per reply from it, such as `qwen3 reused 5442 of 5476 prompt
 tokens` ([`prompt_reuse.py`](../../../surfsense_local/backend/modules/llm/providers/prompt_reuse.py)),
 so a prompt that stopped matching what the runtime holds shows as a number
 rather than as a slow answer. Nothing is asked for it, and nothing leaves the
-machine ([ADR 0016](../../adr/0016-no-telemetry.md)).
+machine; the opt-in usage report carries no such number ([ADR 0068](../../adr/0068-opt-in-id-less-update-checks-and-usage-statistics.md)).
 
 ## The provider
 

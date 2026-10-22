@@ -1,6 +1,6 @@
 # Contracts
 
-A contract is a frozen file describing something that crosses from one tree to another. Each side builds and tests against the file and its fixture, not against the other side's code. These four were frozen for the 2.0 launch.
+A contract is a frozen file describing something that crosses from one tree to another. Each side builds and tests against the file and its fixture, not against the other side's code. The first four were frozen for the 2.0 launch.
 
 | # | Contract | Producer | Consumer | In use since |
 |---|---|---|---|---|
@@ -8,6 +8,7 @@ A contract is a frozen file describing something that crosses from one tree to a
 | 2 | [Scraper API auth](02-scraper-api-auth.md) | the plugin host; `surfsense_backend` capabilities routes | the desktop app; `surfsense_mcp` | plugin host and app since 2.2.1; backend and MCP not built |
 | 3 | [Export bundle](03-export-bundle.md) | `surfsense_backend` export | `surfsense_local` import | 2.0.0 |
 | 4 | [Sunset flag](04-sunset-flag.md) | `surfsense_backend` `/health` | legacy desktop v0.0.40, whose source is at tag `archive/hosted-2026-09` | v0.0.40, 12 Sep 2026; the flag reads `true` from T-0, 18 Sep 2026 |
+| 5 | [Desktop telemetry](05-desktop-telemetry.md) | Electron main (the update check and the usage report); `surfsense_local` backend (the local summary) | `surfsense_web`'s `/api/updates` and `/api/usage` routes; the app's UI (the bridge) | not released |
 
 ## Fixtures
 

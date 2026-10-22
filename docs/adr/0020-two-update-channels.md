@@ -1,6 +1,6 @@
 # ADR 0020: The new app and the legacy app share one release feed and are kept apart by update channel
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0068](0068-opt-in-id-less-update-checks-and-usage-statistics.md): the manifest is read through `updates.surfsense.com`, with GitHub behind it, and the automatic check runs once a UTC day
 - **Date:** 2026-09-12
 - **Source:** [Pivot plan L81–82](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L81-L82), [Pivot plan L232](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L232), [Pivot plan L303](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L303), [Release guide L3–5](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/surfsense_local/RELEASE.md#L3-L5), [Release guide L83–103](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/surfsense_local/RELEASE.md#L83-L103)
 
