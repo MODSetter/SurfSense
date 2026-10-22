@@ -55,6 +55,8 @@ Scoped by branch, not by path:
 | `code-quality.yml` | `pull_request: branches: [legacy]` |
 
 - **Tags are `legacy-v0.0.41`, never `v0.0.41`.** Tags are repo-wide, and a `v0.0.41` would sit beside `v2.2.3`.
+- **`docker-build.yml` reads the new prefix.** Today it only knows `v*` and `beta-v*`, so a `legacy-v*` tag would build nothing. Its `image_version` job runs on `refs/tags/legacy-v*`, strips `refs/tags/legacy-v` to get the version, and the `latest=` flavor matches `refs/tags/legacy-v`, so a fix moves `latest` for the installs that pull it.
+- **The images keep their names.** `ghcr.io/modsetter/surfsense-backend`, `surfsense-web` and `surfsense-sandbox` are pushed from the `legacy` branch as before, and every published tag stays. The new stack publishes `ghcr.io/modsetter/surfsense`, so the two never share a tag.
 - **A legacy tag starts no desktop release.** A tag runs the workflows in the commit it points at, and `legacy` has no `release-local.yml`.
 - **Branch protection on `legacy`** requires the legacy gates; the protection on `dev` and `main` no longer lists them.
 
