@@ -36,6 +36,7 @@ Facts below were checked against opencode at tag [`v2.1.2`](https://github.com/a
 - **Native tool search where the provider gives it.** The Claude plan has it today. The ChatGPT plan's endpoint refuses `tool_search`, so it takes the policy above. API models move to their provider's search once opencode can send deferred tools ([tool calls](04-tool-calls.md#native-tool-search)).
 - **SSE-only plugins are dropped, on both engines.** opencode 2.x's MCP client speaks Streamable HTTP only, and the Claude plan engine refuses them too so a thread behaves the same on either ([plugins](05-plugins.md#sse)).
 - **Plain `serve`.** `serve --service` resumes an interrupted turn after a restart, including one the user declined ([launch](01-packaging-and-launch.md#launch)).
+- **Two experimental features, on purpose.** Adding an MCP server at runtime, which keeps one URL and key per thread, and `experimental.todo`. Each is pinned with the version, guarded by a test that fails if a release changes it, and has a stable way out: servers in the configuration file, or todos off ([plugins](05-plugins.md#registration), [configuration](03-config-and-permissions.md#keys)). Nothing else experimental is used.
 - **Todos stay on.** 2.x turns `todowrite` off unless `experimental.todo` is set; 1.x offers it today, and the thread shows its steps as "Updated its plan" ([configuration](03-config-and-permissions.md#keys)).
 
 ## What gets better

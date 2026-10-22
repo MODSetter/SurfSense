@@ -22,7 +22,7 @@
 | `POST /mcp?directory=` | `PUT /api/experimental/mcp/:name` with the location ([plugins](05-plugins.md)) |
 | `GET /mcp`, `POST /mcp/:name/disconnect` | `GET /api/mcp` with the location, a list whose `status` is an object; `DELETE /api/experimental/mcp/:name` |
 
-The MCP routes are marked experimental upstream; nothing else SurfSense uses is.
+The MCP routes that add and remove a server are the only experimental routes SurfSense uses: opencode's API audit files them as "Experimental-only", a runtime override outside the stable API ([`V2_HTTP_API_AUDIT.md`](https://github.com/anomalyco/opencode/blob/v2.1.2/V2_HTTP_API_AUDIT.md)). They are used on purpose ([plugins](05-plugins.md#registration)). Migration progress is not read from `/api/experimental/migration/v1`: a known 1.x session answering `404` is retried briefly instead ([migration](07-migration-and-rollout.md#existing-threads)).
 
 ## Events
 

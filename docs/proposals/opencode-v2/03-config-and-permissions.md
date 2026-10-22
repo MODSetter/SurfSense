@@ -16,7 +16,7 @@
 | `permission` map | `permissions`, an ordered list (below) |
 | `enabled_providers` | `policies`: `provider.use` denied for `*`, allowed for `surfsense` |
 | `snapshot`, `autoupdate`, `skills.paths` | `snapshots`, `update`, `skills: [...]` |
-| `todowrite`, on by default | `experimental.todo: true`; off by default in 2.x, and an experimental key that a later release may change. Its description is 512 characters, against 2,012 in 1.x |
+| `todowrite`, on by default | `experimental.todo: true`; off by default in 2.x, and an experimental key a later release may change, used on purpose: if it goes, todos turn off and nothing else breaks, and a test shows it at the version bump. Its description is 512 characters, against 2,012 in 1.x |
 | `OPENCODE_DISABLE_DEFAULT_PLUGINS`, `OPENCODE_PURE` | `plugins: ["-opencode.provider.ollama", "-opencode.provider.lmstudio", "-opencode.provider.vllm", "-opencode.skill", "-opencode.tools"]` |
 
 The minus-list matters: without the first three, 2.x probes Ollama, LM Studio and vLLM on loopback every 30 s from a folder's first use; without the last two it lists its own `opencode` and `report` skills and tells the model to use `execute`. With all five the system prompt fell from 2,412 to 1,546 characters. An unknown id is ignored silently.

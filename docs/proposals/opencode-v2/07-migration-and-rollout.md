@@ -2,7 +2,7 @@
 
 ## Existing threads
 
-2.x uses the same `opencode.db` under its data folder and imports 1.x's sessions into it on first start, in place, in under a second for a few sessions ([`core/src/database/v1-migration.bun.ts`](https://github.com/anomalyco/opencode/blob/v2.1.2/packages/core/src/database/v1-migration.bun.ts)); progress is at `GET /api/experimental/migration/v1`. Measured on macOS and Windows:
+2.x uses the same `opencode.db` under its data folder and imports 1.x's sessions into it on first start, in place, in under a second for a few sessions ([`core/src/database/v1-migration.bun.ts`](https://github.com/anomalyco/opencode/blob/v2.1.2/packages/core/src/database/v1-migration.bun.ts)). Its progress route is experimental and not used: a thread whose 1.x session answers `404` right after the first start is retried for a few seconds before it is treated as gone. Measured on macOS and Windows:
 
 - Session ids, titles, folders and metadata are kept, so `chat_threads.opencode_session_id` stays valid and endings recorded on a session survive.
 - A session's permission rules are dropped; the backend sends them again before the session's next turn.

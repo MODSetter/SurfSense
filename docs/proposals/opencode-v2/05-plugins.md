@@ -6,6 +6,8 @@ Plugins keep reaching opencode through SurfSense's gateway, one URL per plugin p
 
 `PUT /api/experimental/mcp/:name` with the thread's folder and `{config: {type: "remote", url, headers, oauth: false, codemode: false, timeout: {startup, catalog, execution}}}` ([`registration.py`](../../../surfsense_local/backend/modules/agent/tool_endpoint/registration.py), [`give_plugins.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/give_plugins.py)). It answers 204 whether or not the server connected, so the backend reads `GET /api/mcp` for `connected`, and waits for it before the first prompt: a prompt sent within about 120 ms of the `PUT` starts without the server's tools. A `PUT` without the folder silently registers into the server's own working folder.
 
+The route is experimental upstream, and used on purpose. It keeps one URL and one key per thread, a key that opens that thread's tools and nothing else ([ADR 0064](../../adr/0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md)), and touches only the thread being prepared, as 1.x's runtime route does today. The stable way, servers declared under `mcp.servers` in the configuration file, would give every thread the same URL, leave telling threads apart to the session id opencode sends, which its docs say not to rely on for security, and rewrite a file every thread reads at each connect. The version is pinned, an integration test fails if a new release changes the route, and the configuration file is the way out if one removes it.
+
 2.x's MCP client sends protocol `2025-11-25`, `_meta {"ai.opencode/sessionID", progressToken}` on each `tools/call`, and accepts the gateway's 405 to `GET`.
 
 ## SSE
