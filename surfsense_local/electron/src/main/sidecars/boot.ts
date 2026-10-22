@@ -22,6 +22,7 @@ import {
   OPENCODE_SIDECAR,
 } from "./opencode.ts"
 import { recordOpencodeFailure } from "./opencode-failure.ts"
+import { oneSpelling } from "./opencode-folder-spelling.ts"
 import { prepareOpencodeHome } from "./opencode-home.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./opencode-leftovers.ts"
 import { OpencodeRestarts } from "./opencode-restarts.ts"
@@ -141,7 +142,7 @@ export async function bootSidecars(
     ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
     // opencode's way out, which the API serves and which refuses every host.
     ctx.opencodeProxyPort = await getFreePort(host)
-    ctx.agentDir = join(dataDir, "agent")
+    ctx.agentDir = oneSpelling(join(dataDir, "agent"))
     mkdirSync(ctx.agentDir, { recursive: true })
     await stopLeftoverOpencode(ctx.agentDir, host)
     // Each run's API writes its own; the last run's names a key this one never made.
