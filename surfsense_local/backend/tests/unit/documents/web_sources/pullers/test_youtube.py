@@ -32,6 +32,7 @@ def video(**changed: object) -> dict:
         "date": "2026-03-02T10:00:00Z",
         "duration": "00:03:12",
         "viewCount": 120400,
+        "likes": 4100,
         "text": "A short film about the moon and the sea.",
         "subtitles": [
             {
@@ -114,6 +115,7 @@ def test_a_video_is_written_with_its_transcript_and_comments() -> None:
 - **Published:** 2026-03-02T10:00:00Z
 - **Duration:** 00:03:12
 - **Views:** 120,400
+- **Likes:** 4,100
 - **Link:** https://www.youtube.com/watch?v=tide1
 
 ## Description

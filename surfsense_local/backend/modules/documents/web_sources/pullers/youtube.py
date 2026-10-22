@@ -60,6 +60,7 @@ def _written(url: str, results: Results) -> Pulled | None:
             ("Published", video.get("date")),
             ("Duration", video.get("duration")),
             ("Views", video.get("viewCount")),
+            ("Likes", video.get("likes")),
             ("Link", video.get("url") or url),
         ],
         [

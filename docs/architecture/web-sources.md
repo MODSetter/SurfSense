@@ -81,7 +81,7 @@ A pull that fails marks the note `failed` with a sentence the panel shows:
 - **TikTok short links.** `vm.tiktok.com` and `vt.tiktok.com` are refused. Following them would need a consent beyond the plugin host's.
 - **Reddit and Instagram** have no puller. Their plugins are not listed ([plugin host](plugin-host.md#known-gaps)), so their links are read by Web Crawl as pages.
 - **Amazon reviews.** An Amazon source holds only the reviews on the product page: the plugin takes no count of them.
-- **Subtitle language.** YouTube subtitles are asked for in English, the plugin's default. A video without an English track has no transcript.
+- **Transcript language.** The YouTube pull asks the plugin for English subtitles, its default, so a video without an English track, such as a French one, has no transcript. The source should hold the original-language transcript: a person-written track in the spoken language, else the auto-generated one, never a translation. That needs an `original` mode in the YouTube plugin (`subtitles_language`), with no translation call for it. The plugin host must ship that mode before the app sends it.
 - **YouTube live links.** A `/live/<id>` link is opened as a list, which the plugin cannot read, so its group comes back failed.
 - **List pages cost more each time.** Page 2 of a list reads 60 items to show the last 20, since plugins take a count, not an offset.
 - **No refresh.** A source cannot be refreshed from its link.
