@@ -14,12 +14,17 @@ The route is experimental upstream, and used on purpose. It keeps one URL and on
 
 2.x's client speaks Streamable HTTP only. Against an SSE-only server it posts `initialize`, gets 405 and marks the server failed; it never sends the `GET` that [`sse_endpoint.py`](../../../surfsense_local/backend/modules/agent/plugin_gateway/sse_endpoint.py) rewrites. The same gateway works on 1.18.34.
 
-SSE-only plugins are no longer supported, in one release with the opencode change:
+SurfSense stops speaking SSE altogether, in one release with the opencode change. MCP deprecated HTTP+SSE in its 2025-03-26 revision, and keeping it would mean a bridge in the gateway that SurfSense alone maintains.
 
-- The registry drops `transport: sse` from an entry and its live check fails an SSE-only server ([`entry_rules.py`](../../../plugins/registry/check/registry_check/static/entry_rules.py), [registry README](../../../plugins/registry/README.md), which already says SurfSense does not speak SSE).
-- Connecting a server stops falling back to SSE and refuses one that answers only there, with its own reason ([`either_transport.py`](../../../surfsense_local/backend/modules/plugins/remote/either_transport.py)). [`transport_moved.py`](../../../surfsense_local/backend/modules/plugins/remote/transport_moved.py) moves a server only from SSE to Streamable HTTP.
-- A plugin installed with `transport: sse` shows that it uses the older transport and how to reconnect it on its Streamable HTTP address, rather than "Couldn't reach" on every turn.
+- The registry drops `transport: sse` from an entry and its live check fails an SSE-only server ([`entry_rules.py`](../../../plugins/registry/check/registry_check/static/entry_rules.py), [registry README](../../../plugins/registry/README.md), which already says SurfSense does not speak SSE). No entry in [`plugins.json`](../../../plugins/registry/plugins.json) uses it today.
+- SurfSense's own MCP client stops falling back to SSE when it lists a server, so no plugin is ever shown ready that the agent cannot call. Connecting refuses a server that answers only there, with its own reason ([`either_transport.py`](../../../surfsense_local/backend/modules/plugins/remote/either_transport.py)), and [`sse_endpoint.py`](../../../surfsense_local/backend/modules/agent/plugin_gateway/sse_endpoint.py) goes.
 - The Claude plan engine refuses them too: Claude Code still speaks SSE, and a thread moves between engines when its model changes.
+
+**Plugins already installed over SSE are moved, not dropped.** Every provider known to serve `/sse` answers MCP on the same host at `/mcp`: Asana, Atlassian (`/v1/mcp`), Square, Intercom, PayPal, Webflow and Neon answered `401`, asking for sign-in, and DeepWiki answered `initialize` (probed without sign-in on 22 Oct 2026). At the first check after the update, a plugin recorded with `transport: sse` and a URL ending in `/sse` is tried at the same URL ending in `/mcp`, over Streamable HTTP only, as [`transport_moved.py`](../../../surfsense_local/backend/modules/plugins/remote/transport_moved.py) moves a server between transports today:
+
+- It answers: the URL and transport are switched and the tool settings kept.
+- It asks for sign-in: the plugin shows "Sign in again", since a token issued for `/sse` need not be accepted at `/mcp`.
+- Nothing answers there: the plugin shows that it uses the older SSE transport and how to reconnect it at its Streamable HTTP address, rather than "Couldn't reach" on every turn.
 
 ## Stopping a call
 
