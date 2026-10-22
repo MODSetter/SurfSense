@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from api.config import get_settings
 from api.dependencies import transact
+from modules.agent.agent_threads.session_import import note_serving
 from modules.agent.model_call_route import selected_call_route
 from modules.agent.model_reads_images import selected_model_reads_images
 from modules.agent.model_window import selected_model_window
@@ -130,6 +131,7 @@ async def _until_serving(
             await client.require_pinned_version()
             loaded = await client.config(agent_dir)
             if loaded == expected:
+                note_serving(await client.server_pid())
                 return
         except httpx.HTTPError:
             pass  # not yet started by Electron, or still starting

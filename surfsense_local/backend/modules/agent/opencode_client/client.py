@@ -48,9 +48,11 @@ class OpencodeClient:
 
     async def version(self) -> str:
         """The release the running server reports; it answers 503 until it is ready."""
-        reply = await self._http.get("/api/info", timeout=_HEALTH_TIMEOUT)
-        reply.raise_for_status()
-        return reply.json()["version"]
+        return (await self._info())["version"]
+
+    async def server_pid(self) -> int:
+        """The running server's process, which tells one start from the next."""
+        return (await self._info())["pid"]
 
     async def require_pinned_version(self) -> None:
         """Refuse to go on with any opencode but the pinned one."""
@@ -283,6 +285,11 @@ class OpencodeClient:
     def events(self) -> AsyncIterator[Event]:
         """Every folder's events, until the stream drops or falls silent."""
         return read_events(self._http)
+
+    async def _info(self) -> dict[str, Any]:
+        reply = await self._http.get("/api/info", timeout=_HEALTH_TIMEOUT)
+        reply.raise_for_status()
+        return reply.json()
 
     async def _session(self, session_id: str) -> dict[str, Any]:
         reply = await self._http.get(f"/api/session/{session_id}")

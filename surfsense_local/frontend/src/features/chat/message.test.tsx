@@ -365,7 +365,6 @@ describe("an agent reply's steps", () => {
     id,
     tool: "surfsense_source_pages",
     status: "completed",
-    title: null,
     input: { document_id: documentId },
     artifact: null,
   })
@@ -430,7 +429,6 @@ describe("the Office support offer", () => {
     id,
     tool: "surfsense_render_document",
     status: "completed",
-    title: null,
     input: { title: "Proposal", format: "docx" },
     artifact: { id: artifactId, title: "Proposal", version: 1 },
   })

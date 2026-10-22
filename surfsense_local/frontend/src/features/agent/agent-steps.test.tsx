@@ -19,7 +19,6 @@ function rendered(extra: Partial<AgentStep> = {}): AgentStep {
     id: "prt_1",
     tool: "surfsense_render_document",
     status: "completed",
-    title: null,
     input: { title: "Client proposal", format: "docx", script: "..." },
     output: "Rendered artifact 40, version 1.",
     artifact: { id: 40, title: "Client proposal", version: 1 },
@@ -128,14 +127,12 @@ describe("agent steps", () => {
             id: "prt_2",
             tool: "surfsense_read_document",
             status: "completed",
-            title: null,
             input: { artifact_id: 40 },
           },
           {
             id: "prt_3",
             tool: "surfsense_list_images",
             status: "completed",
-            title: null,
             input: { source_ids: [3, 4] },
           },
         ]}
@@ -146,6 +143,31 @@ describe("agent steps", () => {
     expect(screen.getByText("Looked for images in 2 sources")).toBeTruthy()
   })
 
+  it("names a file the same in a thread made on opencode 1.x and on 2.x", () => {
+    // 1.x's file tools took `filePath`; 2.x's, and Claude Code's steps, `path`.
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "call_1",
+            tool: "write",
+            status: "completed",
+            input: { filePath: "/w/agent/threads/7/outputs/old.md" },
+          },
+          {
+            id: "call_2",
+            tool: "write",
+            status: "completed",
+            input: { path: "outputs/new.md" },
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByText("old.md")).toBeTruthy()
+    expect(screen.getByText("new.md")).toBeTruthy()
+  })
+
   it("names reading a workbook's cells by the workbook", () => {
     render(
       <AgentSteps
@@ -154,14 +176,12 @@ describe("agent steps", () => {
             id: "prt_20",
             tool: "surfsense_read_document",
             status: "completed",
-            title: null,
             input: { document_id: 8 },
           },
           {
             id: "prt_21",
             tool: "surfsense_read_document",
             status: "completed",
-            title: null,
             input: { artifact_id: 61 },
             output:
               'Artifact 61, version 2 of the revised copy of "Pricing.xlsx", is a workbook. Each cell below …',
@@ -170,7 +190,6 @@ describe("agent steps", () => {
             id: "prt_22",
             tool: "surfsense_read_document",
             status: "running",
-            title: null,
             input: { document_id: 9 },
           },
         ]}
@@ -277,7 +296,6 @@ describe("agent steps", () => {
             id: "prt_5",
             tool: "surfsense_source_pages",
             status: "completed",
-            title: null,
             input: { document_id: 8, pages: [1, 2] },
           },
         ]}
@@ -301,7 +319,6 @@ describe("agent steps", () => {
             id: "prt_7",
             tool: "surfsense_analyze_data",
             status: "completed",
-            title: null,
             input: {
               title: "Revenue by region",
               document_ids: [3],
@@ -312,7 +329,6 @@ describe("agent steps", () => {
             id: "prt_8",
             tool: "surfsense_analyze_data",
             status: "running",
-            title: null,
             input: {},
           },
         ]}
@@ -332,7 +348,6 @@ describe("agent steps", () => {
             id: "prt_6",
             tool: "surfsense_source_pages",
             status: "running",
-            title: null,
             input: { document_id: 8 },
           },
         ]}
@@ -356,7 +371,6 @@ describe("agent steps", () => {
               id: "prt_7",
               tool: "surfsense_convert_document",
               status: "completed",
-              title: null,
               input: { artifact_id: 40, format: "pdf" },
               artifact: { id: 52, title: "Client proposal", version: 1 },
             },
@@ -379,7 +393,6 @@ describe("agent steps", () => {
             id: "prt_8",
             tool: "surfsense_convert_document",
             status: "running",
-            title: null,
             input: { document_id: 8, format: "pdf" },
           },
         ]}
@@ -396,7 +409,6 @@ describe("agent steps", () => {
       id,
       tool: "surfsense_source_pages",
       status: "completed",
-      title: null,
       input: { document_id: documentId },
     })
     const scope = { document_ids: [7, 8], titles: ["Notes.md", "Brief.pdf"] }
@@ -432,7 +444,7 @@ describe("agent steps", () => {
       id: string,
       tool: string,
       input: Record<string, unknown>
-    ): AgentStep => ({ id, tool, status: "completed", title: null, input })
+    ): AgentStep => ({ id, tool, status: "completed", input })
     render(
       <AgentSteps
         steps={[

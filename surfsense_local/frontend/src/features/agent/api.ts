@@ -20,7 +20,6 @@ export type AgentStep = {
   call_id?: string | null
   tool: string | null
   status: "pending" | "running" | "completed" | "error"
-  title: string | null
   input: Record<string, unknown>
   output?: string
   error?: string
