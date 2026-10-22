@@ -111,7 +111,7 @@ async def test_a_turn_streams_its_steps_and_reply_as_an_opencode_turn_does(
     assert _of(frames, "accepted")[0]["user_message_id"]
     ended = [s for s in _of(frames, "agent-step") if s["status"] == "completed"]
     assert [s["tool"] for s in ended] == ["surfsense_search_sources", "write"]
-    assert ended[1]["input"]["filePath"] == "outputs/q3.md"
+    assert ended[1]["input"]["path"] == "outputs/q3.md"
     assert _of(frames, "completed")[0]["text"] == "Revenue grew 12%."
 
 
