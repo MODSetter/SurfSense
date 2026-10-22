@@ -27,6 +27,7 @@ RESERVED = frozenset(
         "health",
         "cancel",
         "license",
+        "admin",
     }
 )
 

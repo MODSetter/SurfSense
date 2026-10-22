@@ -49,7 +49,10 @@ RUN scrapling install \
 COPY remote/ .
 RUN chmod +x host/entrypoint.sh
 
-RUN useradd --create-home --uid 10001 plugins
+# usage/ holds the usage meter's SQLite file (USAGE_DB_PATH), a volume in production;
+# a new volume takes this folder's owner, so the host can write it.
+RUN useradd --create-home --uid 10001 plugins \
+    && mkdir -p usage && chown plugins:plugins usage
 USER plugins
 
 EXPOSE 8000

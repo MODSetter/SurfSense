@@ -454,7 +454,7 @@ async def _fetch_on(
             if status == _BACKOFF_STATUS and backoffs < _MAX_BACKOFFS:
                 backoffs += 1
                 delay = _BACKOFF_BASE_S * (2 ** (backoffs - 1))
-                logger.warning("[reddit] 429 on %s; backing off %.1fs", path, delay)
+                logger.warning("[reddit] 429; backing off %.1fs", delay)
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
             if (
@@ -473,12 +473,12 @@ async def _fetch_on(
                 raise RedditAccessBlockedError(
                     f"Reddit refused {path} on {attempt} rotated IPs (403)"
                 )
-            logger.warning("[reddit] GET %s returned %s", path, status)
+            logger.warning("[reddit] GET returned %s", status)
             return None
         except RedditAccessBlockedError:
             raise
         except Exception as e:
-            logger.warning("[reddit] GET %s failed: %s", path, e)
+            logger.warning("[reddit] GET failed: %s", e)
             if attempt < _MAX_ROTATIONS:
                 attempt += 1
                 await holder.rotate()

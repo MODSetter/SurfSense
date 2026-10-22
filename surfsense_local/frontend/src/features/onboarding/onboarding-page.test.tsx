@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
+import { stubPrivacyBridge } from "@/features/privacy-choices/stub-privacy-bridge"
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
 
@@ -1327,6 +1328,181 @@ describe("the embedding model step", () => {
     ).toBeTruthy()
     expect(
       screen.queryByRole("button", { name: /^Download someone\/chat-model/ })
+    ).toBeNull()
+  })
+})
+
+describe("the privacy choices", () => {
+  afterEach(() => {
+    delete window.surfsense
+  })
+
+  async function toPrivacyStep(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    await screen.findByRole("heading", { name: "Privacy choices" })
+  }
+
+  function choice(row: string, answer: "Yes" | "No") {
+    return within(screen.getByRole("group", { name: row })).getByRole(
+      "button",
+      { name: answer }
+    )
+  }
+
+  it("asks a new install right after the welcome, with nothing chosen for it", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    // Not a model step: the progress bar starts after it.
+    expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
+    for (const row of ["Check for updates", "Share usage statistics"])
+      for (const answer of ["Yes", "No"] as const)
+        expect(choice(row, answer).getAttribute("aria-pressed")).toBe("false")
+    const proceed = screen.getByRole("button", { name: "Continue" })
+    expect(proceed.hasAttribute("disabled")).toBe(true)
+
+    // One answer is not enough: each row is its own decision.
+    await user.click(choice("Check for updates", "Yes"))
+    expect(proceed.hasAttribute("disabled")).toBe(true)
+    await user.click(choice("Share usage statistics", "No"))
+    expect(
+      choice("Check for updates", "Yes").getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(proceed.hasAttribute("disabled")).toBe(false)
+
+    await user.click(proceed)
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=true,usage=false")
+  })
+
+  it("says where each one goes and what it sends", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    expect(updates.textContent).toContain("updates.surfsense.com")
+    expect(updates.textContent).toContain("github.com")
+    expect(updates.textContent).toContain("no ID")
+    // The download and where it comes from, as the update prompt says.
+    expect(updates.textContent).toContain("your IP address")
+    expect(updates.textContent).toContain("githubusercontent.com")
+    expect(updates.textContent).toContain("the next time you quit")
+    const usage = screen.getByRole("region", { name: "Share usage statistics" })
+    expect(usage.textContent).toContain("usage.surfsense.com")
+    expect(usage.textContent).toContain(
+      "Never documents, prompts, file names, model names, hosts, your license key or an ID."
+    )
+  })
+
+  it("shows the next usage report, built but not sent", async () => {
+    vi.stubGlobal("fetch", backend())
+    const bridge = stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const usage = screen.getByRole("region", { name: "Share usage statistics" })
+    await user.click(
+      within(usage).getByRole("button", { name: "See exactly what’s sent" })
+    )
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "What usage statistics send",
+    })
+    const next = await within(dialog).findByLabelText("The next usage report")
+    expect(next.textContent).toContain('"schema": 1')
+    expect(dialog.textContent).toContain("Nothing sent yet.")
+    expect(bridge.calls).toContain("preview")
+    expect(bridge.calls.some((call) => call.startsWith("usage:"))).toBe(false)
+  })
+
+  it("lists the update request's only headers before any check", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    const updates = screen.getByRole("region", { name: "Check for updates" })
+    await user.click(
+      within(updates).getByRole("button", { name: "See exactly what’s sent" })
+    )
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "What an update check sends",
+    })
+    for (const header of [
+      "User-Agent",
+      "X-SurfSense-Version",
+      "X-SurfSense-Platform",
+      "X-SurfSense-OS",
+    ])
+      expect(dialog.textContent).toContain(header)
+  })
+
+  it("takes a policy's lock as that row's answer", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const bridge = stubPrivacyBridge({
+      usageStatistics: {
+        enabled: false,
+        locked: true,
+        lockedReason: "do_not_track",
+      },
+    })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toPrivacyStep(user)
+    expect(
+      screen.queryByRole("group", { name: "Share usage statistics" })
+    ).toBeNull()
+    expect(
+      screen.getByRole("region", { name: "Share usage statistics" }).textContent
+    ).toContain("DO_NOT_TRACK")
+
+    await user.click(choice("Check for updates", "No"))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      name: "Choose a text generation model",
+    })
+    expect(bridge.calls).toContain("first-run:updates=false,usage=false")
+  })
+
+  it("goes on to the first step when the choices cannot be read", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    window.surfsense!.privacy!.getState = async () => {
+      throw new Error("No handler registered for 'privacy:get-state'")
+    }
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    // Nothing is switched on unasked, and setup is not held on an empty card.
+    await toChatStep(user)
+    expect(
+      screen.queryByRole("heading", { name: "Privacy choices" })
+    ).toBeNull()
+  })
+
+  it("never asks an install that already answered", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge({ firstRunAsked: true })
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    // Whether or not its answer was read before the welcome was left.
+    await toChatStep(user)
+    expect(
+      screen.queryByRole("heading", { name: "Privacy choices" })
     ).toBeNull()
   })
 })

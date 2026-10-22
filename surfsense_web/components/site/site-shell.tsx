@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 const SITE_DESIGN_ROUTES = new Set([
 	"/",
 	"/pricing",
+	"/pricing/individual",
 	"/private-ai-for-business",
 	"/free",
 	"/contact",

@@ -11,10 +11,6 @@ import {
   shell,
   systemPreferences,
 } from "electron"
-// Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
-// a getter, which `await import()` cannot see (named export comes back
-// undefined). require() honours it, and the getter is lazy so dev pays nothing.
-import { autoUpdater } from "electron-updater"
 
 import {
   applyDevAppIdentity,
@@ -32,15 +28,6 @@ import { bootSidecars, type BootContext } from "./sidecars/boot.ts"
 import { stopAll, type Sidecars } from "./sidecars/supervisor.ts"
 import type { SidecarContext } from "./sidecars/types.ts"
 import { refuseSpellcheckDownloads } from "./spellcheck.ts"
-import {
-  attachUpdater,
-  readUpdatePrefs,
-  writeUpdatePrefs,
-  type Updates,
-  type UpdateState,
-} from "./updater.ts"
-import { updaterPendingFolder } from "./updater-cache/pending-folder.ts"
-import { tidyUpdaterCache } from "./updater-cache/tidy-updater-cache.ts"
 import {
   loadThemePreference,
   saveThemePreference,
@@ -62,6 +49,7 @@ import { apiQuitConfirmation } from "./quit/api-quit-confirmation.ts"
 import { confirmQuit } from "./quit/confirm-running-replies.ts"
 import { installPermissionHandlers } from "./permissions/handlers.ts"
 import { registerMicrophoneHandlers } from "./microphone/ipc.ts"
+import { startPrivacyChoices } from "./privacy-choices/start-privacy-choices.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 // The main window's page when packaged: the built SPA, loaded from disk.
@@ -100,6 +88,8 @@ let shuttingDown = false
 let stopDocxSnapshots: (() => void) | null = null
 // Boot's watchers; they must stop before the sidecars they would otherwise restart.
 let stopSidecarWatchers: (() => void) | null = null
+// The daily update check and the usage report timers.
+let stopPrivacyChoices: (() => void) | null = null
 
 function onSidecarCrash(name: string, code: number | null): void {
   warnMain(sessionLog, `sidecar ${name} crashed (code=${code})`)
@@ -265,60 +255,6 @@ function registerDocumentHandlers(dataDir: string): void {
   })
 }
 
-// Updates are the one call the app makes on its own, so they are off until the
-// user turns them on; "Check now" in Settings works either way.
-async function registerUpdateHandlers(): Promise<void> {
-  const prefsPath = join(app.getPath("userData"), "updates.json")
-  const trusted = (sender: Electron.WebContents): boolean =>
-    mainWindow !== null && sender === mainWindow.webContents
-  const broadcast = (state: UpdateState) =>
-    mainWindow?.webContents.send("updates:state", state)
-
-  let updates: Updates
-  if (app.isPackaged) {
-    // Its default logger is the console, which a packaged app shows nowhere.
-    const log = (message: unknown) => sessionLog.append("updater", String(message))
-    autoUpdater.logger = { info: log, warn: log, error: log }
-    updates = tidyUpdaterCache(autoUpdater, attachUpdater(autoUpdater, broadcast), {
-      pendingFolder: updaterPendingFolder(process.resourcesPath),
-      installedVersion: app.getVersion(),
-    })
-  } else {
-    // ponytail: dev has no signed build to update; expose the same surface
-    // so the Settings row renders, and stay idle.
-    updates = {
-      check: async () => undefined,
-      install: () => undefined,
-      state: () => ({ status: "idle" }),
-    }
-  }
-
-  const check = (): void => {
-    writeUpdatePrefs(prefsPath, {
-      ...readUpdatePrefs(prefsPath),
-      lastCheckedAt: new Date().toISOString(),
-    })
-    void updates.check()
-  }
-
-  ipcMain.handle("updates:prefs", () => readUpdatePrefs(prefsPath))
-  ipcMain.handle("updates:set-automatic", (event, automatic: unknown) => {
-    if (!trusted(event.sender)) return readUpdatePrefs(prefsPath)
-    const prefs = { ...readUpdatePrefs(prefsPath), automatic: automatic === true }
-    writeUpdatePrefs(prefsPath, prefs)
-    return prefs
-  })
-  ipcMain.handle("updates:state", () => updates.state())
-  ipcMain.handle("updates:check", (event) => {
-    if (trusted(event.sender)) check()
-  })
-  ipcMain.handle("updates:install", (event) => {
-    if (trusted(event.sender)) updates.install()
-  })
-
-  if (readUpdatePrefs(prefsPath).automatic) check()
-}
-
 function applyTitleBarOverlay(
   win: BrowserWindow,
   overlay: { color?: string; symbolColor?: string }
@@ -475,6 +411,7 @@ async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
   stopSidecarWatchers?.()
+  stopPrivacyChoices?.()
   stopDocxSnapshots?.()
   withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
@@ -558,7 +495,12 @@ function main(): void {
       })
       installMenu()
       createWindow(boot.apiUrl)
-      await registerUpdateHandlers()
+      // Automatic checks are off until the user turns them on. Check now works
+      // either way, unless an admin policy turns updates off.
+      stopPrivacyChoices = startPrivacyChoices({
+        apiUrl: boot.apiUrl,
+        mainWindow: () => mainWindow,
+      }).stop
       app.on("activate", () => {
         if (mainWindow === null) createWindow(boot.apiUrl)
       })

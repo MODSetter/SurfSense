@@ -63,52 +63,34 @@ def test_license_mail_falls_back_to_the_deployment_sender(monkeypatch):
     assert message.sender == "noreply@surfsense.test"
 
 
-def test_trial_mail_carries_the_github_tag_release_and_the_configured_length(
+def test_trial_mail_carries_the_pinned_installers_and_the_configured_length(
     monkeypatch,
 ):
     """A trial is handed to an address, so the email has to reach the app too."""
     from app.config import config
-    from app.license.release import GITHUB_RELEASE_URL
+    from app.license.release import APP_RELEASE_TAG
 
     monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 30)
 
     message = build_license_email("trial", to="a@b.test", certificates=("CERT",))
 
-    assert GITHUB_RELEASE_URL in message.text_body
-    assert "/releases/tag/v" in message.text_body
-    assert "/downloads" not in message.text_body
+    assert f"v={APP_RELEASE_TAG}" in message.text_body
     assert "/releases/latest" not in message.text_body
     assert message.subject == "Your SurfSense 30-day trial license"
     assert "30-day" in message.text_body
 
 
-def test_installer_assets_are_the_github_tag_download_urls():
-    """Same browser_download_url links the /downloads page shows."""
-    from app.license.release import ReleaseAsset
+@pytest.mark.parametrize("kind", ["purchase", "resend", "trial"])
+def test_installers_go_through_the_counting_redirect(kind):
+    """Each platform's link is the site redirect, labelled like the /downloads grid."""
+    from app.license.release import installer_links
 
-    exe = (
-        "https://github.com/MODSetter/SurfSense/releases/download/"
-        "v2.0.0/SurfSense-Setup.exe"
-    )
-    dmg = (
-        "https://github.com/MODSetter/SurfSense/releases/download/"
-        "v2.0.0/SurfSense-arm64.dmg"
-    )
-    message = build_license_email(
-        "trial",
-        to="a@b.test",
-        certificates=("CERT",),
-        installers=(
-            ReleaseAsset(name="SurfSense-Setup.exe", url=exe),
-            ReleaseAsset(name="SurfSense-arm64.dmg", url=dmg),
-        ),
-    )
+    message = build_license_email(kind, to="a@b.test", certificates=("CERT",))
 
-    assert exe in message.text_body
-    assert dmg in message.text_body
-    assert "Windows (exe):" in message.text_body
-    assert "macOS Apple Silicon (dmg):" in message.text_body
-    assert "/downloads" not in message.text_body
+    for link in installer_links():
+        assert f"{link.label}: {link.url}" in message.text_body
+    assert "src=email" in message.text_body
+    assert "github.com" not in message.text_body
 
 
 def test_a_message_with_no_certificate_is_a_programming_error():

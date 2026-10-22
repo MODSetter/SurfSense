@@ -28,10 +28,17 @@ describe("UpdateSettings", () => {
 
     // Network promises github.com is not contacted until allowed, so the
     // first check asks rather than going ahead.
-    await screen.findByRole("alertdialog", {
+    const dialog = await screen.findByRole("alertdialog", {
       name: "Allow SurfSense to check for updates?",
     })
     expect(bridge.calls).toEqual([])
+    // An Electron main without the privacy bridge still reads GitHub's
+    // releases, so neither the question nor the row names SurfSense's feed.
+    expect(dialog.textContent).toContain(
+      "reads the list of releases on github.com"
+    )
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
+    expect(screen.getByText(/Free updates from GitHub\./)).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "Allow" }))
 
@@ -68,9 +75,12 @@ describe("UpdateSettings", () => {
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
-    // The version the restart lands on, named where the decision is made.
+    // The version the restart lands on, named where the decision is made,
+    // and that quitting installs it too.
     expect(
-      await screen.findByText("SurfSense 1.0.1 is ready to install")
+      await screen.findByText(
+        "SurfSense 1.0.1 is ready. It installs when you restart or the next time you quit."
+      )
     ).toBeTruthy()
     await user.click(
       await screen.findByRole("button", { name: "Restart to update" })

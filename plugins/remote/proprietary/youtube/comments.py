@@ -15,6 +15,8 @@ import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+from proprietary.scraping.logged_host import logged_host
+
 from .innertube import INNERTUBE_NEXT_URL, build_innertube_payload, fetch_html
 from .parsers import (
     comment_next_token,
@@ -233,7 +235,9 @@ async def iter_comments(input_model: YouTubeCommentsInput) -> AsyncIterator[dict
     for entry in input_model.startUrls:
         resolved = resolve_url(entry.url)
         if not resolved or resolved.kind != "video":
-            logger.warning("Comments: not a video URL, skipping: %s", entry.url)
+            logger.warning(
+                "Comments: not a video URL on %s, skipping", logged_host(entry.url)
+            )
             continue
         jobs.append(_comments_for_video(resolved.value, input_model))
     async for comment in fan_out(jobs):

@@ -183,6 +183,7 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 ├── surfsense.db
 ├── backups/<from>-<to>.db       the database as it was before a migration; the newest two are kept
 ├── huey.db                       three queues, ingest, studio and plugins, in one file
+├── usage-counts.json             hourly counts for usage statistics, pruned after 40 days, no content
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/

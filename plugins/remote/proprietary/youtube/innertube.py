@@ -24,6 +24,7 @@ from urllib.parse import urljoin, urlsplit
 
 from proprietary.scraping import http, sessions
 from proprietary.scraping.concurrency import hedged
+from proprietary.scraping.logged_host import logged_host
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +218,9 @@ async def _fetch(
                 stage=stage,
             )
         except http.TransportError as e:
-            logger.warning("[youtube] %s %s failed: %s", stage, url, e.kind)
+            logger.warning(
+                "[youtube] %s %s failed: %s", stage, logged_host(url), e.kind
+            )
             if e.kind == "SessionClosed":  # the job ended under us
                 return last
             if h is not None:
@@ -227,7 +230,9 @@ async def _fetch(
             if hook is not None:
                 await hook(f"{stage}: fetched")
             return last
-        logger.warning("[youtube] %s %s blocked (status %s)", stage, url, last.status)
+        logger.warning(
+            "[youtube] %s %s blocked (status %s)", stage, logged_host(url), last.status
+        )
         if h is not None:
             await h.rotate(f"status {last.status}", seen=seen)
     return last
@@ -295,6 +300,8 @@ async def fetch_html(
         cookies={**CONSENT_COOKIES, **(cookies or {})},
     )
     if r is None or r.status != 200:
-        logger.warning("HTML GET %s returned %s", url, r.status if r else "nothing")
+        logger.warning(
+            "HTML GET %s returned %s", logged_host(url), r.status if r else "nothing"
+        )
         return None
     return r.text()

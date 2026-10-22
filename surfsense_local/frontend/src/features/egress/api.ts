@@ -44,6 +44,9 @@ export function setDestinationsEnabled(
 const CLAUDE_API_HOST = "api.anthropic.com"
 const CLAUDE_SIGN_IN_HOST = "platform.claude.com"
 
+// SurfSense's own plugins: the one host the license key is ever sent to.
+const SURFSENSE_PLUGIN_HOST = "plugins.surfsense.com"
+
 export type DestinationCopy = {
   label: string
   title: string
@@ -66,20 +69,30 @@ export function describeDestination(
   if (purpose === "claude_plan" || host === CLAUDE_SIGN_IN_HOST)
     return describeClaudePlan([host, ...also])
   const one = describeOne(destination, host, purpose)
-  return {
-    ...one,
-    details: also.length
-      ? [
-          intl.formatMessage(
-            {
-              id: "egress_prompt_also_allows_body",
-              defaultMessage: "Allowing also lets SurfSense reach {hosts}.",
-            },
-            { hosts: intl.formatList(also, { type: "conjunction" }) }
-          ),
-        ]
-      : [],
-  }
+  const details = []
+  if (also.length)
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_prompt_also_allows_body",
+          defaultMessage: "Allowing also lets SurfSense reach {hosts}.",
+        },
+        { hosts: intl.formatList(also, { type: "conjunction" }) }
+      )
+    )
+  // The registry's own copy already says this; a plugin's does not.
+  if (purpose === "plugin" && [host, ...also].includes(SURFSENSE_PLUGIN_HOST))
+    details.push(
+      intl.formatMessage(
+        {
+          id: "egress_plugin_license_body",
+          defaultMessage:
+            "For SurfSense’s paid plugins, {host} also gets your license key, so the service can check it.",
+        },
+        { host: SURFSENSE_PLUGIN_HOST }
+      )
+    )
+  return { ...one, details }
 }
 
 // Each host's own sentence, since one gets chats and the other only a sign-in.
@@ -126,6 +139,37 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
   }
 }
 
+// An admin policy's mirror never falls back to GitHub and serves the download
+// too; an Electron main without the privacy bridge reads GitHub's releases alone.
+function updatesBody(host: string, purpose?: string) {
+  if (purpose === "update_mirror")
+    return intl.formatMessage(
+      {
+        id: "egress_app_updates_mirror_prompt_body",
+        defaultMessage:
+          "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. A newer version downloads from {host} and installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+      },
+      { host }
+    )
+  if (purpose === "github_releases")
+    return intl.formatMessage(
+      {
+        id: "egress_app_updates_github_prompt_body",
+        defaultMessage:
+          "A check reads the list of releases on {host}, then asks for the release file for your platform: Windows, macOS or Linux. It sends your IP address and identifies itself only as electron-builder, with no version and no ID. GitHub serves its release files from githubusercontent.com, which also sees your IP address. A newer version downloads on its own and installs when you restart from the prompt or the next time you quit. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
+      },
+      { host }
+    )
+  return intl.formatMessage(
+    {
+      id: "egress_app_updates_prompt_body",
+      defaultMessage:
+        "Once a day, SurfSense asks {host} whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. If {host} cannot answer, SurfSense asks github.com instead, sending only your IP address and the app’s name. A newer version downloads from github.com, whose download host, githubusercontent.com, also sees your IP address. It installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+    },
+    { host }
+  )
+}
+
 function describeOne(destination: string, host: string, purpose?: string) {
   if (destination === "app_updates") {
     return {
@@ -137,14 +181,7 @@ function describeOne(destination: string, host: string, purpose?: string) {
         id: "egress_app_updates_prompt_title",
         defaultMessage: "Allow SurfSense to check for updates?",
       }),
-      body: intl.formatMessage(
-        {
-          id: "egress_app_updates_prompt_body",
-          defaultMessage:
-            "Checking asks {host} for the latest release. SurfSense sends your IP address and the version you are running, nothing else. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
-        },
-        { host }
-      ),
+      body: updatesBody(host, purpose),
     }
   }
   // Searching, model weights and image weights are three errands to one host,
@@ -194,7 +231,8 @@ function describeOne(destination: string, host: string, purpose?: string) {
       ),
     }
   }
-  // The registry's host is also SurfSense's own plugins', so one answer covers both.
+  // The registry's host is also SurfSense's own plugins', so one answer covers
+  // both, and says what using them sends.
   if (purpose === "plugin_registry") {
     return {
       label: host,
@@ -206,7 +244,7 @@ function describeOne(destination: string, host: string, purpose?: string) {
         {
           id: "egress_plugin_registry_prompt_body",
           defaultMessage:
-            "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. You can turn this off any time in Settings › Network.",
+            "SurfSense fetches the list of third-party plugins from {host}, sending your IP address and nothing else. SurfSense’s own plugins run on the same host, so this also lets you connect them. Using them sends {host} what each tool needs and, for the paid ones, your license key so the service can check it. You can turn this off any time in Settings › Network.",
         },
         { host }
       ),

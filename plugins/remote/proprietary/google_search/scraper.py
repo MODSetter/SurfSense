@@ -196,7 +196,7 @@ async def _serp_page(
     for attempt in range(1, tries + 1):
         html = await fetch_serp_html(url, mobile=input_model.mobileResults)
         if html is None:
-            logger.warning("[google_search] no SERP HTML for %s", url)
+            logger.warning("[google_search] no SERP HTML")
             break
         # Rendered SERPs are ~1MB; parse off-loop to keep the server responsive.
         item = await asyncio.to_thread(
@@ -223,9 +223,7 @@ async def _serp_page(
     _fill_displayed_urls(best)
     if input_model.site and not _keep_on_site(best, input_model.site):
         logger.warning(
-            "[google_search] Google ignored site:%s on %s (retries left: %d)",
-            input_model.site,
-            url,
+            "[google_search] Google ignored the site: filter (retries left: %d)",
             site_retries,
         )
         if site_retries > 0:
@@ -336,11 +334,11 @@ async def _ai_mode_flow(
     url = build_ai_mode_url(term, input_model)
     html = await fetch_serp_html(url, mobile=input_model.mobileResults)
     if html is None:
-        logger.warning("[google_search] no AI Mode HTML for %r", term)
+        logger.warning("[google_search] no AI Mode HTML")
         return
     result = await asyncio.to_thread(parse_ai_mode, html, query=term, url=url)
     if result is None:
-        logger.info("[google_search] AI Mode answer missing for %r", term)
+        logger.info("[google_search] AI Mode answer missing")
         return
     item = SerpItem(aiModeResult=result)
     await resolve_item_urls(item)

@@ -20,6 +20,7 @@ from urllib.parse import urljoin
 
 from proprietary.scraping import http, sessions
 from proprietary.scraping.concurrency import hedged
+from proprietary.scraping.logged_host import logged_host
 from proprietary.scraping.proxy import get_geo_proxy_url
 
 from .url_resolver import resolve_url
@@ -334,7 +335,7 @@ async def fetch_page(
                 response = await send(0, selected, jar, attempt)
             usable = not response.blocked
         except Exception as exc:
-            logger.warning("Amazon request failed for %s: %s", url, exc)
+            logger.warning("Amazon request failed for %s: %s", logged_host(url), exc)
             if proxy is not None:
                 return None
             # A failed handshake on a new connection is common (about 1 in 8),
@@ -352,17 +353,20 @@ async def fetch_page(
 
         logger.info(
             "[amazon][perf] method=%s status=%s attempt=%s fetch_ms=%.1f "
-            "referer=%s url=%s",
+            "referer=%s host=%s",
             method,
             response.status,
             attempt,
             (time.perf_counter() - started) * 1000,
             referer_label,
-            url,
+            logged_host(url),
         )
         if rotate_on_block and response.blocked:
             logger.info(
-                "Amazon blocked proxy attempt %s/%s for %s", attempt, attempts, url
+                "Amazon blocked proxy attempt %s/%s for %s",
+                attempt,
+                attempts,
+                logged_host(url),
             )
             if location is not None:
                 location = await renew_location_session(location)
@@ -375,7 +379,9 @@ async def fetch_page(
             headers=dict(response.headers),
             location=location,
         )
-    logger.warning("Amazon exhausted %s proxy attempts for %s", attempts, url)
+    logger.warning(
+        "Amazon exhausted %s proxy attempts for %s", attempts, logged_host(url)
+    )
     return None
 
 

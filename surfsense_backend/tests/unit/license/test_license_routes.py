@@ -170,9 +170,13 @@ def portal() -> httpx.AsyncClient:
     )
 
 
-async def post(path: str, email: str, ip: str = "203.0.113.1") -> httpx.Response:
+async def post(
+    path: str, email: str, ip: str = "203.0.113.1", **fields: object
+) -> httpx.Response:
     async with portal() as client:
-        return await client.post(path, json={"email": email}, headers={"X-Real-IP": ip})
+        return await client.post(
+            path, json={"email": email, **fields}, headers={"X-Real-IP": ip}
+        )
 
 
 # resend ---------------------------------------------------------------------
@@ -336,6 +340,73 @@ async def test_trial_mails_the_file_and_never_returns_it(
     assert reply.status_code == 200
     assert f"CERT-{license_id}" not in reply.text
     assert mailer.sent == [("trial", "new@example.com", [f"CERT-{license_id}"])]
+
+
+# trial funnel event ---------------------------------------------------------
+
+
+async def test_an_issued_trial_is_counted_by_channel_and_nothing_else(
+    mailer: Mailer, keygen_store: FakeKeygen, posthog_events
+) -> None:
+    reply = await post("/license/trial", "new@example.com", channel="hn")
+
+    (license_id,) = keygen_store.licenses
+    (event,) = posthog_events.named("license_trial_issued")
+    assert reply.status_code == 200
+    assert event["properties"] == {
+        "source": "backend",
+        "channel": "hn",
+        "$process_person_profile": False,
+    }
+    assert "new@example.com" not in repr(event)
+    assert license_id not in repr(event)
+
+
+async def test_a_bad_channel_is_dropped_and_never_costs_the_trial(
+    mailer: Mailer, keygen_store: FakeKeygen, posthog_events
+) -> None:
+    reply = await post("/license/trial", "new@example.com", channel="Not A Tag!")
+
+    (event,) = posthog_events.named("license_trial_issued")
+    assert reply.status_code == 200
+    assert event["properties"]["channel"] == "unknown"
+
+
+async def test_an_old_page_without_a_channel_still_gets_its_trial(
+    mailer: Mailer, keygen_store: FakeKeygen, posthog_events
+) -> None:
+    reply = await post("/license/trial", "new@example.com")
+
+    (event,) = posthog_events.named("license_trial_issued")
+    assert reply.status_code == 200
+    assert event["properties"]["channel"] == "unknown"
+
+
+async def test_a_trial_that_was_not_issued_is_not_counted(
+    mailer: Mailer, keygen_store: FakeKeygen, posthog_events
+) -> None:
+    first = await post("/license/trial", "taken@example.com", channel="hn")
+    again = await post("/license/trial", "taken@example.com", channel="hn")
+    disposable = await post("/license/trial", "x@33mail.com", channel="hn")
+
+    assert (first.status_code, again.status_code, disposable.status_code) == (
+        200,
+        409,
+        400,
+    )
+    assert len(posthog_events.named("license_trial_issued")) == 1
+
+
+async def test_a_trial_whose_mail_failed_is_still_counted_as_issued(
+    mailer: Mailer, keygen_store: FakeKeygen, posthog_events
+) -> None:
+    """The address is spent either way, and resend will deliver it."""
+    mailer.error = MailerUnavailableError("timed out")
+
+    reply = await post("/license/trial", "new@example.com", channel="hn")
+
+    assert reply.status_code == 503
+    assert len(posthog_events.named("license_trial_issued")) == 1
 
 
 # file -----------------------------------------------------------------------

@@ -14,11 +14,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.config import config
-from app.license.release import (
-    GITHUB_RELEASE_URL,
-    ReleaseAsset,
-    asset_label,
-)
+from app.license.release import InstallerLink, installer_links
 from app.mailer.protocol import Attachment, OutboundEmail
 
 LicenseEmailKind = Literal["purchase", "resend", "trial"]
@@ -31,25 +27,17 @@ LICENSE_FILENAME = "surfsense.lic"
 ACTIVATION_GUIDE_URL = "https://www.surfsense.com/license/activate"
 
 
-def _install_steps(installers: tuple[ReleaseAsset, ...] = ()) -> str:
+def _install_steps(installers: tuple[InstallerLink, ...]) -> str:
     """Steps from nothing to a working license.
 
     The download comes first because the recipient may not have the app yet:
-    a trial is handed out to an address, not to an installation. Links are the
-    GitHub tag-release assets the site uses, never /downloads and never
-    /releases/latest, so an old mail keeps naming the build it was sent for.
+    a trial is handed out to an address, not to an installation. The links go
+    through the site's download redirect, pinned to this release's tag, so an
+    old mail keeps naming the build it was sent for.
     """
-    if installers:
-        links = "\n".join(
-            f"   {asset_label(asset.name)}: {asset.url}" for asset in installers
-        )
-        step1 = f"1. Install SurfSense:\n{links}\n"
-    else:
-        step1 = (
-            f"1. Install SurfSense for Windows, macOS or Linux: {GITHUB_RELEASE_URL}\n"
-        )
+    links = "\n".join(f"   {link.label}: {link.url}" for link in installers)
     return (
-        step1
+        f"1. Install SurfSense:\n{links}\n"
         + "2. Save the attached surfsense.lic somewhere you can find it.\n"
         + "3. Open SurfSense and go to Settings -> License.\n"
         + "4. Drop the file in, or paste its contents.\n"
@@ -88,7 +76,6 @@ def build_license_email(
     to: str,
     certificates: tuple[str, ...],
     idempotency_key: str | None = None,
-    installers: tuple[ReleaseAsset, ...] = (),
 ) -> OutboundEmail:
     """Render one message carrying every certificate issued to ``to``.
 
@@ -111,7 +98,7 @@ def build_license_email(
 
     days = config.LICENSE_TRIAL_DAYS
     intro = _INTROS[kind].format(days=days)
-    steps = _install_steps(installers)
+    steps = _install_steps(installer_links())
 
     plural = "" if len(certificates) == 1 else f" ({len(certificates)} files)"
     body = f"{intro}\n\n{steps}\n"
