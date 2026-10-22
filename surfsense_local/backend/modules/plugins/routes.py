@@ -44,7 +44,11 @@ from modules.plugins.lists.list_entry import EntryAuth
 from modules.plugins.lists.registry.entry_headers import filled_headers
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
-from modules.plugins.remote.moved_from_sse import keep_address, listed_where_it_moved
+from modules.plugins.remote.mcp_client.transports import (
+    SSE_ONLY,
+    is_sse_address,
+    recorded_on_sse,
+)
 from modules.plugins.remote.sign_in.headers.given_headers import (
     as_sent,
     given_headers,
@@ -146,6 +150,11 @@ async def add_custom_plugin(
         raise refusal
     headers = given_headers(payload.headers, payload.token)
     url = server_url(payload.url)
+    if is_sse_address(url):
+        # Refused before anything is reached: the user adds its Streamable HTTP address.
+        raise connect_refusal(
+            ServerError("This address is on the older SSE transport.", reason=SSE_ONLY)
+        )
     plugin_id = custom_plugin_id(payload.name)
     if await transact(session, lambda s: s.get(InstalledPlugin, plugin_id)) is not None:
         raise HTTPException(
@@ -310,13 +319,16 @@ async def check_plugin(plugin_id: str, session: SessionDep) -> PluginRead:
             },
         )
     url, headers, entry = found
+    if recorded_on_sse(entry):
+        # Never contacted: it stays as it is until the user replaces it.
+        return await transact(
+            session, lambda s: read_plugin(s, s.get_one(InstalledPlugin, plugin_id))
+        )
     listed = await list_once(url, headers)
     listed = await listed_after_refresh(session, plugin_id, headers, listed)
-    url, listed = await listed_where_it_moved(entry, url, headers, listed)
 
     def record(s):
         plugin = s.get_one(InstalledPlugin, plugin_id)
-        keep_address(s, plugin, url)
         record_check(s, plugin, listed)
         return read_plugin(s, plugin)
 

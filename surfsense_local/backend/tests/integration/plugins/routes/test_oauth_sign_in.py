@@ -202,19 +202,18 @@ def sse_servers() -> Iterator[SignInServers]:
             yield SignInServers(authorization, protected, f"{base}/sse")
 
 
-async def test_a_server_on_the_older_sse_transport_alone_signs_in_but_is_not_connected(
+async def test_an_sse_address_asking_for_sign_in_is_refused_before_any_sign_in(
     client: AsyncClient, sse_servers: SignInServers
 ) -> None:
-    """Its POST asks for sign-in before any transport is chosen; signed in, it is
-    found to speak only SSE, which neither engine could call, and says so."""
-    sign_in = await start_custom(client, sse_servers)
-    await approve_in_browser(client, sign_in["authorization_url"])
+    """Its POST would ask for sign-in, for an address no engine could call: the user
+    is told at once, and never sent to sign in."""
+    refused = await client.post(
+        "/plugins/custom", json={"url": sse_servers.mcp_url, "name": "Notes"}
+    )
 
-    status = (await client.get(f"/plugins/sign-ins/{sign_in['id']}")).json()
-    assert status["status"] == "failed"
-    assert "older SSE transport" in status["message"]
-    (plugin,) = (await client.get("/plugins")).json()
-    assert plugin["tools"] == []
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_sse_only"
+    assert (await client.get("/plugins")).json() == []
 
 
 async def test_a_state_the_app_did_not_issue_is_refused_and_changes_nothing(
