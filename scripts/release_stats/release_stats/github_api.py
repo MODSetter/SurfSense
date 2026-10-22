@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator
 from typing import Any
@@ -21,6 +22,10 @@ Opener = Callable[..., Any]
 
 class GitHubAccessDeniedError(RuntimeError):
     """The token may not read this endpoint: 401, 403, or 404 for hidden ones."""
+
+
+class GitHubOriginError(RuntimeError):
+    """A URL, such as a next-page link, is off the API's origin, so it is not read."""
 
 
 class GitHubApi:
@@ -51,6 +56,9 @@ class GitHubApi:
         return path if path.startswith("http") else f"{self._root}/{path.lstrip('/')}"
 
     def _fetch(self, url: str) -> tuple[Any, str | None]:
+        # The token goes with every request, so only the API's own origin gets one.
+        if _origin(url) != _origin(self._root):
+            raise GitHubOriginError(f"{url} is not on {self._root}; not reading it")
         headers = {
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
@@ -73,3 +81,8 @@ def next_page_url(link_header: str | None) -> str | None:
         return None
     match = _NEXT_LINK.search(link_header)
     return match.group(1) if match else None
+
+
+def _origin(url: str) -> tuple[str, str]:
+    parts = urllib.parse.urlsplit(url)
+    return parts.scheme.lower(), parts.netloc.lower()

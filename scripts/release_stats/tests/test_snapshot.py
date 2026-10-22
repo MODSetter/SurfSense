@@ -1,8 +1,11 @@
 """A snapshot reads every page of releases, and keeps going without traffic access."""
 
+import re
 from datetime import UTC, datetime
 
-from release_stats.github_api import GitHubApi, next_page_url
+import pytest
+
+from release_stats.github_api import GitHubApi, GitHubOriginError, next_page_url
 from release_stats.snapshot import take_snapshot
 from tests.fake_http import FakeOpener
 
@@ -118,3 +121,36 @@ def test_only_a_next_link_continues_the_pages():
     assert next_page_url(f'<{PAGE_2}>; rel="next"') == PAGE_2
     assert next_page_url(f'<{RELEASES}>; rel="prev", <{RELEASES}>; rel="first"') is None
     assert next_page_url(None) is None
+
+
+def test_a_next_link_on_the_api_origin_is_followed_with_the_token():
+    opener = FakeOpener(releases_over_two_pages())
+
+    pages = list(GitHubApi("secret", opener=opener).pages(RELEASES))
+
+    assert len(pages) == 2
+    assert [request.full_url for request in opener.requests] == [RELEASES, PAGE_2]
+    assert opener.requests[1].get_header("Authorization") == "Bearer secret"
+
+
+@pytest.mark.parametrize(
+    "elsewhere",
+    [
+        "https://collector.example/releases?page=2",
+        "http://api.github.com/repositories/1/releases?page=2",
+        "https://api.github.com.collector.example/releases?page=2",
+        "https://api.github.com@collector.example/releases?page=2",
+    ],
+)
+def test_a_next_link_off_the_api_origin_stops_paging_before_the_token_leaves(
+    elsewhere,
+):
+    opener = FakeOpener(
+        {RELEASES: ([release("v2.2.3", [])], f'<{elsewhere}>; rel="next"')}
+    )
+    pages = GitHubApi("secret", opener=opener).pages(RELEASES)
+
+    assert next(pages) == [release("v2.2.3", [])]
+    with pytest.raises(GitHubOriginError, match=re.escape(API)):
+        next(pages)
+    assert [request.full_url for request in opener.requests] == [RELEASES]
