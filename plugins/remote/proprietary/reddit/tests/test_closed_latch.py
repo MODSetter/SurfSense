@@ -1,4 +1,4 @@
-"""Reddit's closed logged-out ``.json``: fail fast, and remember it for a while.
+"""Reddit's closed logged-out reads: fail fast, and remember it for a while.
 
 No network. A fake holder walks fake exits the way ``_RotatingSession`` walks
 countries; the 403 body is Reddit's "blocked by network security" page.
@@ -16,10 +16,10 @@ from proprietary.reddit import fetch
 from proprietary.reddit.fetch import (
     RedditAccessBlockedError,
     _current_session,
-    fetch_json,
+    fetch_page,
 )
 
-_LISTING = {"kind": "Listing", "data": {"children": [], "after": None}}
+_PAGE = "<shreddit-app></shreddit-app>"
 _CLOSED_PAGE = (
     Path(__file__).parent / "fixtures/blocked_by_network_security.html"
 ).read_bytes()
@@ -28,14 +28,11 @@ _CLOSED_PAGE = (
 class _Page:
     def __init__(self, status: int, body: bytes | None = None) -> None:
         self.status = status
-        self.body = body if body is not None else b'{"kind": "Listing"}'
-
-    def json(self) -> Any:
-        return _LISTING
+        self.body = body if body is not None else _PAGE.encode()
 
 
 class _Exit:
-    """One exit: ``.json`` GETs answer ``status`` with ``body``."""
+    """One exit: page GETs answer ``status`` with ``body``."""
 
     def __init__(self, country: str, status: int, body: bytes | None = None) -> None:
         self.country = country
@@ -90,7 +87,7 @@ def _closed_exits(n: int = fetch._MAX_ROTATIONS + 1) -> list[_Exit]:
 async def _fetch_on(holder: _Holder, path: str = "r/python/about") -> Any:
     token = _current_session.set(holder)
     try:
-        return await fetch_json(path)
+        return await fetch_page(path)
     finally:
         _current_session.reset(token)
 
@@ -157,14 +154,14 @@ async def test_a_call_with_no_bound_session_fails_before_opening_one(
     monkeypatch.setattr(fetch, "open_proxy_holder", no_holder)
 
     with pytest.raises(RedditAccessBlockedError):
-        await fetch_json("r/python/about")
+        await fetch_page("r/python/about")
     assert opened == []
 
 
 async def test_one_country_showing_it_is_a_dirty_exit_and_rotates_on() -> None:
     holder = _Holder([_Exit("us", 403, _CLOSED_PAGE), _Exit("gb", 200)])
 
-    assert await _fetch_on(holder) == _LISTING
+    assert await _fetch_on(holder) == _PAGE
     assert holder.rotations == 1
     assert fetch._closed.until == 0.0
 
@@ -194,7 +191,7 @@ async def test_after_the_latch_one_call_probes_and_a_200_reopens() -> None:
     fetch._closed.until = time.monotonic() - 1  # the latch ran out
     probe = _Holder([_Exit("us", 200)])
 
-    assert await _fetch_on(probe) == _LISTING
+    assert await _fetch_on(probe) == _PAGE
     assert (fetch._closed.until, fetch._closed.sightings) == (0.0, {})
 
 
@@ -229,7 +226,7 @@ async def test_latch_off_still_fails_fast_but_keeps_no_memory(
     assert first.warm_calls == 2
     later = _Holder([_Exit("us", 200)])
 
-    assert await _fetch_on(later) == _LISTING
+    assert await _fetch_on(later) == _PAGE
     assert later.warm_calls == 1
 
 
@@ -243,13 +240,15 @@ async def test_quorum_zero_turns_the_check_off(monkeypatch: pytest.MonkeyPatch) 
     assert holder.rotations == fetch._MAX_ROTATIONS
 
 
-async def test_the_warm_is_one_15s_navigation(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Scrapling's default was 3 x 30s: 93s lost on one dead exit."""
-    seen: dict[str, Any] = {}
+async def test_the_warm_is_one_plain_request_whose_cookies_every_page_carries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reddit sets ``loid`` on its first answer, a challenge page: no browser needed."""
+    asked: list[tuple[str, dict[str, str]]] = []
 
     class _Session:
         def __init__(self, **kwargs: Any) -> None:
-            seen.update(kwargs)
+            pass
 
         async def __aenter__(self) -> _Session:
             return self
@@ -257,20 +256,29 @@ async def test_the_warm_is_one_15s_navigation(monkeypatch: pytest.MonkeyPatch) -
         async def __aexit__(self, *exc: object) -> None:
             return None
 
-        async def fetch(self, url: str) -> Any:
-            return type("P", (), {"cookies": [{"name": "loid", "value": "x"}]})()
+        async def get(self, url: str, headers=None, cookies=None) -> Any:
+            asked.append((url, cookies or {}))
+            if len(asked) == 1:
+                return type(
+                    "P", (), {"status": 200, "cookies": {"loid": "x"}, "body": b"wall"}
+                )()
+            return type("P", (), {"status": 200, "cookies": {}, "body": b"<html/>"})()
 
-    async def same_loop(coro):
-        return await coro
+    monkeypatch.setattr(fetch, "FetcherSession", _Session)
+    monkeypatch.setattr(fetch, "get_sticky_proxy_url", lambda *_: "http://p:1")
 
-    monkeypatch.setattr(fetch, "AsyncStealthySession", _Session)
-    monkeypatch.setattr(fetch, "in_browser_loop", same_loop)
+    async with fetch.proxy_session():
+        page = await fetch.fetch_page("svc/shreddit/community-more-posts/new", {})
 
-    assert await fetch.warm_session("http://sticky.example:823") == {"loid": "x"}
-    assert (seen["timeout"], seen["retries"]) == (15_000, 1)
+    assert page == "<html/>"
+    assert len(asked) == 2
+    # A first request with no cookie draws a reCAPTCHA page, and the exit's full
+    # pages a JavaScript check after it (probe 2026-10-22, three countries).
+    assert asked[0][1] == {"over18": "1"}
+    assert asked[1][1]["loid"] == "x"
 
 
-async def test_json_fetches_make_one_attempt_per_exit(
+async def test_page_fetches_make_one_attempt_per_exit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     seen: dict[str, Any] = {}
@@ -296,3 +304,86 @@ async def _latch(holder: _Holder) -> None:
     with pytest.raises(RedditAccessBlockedError):
         await _fetch_on(holder)
     assert fetch._closed.until > time.monotonic()
+
+
+async def test_a_route_is_asked_for_as_reddit_spells_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``more-comments`` with a trailing slash is a 403 network-security page."""
+    asked: list[str] = []
+
+    class _Session:
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> _Session:
+            return self
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+        async def get(self, url: str, headers=None, cookies=None) -> Any:
+            asked.append(url)
+            return type(
+                "P", (), {"status": 200, "cookies": {"loid": "x"}, "body": b""}
+            )()
+
+        async def post(self, url: str, data=None, headers=None, cookies=None) -> Any:
+            asked.append(url)
+            return type("P", (), {"status": 200, "cookies": {}, "body": b"<html/>"})()
+
+    monkeypatch.setattr(fetch, "FetcherSession", _Session)
+    monkeypatch.setattr(fetch, "get_sticky_proxy_url", lambda *_: "http://p:1")
+
+    async with fetch.proxy_session():
+        await fetch.fetch_page("comments/abc/")
+        await fetch.fetch_page(
+            "svc/shreddit/more-comments/Python/t3_abc",
+            {"top-level": "1"},
+            form={"cursor": "c"},
+        )
+
+    assert asked[1:] == [
+        "https://www.reddit.com/comments/abc/",
+        "https://www.reddit.com/svc/shreddit/more-comments/Python/t3_abc?top-level=1",
+    ]
+
+
+async def test_a_post_comes_from_reddit_s_own_page_not_from_a_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A POST with the stealth headers' Google referer is a 403 (probe 2026-10-22)."""
+    posted: list[dict[str, str]] = []
+
+    class _Session:
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> _Session:
+            return self
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+        async def get(self, url: str, headers=None, cookies=None) -> Any:
+            return type(
+                "P", (), {"status": 200, "cookies": {"loid": "x"}, "body": b""}
+            )()
+
+        async def post(self, url: str, data=None, headers=None, cookies=None) -> Any:
+            posted.append(headers or {})
+            return type("P", (), {"status": 200, "cookies": {}, "body": b"<html/>"})()
+
+    monkeypatch.setattr(fetch, "FetcherSession", _Session)
+    monkeypatch.setattr(fetch, "get_sticky_proxy_url", lambda *_: "http://p:1")
+
+    async with fetch.proxy_session():
+        await fetch.fetch_page(
+            "svc/shreddit/more-comments/P/t3_a", form={"cursor": "c"}
+        )
+
+    (headers,) = posted
+    assert (headers["Referer"], headers["Origin"]) == (
+        "https://www.reddit.com/",
+        "https://www.reddit.com",
+    )
