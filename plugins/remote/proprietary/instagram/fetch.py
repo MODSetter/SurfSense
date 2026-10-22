@@ -365,7 +365,7 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
     Returns parsed JSON (dict or list), or ``None`` on 404 / non-block failure.
     See :func:`_fetch` for the warm/rotate/backoff resilience contract.
     """
-    return await _fetch(path, params, _parse_json)
+    return await _fetch(path, params, _parse_json, warm=True)
 
 
 async def fetch_html(path: str, params: dict[str, Any] | None = None) -> str | None:
@@ -377,19 +377,24 @@ async def fetch_html(path: str, params: dict[str, Any] | None = None) -> str | N
     (``/p/<shortcode>/`` embedded PolarisMedia JSON / og-meta) instead of a JSON
     XHR endpoint.
     """
-    return await _fetch(path, params, _page_text)
+    # Every logged-out page works as an exit's first request (probe 2026-10-23):
+    # the warm's csrftoken is the JSON API's, so a page read does not pay for it.
+    return await _fetch(path, params, _page_text, warm=False)
 
 
 async def _fetch(
     path: str,
     params: dict[str, Any] | None,
     extract: Callable[[Any], Any | None],
+    *,
+    warm: bool,
 ) -> Any | None:
     """GET an Instagram web endpoint through a warmed HTTP session.
 
     Applies ``extract`` to the 200 response (JSON parse or HTML text); returns
-    ``None`` on 404 / non-block failure. Warms cookies once per session; rotates
-    the residential IP and re-warms on 401/403; backs off on 429. Raises
+    ``None`` on 404 / non-block failure. With ``warm``, mints cookies once per
+    session first (only the JSON API needs them); rotates the residential IP
+    on 401/403, re-warming when it warms; backs off on 429. Raises
     :class:`InstagramAccessBlockedError` when every rotated IP refuses anonymous
     access, and :class:`InstagramLoginRequiredError` at once on a ``require_login``
     answer or while that endpoint is latched (the login wall, which we cannot
@@ -401,7 +406,7 @@ async def _fetch(
         # No bound session (e.g. a direct call outside fan_out): open a
         # short-lived warmed session for this one fetch, then tear it down.
         async with proxy_session():
-            return await _fetch(path, params, extract)
+            return await _fetch(path, params, extract, warm=warm)
 
     url = _build_url(path, params)
     attempt = 0
@@ -409,7 +414,7 @@ async def _fetch(
     while True:
         session = holder.session
         try:
-            if session is not None and not holder.warmed:
+            if warm and session is not None and not holder.warmed:
                 warmed_ok = await warm_session(session)
                 holder.warmed = True  # attempted; don't re-warm this IP
                 if not warmed_ok:

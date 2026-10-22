@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import aclosing
 from typing import Any
 
 from proprietary.scraping.logged_host import logged_host
@@ -277,8 +278,10 @@ async def _subreddit_flow(
             )
             for pid in post_ids
         ]
-        async for comment in fan_out(comment_jobs, concurrency=_COMMENT_CONCURRENCY):
-            yield comment
+        comments = fan_out(comment_jobs, concurrency=_COMMENT_CONCURRENCY)
+        async with aclosing(comments) as stream:
+            async for comment in stream:
+                yield comment
 
 
 async def _user_flow(
@@ -422,8 +425,9 @@ async def iter_reddit(
         jobs = [
             _dispatch(r, input_model) for r in _capped_targets(resolved, input_model)
         ]
-        async for item in fan_out(jobs):
-            yield item
+        async with aclosing(fan_out(jobs)) as stream:
+            async for item in stream:
+                yield item
         return
 
     # Community-only: a bare subreddit name with no urls/searches. The capability
@@ -431,11 +435,24 @@ async def iter_reddit(
     # this the searches loop below builds zero jobs and yields nothing. Reuse the
     # same flow the URL path dispatches for /r/<sub>. (searches present => the
     # name stays a search scope, handled below.)
+    # On one held session, as fan_out holds one per target: unheld, each page
+    # opened its own exit and paid its own warm-up. Not through fan_out, which
+    # collects a job whole: the listing streams, and stops at the caller's limit.
     if not input_model.searches and input_model.searchCommunityName:
-        async for item in _subreddit_flow(
-            input_model.searchCommunityName, input_model=input_model
-        ):
-            yield item
+        flow = _subreddit_flow(input_model.searchCommunityName, input_model=input_model)
+        try:
+            holder = await open_proxy_holder()
+        except Exception as e:  # no session: one-shot fetches, as in fan_out
+            logger.warning("[reddit] proxy session open failed: %s", e)
+            async for item in flow:
+                yield item
+            return
+        try:
+            async with bind_proxy_holder(holder):
+                async for item in flow:
+                    yield item
+        finally:
+            await holder.close()
         return
 
     # Fair-share the item budget across queries: with a shared cap, the
@@ -457,13 +474,14 @@ async def iter_reddit(
     # Cross-query de-dup: each flow only de-dups within itself, but the same
     # hot post matches several phrasings and would eat the collector budget.
     seen_ids: set[str] = set()
-    async for item in fan_out(jobs):
-        item_id = item.get("id")
-        if isinstance(item_id, str):
-            if item_id in seen_ids:
-                continue
-            seen_ids.add(item_id)
-        yield item
+    async with aclosing(fan_out(jobs)) as stream:
+        async for item in stream:
+            item_id = item.get("id")
+            if isinstance(item_id, str):
+                if item_id in seen_ids:
+                    continue
+                seen_ids.add(item_id)
+            yield item
 
 
 async def scrape_reddit(
@@ -478,10 +496,13 @@ async def scrape_reddit(
     core. ``on_item`` hears the count after each item, for the caller's progress.
     """
     results: list[dict[str, Any]] = []
-    async for item in iter_reddit(input_model):
-        results.append(item)
-        if on_item is not None:
-            await on_item(len(results))
-        if limit is not None and len(results) >= limit:
-            break
+    # Closed here, not by the garbage collector, so a held session is released
+    # in the context that bound it when the limit stops the stream early.
+    async with aclosing(iter_reddit(input_model)) as stream:
+        async for item in stream:
+            results.append(item)
+            if on_item is not None:
+                await on_item(len(results))
+            if limit is not None and len(results) >= limit:
+                break
     return results

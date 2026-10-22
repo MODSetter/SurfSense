@@ -413,6 +413,10 @@ async def _fetch_on(
     url = _build_url(path, params)
     attempt = 0
     backoffs = 0
+    # Reddit answers a missing post with a 200 page holding none, so a 404 is
+    # one exit's bad answer: an existing post's page drew one in about 30
+    # (2026-10-23). Asked once more on a fresh exit before it reads as gone.
+    retried_404 = False
     while True:
         session = holder.session
         try:
@@ -449,6 +453,10 @@ async def _fetch_on(
                 _closed.opened()
             if status == 200:
                 return text
+            if status == 404 and not retried_404 and session is not None:
+                retried_404 = True
+                await holder.rotate()
+                continue
             if status == 404:
                 return None
             if status == _BACKOFF_STATUS and backoffs < _MAX_BACKOFFS:

@@ -68,6 +68,9 @@ __all__ = [
 # Instagram is the most hostile platform, so this stays low to avoid burning the
 # residential pool with parallel login walls.
 _FANOUT_CONCURRENCY = 8
+# Exits one profile's post pages are read on at once. Six pages took 16.8s on
+# one exit and 7.8s on three (2026-10-23); with fan_out, at most 8 x 3 sessions.
+_PAGE_LANES = 3
 
 # Instagram usernames: 1-30 chars of letters/digits/period/underscore. Used to
 # treat a profile/user discovery query as a direct (anonymous) handle lookup.
@@ -254,25 +257,58 @@ def _pinned_posts(grid: list[GridPost], newest: list[str]) -> list[GridPost]:
     return [post._replace(pinned=i < first) for i, post in enumerate(grid)]
 
 
-async def _grid_item(
-    post: GridPost, full: dict[str, Any] | None, user: dict[str, Any]
-) -> dict[str, Any] | None:
-    """One grid post in full: from the embed when it has it, else from its own page.
+def _embed_item(
+    post: GridPost, full: dict[str, Any], user: dict[str, Any]
+) -> dict[str, Any]:
+    """A grid post from the embed's copy, which lacks its product type, alt text,
+    owner's name and video URL.
 
-    The embed lacks a post's product type, alt text, owner's name and video URL;
-    the first two come from the grid and the name from the profile. The video
+    The first two come from the grid and the name from the profile. The video
     URL stays missing rather than cost the post's own page.
     """
-    if full is None:
-        url = f"https://www.instagram.com/p/{post.code}/"
-        html = await fetch_html(f"p/{post.code}/")
-        return parse_post(html, url=url, shortcode=post.code)
     item = parse_media(full)
     item["productType"] = item.get("productType") or post.product_type
     item["alt"] = item.get("alt") or post.alt
     if item.get("ownerUsername") == user.get("username"):
         item["ownerFullName"] = item.get("ownerFullName") or user.get("full_name")
     return item
+
+
+async def _post_page(code: str) -> dict[str, Any] | None:
+    url = f"https://www.instagram.com/p/{code}/"
+    return parse_post(await fetch_html(f"p/{code}/"), url=url, shortcode=code)
+
+
+async def _post_pages(codes: list[str]) -> dict[str, dict[str, Any] | None]:
+    """Posts read from their own pages on up to ``_PAGE_LANES`` exits at once.
+
+    The first lane reads on the held session and the others open their own, so
+    no exit nears its ~14 reads. One blocked lane cancels the rest.
+    """
+    lanes = [codes[i::_PAGE_LANES] for i in range(min(_PAGE_LANES, len(codes)))]
+
+    async def read(lane: list[str], fresh: bool) -> dict[str, dict[str, Any] | None]:
+        if not fresh:
+            return {code: await _post_page(code) for code in lane}
+        try:
+            holder = await open_proxy_holder()
+        except Exception as e:  # no session: one-shot fetches, as in fan_out
+            logger.warning("[instagram] proxy session open failed: %s", e)
+            return {code: await _post_page(code) for code in lane}
+        try:
+            async with bind_proxy_holder(holder):
+                return {code: await _post_page(code) for code in lane}
+        finally:
+            await holder.close()
+
+    try:
+        async with asyncio.TaskGroup() as group:
+            tasks = [
+                group.create_task(read(lane, i > 0)) for i, lane in enumerate(lanes)
+            ]
+    except BaseExceptionGroup as failed:
+        raise failed.exceptions[0] from None
+    return {code: item for task in tasks for code, item in task.result().items()}
 
 
 def _media_matches(item: dict[str, Any], result_type: str) -> bool:
@@ -299,25 +335,35 @@ async def _media_flow(
             user, context = await _profile_pages(resolved.value)
         full = {m.get("shortcode"): m for m in embed_media(context)}
         grid = clips(user) if reels else _pinned_posts(timeline(user), list(full))
+        wanted = [p for p in grid if not (input_model.skipPinnedPosts and p.pinned)]
         emitted = 0
-        for post in grid:
-            if input_model.skipPinnedPosts and post.pinned:
-                continue
-            item = await _grid_item(post, full.get(post.code), user)
-            if item is None:
-                continue
-            if post.pinned is not None:
-                item["isPinned"] = post.pinned
-            if item.get("videoViewCount") is None and post.views is not None:
-                item["videoViewCount"] = post.views
-            if not _media_matches(item, result_type):
-                continue
-            if not _is_after(item.get("timestamp"), cutoff):
-                continue
-            yield _emit(item, input_url=resolved.url)
-            emitted += 1
-            if emitted >= per_target:
-                return
+        # A window holds only as many posts as are still wanted, so a filter that
+        # drops some costs one more window, and a full feed reads no more pages.
+        while wanted and emitted < per_target:
+            window, wanted = (
+                wanted[: per_target - emitted],
+                wanted[per_target - emitted :],
+            )
+            pages = await _post_pages([p.code for p in window if p.code not in full])
+            for post in window:
+                if post.code in full:
+                    item = _embed_item(post, full[post.code], user)
+                else:
+                    item = pages.get(post.code)
+                if item is None:
+                    continue
+                if post.pinned is not None:
+                    item["isPinned"] = post.pinned
+                if item.get("videoViewCount") is None and post.views is not None:
+                    item["videoViewCount"] = post.views
+                if not _media_matches(item, result_type):
+                    continue
+                if not _is_after(item.get("timestamp"), cutoff):
+                    continue
+                yield _emit(item, input_url=resolved.url)
+                emitted += 1
+                if emitted >= per_target:
+                    return
         return
     if resolved.kind in ("post", "reel"):
         # Single-post extraction: the anonymous ``?__a=1`` JSON API 404s/login-
