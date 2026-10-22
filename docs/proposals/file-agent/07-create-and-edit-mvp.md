@@ -77,11 +77,11 @@ Every piece here serves the video; S4 and S5 are [after the slice](#after-the-sl
 | # | Piece | Where | Agent time, rough |
 |---|---|---|---|
 | S1 | Script runner: worker flag, process, timeout, output read-back; `bash: deny` | `worker.py`; new `worker/document_script/`; `modules/agent/opencode_config.py` | 2–3 h |
-| S2 | Agent tools, Studio job for script specs, version keys, registration timeout, skill and prompt lines | new `modules/agent/tool_endpoint/render_document.py` and `read_document.py`; `offered_tools.py`; `registration.py`; new `modules/agent/skills/surfsense-documents/SKILL.md`; `opencode_config.py`; `prompts/agent.md`; `worker/studio/job.py`; `bundling/api.spec` | 3–4 h |
+| S2 | Agent tools, Studio job for script specs, version keys, registration timeout, skill and prompt lines | new `modules/agent/tool_endpoint/render_document.py` and `read_document.py`; `offered_tools.py`; `registration.py`; new `modules/agent/skills/surfsense-documents/SKILL.md`; `opencode_config.py`; `prompts/agent.md`; `worker/studio/job.py`; `bundling/api_inputs.py` | 3–4 h |
 | S3 | Version switcher and lineage in the Studio list; chat step lines that open the artifact | `frontend/src/features/studio/`; `frontend/src/features/agent/` | 3–4 h |
 | S6 | Development setup and the demo script | a short how-to beside this file | 1 h |
 | S7 | Source figures: kept at ingest with captions, the figures-only pass for older sources, listing, PNG conversion, copying into the runner folder | `worker/ingestion/parsing.py`; new `worker/ingestion/figures/`; new `modules/documents/source_figures/`; new `modules/agent/tool_endpoint/list_images.py`; the runner | 5–7 h |
-| S8 | Charts: matplotlib dependency and freezing, the skill's chart guidance | `pyproject.toml`; `bundling/worker.spec`; the skill | 2–3 h |
+| S8 | Charts: matplotlib dependency and freezing, the skill's chart guidance | `pyproject.toml`; `bundling/worker_inputs.py`; the skill | 2–3 h |
 | S9 | Self-check previews: PDF pages through pypdfium2; Word through a render request the API queues and Electron serves in a hidden window with docx-preview and `printToPDF`; preview paths in the tool result; the skill's checking guidance | the runner; new `modules/agent/previews/`; new `electron/src/main/docx-snapshot/`; a snapshot page in `frontend/`; the skill | 5–7 h |
 
 Order: S1, S2, S3 and S6 make the video and come first. S7, S8 and S9 follow, because the video's second turn uses a logo and a chart and the agent checks its pages. In total, roughly two and a half days of agent work. These estimates are rough.
