@@ -167,15 +167,28 @@ async def test_a_challenge_page_rotates_to_a_fresh_exit_rather_than_being_solved
     assert holder.rotations == 1
 
 
-async def test_404_returns_none_without_rotating():
+async def test_a_404_is_asked_once_more_on_a_fresh_exit():
+    """An existing post's page answered 404 once in about 30 (2026-10-23), and the
+    call returned no items. A missing post is a 200 page with no post in it."""
     holder = _FakeHolder([_FakeSession(404), _FakeSession(200)])
     token = _current_session.set(holder)
     try:
-        result = await fetch_page("r/python/comments/missing")
+        result = await fetch_page("comments/1xbnrhi/")
+    finally:
+        _current_session.reset(token)
+    assert result == _PAGE
+    assert holder.rotations == 1
+
+
+async def test_a_404_on_two_exits_returns_none():
+    holder = _FakeHolder([_FakeSession(404), _FakeSession(404), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_page("comments/gone/")
     finally:
         _current_session.reset(token)
     assert result is None
-    assert holder.rotations == 0
+    assert holder.rotations == 1
 
 
 async def test_429_backs_off_without_rotating(monkeypatch):
