@@ -34,10 +34,10 @@ SEARCH_TYPE_DESCRIPTION = (
 
 # Said with a login-wall refusal: what an anonymous caller can still get.
 STILL_WORKS = (
-    "Profile details and a profile's posts and reels feeds need a logged-in "
-    "account, and SurfSense reads Instagram anonymously, so retrying will not "
-    "help. Single post and reel URLs (instagram.com/p/<code>/ or "
-    "instagram.com/reel/<code>/) still work: pass those to scrape in urls."
+    "Instagram asked for a login here, and SurfSense reads Instagram "
+    "anonymously, so retrying will not help. Single post and reel URLs "
+    "(instagram.com/p/<code>/ or instagram.com/reel/<code>/) still work: pass "
+    "those to scrape in urls."
 )
 
 
@@ -134,7 +134,13 @@ def server() -> MCPServer:
         ] = False,
         max_per_target: Annotated[
             int,
-            Field(ge=1, description="Max results per URL or per discovered target."),
+            Field(
+                ge=1,
+                description=(
+                    "Max results per URL or per discovered target. A profile shows "
+                    "a logged-out visitor its latest 12 posts or 12 reels, no more."
+                ),
+            ),
         ] = 10,
         max_items: Annotated[
             int,

@@ -19,6 +19,7 @@ from proprietary.instagram.fetch import (
     _current_session,
     fetch_json,
 )
+from proprietary.instagram.tests.profile_pages import profile_pages
 
 _PAYLOAD = {"data": {"user": {"username": "natgeo"}}}
 
@@ -340,22 +341,6 @@ async def test_fan_out_partial_results_survive_one_blocked_target(monkeypatch):
     assert [it["id"] for it in items] == ["good:0", "good:1", "good:2"]
 
 
-def _profile_payload(username: str, n: int) -> dict:
-    # IDs namespaced per target so cross-target de-dup doesn't collapse them.
-    return {
-        "data": {
-            "user": {
-                "id": f"u_{username}",
-                "username": username,
-                "edge_owner_to_timeline_media": {
-                    "count": n,
-                    "edges": [{"node": {"id": f"{username}:{i}"}} for i in range(n)],
-                },
-            }
-        }
-    }
-
-
 async def test_scrape_instagram_closes_sessions_when_limit_stops_inflight_workers(
     monkeypatch,
 ):
@@ -382,12 +367,12 @@ async def test_scrape_instagram_closes_sessions_when_limit_stops_inflight_worker
 
     async def _fetch(path, params=None):
         await asyncio.sleep(0)  # yield control: keep sibling workers in-flight
-        username = (params or {}).get("username", "acct")
-        return _profile_payload(username, 5)
+        username = path.split("/", 1)[0]
+        return profile_pages(username, list(range(5))).get(path)
 
     monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
     monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
-    monkeypatch.setattr(scraper, "fetch_json", _fetch)
+    monkeypatch.setattr(scraper, "fetch_html", _fetch)
 
     model = scraper.InstagramScrapeInput(
         resultsType="posts",
