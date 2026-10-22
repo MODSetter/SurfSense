@@ -142,7 +142,7 @@ export default function PrivacyPolicy() {
 						<li>
 							<strong>Update checks, to github.com.</strong> Reads the list of releases on
 							github.com, then asks for the release file for your platform, Windows, macOS or Linux,
-							so the app can tell whether a newer release exists. Both requests send your IP
+							so the app can tell whether a newer release exists. Each request sends your IP
 							address, and no version number and no identifier. GitHub serves its release files from
 							its download host, githubusercontent.com, which also sees your IP address. Versions up
 							to 2.2.3 also sent a random identifier that the update library, electron-updater,
