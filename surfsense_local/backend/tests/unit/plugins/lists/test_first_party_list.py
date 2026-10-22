@@ -57,12 +57,13 @@ def test_the_list_is_read_as_utf_8_whatever_the_system_code_page(
 def test_the_packaged_list_passes_its_check() -> None:
     """A bad entry fails CI here, not on a user's machine.
 
-    Reddit and Instagram are written but left out: Reddit refuses anonymous reads and
-    Instagram's profiles sit behind a login (plugin-host.md, Known gaps).
+    Instagram is written but left out: its profiles sit behind a login
+    (plugin-host.md, Known gaps).
     """
     assert [entry.id for entry in checked_entries(FIRST_PARTY_LIST)] == [
         "google-search",
         "web-crawl",
+        "reddit",
         "youtube",
         "tiktok",
         "google-maps",
