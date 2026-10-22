@@ -9,7 +9,7 @@ code:
 
 # Bundles: plugins that run on the user's machine
 
-> Deferred. Remote plugins are built ([plugins](../../../architecture/plugins.md)). A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([what is not built](../README.md)).
+> Deferred. Remote plugins are built ([plugins](../../../architecture/plugins.md)). A bundle is `kind: bundle` in the registry: an MCP server that runs on the user's computer, for offline and air-gapped use, local software, and private processing. It is picked up when something needs it ([what is not built](../README.md)). Since 22 Oct 2026 SurfSense's B2B jobs need it, so it comes before the security questionnaire's beta ([below](#first-local-paid-bundles-surfsenses-b2b-jobs)).
 
 The files in this folder are the earlier design, written when a plugin was a sidebar action with a form that wrote notes into Sources. Its local-runtime parts are what bundles will build on, and some are built: the runner in [`modules/plugins/bundles/runner/`](../../../../surfsense_local/backend/modules/plugins/bundles/runner/), the SDK, the CLI's author commands and the manifest rules in [`plugins/bundles/core/`](../../../../plugins/bundles/core/). Where a file here disagrees with how remote plugins are built ([plugins](../../../architecture/plugins.md), [plugin registry](../../../architecture/plugin-registry.md)), they hold.
 
@@ -89,7 +89,7 @@ What stays: a separate process with its environment built from scratch, declared
 
 ---
 
-The earlier design follows, unchanged apart from its links.
+The earlier design follows, unchanged apart from its links, a section on SurfSense's B2B jobs and an open question on license terms, both added on 22 Oct 2026.
 
 # The earlier design
 
@@ -213,7 +213,18 @@ The client for the hosted scraper API ships as a `paid` plugin on this system, n
 - It declares the scraper API's host in `hosts`, so the user consents before its first run.
 - A trial license unlocks it, like any other `paid` plugin.
 
+## First local paid bundles: SurfSense's B2B jobs
+
+Added 22 Oct 2026. SurfSense's B2B jobs are the first planned `paid` bundles ([ADR 0067](../../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the security questionnaire first, then RFP, RFI and DDQ responses from the same library, then bank statements into a ledger, medical chronologies and contract and lease registers, and the contract redline after them ([08](../../../../plans/community-local/seo/08-b2b-artifact-jobs.md#the-bets)). Later B2B jobs ship the same way.
+
+- Each runs on the user's machine. It installs and runs only with an unexpired SurfSense license, as the Access row in Locked decisions defines. The license server delivers it only to a valid license, never in the installer or the public plugin list.
+- When the license lapses, the job bundle stops and the app keeps working ([ADR 0019](../../../adr/0019-offline-licenses.md)). The user's libraries, own playbooks, outputs and revised copies open and export without a license.
+- A job bundle carries the job: its skill and agent, workflow steps, mappings, playbooks, templates, eval cases and gold corpus. That content is written outside the Apache-2.0 tree from its first commit, in a folder with its own license file, so the Code license row in Locked decisions does not apply to it. The general agent, the engines, the bundle runtime and the shared job infrastructure stay in the app, free under Apache-2.0.
+- The license check in the app can be stripped by a fork ([ADR 0019](../../../adr/0019-offline-licenses.md)). What holds is delivery and the bundle's license terms, which are still open (Open questions).
+- No job bundle ships before local paid bundles exist and the job-pack loader adds a bundle's skills and job agents ([02](../../file-agent/02-skills-and-engines.md#phases), phase 8, `provides.skills`). Both now come before the questionnaire's beta ([08](../../../../plans/community-local/seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs), item 11).
+
 ## Open questions
 
 - How a `paid` plugin gets the license key it sends as `Authorization: License <key>`. The protocol only passes secrets the user sets. The leading answer is one more context variable, passed only to reserved ids, when the scraper plugin is built.
 - Whether CI runs a plugin's own `tests/`, and against what. They would need a stub of the app that plugins can import, which the SDK builds for its own tests but does not publish yet.
+- Which license terms a local paid bundle carries. The Business Source License in [`plugins/remote/proprietary/LICENSE`](../../../../plugins/remote/proprietary/LICENSE) grants production use to anyone who does not resell the work. That suits code on SurfSense's server, but on the user's machine it would let a business run a job bundle without a license. The choice, a narrower Additional Use Grant or a closed license, is made with the lawyer before the first job bundle ships ([08, open question 1](../../../../plans/community-local/seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).
