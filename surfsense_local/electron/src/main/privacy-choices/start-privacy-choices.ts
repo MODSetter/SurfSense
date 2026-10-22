@@ -38,6 +38,9 @@ import { registerUpdateHandlers } from "./update-ipc.ts"
 // In memory, uncached: no cookie or cache entry ever ties one request to the
 // next, and the user agent names no version.
 const OUTBOUND_PARTITION = "surfsense-updates-and-usage"
+const OUTBOUND_USER_AGENT = "SurfSense"
+// An empty list, so Chromium adds no Accept-Language from the system locale.
+const NO_ACCEPT_LANGUAGE = ""
 
 /**
  * Update checks, usage statistics and window.surfsense.privacy for this run.
@@ -74,7 +77,7 @@ export function startPrivacyChoices(options: {
   const platform = platformLabel(process.platform, process.arch)
   const os = osLabel(process.platform, process.getSystemVersion())
   const outbound = session.fromPartition(OUTBOUND_PARTITION, { cache: false })
-  outbound.setUserAgent("SurfSense")
+  outbound.setUserAgent(OUTBOUND_USER_AGENT, NO_ACCEPT_LANGUAGE)
   const outboundFetch = ((input, init) =>
     outbound.fetch(input instanceof URL ? input.href : input, init)) as typeof fetch
 
@@ -85,6 +88,7 @@ export function startPrivacyChoices(options: {
     mirror: policy.updateFeed !== null,
     channelFile: channelFile(process.platform, process.arch),
     headers: feedHeaders({ version, platform, os }),
+    userAgent: OUTBOUND_USER_AGENT,
     fetch: outboundFetch,
     onRequest: (request) => {
       lastRequest = request

@@ -18,6 +18,8 @@ export type UpdateFeed = {
   channelFile: string
   /** X-SurfSense-Version, -Platform and -OS: sent to `base` only, never to GitHub. */
   headers: Record<string, string>
+  /** The User-Agent the outbound session sets on every request; recorded here, not set. */
+  userAgent?: string
   fetch: typeof fetch
   timeoutMs?: number
   /** The request to `base`, for Settings to show exactly what was sent. */
@@ -70,7 +72,10 @@ export async function latestManifest(feed: UpdateFeed): Promise<UpdateInfo> {
   const base = feedBase(feed.base)
   const url = new URL(feed.channelFile, base).href
   const host = new URL(url).host
-  feed.onRequest?.({ url, headers: { ...feed.headers } })
+  feed.onRequest?.({
+    url,
+    headers: { ...(feed.userAgent ? { "User-Agent": feed.userAgent } : {}), ...feed.headers },
+  })
   const ours = await readManifest(
     feed.fetch,
     url,

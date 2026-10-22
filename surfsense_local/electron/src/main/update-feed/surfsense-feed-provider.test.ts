@@ -67,6 +67,7 @@ function provider(feed: Partial<UpdateFeed> & Pick<UpdateFeed, "fetch">) {
     mirror: false,
     channelFile: "stable.yml",
     headers: HEADERS,
+    userAgent: "SurfSense",
     onRequest: (request) => seen.push(request),
     ...feed,
   })
@@ -96,7 +97,10 @@ test("our feed's manifest is used, asked with exactly the three SurfSense header
   assert.deepEqual(net.requests, [
     { url: OUR_FEED, headers: HEADERS, redirect: "error" },
   ])
-  assert.deepEqual(seen, [{ url: OUR_FEED, headers: HEADERS }])
+  // The outbound session sets the User-Agent; Settings shows it with ours.
+  assert.deepEqual(seen, [
+    { url: OUR_FEED, headers: { "User-Agent": "SurfSense", ...HEADERS } },
+  ])
   assert.deepEqual(
     feed.resolveFiles(info).map((file) => file.url.href),
     [`${RELEASE}SurfSense-Setup.exe`]
