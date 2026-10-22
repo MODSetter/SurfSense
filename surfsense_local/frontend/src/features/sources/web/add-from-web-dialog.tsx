@@ -161,7 +161,14 @@ export function AddFromWebDialog({
         group.link === link
           ? {
               ...group,
-              results: [...group.results, ...next.results],
+              // A list that moved between pages repeats an item already shown.
+              results: [
+                ...group.results,
+                ...next.results.filter(
+                  (result) =>
+                    !group.results.some((shown) => shown.url === result.url)
+                ),
+              ],
               more: next.more,
               failed: next.failed,
             }

@@ -332,6 +332,39 @@ describe("adding sources from the web", () => {
     ])
   })
 
+  it("shows a video once when the list moved between two pages", async () => {
+    const user = userEvent.setup()
+    serving({
+      // A video posted meanwhile pushed the first page's last one onto this page.
+      list: () =>
+        Response.json({
+          ...channelPage(1, false),
+          results: [
+            channelPage(0, true).results[1],
+            ...channelPage(1, false).results,
+          ],
+        }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await user.type(box(dialog), CHANNEL)
+    await user.keyboard("{Enter}")
+    const channel = await within(dialog).findByRole("group", { name: CHANNEL })
+
+    await user.click(within(channel).getByRole("button", { name: "Show more" }))
+
+    expect(
+      await within(channel).findByRole("button", {
+        name: "Add Tides, page 2 video 1",
+      })
+    ).toBeTruthy()
+    expect(
+      within(channel).getAllByRole("button", {
+        name: "Add Tides, page 1 video 2",
+      })
+    ).toHaveLength(1)
+  })
+
   it("opens pasted links in the same box instead of searching", async () => {
     const user = userEvent.setup()
     const sent = serving()

@@ -83,5 +83,5 @@ A pull that fails marks the note `failed` with a sentence the panel shows:
 - **Amazon reviews.** An Amazon source holds only the reviews on the product page: the plugin takes no count of them.
 - **Transcript language.** The YouTube pull asks the plugin for English subtitles, its default, so a video without an English track, such as a French one, has no transcript. The source should hold the original-language transcript: a person-written track in the spoken language, else the auto-generated one, never a translation. That needs an `original` mode in the YouTube plugin (`subtitles_language`), with no translation call for it. The plugin host must ship that mode before the app sends it.
 - **YouTube live links.** A `/live/<id>` link is opened as a list, which the plugin cannot read, so its group comes back failed.
-- **List pages cost more each time.** Page 2 of a list reads 60 items to show the last 20, since plugins take a count, not an offset.
+- **List pages cost more each time.** Page 2 of a list reads 60 items to show the last 20, since plugins take a count, not an offset. A list that changes between pages shifts: the dialog drops an item it already shows, but an item that moved back past a page is never shown. Plugins that take the site's own next-page token would fix both.
 - **No refresh.** A source cannot be refreshed from its link.
