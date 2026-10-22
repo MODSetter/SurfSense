@@ -50,6 +50,11 @@ def happens(condition: Callable[[], bool], seconds: float = 5) -> None:
         time.sleep(0.02)
 
 
+def without_id(event: dict) -> dict:
+    """An event less its uuid, which test_a_day_sent_again_carries_the_same_event_ids checks."""
+    return {field: value for field, value in event.items() if field != "uuid"}
+
+
 def personless(name: str, properties: dict) -> dict:
     return {
         "event": name,
@@ -82,7 +87,7 @@ async def test_yesterday_s_totals_go_to_posthog_once_with_no_license_id(
 
     assert len(posthog.bodies) == 1
     assert b'"api_key":"phc_test"' in posthog.bodies[0].replace(b" ", b"")
-    assert posthog.events == [
+    assert [without_id(event) for event in posthog.events] == [
         personless(
             "plugin_usage_daily",
             {
@@ -204,6 +209,35 @@ def test_the_rollup_command_sends_the_day_it_is_given(
         "plugin_licences_daily",
     ]
     assert b"lic-a" not in posthog.bodies[0]
+
+
+def test_a_day_sent_again_carries_the_same_event_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """So PostHog keeps one copy of a day sent twice instead of counting it again."""
+    path = tmp_path / "usage.sqlite3"
+    UsageStore(path).add(
+        {
+            CallKey("2026-10-19", "lic-a", "notes", "search", "ok"): Tally(1, 10),
+            CallKey(YESTERDAY, "lic-a", "notes", "search", "ok"): Tally(2, 40),
+            CallKey(YESTERDAY, "lic-a", "notes", "search", "refused"): Tally(1, 5),
+        }
+    )
+    posthog = StandInPostHog()
+    with serving(posthog.app) as url:
+        monkeypatch.setenv("USAGE_DB_PATH", str(path))
+        monkeypatch.setenv("POSTHOG_API_KEY", "phc_test")
+        monkeypatch.setenv("POSTHOG_HOST", url)
+        for day in (YESTERDAY, YESTERDAY, "2026-10-19"):
+            assert main(["--day", day]) == 0
+
+    first, again, other_day = (
+        [event["uuid"] for event in json.loads(body)["batch"]]
+        for body in posthog.bodies
+    )
+    assert first == again
+    assert len(set(first)) == len(first) == 3
+    assert not set(other_day) & set(first)
 
 
 @pytest.mark.parametrize(

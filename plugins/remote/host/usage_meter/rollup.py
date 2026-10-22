@@ -4,7 +4,9 @@ By hand, from plugins/remote/: python -m host.usage_meter.rollup --day YYYY-MM-D
 """
 
 import argparse
+import json
 import logging
+import uuid
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -20,6 +22,10 @@ logger = logging.getLogger(__name__)
 TIMEOUT_SECONDS = 30.0
 # Personless events still need a distinct id; this one names the sender, not a person.
 DISTINCT_ID = "surfsense-plugin-host"
+# Fixed, so a day sent again carries the same event ids and PostHog keeps one copy.
+EVENT_ID_NAMESPACE = uuid.uuid5(
+    uuid.NAMESPACE_URL, "https://plugins.surfsense.com/usage"
+)
 
 
 @dataclass(frozen=True)
@@ -39,7 +45,13 @@ class PostHogRollup:
 def rollup_events(usage: DailyUsage) -> list[dict[str, Any]]:
     """One `plugin_usage_daily` per plugin, tool and outcome, and one `plugin_licences_daily`."""
     tools = [
-        _event("plugin_usage_daily", usage.day, asdict(tool)) for tool in usage.tools
+        _event(
+            "plugin_usage_daily",
+            usage.day,
+            asdict(tool),
+            key=(tool.plugin, tool.tool, tool.outcome),
+        )
+        for tool in usage.tools
     ]
     licences = _event(
         "plugin_licences_daily",
@@ -52,8 +64,11 @@ def rollup_events(usage: DailyUsage) -> list[dict[str, Any]]:
     return [*tools, licences]
 
 
-def _event(name: str, day: str, properties: dict[str, Any]) -> dict[str, Any]:
+def _event(
+    name: str, day: str, properties: dict[str, Any], key: tuple[str, ...] = ()
+) -> dict[str, Any]:
     return {
+        "uuid": str(uuid.uuid5(EVENT_ID_NAMESPACE, json.dumps([name, day, *key]))),
         "event": name,
         "distinct_id": DISTINCT_ID,
         # Midday UTC, so a project in another time zone still shows it on its day.
