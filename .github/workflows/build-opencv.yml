@@ -1,0 +1,137 @@
+# Build opencv-python-headless with only the modules the app calls, from the
+# sdist uv.lock pins and the switches in surfsense_local/backend/scripts/opencv/,
+# check that every cv2 call the app and its parsers make answers byte for byte
+# as PyPI's wheel does, and hand the wheel to the desktop release as an
+# artifact. PyPI's wheel adds video, DNN and the other modules, FFmpeg (Homebrew's
+# GPL build on macOS) and, on Linux, OpenBLAS, none of which the app runs. A pull
+# request that changes the scripts or the lock runs it too.
+name: Build OpenCV
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - surfsense_local/backend/scripts/opencv/**
+      - surfsense_local/backend/uv.lock
+      - .github/workflows/build-opencv.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows x64
+          - os: macos-15
+            name: macOS arm64
+          # Hosts upstream's manylinux_2_28 image (pins.py), which builds it.
+          - os: ubuntu-22.04
+            name: Linux x64
+    defaults:
+      run:
+        shell: bash
+        working-directory: surfsense_local/backend
+    env:
+      # As the release: uv's own Python, never one found on PATH.
+      UV_PYTHON_PREFERENCE: only-managed
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - id: pin
+        name: Read the pinned sdist
+        run: uv run --no-project scripts/opencv/pins.py >> "$GITHUB_OUTPUT"
+
+      # A release that changes neither the pin nor the build reuses the last checked wheel.
+      - id: cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/opencv/dist
+          key: opencv-${{ runner.os }}-${{ steps.pin.outputs.sha256 }}-${{ hashFiles('surfsense_local/backend/scripts/opencv/pins.py', 'surfsense_local/backend/scripts/opencv/recipe.py', 'surfsense_local/backend/scripts/opencv/build_wheel.py', 'surfsense_local/backend/scripts/opencv/setup_patch.py') }}
+
+      - name: Install NASM
+        # libjpeg-turbo's x86 SIMD needs it, and the recipe refuses to build without.
+        if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          choco install nasm --no-progress -y
+          echo "C:/Program Files/NASM" >> "$GITHUB_PATH"
+
+      - name: Build (Windows, macOS)
+        if: runner.os != 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        run: uv run --no-project scripts/opencv/build_wheel.py "$RUNNER_TEMP/opencv"
+
+      - name: Build (Linux)
+        # Upstream's own image: its compiler built PyPI's wheel, and its glibc
+        # 2.28 sits under the app's floor. As root, since the image's own user
+        # cannot write the runner's folders.
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          docker run --rm -u root -v "$GITHUB_WORKSPACE:/io:ro" -v "$RUNNER_TEMP:/work" \
+            "${{ steps.pin.outputs.linux_image }}" \
+            /opt/python/cp312-cp312/bin/python /io/surfsense_local/backend/scripts/opencv/build_wheel.py /work/opencv
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/opencv"
+
+      - name: Gate on the app's Linux floor
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        # The floor is glibc 2.34, RHEL 9, whose libgcc_s is GCC 11's: nothing
+        # after GCC_7.0.0. The module links only the C and C++ runtimes and,
+        # as upstream's does, the system's zlib.
+        run: |
+          rm -rf opencv-gate && unzip -q opencv/dist/*.whl -d opencv-gate
+          files=$(find opencv-gate -name '*.so*' -type f)
+          too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do
+            case "$v" in GLIBC_*) floor=GLIBC_2.34 ;; GCC_*) floor=GCC_7.0.0 ;; esac
+            [ "$(printf '%s\n%s\n' "$v" "$floor" | sort -V | tail -1)" = "$floor" ] || echo "$v"
+          done)
+          if [ -n "$too_new" ]; then
+            for f in $files; do objdump -T "$f" | grep -wF "$too_new" | sed "s|^|$f: |"; done
+            exit 1
+          fi
+          needs=$(for f in $files; do objdump -p "$f" | awk '$1 == "NEEDED" {print $2}'; done | sort -u)
+          echo "$needs"
+          outside=$(echo "$needs" | grep -vE '^(libc|libm|libdl|libpthread|librt|libstdc\+\+|libgcc_s|libz|ld-linux-x86-64)\.so' || true)
+          if [ -n "$outside" ]; then echo "links $outside"; exit 1; fi
+
+      - name: Gate on the app's macOS floor
+        if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        # 13.3, as the native runtimes; upstream's wheel says 13.0. Every library
+        # it loads is the system's: no Homebrew, so no FFmpeg.
+        run: |
+          rm -rf opencv-gate && unzip -q opencv/dist/*.whl -d opencv-gate
+          bad=0
+          for f in $(find opencv-gate -name '*.so' -o -name '*.dylib'); do
+            minos=$(otool -l "$f" | awk '$1 == "minos" {print $2; exit}')
+            if [ "$(printf '%s\n%s\n' "$minos" 13.3 | sort -V | tail -1)" != "13.3" ]; then
+              echo "$f needs macOS $minos"; bad=1
+            fi
+            outside=$(otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/Library/)' || true)
+            if [ -n "$outside" ]; then echo "$f links $outside"; bad=1; fi
+          done
+          exit $bad
+
+      # Under PyPI's wheel and then this one, with the backend's locked numpy,
+      # RapidOCR and onnxruntime: every call site's cv2 call on fixed images,
+      # and RapidOCR reading rendered text as the app configures it. Run on a
+      # cached wheel too: the lock can move numpy or RapidOCR without it.
+      - name: Gate on every call answering as PyPI's wheel does
+        run: uv run --no-project scripts/opencv/check_same_outputs.py "$RUNNER_TEMP/opencv/dist" "$RUNNER_TEMP/opencv-check"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: opencv-${{ runner.os }}
+          path: ${{ runner.temp }}/opencv/dist/*.whl
+          if-no-files-found: error
+          retention-days: 7

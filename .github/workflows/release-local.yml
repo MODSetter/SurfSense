@@ -39,6 +39,10 @@ jobs:
   sdcpp:
     uses: ./.github/workflows/build-sdcpp.yml
 
+  # All three compile it; the build job installs it over PyPI's cv2.
+  opencv:
+    uses: ./.github/workflows/build-opencv.yml
+
   # Before the release build: a lapsed Apple agreement fails here in seconds.
   notarization:
     uses: ./.github/workflows/notarization-credentials.yml
@@ -47,7 +51,7 @@ jobs:
     secrets: inherit
 
   build:
-    needs: [audiocpp, sdcpp, notarization]
+    needs: [audiocpp, sdcpp, notarization, opencv]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -152,6 +156,30 @@ jobs:
       - name: Install backend deps
         working-directory: surfsense_local/backend
         run: uv sync
+
+      - name: Fetch the minimal OpenCV build
+        uses: actions/download-artifact@v8
+        with:
+          name: opencv-${{ runner.os }}
+          path: surfsense_local/backend/opencv-wheel
+
+      # The same cv2 with only the modules the app calls, which build-opencv.yml
+      # checked answers every call as PyPI's wheel does. A later `uv run` would
+      # sync PyPI's wheel back, so UV_NO_SYNC keeps the venv as it is from here.
+      - name: Swap in the minimal OpenCV
+        working-directory: surfsense_local/backend
+        run: |
+          uv pip install --python .venv --no-deps --reinstall opencv-wheel/*.whl
+          echo "UV_NO_SYNC=1" >> "$GITHUB_ENV"
+          uv run --no-sync python - <<'PY'
+          import re
+
+          import cv2
+
+          built = re.search(r"To be built:\s*(.*)", cv2.getBuildInformation())[1].split()
+          print("cv2 modules:", *built)
+          assert built == ["core", "flann", "geometry", "imgcodecs", "imgproc", "python3"], built
+          PY
 
       - name: Refuse to build with the test signing key
         working-directory: surfsense_local/backend
