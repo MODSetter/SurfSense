@@ -166,7 +166,10 @@ test("the check fails only when GitHub fails too", async () => {
   const net = network({ [OUR_FEED]: { status: 502 }, [GITHUB_FEED]: { status: 503 } })
   const { provider: feed } = provider({ fetch: net.fetch })
 
-  await assert.rejects(feed.getLatestVersion(), /github\.com \(HTTP 503\)/)
+  // Settings writes "Could not check for updates: " in front of this.
+  await assert.rejects(feed.getLatestVersion(), {
+    message: "updates.surfsense.com (HTTP 502) and github.com (HTTP 503) could not be used",
+  })
 })
 
 test("an admin's mirror is used alone: no GitHub fallback when it fails", async () => {
@@ -174,7 +177,9 @@ test("an admin's mirror is used alone: no GitHub fallback when it fails", async 
   const net = network({ [GITHUB_FEED]: { body: GITHUB_MANIFEST } })
   const { provider: feed } = provider({ fetch: net.fetch, base: mirror, mirror: true })
 
-  await assert.rejects(feed.getLatestVersion(), /updates\.corp\.example/)
+  await assert.rejects(feed.getLatestVersion(), {
+    message: "the update mirror updates.corp.example could not be used (unreachable)",
+  })
   assert.deepEqual(
     net.requests.map((request) => request.url),
     [`${mirror}/stable.yml`]

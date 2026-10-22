@@ -60,7 +60,11 @@ async function readManifest(
   }
 }
 
-/** The manifest for this channel: from our feed, else straight from GitHub (never blocked by us). */
+/**
+ * The manifest for this channel: from our feed, else straight from GitHub (never
+ * blocked by us). A failure says only which hosts failed and why; Settings puts
+ * "Could not check for updates" in front of it.
+ */
 export async function latestManifest(feed: UpdateFeed): Promise<UpdateInfo> {
   const log = feed.log ?? (() => undefined)
   const base = feedBase(feed.base)
@@ -80,7 +84,7 @@ export async function latestManifest(feed: UpdateFeed): Promise<UpdateInfo> {
     const problem = "problem" in ours ? ours.problem : mirrorManifestProblem(ours.info, base)
     if (problem !== null) {
       log(`update mirror ${host} could not be used (${problem})`)
-      throw new Error(`The update mirror ${host} could not be used (${problem}).`)
+      throw new Error(`the update mirror ${host} could not be used (${problem})`)
     }
     log(`manifest from the update mirror ${host}`)
     return (ours as { info: UpdateInfo }).info
@@ -103,7 +107,7 @@ export async function latestManifest(feed: UpdateFeed): Promise<UpdateInfo> {
     "problem" in github ? github.problem : githubManifestProblem(github.info)
   if (githubProblem !== null) {
     log(`github.com could not be used either (${githubProblem})`)
-    throw new Error(`Could not check for updates: github.com (${githubProblem}).`)
+    throw new Error(`${host} (${problem}) and github.com (${githubProblem}) could not be used`)
   }
   log("manifest from github.com")
   return (github as { info: UpdateInfo }).info
