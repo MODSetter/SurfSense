@@ -472,6 +472,43 @@ async def test_a_post_with_enough_comments_on_its_page_loads_no_more(
     assert [path for path, _ in pages["asked"]] == ["comments/1xbnrhi/"]
 
 
+async def test_a_search_with_no_sort_asks_reddit_for_relevance(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """Newest first answered "fastapi" with job posts that only mention it."""
+    pages["served"]["svc/shreddit/search/"] = fixture("search.html")
+
+    await call(
+        reddit,
+        "scrape",
+        {"search_queries": ["fastapi"], "skip_comments": True, "max_items": 1},
+        LICENSE,
+    )
+
+    assert pages["asked"][0][1]["sort"] == "relevance"
+
+
+async def test_a_search_with_a_date_limit_and_no_sort_asks_for_the_newest(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """The date limit stops paging at the first older post, so the order is by date."""
+    pages["served"]["svc/shreddit/search/"] = fixture("search.html")
+
+    await call(
+        reddit,
+        "scrape",
+        {
+            "search_queries": ["fastapi"],
+            "post_date_limit": "2026-01-01",
+            "skip_comments": True,
+            "max_items": 1,
+        },
+        LICENSE,
+    )
+
+    assert pages["asked"][0][1]["sort"] == "new"
+
+
 async def test_a_result_shown_with_a_preview_of_its_text_is_read_too(
     reddit: str, pages: dict[str, Any]
 ) -> None:

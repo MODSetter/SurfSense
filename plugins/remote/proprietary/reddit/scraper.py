@@ -323,7 +323,10 @@ async def _search_flow(
     used by :func:`iter_reddit` to fair-share the global budget across
     concurrent searches.
     """
-    params: dict[str, Any] = {"q": query, "sort": input_model.sort}
+    # Newest first answers a query with posts that only mention it; a date
+    # limit stops at the first older post, so it needs the newest first.
+    sort = input_model.sort or ("new" if input_model.postDateLimit else "relevance")
+    params: dict[str, Any] = {"q": query, "sort": sort}
     if input_model.time:
         params["t"] = input_model.time
     if subreddit:
