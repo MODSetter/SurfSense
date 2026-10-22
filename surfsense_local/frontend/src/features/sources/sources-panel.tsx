@@ -61,6 +61,8 @@ import type { DraggedSource } from "./tree/tree-drag"
 import { TOP_TICK } from "./tree/use-source-scope"
 import { useDragAutoScroll } from "./use-drag-auto-scroll"
 import { useSourcesDrop } from "./use-sources-drop"
+import { AddFromWebDialog } from "./web/add-from-web-dialog"
+import type { WebSources } from "./web/use-web-sources"
 import {
   Tooltip,
   TooltipContent,
@@ -98,6 +100,7 @@ export const SourcesPanel = memo(function SourcesPanel({
   onRename,
   folderActions,
   notes,
+  web,
   transcriptionPaces,
   onOpenSpeechSettings,
 }: {
@@ -131,6 +134,8 @@ export const SourcesPanel = memo(function SourcesPanel({
   // Absent, the panel offers no folders to make, move or delete.
   folderActions?: FolderActions
   notes?: NoteActions
+  // Absent, the panel offers no Add from the web.
+  web?: WebSources
   // Each running transcription's speed, by document id.
   transcriptionPaces?: ReadonlyMap<number, TranscriptionPace>
   // Opens Settings › Speech recognition; absent, a waiting recording only says so.
@@ -151,6 +156,7 @@ export const SourcesPanel = memo(function SourcesPanel({
   const [renameOpen, setRenameOpen] = useState(false)
   const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
+  const [webOpen, setWebOpen] = useState(false)
   const [folderNameTarget, setFolderNameTarget] =
     useState<FolderNameTarget | null>(null)
   const [folderNameOpen, setFolderNameOpen] = useState(false)
@@ -384,6 +390,7 @@ export const SourcesPanel = memo(function SourcesPanel({
       ) : null}
       <AddSourcesMenu
         upload={upload}
+        onAddFromWeb={web ? () => setWebOpen(true) : undefined}
         onNewFolder={
           organizing ? () => folderRowActions?.onNewFolder(null) : undefined
         }
@@ -556,6 +563,9 @@ export const SourcesPanel = memo(function SourcesPanel({
             if (!open) setNoteTarget(null)
           }}
         />
+      ) : null}
+      {web ? (
+        <AddFromWebDialog open={webOpen} web={web} onOpenChange={setWebOpen} />
       ) : null}
       {folderActions ? (
         <>
