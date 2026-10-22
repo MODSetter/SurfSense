@@ -297,7 +297,7 @@
   "dictation_strip_transcribing_status": "正在转写…",
   "dictation_strip_try_again_button": "重试",
   "egress_app_updates_label": "应用更新",
-  "egress_app_updates_prompt_body": "检查更新会向 {host} 请求适用于你的平台（Windows、macOS 或 Linux）的最新版本文件。请求会带上你的 IP 地址，只以 electron-builder 标识自己，不发送版本号，也不发送 ID。新版本会自动下载，并在你从提示中重启或下次退出时安装。允许后也会开启启动时检查，你可以在“设置 › 网络”中关闭。",
+  "egress_app_updates_prompt_body": "检查更新会读取 {host} 上的版本列表，再请求适用于你的平台（Windows、macOS 或 Linux）的版本文件。请求会带上你的 IP 地址，只以 electron-builder 标识自己，不发送版本号，也不发送 ID。GitHub 通过 githubusercontent.com 提供版本文件，它同样能看到你的 IP 地址。新版本会自动下载，并在你从提示中重启或下次退出时安装。允许后也会开启启动时检查，你可以在“设置 › 网络”中关闭。",
   "egress_app_updates_prompt_title": "允许 SurfSense 检查更新吗？",
   "egress_claude_api_host_body": "{host} 会收到你的提示词和文档摘录。",
   "egress_claude_prompt_body": "Claude Code 只通过 SurfSense 访问你允许的主机。可在“设置 › 网络”中逐个关闭。",

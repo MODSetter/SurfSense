@@ -19,9 +19,9 @@ Updates are the one call the app is designed to make on its own, so they are off
 
 ## What a check sends
 
-A check sends github.com the IP address and asks for the platform's manifest, `stable.yml`, `stable-mac.yml` or `stable-linux.yml`, with the user agent `electron-builder`. It sends no app version and no ID.
+Each request a check makes to github.com sends the IP address and the user agent `electron-builder`. It reads the releases feed, `MODSetter/SurfSense/releases.atom`, then asks the newest release for the platform's manifest, `stable.yml`, `stable-mac.yml` or `stable-linux.yml`, and asks again for `latest*.yml` when that fails (Two apps, one repo, below). GitHub redirects release files to its download host on `githubusercontent.com`, which also sees the IP address; the update's own download goes the same way. No request sends the app version or an ID.
 
-electron-updater keeps a random install ID in `userData/.updaterId` for staged rollouts and sends it as `x-user-staging-id`. `attachUpdater` sets `requestHeaders` to send `0` in that header instead, and electron-updater merges `requestHeaders` over its own, so the constant also goes on downloads. `stagingPercentage` still reads the local file. Versions up to 2.2.3 sent the ID on the feed and manifest requests.
+electron-updater keeps a random install ID in `userData/.updaterId` for staged rollouts and sends it as `x-user-staging-id` on the feed and manifest requests. `attachUpdater` sets `requestHeaders` to send `0` in that header instead, and electron-updater merges `requestHeaders` over its own, so the constant also goes on downloads. `stagingPercentage` still reads the local file. Versions up to 2.2.3 sent the ID.
 
 This is not an `egress.require()` destination, because electron-updater runs in the Electron main process where the backend's check cannot see it ([egress](egress.md)). Differential downloads are off, because GitHub's CDN rejects the multi-range requests they need. A development build shows the same controls and never checks.
 

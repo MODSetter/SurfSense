@@ -154,7 +154,7 @@ function describeOne(destination: string, host: string, purpose?: string) {
         {
           id: "egress_app_updates_prompt_body",
           defaultMessage:
-            "A check asks {host} for the latest release file for your platform: Windows, macOS or Linux. It sends your IP address and identifies itself only as electron-builder, with no version and no ID. A newer version downloads on its own and installs when you restart from the prompt or the next time you quit. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
+            "A check reads the list of releases on {host}, then asks for the release file for your platform: Windows, macOS or Linux. It sends your IP address and identifies itself only as electron-builder, with no version and no ID. GitHub serves its release files from githubusercontent.com, which also sees your IP address. A newer version downloads on its own and installs when you restart from the prompt or the next time you quit. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
         },
         { host }
       ),

@@ -297,7 +297,7 @@
   "dictation_strip_transcribing_status": "Transcrevendo…",
   "dictation_strip_try_again_button": "Tentar novamente",
   "egress_app_updates_label": "Atualizações do app",
-  "egress_app_updates_prompt_body": "A verificação pede a {host} o arquivo da versão mais recente para a sua plataforma: Windows, macOS ou Linux. Ela envia seu endereço IP e se identifica só como electron-builder, sem versão e sem ID. Uma versão mais nova é baixada sozinha e instalada quando você reinicia pelo aviso ou na próxima vez que fecha o SurfSense. Permitir também ativa a verificação na inicialização, que você pode desativar em Configurações › Rede.",
+  "egress_app_updates_prompt_body": "A verificação lê a lista de versões em {host} e depois pede o arquivo da versão para a sua plataforma: Windows, macOS ou Linux. Ela envia seu endereço IP e se identifica só como electron-builder, sem versão e sem ID. O GitHub entrega os arquivos de versão pelo githubusercontent.com, que também vê seu endereço IP. Uma versão mais nova é baixada sozinha e instalada quando você reinicia pelo aviso ou na próxima vez que fecha o SurfSense. Permitir também ativa a verificação na inicialização, que você pode desativar em Configurações › Rede.",
   "egress_app_updates_prompt_title": "Permitir que o SurfSense verifique atualizações?",
   "egress_claude_api_host_body": "{host} recebe seus prompts e trechos de documentos.",
   "egress_claude_prompt_body": "O Claude Code só acessa os hosts que você permitir, pelo SurfSense. Desative cada um em Configurações › Rede.",
