@@ -20,14 +20,7 @@
         "scrape"
       ],
       "added": "2026-10",
-      "about": "Connect Google Search to SurfSense to bring live web results into your chats, so answers can draw on what the web says today, not only on your sources. Search Google and read the results as you would see them, with ads, People Also Ask, the AI Overview and related searches. Useful for checking current facts, comparing options, or finding the pages worth reading on a topic.",
-      "examples": {
-        "scrape": [
-          "Search the web for the latest news on this",
-          "What does Google show for best budget laptops 2026?",
-          "Look up who won the match last night"
-        ]
-      }
+      "about": "Connect Google Search to SurfSense to bring live web results into your chats, so answers can draw on what the web says today, not only on your sources. Search Google and read the results as you would see them, with ads, People Also Ask, the AI Overview and related searches. Useful for checking current facts, comparing options, or finding the pages worth reading on a topic."
     },
     {
       "id": "web-crawl",
@@ -48,14 +41,7 @@
         "crawl"
       ],
       "added": "2026-10",
-      "about": "Connect Web Crawl to SurfSense to read the web as clean, readable text. Open any public page, or follow a site’s links to read many of its pages at once, then summarize, compare or ask questions about what you found. Useful for summarizing articles, comparing products across sites, or answering questions from a product’s documentation. Pages behind a login or a paywall stay out of reach.",
-      "examples": {
-        "crawl": [
-          "Read this page and summarize it",
-          "Crawl the docs site and list every page about authentication",
-          "What does this article say about pricing?"
-        ]
-      }
+      "about": "Connect Web Crawl to SurfSense to read the web as clean, readable text. Open any public page, or follow a site’s links to read many of its pages at once, then summarize, compare or ask questions about what you found. Useful for summarizing articles, comparing products across sites, or answering questions from a product’s documentation. Pages behind a login or a paywall stay out of reach."
     },
     {
       "id": "youtube",
@@ -77,18 +63,7 @@
         "comments"
       ],
       "added": "2026-10",
-      "about": "Connect YouTube to SurfSense to work with videos without watching every one. Read public videos, channels and playlists with their subtitles, and the comments and replies under a video. Useful for summarizing a talk or tutorial, pulling quotes from an interview, or seeing how viewers reacted to a launch.",
-      "examples": {
-        "scrape": [
-          "Summarize this YouTube video",
-          "What has this channel posted this month?",
-          "Get the transcript of this video"
-        ],
-        "comments": [
-          "What are people saying in the comments under this video?",
-          "Find the most liked comments on this YouTube video"
-        ]
-      }
+      "about": "Connect YouTube to SurfSense to work with videos without watching every one. Read public videos, channels and playlists with their subtitles, and the comments and replies under a video. Useful for summarizing a talk or tutorial, pulling quotes from an interview, or seeing how viewers reacted to a launch."
     },
     {
       "id": "tiktok",
@@ -112,25 +87,7 @@
         "user_search"
       ],
       "added": "2026-10",
-      "about": "Connect TikTok to SurfSense to follow what is happening on the platform from your chats. Read public videos from links, profiles or hashtags with their comments, see what is trending right now, and find accounts by keyword, without your own TikTok account. Useful for spotting trends early, researching creators, or seeing how people respond to a product or topic.",
-      "examples": {
-        "scrape": [
-          "Read the latest videos from this TikTok account",
-          "What are the top videos for this hashtag?"
-        ],
-        "comments": [
-          "What do the comments on this TikTok say?",
-          "Summarize the reactions under this TikTok video"
-        ],
-        "trending": [
-          "What is trending on TikTok right now?",
-          "Show me today's trending hashtags"
-        ],
-        "user_search": [
-          "Find TikTok creators who post about cooking",
-          "Search TikTok for accounts named after this brand"
-        ]
-      }
+      "about": "Connect TikTok to SurfSense to follow what is happening on the platform from your chats. Read public videos from links, profiles or hashtags with their comments, see what is trending right now, and find accounts by keyword, without your own TikTok account. Useful for spotting trends early, researching creators, or seeing how people respond to a product or topic."
     },
     {
       "id": "google-maps",
@@ -152,18 +109,7 @@
         "reviews"
       ],
       "added": "2026-10",
-      "about": "Connect Google Maps to SurfSense to research places from your chats. Find businesses and locations with their address, hours, rating and photos, and read their reviews along with the owners’ replies. Useful for comparing places before you visit, checking up on a business, or learning what customers praise and complain about.",
-      "examples": {
-        "scrape": [
-          "Find coffee shops near the station that are open now",
-          "What are the opening hours and rating of this restaurant?",
-          "List dentists in this neighbourhood with their phone numbers"
-        ],
-        "reviews": [
-          "What do the reviews of this hotel complain about?",
-          "Read the latest Google reviews for this place"
-        ]
-      }
+      "about": "Connect Google Maps to SurfSense to research places from your chats. Find businesses and locations with their address, hours, rating and photos, and read their reviews along with the owners’ replies. Useful for comparing places before you visit, checking up on a business, or learning what customers praise and complain about."
     },
     {
       "id": "amazon",
@@ -184,14 +130,7 @@
         "scrape"
       ],
       "added": "2026-10",
-      "about": "Connect Amazon to SurfSense to research products from your chats. Read product pages and search results with prices, offers from other sellers, best-seller rankings and the reviews on the page, without your Amazon account, so nothing is ever bought. Useful for comparing products, watching prices, or summarizing what buyers say before you choose.",
-      "examples": {
-        "scrape": [
-          "Compare these two products on Amazon",
-          "What is the price and rating of this Amazon listing?",
-          "Find the best-selling noise-cancelling headphones on Amazon"
-        ]
-      }
+      "about": "Connect Amazon to SurfSense to research products from your chats. Read product pages and search results with prices, offers from other sellers, best-seller rankings and the reviews on the page, without your Amazon account, so nothing is ever bought. Useful for comparing products, watching prices, or summarizing what buyers say before you choose."
     },
     {
       "id": "walmart",
@@ -213,17 +152,7 @@
         "reviews"
       ],
       "added": "2026-10",
-      "about": "Connect Walmart to SurfSense to research products from your chats. Read product pages, search and category listings, prices, sellers, variants and availability, and page through a product’s reviews, without your Walmart account, so nothing is ever bought. Useful for comparing products, checking stock and prices, or summarizing what buyers report.",
-      "examples": {
-        "scrape": [
-          "How much is this at Walmart, and is it in stock?",
-          "Search Walmart for air fryers under $100"
-        ],
-        "reviews": [
-          "What do Walmart buyers say about this product?",
-          "Summarize the negative reviews of this item on Walmart"
-        ]
-      }
+      "about": "Connect Walmart to SurfSense to research products from your chats. Read product pages, search and category listings, prices, sellers, variants and availability, and page through a product’s reviews, without your Walmart account, so nothing is ever bought. Useful for comparing products, checking stock and prices, or summarizing what buyers report."
     },
     {
       "id": "indeed",
@@ -244,14 +173,7 @@
         "scrape"
       ],
       "added": "2026-10",
-      "about": "Connect Indeed to SurfSense to research jobs from your chats. Read public job postings with their title, company, location, salary and full description, without your Indeed account, so nothing is ever applied for. Useful for comparing roles, gauging pay for a position, or tracking which companies are hiring.",
-      "examples": {
-        "scrape": [
-          "Find remote data analyst jobs on Indeed",
-          "What does this job posting pay, and what does it ask for?",
-          "List the newest software engineering jobs in Berlin"
-        ]
-      }
+      "about": "Connect Indeed to SurfSense to research jobs from your chats. Read public job postings with their title, company, location, salary and full description, without your Indeed account, so nothing is ever applied for. Useful for comparing roles, gauging pay for a position, or tracking which companies are hiring."
     }
   ]
 }

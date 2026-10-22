@@ -9,7 +9,7 @@ from modules.plugins.installed.models import PluginSource, ToolApproval, ToolExp
 pytestmark = pytest.mark.unit
 
 
-def _tool(plugin: str, name: str, description: str, examples=()) -> IndexedTool:
+def _tool(plugin: str, name: str, description: str) -> IndexedTool:
     ready = ReadyTool(
         qualified_name=f"{plugin}__{name}",
         plugin_id=plugin,
@@ -23,7 +23,7 @@ def _tool(plugin: str, name: str, description: str, examples=()) -> IndexedTool:
         approval=ToolApproval.ASK,
         exposure=ToolExposure.DIRECT,
     )
-    return IndexedTool(ready, f"{plugin.title()}: a {plugin} plugin", tuple(examples))
+    return IndexedTool(ready, f"{plugin.title()}: a {plugin} plugin")
 
 
 TOOLS = [
@@ -42,24 +42,6 @@ def test_words_the_message_shares_with_a_tool_rank_it_first() -> None:
     """A word of the request in a tool's name or description."""
     assert _names(ranked(TOOLS, "file an issue for the login bug", None))[0] == (
         "create_issue"
-    )
-
-
-def test_an_example_request_finds_a_tool_its_own_words_miss() -> None:
-    """Example requests were the largest single gain measured: "deal" against search-objects."""
-    tools = [
-        *TOOLS[:2],
-        _tool(
-            "hubspot",
-            "search_objects",
-            "Search CRM objects by property.",
-            examples=["find the Acme deal", "which deals close this month"],
-        ),
-        TOOLS[3],
-    ]
-
-    assert _names(ranked(tools, "which deals close this month?", None))[0] == (
-        "search_objects"
     )
 
 

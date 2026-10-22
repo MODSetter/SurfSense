@@ -2,8 +2,8 @@
 
 Each leg ranks every tool and reciprocal rank fusion merges the two, which ranked
 tools better than the weighting source search blends its legs with. A tool's
-text is its name, description and parameters, its plugin's line and its example
-requests, which were the largest single gain measured (04-tool-calls.md).
+text is its name, description and parameters, and its plugin's line: what every
+plugin has, so none ranks ahead for words only some carry.
 """
 
 import math
@@ -33,11 +33,10 @@ _B = 0.75
 
 @dataclass(frozen=True)
 class IndexedTool:
-    """A ready tool, the line its plugin goes by, and requests a user might make of it."""
+    """A ready tool and the line its plugin goes by."""
 
     ready: ReadyTool
     plugin_line: str = ""
-    examples: tuple[str, ...] = ()
 
     @property
     def text(self) -> str:
@@ -50,7 +49,6 @@ class IndexedTool:
                 self.ready.description,
                 parameters,
                 self.plugin_line,
-                *self.examples,
             )
             if part
         )

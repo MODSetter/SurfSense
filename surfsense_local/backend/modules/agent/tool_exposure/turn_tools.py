@@ -54,9 +54,8 @@ def _indexed(session: Session) -> tuple[list[IndexedTool], list[CataloguedPlugin
     for ready in list_tools(session):
         row = session.get_one(InstalledPlugin, ready.plugin_id)
         description = str(row.entry.get("description") or "")
-        examples = (row.entry.get("examples") or {}).get(ready.tool) or []
         line = f"{ready.plugin_name}: {description}".rstrip(": ")
-        tools.append(IndexedTool(ready, line, tuple(str(e) for e in examples)))
+        tools.append(IndexedTool(ready, line))
         listed = plugins.setdefault(
             ready.plugin_id,
             CataloguedPlugin(

@@ -6,13 +6,8 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-# An entry's example requests, per tool: few and short, as the registry's check bounds them.
-EXAMPLES_PER_TOOL = 5
-EXAMPLE_LENGTH = 200
-
 # MCP's own rule for a tool name.
 ToolName = Annotated[str, Field(pattern=r"^[A-Za-z0-9_.-]{1,128}$")]
-ExampleRequest = Annotated[str, Field(min_length=1, max_length=EXAMPLE_LENGTH)]
 
 
 class EntryHeader(BaseModel):
@@ -66,15 +61,6 @@ class ListEntry(BaseModel):
     about: str | None = Field(default=None, min_length=1, max_length=600)
     # The server's tool names, shown before it is connected; never given to a model.
     tools: list[ToolName] | None = None
-    # Per tool, requests a user might make that it answers: the opencode agent's
-    # tool search reads them beside the tool's name and description. Never shown.
-    examples: (
-        dict[
-            ToolName,
-            Annotated[list[ExampleRequest], Field(max_length=EXAMPLES_PER_TOOL)],
-        ]
-        | None
-    ) = None
     # The month the plugin joined its list, as `YYYY-MM`.
     added: str | None = Field(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -93,8 +79,6 @@ class ListEntry(BaseModel):
             raise ValueError("access_note is required when access is external")
         if self.tools and len(set(self.tools)) != len(self.tools):
             raise ValueError("tools lists a tool twice")
-        if self.examples and not set(self.examples) <= set(self.tools or ()):
-            raise ValueError("examples names a tool not in tools")
         return self
 
 

@@ -25,9 +25,6 @@ TOKEN_LABEL_LENGTHS = {"title": 80, "description": 200}
 # MCP's own rule for a tool name.
 TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 ABOUT_LENGTH = 600
-# Requests a user might make of each tool, which the app's tool search reads.
-EXAMPLES_PER_TOOL = 5
-EXAMPLE_LENGTH = 200
 # The month the plugin joined the list.
 ADDED_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 # An HTTP token (RFC 9110), as the app checks the headers a user gives.
@@ -219,9 +216,6 @@ def _listing_problems(entry: dict[str, Any]) -> list[str]:
         problems.append("tools: required")
     else:
         problems += _tool_list_problems(tools)
-    examples = entry.get("examples")
-    if examples is not None:
-        problems += _examples_problems(examples, tools)
     added = entry.get("added")
     if added is not None and not (
         isinstance(added, str) and ADDED_PATTERN.match(added)
@@ -238,25 +232,6 @@ def _tool_list_problems(tools: Any) -> list[str]:
             return [f"tools: {tool!r} is not an MCP tool name"]
     if len(set(tools)) != len(tools):
         return ["tools: lists a tool twice"]
-    return []
-
-
-def _examples_problems(examples: Any, tools: Any) -> list[str]:
-    if not isinstance(examples, dict):
-        return ["examples: must map each tool's name to a list of requests"]
-    listed = set(tools) if isinstance(tools, list) else set()
-    for tool, requests in examples.items():
-        if tool not in listed:
-            return [f"examples: {tool!r} is not in tools"]
-        if not (
-            isinstance(requests, list)
-            and 1 <= len(requests) <= EXAMPLES_PER_TOOL
-            and all(_is_text(r, EXAMPLE_LENGTH) for r in requests)
-        ):
-            return [
-                f"examples: {tool} takes 1 to {EXAMPLES_PER_TOOL} requests of 1 to "
-                f"{EXAMPLE_LENGTH} characters"
-            ]
     return []
 
 
