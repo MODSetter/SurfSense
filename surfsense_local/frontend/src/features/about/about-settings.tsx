@@ -5,7 +5,7 @@ import surfSenseLogo from "@/surfsense-logo.svg"
 
 import {
   DISCORD_URL,
-  DOCS_URL,
+  docsUrl,
   GITHUB_URL,
   LICENSE_URL,
   releaseNotesUrl,
@@ -85,7 +85,7 @@ export function AboutSettings() {
               })}
             </ExternalLink>
           ) : null}
-          <ExternalLink href={DOCS_URL}>
+          <ExternalLink href={docsUrl(details?.version)}>
             {intl.formatMessage({
               id: "about_docs_link",
               defaultMessage: "Documentation",

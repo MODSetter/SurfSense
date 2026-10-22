@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AboutSettings } from "@/features/about/about-settings"
+import { useAppDetails } from "@/features/about/use-app-details"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { OfficeSupportSettings } from "@/features/office-support/office-support-settings"
 import {
@@ -44,6 +45,7 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { EmbeddingSettings } from "@/features/embedding/embedding-settings"
 import { ReportIssueSettings } from "@/features/feedback/report-issue-settings"
 import { ResourceSettings } from "@/features/resources/resource-settings"
+import { siteVisitUrl } from "@/features/external-links/site-visit-url"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -80,12 +82,14 @@ export type SettingsSectionId =
   | "about"
   | "report-issue"
 
-const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
+function cloudExportUrl(version: string | undefined) {
+  return siteVisitUrl("https://surfsense.com/sunset", "cloud_import", version)
+}
 
 function openCloudExport(event: MouseEvent<HTMLAnchorElement>) {
   if (!window.surfsense?.openExternal) return
   event.preventDefault()
-  void window.surfsense.openExternal(CLOUD_EXPORT_URL)
+  void window.surfsense.openExternal(event.currentTarget.href)
 }
 
 function GeneralSettings({
@@ -93,6 +97,7 @@ function GeneralSettings({
 }: {
   onImported: (accepted: ImportAccepted) => Promise<void> | void
 }) {
+  const version = useAppDetails().data?.version
   return (
     <SettingsSection
       title={intl.formatMessage({
@@ -193,7 +198,7 @@ function GeneralSettings({
             })}
           </p>
           <a
-            href={CLOUD_EXPORT_URL}
+            href={cloudExportUrl(version)}
             target="_blank"
             rel="noreferrer"
             onClick={openCloudExport}
