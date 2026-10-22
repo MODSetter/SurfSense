@@ -137,7 +137,7 @@ Under `surfsense_backend/app/license/`:
 | File | Responsibility |
 |---|---|
 | `router.py` | the three license routes |
-| `keygen.py` | the Keygen client: create, get, check out, list by metadata, update metadata, suspend |
+| `keygen.py` | the Keygen client: create, get, check out, list by metadata (one page, or every page), update metadata, suspend |
 | `issue.py` | minting: derived ids, trial expiry, fulfilling a purchase, the file for a session |
 | `checkout.py` | reading a Stripe session: email, customer, plan |
 | `purchase.py` | the webhook claims: fulfil and mail, suspend on refund |
@@ -152,8 +152,16 @@ Under `surfsense_backend/app/license/`:
 | `email/address.py` | normalizing, folding, the disposable-domain check |
 | `email/deliver.py` | handing a built message to the mailer |
 | `email/message.py` | subjects, bodies, attachments and sender |
+| `cohorts/keygen_licences.py` | every licence, split into trials and purchases |
+| `cohorts/stripe_purchases.py` | a purchase's checkout and customer addresses, and full refunds, from Stripe |
+| `cohorts/plugin_host_first_seen.py` | the plugin host's first-seen day per licence |
+| `cohorts/email_kind.py` | company, free mail or school, by domain |
+| `cohorts/weekly.py` | trials grouped by ISO week and joined to plugin use and payment |
+| `cohorts/published_figures.py` | a cohort's figures with small cells withheld, and the kinds that would give them away |
+| `cohorts/markdown_table.py`, `cohorts/posthog_events.py` | the printed table and the weekly events |
+| `cohorts/models.py` | the trial and purchase records, held in memory only |
 
-Two support scripts sit in `surfsense_backend/scripts/`. `issue_enterprise_license.py` issues an invoiced license without Stripe and prints the file, and also mails it with `--mail`. `correct_license_email.py` repairs a mistyped purchase address, below.
+Three scripts sit in `surfsense_backend/scripts/`. `issue_enterprise_license.py` issues an invoiced license without Stripe and prints the file, and also mails it with `--mail`. `correct_license_email.py` repairs a mistyped purchase address, and `license_cohorts.py` prints the [cohort report](#cohort-report), both below.
 
 ## Pages
 
@@ -179,11 +187,35 @@ The script matches on the payment, never on how alike two addresses look: `check
 
 A trial has no payment to prove, so the anchor is the address itself: support asks which exact address the trial was requested with and runs `--trial-email typo@... --email real@... --mail` in place of `--session`. The lookup filters on that address as typed and on its folded `trialKey`, so it finds only a trial issued to exactly that address, never a lookalike and never a paid licence there, and it refuses when two match. Someone who knows another person's exact address could have that trial repointed to their own inbox. They gain a free trial that expires and can be suspended, and the correction moves `trialKey` with the address, so the owner can claim a trial again; that risk is accepted as for purchases.
 
+## Cohort report
+
+`scripts/license_cohorts.py` shows how trials turn into plugin use and sales, from the records Keygen and Stripe already hold, without touching the app:
+
+```bash
+python -m scripts.license_cohorts            # print the table
+python -m scripts.license_cohorts --posthog  # and send it to PostHog
+```
+
+It reads every licence through `iter_licenses()`, which pages through Keygen, since `list_licenses()` sends one request and stops at 100. A licence whose `plan` is `trial` is a trial, keyed by its folded `trialKey`; any other is a purchase, dated by its creation. With `STRIPE_SECRET_KEY` set it retrieves each purchase's checkout session, read-only, so a restricted key that reads Checkout Sessions, Customers, PaymentIntents and Charges is enough: that adds the address typed at checkout and the Stripe customer's address, both folded, and marks a full refund. Without Stripe a suspended licence counts as refunded, since only a full refund suspends one. With `PLUGIN_HOST_ADMIN_URL` and `USAGE_ADMIN_TOKEN` set it reads the plugin host's `GET /admin/usage/first-seen`, `{"licences": {"<licence id>": "YYYY-MM-DD"}}`, with the token as a bearer.
+
+A trial matches the first purchase on or after its creation that carries its folded address. For each ISO week of trial creation, and for all weeks together, the table shows:
+
+- trials issued;
+- the shares at a company domain, a free-mail domain (a static list in `cohorts/email_kind.py`) and a school (`.edu`, `.ac.<country>`, `k12`), which misses universities on plain domains;
+- the share later seen on the plugin host, and the median days to that first call;
+- the shares paid within 30 and 60 days, marked open while some trial in the row is younger than the window, and the median days to pay;
+- refunds.
+
+No address, domain, licence id or key is printed or sent. A count under 5 prints as `<5` and a median of fewer than 5 values as `n<5`. Other cells are withheld so that no `<5` can be worked out, and print as `x` whatever their own value, since a mark saying a cell is 5 or more would pin a small one beside it. The three kinds add up to a row's trials, give or take an unreadable address, so when any kind is under 5 all three print as `x`: withholding only the small ones would still let the trials and the kinds shown pin them. The All row is the weeks' sum, so each count a week withholds (trials, a kind, plugin use, paid within 30 or 60 days, refunds) prints as `x` in the All row too; with few trials, and the current week still filling, that is most columns most of the time. `--posthog` sends the same weekly figures, withheld ones as null and `withheld_to_protect` naming those that print as `x`, as one personless `license_cohort_weekly` event per week through `POSTHOG_API_KEY`; each run sends every week again, so read the latest. The addresses were given to receive a licence, so no single row is acted on, such as mailing a lapsed trial.
+
+`test_keygen_pages.py` covers reading every page. `test_cohort_email_kind.py`, `test_cohort_weekly.py`, `test_cohort_sources.py` and `test_cohort_publishing.py` cover the cohort report's domain classes, the join, the three readers with Keygen, Stripe and the plugin host faked, and the withheld cells, including those withheld so that a small one cannot be worked out, and `tests/unit/scripts/test_license_cohorts.py` checks that the printed report and its events carry no address or licence id.
+
 ## Tests
 
 `test_funnel_events.py` covers the channel tag rules and the purchase event: its exact properties, nothing personal in it, and one event when the webhook and the success page both fulfil. `tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and its pinned redirect links; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. `test_license_routes.py` drives the three routes over HTTP with Keygen faked at its transport, so the code under them runs as written, and the mailer faked at the router: resend's one answer for every outcome, asserted from the mailer side, including a license that is only suspended, and its 503 when mail is off before any lookup; each trial outcome, never with the file in the body, and a tagged address refused once the folded one holds a trial; `license_trial_issued` with only the channel, a bad channel dropped, and no event for a trial not issued; the success page's file and its 404; both rate-limit buckets biting, and a limit of zero turning one off. `tests/integration/license/test_keygen_contract.py` runs the client against a real Keygen when `KEYGEN_INTEGRATION=1`, proving the metadata keys the app writes are the ones it filters on, and that a key with another word answers an empty list.
 
 ## Known gaps
 
+- The cohort report has not run against production Keygen or Stripe, and its plugin columns read `n/a` until the plugin host serves `/admin/usage/first-seen`.
 - The Keygen contract test has not yet run against a live Keygen; it skips without `KEYGEN_INTEGRATION=1` and credentials.
 - Nothing checks the Payment Link's settings. Its after-payment redirect and one-time price ([pages](#pages)) are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the redirect is not set.

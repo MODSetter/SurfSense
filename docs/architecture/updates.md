@@ -50,6 +50,10 @@ A `v*` tag equal to `surfsense_local/VERSION` starts the workflow, which fails w
 | Linux x64 | `SurfSense.AppImage` | the AppImage |
 | Linux x64 | `SurfSense.deb` | likely the deb (Known gaps) |
 
+## What GitHub counts
+
+A daily job saves every asset's download count, and says which client each count measures: people, the 2.x updater or legacy clients ([release stats](release-stats.md)).
+
 ## Download links
 
 Every installer link outside the app goes through one redirect on the website, `/downloads/<platform>` for `windows`, `mac`, `linux-appimage` and `linux-deb` (`surfsense_web/app/(home)/downloads/[platform]/route.ts`). It answers a 302 to the GitHub asset, so the bytes still come from GitHub, and counts the download on the way: a personless `installer_download` event with the platform, `src` (where the link was: `site`, `readme`, `email`, `app`, `pricing`, else `other`), the version and the country Vercel derives, sent from the server so a content blocker does not hide it. Obvious bots and mail scanners, matched by User-Agent, are redirected but not counted. The response is `no-store`.
