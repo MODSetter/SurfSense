@@ -1,6 +1,6 @@
-import { after, type NextRequest, NextResponse } from "next/server";
-import { isAutomatedFetch } from "./automated-fetch";
-import { countryFromHeader, readInstallerRequest } from "./installer-request";
+import { after } from "next/server";
+import { installerRedirect } from "./installer-redirect";
+import { getPublishedInstallers } from "./published-installers";
 import { recordInstallerDownload } from "./record-installer-download";
 
 /**
@@ -10,37 +10,11 @@ import { recordInstallerDownload } from "./record-installer-download";
  * here: the /downloads grid, the READMEs and the licence email.
  */
 
-type Context = { params: Promise<{ platform: string }> };
+const redirect = installerRedirect({
+	publishedInstallers: getPublishedInstallers,
+	recordDownload: recordInstallerDownload,
+	afterResponse: after,
+});
 
-function redirectTo(location: string | URL): NextResponse {
-	const response = NextResponse.redirect(location, 302);
-	response.headers.set("Cache-Control", "no-store");
-	return response;
-}
-
-export async function GET(request: NextRequest, { params }: Context): Promise<NextResponse> {
-	const target = readInstallerRequest((await params).platform, request.nextUrl.searchParams);
-	if (!target) return redirectTo(new URL("/downloads", request.url));
-
-	if (!isAutomatedFetch(request.headers.get("user-agent"))) {
-		const download = {
-			platform: target.platform,
-			src: target.src,
-			version: target.version,
-			country: countryFromHeader(request.headers.get("x-vercel-ip-country")),
-		};
-		try {
-			after(() => recordInstallerDownload(download));
-		} catch {
-			// Outside a request scope; the redirect matters more than the count.
-		}
-	}
-
-	return redirectTo(target.assetUrl);
-}
-
-/** Link checkers and mail scanners send HEAD; nobody downloads with one. */
-export async function HEAD(request: NextRequest, { params }: Context): Promise<NextResponse> {
-	const target = readInstallerRequest((await params).platform, request.nextUrl.searchParams);
-	return redirectTo(target ? target.assetUrl : new URL("/downloads", request.url));
-}
+export const GET = redirect.GET;
+export const HEAD = redirect.HEAD;

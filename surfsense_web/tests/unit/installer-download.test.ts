@@ -5,22 +5,39 @@ import test from "node:test";
 
 import { NextRequest } from "next/server";
 import { isAutomatedFetch } from "@/app/(home)/downloads/[platform]/automated-fetch";
+import { installerRedirect } from "@/app/(home)/downloads/[platform]/installer-redirect";
+import { countryFromHeader } from "@/app/(home)/downloads/[platform]/installer-request";
 import {
-	countryFromHeader,
-	readInstallerRequest,
-} from "@/app/(home)/downloads/[platform]/installer-request";
-import { installerDownloadMessage } from "@/app/(home)/downloads/[platform]/record-installer-download";
-import { GET, HEAD } from "@/app/(home)/downloads/[platform]/route";
+	type PublishedInstallers,
+	parsePublishedInstallers,
+} from "@/app/(home)/downloads/[platform]/published-installers";
+import {
+	type InstallerDownload,
+	installerDownloadMessage,
+} from "@/app/(home)/downloads/[platform]/record-installer-download";
 import { APP_RELEASE_VERSION, INSTALLER_FILES, platformOfAsset } from "@/lib/app-release";
 
 const RELEASES = "https://github.com/MODSetter/SurfSense/releases/download";
+const LATEST = "https://github.com/MODSetter/SurfSense/releases/latest/download";
 const BROWSER =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+const ALL_FILES = new Set(Object.values(INSTALLER_FILES));
 
-function request(path: string, init: { method?: string; userAgent?: string } = {}) {
+function publishedTags(...versions: string[]): PublishedInstallers {
+	return new Map(versions.map((version) => [`v${version}`, ALL_FILES]));
+}
+
+const PINNED_PUBLISHED = publishedTags(APP_RELEASE_VERSION);
+
+function request(
+	path: string,
+	init: { method?: string; userAgent?: string; country?: string } = {}
+): NextRequest {
+	const headers: Record<string, string> = { "user-agent": init.userAgent ?? BROWSER };
+	if (init.country) headers["x-vercel-ip-country"] = init.country;
 	return new NextRequest(`https://www.surfsense.com${path}`, {
 		method: init.method ?? "GET",
-		headers: { "user-agent": init.userAgent ?? BROWSER },
+		headers,
 	});
 }
 
@@ -28,35 +45,100 @@ function context(platform: string) {
 	return { params: Promise.resolve({ platform }) };
 }
 
-test("each platform names its installer on the pinned release by default", () => {
+/** The redirect with GitHub, PostHog and Next's `after()` stood in for. */
+function redirectWith(
+	published: PublishedInstallers | null | Error = PINNED_PUBLISHED,
+	options: { afterThrows?: boolean } = {}
+) {
+	const downloads: InstallerDownload[] = [];
+	const pending: (() => Promise<void>)[] = [];
+	const { GET, HEAD } = installerRedirect({
+		publishedInstallers: async () => {
+			if (published instanceof Error) throw published;
+			return published;
+		},
+		recordDownload: async (download) => {
+			downloads.push(download);
+		},
+		afterResponse: (task) => {
+			if (options.afterThrows) throw new Error("after() outside a request scope");
+			pending.push(task);
+		},
+	});
+	async function counted(): Promise<InstallerDownload[]> {
+		for (const task of pending.splice(0)) await task();
+		return downloads;
+	}
+	return { GET, HEAD, downloads, counted };
+}
+
+async function locationOf(path: string, published?: PublishedInstallers | null) {
+	const platform = new URL(path, "https://x").pathname.split("/").at(-1) ?? "";
+	const response = await redirectWith(published).GET(request(path), context(platform));
+	return response.headers.get("location");
+}
+
+test("each platform redirects to its installer on the pinned release once GitHub serves it", async () => {
 	for (const [platform, file] of Object.entries(INSTALLER_FILES)) {
-		const target = readInstallerRequest(platform, new URLSearchParams());
-		assert.equal(target?.assetUrl, `${RELEASES}/v${APP_RELEASE_VERSION}/${file}`);
-		assert.equal(target?.version, APP_RELEASE_VERSION);
-		assert.equal(target?.src, "other");
+		assert.equal(
+			await locationOf(`/downloads/${platform}`),
+			`${RELEASES}/v${APP_RELEASE_VERSION}/${file}`
+		);
 	}
 });
 
-test("an unknown platform is no installer", () => {
-	for (const platform of ["", "linux", "WINDOWS", "toString", "__proto__", "../mac"]) {
-		assert.equal(readInstallerRequest(platform, new URLSearchParams()), null, platform);
-	}
+test("a pinned release still in draft sends every link to Latest instead", async () => {
+	// Vercel deploys the new pin while the release is still a draft, whose assets 404.
+	const redirect = redirectWith(publishedTags("2.2.2"));
+	const response = await redirect.GET(request("/downloads/windows?src=readme"), context("windows"));
+	assert.equal(response.headers.get("location"), `${LATEST}/SurfSense-Setup.exe`);
+	assert.equal((await redirect.counted())[0]?.version, "latest");
 });
 
-test("a pinned tag at or after 2.0.2 keeps its build", () => {
+test("a release missing one platform's file sends that platform to Latest", async () => {
+	const partial: PublishedInstallers = new Map([
+		[`v${APP_RELEASE_VERSION}`, new Set(["SurfSense-Setup.exe"])],
+	]);
+	assert.equal(await locationOf("/downloads/mac", partial), `${LATEST}/SurfSense-arm64.dmg`);
+	assert.equal(
+		await locationOf("/downloads/windows", partial),
+		`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-Setup.exe`
+	);
+});
+
+test("with GitHub unreachable the link still reaches an installer", async () => {
+	assert.equal(await locationOf("/downloads/linux-deb", null), `${LATEST}/SurfSense.deb`);
+	const response = await redirectWith(new Error("rate limited")).GET(
+		request("/downloads/linux-deb"),
+		context("linux-deb")
+	);
+	assert.equal(response.status, 302);
+	assert.equal(response.headers.get("location"), `${LATEST}/SurfSense.deb`);
+});
+
+test("a pinned tag at or after 2.0.2 keeps its build", async () => {
+	const published = publishedTags("2.0.2", "2.1.0", APP_RELEASE_VERSION);
 	for (const [v, version] of [
 		["v2.0.2", "2.0.2"],
 		["2.1.0", "2.1.0"],
-		["v10.0.0", "10.0.0"],
 	]) {
-		const target = readInstallerRequest("mac", new URLSearchParams({ v }));
-		assert.equal(target?.version, version, v);
-		assert.equal(target?.assetUrl, `${RELEASES}/v${version}/SurfSense-arm64.dmg`);
+		assert.equal(
+			await locationOf(`/downloads/mac?v=${v}`, published),
+			`${RELEASES}/v${version}/SurfSense-arm64.dmg`,
+			v
+		);
 	}
 });
 
-test("an older, prerelease or malformed tag falls back to the pinned release", () => {
+test("a tag that was never published goes to Latest", async () => {
+	for (const v of ["v2.0.4", "v10.0.0"]) {
+		assert.equal(await locationOf(`/downloads/mac?v=${v}`), `${LATEST}/SurfSense-arm64.dmg`, v);
+	}
+});
+
+test("an older, prerelease or malformed tag falls back to the pinned release", async () => {
 	// 2.0.0 and 2.0.1 put the version in their file names, so the fixed names 404 there.
+	const published = publishedTags("2.0.0", "2.0.1", APP_RELEASE_VERSION);
 	for (const v of [
 		"v2.0.1",
 		"v2.0.0",
@@ -67,23 +149,100 @@ test("an older, prerelease or malformed tag falls back to the pinned release", (
 		"",
 		"v99999.0.0",
 	]) {
-		const target = readInstallerRequest("windows", new URLSearchParams({ v }));
-		assert.equal(target?.version, APP_RELEASE_VERSION, v);
+		assert.equal(
+			await locationOf(`/downloads/windows?v=${encodeURIComponent(v)}`, published),
+			`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-Setup.exe`,
+			v
+		);
 	}
 });
 
-test("src keeps the known channels and counts anything else as other", () => {
-	for (const src of ["site", "readme", "email", "app", "pricing", "other"]) {
-		assert.equal(readInstallerRequest("windows", new URLSearchParams({ src }))?.src, src);
+test("only published releases count, never a draft", () => {
+	const published = parsePublishedInstallers([
+		{ tag_name: "v2.3.0", draft: true, assets: [{ name: "SurfSense-Setup.exe" }] },
+		{ tag_name: "v2.2.3", draft: false, assets: [{ name: "SurfSense-Setup.exe" }, {}] },
+		{ tag_name: "v2.2.2", assets: [{ name: "SurfSense-Setup.exe" }] },
+		null,
+	]);
+	assert.deepEqual([...published.keys()], ["v2.2.3"]);
+	assert.deepEqual([...(published.get("v2.2.3") ?? [])], ["SurfSense-Setup.exe"]);
+	assert.equal(parsePublishedInstallers({ message: "API rate limit exceeded" }).size, 0);
+});
+
+test("a browser's GET counts one download, after the redirect is sent", async () => {
+	const redirect = redirectWith();
+	const response = await redirect.GET(
+		request("/downloads/linux-deb?src=README", { country: "de" }),
+		context("linux-deb")
+	);
+	assert.equal(response.status, 302);
+	assert.equal(response.headers.get("cache-control"), "no-store");
+	assert.deepEqual(redirect.downloads, [], "counted before the response was sent");
+	assert.deepEqual(await redirect.counted(), [
+		{ platform: "linux-deb", src: "readme", version: APP_RELEASE_VERSION, country: "DE" },
+	]);
+});
+
+test("src keeps the known channels and counts anything else as other", async () => {
+	for (const [src, expected] of [
+		...["site", "readme", "email", "app", "pricing", "other"].map((s) => [s, s]),
+		["you@x.com", "other"],
+		["", "other"],
+	]) {
+		const redirect = redirectWith();
+		await redirect.GET(
+			request(`/downloads/windows?src=${encodeURIComponent(src)}`),
+			context("windows")
+		);
+		assert.equal((await redirect.counted())[0]?.src, expected, src);
 	}
+});
+
+test("a bot, a mail scanner or a HEAD is redirected but never counted", async () => {
+	const redirect = redirectWith();
+	for (const userAgent of ["curl/8.7.1", "Barracuda Sentinel (EE)", ""]) {
+		const response = await redirect.GET(
+			request("/downloads/windows", { userAgent }),
+			context("windows")
+		);
+		assert.equal(
+			response.headers.get("location"),
+			`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-Setup.exe`
+		);
+	}
+	const head = await redirect.HEAD(request("/downloads/mac", { method: "HEAD" }), context("mac"));
+	assert.equal(head.status, 302);
 	assert.equal(
-		readInstallerRequest("windows", new URLSearchParams({ src: "README" }))?.src,
-		"readme"
+		head.headers.get("location"),
+		`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-arm64.dmg`
 	);
+	assert.equal(head.headers.get("cache-control"), "no-store");
+	assert.deepEqual(await redirect.counted(), []);
+});
+
+test("analytics failing never costs the redirect", async () => {
+	const response = await redirectWith(PINNED_PUBLISHED, { afterThrows: true }).GET(
+		request("/downloads/windows"),
+		context("windows")
+	);
+	assert.equal(response.status, 302);
 	assert.equal(
-		readInstallerRequest("windows", new URLSearchParams({ src: "you@x.com" }))?.src,
-		"other"
+		response.headers.get("location"),
+		`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-Setup.exe`
 	);
+});
+
+test("an unknown platform goes back to the downloads page, uncounted", async () => {
+	for (const platform of ["amiga", "linux", "WINDOWS", "toString", "__proto__"]) {
+		const redirect = redirectWith();
+		const response = await redirect.GET(
+			request(`/downloads/${encodeURIComponent(platform)}`),
+			context(platform)
+		);
+		assert.equal(response.status, 302, platform);
+		assert.equal(response.headers.get("location"), "https://www.surfsense.com/downloads");
+		assert.deepEqual(await redirect.counted(), [], platform);
+	}
 });
 
 test("only a two-letter country is kept", () => {
@@ -133,43 +292,6 @@ test("the grid's assets map back to their platforms", () => {
 	assert.equal(platformOfAsset("SurfSense.deb"), "linux-deb");
 	assert.equal(platformOfAsset("SurfSense-arm64.zip"), null);
 	assert.equal(platformOfAsset("latest.yml"), null);
-});
-
-test("GET redirects to the installer, uncached, even with analytics unconfigured", async () => {
-	const response = await GET(
-		request("/downloads/linux-deb?src=readme&v=v2.2.2"),
-		context("linux-deb")
-	);
-	assert.equal(response.status, 302);
-	assert.equal(response.headers.get("location"), `${RELEASES}/v2.2.2/SurfSense.deb`);
-	assert.equal(response.headers.get("cache-control"), "no-store");
-});
-
-test("a bot still gets the redirect", async () => {
-	const response = await GET(
-		request("/downloads/windows", { userAgent: "curl/8.7.1" }),
-		context("windows")
-	);
-	assert.equal(response.status, 302);
-	assert.equal(
-		response.headers.get("location"),
-		`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-Setup.exe`
-	);
-});
-
-test("an unknown platform goes back to the downloads page", async () => {
-	const response = await GET(request("/downloads/amiga"), context("amiga"));
-	assert.equal(response.status, 302);
-	assert.equal(response.headers.get("location"), "https://www.surfsense.com/downloads");
-});
-
-test("HEAD redirects the same way", async () => {
-	const response = await HEAD(request("/downloads/mac", { method: "HEAD" }), context("mac"));
-	assert.equal(response.status, 302);
-	assert.equal(
-		response.headers.get("location"),
-		`${RELEASES}/v${APP_RELEASE_VERSION}/SurfSense-arm64.dmg`
-	);
 });
 
 test("the download event is personless and carries only platform, source, version and country", () => {

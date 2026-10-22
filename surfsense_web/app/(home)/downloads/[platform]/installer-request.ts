@@ -2,7 +2,6 @@ import {
 	APP_RELEASE_VERSION,
 	FIRST_STABLE_NAMES_VERSION,
 	type InstallerPlatform,
-	installerAssetUrl,
 	isInstallerPlatform,
 } from "@/lib/app-release";
 
@@ -11,11 +10,11 @@ export const DOWNLOAD_SOURCES = ["site", "readme", "email", "app", "pricing", "o
 
 export type DownloadSource = (typeof DOWNLOAD_SOURCES)[number];
 
+/** What the link asks for. Whether GitHub serves that build yet is `installer-location.ts`. */
 export type InstallerRequest = {
 	platform: InstallerPlatform;
 	src: DownloadSource;
 	version: string;
-	assetUrl: string;
 };
 
 const VERSION = /^v?(\d{1,4})\.(\d{1,4})\.(\d{1,4})$/;
@@ -58,12 +57,10 @@ export function readInstallerRequest(
 	params: URLSearchParams
 ): InstallerRequest | null {
 	if (!isInstallerPlatform(platform)) return null;
-	const version = resolveVersion(params.get("v"));
 	return {
 		platform,
 		src: resolveSource(params.get("src")),
-		version,
-		assetUrl: installerAssetUrl(version, platform),
+		version: resolveVersion(params.get("v")),
 	};
 }
 

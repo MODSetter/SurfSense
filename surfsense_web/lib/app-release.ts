@@ -62,6 +62,11 @@ export function installerAssetUrl(version: string, platform: InstallerPlatform):
 	return `${GITHUB_RELEASES_URL}/download/v${version}/${INSTALLER_FILES[platform]}`;
 }
 
+/** The installer on whichever published release GitHub marks Latest. */
+export function latestInstallerUrl(platform: InstallerPlatform): string {
+	return `${GITHUB_RELEASES_URL}/latest/download/${INSTALLER_FILES[platform]}`;
+}
+
 export function platformOfAsset(name: string): InstallerPlatform | null {
 	for (const [platform, file] of Object.entries(INSTALLER_FILES)) {
 		if (name === file) return platform as InstallerPlatform;
