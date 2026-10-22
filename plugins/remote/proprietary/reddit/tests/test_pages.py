@@ -470,3 +470,32 @@ async def test_a_post_with_enough_comments_on_its_page_loads_no_more(
     )
 
     assert [path for path, _ in pages["asked"]] == ["comments/1xbnrhi/"]
+
+
+async def test_a_result_shown_with_a_preview_of_its_text_is_read_too(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """By relevance, Reddit wraps most results in the preview layout (2026-10-23)."""
+    # The first result in the preview layout, the second as before.
+    pages["served"]["svc/shreddit/search/"] = fixture("search.html").replace(
+        'data-testid="search-post-unit"',
+        'data-testid="search-post-with-content-preview"',
+        1,
+    )
+
+    result = await call(
+        reddit,
+        "scrape",
+        {
+            "search_queries": ["asyncio"],
+            "include_nsfw": True,
+            "skip_comments": True,
+            "max_items": 2,
+        },
+        LICENSE,
+    )
+
+    assert [item["id"] for item in result.structured_content["items"]] == [
+        "t3_1w68fip",
+        "t3_1u9fa2w",
+    ]

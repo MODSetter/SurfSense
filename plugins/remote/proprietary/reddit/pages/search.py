@@ -1,6 +1,8 @@
 """A search page's result units as the ``t3`` data ``search.json`` gave.
 
-A unit carries its ids in a tracking attribute and its counts only in text.
+A unit carries its ids in a tracking attribute and its counts only in text. A
+result with a preview of its text, most of them by relevance, has its own
+wrapper around the same unit.
 """
 
 from __future__ import annotations
@@ -16,7 +18,10 @@ from .document import epoch, number
 def search_posts(page: html.HtmlElement) -> list[dict[str, Any]]:
     return [
         {"kind": "t3", "data": data}
-        for unit in page.xpath('//*[@data-testid="search-post-unit"]')
+        for unit in page.xpath(
+            '//*[@data-testid="search-post-unit"'
+            ' or @data-testid="search-post-with-content-preview"]'
+        )
         if (data := _post_data(unit)) is not None
     ]
 
