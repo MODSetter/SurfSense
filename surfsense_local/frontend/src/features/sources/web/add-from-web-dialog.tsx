@@ -148,14 +148,19 @@ export function AddFromWebDialog({
     }
   }
 
+  // Belongs to the rows it was opened from: a newer search or paste drops it.
   const openList = async (url: string) => {
+    const shownRun = run.current
     setProblem(null)
     mark([url], "opening")
     try {
-      const [opened] = await web.open([url])
+      const [opened] = await web.open([url], shownRun?.signal)
+      if (run.current !== shownRun) return
       if (opened) setLists((current) => new Map(current).set(url, opened))
       mark([url], "opened")
     } catch (cause) {
+      // Aborted by the newer search or paste, which owns the rows now.
+      if (run.current !== shownRun) return
       mark([url], null)
       fail(cause)
     }

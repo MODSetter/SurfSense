@@ -303,6 +303,44 @@ describe("adding sources from the web", () => {
     expect(open.getAttribute("aria-disabled")).not.toBe("true")
   })
 
+  it("never lets a list that answers after a new search into Add all", async () => {
+    const user = userEvent.setup()
+    let answerChannel: (response: Response) => void = () => {}
+    let searches = 0
+    serving({
+      search: () =>
+        Response.json({
+          results:
+            ++searches === 1
+              ? SEARCHED
+              : [row("https://moon.example/", "The moon")],
+        }),
+      open: () =>
+        new Promise<Response>((resolve) => {
+          answerChannel = resolve
+        }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, "tides")
+    await user.click(
+      await within(dialog).findByRole("button", {
+        name: "Open The Sea School channel",
+      })
+    )
+
+    await user.clear(box(dialog))
+    await ask(user, dialog, "moon")
+    await within(dialog).findByRole("button", { name: "Add The moon" })
+    answerChannel(Response.json({ groups: [channelPage(0, true)] }))
+
+    // The late channel's two videos must not be counted, shown or not.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(
+      within(dialog).getByRole("button", { name: "Add all (1)" })
+    ).toBeTruthy()
+  })
+
   it("starts Add all over with each new search", async () => {
     const user = userEvent.setup()
     let answerSecond: (response: Response) => void = () => {}
