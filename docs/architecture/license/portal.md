@@ -144,7 +144,7 @@ Under `surfsense_backend/app/license/`:
 | `cohorts/plugin_host_first_seen.py` | the plugin host's first-seen day per licence |
 | `cohorts/email_kind.py` | company, free mail or school, by domain |
 | `cohorts/weekly.py` | trials grouped by ISO week and joined to plugin use and payment |
-| `cohorts/published_figures.py` | a cohort's figures with small cells withheld |
+| `cohorts/published_figures.py` | a cohort's figures with small cells withheld, and the kinds that would give them away |
 | `cohorts/markdown_table.py`, `cohorts/posthog_events.py` | the printed table and the weekly events |
 | `cohorts/models.py` | the trial and purchase records, held in memory only |
 
@@ -192,9 +192,9 @@ A trial matches the first purchase on or after its creation that carries its fol
 - the shares paid within 30 and 60 days, marked open while some trial in the row is younger than the window, and the median days to pay;
 - refunds.
 
-No address, domain, licence id or key is printed or sent. A count under 5 prints as `<5` and a median of fewer than 5 values as `n<5`. `--posthog` sends the same figures, withheld ones as null, as one personless `license_cohort_weekly` event per week through `POSTHOG_API_KEY`; each run sends every week again, so read the latest. The addresses were given to receive a licence, so no single row is acted on, such as mailing a lapsed trial.
+No address, domain, licence id or key is printed or sent. A count under 5 prints as `<5` and a median of fewer than 5 values as `n<5`. The three kinds add up to a row's trials, give or take an unreadable address, so a kind withheld alone could be worked out by subtraction: when exactly one is `<5`, the smaller of the other two is withheld with it and prints as `x`. The All row is the weeks' sum, so while any week withholds a kind, the All row withholds all three, as `x` or `<5`; with few trials a week that is most of the time. `--posthog` sends the same weekly figures, withheld ones as null and `withheld_to_protect` naming the kinds that are null only to protect another, as one personless `license_cohort_weekly` event per week through `POSTHOG_API_KEY`; each run sends every week again, so read the latest. The addresses were given to receive a licence, so no single row is acted on, such as mailing a lapsed trial.
 
-`test_keygen_pages.py` covers reading every page. `test_cohort_email_kind.py`, `test_cohort_weekly.py`, `test_cohort_sources.py` and `test_cohort_publishing.py` cover the cohort report's domain classes, the join, the three readers with Keygen, Stripe and the plugin host faked, and the withheld cells, and `tests/unit/scripts/test_license_cohorts.py` checks that the printed report and its events carry no address or licence id.
+`test_keygen_pages.py` covers reading every page. `test_cohort_email_kind.py`, `test_cohort_weekly.py`, `test_cohort_sources.py` and `test_cohort_publishing.py` cover the cohort report's domain classes, the join, the three readers with Keygen, Stripe and the plugin host faked, and the withheld cells, the protecting ones included, and `tests/unit/scripts/test_license_cohorts.py` checks that the printed report and its events carry no address or licence id.
 
 ## Tests
 

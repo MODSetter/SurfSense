@@ -47,6 +47,23 @@ def test_counts_and_medians_under_five_are_withheld():
     assert sparse["median_days_to_pay"] is None
 
 
+def test_a_lone_withheld_kind_takes_the_smallest_other_kind_with_it():
+    # Otherwise the trials less the two shown kinds would give the withheld one.
+    figures = published_figures(cohort(), TODAY)
+
+    kinds = (figures["company"], figures["free_mail"], figures["education"])
+    assert kinds == (None, 26, None)
+    assert figures["withheld_to_protect"] == ["company"]
+
+
+def test_two_withheld_kinds_withhold_no_third():
+    figures = published_figures(cohort(company=34, free_mail=3, education=3), TODAY)
+
+    kinds = (figures["company"], figures["free_mail"], figures["education"])
+    assert kinds == (34, None, None)
+    assert figures["withheld_to_protect"] == []
+
+
 def test_a_window_is_open_until_the_cohorts_youngest_trial_has_lived_through_it():
     figures = published_figures(cohort(), date(2026, 11, 30))
 
@@ -59,9 +76,28 @@ def test_the_table_shows_shares_and_writes_withheld_cells_as_under_five():
     row = table.splitlines()[2].split(" | ")
 
     assert row[0] == "| 2026-W42"
-    assert row[1:6] == ["40", "10 (25%)", "26 (65%)", "<5", "12 (30%)"]
+    assert row[1:6] == ["40", "x", "26 (65%)", "<5", "12 (30%)"]
     assert row[6:10] == ["1", "5 (12%)", "6 (15%)", "15.5"]
     assert row[10] == "<5 |"
+
+
+def test_the_all_row_withholds_its_kinds_when_a_week_withholds_one():
+    weeks = [cohort(), cohort(label="2026-W43", company=10, free_mail=24, education=6)]
+    everyone = cohort(label="All", trials=80, company=20, free_mail=50, education=10)
+
+    row = render_table([*weeks, everyone], TODAY).splitlines()[4].split(" | ")
+
+    assert row[0] == "| All"
+    assert row[1:5] == ["80", "x", "x", "x"]
+
+
+def test_the_all_row_shows_its_kinds_when_no_week_withholds_one():
+    week = cohort(company=10, free_mail=24, education=6)
+    everyone = cohort(label="All", company=10, free_mail=24, education=6)
+
+    row = render_table([week, everyone], TODAY).splitlines()[3].split(" | ")
+
+    assert row[2:5] == ["10 (25%)", "24 (60%)", "6 (15%)"]
 
 
 def test_the_table_says_plugin_use_is_unknown_without_host_data():
@@ -92,4 +128,6 @@ def test_each_week_is_sent_as_one_personless_event_and_the_total_is_not():
     assert properties["cohort_week"] == "2026-W42"
     assert properties["$process_person_profile"] is False
     assert properties["education"] is None
+    assert properties["company"] is None
+    assert properties["withheld_to_protect"] == ["company"]
     assert properties["paid_30d"] == 5

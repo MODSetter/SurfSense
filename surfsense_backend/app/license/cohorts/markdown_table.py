@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from .published_figures import published_figures
+from .published_figures import published_rows
 from .weekly import Cohort
 
 _HEADER = (
@@ -23,16 +23,18 @@ _HEADER = (
 )
 
 LEGEND = (
-    '"<5": fewer than 5, withheld. "n<5": a median of fewer than 5 values, '
-    'withheld. "(open)": some trials in the row are younger than the window. '
+    '"<5": fewer than 5, withheld. "x": withheld so that a "<5" kind cannot be '
+    "worked out from the row's trials and other kinds or, in the All row, from "
+    'the weeks. "n<5": a median of fewer than 5 values, withheld. "(open)": '
+    "some trials in the row are younger than the window. "
     '"n/a": no plugin host data. Shares are of the row\'s trials.'
 )
 
 
 def render_table(cohorts: list[Cohort], today: date) -> str:
     lines = [_row(_HEADER), _row(tuple("---" for _ in _HEADER))]
-    for cohort in cohorts:
-        lines.append(_row(_cells(cohort.label, published_figures(cohort, today))))
+    for label, figures in published_rows(cohorts, today):
+        lines.append(_row(_cells(label, figures)))
     return "\n".join(lines)
 
 
@@ -40,6 +42,8 @@ def _cells(label: str, figures: dict[str, Any]) -> tuple[str, ...]:
     trials = figures["trials"]
 
     def share(key: str) -> str:
+        if key in figures["withheld_to_protect"]:
+            return "x"
         return _share(figures[key], trials)
 
     def paid(key: str, window: str) -> str:
