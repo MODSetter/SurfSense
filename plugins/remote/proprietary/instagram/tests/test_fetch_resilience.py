@@ -50,11 +50,13 @@ class _FakeSession:
         csrftoken: bool = True,
         payload=None,
         login_wall: bool = False,
+        rate_limited: bool = False,
     ) -> None:
         self.status = status
         self.csrftoken = csrftoken
         self.payload = payload
         self.login_wall = login_wall
+        self.rate_limited = rate_limited
         self.json_calls = 0
         self.warm_calls = 0
 
@@ -66,6 +68,12 @@ class _FakeSession:
         self.json_calls += 1
         # A soft login wall: 200, but the final URL is the login page.
         final = "https://www.instagram.com/accounts/login/" if self.login_wall else url
+        if self.rate_limited:
+            # The same redirect, flagged as a rate-limit exit (live, 2026-10-22).
+            final = (
+                "https://www.instagram.com/accounts/login/"
+                "?next=https%3A%2F%2Fwww.instagram.com%2Fnatgeo%2F&is_from_rle"
+            )
         return _FakePage(self.status, payload=self.payload, url=final)
 
 
@@ -420,3 +428,15 @@ async def test_discover_nonhandle_routes_through_google(monkeypatch):
         "national geographic", search_type="profile", limit=10
     )
     assert [(t.kind, t.value) for t in targets] == [("profile", "natgeo")]
+
+
+async def test_a_rate_limit_redirect_to_the_login_page_moves_to_a_fresh_exit():
+    """``is_from_rle`` is an exit asking too often, not a page needing a login."""
+    holder = _FakeHolder([_FakeSession(429, rate_limited=True), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch.fetch_html("natgeo/")
+    finally:
+        _current_session.reset(token)
+    assert result is not None
+    assert holder.rotations == 1

@@ -117,6 +117,9 @@ _CSRF_COOKIE = "csrftoken"
 # status-code rotate check — detect it via the response's final URL and treat
 # it exactly like a 403.
 _LOGIN_PATH = "/accounts/login"
+# The same redirect for an exit asking too often: a fresh exit clears it (live,
+# 2026-10-22, after ~14 page reads on one exit).
+_RATE_LIMIT_FLAG = "is_from_rle"
 
 # Hard login wall: api/v1/users/web_profile_info/ answers every anonymous caller
 # 401 {"require_login": true, ...} (smoke test 2026-10-13: 8 residential exits
@@ -429,6 +432,14 @@ async def _fetch(
             # only burns the pool and re-warms for an unwinnable block. Raising
             # (vs returning None) keeps a blocked target distinguishable from an
             # empty one; fan_out swallows it per-target for partial results.
+            if _is_login_redirect(page) and _RATE_LIMIT_FLAG in str(page.url):
+                if attempt < _MAX_ROTATIONS:
+                    attempt += 1
+                    await holder.rotate()
+                    continue
+                raise InstagramAccessBlockedError(
+                    f"Instagram rate-limited {path} on {attempt} rotated IPs"
+                )
             if _is_login_redirect(page):
                 raise InstagramAccessBlockedError(
                     f"Instagram login wall on {path} (endpoint requires auth)"
