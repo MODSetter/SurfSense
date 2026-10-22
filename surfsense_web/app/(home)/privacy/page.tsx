@@ -42,7 +42,7 @@ const canonicalUrl = "https://www.surfsense.com/privacy";
 
 const metaTitle = "Privacy Policy | SurfSense";
 const metaDescription =
-	"What SurfSense collects and what it does not. The desktop app has no account and no telemetry, and your documents never leave your machine.";
+	"What SurfSense collects and what it does not. The desktop app has no account, sends usage statistics only if you opt in and never with an identifier, and your documents never reach us.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -109,12 +109,13 @@ export default function PrivacyPolicy() {
 
 					<h2>2. The short version</h2>
 					<p>
-						The desktop app has no account, no sign-in and no telemetry of any kind. Your documents,
-						chats and search index are files on your disk, we never receive them, and there is
-						therefore nothing for us to disclose, sell, leak or lose. This website counts page views
-						using analytics that is on by default and that you can block, and carries no
-						advertising. We do not sell personal data, we do not share it for advertising, and we do
-						not build profiles for anyone else.
+						The desktop app has no account and no sign-in, and sends no usage analytics unless you
+						opt in, and even then only counts in ranges with no identifier. Your documents, chats
+						and search index are files on your disk, we never receive them, and there is therefore
+						nothing for us to disclose, sell, leak or lose. This website counts page views using
+						analytics that is on by default and that you can block, and carries no advertising. We
+						do not sell personal data, we do not share it for advertising, and we do not build
+						profiles for anyone else.
 					</p>
 
 					<h2>3. The desktop application</h2>
@@ -134,21 +135,37 @@ export default function PrivacyPolicy() {
 
 					<h3>3.2 What the app can send, and when</h3>
 					<p>
-						The app can reach the destinations below. Each one is switched off until you allow it
-						under Network in Settings, and switching one off there blocks the call rather than
-						hiding it.
+						The app can reach the destinations below. Each one is switched off until you allow it,
+						when the app first starts or under Network in Settings, and switching one off there
+						blocks the call rather than hiding it.
 					</p>
 					<ul>
 						<li>
-							<strong>Update checks, to github.com.</strong> Reads the list of releases on
-							github.com, then asks for the release file for your platform, Windows, macOS or Linux,
-							so the app can tell whether a newer release exists. Each request sends your IP
-							address, and no version number and no identifier. GitHub serves its release files from
-							its download host, githubusercontent.com, which also sees your IP address. Versions up
-							to 2.2.3 also sent a random identifier that the update library, electron-updater,
-							creates for staged rollouts; later versions no longer send it. A newer release then
-							downloads from GitHub and installs when you restart from the prompt or the next time
-							you quit the app. Disabled until you enable it, and you can check manually instead.
+							<strong>Update checks, to updates.surfsense.com, falling back to github.com.</strong>{" "}
+							Once a day, and whenever you click Check now, the app asks updates.surfsense.com
+							whether a newer release exists. That request sends your IP address, the app's version,
+							your platform (such as win32-x64) and your operating system (such as windows-11), and
+							no identifier and no cookies. If that service fails or answers wrongly, the app asks
+							github.com for the same release file directly, sending only your IP address, so an
+							update never depends on our service. A newer release downloads from GitHub, whose
+							download host, githubusercontent.com, also sees your IP address, and installs when you
+							restart from the prompt or the next time you quit the app. Versions up to 2.2.3 also
+							sent a random identifier that the update library, electron-updater, creates for staged
+							rollouts; later versions no longer send it. Off until you turn it on, and you can
+							check manually instead. An administrator can turn it off, or point it at their own
+							update server, for every user of a computer.
+						</li>
+						<li>
+							<strong>Usage statistics, to usage.surfsense.com.</strong> Only if you opt in, and at
+							most once a day. Each report sends the app's version, platform, operating system and
+							interface language, the week the app was installed, and whether this is its first
+							report ever, this week and this month. Once a week it adds counts in ranges, such as
+							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
+							model answered, the documents in your library, Studio outputs, plugin calls, and how
+							far setup got. The first report adds your computer's memory, graphics card maker and
+							graphics memory, also in ranges. It never sends documents, prompts, file names, model
+							names, model hosts, your licence key or an identifier. Settings shows the exact next
+							report and the last one sent.
 						</li>
 						<li>
 							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
@@ -192,14 +209,21 @@ export default function PrivacyPolicy() {
 						can open connections of their own.
 					</p>
 
-					<h3>3.3 No telemetry, and how your licence is checked</h3>
+					<h3>3.3 Usage statistics, and how your licence is checked</h3>
 					<p>
-						The desktop app contains no analytics, no usage tracking, no crash reporting and no
-						advertising identifiers. This is why there is no telemetry setting to turn off: there is
-						nothing to turn off. We cannot tell how many documents you have, which features you use,
-						whether the app crashed, or whether you ever opened it. The one exception is SurfSense's
-						own plugins. That service sees the requests you send them, as section 4.4 describes,
-						and, once you have added a paid one, the licence checks described below, which show it
+						The desktop app contains no analytics library, no crash reporting and no advertising
+						identifiers, and sends no usage analytics unless you opt in. With update checks on,
+						SurfSense can count the installs that checked in each day, with their versions,
+						platforms and countries. With usage statistics on, it also receives the weekly counts in
+						ranges that section 3.2 lists. Neither carries documents, prompts, file names, model
+						hosts, your licence key or an identifier, so we cannot tell one install's reports from
+						another's or see what you did in the app. Each request's IP address is used by our
+						hosting provider to route it and to derive a country, and we do not store it. With both
+						off, we cannot tell whether you ever opened the app. You can turn either off in Settings
+						at any time, set <code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an
+						administrator turn either off for a whole computer. SurfSense's own plugins are
+						separate. That service sees the requests you send them, as section 4.4 describes, and,
+						once you have added a paid one, the licence checks described below, which show it
 						roughly when you open the plugin list or ask the agent something.
 					</p>
 					<p>
@@ -218,7 +242,8 @@ export default function PrivacyPolicy() {
 						events to our analytics when it starts, updates and quits: its version, operating
 						system, processor architecture, whether it started at login, and a machine identifier.
 						We use them only to count how many of those installs remain and to point them to the new
-						app. The current app sends none of this.
+						app. The current app sends no machine identifier, and nothing beyond what section 3.2
+						lists.
 					</p>
 
 					<h3>3.4 What is encrypted, and what is not</h3>
@@ -331,7 +356,8 @@ export default function PrivacyPolicy() {
 					<ul>
 						<li>
 							<strong>Contract.</strong> Sending you a licence you asked for, taking payment,
-							providing the plugin service and supporting it.
+							providing the plugin service and supporting it, and answering the desktop app's update
+							checks, which is the update service you enabled when you turned them on.
 						</li>
 						<li>
 							<strong>Legitimate interests.</strong> Keeping the site available and secure,
@@ -344,8 +370,12 @@ export default function PrivacyPolicy() {
 							responding to lawful requests.
 						</li>
 						<li>
-							<strong>Consent.</strong> Where we ask for it, such as if you opt in to product
-							emails. You can withdraw it at any time.
+							<strong>Consent.</strong> The desktop app's usage statistics, which are off unless you
+							opt in. You can withdraw that consent at any time by turning them off in Settings or
+							by setting <code>DO_NOT_TRACK=1</code>, and an administrator's policy can withdraw it
+							for a whole computer. Reports already sent carry no identifier, so they cannot be
+							traced back to you. We also rely on consent where we ask for it elsewhere, such as if
+							you opt in to product emails, and you can withdraw it at any time.
 						</li>
 					</ul>
 
