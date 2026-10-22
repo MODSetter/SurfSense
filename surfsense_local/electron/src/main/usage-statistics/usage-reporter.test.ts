@@ -30,6 +30,8 @@ function reporter(
     lock?: UsageLockReason | null
     endpoint?: string | null
     summary?: unknown
+    /** Holds the local API's answer until it resolves. */
+    summaryGate?: Promise<void>
     locale?: string
     at?: string
     reply?: Reply
@@ -57,6 +59,7 @@ function reporter(
     facts: { appVersion: "2.2.4", platform: "win32-x64", os: "windows-11" },
     summary: async (since) => {
       summaries.push(since.toISOString())
+      await options.summaryGate
       return options.summary === undefined ? SUMMARY : options.summary
     },
     locale: () => options.locale ?? "en",
@@ -84,6 +87,7 @@ function reporter(
     bodies: () => posts.map((post) => JSON.parse(String(post.init.body))),
     at: (iso: string) => (clock = new Date(iso)),
     reply: (next: Reply) => (reply = next),
+    choose: (usageStatistics: boolean) => (file = { ...file, usageStatistics }),
   }
 }
 
@@ -221,6 +225,20 @@ for (const [why, options] of NEVER_SENT) {
     assert.equal(app.file().attempts, null)
   })
 }
+
+test("a no given while a report is being built stops it before it is sent", async () => {
+  let answer = () => undefined as void
+  const app = reporter({ summaryGate: new Promise<void>((resolve) => (answer = resolve)) })
+
+  const pending = app.usage.attempt()
+  app.choose(false)
+  answer()
+
+  assert.equal(await pending, "skipped")
+  assert.deepEqual(app.posts, [])
+  assert.equal(app.file().lastSent, null)
+  assert.equal(app.sent(), 0)
+})
 
 test("a development build sends to SURFSENSE_TELEMETRY_DEV_ENDPOINT when one is set", async () => {
   const app = reporter({ endpoint: "http://localhost:3000/api/usage" })

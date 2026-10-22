@@ -112,6 +112,11 @@ export function createUsageReporter(deps: {
         log("usage report not sent: over 4 KB")
         return "failed"
       }
+      // Asked again: the user may have said no while the summary was read.
+      if (!allowed(deps.store.read())) {
+        log("usage report not sent: switched off while it was being built")
+        return "skipped"
+      }
       const reply = await deps.fetch(deps.endpoint!, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
