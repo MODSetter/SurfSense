@@ -2,7 +2,7 @@
 
 The desktop app updates itself with electron-updater from the GitHub Releases of `MODSetter/SurfSense`, on its own `stable` channel, and only once the user has allowed it. Updates are free for everyone and carry no license logic. The legacy 0.0.x desktop app reads the same releases, so the two apps are kept apart by the names of the manifests each one reads, not by GitHub's Latest pointer.
 
-**Code:** [`surfsense_local/electron/src/main/updater.ts`](../../surfsense_local/electron/src/main/updater.ts), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/frontend/src/features/updates/`](../../surfsense_local/frontend/src/features/updates/)
+**Code:** [`surfsense_local/electron/src/main/updater.ts`](../../surfsense_local/electron/src/main/updater.ts), [`surfsense_local/electron/src/main/updater-cache/`](../../surfsense_local/electron/src/main/updater-cache/), [`surfsense_local/electron/patches/electron-updater@6.8.9.patch`](../../surfsense_local/electron/patches/electron-updater@6.8.9.patch), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/frontend/src/features/updates/`](../../surfsense_local/frontend/src/features/updates/)
 **Decisions:** [ADR 0020](../adr/0020-two-update-channels.md)
 
 How to cut a release is in [`surfsense_local/RELEASE.md`](../../surfsense_local/RELEASE.md).
@@ -17,7 +17,28 @@ Updates are the one call the app is designed to make on its own, so they are off
 - `autoDownload` is false. The download starts from the `update-available` event, so it only ever follows a check the user enabled or clicked.
 - Installing waits for the user: the restart action in Settings, the sidebar or the title bar calls `quitAndInstall()`, and only once the download is ready.
 
-This is not an `egress.require()` destination, because electron-updater runs in the Electron main process where the backend's check cannot see it ([egress](egress.md)). Differential downloads are off, because GitHub's CDN rejects the multi-range requests they need. A development build shows the same controls and never checks.
+This is not an `egress.require()` destination, because electron-updater runs in the Electron main process where the backend's check cannot see it ([egress](egress.md)). A development build shows the same controls and never checks.
+
+## Update size
+
+Downloads are differential: electron-updater fetches only the blocks that changed, using the `.blockmap` files electron-builder publishes with each release. electron-updater 6.8.9's GitHub provider asks for one byte range per request, which GitHub serves, and any failure falls back to downloading the whole file, so the result is always the published file.
+
+A proxy or antivirus web shield that drops the `Range` header answers each of those requests with the whole file. electron-updater 6.8.9 writes that body out once per range and checks the sha512 only at the end, so a Windows update would keep downloading until the disk filled. [`patches/electron-updater@6.8.9.patch`](../../surfsense_local/electron/patches/electron-updater@6.8.9.patch), applied by pnpm through `patchedDependencies` in `electron/pnpm-workspace.yaml`, makes any reply other than 206 end the differential attempt at the first request, and the update then downloads whole, as it did before differential downloads were on. It covers the AppImage's blockmap read too. `scripts/electron-updater-ranges.test.mjs` runs electron-updater against a server that ignores `Range`. An electron-updater upgrade has to carry the patch over, because it names 6.8.9.
+
+| Platform | Patches | Typical update |
+|---|---|---|
+| Windows | `installer.exe` in `%LOCALAPPDATA%\surfsense-local-electron-updater\`, the copy of the installer every install leaves there | about 128 MB instead of 1.16 GB (v2.2.2 → v2.2.3, planned from the real blockmaps; 129 MB measured end to end the other way) |
+| macOS | `update.zip` in `~/Library/Caches/surfsense-local-electron-updater/`, the copy of the last downloaded zip | whole (1.28 GB) until a first update leaves `update.zip`, then about 187 MB (planned) |
+| AppImage | the running AppImage, through the blockmap embedded in it | about 42 MB |
+| deb | nothing; electron-updater always downloads a deb whole | 1.28 GB |
+
+An app at 2.2.3 or earlier still downloads its next update whole, because those versions turn differential downloads off.
+
+Fewer bytes do not always mean a shorter wait. A Windows update is about 800 range requests made one after another, with a 1 s pause after every 100; 129 MB took 47–69 s in testing. On a link faster than roughly 150–200 Mbit/s the "Downloading" state can therefore last longer than a whole download would. On macOS electron-updater keeps the last download as `update.zip` (about 1.28 GB), the base of the next update. From a download until its install the cache holds that copy as well as the one in `pending/`, about 2.55 GB in all; the install frees `pending/`.
+
+On Windows a differential update needs `installer.exe` and `current.blockmap` to describe the same version. Every install overwrites `installer.exe` with the installed version, but electron-updater saves `current.blockmap` with each download. A download that is not installed yet, or a version installed by hand, breaks that pairing: the patched file fails its sha512, and the update downloads whole after the wasted differential attempt. So on Windows `updater-cache/` deletes `current.blockmap` before every check, and electron-updater fetches the installed version's blockmap (about 1 MB), which always matches. On macOS `update.zip` and `current.blockmap` come from the same download and stay together; Linux uses neither.
+
+electron-updater downloads into `pending/` beside that base and empties it only when the next download starts, so the installer of the version just installed would sit there until the next update. The app records the downloaded version in `pending/downloaded-version.json`. At launch `updater-cache/` empties `pending/` unless it holds a version newer than the running app. A download with no record was made by an app from before this one, so it is emptied too; a record that cannot be read keeps the download. It is also emptied when a check finds nothing newer than the running app, for instance after a release is pulled, unless this session was offered an update, since quitting installs that download. Every check waits until this tidying is done, so a download never lands in a folder being emptied. `installer.exe` and `update.zip` stay, because they are the base of the next update.
 
 ## Two apps, one repo
 
@@ -55,4 +76,6 @@ Artifact names carry no version, so the root README's links to `/releases/latest
 ## Known gaps
 
 - The deb build likely auto-updates, although the launch plan said it would not: electron-builder writes `resources/package-type` for a deb, electron-updater picks its deb updater from that file, and v2.0.2's `stable-linux.yml` on the release lists `SurfSense.deb`. Not checked on an installed deb.
+- The macOS differential path has only been planned from the real blockmaps, not run end to end. A failure there falls back to a whole download.
+- Uninstalling leaves `%LOCALAPPDATA%\surfsense-local-electron-updater\` behind, with the 1.16 GB `installer.exe` in it.
 - Nothing takes an installed previous version through an update before users get it. The updater reads only published releases, so [`RELEASE.md`](../../surfsense_local/RELEASE.md)'s check from the previous version is by hand: the draft's installer over that version before publishing, the update itself only after.

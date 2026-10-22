@@ -116,7 +116,7 @@ gh release edit v2.3.0 --notes-file notes.md
 
 ### 8. Try it over the previous version (optional)
 
-The updater reads only published releases, so no installed app is offered the draft. Before publishing, install the draft's installer over the previous version on a machine that holds that version's library, and check the library opens and, when the release migrates the database, that the snapshot lands in `~/.surfsense/backups/`. Once published, Check now in Settings › About on a machine still on the previous version shows the update itself.
+The updater reads only published releases, so no installed app is offered the draft. Before publishing, install the draft's installer over the previous version on a machine that holds that version's library, and check the library opens and, when the release migrates the database, that the snapshot lands in `~/.surfsense/backups/`. Once published, Check now in Settings › About on a machine still on the previous version shows the update itself. From a previous version newer than 2.2.3, the `updater` lines of the session log show the differential download: `To download:` is about a tenth of `Full:` on Windows, and `fallback to full download` means it failed and the whole installer came instead; `not 206` in that line means something on the network ignored the range requests ([updates](../docs/architecture/updates.md#update-size)).
 
 ```bash
 gh release download v2.3.0 --pattern 'SurfSense-Setup.exe'

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url"
 
 import { verifyBuiltFamilies } from "./built-families.mjs"
 import { compile, missingToolchain } from "./compile.mjs"
-import { stageEspeak } from "./espeak.mjs"
+import { stageEspeak, trimStagedEspeak } from "./espeak/stage.mjs"
 import { copyMsvcRuntime } from "../msvc-runtime.mjs"
 import { NotStaged, notStaged } from "../not-staged/message.mjs"
 import { packageManager } from "../not-staged/package-manager.mjs"
@@ -62,6 +62,9 @@ async function main() {
   const strict = process.argv.includes("--strict")
   const staged = await stagedServer(OUT)
   if (staged.state === "current") {
+    // A stage from before the trimming would ship every eSpeak dictionary.
+    const removed = trimStagedEspeak(OUT)
+    if (removed.length) console.log(`removed ${removed.length} eSpeak dictionaries no voice can reach from ${OUT}`)
     console.log(`audio.cpp ${TAG} already staged in ${OUT}`)
     return
   }

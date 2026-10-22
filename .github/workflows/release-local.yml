@@ -363,6 +363,10 @@ jobs:
           test -f "$DIR/espeak/libespeak-ng.so"
           test -d "$DIR/espeak/espeak-ng-data"
           test -f "$DIR/espeak/COPYING"
+          # The trimmed data keeps a script-switch target and drops a language no
+          # curated voice reaches (scripts/audiocpp/espeak/dictionaries.mjs).
+          test -f "$DIR/espeak/espeak-ng-data/te_dict"
+          test ! -e "$DIR/espeak/espeak-ng-data/cmn_dict"
 
       - name: Smoke the bundled sd.cpp (Linux)
         if: matrix.os == 'ubuntu-22.04'
@@ -396,6 +400,33 @@ jobs:
             surfsense_local/electron/release/*.blockmap
             surfsense_local/electron/release/*.yml
           if-no-files-found: ignore
+
+      # After the upload, so a run that fails here still keeps its installers.
+      # Fails when one of this OS's installers is missing or over its budget in
+      # scripts/installer-size-budgets.json; prints every size either way.
+      - name: Check installer sizes
+        working-directory: surfsense_local/electron
+        run: node scripts/check-installer-size.mjs
+
+      # The dmg is LZFSE (electron-builder.yml `dmg.format`). Checks hdiutil made it
+      # so, that it verifies and mounts, that the app inside is signed, and times the
+      # verify and the copy out a user waits through.
+      - name: Smoke the dmg (macOS)
+        if: runner.os == 'macOS'
+        working-directory: surfsense_local/electron
+        run: |
+          set -euo pipefail
+          DMG=release/SurfSense-arm64.dmg
+          hdiutil imageinfo "$DMG" | grep -E '^Format: ULFO$'
+          time hdiutil verify "$DMG"
+          MNT=$(mktemp -d)
+          time hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MNT"
+          trap 'hdiutil detach "$MNT" -force >/dev/null 2>&1 || true' EXIT
+          test -d "$MNT/SurfSense.app"
+          codesign --verify --deep --strict --verbose=2 "$MNT/SurfSense.app"
+          COPY=$(mktemp -d)
+          time ditto "$MNT/SurfSense.app" "$COPY/SurfSense.app"
+          rm -rf "$COPY"
 
   # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves
   # updates through /releases/latest and reads latest*.yml from whatever that

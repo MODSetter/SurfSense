@@ -39,6 +39,8 @@ import {
   type Updates,
   type UpdateState,
 } from "./updater.ts"
+import { updaterPendingFolder } from "./updater-cache/pending-folder.ts"
+import { tidyUpdaterCache } from "./updater-cache/tidy-updater-cache.ts"
 import {
   loadThemePreference,
   saveThemePreference,
@@ -274,12 +276,13 @@ async function registerUpdateHandlers(): Promise<void> {
 
   let updates: Updates
   if (app.isPackaged) {
-    // GitHub's CDN rejects the multi-range requests differential updates need.
-    autoUpdater.disableDifferentialDownload = true
     // Its default logger is the console, which a packaged app shows nowhere.
     const log = (message: unknown) => sessionLog.append("updater", String(message))
     autoUpdater.logger = { info: log, warn: log, error: log }
-    updates = attachUpdater(autoUpdater, broadcast)
+    updates = tidyUpdaterCache(autoUpdater, attachUpdater(autoUpdater, broadcast), {
+      pendingFolder: updaterPendingFolder(process.resourcesPath),
+      installedVersion: app.getVersion(),
+    })
   } else {
     // ponytail: dev has no signed build to update; expose the same surface
     // so the Settings row renders, and stay idle.

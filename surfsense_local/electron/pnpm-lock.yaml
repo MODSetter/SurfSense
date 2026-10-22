@@ -7,13 +7,16 @@ settings:
 overrides:
   isbinaryfile: ^5.0.7
 
+patchedDependencies:
+  electron-updater@6.8.9: 04c338bf3e63773deeddf1318b47fd756f431e178ba3c6130a60ba17853f2c17
+
 importers:
 
   .:
     dependencies:
       electron-updater:
         specifier: ^6.8.9
-        version: 6.8.9
+        version: 6.8.9(patch_hash=04c338bf3e63773deeddf1318b47fd756f431e178ba3c6130a60ba17853f2c17)
     devDependencies:
       '@types/node':
         specifier: ^24
@@ -2891,7 +2894,7 @@ snapshots:
 
   electron-to-chromium@1.5.422: {}
 
-  electron-updater@6.8.9:
+  electron-updater@6.8.9(patch_hash=04c338bf3e63773deeddf1318b47fd756f431e178ba3c6130a60ba17853f2c17):
     dependencies:
       builder-util-runtime: 9.7.0
       fs-extra: 10.1.0
