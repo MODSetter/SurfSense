@@ -1,36 +1,44 @@
 import assert from "node:assert/strict"
-import { createRequire } from "node:module"
 import test from "node:test"
 
+import type { UpdateFeed } from "./update-feed/latest-manifest.ts"
 import {
-  attachUpdater,
-  NO_INSTALL_ID,
-  parseUpdatePrefs,
-  type UpdateState,
-} from "./updater.ts"
+  SurfSenseFeedProvider,
+  type SurfSenseFeedOptions,
+} from "./update-feed/surfsense-feed-provider.ts"
+import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.ts"
+
+const FEED: UpdateFeed = {
+  base: "https://updates.surfsense.com/api/updates/",
+  mirror: false,
+  channelFile: "stable.yml",
+  headers: { "X-SurfSense-Version": "2.2.3" },
+  fetch: (async () => new Response(null, { status: 503 })) as typeof fetch,
+}
 
 type Listener = (...args: unknown[]) => void
-
-// computeFinalHeaders is private in electron-updater's types.
-const loadCommonJs = createRequire(import.meta.url)
 
 function fakeAutoUpdater() {
   const listeners = new Map<string, Listener>()
   const calls: string[] = []
+  const feeds: SurfSenseFeedOptions[] = []
   return {
     calls,
+    feeds,
     emit: (event: string, ...args: unknown[]) => listeners.get(event)?.(...args),
     updater: {
       autoDownload: true,
       autoInstallOnAppQuit: false,
-      allowPrerelease: false,
       requestHeaders: null as Record<string, string> | null,
+      setFeedURL(options: SurfSenseFeedOptions) {
+        feeds.push(options)
+      },
       on(event: string, listener: Listener) {
         listeners.set(event, listener)
       },
-      async checkForUpdates() {
+      checkForUpdates: async (): Promise<unknown> => {
         calls.push("check")
-        return null
+        return { isUpdateAvailable: false }
       },
       async downloadUpdate() {
         calls.push("download")
@@ -46,11 +54,9 @@ function fakeAutoUpdater() {
 test("a found update is downloaded and offered, and waits for a restart or a quit", async () => {
   const fake = fakeAutoUpdater()
   const states: UpdateState[] = []
-  const updates = attachUpdater(fake.updater, (state) => states.push(state))
+  const updates = attachUpdater(fake.updater, (state) => states.push(state), FEED)
 
   assert.equal(fake.updater.autoDownload, false)
-  // Walks the releases feed rather than /releases/latest; see updater.ts.
-  assert.equal(fake.updater.allowPrerelease, true)
   await updates.check()
   fake.emit("update-available", { version: "1.0.1" })
   fake.emit("update-downloaded", { version: "1.0.1" })
@@ -67,40 +73,27 @@ test("a found update is downloaded and offered, and waits for a restart or a qui
   assert.deepEqual(fake.calls, ["check", "download", "install"])
 })
 
-test("update requests carry a constant in place of the persistent install ID", () => {
+test("checks go through SurfSense's feed provider, with no headers left for downloads", () => {
   const fake = fakeAutoUpdater()
-  fake.updater.requestHeaders = { accept: "*/*" }
+  fake.updater.requestHeaders = { "x-user-staging-id": "0" }
 
-  attachUpdater(fake.updater, () => undefined)
+  attachUpdater(fake.updater, () => undefined, FEED)
 
-  // electron-updater sends its own x-user-staging-id, read from
-  // userData/.updaterId, on the feed and manifest requests.
-  assert.equal(NO_INSTALL_ID, "0")
-  assert.deepEqual(fake.updater.requestHeaders, {
-    accept: "*/*",
-    "x-user-staging-id": "0",
-  })
-})
-
-test("the installed electron-updater lets the constant win over the install ID", () => {
-  const fake = fakeAutoUpdater()
-  attachUpdater(fake.updater, () => undefined)
-
-  // The merge electron-updater runs before the feed and manifest requests, so
-  // a version that merged the other way fails here rather than in the field.
-  const { AppUpdater } = loadCommonJs("electron-updater/out/AppUpdater")
-  const sent = AppUpdater.prototype.computeFinalHeaders.call(
-    { requestHeaders: fake.updater.requestHeaders },
-    { "x-user-staging-id": "6f1c2c1e-7b8a-4f43-9a51-3c7e0f2d9b11" }
-  )
-
-  assert.equal(sent["x-user-staging-id"], NO_INSTALL_ID)
+  // providerFactory.js builds `updateProvider` with these options on each check.
+  assert.equal(fake.feeds.length, 1)
+  assert.equal(fake.feeds[0]!.provider, "custom")
+  assert.equal(fake.feeds[0]!.updateProvider, SurfSenseFeedProvider)
+  assert.equal(fake.feeds[0]!.feed, FEED)
+  // AppUpdater merges requestHeaders into every installer download.
+  assert.equal(fake.updater.requestHeaders, null)
+  // Its setter turns on allowDowngrade, so it is never set.
+  assert.equal("channel" in fake.updater, false)
 })
 
 test("a downloaded update installs on restart or, failing that, on quit", () => {
   const fake = fakeAutoUpdater()
 
-  attachUpdater(fake.updater, () => undefined)
+  attachUpdater(fake.updater, () => undefined, FEED)
 
   // Set on purpose: the docs and the update prompt say quitting installs it.
   assert.equal(fake.updater.autoInstallOnAppQuit, true)
@@ -109,7 +102,7 @@ test("a downloaded update installs on restart or, failing that, on quit", () => 
 test("no update and errors both settle back to a state the UI can show", async () => {
   const fake = fakeAutoUpdater()
   const states: UpdateState[] = []
-  const updates = attachUpdater(fake.updater, (state) => states.push(state))
+  const updates = attachUpdater(fake.updater, (state) => states.push(state), FEED)
 
   await updates.check()
   fake.emit("update-not-available")
@@ -122,9 +115,25 @@ test("no update and errors both settle back to a state the UI can show", async (
   ])
 })
 
+test("a check says whether it read a manifest, so a failed one can be retried", async () => {
+  const fake = fakeAutoUpdater()
+  const updates = attachUpdater(fake.updater, () => undefined, FEED)
+
+  assert.equal(await updates.check(), true)
+
+  fake.updater.checkForUpdates = async () => {
+    throw new Error("updates.surfsense.com (unreachable) and github.com (unreachable) could not be used")
+  }
+  assert.equal(await updates.check(), false)
+
+  // AppUpdater's answer when it is not active: nothing was read.
+  fake.updater.checkForUpdates = async () => null
+  assert.equal(await updates.check(), false)
+})
+
 test("install is a no-op until something is downloaded", () => {
   const fake = fakeAutoUpdater()
-  const updates = attachUpdater(fake.updater, () => undefined)
+  const updates = attachUpdater(fake.updater, () => undefined, FEED)
 
   updates.install()
 
@@ -140,4 +149,11 @@ test("update prefs default to off and ignore junk", () => {
     { automatic: true, lastCheckedAt: "2026-09-14T10:00:00Z" }
   )
   assert.deepEqual(parseUpdatePrefs({ lastCheckedAt: 5 }), { automatic: false })
+  assert.deepEqual(
+    parseUpdatePrefs({ automatic: true, lastAutomaticDay: "2026-10-21" }),
+    { automatic: true, lastAutomaticDay: "2026-10-21" }
+  )
+  assert.deepEqual(parseUpdatePrefs({ lastAutomaticDay: "yesterday" }), {
+    automatic: false,
+  })
 })
