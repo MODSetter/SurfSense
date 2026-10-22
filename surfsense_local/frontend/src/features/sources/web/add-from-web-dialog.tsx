@@ -157,7 +157,8 @@ export function AddFromWebDialog({
       const [opened] = await web.open([url], shownRun?.signal)
       if (run.current !== shownRun) return
       if (opened) setLists((current) => new Map(current).set(url, opened))
-      mark([url], "opened")
+      // A list that failed keeps its panel's error and its Open, to try again.
+      mark([url], opened && !opened.failed ? "opened" : null)
     } catch (cause) {
       // Aborted by the newer search or paste, which owns the rows now.
       if (run.current !== shownRun) return

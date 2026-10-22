@@ -341,6 +341,41 @@ describe("adding sources from the web", () => {
     ).toBeTruthy()
   })
 
+  it("lets a list that failed to open be tried again", async () => {
+    const user = userEvent.setup()
+    let opens = 0
+    serving({
+      open: () =>
+        Response.json({
+          groups: [
+            ++opens === 1
+              ? { link: CHANNEL, more: false, failed: true, results: [] }
+              : channelPage(0, false),
+          ],
+        }),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, "tides")
+    const open = await within(dialog).findByRole("button", {
+      name: "Open The Sea School channel",
+    })
+
+    await user.click(open)
+    expect(
+      await within(dialog).findByText(
+        "Couldn’t open this list. Try again later."
+      )
+    ).toBeTruthy()
+    await user.click(open)
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Add Tides, page 1 video 1",
+      })
+    ).toBeTruthy()
+  })
+
   it("starts Add all over with each new search", async () => {
     const user = userEvent.setup()
     let answerSecond: (response: Response) => void = () => {}
