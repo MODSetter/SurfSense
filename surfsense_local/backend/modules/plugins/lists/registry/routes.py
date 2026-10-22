@@ -26,7 +26,6 @@ from modules.plugins.lists.registry.registry_icons import icon_file
 from modules.plugins.lists.registry.registry_read import RegistryRead, read_registry
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
-from modules.plugins.remote.mcp_client.transports import entry_transport
 from modules.plugins.remote.sign_in.headers.given_headers import as_sent
 from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
 from modules.plugins.remote.sign_in.oauth.own_app import (
@@ -143,8 +142,7 @@ async def connect_registry_plugin(
         else None
     )
     sent = as_sent(headers) if headers else token_headers(key)
-    transport = entry_transport(entry.model_dump(exclude_none=True))
-    source = RemoteMcpSource(entry.url, sent, transport)
+    source = RemoteMcpSource(entry.url, sent)
     try:
         tools = await source.list_tools()
     except ServerError as error:

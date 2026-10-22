@@ -6,11 +6,6 @@ from api.dependencies import transact
 from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.remote.mcp_client.server_error import ServerError
-from modules.plugins.remote.mcp_client.transports import (
-    STREAMABLE_HTTP,
-    Transport,
-    entry_transport,
-)
 from modules.plugins.remote.sign_in.oauth.token_refresh import Refresh, refresh_sign_in
 from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
 from modules.plugins.remote.source import RemoteMcpSource
@@ -18,10 +13,8 @@ from modules.plugins.remote.source import RemoteMcpSource
 Listed = list[SourceTool] | ServerError
 
 
-async def list_once(
-    url: str, headers: dict[str, str], transport: Transport = STREAMABLE_HTTP
-) -> Listed:
-    source = RemoteMcpSource(url, headers, transport)
+async def list_once(url: str, headers: dict[str, str]) -> Listed:
+    source = RemoteMcpSource(url, headers)
     try:
         return await source.list_tools()
     except ServerError as error:
@@ -43,11 +36,11 @@ async def listed_after_refresh(
     ):
         return listed
 
-    def address(s: Session) -> tuple[str, dict[str, str], Transport] | None:
+    def address(s: Session) -> tuple[str, dict[str, str]] | None:
         plugin = s.get(InstalledPlugin, plugin_id)
         if plugin is None:
             return None
-        return plugin.url, sign_in_headers(s, plugin), entry_transport(plugin.entry)
+        return plugin.url, sign_in_headers(s, plugin)
 
     found = await transact(session, address)
     return listed if found is None else await list_once(*found)

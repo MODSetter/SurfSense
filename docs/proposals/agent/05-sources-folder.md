@@ -39,7 +39,7 @@
 
 ## Git, later
 
-[`dulwich`](https://pypi.org/project/dulwich/) (1.2.15, Apache-2.0 or GPL-2.0-or-later) is the candidate for optional history. Confirm that it can keep the repository outside the user's folder before choosing it. opencode's own snapshots need a git repository inside the folder, and they are off ([`03-opencode.md`](03-opencode.md)).
+[`dulwich`](https://pypi.org/project/dulwich/) (1.2.15, Apache-2.0 or GPL-2.0-or-later) is the candidate for optional history. Confirm that it can keep the repository outside the user's folder before choosing it. opencode's own snapshots need a git repository inside the folder, and they are off ([agent](../../architecture/agent.md#the-configuration)).
 
 ## Open questions
 

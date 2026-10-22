@@ -17,7 +17,7 @@ from registry_check.live.tool_findings import tool_findings
 async def server_findings(entry: dict[str, Any]) -> Findings:
     found = Findings()
     auth = (entry.get("auth") or {}).get("type")
-    reached = await contact(entry["url"], entry.get("transport", "streamable_http"))
+    reached = await contact(entry["url"])
     match reached:
         case Unreachable(reason):
             found.problems.append(f"url: could not be reached: {reason}")

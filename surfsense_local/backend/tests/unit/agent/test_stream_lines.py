@@ -6,7 +6,6 @@ read from a Word file or a PDF can carry them.
 
 import json
 from collections.abc import AsyncIterator
-from pathlib import Path
 
 import httpx
 import pytest
@@ -37,23 +36,23 @@ def _cut_at_every(data: bytes, size: int) -> list[bytes]:
 async def test_a_tool_output_holding_separators_is_one_event() -> None:
     """Half an event used to fail to parse and end the turn with an error."""
     event = {
-        "type": "message.part.updated",
-        "properties": {
+        "type": "session.tool.success",
+        "data": {
             "sessionID": "ses_1",
-            "part": {
-                "type": "tool",
-                "state": {"status": "completed", "output": SEPARATED},
-            },
+            "id": "call_1",
+            "content": [{"type": "text", "text": SEPARATED}],
         },
     }
-    stream = f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
+    stream = (
+        f": heartbeat\n\ndata: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
+    )
 
     async with _REAL_CLIENT(
         base_url="http://opencode", transport=_streaming(_cut_at_every(stream, 7))
     ) as http:
-        (read,) = [e async for e in read_events(http, Path("."))]
+        (read,) = [e async for e in read_events(http)]
 
-    assert read.properties["part"]["state"]["output"] == SEPARATED
+    assert read.data["content"][0]["text"] == SEPARATED
 
 
 async def _relayed(
