@@ -58,6 +58,13 @@ function statusText(state: UpdateState) {
 
 // Where checks go: SurfSense's feed with GitHub behind it, or a policy's mirror.
 function bodyText(state: PrivacyState | null | undefined) {
+  // No privacy bridge: an Electron main that still reads GitHub's releases.
+  if (state === null)
+    return intl.formatMessage({
+      id: "updates_settings_github_body",
+      defaultMessage:
+        "Free updates from GitHub. Once you allow update checks, SurfSense also checks each time it starts.",
+    })
   const updates = state?.updates
   if (updates && updates.fallbackHost === null)
     return intl.formatMessage(

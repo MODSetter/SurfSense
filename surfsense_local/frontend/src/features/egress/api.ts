@@ -139,6 +139,37 @@ function describeClaudePlan(hosts: string[]): DestinationCopy {
   }
 }
 
+// An admin policy's mirror never falls back to GitHub and serves the download
+// too; an Electron main without the privacy bridge reads GitHub's releases alone.
+function updatesBody(host: string, purpose?: string) {
+  if (purpose === "update_mirror")
+    return intl.formatMessage(
+      {
+        id: "egress_app_updates_mirror_prompt_body",
+        defaultMessage:
+          "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. A newer version downloads from {host} and installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+      },
+      { host }
+    )
+  if (purpose === "github_releases")
+    return intl.formatMessage(
+      {
+        id: "egress_app_updates_github_prompt_body",
+        defaultMessage:
+          "A check reads the list of releases on {host}, then asks for the release file for your platform: Windows, macOS or Linux. It sends your IP address and identifies itself only as electron-builder, with no version and no ID. GitHub serves its release files from githubusercontent.com, which also sees your IP address. A newer version downloads on its own and installs when you restart from the prompt or the next time you quit. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
+      },
+      { host }
+    )
+  return intl.formatMessage(
+    {
+      id: "egress_app_updates_prompt_body",
+      defaultMessage:
+        "Once a day, SurfSense asks {host} whether a newer version exists. The request sends your IP address, the app’s name and version, your operating system and its architecture, and no ID. If {host} cannot answer, SurfSense asks github.com instead, sending only your IP address and the app’s name. A newer version downloads from github.com, whose download host, githubusercontent.com, also sees your IP address. It installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
+    },
+    { host }
+  )
+}
+
 function describeOne(destination: string, host: string, purpose?: string) {
   if (destination === "app_updates") {
     return {
@@ -150,25 +181,7 @@ function describeOne(destination: string, host: string, purpose?: string) {
         id: "egress_app_updates_prompt_title",
         defaultMessage: "Allow SurfSense to check for updates?",
       }),
-      // An admin policy's mirror never falls back to GitHub, and serves the download too.
-      body:
-        purpose === "update_mirror"
-          ? intl.formatMessage(
-              {
-                id: "egress_app_updates_mirror_prompt_body",
-                defaultMessage:
-                  "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists. The request sends your IP address, the app’s version, your operating system and its architecture, and no ID. A newer version downloads from {host} and installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
-              },
-              { host }
-            )
-          : intl.formatMessage(
-              {
-                id: "egress_app_updates_prompt_body",
-                defaultMessage:
-                  "Once a day, SurfSense asks {host} whether a newer version exists. The request sends your IP address, the app’s version, your operating system and its architecture, and no ID. If {host} cannot answer, SurfSense asks github.com instead, sending only your IP address. A newer version downloads from github.com and installs when you restart from the prompt or the next time you quit. Allowing also turns on the daily check, which you can switch off in Settings › Network.",
-              },
-              { host }
-            ),
+      body: updatesBody(host, purpose),
     }
   }
   // Searching, model weights and image weights are three errands to one host,

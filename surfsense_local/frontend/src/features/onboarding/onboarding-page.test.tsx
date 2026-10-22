@@ -1391,6 +1391,10 @@ describe("the privacy choices", () => {
     expect(updates.textContent).toContain("updates.surfsense.com")
     expect(updates.textContent).toContain("github.com")
     expect(updates.textContent).toContain("no ID")
+    // The download and where it comes from, as the update prompt says.
+    expect(updates.textContent).toContain("your IP address")
+    expect(updates.textContent).toContain("githubusercontent.com")
+    expect(updates.textContent).toContain("the next time you quit")
     const usage = screen.getByRole("region", { name: "Share usage statistics" })
     expect(usage.textContent).toContain("usage.surfsense.com")
     expect(usage.textContent).toContain(
@@ -1436,6 +1440,7 @@ describe("the privacy choices", () => {
       name: "What an update check sends",
     })
     for (const header of [
+      "User-Agent",
       "X-SurfSense-Version",
       "X-SurfSense-Platform",
       "X-SurfSense-OS",

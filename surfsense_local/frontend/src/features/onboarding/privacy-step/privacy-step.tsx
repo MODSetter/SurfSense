@@ -34,7 +34,7 @@ function updatesBody(state: PrivacyState) {
         {
           id: "onboarding_privacy_updates_body",
           defaultMessage:
-            "Once a day, SurfSense asks {host} whether a newer version exists, and github.com if {host} cannot answer. It sends the app’s version, your operating system and its architecture, and no ID.",
+            "Once a day, SurfSense asks {host} whether a newer version exists, sending your IP address, the app’s name and version, your operating system and its architecture, and no ID. If {host} cannot answer, it asks github.com with only your IP address and the app’s name. A newer version downloads by itself from github.com and githubusercontent.com, which also see your IP address, and installs when you restart or the next time you quit.",
         },
         { host }
       )
@@ -42,7 +42,7 @@ function updatesBody(state: PrivacyState) {
         {
           id: "onboarding_privacy_updates_mirror_body",
           defaultMessage:
-            "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists. It sends the app’s version, your operating system and its architecture, and no ID.",
+            "Once a day, SurfSense asks {host}, the update server your organization set, whether a newer version exists, sending your IP address, the app’s name and version, your operating system and its architecture, and no ID. A newer version downloads by itself from {host} and installs when you restart or the next time you quit.",
         },
         { host }
       )

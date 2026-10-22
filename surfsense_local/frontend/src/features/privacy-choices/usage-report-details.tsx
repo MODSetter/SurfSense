@@ -35,7 +35,7 @@ export function UsageReportDetails({ state }: { state: PrivacyState }) {
           {
             id: "privacy_choices_usage_report_body",
             defaultMessage:
-              "At most one report a day goes to {host}, as the JSON below, with no cookies. Every value is a range or a fixed word. Like every request it carries your IP address: SurfSense records only the country its host derives from it, never the address.",
+              "At most one report a day goes to {host}, as the JSON below, with no cookies. Every value is a range or a fixed word. Like every request it carries your IP address, which the hosting provider’s logs keep for a short time; SurfSense records only the country derived from it.",
           },
           { host }
         )}

@@ -5,9 +5,17 @@ import type { PrivacyState } from "@/lib/api"
 import { updatesLockedText } from "./locked-text"
 import { SentBody } from "./sent-body"
 
-// The only headers a check sends (contract 05, part A), and what each holds.
+// The only headers a check sends: the user agent Electron main's session sets
+// on every request, and contract 05's three (part A), with what each holds.
 function headerRows() {
   return [
+    {
+      name: "User-Agent",
+      value: intl.formatMessage({
+        id: "privacy_choices_update_user_agent_header_body",
+        defaultMessage: "Always SurfSense, with no version",
+      }),
+    },
     {
       name: "X-SurfSense-Version",
       value: intl.formatMessage({
@@ -64,7 +72,7 @@ export function UpdateRequestDetails({ state }: { state: PrivacyState }) {
               {
                 id: "privacy_choices_update_fallback_body",
                 defaultMessage:
-                  "If {host} fails or answers with something unexpected, SurfSense asks {fallback} for the same file directly, without these headers, so updates never depend on {host}.",
+                  "If {host} fails or answers with something unexpected, SurfSense asks {fallback} for the same file directly, with only the User-Agent header, so updates never depend on {host}.",
               },
               { host, fallback: fallbackHost }
             )

@@ -228,12 +228,36 @@ describe("egress prompt", () => {
     })
     expect(dialog.textContent).toContain("asks updates.surfsense.com")
     expect(dialog.textContent).toContain(
-      "the app’s version, your operating system and its architecture, and no ID"
+      "the app’s name and version, your operating system and its architecture, and no ID"
     )
     expect(dialog.textContent).toContain(
-      "asks github.com instead, sending only your IP address"
+      "asks github.com instead, sending only your IP address and the app’s name"
+    )
+    // Every host the answer reaches, the download's included.
+    expect(dialog.textContent).toContain(
+      "githubusercontent.com, also sees your IP address"
     )
     expect(dialog.textContent).toContain("the next time you quit")
+  })
+
+  it("describes GitHub's releases for an app whose updater reads them directly", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "github.com",
+      purpose: "github_releases",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain(
+      "reads the list of releases on github.com"
+    )
+    expect(dialog.textContent).toContain("githubusercontent.com")
+    expect(dialog.textContent).not.toContain("updates.surfsense.com")
   })
 
   it("names a policy's mirror as the only update host", async () => {
