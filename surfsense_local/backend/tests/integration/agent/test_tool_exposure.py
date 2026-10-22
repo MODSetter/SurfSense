@@ -124,6 +124,7 @@ async def test_opening_a_plugin_holds_its_tools_from_the_next_step(
     assert offered(agent_api, 1) == ["notes_count", "notes_search", *ASKS]
     step = of_type(frames, "agent-step")[-1]
     assert (step["tool"], step["status"]) == ("surfsense_open_plugin", "completed")
+    assert step["loaded_plugin"] == "Notes"
 
 
 async def test_finding_tools_holds_the_plugin_of_the_best_one(
@@ -143,9 +144,11 @@ async def test_finding_tools_holds_the_plugin_of_the_best_one(
     frames = await send(agent_api, thread["id"], "Will it rain?")
 
     assert offered(agent_api, 1) == [*ASKS, "weather_forecast"]
-    # The thread reads it as loading the plugin, by the plugin's name.
-    found = of_type(frames, "agent-step")[-1]
-    assert found["output"].startswith("Loaded Weather's tools;")
+    # The thread reads it as loading the plugin, by the plugin's name, live and read back.
+    assert of_type(frames, "agent-step")[-1]["loaded_plugin"] == "Weather"
+    listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+    (found,) = listed.json()[-1]["content"]["steps"]
+    assert found["loaded_plugin"] == "Weather"
 
 
 async def test_a_call_to_a_tool_not_held_loads_its_plugin_and_says_so(
@@ -175,7 +178,7 @@ async def test_a_call_to_a_tool_not_held_loads_its_plugin_and_says_so(
     ]
     loaded, _, searched = finished
     assert loaded["tool"] == "surfsense_loaded_tools"
-    assert (loaded["status"], loaded["input"]) == ("completed", {"plugin": "Notes"})
+    assert (loaded["status"], loaded["loaded_plugin"]) == ("completed", "Notes")
     assert (searched["tool"], searched["status"]) == ("notes_search", "completed")
     listed = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
     steps = listed.json()[-1]["content"]["steps"]
@@ -184,6 +187,7 @@ async def test_a_call_to_a_tool_not_held_loads_its_plugin_and_says_so(
         "surfsense_search_sources",
         "notes_search",
     ]
+    assert steps[0]["loaded_plugin"] == "Notes"
 
 
 async def test_a_plugin_call_holds_the_plugin_the_task_turns_to(

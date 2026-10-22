@@ -117,7 +117,3 @@ async def give_plugins(
 def servers(plugins: list[TurnPlugin]) -> list[tuple[str, str]]:
     """What giving `plugins` sends opencode: two lists alike need no second giving."""
     return [(plugin.name, digest(plugin)) for plugin in plugins]
-
-
-def _rule(permission: str, action: str) -> dict[str, str]:
-    return {"permission": permission, "pattern": "*", "action": action}

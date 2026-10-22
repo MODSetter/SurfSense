@@ -58,7 +58,11 @@ from modules.agent.tool_endpoint.registration import SERVER, register_thread_too
 from modules.agent.tool_exposure import holdings
 from modules.agent.tool_exposure.growing import hold_plugins
 from modules.agent.tool_exposure.holdings import Holding
-from modules.agent.tool_exposure.loaded_steps import as_loaded, refused_tool
+from modules.agent.tool_exposure.loaded_steps import (
+    as_loaded,
+    refused_tool,
+    with_loaded_plugin,
+)
 from modules.agent.tool_exposure.turn_holding import turn_holding
 from modules.chat.errors import classify_chat_error
 from modules.chat.models import ChatThread
@@ -385,11 +389,14 @@ async def _stream(
 
 async def _loaded(client: OpencodeClient, holding: Holding | None, frame: dict) -> dict:
     """A call to a plugin tool the turn did not hold: that plugin held, and the step
-    shown as loading it rather than as a failure."""
-    name = refused_tool(frame) if frame.get("type") == "agent-step" else None
+    shown as loading it rather than as a failure. An asking tool's step is named by
+    the plugin it loaded."""
+    if frame.get("type") != "agent-step":
+        return frame
+    name = refused_tool(frame)
     plugin = holding.plugin_of(name) if holding and name else None
     if plugin is None or holding is None:
-        return frame
+        return with_loaded_plugin(frame)
     await hold_plugins(client, holding, [plugin.name])
     return as_loaded(frame, plugin.title)
 

@@ -152,12 +152,15 @@ describe("agent steps", () => {
             tool: "surfsense_loaded_tools",
             status: "completed",
             input: { plugin: "Linear" },
+            loaded_plugin: "Linear",
           },
           {
+            // Asked for by its @id; the step names the plugin by its name.
             id: "call_2",
             tool: "surfsense_open_plugin",
             status: "completed",
-            input: { plugin: "Notion" },
+            input: { plugin: "@notion" },
+            loaded_plugin: "Notion",
           },
           {
             id: "call_3",
@@ -171,7 +174,8 @@ describe("agent steps", () => {
             tool: "surfsense_find_tools",
             status: "completed",
             input: { query: "check the weather" },
-            output: "Loaded Weather's tools; they are yours from your next step.",
+            output: "These tools are yours now.",
+            loaded_plugin: "Weather",
           },
         ]}
       />

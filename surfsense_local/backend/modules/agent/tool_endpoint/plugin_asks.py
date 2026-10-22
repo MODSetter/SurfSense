@@ -19,6 +19,7 @@ from modules.agent.tool_endpoint.offered_tools import TOOLS
 from modules.agent.tool_exposure import holdings
 from modules.agent.tool_exposure.growing import grow_by_search, hold_plugins
 from modules.agent.tool_exposure.holdings import Holding
+from modules.agent.tool_exposure.loaded_steps import loaded_reply
 from modules.agent.tool_exposure.turn_tools import TurnTools, turn_tools
 
 logger = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ async def _open(message, client, holding: Holding, arguments) -> dict[str, Any]:
         return _said(
             message, f"You already hold {plugin.title}'s tools: {', '.join(held)}."
         )
-    return _said(message, _loaded(plugin.title, held))
+    return _said(message, loaded_reply(plugin.title, held))
 
 
 async def _find(message, client, holding: Holding, arguments) -> dict[str, Any]:
@@ -150,12 +151,7 @@ async def _find(message, client, holding: Holding, arguments) -> dict[str, Any]:
             "you have.",
         )
     title = holding.plugin_of(min(added)).title
-    return _said(message, _loaded(title, sorted(added)))
-
-
-def _loaded(title: str, names: list[str]) -> str:
-    # The thread names the step by the plugin this opens with (step-label.tsx).
-    return f"Loaded {title}'s tools; they are yours from your next step: {', '.join(names)}."
+    return _said(message, loaded_reply(title, sorted(added)))
 
 
 def _said(message: dict[str, Any], text: str, is_error: bool = False) -> dict[str, Any]:

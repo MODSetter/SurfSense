@@ -27,6 +27,8 @@ export type AgentStep = {
    *  when its script failed, though the failed version exists. Absent on
    *  every other tool. */
   artifact?: RenderedArtifact | null
+  /** The plugin whose tools the step loaded for the agent, by its name. */
+  loaded_plugin?: string
 }
 
 /** The sources an agent turn was allowed to use: those ticked when it was
