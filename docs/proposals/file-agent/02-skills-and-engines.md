@@ -26,7 +26,7 @@ code:
   - surfsense_local/backend/worker.py
   - surfsense_local/backend/shared/queue.py
   - surfsense_local/backend/shared/config.py
-  - surfsense_local/backend/bundling/worker.spec
+  - surfsense_local/backend/bundling/worker_inputs.py
   - surfsense_local/electron/electron-builder.yml
   - surfsense_local/electron/src/main/sidecars/python.ts
   - surfsense_local/electron/src/main/sidecars/opencode-home.ts
@@ -167,7 +167,7 @@ document_skills/
 
 - Revised 22 Oct 2026: `crlib`, `review.py` and `playbook.py` (the playbook grammar, validation, trace and review checks) and the starter playbooks are not in this tree. They are the contract-redline plugin's, written outside the Apache-2.0 tree in a folder with its own license file (decision 17). `docxkit` stays here as `docx/`. The clean-room fix and the provenance review still apply to `crlib` ([ADR 0067](../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)). `skills/` holds the app's format skills; each job skill ships in its plugin.
 - `AGENTS.md` gains a sixth tree, its commands and its test line.
-- The backend adds `surfsense-document-engines = { path = "../../document_skills/engines", editable = true }`. `bundling/worker.spec` collects `surfsense_engines` with its XSDs. The API spec does not: the API never imports engines. What the API shows of an engine's work (revision lists, outlines, reports) is computed in the worker and stored on the version or in its folder (section 4).
+- The backend adds `surfsense-document-engines = { path = "../../document_skills/engines", editable = true }`. `bundling/worker_inputs.py` collects `surfsense_engines` with its XSDs. `bundling/api_inputs.py` does not: the API never imports engines. What the API shows of an engine's work (revision lists, outlines, reports) is computed in the worker and stored on the version or in its folder (section 4).
 - Graders read the XSDs from the engines' `schemas/` folder by path, as data; they import no engine code, so a grader can never pass because the engine under test agrees with itself.
 - `electron-builder.yml` copies `document_skills/skills` to `skills`. `python.ts` `pythonEnv()` passes `SURFSENSE_LOCAL_SKILLS_DIR`, and `AgentSettings` in [`shared/config.py`](../../../surfsense_local/backend/shared/config.py) gains `skills_dir`.
 - The package is `surfsense_engines`, not the skills project's generic `office`.

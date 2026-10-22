@@ -5,6 +5,8 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, type Plugin } from "vite"
 
+import { woff2OnlyFonts } from "./vite-plugins/woff2-only-fonts.ts"
+
 // The snapshot page's policy (docx-snapshot.html) leaves 'self' out of
 // connect-src, since packaged it is file://. Served by Vite, its origin is the
 // dev server, and Vite's client needs its websocket there: refused, its errors
@@ -30,6 +32,7 @@ export default defineConfig({
     formatjs({ removeDefaultMessage: true }),
     react(),
     tailwindcss(),
+    woff2OnlyFonts(),
     snapshotPageReachesDevServer(),
   ],
   resolve: {

@@ -6,8 +6,8 @@ which then fails at runtime on a user's machine and nowhere else. The catalog
 manifest reached exactly that state once, when the module it lived in was
 renamed and the spec was not.
 
-A unit test cannot catch it, because nothing imports the spec. This reads it the
-way PyInstaller does, as Python, with the globals it expects.
+A unit test cannot catch it, because nothing imports the spec. This reads the
+spec and the input modules it imports as source.
 """
 
 import ast
@@ -18,7 +18,8 @@ import pytest
 pytestmark = pytest.mark.packaging
 
 BACKEND = Path(__file__).resolve().parents[2]
-SPECS = sorted((BACKEND / "bundling").glob("*.spec"))
+BUNDLING = BACKEND / "bundling"
+SOURCES = sorted(BUNDLING.glob("*.spec")) + sorted(BUNDLING.glob("*_inputs.py"))
 
 
 def literal_data_paths(spec: Path) -> list[str]:
@@ -52,28 +53,30 @@ def literal_data_paths(spec: Path) -> list[str]:
     return found
 
 
-@pytest.mark.parametrize("spec", SPECS, ids=lambda p: p.name)
-def test_every_bundled_data_path_exists(spec: Path) -> None:
+@pytest.mark.parametrize("source", SOURCES, ids=lambda p: p.name)
+def test_every_bundled_data_path_exists(source: Path) -> None:
     """A path here that is not on disk ships a binary missing that file."""
-    missing = [rel for rel in literal_data_paths(spec) if not (BACKEND / rel).exists()]
+    missing = [
+        rel for rel in literal_data_paths(source) if not (BACKEND / rel).exists()
+    ]
 
-    assert missing == [], f"{spec.name} bundles paths that do not exist: {missing}"
+    assert missing == [], f"{source.name} bundles paths that do not exist: {missing}"
 
 
-@pytest.mark.parametrize("name", ["api.spec", "worker.spec"])
-def test_every_binary_that_reads_the_curated_manifest_ships_it(name: str) -> None:
+@pytest.mark.parametrize("name", ["api_inputs.py", "worker_inputs.py"])
+def test_every_role_that_reads_the_curated_manifest_ships_it(name: str) -> None:
     """Without it the catalog falls back to an empty list: the API shows no
     curated models, and the Studio worker calls an installed, chosen image or
     audio model "not installed"."""
-    bundled = literal_data_paths(BACKEND / "bundling" / name)
+    bundled = literal_data_paths(BUNDLING / name)
 
     assert "modules/llm/catalog/local/manifest/models.json" in bundled
 
 
-@pytest.mark.parametrize("name", ["api.spec", "worker.spec"])
-def test_every_binary_that_reads_the_capability_list_ships_it(name: str) -> None:
+@pytest.mark.parametrize("name", ["api_inputs.py", "worker_inputs.py"])
+def test_every_role_that_reads_the_capability_list_ships_it(name: str) -> None:
     """Without it the API gives no model the agent and Studio ignores what was measured."""
-    bundled = literal_data_paths(BACKEND / "bundling" / name)
+    bundled = literal_data_paths(BUNDLING / name)
 
     assert "modules/llm/capability/measured/capabilities.json" in bundled
 
@@ -82,17 +85,17 @@ def test_the_api_ships_its_release_version() -> None:
     """The registry compares it with each entry's minimum app version."""
     assert (
         'copy_metadata("surfsense-local-backend")'
-        in (BACKEND / "bundling" / "api.spec").read_text()
+        in (BUNDLING / "api_inputs.py").read_text()
     )
 
 
-@pytest.mark.parametrize("name", ["api.spec", "worker.spec"])
-def test_every_binary_that_reads_the_first_party_plugin_list_ships_it(
+@pytest.mark.parametrize("name", ["api_inputs.py", "worker_inputs.py"])
+def test_every_role_that_reads_the_first_party_plugin_list_ships_it(
     name: str,
 ) -> None:
     """The API lists SurfSense's plugins; the plugins worker finds the one a link's pull
     calls. The list refuses an entry whose icon is not beside it, so both ship."""
-    bundled = literal_data_paths(BACKEND / "bundling" / name)
+    bundled = literal_data_paths(BUNDLING / name)
 
     assert "modules/plugins/lists/first_party/plugins.json" in bundled
     assert "modules/plugins/lists/first_party/icons" in bundled
@@ -113,10 +116,10 @@ def test_the_worker_names_every_module_that_registers_a_task() -> None:
         if isinstance(node, ast.Import)
         for alias in node.names
     }
-    spec = ast.parse((BACKEND / "bundling" / "worker.spec").read_text())
+    inputs = ast.parse((BUNDLING / "worker_inputs.py").read_text())
     named = {
         node.value
-        for node in ast.walk(spec)
+        for node in ast.walk(inputs)
         if isinstance(node, ast.Constant) and isinstance(node.value, str)
     }
 

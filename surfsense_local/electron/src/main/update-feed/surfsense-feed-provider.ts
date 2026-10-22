@@ -30,7 +30,10 @@ export class SurfSenseFeedProvider extends Provider<UpdateInfo> {
     _updater: unknown,
     runtimeOptions: ProviderRuntimeOptions
   ) {
-    super(runtimeOptions)
+    // One range per request, as GitHubProvider asks: the installers download from
+    // GitHub's release CDN, which answers a multi-range request with 501, so every
+    // differential update would fall back to the whole installer.
+    super({ ...runtimeOptions, isUseMultipleRangeRequest: false })
     this.feed = options.feed
   }
 

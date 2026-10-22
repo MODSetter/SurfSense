@@ -19,6 +19,8 @@ import { feedHeaders } from "../update-feed/feed-headers.ts"
 import type { ManifestRequest, UpdateFeed } from "../update-feed/latest-manifest.ts"
 import { scheduleDailyUpdateCheck, type DailyUpdateCheck } from "../update-schedule/daily-update-check.ts"
 import { updateCheckRunner } from "../update-schedule/run-update-check.ts"
+import { updaterPendingFolder } from "../updater-cache/pending-folder.ts"
+import { tidyUpdaterCache } from "../updater-cache/tidy-updater-cache.ts"
 import {
   attachUpdater,
   readUpdatePrefs,
@@ -99,13 +101,18 @@ export function startPrivacyChoices(options: {
 
   let updates: Updates
   if (app.isPackaged) {
-    // GitHub's CDN rejects the multi-range requests differential updates need.
-    autoUpdater.disableDifferentialDownload = true
     autoUpdater.logger = updaterLogger(sessionLog)
-    updates = attachUpdater(
+    updates = tidyUpdaterCache(
       autoUpdater,
-      (state: UpdateState) => options.mainWindow()?.webContents.send("updates:state", state),
-      feed
+      attachUpdater(
+        autoUpdater,
+        (state: UpdateState) => options.mainWindow()?.webContents.send("updates:state", state),
+        feed
+      ),
+      {
+        pendingFolder: updaterPendingFolder(process.resourcesPath),
+        installedVersion: app.getVersion(),
+      }
     )
   } else {
     // ponytail: dev has no signed build to update; expose the same surface

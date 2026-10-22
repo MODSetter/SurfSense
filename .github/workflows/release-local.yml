@@ -158,49 +158,12 @@ jobs:
         # addopts pins -m 'not packaging'; the later -m on the command line wins.
         run: uv run pytest tests/packaging/test_license_key.py -m packaging
 
-      - name: Freeze API + worker binaries
+      - name: Freeze the backend binary
         working-directory: surfsense_local/backend
         run: uv run scripts/build_binaries.py
 
-      - name: Smoke the frozen Docling vision runtime
-        run: |
-          WORKER="./surfsense_local/backend/dist/worker/worker"
-          if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
-          "$WORKER" --check-vision-runtime
-          "$WORKER" --check-scan-ocr
-
-      # A script is not analysed when the worker is frozen, so a library the
-      # spec leaves out shows only when a script runs in the shipped worker;
-      # the same holds for the decode child's miniaudio.
-      - name: Run document scripts and decode a recording in the frozen worker
-        working-directory: surfsense_local/backend
-        # addopts pins -m 'not packaging'; the later -m on the command line wins.
-        run: |
-          WORKER="dist/worker/worker"
-          if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
-          SURFSENSE_TEST_FROZEN_WORKER="$WORKER" uv run pytest tests/packaging/test_frozen_document_scripts.py -m packaging
-
-      - name: Smoke the frozen API
-        run: |
-          set -e
-          API="./surfsense_local/backend/dist/api/api"
-          if [ "$RUNNER_OS" = "Windows" ]; then API="${API}.exe"; fi
-          export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-api-smoke"
-          export SURFSENSE_LOCAL_PORT=8137
-          "$API" &
-          PID=$!
-          cleanup() { kill "$PID" 2>/dev/null || true; }
-          trap cleanup EXIT
-          for i in $(seq 1 60); do
-            if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
-              echo "health OK"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::frozen API never became healthy"
-          exit 1
-
+      # Before the frozen checks: OCR and Docling read only the pack's models,
+      # and the bundle carries no copy of its own.
       - name: Stage embedding, voice, voice activity, and Docling parser packs
         working-directory: surfsense_local/backend
         run: |
@@ -208,6 +171,47 @@ jobs:
           uv run scripts/fetch_bundled_voice.py models
           uv run scripts/fetch_silero_vad.py models
           uv run scripts/fetch_docling_models.py models
+
+      - name: Smoke the frozen Docling vision runtime and scan OCR
+        working-directory: surfsense_local/backend
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          "$BIN" --check-vision-runtime
+          SURFSENSE_LOCAL_MODELS_DIR="$PWD/models" "$BIN" --check-scan-ocr
+
+      # Both roles boot from the one binary, the API role cannot reach the
+      # worker's stack, and what the bundle leaves out stays out.
+      - name: Run both roles of the frozen backend
+        working-directory: surfsense_local/backend
+        # addopts pins -m 'not packaging'; the later -m on the command line wins.
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_real_binaries.py -m packaging
+
+      # The bundle ships torch as bytecode and only the transformers models the
+      # layout engine loads: Docling must read a table and a scan exactly as the
+      # source tree does.
+      - name: Compare the frozen Docling reading with source
+        working-directory: surfsense_local/backend
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" SURFSENSE_LOCAL_MODELS_DIR="$PWD/models" \
+            uv run pytest tests/packaging/test_frozen_docling_reading.py -m packaging
+
+      # A script is not analysed when the backend is frozen, so a library the
+      # spec leaves out shows only when a script runs in the shipped binary;
+      # the same holds for the decode child's miniaudio, and for any native
+      # extension a strip step broke.
+      - name: Run document scripts and decode a recording in the frozen worker
+        working-directory: surfsense_local/backend
+        # addopts pins -m 'not packaging'; the later -m on the command line wins.
+        run: |
+          BIN="dist/backend/surfsense-backend"
+          if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
+          SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_frozen_document_scripts.py tests/packaging/test_frozen_native_extensions.py -m packaging
 
       - name: Build frontend SPA
         working-directory: surfsense_local/frontend
@@ -314,13 +318,23 @@ jobs:
           esac
           node scripts/opencode/check-stage.mjs "$DIR"
 
+      # electron-builder only warns when an extraResources folder is missing.
+      - name: Smoke the packaged backend (Windows)
+        if: runner.os == 'Windows'
+        working-directory: surfsense_local/electron
+        run: |
+          BIN=release/win-unpacked/resources/backend/surfsense-backend.exe
+          test -f "$BIN"
+          "$BIN" --check-retrieval-runtime
+          "$BIN" --check-vision-runtime
+
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
           export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-smoke"
           export SURFSENSE_LOCAL_PORT=8137
-          ./surfsense_local/electron/release/linux-unpacked/resources/backend/api/api &
+          ./surfsense_local/electron/release/linux-unpacked/resources/backend/surfsense-backend api &
           API=$!
           for i in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
@@ -359,6 +373,10 @@ jobs:
           test -f "$DIR/espeak/libespeak-ng.so"
           test -d "$DIR/espeak/espeak-ng-data"
           test -f "$DIR/espeak/COPYING"
+          # The trimmed data keeps a script-switch target and drops a language no
+          # curated voice reaches (scripts/audiocpp/espeak/dictionaries.mjs).
+          test -f "$DIR/espeak/espeak-ng-data/te_dict"
+          test ! -e "$DIR/espeak/espeak-ng-data/cmn_dict"
 
       - name: Smoke the bundled sd.cpp (Linux)
         if: matrix.os == 'ubuntu-22.04'
@@ -392,6 +410,40 @@ jobs:
             surfsense_local/electron/release/*.blockmap
             surfsense_local/electron/release/*.yml
           if-no-files-found: ignore
+
+      # The dmg is LZFSE (electron-builder.yml `dmg.format`). Checks hdiutil made it
+      # so, that it verifies and mounts, that the app inside is signed, and times the
+      # verify and the copy out a user waits through.
+      - name: Smoke the dmg (macOS)
+        if: runner.os == 'macOS'
+        working-directory: surfsense_local/electron
+        run: |
+          set -euo pipefail
+          DMG=release/SurfSense-arm64.dmg
+          hdiutil imageinfo "$DMG" | grep -E '^Format: ULFO$'
+          time hdiutil verify "$DMG"
+          MNT=$(mktemp -d)
+          time hdiutil attach "$DMG" -nobrowse -readonly -noautoopen -mountpoint "$MNT"
+          trap 'hdiutil detach "$MNT" -force >/dev/null 2>&1 || true' EXIT
+          test -d "$MNT/SurfSense.app"
+          codesign --verify --deep --strict --verbose=2 "$MNT/SurfSense.app"
+          COPY=$(mktemp -d)
+          time ditto "$MNT/SurfSense.app" "$COPY/SurfSense.app"
+          # The backend a Mac user launches: stripped, then signed with the
+          # hardened runtime. Every frozen check above ran it before signing.
+          BIN="$COPY/SurfSense.app/Contents/Resources/backend/surfsense-backend"
+          test -x "$BIN"
+          "$BIN" --check-retrieval-runtime
+          "$BIN" --check-vision-runtime
+          rm -rf "$COPY"
+
+      # Last, after the upload and the dmg's checks, so a run over budget still
+      # keeps its installers and still checks them. Fails when an installer is
+      # missing or over its budget in scripts/installer-size-budgets.json;
+      # prints every size either way.
+      - name: Check installer sizes
+        working-directory: surfsense_local/electron
+        run: node scripts/check-installer-size.mjs
 
   # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves
   # updates through /releases/latest and reads latest*.yml from whatever that

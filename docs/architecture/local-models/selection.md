@@ -180,8 +180,9 @@ the summary, flashcards, mindmap, quiz, office, `web/html`, image and
 infographic formats, with the podcast outline and draft as separate cases. A unit
 test asserts that every case ships all three tiers, because a missing file fails
 the job on the user's machine, where nobody can fix it. No `import` names a
-prompt, so the PyInstaller specs collect them by path: `api.spec` takes chat's
-three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
+prompt, so the PyInstaller spec's inputs collect them by path: `api_inputs.py`
+takes chat's three, and `worker_inputs.py` takes those plus every `*.md` under
+`worker.studio`.
 
 ## Onboarding
 

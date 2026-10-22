@@ -472,7 +472,7 @@ runtime:
   `b11050` with a model resident, it terminated four processes depth first with
   no survivors. On macOS and Linux each sidecar is spawned in its own process
   group, which receives `SIGTERM` and then `SIGKILL` after 5 s.
-- `bundling/api.spec` ships `modules/llm/catalog/local/manifest/models.json` at
+- `bundling/api_inputs.py` ships `modules/llm/catalog/local/manifest/models.json` at
   `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
 - Release CI stages the runtime with `node scripts/fetch-llamacpp.mjs`, and on

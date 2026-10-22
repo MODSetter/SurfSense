@@ -88,7 +88,8 @@ export function attachUpdater(
   }
 
   // Downloading is still the user's call in spirit: it only starts after a
-  // check they enabled or clicked.
+  // check they enabled or clicked. A ready download installs on the restart
+  // action, or when the app quits, as autoInstallOnAppQuit stays at its default.
   updater.autoDownload = false
   // A downloaded update installs on Restart, or else the next time the user
   // quits; the copy and docs say so.

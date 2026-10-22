@@ -9,7 +9,8 @@ repos:
       - id: check-yaml
         args: [--multi, --unsafe]
       - id: check-json
-        exclude: '(tsconfig\.json|\.vscode/.*\.json)$'
+        # TypeScript configs are JSON with comments, as tsc reads them.
+        exclude: '(tsconfig(\.[^/]*)?\.json|\.vscode/.*\.json)$'
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files

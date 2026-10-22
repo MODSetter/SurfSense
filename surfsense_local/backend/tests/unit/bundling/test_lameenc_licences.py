@@ -27,6 +27,6 @@ def test_each_licence_text_is_there_and_not_empty(name: str) -> None:
 
 def test_the_worker_bundles_the_licence_folder() -> None:
     """The dist-info carries lameenc's LGPL only: no GPL, nothing of LAME's."""
-    spec = (BUNDLING / "worker.spec").read_text()
+    inputs = (BUNDLING / "worker_inputs.py").read_text()
 
-    assert '"bundling" / "licenses" / "lameenc"' in spec
+    assert '"bundling" / "licenses" / "lameenc"' in inputs

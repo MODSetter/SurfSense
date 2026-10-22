@@ -219,7 +219,7 @@ Supertonic has no chunk setting, so it commits a peak and no steps; Kitten's ste
 
 ## What goes
 
-`providers/kokoro/`, `scripts/fetch_kokoro_model.py`, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker.spec`](../../surfsense_local/backend/bundling/worker.spec). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
+`providers/kokoro/`, `scripts/fetch_kokoro_model.py`, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker_inputs.py`](../../surfsense_local/backend/bundling/worker_inputs.py). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
 
 ## Order of work
 

@@ -377,7 +377,7 @@ The runtime licence policy keeps GPL and LGPL code out of the app's own binaries
 - [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) re-runs the Linux `objdump` gate and the Windows per-CPU check with the new family, checks that upstream's macOS v0.8.2 archive contains it, and records the staged size and compile time.
 - `tests/packaging/test_audiocpp_transcription.py`, added to the workflow's path filter: Kokoro voices known sentences in en, es, fr, hi, pt-BR and zh, the transcription server writes them down through the app's client, and the test asserts error and detected-language thresholds and records peak memory. No fixture with a licence of its own is needed. The model file is cached by its manifest sha256, unlike the voicing step's downloads, which run every time (step 4).
 - `scripts/fetch_silero_vad.py` stages `silero_vad_16k_op15.onnx` (1,289,603 B) from a pinned commit of snakers4/silero-vad, sha256-checked, into the models pack beside the bundled voice, run beside `fetch_bundled_voice.py` by [`release-local.yml`](../../.github/workflows/release-local.yml) and the electron `package.json` scripts; the API and worker read it in place (step 4).
-- `pyproject.toml` adds `miniaudio`; `bundling/worker.spec` collects it. `cffi`, which it needs, is already locked at 2.1.1 (step 5).
+- `pyproject.toml` adds `miniaudio`; `bundling/worker_inputs.py` collects it. `cffi`, which it needs, is already locked at 2.1.1 (step 5).
 - There is still no installer size gate in CI.
 
 ## Order of work

@@ -35,8 +35,8 @@ def probe_devices(library_dir: str) -> int:
     return main([library_dir])
 
 
-if __name__ == "__main__":
-    arguments = sys.argv[1:]
+def run(arguments: list[str]) -> None:
+    """Serve, or run the check or probe the arguments name."""
     if arguments == ["--check-retrieval-runtime"]:
         check_retrieval_runtime()
     elif arguments[:1] == ["--probe-devices"]:
@@ -49,3 +49,7 @@ if __name__ == "__main__":
         sys.exit(probe_devices(arguments[1]))
     else:
         serve()
+
+
+if __name__ == "__main__":
+    run(sys.argv[1:])

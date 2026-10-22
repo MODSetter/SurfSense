@@ -212,3 +212,23 @@ test("the install ID AppUpdater hands the provider is never sent", async () => {
   assert.equal(net.requests.length, 2)
   assertNoIdentifier(net.requests)
 })
+
+test("differential updates ask GitHub's CDN for one range at a time", () => {
+  // AppUpdater builds every provider with multi-range requests on
+  // (createProviderRuntimeOptions); the release CDN answers those with 501.
+  const options = surfSenseFeedOptions({
+    base: "https://updates.surfsense.com/api/updates/",
+    mirror: false,
+    channelFile: "stable.yml",
+    headers: HEADERS,
+    userAgent: "SurfSense",
+    fetch: network({}).fetch,
+  })
+  const built = new options.updateProvider(options, {}, {
+    isUseMultipleRangeRequest: true,
+    platform: "win32",
+    executor: null as never,
+  })
+
+  assert.equal(built.isUseMultipleRangeRequest, false)
+})

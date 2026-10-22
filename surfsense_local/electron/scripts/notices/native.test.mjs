@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 
+import { DICTIONARIES_FOR } from "../audiocpp/espeak/dictionaries.mjs"
 import { NATIVE_COMPONENTS } from "./native-components.mjs"
 import { nativeNotices } from "./native.mjs"
 
@@ -94,6 +95,15 @@ test("on its platform, a component's licence file is required", () => {
   }, [COMPONENTS[0], OPENMP], "win32")
   assert.deepEqual(entries.map((e) => e.name), ["llama.cpp", "LLVM OpenMP"])
   assert.equal(entries[1].platforms, undefined)
+})
+
+test("eSpeak NG's notice says when it was modified, which dictionaries ship and where its full source is", () => {
+  // GPL-3.0 section 5(a): a modified copy says so and gives a relevant date.
+  const espeak = NATIVE_COMPONENTS.find((c) => c.name === "eSpeak NG")
+  assert.match(espeak.note, new RegExp(`modified this copy on ${DICTIONARIES_FOR.on}`))
+  assert.match(espeak.note, /trimm/)
+  assert.match(espeak.note, /\bru, si, ta, te\b/)
+  assert.match(espeak.note, new RegExp(`github\\.com/espeak-ng/espeak-ng/tree/${espeak.version.replaceAll(".", "\\.")}`))
 })
 
 test("Windows carries OpenMP's licence beside llama.cpp, for its libomp.dll", () => {

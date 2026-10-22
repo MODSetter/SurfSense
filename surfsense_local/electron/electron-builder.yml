@@ -4,8 +4,8 @@ directories:
   output: release
   buildResources: build
 
-# The asar carries only the main + preload bundles. The renderer SPA, the two
-# frozen Python binaries, and llama-server ride alongside in resources/,
+# The asar carries only the main + preload bundles. The renderer SPA, the
+# frozen Python backend, and llama-server ride alongside in resources/,
 # where the main process spawns them by path (sidecars/) and loads the SPA from
 # disk (index.ts).
 files:
@@ -15,10 +15,10 @@ files:
 asar: true
 
 extraResources:
-  - from: ../backend/dist/api
-    to: backend/api
-  - from: ../backend/dist/worker
-    to: backend/worker
+  # One frozen binary runs as the API or as a worker (bundling/backend.spec), so
+  # their shared libraries ship once.
+  - from: ../backend/dist/backend
+    to: backend
   - from: ../frontend/dist
     to: frontend/dist
   # Embedding, voice, and Docling parser packs (build:model, build:voice,
@@ -126,3 +126,9 @@ mac:
   signIgnore:
     - "/Contents/Resources/opencode/opencode$"
   notarize: true
+
+# LZFSE (ULFO), not zlib (UDZO): smaller (about 37 MB, projected) and 1.7 to 2.5 times
+# as fast to decode, so macOS verifies and copies out no slower. LZMA (ULMO) decodes 5 to
+# 9 times slower than zlib, a wait every install would see; bzip2 (UDBZ) is slower still.
+dmg:
+  format: ULFO
