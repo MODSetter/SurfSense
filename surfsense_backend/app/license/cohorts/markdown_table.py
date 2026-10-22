@@ -23,11 +23,13 @@ _HEADER = (
 )
 
 LEGEND = (
-    '"<5": fewer than 5, withheld. "x": withheld so that a "<5" kind cannot be '
-    "worked out from the row's trials and other kinds or, in the All row, from "
-    'the weeks. "n<5": a median of fewer than 5 values, withheld. "(open)": '
-    "some trials in the row are younger than the window. "
-    '"n/a": no plugin host data. Shares are of the row\'s trials.'
+    '"<5": fewer than 5, withheld. "x": withheld, whatever its own value, so '
+    'that no "<5" can be worked out: all three kinds of a row when any is '
+    "under 5, since they add up to its trials, and in the All row each column "
+    'any week withholds, since it sums the weeks. "n<5": a median of fewer '
+    'than 5 values, withheld. "(open)": some trials in the row are younger '
+    'than the window. "n/a": no plugin host data. Shares are of the row\'s '
+    "trials."
 )
 
 
@@ -41,6 +43,11 @@ def render_table(cohorts: list[Cohort], today: date) -> str:
 def _cells(label: str, figures: dict[str, Any]) -> tuple[str, ...]:
     trials = figures["trials"]
 
+    def count(key: str) -> str:
+        if key in figures["withheld_to_protect"]:
+            return "x"
+        return _count(figures[key])
+
     def share(key: str) -> str:
         if key in figures["withheld_to_protect"]:
             return "x"
@@ -51,7 +58,7 @@ def _cells(label: str, figures: dict[str, Any]) -> tuple[str, ...]:
 
     return (
         label,
-        _count(trials),
+        count("trials"),
         share("company"),
         share("free_mail"),
         share("education"),
@@ -62,7 +69,7 @@ def _cells(label: str, figures: dict[str, Any]) -> tuple[str, ...]:
         paid("paid_30d", "window_30d_open"),
         paid("paid_60d", "window_60d_open"),
         _median(figures["median_days_to_pay"]),
-        _count(figures["refunded"]),
+        count("refunded"),
     )
 
 

@@ -2,9 +2,11 @@
 
 A count under 5, or a median of fewer than 5 values, could single out a buyer
 in a week of a dozen trials, so it is ``None`` here and ``<5`` in the table.
-The kinds add up to the trials, so a kind withheld alone could be worked out by
-subtraction; another is withheld with it, ``None`` too but named in
-``withheld_to_protect``, and ``x`` in the table.
+Other cells are withheld so that none of those can be worked out: ``None`` too,
+named in ``withheld_to_protect`` and ``x`` in the table whatever their own
+value, since a mark saying a cell is 5 or more would pin a small one beside it.
+The kinds add up to the trials, so one under 5 withholds all three, and the All
+row sums the weeks, so it withholds each column that any week withholds.
 """
 
 from __future__ import annotations
@@ -18,21 +20,18 @@ from .weekly import ALL_WEEKS, Cohort
 
 SMALLEST_SHOWN = 5
 KINDS = ("company", "free_mail", "education")
+# The All row's figure in each of these is the sum of the weeks'.
+SUMMED = ("trials", *KINDS, "seen_on_host", "paid_30d", "paid_60d", "refunded")
 
 
 def published_figures(cohort: Cohort, today: date) -> dict[str, Any]:
     has_host = cohort.seen_on_host is not None
-    kinds = {kind: _count(getattr(cohort, kind)) for kind in KINDS}
-    shown = [kind for kind in KINDS if kinds[kind] is not None]
-    protect = (
-        [min(shown, key=lambda kind: kinds[kind])]
-        if len(shown) == len(KINDS) - 1
-        else []
-    )
+    kinds = {kind: getattr(cohort, kind) for kind in KINDS}
+    small_kind = min(kinds.values()) < SMALLEST_SHOWN
     return {
         "trials": _count(cohort.trials),
-        **{kind: None if kind in protect else kinds[kind] for kind in KINDS},
-        "withheld_to_protect": protect,
+        **{kind: None if small_kind else kinds[kind] for kind in KINDS},
+        "withheld_to_protect": list(KINDS) if small_kind else [],
         "host_data": has_host,
         "seen_on_host": _count(cohort.seen_on_host) if has_host else None,
         "median_days_to_first_call": _median(cohort.days_to_first_call),
@@ -51,20 +50,25 @@ def published_rows(
 ) -> list[tuple[str, dict[str, Any]]]:
     """Each cohort's label and figures, for a table that shows them together."""
     rows = [(cohort.label, published_figures(cohort, today)) for cohort in cohorts]
-    weeks = [figures for label, figures in rows if label != ALL_WEEKS]
-    if any(figures[kind] is None for figures in weeks for kind in KINDS):
-        # The All row is the weeks' sum, so its kinds would give a week's away.
-        for label, figures in rows:
-            if label == ALL_WEEKS:
-                _withhold_kinds(figures)
+    # Plugin use without host data reads n/a, which hides nothing.
+    withheld = {
+        key
+        for label, figures in rows
+        if label != ALL_WEEKS
+        for key in SUMMED
+        if figures[key] is None and (key != "seen_on_host" or figures["host_data"])
+    }
+    for label, figures in rows:
+        if label == ALL_WEEKS:
+            _withhold(figures, withheld)
     return rows
 
 
-def _withhold_kinds(figures: dict[str, Any]) -> None:
-    for kind in KINDS:
-        if figures[kind] is not None:
-            figures[kind] = None
-            figures["withheld_to_protect"].append(kind)
+def _withhold(figures: dict[str, Any], keys: set[str]) -> None:
+    for key in SUMMED:
+        if key in keys and key not in figures["withheld_to_protect"]:
+            figures[key] = None
+            figures["withheld_to_protect"].append(key)
 
 
 def _count(value: int | None) -> int | None:

@@ -42,7 +42,8 @@ async def test_the_report_prints_no_address_domain_or_licence_id(sources, capsys
     for identifier in [*ADDRESSES, *LICENCE_IDS, "acme-0.test", "cs_secret"]:
         assert identifier not in out
     week_row = next(line for line in out.splitlines() if line.startswith("| 2026-W42"))
-    assert week_row.split(" | ")[1:3] == ["7", "7 (100%)"]
+    # No free-mail or school address, so the kinds are withheld together.
+    assert week_row.split(" | ")[1:3] == ["7", "x"]
     # One purchase among seven trials is a cell under five.
     assert week_row.split(" | ")[7].startswith("<5")
     assert "Plugin host: not configured" in out
