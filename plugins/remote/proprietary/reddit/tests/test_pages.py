@@ -13,6 +13,7 @@ import pytest
 
 from host.tests.mcp_calls import call
 from proprietary.reddit import fetch, scraper
+from proprietary.reddit.schemas import RedditScrapeInput
 from proprietary.reddit.tests.on_the_host import LICENSE, no_proxy_sessions
 
 _FIXTURES = Path(__file__).parent / "fixtures/pages"
@@ -585,3 +586,34 @@ async def test_a_subreddit_call_reads_every_page_on_one_held_session(
     assert len(opened) == 1
     assert len(asked) >= 3
     assert all(holder is opened[0] for holder in asked)
+
+
+async def test_a_call_stopped_at_its_limit_closes_its_session_before_returning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Left to the garbage collector, the held session was released in another
+    context: a ValueError logged on every call that stopped early (2026-10-23)."""
+    closed: list[bool] = []
+
+    class Holder:
+        async def close(self) -> None:
+            closed.append(True)
+
+    async def open_holder() -> Holder:
+        return Holder()
+
+    async def fetch_page(path: str, params=None, *, form=None) -> str | None:
+        return fixture("community_new.html")
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", open_holder)
+    monkeypatch.setattr(fetch, "fetch_page", fetch_page)
+
+    items = await scraper.scrape_reddit(
+        RedditScrapeInput(
+            searchCommunityName="python", skipComments=True, skipCommunity=True
+        ),
+        limit=1,
+    )
+
+    assert len(items) == 1
+    assert closed == [True]
