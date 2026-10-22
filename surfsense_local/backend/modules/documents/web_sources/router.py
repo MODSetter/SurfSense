@@ -130,19 +130,23 @@ async def _opened_lists(
 
     try:
         allowed = await transact(session, accesses)
-    except LicenseRefusedError as error:
-        raise as_http(error) from error
-    return list(
-        await asyncio.gather(
-            *(
-                list_page(
-                    allowed[route.puller.plugin_id], route.puller.listing, url, page
+        # The host judges the license on each call, so a refusal comes from here too.
+        return list(
+            await asyncio.gather(
+                *(
+                    list_page(
+                        allowed[route.puller.plugin_id],
+                        route.puller.listing,
+                        url,
+                        page,
+                    )
+                    for url, route in lists
+                    if route.puller.listing is not None
                 )
-                for url, route in lists
-                if route.puller.listing is not None
             )
         )
-    )
+    except LicenseRefusedError as error:
+        raise as_http(error) from error
 
 
 @router.post(

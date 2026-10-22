@@ -163,3 +163,22 @@ async def test_opening_a_list_needs_a_license(
 
     assert opened.status_code == 403
     assert opened.json()["detail"]["code"] == "license_refused"
+
+
+async def test_a_license_the_host_refuses_on_a_list_comes_back_with_its_reason(
+    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+) -> None:
+    """The dialog shows the license offer, as it does for a search."""
+    scraper_host.start({("youtube", "scrape"): channel_videos})
+    await import_license(client, "trial.lic")
+
+    opened = await client.post(open_url(workspace_id), json={"urls": [CHANNEL]})
+    more = await client.post(
+        f"/workspaces/{workspace_id}/documents/web/list",
+        json={"url": CHANNEL, "page": 1},
+    )
+
+    for answer in (opened, more):
+        assert answer.status_code == 403, answer.text
+        assert answer.json()["detail"]["code"] == "license_refused"
+        assert answer.json()["detail"]["reason"] == "expired"
