@@ -226,11 +226,12 @@ export default function PrivacyPolicy() {
 						an installer (the platform, whether the link was on this site, in our README, in an
 						email, in the app or on the pricing page, the version, and the country our host derives
 						from your request), a trial licence being issued, and a completed purchase (the plan,
-						the amount and the currency). Each carries only the channel you arrived from: a referral
-						code, a campaign source, the domain of the site that linked to us, or
-						&ldquo;direct&rdquo;. No email address, licence, IP address or browser identifier is
-						sent with them, so they cannot be linked to you or to your other visits. To count
-						purchases by channel, the checkout link passes that same channel tag to Stripe.
+						the amount and the currency). The trial and purchase counts also carry the channel you
+						arrived from: a referral code, a campaign source, the domain of the site that linked to
+						us, or &ldquo;direct&rdquo;. No email address, licence, IP address or browser identifier
+						is sent with any of them, so they are not tied to your browser's analytics identifier or
+						to a person profile. To count purchases by channel, the checkout link passes that same
+						channel tag to Stripe.
 					</p>
 					<p>
 						Two steps are recorded in your browser with the rest of the analytics, and so with its
