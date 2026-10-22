@@ -5,7 +5,8 @@ export type CheckKind = "automatic" | "manual"
 /**
  * One update check, automatic or Check now: refused while a policy turns updates
  * off, otherwise stamped as Settings' "last call" and run. Check now ignores the
- * daily limit, which only automatic checks keep.
+ * daily limit, which only automatic checks keep. Resolves true once a manifest
+ * was read.
  */
 export function updateCheckRunner(deps: {
   locked: boolean
@@ -15,10 +16,10 @@ export function updateCheckRunner(deps: {
   now?: () => Date
   log?: (line: string) => void
   onChecked?: () => void
-}): (kind: CheckKind) => boolean {
+}): (kind: CheckKind) => Promise<boolean> {
   const now = deps.now ?? (() => new Date())
   const log = deps.log ?? (() => undefined)
-  return (kind) => {
+  return async (kind) => {
     if (deps.locked) {
       log(`${kind} check not run: turned off by policy`)
       return false
@@ -26,7 +27,6 @@ export function updateCheckRunner(deps: {
     deps.writePrefs({ ...deps.readPrefs(), lastCheckedAt: now().toISOString() })
     log(`${kind} check`)
     deps.onChecked?.()
-    void deps.updates.check()
-    return true
+    return deps.updates.check()
   }
 }

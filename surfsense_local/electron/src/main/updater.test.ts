@@ -36,9 +36,9 @@ function fakeAutoUpdater() {
       on(event: string, listener: Listener) {
         listeners.set(event, listener)
       },
-      async checkForUpdates() {
+      checkForUpdates: async (): Promise<unknown> => {
         calls.push("check")
-        return null
+        return { isUpdateAvailable: false }
       },
       async downloadUpdate() {
         calls.push("download")
@@ -113,6 +113,22 @@ test("no update and errors both settle back to a state the UI can show", async (
     { status: "up-to-date" },
     { status: "error", message: "net::ERR_INTERNET_DISCONNECTED" },
   ])
+})
+
+test("a check says whether it read a manifest, so a failed one can be retried", async () => {
+  const fake = fakeAutoUpdater()
+  const updates = attachUpdater(fake.updater, () => undefined, FEED)
+
+  assert.equal(await updates.check(), true)
+
+  fake.updater.checkForUpdates = async () => {
+    throw new Error("updates.surfsense.com (unreachable) and github.com (unreachable) could not be used")
+  }
+  assert.equal(await updates.check(), false)
+
+  // AppUpdater's answer when it is not active: nothing was read.
+  fake.updater.checkForUpdates = async () => null
+  assert.equal(await updates.check(), false)
 })
 
 test("install is a no-op until something is downloaded", () => {

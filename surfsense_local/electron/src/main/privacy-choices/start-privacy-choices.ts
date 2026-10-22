@@ -107,7 +107,7 @@ export function startPrivacyChoices(options: {
     // ponytail: dev has no signed build to update; expose the same surface
     // so the Settings row renders, and stay idle.
     updates = {
-      check: async () => undefined,
+      check: async () => false,
       install: () => undefined,
       state: () => ({ status: "idle" }),
     }
@@ -149,7 +149,7 @@ export function startPrivacyChoices(options: {
     lastRequest: () => lastRequest,
     usageHost: new URL(endpoint ?? USAGE_ENDPOINT).host,
     reporter,
-    checkIfDue: () => daily?.runIfDue(),
+    checkIfDue: () => void daily?.runIfDue(),
     onChange: (state) => options.mainWindow()?.webContents.send("privacy:state-changed", state),
     log: log("privacy"),
   })
@@ -171,7 +171,7 @@ export function startPrivacyChoices(options: {
     automatic: () => controller.updatePrefs().automatic,
     lastAutomaticDay: () => updatePrefs().lastAutomaticDay,
     markAutomaticDay: (day) => saveUpdatePrefs({ ...updatePrefs(), lastAutomaticDay: day }),
-    check: () => void check("automatic"),
+    check: () => check("automatic"),
   })
   reporter.start()
 

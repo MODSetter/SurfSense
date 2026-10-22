@@ -29,7 +29,8 @@ export type UpdateState =
   | { status: "error"; message: string }
 
 // lastCheckedAt: the "last call" shown in Settings > Network.
-// lastAutomaticDay: the UTC day (YYYY-MM-DD) of the last automatic check.
+// lastAutomaticDay: the UTC day (YYYY-MM-DD) of the last automatic check that
+// read a manifest.
 export type UpdatePrefs = {
   automatic: boolean
   lastCheckedAt?: string
@@ -37,7 +38,8 @@ export type UpdatePrefs = {
 }
 
 export type Updates = {
-  check(): Promise<void>
+  /** True once a manifest was read, from either host; failures also reach the "error" state. */
+  check(): Promise<boolean>
   install(): void
   state(): UpdateState
 }
@@ -112,8 +114,10 @@ export function attachUpdater(
   return {
     async check() {
       set({ status: "checking" })
-      // Failures surface through the "error" event above.
-      await updater.checkForUpdates().catch(() => undefined)
+      // Failures surface through the "error" event above. AppUpdater answers
+      // null only when it is inactive, so it read nothing.
+      const result = await updater.checkForUpdates().catch(() => null)
+      return result !== null
     },
     install() {
       if (current.status === "ready") updater.quitAndInstall()

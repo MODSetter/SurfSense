@@ -56,7 +56,7 @@ function mainProcess(options: { policy?: object; env?: Record<string, string> } 
   const isTrusted = (sender: Electron.WebContents) => sender === appWindow
   registerPrivacyHandlers({ ipc, isTrusted, controller })
   const updates: Updates = {
-    check: async () => undefined,
+    check: async () => false,
     install: () => undefined,
     state: () => ({ status: "idle" }),
   }
