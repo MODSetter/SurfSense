@@ -208,9 +208,12 @@ export function OnboardingPage({
   onComplete: (selection: ModelSelection) => void
 }) {
   const [chosen, setScreen] = useState<Screen>("welcome")
-  const { state: privacy } = usePrivacyState()
-  // Asked once, on a new install: never outside the desktop app, or once answered.
-  const privacyAnswered = privacy === null || privacy?.firstRunAsked === true
+  const { state: privacy, failed: privacyUnreadable } = usePrivacyState()
+  // Asked once, on a new install: never outside the desktop app, or once
+  // answered. An unreadable state skips it, leaving both off, rather than
+  // holding setup on an empty card.
+  const privacyAnswered =
+    privacy === null || privacy?.firstRunAsked === true || privacyUnreadable
   // Left the welcome before the answer was read, and none was needed.
   const screen: Screen =
     chosen === "privacy" && privacyAnswered ? STEPS[0] : chosen

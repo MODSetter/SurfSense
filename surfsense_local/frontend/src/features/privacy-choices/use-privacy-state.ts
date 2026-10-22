@@ -14,12 +14,13 @@ export function privacyBridge() {
 /**
  * Where update checks and usage statistics go, what each last sent, and what a
  * policy locks, as Electron main holds them (contract 05, part C). `state` is
- * undefined while it is read and null outside the desktop app.
+ * undefined while it is read and null outside the desktop app; `failed` says
+ * the bridge is there but could not answer.
  */
 export function usePrivacyState() {
   const privacy = privacyBridge()
   const queryClient = useQueryClient()
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: privacyStateQueryKey,
     queryFn: async () => (await privacy?.getState()) ?? null,
     enabled: Boolean(privacy),
@@ -58,5 +59,9 @@ export function usePrivacyState() {
     await queryClient.invalidateQueries({ queryKey: privacyStateQueryKey })
   }
 
-  return { state: privacy ? data : null, setUsageStatistics }
+  return {
+    state: privacy ? data : null,
+    failed: Boolean(privacy) && isError,
+    setUsageStatistics,
+  }
 }

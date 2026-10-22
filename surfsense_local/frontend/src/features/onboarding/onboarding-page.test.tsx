@@ -1477,6 +1477,22 @@ describe("the privacy choices", () => {
     expect(bridge.calls).toContain("first-run:updates=false,usage=false")
   })
 
+  it("goes on to the first step when the choices cannot be read", async () => {
+    vi.stubGlobal("fetch", backend())
+    stubPrivacyBridge()
+    window.surfsense!.privacy!.getState = async () => {
+      throw new Error("No handler registered for 'privacy:get-state'")
+    }
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    // Nothing is switched on unasked, and setup is not held on an empty card.
+    await toChatStep(user)
+    expect(
+      screen.queryByRole("heading", { name: "Privacy choices" })
+    ).toBeNull()
+  })
+
   it("never asks an install that already answered", async () => {
     vi.stubGlobal("fetch", backend())
     stubPrivacyBridge({ firstRunAsked: true })
