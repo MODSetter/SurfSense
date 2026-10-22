@@ -1,6 +1,6 @@
 # ADR 0065: A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own
 
-- **Status:** Accepted; superseded for the opencode engine (its budget, its left-out notice and its note to the agent) by [ADR 0068](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md)
+- **Status:** Accepted; superseded for the opencode engine (its budget, its left-out notice and its note to the agent) by [ADR 0069](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md)
 - **Date:** 2026-10-20
 - **Source:** maintainer decision, 20 Oct 2026 (no permalink)
 

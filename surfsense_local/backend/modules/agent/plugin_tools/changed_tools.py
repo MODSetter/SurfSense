@@ -7,15 +7,13 @@ cannot be listed. After a turn, plugins last checked AFTER_TURN_SECONDS ago are 
 in the background, so the next turn rarely waits; checks follow the user's turns, never
 a timer. A server that cannot be listed keeps what was recorded, and the check says
 why; opencode reports it unreachable to the turn. A plugin recorded on the older SSE
-transport is never ready, and is checked as one so it can move (moved_from_sse.py).
+transport is never ready, so it is never checked: it stays until the user replaces it.
 """
 
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from api.dependencies import transact
@@ -24,8 +22,6 @@ from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.remote.mcp_client.server_error import ServerError
-from modules.plugins.remote.mcp_client.transports import recorded_on_sse
-from modules.plugins.remote.moved_from_sse import keep_address, listed_where_it_moved
 from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
     listed_after_refresh,
 )
@@ -58,8 +54,8 @@ async def check_changed_tools(
     with sessions() as session:
         due = await transact(session, _due, older_than)
     checks = [
-        _checking.get(plugin_id) or _start(sessions, plugin_id, url, headers, entry)
-        for plugin_id, url, headers, entry in due
+        _checking.get(plugin_id) or _start(sessions, plugin_id, url, headers)
+        for plugin_id, url, headers in due
     ]
     if not checks:
         return 0
@@ -95,9 +91,8 @@ def _start(
     plugin_id: str,
     url: str,
     headers: dict[str, str],
-    entry: dict[str, Any],
 ) -> asyncio.Task[None]:
-    task = asyncio.create_task(_check(sessions, plugin_id, url, headers, entry))
+    task = asyncio.create_task(_check(sessions, plugin_id, url, headers))
     _checking[plugin_id] = task
     task.add_done_callback(lambda _: _checking.pop(plugin_id, None))
     return task
@@ -108,7 +103,6 @@ async def _check(
     plugin_id: str,
     url: str,
     headers: dict[str, str],
-    entry: dict[str, Any],
 ) -> None:
     """List and record one plugin, in a session of its own: it may outlive the turn."""
     try:
@@ -116,39 +110,21 @@ async def _check(
         with sessions() as session:
             # An OAuth plugin's 401: one refresh, and the listing again.
             listed = await listed_after_refresh(session, plugin_id, headers, listed)
-            url, listed = await listed_where_it_moved(entry, url, headers, listed)
-            await transact(session, _record, plugin_id, listed, url)
+            await transact(session, _record, plugin_id, listed)
     except Exception:
         logger.warning("%s's check was not recorded", plugin_id, exc_info=True)
 
 
-def _due(
-    session: Session, older_than: float
-) -> list[tuple[str, str, dict[str, str], dict[str, Any]]]:
+def _due(session: Session, older_than: float) -> list[tuple[str, str, dict[str, str]]]:
     # SQLite hands datetimes back without their zone; they are stored in UTC.
     stale = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=older_than)
-    connected = session.scalars(
-        select(InstalledPlugin.id).where(
-            InstalledPlugin.enabled, InstalledPlugin.disconnected_at.is_(None)
-        )
-    ).all()
-    ready = [tool.plugin_id for tool in list_tools(session)]
     due = []
-    for plugin_id in dict.fromkeys(ready + list(connected)):
+    for plugin_id in dict.fromkeys(tool.plugin_id for tool in list_tools(session)):
         plugin = session.get_one(InstalledPlugin, plugin_id)
-        if plugin_id not in ready and not recorded_on_sse(plugin.entry):
-            continue
         checked = plugin.checked_at
         if checked is not None and checked.replace(tzinfo=None) > stale:
             continue
-        due.append(
-            (
-                plugin_id,
-                plugin.url,
-                sign_in_headers(session, plugin),
-                dict(plugin.entry),
-            )
-        )
+        due.append((plugin_id, plugin.url, sign_in_headers(session, plugin)))
     return due
 
 
@@ -167,9 +143,7 @@ def _record(
     session: Session,
     plugin_id: str,
     listed: list[SourceTool] | ServerError,
-    url: str,
 ) -> None:
     plugin = session.get(InstalledPlugin, plugin_id)
     if plugin is not None:
-        keep_address(session, plugin, url)
         record_check(session, plugin, listed)

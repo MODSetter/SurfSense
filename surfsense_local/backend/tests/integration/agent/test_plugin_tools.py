@@ -539,40 +539,16 @@ def _recorded_on_sse(engine: Engine, url: str) -> None:
         session.commit()
 
 
-async def test_a_plugin_recorded_on_sse_is_moved_to_mcp_before_its_turn_and_called(
+async def test_a_plugin_left_on_sse_is_never_moved_nor_offered_to_a_turn(
     agent_api: AgentAPI, engine: Engine
 ) -> None:
-    """The turn's check finds its server's Streamable HTTP address first."""
+    """Even with its server answering at `/mcp`: the user replaces it, nothing does it for them."""
     with serving(notes_server().streamable_http_app()) as base:
         await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         added = await agent_api.http.post(
             "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
         )
         assert added.status_code == 201, added.text
-        await agent_api.http.put(
-            "/plugins/notes/tools/search", json={"approval": "always"}
-        )
-        _recorded_on_sse(engine, f"{base}/sse")
-        agent_api.model.replies = [call("notes_search", query="old"), ("text", "Ok.")]
-        thread = await open_thread(agent_api)
-
-        frames = await send(agent_api, thread["id"], "Search")
-
-    assert of_type(frames, "agent-step")[-1]["status"] == "completed"
-    assert of_type(frames, "agent-plugins-unavailable") == []
-
-
-async def test_a_plugin_left_on_sse_is_never_offered_to_a_turn(
-    agent_api: AgentAPI, engine: Engine
-) -> None:
-    """Nothing answers at its `/mcp`, so no engine could call it."""
-    with serving(notes_server().streamable_http_app()) as base:
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
-        added = await agent_api.http.post(
-            "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
-        )
-        assert added.status_code == 201, added.text
-    with serving(notes_server().sse_app()) as base:
         _recorded_on_sse(engine, f"{base}/sse")
         agent_api.model.replies = [("text", "Ok.")]
         thread = await open_thread(agent_api)
@@ -581,6 +557,8 @@ async def test_a_plugin_left_on_sse_is_never_offered_to_a_turn(
 
     offered = [t["function"]["name"] for t in agent_api.model.requests[0]["tools"]]
     assert not any(name.startswith("notes_") for name in offered)
+    (plugin,) = (await agent_api.http.get("/plugins")).json()
+    assert (plugin["transport"], plugin["url"]) == ("sse", f"{base}/sse")
 
 
 async def test_a_sign_in_refused_mid_turn_names_the_plugin_in_the_turn(

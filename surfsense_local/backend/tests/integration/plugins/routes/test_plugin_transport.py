@@ -1,5 +1,5 @@
-"""SurfSense speaks Streamable HTTP alone: a server only on the older SSE is refused as
-one, and a plugin recorded on SSE is moved to its server's `/mcp` at its check."""
+"""SurfSense speaks Streamable HTTP alone: an `/sse` address, or a server only on the older
+SSE, is refused as one, and a plugin recorded on SSE stays as it is until the user replaces it."""
 
 import pytest
 from httpx import AsyncClient
@@ -10,7 +10,7 @@ from starlette.routing import Route
 
 from modules.plugins.installed.models import InstalledPlugin
 from shared.db import create_session_factory
-from tests.mcp_test_server import RequiringToken, notes_server, serving
+from tests.mcp_test_server import notes_server, serving
 
 pytestmark = pytest.mark.integration
 
@@ -27,6 +27,28 @@ async def test_a_server_offering_only_the_older_sse_transport_is_refused_as_one(
     assert refused.status_code == 422, refused.text
     assert refused.json()["detail"]["code"] == "plugin_sse_only"
     assert "/mcp" in refused.json()["detail"]["message"]
+    assert (await client.get("/plugins")).json() == []
+
+
+async def test_an_sse_address_is_refused_without_reaching_its_server(
+    client: AsyncClient,
+) -> None:
+    """Never swapped for its `/mcp`: the user is told, and adds that address themselves."""
+    reached: list[str] = []
+
+    async def anything(request):
+        reached.append(request.url.path)
+        return Response(status_code=404)
+
+    app = Starlette(routes=[Route("/{path:path}", anything, methods=["GET", "POST"])])
+    with serving(app) as base:
+        refused = await client.post(
+            "/plugins/custom", json={"url": f"{base}/sse/", "name": "Notes"}
+        )
+
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_sse_only"
+    assert reached == []
     assert (await client.get("/plugins")).json() == []
 
 
@@ -94,10 +116,24 @@ def _refusing_the_post(stream: Response) -> Starlette:
 
     return Starlette(
         routes=[
-            Route("/sse", not_allowed, methods=["POST"]),
-            Route("/sse", opened, methods=["GET"]),
+            Route("/events", not_allowed, methods=["POST"]),
+            Route("/events", opened, methods=["GET"]),
         ]
     )
+
+
+async def test_a_stream_at_an_address_not_ending_in_sse_is_refused_as_sse(
+    client: AsyncClient,
+) -> None:
+    """Found by the server's own answer: 405 to the POST, an event stream to the GET."""
+    stream = Response("", media_type="text/event-stream")
+    with serving(_refusing_the_post(stream)) as base:
+        refused = await client.post(
+            "/plugins/custom", json={"url": f"{base}/events", "name": "Notes"}
+        )
+
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "plugin_sse_only"
 
 
 async def test_a_web_page_refusing_the_post_and_missing_the_stream_is_refused(
@@ -106,7 +142,7 @@ async def test_a_web_page_refusing_the_post_and_missing_the_stream_is_refused(
     """405 to the POST and nothing streaming there is no server either."""
     with serving(_refusing_the_post(Response(status_code=404))) as base:
         refused = await client.post(
-            "/plugins/custom", json={"url": f"{base}/sse", "name": "Notes"}
+            "/plugins/custom", json={"url": f"{base}/events", "name": "Notes"}
         )
 
     assert refused.status_code == 422, refused.text
@@ -120,7 +156,7 @@ async def test_an_address_its_server_retired_is_said_to_be_gone(
     retired = JSONResponse({"error": "SSE transport is deprecated"}, 410)
     with serving(_refusing_the_post(retired)) as base:
         refused = await client.post(
-            "/plugins/custom", json={"url": f"{base}/sse", "name": "Wiki"}
+            "/plugins/custom", json={"url": f"{base}/events", "name": "Wiki"}
         )
 
     assert refused.status_code == 422, refused.text
@@ -169,48 +205,23 @@ async def _added_then_on_sse(client: AsyncClient, engine: Engine, base: str) -> 
     _recorded_on_sse(engine, "notes", f"{base}/sse")
 
 
-async def test_a_plugin_recorded_on_sse_moves_to_its_servers_mcp_at_its_check(
+async def test_a_plugin_recorded_on_sse_stays_as_it_is_at_its_check(
     client: AsyncClient, engine: Engine, notes_url: str
 ) -> None:
-    """Every provider known to serve `/sse` answers MCP at `/mcp`; the tools are kept."""
-    base = notes_url.removesuffix("/mcp")
-    await _added_then_on_sse(client, engine, base)
-    held = (await client.get("/plugins")).json()[0]
-
-    checked = await client.post("/plugins/notes/check")
-
-    assert held["transport"] == "sse"
-    assert checked.json()["check_failure"] is None
-    assert checked.json()["transport"] == "streamable_http"
-    assert checked.json()["url"] == f"{base}/mcp"
-    assert [t["name"] for t in checked.json()["tools"]] == ["search", "count"]
-
-
-async def test_one_whose_mcp_asks_for_a_sign_in_moves_and_asks_again(
-    client: AsyncClient, engine: Engine, notes_url: str
-) -> None:
-    """A token issued for `/sse` need not be taken at `/mcp`."""
+    """Never moved behind the user's back, and never contacted: its status says to replace it."""
     await _added_then_on_sse(client, engine, notes_url.removesuffix("/mcp"))
-    protected = RequiringToken(notes_server().streamable_http_app(), "new-key")
-    with serving(protected) as moved_base:
-        _recorded_on_sse(engine, "notes", f"{moved_base}/sse")
+    reached: list[str] = []
+
+    async def anything(request):
+        reached.append(request.url.path)
+        return Response(status_code=404)
+
+    app = Starlette(routes=[Route("/{path:path}", anything, methods=["GET", "POST"])])
+    with serving(app) as old:
+        _recorded_on_sse(engine, "notes", f"{old}/sse")
         checked = await client.post("/plugins/notes/check")
 
-    assert checked.json()["check_failure"] == "sign_in"
-    assert checked.json()["url"] == f"{moved_base}/mcp"
-    assert checked.json()["transport"] == "streamable_http"
-
-
-async def test_one_with_nothing_at_mcp_says_it_uses_the_older_transport(
-    client: AsyncClient, engine: Engine, notes_url: str
-) -> None:
-    """Not "Couldn't reach" on every turn: it stays on SSE, and is never offered to a turn."""
-    base = notes_url.removesuffix("/mcp")
-    await _added_then_on_sse(client, engine, base)
-    with serving(notes_server().sse_app()) as sse_only:
-        _recorded_on_sse(engine, "notes", f"{sse_only}/sse")
-        checked = await client.post("/plugins/notes/check")
-
-    assert checked.json()["check_failure"] == "unreachable"
-    assert checked.json()["transport"] == "sse"
-    assert checked.json()["url"] == f"{sse_only}/sse"
+        assert checked.status_code == 200, checked.text
+        assert checked.json()["transport"] == "sse"
+        assert checked.json()["url"] == f"{old}/sse"
+    assert reached == []

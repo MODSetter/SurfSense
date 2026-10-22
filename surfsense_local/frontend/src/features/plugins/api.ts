@@ -26,8 +26,8 @@ export type Plugin = {
   auth_type: "none" | "token" | "headers" | "license" | "oauth"
   /** A `headers` plugin's header names; their values never come back from the API. */
   header_names: string[]
-  /** `sse` for a plugin left on the older HTTP+SSE transport, which no engine speaks:
-   * nothing answered at its Streamable HTTP address. */
+  /** `sse` for a plugin added on the older HTTP+SSE transport, which no engine speaks:
+   * it stays until the user replaces it with its Streamable HTTP address. */
   transport: "streamable_http" | "sse"
   /** Scopes the server's `insufficient_scope` asked for; Sign in asks for them. */
   needs_scopes: string[]

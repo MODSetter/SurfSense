@@ -6,7 +6,7 @@ for a server that lists its tools without a key.
 
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx2
 from mcp.client.auth.utils import should_use_client_metadata_url
@@ -43,6 +43,8 @@ NOT_STREAMABLE = {400, 404, 405}
 
 async def report_server(url: str) -> ServerReport:
     host = urlsplit(url).hostname or ""
+    if _is_sse_address(url):
+        return await _sse_address(url, host)
     reached = await contact(url)
     if (
         isinstance(reached, NotMcp)
@@ -103,6 +105,27 @@ async def _signing_in(url: str, host: str) -> ServerReport:
         # Neither way for SurfSense to register: each user brings their own app.
         auth["user_client"] = True
     return ServerReport(auth, hosts, None)
+
+
+def _is_sse_address(url: str) -> bool:
+    """As providers' docs still give theirs; the app refuses the same rule."""
+    return urlsplit(url).path.rstrip("/").lower().endswith("/sse")
+
+
+async def _sse_address(url: str, host: str) -> ServerReport:
+    """Named as SSE whatever it answers, since a 401 there would read as a key to take;
+    the `/mcp` beside it is named when MCP answers there, signed in or not."""
+    parts = urlsplit(url)
+    path = parts.path.rstrip("/")[: -len("/sse")] + "/mcp"
+    beside = urlunsplit(parts._replace(path=path))
+    problem = "is an address on the older HTTP+SSE transport, which SurfSense does not speak. "
+    if isinstance(await contact(beside), Listed | SignInAsked):
+        return _refused(
+            host, f"{problem}Its server answers MCP at {beside}: submit that address"
+        )
+    return _refused(
+        host, f"{problem}Give its Streamable HTTP address, which often ends in /mcp"
+    )
 
 
 def _refused(host: str, problem: str) -> ServerReport:

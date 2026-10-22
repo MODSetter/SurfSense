@@ -25,12 +25,6 @@ function checkLabel(plugin: Plugin) {
       defaultMessage: "Not connected",
     })
   }
-  if (plugin.transport === "sse") {
-    return intl.formatMessage({
-      id: "plugins_row_sse_status",
-      defaultMessage: "Uses the older SSE transport",
-    })
-  }
   if (plugin.check_failure === "unreachable") {
     return intl.formatMessage({
       id: "plugins_row_unreachable_status",
@@ -114,6 +108,24 @@ function statusOf(plugin: Plugin, unused: boolean) {
       reason: null,
     }
   }
+  // As in the list: no engine reaches it until it is added again by its Streamable HTTP address.
+  if (plugin.transport === "sse") {
+    return {
+      label: intl.formatMessage({
+        id: "plugins_row_sse_status",
+        defaultMessage: "SSE not supported",
+      }),
+      tone: TONE_CLASS.failure,
+      reason: intl.formatMessage(
+        {
+          id: "plugins_row_sse_body",
+          defaultMessage:
+            "SurfSense no longer supports the older SSE transport. Remove {plugin} and add its Streamable HTTP address, which often ends in /mcp.",
+        },
+        { plugin: plugin.name }
+      ),
+    }
+  }
   if (plugin.removed_reason) {
     return {
       label: intl.formatMessage({
@@ -130,20 +142,8 @@ function statusOf(plugin: Plugin, unused: boolean) {
     tone: plugin.check_failure
       ? TONE_CLASS[checkTone(plugin)]
       : "text-muted-foreground",
-    reason: ownAppReason(plugin) ?? sseReason(plugin),
+    reason: ownAppReason(plugin),
   }
-}
-
-function sseReason(plugin: Plugin) {
-  if (plugin.transport !== "sse") return null
-  return intl.formatMessage(
-    {
-      id: "plugins_row_sse_body",
-      defaultMessage:
-        "{plugin} answers only on the older SSE transport, which SurfSense no longer supports, and nothing answered at its Streamable HTTP address. Remove it and connect that address, which often ends in /mcp.",
-    },
-    { plugin: plugin.name }
-  )
 }
 
 function ownAppReason(plugin: Plugin) {
