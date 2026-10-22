@@ -6,7 +6,7 @@ import test from "node:test"
 
 import { audiocppSpec, SERVER_CONFIG } from "./audiocpp.ts"
 import { exe, isWindows } from "./platform.ts"
-import { apiSpec, workerSpec } from "./python.ts"
+import { apiSpec, BACKEND_BINARY, workerSpec } from "./python.ts"
 import type { SidecarContext } from "./types.ts"
 
 /** A packaged build with audio.cpp staged and the API's config written. */
@@ -68,6 +68,21 @@ test("under pnpm dev a worker is the app's own child, so it dies with the app", 
 
   assert.equal(worker.cmd, join(ctx.backendDir, venvPython))
   assert.deepEqual(worker.args, ["worker.py", "studio"])
+})
+
+test("packaged, the API and every worker run the one frozen backend with their role", () => {
+  // One binary carries both roles; the first argument picks one, and a
+  // missing or unknown role exits instead of starting a server.
+  const ctx = withAudio()
+  const binary = join(ctx.binariesDir, "backend", exe(BACKEND_BINARY))
+
+  const api = apiSpec(ctx)
+  const studio = workerSpec(ctx, "studio")
+
+  assert.equal(api.cmd, binary)
+  assert.deepEqual(api.args, ["api"])
+  assert.equal(studio.cmd, binary)
+  assert.deepEqual(studio.args, ["worker", "studio"])
 })
 
 /** The context boot builds on a host where opencode is staged. */

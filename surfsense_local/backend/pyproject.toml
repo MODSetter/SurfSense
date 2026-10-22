@@ -26,6 +26,10 @@ dependencies = [
     # public-domain or MIT-0 code; no FFmpeg.
     "miniaudio>=1.71",
     "onnxruntime>=1.20",
+    # RapidOCR's cv2, without the Qt GUI the full wheel carries (30 MB on Linux):
+    # it only reads images. Pinned because excluding opencv-python below drops
+    # RapidOCR's own bound; 5.0.0.93 is the version scan OCR was measured on.
+    "opencv-python-headless==5.0.0.93",
     # Reads back the workbook a document script wrote
     # (worker/studio/script_document/workbook_summary.py). Docling brings it
     # too; named so it cannot vanish.
@@ -88,6 +92,9 @@ dev = [
 # Built from its source package: the wheels carry a 241 MB Claude Code in
 # `_bundled`, and SurfSense ships none (ADR 0057); every run uses the user's own.
 no-binary-package = ["claude-agent-sdk"]
+# opencv-python-headless stands in for it (dependencies above): the same cv2,
+# without Qt.
+exclude-dependencies = ["opencv-python"]
 
 [tool.uv.sources]
 # The rules a plugin's manifest.json follows, shared with the plugin tooling.

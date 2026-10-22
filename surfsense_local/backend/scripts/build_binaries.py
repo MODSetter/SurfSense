@@ -1,7 +1,7 @@
-"""Freeze the API and worker into onedir binaries for the installer.
+"""Freeze the backend into one onedir binary for the installer.
 
-Run with `uv run scripts/build_binaries.py`. Emits dist/api/ and dist/worker/,
-which electron-builder copies into the app's resources/. PyInstaller cannot
+Run with `uv run scripts/build_binaries.py`. Emits dist/backend/, which
+electron-builder copies into the app's resources/. PyInstaller cannot
 cross-compile, so this runs once per OS, on that OS.
 """
 
@@ -10,9 +10,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from macos_local_symbols import strip_local_symbols
+
 BACKEND = Path(__file__).resolve().parent.parent
 BUNDLING = BACKEND / "bundling"
-SPECS = ("api.spec", "worker.spec")
+SPECS = ("backend.spec",)
 
 
 def _require_sqlite_load_extension() -> None:
@@ -53,6 +55,11 @@ def main() -> int:
     _require_sqlite_load_extension()
     for spec in SPECS:
         build(spec)
+        if sys.platform == "darwin":
+            internal = BACKEND / "dist" / spec.removesuffix(".spec") / "_internal"
+            print(
+                f"stripped local symbols from {strip_local_symbols(internal)} Mach-O files"
+            )
     return 0
 
 

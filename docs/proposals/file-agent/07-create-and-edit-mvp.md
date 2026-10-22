@@ -29,7 +29,7 @@ If a script fails three times in a row, the agent stops and tells the user what 
 - Studio's Summary is Markdown already: the model's reply is the artifact's body ([`summary/pipeline.py`](../../../surfsense_local/backend/worker/studio/content/summary/pipeline.py)).
 - Regenerate overwrites an artifact's files and body, and `artifact_files` holds one file per role (`primary`, `preview`) ([studio](../../architecture/studio.md)).
 - [`worker.py`](../../../surfsense_local/backend/worker.py) already takes one non-queue flag, `--check-vision-runtime`.
-- The worker binary contains python-docx, python-pptx, xlsxwriter, ReportLab and lxml ([`worker.spec`](../../../surfsense_local/backend/bundling/worker.spec)). `markdown-it-py` is in the lock through `rich`, and numpy and Pillow are in it too. matplotlib is not.
+- The worker binary contains python-docx, python-pptx, xlsxwriter, ReportLab and lxml ([`worker_inputs.py`](../../../surfsense_local/backend/bundling/worker_inputs.py)). `markdown-it-py` is in the lock through `rich`, and numpy and Pillow are in it too. matplotlib is not.
 - Ingestion keeps only the text Docling extracts. [`parsing.py`](../../../surfsense_local/backend/worker/ingestion/parsing.py) converts with OCR and table structure on and returns `export_to_markdown()`, so every figure becomes a placeholder and its image is dropped. Image files (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`, `.webp`) are accepted as sources, and every source's original file is kept ([`storage.py`](../../../surfsense_local/backend/modules/documents/storage.py), [documents](../../architecture/documents.md)).
 
 ## Decisions

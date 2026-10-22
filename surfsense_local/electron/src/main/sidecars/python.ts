@@ -1,8 +1,8 @@
 /**
- * The Python sidecars: the API, and the worker once per queue. Same shape: a
- * frozen onedir binary when packaged, the backend's venv interpreter in dev,
- * same SURFSENSE_LOCAL_* env. Both reach llama-server, so both need the bundled
- * address.
+ * The Python sidecars: the API, and the worker once per queue. Same shape: one
+ * frozen onedir binary when packaged, told its role by its first argument, the
+ * backend's venv interpreter in dev, same SURFSENSE_LOCAL_* env. Both reach
+ * llama-server, so both need the bundled address.
  */
 import { existsSync } from "node:fs"
 import { join } from "node:path"
@@ -54,9 +54,15 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
   }
 }
 
+/**
+ * The frozen backend's executable. One binary carries both roles, so the API
+ * and the worker share one copy of every library instead of two.
+ */
+export const BACKEND_BINARY = "surfsense-backend"
+
 function pythonCmd(
   ctx: SidecarContext,
-  name: string,
+  role: "api" | "worker",
   devEntry: string,
   args: string[] = [],
 ): { cmd: string; args: string[]; cwd: string } {
@@ -65,7 +71,11 @@ function pythonCmd(
   // session's jobs. predev's own `uv run` scripts have synced this venv.
   const venv = join(ctx.backendDir, ".venv", isWindows ? "Scripts" : "bin")
   return ctx.packaged
-    ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args, cwd: ctx.binariesDir }
+    ? {
+        cmd: join(ctx.binariesDir, "backend", exe(BACKEND_BINARY)),
+        args: [role, ...args],
+        cwd: ctx.binariesDir,
+      }
     : { cmd: join(venv, exe("python")), args: [devEntry, ...args], cwd: ctx.backendDir }
 }
 

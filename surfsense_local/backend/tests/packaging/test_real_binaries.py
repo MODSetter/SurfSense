@@ -1,11 +1,14 @@
-"""Build the real API and worker binaries and prove each one boots.
+"""Build the real backend binary and prove each role boots.
 
 Heavier than test_frozen_boot (torch + Docling), same opt-in marker. That test
-proves the database opens in a frozen binary; this proves the two binaries the
-installer actually ships start: the API answers /health, the worker imports its
-tasks and stays up instead of crashing on a dropped hidden import.
+proves the database opens in a frozen binary; this proves the binary the
+installer ships starts in both roles: the API answers /health, the worker
+imports its tasks and stays up instead of crashing on a dropped hidden import,
+and what the bundle leaves out stays out.
 """
 
+import ast
+import importlib.util
 import json
 import os
 import socket
@@ -17,82 +20,21 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+from PyInstaller.archive.readers import CArchiveReader
+
+from tests.packaging.frozen_backend import frozen_backend
 
 pytestmark = pytest.mark.packaging
 
-BACKEND = Path(__file__).resolve().parents[2]
-BUNDLING = BACKEND / "bundling"
+
+@pytest.fixture(scope="module")
+def binary(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The backend frozen once for this module."""
+    return frozen_backend(tmp_path_factory.mktemp("frozen-backend"))
 
 
-def _freeze(spec: str, tmp_path: Path) -> Path:
-    """Freeze one spec into tmp and return the onedir executable."""
-    name = spec.removesuffix(".spec")
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "PyInstaller",
-            str(BUNDLING / spec),
-            "--noconfirm",
-            "--distpath",
-            str(tmp_path / "dist"),
-            "--workpath",
-            str(tmp_path / "build"),
-        ],
-        cwd=BACKEND,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return tmp_path / "dist" / name / name
-
-
-def _assert_capability_catalogue_shipped(binary: Path) -> None:
-    """Both binaries classify remote models, so both must carry the manifest.
-
-    It is read by path, so the analyser cannot see it and only an explicit datas
-    entry puts it in the bundle. Missing it degrades silently: every remote model
-    reads as unknown, in frozen builds only.
-    """
-    manifest = (
-        binary.parent
-        / "_internal"
-        / "modules"
-        / "llm"
-        / "catalog"
-        / "remote"
-        / "manifest"
-        / "models.json"
-    )
-    assert manifest.is_file(), f"remote model manifest missing from {binary.parent}"
-    assert json.loads(manifest.read_text())["providers"]
-
-
-def _assert_no_claude_code_shipped(binary: Path) -> None:
-    """The SDK's own Claude Code stays out: every run uses the user's (ADR 0057)."""
-    shipped = [
-        path
-        for path in binary.parent.rglob("*")
-        if path.name in ("claude", "claude.exe") or "_bundled" in path.parts
-    ]
-    assert shipped == [], f"Claude Code is in the bundle: {shipped}"
-
-
-def _assert_curated_manifest_shipped(binary: Path) -> None:
-    """Studio finds its chosen image and audio models through the curated list;
-    without it the frozen worker calls an installed model "not installed"."""
-    manifest = (
-        binary.parent
-        / "_internal"
-        / "modules"
-        / "llm"
-        / "catalog"
-        / "local"
-        / "manifest"
-        / "models.json"
-    )
-    assert manifest.is_file(), f"local model manifest missing from {binary.parent}"
-    assert json.loads(manifest.read_text())["models"]
+def _internal(binary: Path) -> Path:
+    return binary.parent / "_internal"
 
 
 def _free_port() -> int:
@@ -105,26 +47,61 @@ def _env(tmp_path: Path, **extra: str) -> dict[str, str]:
     return {**os.environ, "SURFSENSE_LOCAL_DATA_DIR": str(tmp_path / "data"), **extra}
 
 
-def test_api_binary_answers_health(tmp_path: Path) -> None:
-    """Freeze the API and assert the running binary serves /health."""
-    binary = _freeze("api.spec", tmp_path)
-    _assert_capability_catalogue_shipped(binary)
-    _assert_no_claude_code_shipped(binary)
-
-    # /health and /llm/catalog/local never touch retrieval, so an over-broad exclude in
-    # api.spec would pass the checks below and only break on a user's first chat.
-    retrieval = subprocess.run(
-        [str(binary), "--check-retrieval-runtime"],
+def _run(binary: Path, tmp_path: Path, *arguments: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [str(binary), *arguments],
         env=_env(tmp_path),
-        check=True,
         capture_output=True,
         text=True,
     )
+
+
+def test_the_bundle_ships_the_manifests_both_roles_read(binary: Path) -> None:
+    """Read by path, so only an explicit datas entry puts them in the bundle.
+
+    Missing them degrades silently, in frozen builds only: every remote model
+    reads as unknown, and Studio calls an installed model "not installed".
+    """
+    manifests = _internal(binary) / "modules" / "llm" / "catalog"
+    assert json.loads((manifests / "remote" / "manifest" / "models.json").read_text(encoding="utf-8"))[
+        "providers"
+    ]
+    assert json.loads((manifests / "local" / "manifest" / "models.json").read_text(encoding="utf-8"))[
+        "models"
+    ]
+
+
+def test_no_claude_code_ships(binary: Path) -> None:
+    """The SDK's own Claude Code stays out: every run uses the user's (ADR 0057)."""
+    shipped = [
+        path
+        for path in binary.parent.rglob("*")
+        if path.name in ("claude", "claude.exe") or "_bundled" in path.parts
+    ]
+    assert shipped == [], f"Claude Code is in the bundle: {shipped}"
+
+
+def test_a_launch_without_a_role_starts_nothing(binary: Path, tmp_path: Path) -> None:
+    """No default role: a stray launch must not start a server nothing will stop."""
+    for arguments in ([], ["serve"], ["worker"], ["api", "extra"]):
+        result = _run(binary, tmp_path, *arguments)
+        assert result.returncode == 2, (arguments, result.stderr)
+
+
+def test_the_api_role_answers_health_and_stays_light(
+    binary: Path, tmp_path: Path
+) -> None:
+    """The API serves /health and its catalog, and cannot reach the worker's stack."""
+    # /health and /llm/catalog/local never touch retrieval, so a dropped encoder
+    # would pass the checks below and only break on a user's first chat.
+    retrieval = _run(binary, tmp_path, "--check-retrieval-runtime")
+    assert retrieval.returncode == 0, retrieval.stderr
     assert "retrieval imports OK" in retrieval.stdout
+    assert "api role imports no worker-only modules" in retrieval.stdout
 
     port = _free_port()
     proc = subprocess.Popen(
-        [str(binary)],
+        [str(binary), "api"],
         env=_env(tmp_path, SURFSENSE_LOCAL_PORT=str(port)),
     )
     try:
@@ -133,7 +110,7 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
         deadline = time.time() + 90
         while time.time() < deadline:
             if proc.poll() is not None:
-                pytest.fail(f"api binary exited early with {proc.returncode}")
+                pytest.fail(f"api role exited early with {proc.returncode}")
             try:
                 with urllib.request.urlopen(
                     f"http://127.0.0.1:{port}/health", timeout=1
@@ -148,32 +125,76 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
                 return
             except (urllib.error.URLError, ConnectionError):
                 time.sleep(0.5)
-        pytest.fail("api binary was not healthy within 90s")
+        pytest.fail("api role was not healthy within 90s")
     finally:
         proc.terminate()
         proc.wait(timeout=10)
 
 
-def test_worker_binary_starts(tmp_path: Path) -> None:
-    """Freeze the worker and assert its lazy vision imports and consumer boot."""
-    binary = _freeze("worker.spec", tmp_path)
-    _assert_capability_catalogue_shipped(binary)
-    _assert_curated_manifest_shipped(binary)
-    vision = subprocess.run(
-        [str(binary), "--check-vision-runtime"],
-        env=_env(tmp_path),
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+def test_the_worker_role_starts(binary: Path, tmp_path: Path) -> None:
+    """Its lazy vision imports load, and each queue's consumer stays up."""
+    vision = _run(binary, tmp_path, "--check-vision-runtime")
+    assert vision.returncode == 0, vision.stderr
     assert "vision imports OK" in vision.stdout
 
     # A dropped hidden import crashes a consumer at startup; staying up is the proof.
     for queue in ("ingest", "studio"):
-        proc = subprocess.Popen([str(binary), queue], env=_env(tmp_path))
+        proc = subprocess.Popen([str(binary), "worker", queue], env=_env(tmp_path))
         try:
             time.sleep(5)
             assert proc.poll() is None, f"{queue} worker exited with {proc.returncode}"
         finally:
             proc.terminate()
             proc.wait(timeout=10)
+
+
+def test_payload_no_code_path_opens_stays_out(binary: Path) -> None:
+    """Each was measured, and each is reached by nothing the app runs."""
+    internal = _internal(binary)
+
+    # The parser pack's copy is the one RapidOCR and Docling read.
+    assert list((internal / "rapidocr" / "models").glob("*.onnx")) == []
+    # onnxruntime's C API library; Python loads only the pybind module.
+    capi = internal / "onnxruntime" / "capi"
+    assert [
+        p.name
+        for p in capi.iterdir()
+        if p.name.startswith(("onnxruntime.dll", "libonnxruntime."))
+    ] == []
+    assert list(capi.glob("onnxruntime_pybind11_state*")) != []
+    if sys.platform == "win32":
+        assert list((internal / "cv2").glob("opencv_videoio_ffmpeg*")) == []
+    assert not (internal / "torch" / "test").exists()
+    # torch_shm_manager stays where torch has one: `import torch` needs it.
+    torch_bin = internal / "torch" / "bin"
+    if torch_bin.exists():
+        assert {p.name for p in torch_bin.iterdir()} <= {"torch_shm_manager"}
+    for package in ("faker", "polyfactory", "_pytest", "hf_xet"):
+        assert not (internal / package).exists(), package
+    # Only the model families Docling's layout engine loads.
+    families = {
+        p.name for p in (internal / "transformers" / "models").iterdir() if p.is_dir()
+    }
+    assert families <= {"auto", "rt_detr", "rt_detr_v2", "encoder_decoder"}, families
+    # torch ships as bytecode, but its config modules keep the source they read.
+    assert not (internal / "torch" / "nn" / "functional.py").exists()
+    assert (internal / "torch" / "_dynamo" / "config.py").exists()
+
+
+def test_docstrings_ship_where_something_reads_them(binary: Path) -> None:
+    """transformers builds model classes from docstrings; scipy's are dead weight."""
+    executable = binary.with_suffix(".exe") if sys.platform == "win32" else binary
+    pyz = CArchiveReader(str(executable)).open_embedded_archive("PYZ.pyz")
+
+    def ships_docstring(module: str) -> bool:
+        source = Path(importlib.util.find_spec(module).origin).read_text(
+            encoding="utf-8"
+        )
+        docstring = ast.get_docstring(ast.parse(source), clean=False)
+        assert docstring, f"{module} has no docstring to look for"
+        return docstring in pyz.extract(module).co_consts
+
+    assert ships_docstring("transformers.configuration_utils")
+    assert ships_docstring("modules.resource_usage.engines")
+    assert ships_docstring("docling.pipeline.standard_pdf_pipeline")
+    assert not ships_docstring("scipy.stats")
