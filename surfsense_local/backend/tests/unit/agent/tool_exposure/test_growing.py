@@ -87,13 +87,32 @@ async def test_a_plugin_is_held_whole_and_opencode_told_at_once() -> None:
     assert allowed == {"linear_create_issue", "gcal_list_events", "gcal_create_event"}
 
 
-async def test_after_a_call_its_plugins_other_tools_are_held() -> None:
-    """Once the agent is in the right plugin, the next tool is most often a sibling."""
+async def test_after_a_call_its_plugins_other_tools_are_held_and_no_other_plugin() -> (
+    None
+):
+    """Once the agent is in the right plugin, the next tool is most often a sibling.
+
+    Guessing another plugin from the call was right about one time in four, and
+    after every call of a one-app request it loaded one nothing needed.
+    """
     opencode, holding = _Opencode(), _holding({"linear_create_issue"})
 
-    added = await grow_after_call(opencode, holding, "linear", "create_issue", None)
+    added = await grow_after_call(opencode, holding, "linear")
 
-    assert "linear_add_comment" in added
+    assert added == {"linear_add_comment"}
+
+
+async def test_a_call_never_holds_another_plugin_however_it_ranks() -> None:
+    """The calendar ranks first for the request; the agent reaches it through the
+    catalogue or by asking, not by a guess after each call."""
+    opencode = _Opencode()
+    holding = _holding({"linear_create_issue", "linear_add_comment"})
+    holding.asked = Asked("plan the week's calendar events")
+
+    added = await grow_after_call(opencode, holding, "linear")
+
+    assert added == set()
+    assert opencode.written == []
 
 
 async def test_a_search_holds_the_plugin_of_its_best_tool() -> None:

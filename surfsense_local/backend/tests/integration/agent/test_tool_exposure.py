@@ -190,10 +190,11 @@ async def test_a_call_to_a_tool_not_held_loads_its_plugin_and_says_so(
     assert steps[0]["loaded_plugin"] == "Notes"
 
 
-async def test_a_plugin_call_holds_the_plugin_the_task_turns_to(
+async def test_a_plugin_call_never_holds_another_plugin(
     agent_api: AgentAPI, notes_url: str, weather_url: str, no_room: None
 ) -> None:
-    """Grown inside the gateway, before the call's result reaches the agent."""
+    """The request turns to the forecast, but Weather comes only through the
+    catalogue or by asking: a guess after each call was mostly wrong."""
     await notes_without_asking(agent_api, notes_url)
     added = await agent_api.http.post(
         "/plugins/custom", json={"url": weather_url, "name": "Weather"}
@@ -208,9 +209,4 @@ async def test_a_plugin_call_holds_the_plugin_the_task_turns_to(
     await send(agent_api, thread["id"], "Find my trip in @notes and check the forecast")
 
     assert offered(agent_api, 0) == ["notes_count", "notes_search", *ASKS]
-    assert offered(agent_api, 1) == [
-        "notes_count",
-        "notes_search",
-        *ASKS,
-        "weather_forecast",
-    ]
+    assert offered(agent_api, 1) == ["notes_count", "notes_search", *ASKS]

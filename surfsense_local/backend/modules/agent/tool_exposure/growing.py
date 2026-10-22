@@ -3,6 +3,10 @@
 Each change makes a local model read its prompt again from the first tool that
 changed, 9 to 57 s on a laptop, so a holding grows rarely and in batches: the
 plugin the agent asked for, the one it was using, or the one search found.
+
+A call never brings another plugin: guessed from the call, it was the one the request
+needed about one time in four, and after each call of a one-app request it loaded one
+nothing needed. The agent reaches another plugin through the catalogue or by asking.
 """
 
 from collections.abc import Sequence
@@ -23,19 +27,10 @@ async def hold_plugins(
 
 
 async def grow_after_call(
-    client: OpencodeClient,
-    holding: Holding,
-    plugin_id: str,
-    tool: str,
-    embed: Embed | None,
+    client: OpencodeClient, holding: Holding, plugin_id: str
 ) -> set[str]:
-    """After a plugin call: the rest of that plugin, and the plugin of the best tool not
-    held for what the turn asks and the call did."""
-    called = opencode_tool_name(plugin_id, tool)
-    text = next((t.text for t in holding.tools if _name(t) == called), tool)
-    query = f"{holding.asked.query}\n{text}"
-    found = await run_in_threadpool(_best_plugins, holding, query, embed)
-    return await hold_plugins(client, holding, [plugin_id, *found[:1]])
+    """After a plugin call: the rest of that plugin."""
+    return await hold_plugins(client, holding, [plugin_id])
 
 
 async def grow_by_search(
