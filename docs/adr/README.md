@@ -74,7 +74,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050, its Claude consequence by 0057 |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
-| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part superseded by 0054 |
+| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part superseded by 0054 and 0067 |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted, in part narrowed by 0057 |
@@ -94,3 +94,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
 | 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |
 | 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Accepted |
+| 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Accepted |

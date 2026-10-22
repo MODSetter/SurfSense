@@ -14,6 +14,18 @@ hook. The sections changed are the headline, "Who buys first", the paid side,
 plugin delivery, the frontier-cost notes, the phases, the risks and open
 questions 3, 5, 10 and 12. Everything else is as written on 3 Oct.
 
+**Revised 22 Oct 2026: the B2B jobs are paid plugins**
+([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Each runs on
+the user's machine and installs and runs only with an unexpired SurfSense
+license: Individual, Team, or the 30-day trial for its term. The app, the
+general agent, the engines and the shared job infrastructure stay free and
+Apache-2.0. That reverses this document's rule that every job and all its
+content stay free, and moves team features to later, once the jobs sell. The
+sections changed are the headline, the questionnaire beta and redline notes in
+"Who buys first", "What stays free and what is sold", the cost comparison, the
+pricing row, phases B3, B4, B4b and B7, the risks and open questions 1 to 5
+and 10.
+
 **Sources.** Repository facts were checked on `dev_mod` at `0847e12f7` on
 3 Oct 2026, and the revised sections on `dev` at `746c5fd66` on 21 Oct 2026. Market facts come from the design phase's research reports of the
 same date (E1 Gemini Notebook, E2 competing file agents, E4 small models, I8
@@ -24,7 +36,7 @@ measured on any model yet
 
 ## The headline
 
-1. **Sell the owned answer library, not the edit.** Agent, skills and Office
+1. **Sell the job on an owned answer library, not the edit.** Agent, skills and Office
    output are a Google feature on its paid plans, and since October so is
    editing the customer's file with tracked changes: Copilot for Legal in Word
    (7 Oct), Clio's Review Playbooks (1 Oct) and Claude for Word with Anthropic's
@@ -33,30 +45,41 @@ measured on any model yet
    owns and governs, filled into the requester's own file without breaking it,
    on the user's machine or with the model plan they already pay for. Parts of
    it exist elsewhere (Comp AI answers from policies; UpGuard fills sheets in
-   place), so the claim is the combination, never "nobody else". Editing stays the capability every job
-   writes through.
+   place), so the claim is the combination, never "nobody else". Editing stays the free capability every job
+   writes through; the job is what is sold (item 3).
 2. **The security questionnaire ships first, then RFPs from the same library;
    the contract redline waits.** This plan's own trigger has fired: "a measured
    questionnaire engine in less time than the redline's remaining work". The
    byte-preserving Excel revise engine shipped in 2.2.0, so the remaining
    questionnaire work is roughly 8 to 16 weeks of S and M items (an estimate), while the redline still needs the clean-room
    fix, M6 and a lawyer's review, and its single-document edge is now bundled
-   into Word. The redline becomes a free capability; contract work returns as
-   a multi-file register on the extraction stack.
-3. **The app, the agent and every job, with all its content, stay free and
-   open source.** Job skills, playbooks, questionnaire mappings, RFP templates
-   and eval cases are Apache-2.0 and ship in the app. The license sells premium
-   plugins, priority support and Enterprise controls. Premium plugins are
-   source-available under the Business Source License in
-   `surfsense_backend/app/proprietary/`, and the license server delivers them
-   only to a valid license. The paid side is thin today. October's research
-   proposes what to add, pending the maintainer's decision and written
-   commitments from design partners: a team and multi-client library plugin
-   delivered as a local bundle, and Enterprise assurance
+   into Word. Asking the agent to redline one's own file stays a free edit;
+   the playbook redline returns after the extraction stack as a paid job
+   plugin, and contract work also returns as a multi-file register on that
+   stack.
+3. **The app and the general agent stay free and open source; the B2B jobs
+   are paid plugins.** Revised 22 Oct 2026
+   ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the
+   security questionnaire, RFP, RFI and DDQ responses, the contract redline
+   against a playbook, bank statements into a ledger, medical chronologies,
+   contract and lease registers, and later B2B jobs each ship as a plugin that
+   runs on the user's machine and installs and runs only with an unexpired
+   SurfSense license, the 30-day trial included. The license server delivers it
+   only to a valid license, never in the installer or the public plugin list.
+   The plugin carries the job: its skill and agent, workflow, mappings,
+   playbooks and starter playbooks, templates, eval cases and gold corpora.
+   Q&A, Studio, the format skills, every engine, the study pack, the capability
+   jobs and the shared job infrastructure stay Apache-2.0 in the app, and the
+   user's libraries, playbooks and outputs open and export without a license.
+   The license also sells the scraper plugins, priority support and Enterprise
+   controls. No job plugin exists yet: each needs local paid bundles and the
+   job-pack loader first. Team features come later, once the jobs sell, and
+   Enterprise assurance sits on top
    ([08, how SurfSense earns](seo/08-b2b-artifact-jobs.md#how-surfsense-earns)).
 4. **No job page, README line or landing claim ships before an eval row backs
    it,** and no legal page before a lawyer has reviewed the starter playbooks.
-   The job × model matrix is the marketing asset no competitor can copy.
+   The job × model matrix is the marketing asset no competitor can copy. A
+   paid job's eval rows stay public, failures included (ADR 0067).
 5. **Frontier-first costs the user about $1–3 per job on Claude Sonnet 5.5**
    (estimated). That is cheap for a business and a wall for the free audience,
    so onboarding must show the cost before the first job and keep the local
@@ -138,10 +161,17 @@ the first buyer target.**
   The job fills the customer's own workbook from the company's policies and an
   approved answer library, with a source per answer and nothing unsupported,
   and it no longer waits on the clean-room fix: it runs on SurfSense's own Excel
-  engine. A free frontier-model beta lands about mid-January 2027 for a minimum
-  scope or mid-February for the full one, an estimate; the build order, the
-  free/paid line and the kill criteria are in
-  [08](seo/08-b2b-artifact-jobs.md#lead-the-security-and-due-diligence-questionnaire).
+  engine. A frontier-model beta, as a paid plugin with the 30-day trial
+  ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), lands
+  about mid-January 2027 for a minimum scope or mid-February for the full one,
+  an estimate that now also waits on local paid bundles and the job-pack
+  loader (08 item 11) and is re-dated once the harness lands. Which scope
+  ships is
+  [08's open question 3](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer);
+  the build order and the kill criteria are in
+  [08](seo/08-b2b-artifact-jobs.md#lead-the-security-and-due-diligence-questionnaire),
+  and the free/paid line in
+  [08, how SurfSense earns](seo/08-b2b-artifact-jobs.md#how-surfsense-earns).
 - **Then RFP and DDQ responses from the same library**, once the questionnaire
   passes its gate and a proposal manager joins as a design partner. Its output
   shape (06's open question) is the issuer's own response workbook first.
@@ -150,8 +180,10 @@ the first buyer target.**
   batch runner (about March 2027).
 - **Insurance is dropped.** Applied Epic Conductor (29 Sep) and Vertafore's
   agents (GA 16 Oct) put the job inside the agency systems.
-- **The redline becomes a free capability on the shipped revise tool**, and the
-  playbook job (M6) moves behind the extraction stack. When it ships, the
+- **A redline the user asks for on their own file stays a free edit on the
+  shipped revise tool**, and the playbook job (M6), a paid job plugin since
+  22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)),
+  moves behind the extraction stack. When it ships, the
   release rule that the [README](../../docs/proposals/file-agent/README.md),
   [02](../../docs/proposals/file-agent/02-skills-and-engines.md) and
   [06](../../docs/proposals/file-agent/06-product-shape.md) state still holds:
@@ -173,23 +205,40 @@ the first buyer target.**
 The public promise binds this. The pricing FAQ says "everything the app itself
 does stays free" and "The licence does not lock any of the app's own features"
 ([`pricing-content.ts`](../../surfsense_web/components/pricing/pricing-content.ts),
-lines 163 and 168), and [ADR 0019](../../docs/adr/0019-offline-licenses.md) says
-a license never disables the app.
+lines 150 and 155), and [ADR 0019](../../docs/adr/0019-offline-licenses.md) says
+a license never disables the app. A job plugin is a plugin, not one of the
+app's own features, so the promise holds. One FAQ line, "A paid licence is only
+needed for the scraper plugins and priority support", becomes untrue when the
+first job plugin ships; the pricing page, the README's plugin section and the
+Terms change in that release.
 
-| Free, on every model the capability allows | License (Individual, $60 first year then $120) | Enterprise (custom, invoiced) |
+Revised 22 Oct 2026
+([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the B2B jobs
+moved from the free column to the license column, as paid plugins. The line
+falls between an edit and a job: asking the general agent to change one's own
+file, a contract included, still gives a free revised copy with tracked
+changes; the playbook, the review against it and the issues list, and a
+questionnaire's mappings and answer matching, are the job.
+
+| Free, on every model the capability allows | License (Individual, $60 first year then $120; the jobs' price is open) | Enterprise (custom, invoiced) |
 |---|---|---|
 | Q&A, every Studio format, folders and linked folders | Premium plugins: the scraper plugin, when it ships | Organization policy that can only lower capabilities ([06](../../docs/proposals/file-agent/06-product-shape.md#organization-policy-enterprise)) |
 | The agent harness, format skills, engines, versions, revised copies, review state | Priority support | Local-only by default for new workspaces |
-| Every catalogue job with all its content, Apache-2.0 and in the app: job skills, workflows, playbooks, questionnaire mappings, RFP templates and eval cases; a user's own playbook made from their positions document; export and import of a workspace, a playbook or a library folder (M6) | | Later: audit log of the document scripts the agent ran, sandbox, license and plugin mirror |
-| Job packs installed through the plugin system (M10): an open-source way to extend the catalogue, never paywalled | | Named support |
+| The study pack and the capability jobs (conversion, comparison, transcription, redaction, organizing); the shared job infrastructure: catalogue and entry points, eval harness, row-by-row runner, provenance and its checks, per-row review, page citations, tie-out validator, the `library` and `playbook` folder roles and the answer library with import and export, assurance basics, the bundle runtime; export and import of a workspace, a playbook or a library folder (M6) | The B2B job plugins, each with its skill, agent, workflow, mappings, playbooks and starter playbooks, templates and eval cases; the 30-day trial covers them; Individual or a business license at a higher price is [08's open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer) | Later: audit log of the document scripts the agent ran, sandbox, license and plugin mirror |
+| The user's own files: libraries, playbooks they wrote, outputs and revised copies open and export without a license; when a license lapses only the job plugin stops | | Named support |
+| Job packs from other publishers, installed through the plugin system (M10): free, or charged on the publisher's own service, never through the SurfSense license | | |
 | Office support, the LibreOffice download, which is someone else's code ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md) decision 19) | | |
 
 The free side is this large because the promise is public, Claude for Excel
 and Copilot give format editing away, the student and 4B audience is the
 community engine rather than the buyer ([07](seo/07-what-users-do.md)), and
 gating local Apache-2.0 code invites a fork that removes the gate. So nothing
-in `surfsense_local/` is gated, job content included: the license's code is
-premium plugins, which never enter the open-source tree.
+in `surfsense_local/` is gated: the license's code is premium plugins, which
+never enter the open-source tree. Since 22 Oct 2026 job content is among them.
+A job plugin's content is written outside the Apache-2.0 tree from its first commit,
+in a folder with its own license file, and nothing a plugin sells is committed
+to `surfsense_local/`. A check in the app can be stripped by a fork, so what
+holds is delivery to a valid license plus the plugin's license terms.
 
 **Where premium plugins live.** `surfsense_backend` shrinks to two things:
 the license server ([`app/license/`](../../surfsense_backend/app/license/),
@@ -200,34 +249,50 @@ the Business Source License 1.1, which the root
 [`LICENSE`](../../LICENSE) already carves out of Apache-2.0. The license server
 delivers a premium plugin only to a valid license; the app downloads it after
 per-host consent and checks its sha256. The installer never carries premium
-plugin code. Job content is not premium: the engines, workflows, job skills,
-playbooks, mappings, templates and eval cases all stay Apache-2.0 in
-`surfsense_local/`. This reverses
+plugin code. This reverses
 [ADR 0025](../../docs/adr/0025-scraper-client-as-paid-plugin.md)'s premise that
 paid plugin code is Apache-2.0, and the
 [plugins proposal](../../docs/proposals/plugins/README.md)'s "every plugin is
 Apache-2.0", for paid plugins only; the file-agent README proposes ADR 0047 to
 record it.
 
-Copy should say it plainly: "The app, its engines and every job are open
-source. Premium plugins are source-available and come with a license, which
-also pays for support." Open work: a license-server route that serves a
-premium plugin against a valid license, its license check and its tests, and
-the app's download, consent and install path, all before the first premium
-plugin ships.
+Revised 22 Oct 2026
+([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): job content
+is paid. Each B2B job plugin carries its skill, agent, workflow, playbooks,
+mappings, templates and eval cases, while the engines and the shared job
+infrastructure stay Apache-2.0 in `surfsense_local/`. A job plugin touches
+customer files, so it runs on the user's machine as a local paid bundle, not on
+the plugin host (As built, below). Its license terms are open: the Business
+Source License in
+[`plugins/remote/proprietary/LICENSE`](../../plugins/remote/proprietary/LICENSE)
+grants production use to anyone who does not resell the work, which would let a
+business run a local job plugin without a license. The choice, a narrower
+Additional Use Grant or a closed license, is made with the lawyer
+([08, open question 1](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).
+
+Copy should say it plainly: "The app, the agent and its
+engines are open source. Business jobs and premium plugins come with a
+license, which also pays for support, and a 30-day trial covers them." Open
+work: a license-server route that serves a premium plugin against a valid
+license, its license check and its tests, the app's download, consent and
+install path, and the job-pack loader (02 phase 8, `provides.skills`), all
+before the first job plugin ships
+([08, item 11](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)).
 
 **As built (21 Oct 2026).** The plugins that shipped did not take that path.
 Eight scraper plugins shipped in 2.2.1 on 14 Oct and run as remote MCP servers
 on `plugins.surfsense.com`; the app connects to plugins over HTTP or SSE only
 ([`list_entry.py`](../../surfsense_local/backend/modules/plugins/lists/list_entry.py)).
 That suits plugins whose data is public. A paid feature that touches customer
-files, such as a team library or a connector to a document system, would send
-those files through SurfSense's server, so it needs the download-and-run path
-above built first. That path is the deferred
+files, such as a job plugin, a team library or a connector to a document
+system, would send those files through SurfSense's server, so it needs the
+download-and-run path above built first. That path is the deferred
 [bundles proposal](../../docs/proposals/plugins/bundles/README.md), whose
-runner, SDK and author CLI are partly built; the team library also needs in-app
-extension points
+runner, SDK and author CLI are partly built. Since every B2B job is now such a
+plugin, local paid bundles and the job-pack loader come before the
+questionnaire's beta, beside 08's items 1 to 5
 ([08, item 11](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)).
+Team features also need in-app extension points (08, item 12).
 
 **Gaps in the paid offer today.** On 3 Oct no plugin existed; the scrapers
 shipped on 14 Oct. The Enterprise card promises a mirror, central policy and an
@@ -235,20 +300,21 @@ egress audit log that are not built (I8 gap 2) and should mark them as planned.
 
 **What else could be sold: October's proposal.** The research in
 [08](seo/08-b2b-artifact-jobs.md#how-surfsense-earns) tested the candidates
-against what buyers in each job already pay for. None prices job content, and
-the order is pending the maintainer's decision (open question 3):
+against what buyers in each job already pay for. Revised 22 Oct 2026
+([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the job
+plugins come first, and these sit beside or after them (open question 3):
 
 1. **Public-data plugins inside the Individual licence,** on the existing host,
    starting with one capped experiment (SAM.gov opportunities and USAspending
    awards). Since 21 Oct 2026 the licence also carries one feature build request
    a year.
-2. **A team and multi-client library plugin** (BSL, local bundle), selling only
-   what a team needs: merging between installs, roles, approval by a second
-   person, a signed change log, and sealed per-client libraries for MSPs and
-   vCISOs. The single-user library, its owners, review dates and per-row review
-   stay free. Test prices of about $1,200 a year per team and $2,400 per MSP are
-   hypotheses, shown only to design partners until at least three commit in
-   writing.
+2. **Team features, later, once the jobs sell,** as a local bundle, selling
+   only what a team needs: a library shared across installs, roles, approval by
+   a second person, a signed change log, and sealed per-client libraries for
+   MSPs and vCISOs. The single-user library, its owners, review dates and
+   per-row review stay free. Test prices of about $1,200 a year per team and
+   $2,400 per MSP, set before the decision, are hypotheses, shown only to design
+   partners until at least three commit in writing.
 3. **Enterprise with assurance.** The basics are published free as proof (a
    no-script job profile, a per-workspace local-only lock, an SBOM, a data-flow
    statement; signed and notarized builds already ship). Enterprise adds a
@@ -320,7 +386,10 @@ What follows from the table:
   sizes and stops Fable on a redline. That is the right default; the cap is a
   setting.
 - **Against the incumbents** a year of 50 questionnaires on Sonnet is about
-  $115 in API spend (estimated) plus a $120 license, against Loopio's average of
+  $115 in API spend (estimated) plus the license the job plugin needs ($120 at
+  today's Individual renewal; the jobs' price is
+  [08's open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)),
+  against Loopio's average of
   about $24K a year for small teams or Vanta's questionnaire module at $3–8K.
   The comparison once used Conveyor's $9,600, which its pricing page no longer
   shows. It is safe to publish only once the questionnaire job has a measured
@@ -383,7 +452,7 @@ Two rules make the wording hold:
 | [Privacy page](../../surfsense_web/app/\(home\)/privacy/page.tsx) | its description says "your documents never leave your machine"; section 3.2 lists three kinds of destination: update checks to github.com, model downloads to registry.ollama.ai and huggingface.co, and a model provider the user configures | M0: the qualifier. Then each milestone that adds a destination names it: api.anthropic.com in M4, including `count_tokens` calls, which send the text being counted ([05](../../docs/proposals/file-agent/05-model-ladder-and-evals.md#1-the-native-anthropic-provider-chat-titles-studio)); release-assets.githubusercontent.com for packs in M8 ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md) decisions 9 and 18) | the release that adds the destination |
 | [User docs](../../surfsense_web/content/docs/v2/index.mdx) | one placeholder page: "Its documentation is being written now" | one how-to page per new feature in `content/docs/v2` at each milestone's exit: folders (M2); versions and Refine (M3); the Claude key and spending caps (M4); Answer and Work on files (M5); revised copies and playbooks (M6); the questionnaire (M7); linking a folder and Office support (M8); a troubleshooting page that grows with each | each milestone's release |
 | [Changelog](../../surfsense_web/changelog/content/) and [announcements](../../surfsense_web/lib/announcements/announcements-data.ts) | the newest changelog entry is dated 16 Aug 2026; v2.0.0 was tagged on 18 Sep 2026 | a changelog entry and an announcement for every milestone release, starting with M0's 2.1.x point release | each release |
-| [Pricing](../../surfsense_web/components/pricing/pricing-content.ts) | Individual sells scraper plugins; "No plugin ships in version 2.0" | correct the version; mark unbuilt Enterprise items as planned; keep the license to premium plugins, priority support and Enterprise, and price no job or job content | now (M0) |
+| [Pricing](../../surfsense_web/components/pricing/pricing-content.ts) | Individual sells scraper plugins; "No plugin ships in version 2.0" | correct the version; mark unbuilt Enterprise items as planned; keep the license to premium plugins, priority support and Enterprise. Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the job plugins join the license, and the FAQ line "A paid licence is only needed for the scraper plugins and priority support" changes, with the README's plugin section and the Terms | now (M0); the job-plugin changes in the release that ships the first job plugin |
 | Job pages (new) | none | one page per named questionnaire first (HECVAT 4, CAIQ v4, SIG Lite read from the user's licensed copy) and a guide to answering a questionnaire in your own spreadsheet from your own policies; then "Answer an RFP from past proposals"; legal pages last. No HECVAT, CAIQ or SIG question text until CSA and EDUCAUSE confirm terms (08, [pages and reach](seo/08-b2b-artifact-jobs.md#pages-and-reach)) | a committed passing row on at least one model; for any legal page, also the lawyer's review of the starter playbooks |
 | Cowork alternative page (new) | none | a factual comparison with Claude Cowork after its 6 Oct move to the cloud, describing shipped features only: `claude cowork alternative` is about 1,005 searches a month in clickstream at $25.58, and SurfSense is absent from the results | none: it claims no job |
 | Model page (new) | none | "Which model can do which job", generated from the matrix | the first committed sweep (05 P3a, M4) |
@@ -425,10 +494,10 @@ says which release carries each.
 | B0 | Honest copy now | the privacy qualifier on every surface and on the privacy page; landing lines matched to what has shipped; pricing version fix; Enterprise items marked planned; a changelog entry and announcement for the 2.1.x point release | M0 | nothing | S |
 | B1 | Clean engines | the clean-room fix and no-regression gate (02 phase 0), with the provenance legal review (0L) in parallel; the baseline re-run at n=3 on Haiku 4.5 and on Sonnet 5.5 at low effort before 15 Oct 2026, the earliest date Haiku 4.5 may retire | M1 | a spec author and a separate implementer | L |
 | B2 | Frontier evidence | native Anthropic provider, spend ledger and caps, first paid sweep (05 P1, P2, P3a); the privacy page names api.anthropic.com; how-to pages for the Claude key and spending caps | M4 | B1 | M, about $150 |
-| B4 | Questionnaire (first, revised 21 Oct) | the job-gate harness and a synthetic corpus; workbook inspection and validation, `.xlsm` uploads and an `add_sheet` operation; per-answer source and confidence; the answer library with import; then per-row review, assurance basics and the row-by-row runner (08, [items 1–8](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)). Free, with mappings and eval cases Apache-2.0 in the app | beta about mid-Jan 2027 (minimum) or mid-Feb (full), estimates | the harness only; not B1, not the redline workflow | roughly 8–16 weeks |
-| B4b | Team library plugin | local premium bundles with in-app extension points, then the team and multi-client library plugin (BSL) | after the pay gate, about six weeks after the beta | three written design-partner commitments at the test price | L + M–L |
-| B7 | RFP, then the extraction stack | RFP and DDQ responses from the same library; then page citations, table-preserving PDF reading, a tie-out validator and batch, carrying bank statements, medical chronologies, and contract and lease registers (08). Insurance is dropped | RFP after B4 passes its gate; extraction about March 2027 | B4 | L each |
-| B3 | Redline in the app (moved behind B7) | 02 phases 1, 1b, 3, 4 and 6; 03 phase 4; 06 J3; revised copies download without internal comments by default; the user's own playbook and "Make a playbook from this document"; workspace and playbook export; free, with the starter playbook labelled. A user-directed redline already ships on the revise tool | after the extraction stack | B1, B2; versions (M3); per-thread folders and `copy_original` (M5) | L |
+| B4 | Questionnaire (first, revised 21 Oct) | the job-gate harness and a synthetic corpus; workbook inspection and validation, `.xlsm` uploads and an `add_sheet` operation; per-answer source and confidence; the answer library with import; then per-row review, assurance basics and the row-by-row runner (08, [items 1–8](seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs)). Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): it ships as a paid job plugin, so local paid bundles and the job-pack loader (08 item 11) run beside items 1–5; its mappings, eval cases and corpus sit in the plugin, outside the Apache-2.0 tree, and the shared builds stay free in the app | beta about mid-Jan 2027 (minimum) or mid-Feb (full), estimates, both now also waiting on 08 item 11; re-dated once the harness lands | the harness and 08 item 11; not B1, not the redline workflow | roughly 8–16 weeks, plus item 11 (M–L + M) in parallel |
+| B4b | Team features (later) | revised 22 Oct 2026: a library shared across installs, roles, second-person approval, a signed change log and sealed per-client libraries, on in-app extension points (08 item 12); local paid bundles moved to B4 | later, once the jobs sell | the job plugins selling; a writable shared-library location, an exception to [01's decision 9](../../docs/proposals/file-agent/01-sources-and-folders.md#decisions) that stays a proposal until then | M–L + L |
+| B7 | RFP, then the extraction stack | RFP and DDQ responses from the same library; then page citations, table-preserving PDF reading, a tie-out validator and batch, carrying bank statements, medical chronologies, and contract and lease registers (08). Each job ships as a paid plugin; page citations, the tie-out validator and batch stay free in the app ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Insurance is dropped | RFP after B4 passes its gate; extraction about March 2027 | B4 | L each |
+| B3 | Redline job (moved behind B7) | 02 phases 1, 1b, 3, 4 and 6; 03 phase 4; 06 J3; revised copies download without internal comments by default; the user's own playbook and "Make a playbook from this document"; workspace and playbook export. Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the playbook review ships as a paid job plugin carrying `crlib`, `review.py`, `playbook.py` and the starter playbooks, labelled; the engines and the export stay free in the app. A user-directed redline already ships free on the revise tool | after the extraction stack | B1, B2; versions (M3); per-thread folders and `copy_original` (M5); local paid bundles and the job-pack loader (08 item 11) | L |
 | B5 | Pages | the Cowork alternative page now; model page; questionnaire pages; RFP page; legal pages after the lawyer's review of the starter playbooks | from now (Cowork page), M4 (model page) and the questionnaire beta | committed rows from B2–B4 | M |
 | B6 | Enterprise | organization policy (06 E1), an org-wide local-only policy, a local audit-log export and a third-party code audit; mirror when a customer's deployment needs it | M10, or earlier on an Enterprise conversation | an Enterprise conversation | M |
 
@@ -437,18 +506,18 @@ says which release carries each.
 | Risk | Signal | What changes |
 |---|---|---|
 | Anthropic, Microsoft or Google ship a local agent | a local option returns to Cowork or Copilot | lead with model choice, open source and per-job evidence; local alone stops being the wedge |
-| Tracked-change redlining becomes free in Word | **fired in October**: Copilot for Legal in Word (7 Oct), Clio Review Playbooks (1 Oct), Claude for Legal | applied: the questionnaire ships first and the redline becomes a free capability |
+| Tracked-change redlining becomes free in Word | **fired in October**: Copilot for Legal in Word (7 Oct), Clio Review Playbooks (1 Oct), Claude for Legal | applied: the questionnaire ships first; a user-directed redline stays a free edit, and the playbook redline waits behind the extraction stack as a paid job plugin |
 | A suite vendor ships a questionnaire skill with a persistent library | Microsoft, Anthropic or Google fill questionnaires in place and keep the library; or Vanta gives questionnaire automation away | the questionnaire drops to second wave; lead with model choice, the owned library and local processing (08 kill criteria) |
 | Licensed question text | CSA, EDUCAUSE or Shared Assessments object to mappings or samples | no question text ships until terms are confirmed in writing; mappings read the user's own copy; eval samples are synthetic |
 | The clean-room gate fails or the legal review flags `docxkit` or `crlib` | gate results in `document_skills/gate/`; lawyer's opinion | the flagged code joins the rewrite list; M1 and with it B3 slip; nothing ships before it passes |
 | The privacy story contradicts the Claude default | a buyer or reviewer quotes "never leaves your laptop" against a Claude run | B0's qualifier; local-only workspaces; the privacy page names each destination as it arrives |
 | Liability for a legal output | a user ships an unreviewed redline | review state on job outputs (06 decision 10), with a reviewer name the user enters and the app calls self-attested; the starter-playbook label on the job card, the issues list and the exported issues file; legal pages wait for the lawyer's review |
 | Prompt injection from a counterparty's file | an exfiltration like the one PromptArmor showed on Cowork ([write-up](https://www.promptarmor.com/resources/claude-cowork-exfiltrates-files)) | engines cannot write untracked or send anything (02 decisions 7, section 10); job threads deny bash; ship 02 phase 6's injection fixtures and egress test before marketing the questionnaire to security buyers. Phase 6 sits in M6 today, so either it moves forward with the questionnaire or that marketing waits: a scheduling decision for the maintainer |
-| A competitor copies the open job content | SurfSense's playbooks, mappings or templates ship in another product | Apache-2.0 allows it; the lead rests on the app, the engines and the published eval rows; premium plugins stay under the Business Source License |
+| A competitor copies a job plugin's content, or a fork strips its license check | SurfSense's playbooks, mappings or templates ship in another product; a job plugin runs without a license | Revised 22 Oct 2026 ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): job content is no longer Apache-2.0; it sits outside the open tree and the license server delivers it and its updates only to a valid license. Its license terms, still open ([08, open question 1](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)), set what a copier may do. The engines and shared job infrastructure stay Apache-2.0, and the lead still rests on the app, the engines and the published eval rows |
 | Frontier cost deters users | measured token medians well above these estimates | default to the workflow level where it passes; cheaper columns earn rows |
 | The 4B tier fails its own floors | 4B rows below 05 section 7 targets | the free promise narrows to Q&A and the formats that pass; the wording above already allows it |
 | macOS cannot ship | notarization stops when Apple's developer agreement lapses, as on 3 Oct 2026 until the account holder accepted it; the v2.1.0 and v2.2.0 builds were notarized, 2.2.0's carrying opencode ([04](../../docs/proposals/file-agent/04-runtime-and-packs.md#signing-and-notarization)) | the account holder accepts it, which needs no code; Windows and Linux ship meanwhile |
-| License holders get nothing | scraper license mode not live when hosted tokens are purged on 18 Oct 2026 (I8 gap 1) | priority support is the license's deliverable until the scraper plugin ships through the license server, so consider extending affected licenses; what else a license includes is revisited after the video and real user feedback (What stays free and what is sold) |
+| License holders get nothing | scraper license mode not live when hosted tokens are purged on 18 Oct 2026 (I8 gap 1) | priority support is the license's deliverable until the scraper plugin ships through the license server, so consider extending affected licenses. Revised 22 Oct 2026: what a license adds next is the B2B job plugins ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), with their price open ([08, open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)) |
 
 **What would change the order of jobs:** a measured questionnaire engine in
 less time than the redline's remaining work, or a lawyer's review that cannot
@@ -458,33 +527,48 @@ would change it again is in [08's kill criteria](seo/08-b2b-artifact-jobs.md#kil
 
 ## Open business questions
 
-Each with a recommended answer.
+Each with a recommended answer, except where a question now points to 08.
 
 1. **Does the free promise cover the agent?** Yes. Decide it in the open now,
    because the FAQ is live, 06 already assumes it, and the agent has been in
-   installers since 2.2.0 (9 Oct 2026).
+   installers since 2.2.0 (9 Oct 2026). Revised 22 Oct 2026
+   ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the
+   general agent stays free, including a revised copy of the user's own file,
+   a contract included; the B2B jobs are paid plugins on top of it.
 2. **Where do premium plugins live?** Decided: under the Business Source
    License in `surfsense_backend/app/proprietary/`, served by the license
    server to a valid license, with `surfsense_backend` otherwise reduced to the
-   license server. Job content is not premium: it is Apache-2.0 and ships in
-   the app. Still open: whether a plugin the server has delivered keeps working
-   after the license expires. Recommended: yes for the installed version, with
-   updates stopping, matching ADR 0019's rule that a license never disables the
-   app.
+   license server. Revised 22 Oct 2026
+   ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): job
+   content is premium. Each B2B job plugin is written outside the Apache-2.0
+   tree, runs on the user's machine and reaches only a valid license; its
+   license terms are open
+   ([08, open question 1](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).
+   That also settles expiry for job plugins: a job plugin runs only with an
+   unexpired license and stops when it lapses, while the app and the user's
+   files keep working, which keeps ADR 0019's rule that a license never
+   disables the app.
 3. **What does a license sell beyond premium plugins, support and
-   Enterprise?** Proposed on 21 Oct 2026, for the maintainer to decide: public
-   data plugins inside the Individual licence; a team and multi-client library
-   plugin as a local bundle, built only after three written commitments; and
-   Enterprise with assurance (What stays free and what is sold). Bundled model
-   access stays rejected. Job content stays free and Apache-2.0 whichever is
-   chosen.
-4. **Is $120 a year the right Individual price for a business tool?** Keep it
-   until the paid side is revisited after the video. It is far below every
-   vertical tool; raise it on evidence, never by gating free features.
-5. **Which job first?** Revised 21 Oct 2026: the questionnaire ships first, free,
+   Enterprise?** Revised 22 Oct 2026: the B2B job plugins
+   ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). Beside
+   them, as proposed on 21 Oct: public data plugins inside the Individual
+   licence and Enterprise with assurance; team features come later, once the
+   jobs sell (What stays free and what is sold). Bundled model access stays
+   rejected. The jobs' license terms and price are 08's open questions 1 and 2.
+4. **Is $120 a year the right Individual price for a business tool?** Revised
+   22 Oct 2026: it is now a question about the job plugins and is
+   [08's open question 2](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer),
+   with no recommendation here. Either the Individual license ($60 the first
+   year, then $120) unlocks the job plugins, or business jobs need a business
+   license at a higher price. Self-serve questionnaire tools charge $50 to $249
+   a month. Whichever is chosen, a price rises on evidence, never by gating
+   free features.
+5. **Which job first?** Revised 21 Oct 2026: the questionnaire ships first,
    as a beta about mid-January or mid-February 2027; then RFPs from the same
    library; then the extraction stack; the redline playbook job comes after
-   (above).
+   (above). Since 22 Oct 2026 each ships as a paid job plugin with the 30-day
+   trial, and both beta dates also wait on local paid bundles and the job-pack
+   loader ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
 6. **Does the lawyer review gate the redline's release or only its marketing?**
    Only its marketing. The redline job is offered on a model once that model's
    eval row passes the job gate; no capability verdict is used to hold it.
@@ -519,16 +603,19 @@ Each with a recommended answer.
    release that changes profiles, and a $300 monthly cap outside sweeps, as the
    README recommends; community-submitted local rows (05 section 9) cover
    hardware the project lacks.
-10. **Is a Team tier needed?** Probably, for the questionnaire buyer, and the
-    trigger changes: instead of three Enterprise conversations, three design
-    partners committing in writing at the test price after the questionnaire
-    beta. Colleagues keep sharing through files for free: a playbook, a library
+10. **Is a Team tier needed?** Revised 22 Oct 2026
+    ([ADR 0067](../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): team
+    features come later, once the jobs sell
+    ([08's open question 4](seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).
+    Colleagues keep sharing through files for free: a playbook, a library
     folder or a whole workspace exports to a file another install imports (M6).
-    The paid Team plugin sells only what files cannot do: merging between
-    installs, roles, second-person approval, a signed change log, and sealed
-    per-client libraries. `pricing-content.ts` keeps Team and Enterprise as one
-    quoted tier until the build gate passes; test prices go to design partners
-    and a pre-order page only.
+    Team features would sell only what files cannot do: a library shared
+    across installs, roles, second-person approval, a signed change log, and
+    sealed per-client libraries. The shared library needs a writable location,
+    an exception to 01's decision 9 that stays a proposal until then.
+    `pricing-content.ts` keeps Team and Enterprise as one quoted tier until
+    team features ship; test prices go to design partners and a pre-order page
+    only.
 11. **Should job pages deep-link into the app?** Not in v1: link to downloads
     and the job's setup instructions. A `surfsense://` handler is new attack
     surface ([06, open questions](../../docs/proposals/file-agent/06-product-shape.md#open-questions)).
