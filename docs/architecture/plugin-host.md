@@ -157,7 +157,7 @@ A paid plugin sets `access = shared_access()` ([`license_access.py`](../../plugi
 
 ## Usage meter
 
-The host counts each plugin's tool calls per license, so SurfSense can bill, set limits and see which plugins and tools earn their keep ([`usage_meter/`](../../plugins/remote/host/usage_meter/)). [ADR 0016](../adr/0016-no-telemetry.md) keeps such counts on the server, never in the app, and the app sends nothing new for them.
+The host counts each plugin's tool calls per license ([`usage_meter/`](../../plugins/remote/host/usage_meter/)), so SurfSense can detect abuse, plan fair-use limits and see which plugins and tools to improve, the purposes section 4.4 of the website's [privacy policy](../../surfsense_web/app/(home)/privacy/page.tsx) names. The license is a flat price, so nothing is billed from these counts. [ADR 0016](../adr/0016-no-telemetry.md) keeps such counts on the server, never in the app, and the app sends nothing new for them.
 
 - **What is counted.** Only JSON-RPC `tools/call` requests to `/<id>/mcp`, per UTC day, license, plugin, tool and outcome, each with a call count and the calls' total milliseconds. `initialize`, `tools/list`, `GET /license`, `/cancel` and `/health` are not counted.
 
