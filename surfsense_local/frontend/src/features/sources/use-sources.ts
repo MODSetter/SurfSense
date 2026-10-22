@@ -299,6 +299,16 @@ export function useSources(workspaceId: number) {
       { description: messageFrom(cause) }
     )
 
+  // Sources another feature made, such as links added from the web.
+  const addCreated = useStableCallback((created: WorkspaceDocument[]) =>
+    setDocuments((current) => [
+      ...created,
+      ...current.filter((document) =>
+        created.every((made) => made.id !== document.id)
+      ),
+    ])
+  )
+
   const writeNote = useStableCallback(
     async (title: string, content: string) => {
       try {
@@ -685,6 +695,7 @@ export function useSources(workspaceId: number) {
     cancel,
     rename,
     writeNote,
+    addCreated,
     editNote,
     loadNote,
     deleteOne,
