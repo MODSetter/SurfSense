@@ -8,7 +8,7 @@ A daily job saves what GitHub counts about the desktop app's releases: every ass
 
 At 06:00 UTC every day, and on demand, the workflow runs `python -m release_stats snapshot`, standard library only, with `contents: read`:
 
-1. It lists every release, page by page, following GitHub's next-page links only while they stay on `https://api.github.com`, since the token goes with every request; a link elsewhere stops the job with an error. It records each published release's assets: tag, asset name, kind, cumulative `download_count`, publish time. Drafts are left out.
+1. It lists every release, page by page, following GitHub's next-page links and redirects only while they stay on `https://api.github.com`, since the token goes with every request and urllib would copy it onto a redirect; a link or redirect elsewhere stops the job with an error before anything is sent there. It records each published release's assets: tag, asset name, kind, cumulative `download_count`, publish time. Drafts are left out.
 2. It reads views, clones, popular referrers and popular paths. Those endpoints need push access, which `GITHUB_TOKEN` never has, so they read through the `RELEASE_STATS_TOKEN` secret when it is set: a fine-grained token on this repository with Administration read. Without it the snapshot records why traffic is missing and keeps the asset counts.
 3. The JSON is kept as a workflow artifact, `release-stats-<date>.json`, for 90 days.
 4. When the `POSTHOG_PROJECT_API_KEY` secret is set, `python -m release_stats send` posts it to PostHog (`POSTHOG_HOST` repository variable, `https://us.i.posthog.com` by default) as personless events: one `github_release_asset_snapshot` per asset (`tag`, `asset`, `kind`, `download_count`, `published_at`) one `github_traffic_snapshot` with the 14-day totals and the referrers and paths, and one `github_traffic_day` (`day`, `views`, `view_uniques`, `clones`, `clone_uniques`) for each of the 13 whole days before the run. The 14-day totals overlap from one run to the next, so never sum them; sum the `github_traffic_day` figures instead.
@@ -37,7 +37,7 @@ The classification and its reasons live in `release_stats/asset_kinds.py`.
 
 ## Tests
 
-`scripts/release_stats/tests/` covers the classification of every asset name the releases have carried, paging through releases, refusing a next-page link off the API's origin, skipping traffic on a refused token, the events' shape and batching, and each day's event keeping one identity across reruns, with GitHub and PostHog faked at `urlopen`. They need only pytest: `python -m pytest` from `scripts/release_stats`.
+`scripts/release_stats/tests/` covers the classification of every asset name the releases have carried, paging through releases, refusing a next-page link or a redirect off the API's origin, skipping traffic on a refused token, the events' shape and batching, and each day's event keeping one identity across reruns, with GitHub and PostHog faked at `urlopen`; urllib follows redirects itself, so those tests run against a server on 127.0.0.1. They need only pytest: `python -m pytest` from `scripts/release_stats`.
 
 ## Known gaps
 

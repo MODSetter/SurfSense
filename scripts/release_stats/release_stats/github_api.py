@@ -25,7 +25,7 @@ class GitHubAccessDeniedError(RuntimeError):
 
 
 class GitHubOriginError(RuntimeError):
-    """A URL, such as a next-page link, is off the API's origin, so it is not read."""
+    """A next-page link or redirect is off the API's origin, so it is not read."""
 
 
 class GitHubApi:
@@ -33,12 +33,14 @@ class GitHubApi:
         self,
         token: str | None,
         *,
-        opener: Opener = urllib.request.urlopen,
+        opener: Opener | None = None,
         root: str = API_ROOT,
     ) -> None:
         self._token = token
-        self._opener = opener
         self._root = root.rstrip("/")
+        self._opener = (
+            opener or urllib.request.build_opener(_SameOriginRedirects(self._root)).open
+        )
 
     def get(self, path: str) -> Any:
         body, _ = self._fetch(self._url(path))
@@ -74,6 +76,25 @@ class GitHubApi:
             if error.code in (401, 403, 404):
                 raise GitHubAccessDeniedError(f"{error.code} for {url}") from error
             raise
+
+
+class _SameOriginRedirects(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect only on the API's origin.
+
+    urllib copies every header onto the redirected request, the token included.
+    """
+
+    def __init__(self, root: str) -> None:
+        self._root = root
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if _origin(newurl) != _origin(self._root):
+            fp.close()
+            raise GitHubOriginError(
+                f"{req.full_url} redirects to {newurl}, off {self._root}; "
+                "not following it"
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def next_page_url(link_header: str | None) -> str | None:

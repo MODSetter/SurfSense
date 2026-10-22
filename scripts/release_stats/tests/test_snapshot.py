@@ -7,7 +7,7 @@ import pytest
 
 from release_stats.github_api import GitHubApi, GitHubOriginError, next_page_url
 from release_stats.snapshot import take_snapshot
-from tests.fake_http import FakeOpener
+from tests.fake_http import FakeOpener, LocalServer
 
 API = "https://api.github.com"
 REPO = "acme/app"
@@ -154,3 +154,27 @@ def test_a_next_link_off_the_api_origin_stops_paging_before_the_token_leaves(
     with pytest.raises(GitHubOriginError, match=re.escape(API)):
         next(pages)
     assert [request.full_url for request in opener.requests] == [RELEASES]
+
+
+def test_a_redirect_off_the_api_origin_is_not_followed_with_the_token():
+    # urllib copies every header onto a redirect, the Authorization one too.
+    with LocalServer() as api, LocalServer() as elsewhere:
+        api.redirects["/repos/acme/app/releases"] = f"{elsewhere.url}/collect"
+
+        with pytest.raises(GitHubOriginError, match=re.escape(api.url)):
+            list(GitHubApi("secret", root=api.url).pages("repos/acme/app/releases"))
+
+        assert elsewhere.seen == []
+
+
+def test_a_redirect_on_the_api_origin_is_followed_with_the_token():
+    with LocalServer() as api:
+        api.redirects["/repos/acme/app/releases"] = f"{api.url}/repositories/1/releases"
+
+        pages = list(GitHubApi("secret", root=api.url).pages("repos/acme/app/releases"))
+
+        assert pages == [[]]
+        assert api.seen == [
+            ("/repos/acme/app/releases", "Bearer secret"),
+            ("/repositories/1/releases", "Bearer secret"),
+        ]
