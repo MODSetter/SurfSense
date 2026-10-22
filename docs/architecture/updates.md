@@ -14,7 +14,7 @@ Updates are a call the app makes on its own, so they are off until the user turn
 
 - A new install asks in onboarding's Privacy choices step, beside usage statistics, with neither answer chosen for the user ([usage statistics](usage-statistics.md#consent)). An install that finished onboarding earlier keeps the setting it had.
 - The preference is `updates.json` in Electron's user data: `automatic`, false by default; `lastCheckedAt`, which Settings › Network shows as the App updates row's last call; and `lastAutomaticDay`, the UTC day of the last automatic check.
-- The automatic check runs at most once a UTC day: at launch, and from an hourly tick once the day turns while the app stays open. The day is marked before the check, so a failed check waits for the next day. A day's automatic checks therefore count the installs open that day, with nothing on the wire to tell them apart.
+- The automatic check runs at most once a UTC day: at launch, and from an hourly tick once the day turns while the app stays open. The day is marked before the check, so a failed check waits for the next day. A day's automatic checks therefore count the installs open that day, with no identifier on the wire.
 - Check now in Settings › About, the sidebar's update row and Check for Updates… in the macOS app menu share one check (`useCheckForUpdates`), which asks first while `automatic` is off, naming the host it asks. The menu shows only that prompt; the sidebar and Settings show the progress. Allow turns `automatic` on, which also enables the daily check.
 - An admin policy file with `"updates": "off"` turns both off and locks the setting; Check now is disabled and says why. `"updateFeed"` names an `https` mirror instead of `updates.surfsense.com`, with no GitHub fallback ([usage statistics](usage-statistics.md#policy) says where the file lives).
 - `autoDownload` is false. The download starts from the `update-available` event, so it only ever follows a check the user enabled or clicked.
@@ -22,21 +22,22 @@ Updates are a call the app makes on its own, so they are off until the user turn
 
 ## What a check sends
 
-A custom electron-updater provider asks `https://updates.surfsense.com/api/updates/<channel file>`, where the file is `stable.yml`, `stable-mac.yml`, `stable-linux.yml` or `stable-linux-arm64.yml`. That one request carries the IP address and three headers, and no ID:
+A custom electron-updater provider asks `https://updates.surfsense.com/api/updates/<channel file>`, where the file is `stable.yml`, `stable-mac.yml`, `stable-linux.yml` or `stable-linux-arm64.yml`. That one request carries the IP address and four headers, and no ID:
 
 | Header | Example |
 |---|---|
+| `User-Agent` | `SurfSense`, which the outbound session sets on every request, with no version |
 | `X-SurfSense-Version` | `2.2.4` |
 | `X-SurfSense-Platform` | `win32-x64`, `darwin-arm64`, `linux-x64` |
 | `X-SurfSense-OS` | `windows-11`, `macos-15`, `linux` |
 
-It goes through an in-memory session with no cache and no cookies, and refuses a redirect, so the headers never reach another host. The route there serves GitHub's own manifest for the latest release, with each file rewritten to its GitHub release URL, and records one personless event with the country its host derives from the IP address; it never stores the address ([contract 5](../contracts/05-desktop-telemetry.md), part A).
+It goes through an in-memory session with no cache and no cookies, and refuses a redirect, so the headers never reach another host. The route there serves GitHub's own manifest for the latest release, with each file rewritten to its GitHub release URL, and records one personless event with the country its host derives from the IP address; it never stores the address, though the hosting provider's request logs keep it for a short time ([contract 5](../contracts/05-desktop-telemetry.md), part A).
 
-On any failure of that host within 10 s, a status other than 200, or a manifest whose files do not point at the GitHub release, the provider asks `github.com/MODSetter/SurfSense/releases/latest/download/<channel file>` directly, sending only the IP address. Only when GitHub fails too does the check fail, so `updates.surfsense.com` can never hold an update back. With a policy mirror, the mirror is the only host asked.
+On any failure of that host within 10 s, a status other than 200, or a manifest whose files do not point at the GitHub release, the provider asks `github.com/MODSetter/SurfSense/releases/latest/download/<channel file>` directly, sending only the IP address and `User-Agent: SurfSense`. Only when GitHub fails too does the check fail, so `updates.surfsense.com` can never hold an update back. With a policy mirror, the mirror is the only host asked.
 
 The installer then downloads from the GitHub release, or from the mirror, with no SurfSense header. GitHub redirects release files, the fallback's manifest included, to its download host on `githubusercontent.com`, which also sees the IP address. electron-updater keeps a random install ID in `userData/.updaterId` for staged rollouts and hands every provider an `x-user-staging-id` header; this provider ignores it, and `requestHeaders` is empty, so the ID leaves on no request. `stagingPercentage` still reads the local file. Versions up to 2.2.3 sent the ID.
 
-Settings › About's "Show exactly what's sent" shows the last request to the feed with its URL and headers, kept in memory since launch, or, before the first check, the only headers a check sends.
+Settings › About's "Show exactly what's sent" shows the last request to the feed with its URL and headers, the user agent included, kept in memory since launch, or, before the first check, the only headers a check sends. Without the privacy bridge, an Electron main from before this provider, the update prompt and Settings describe GitHub's releases instead of naming `updates.surfsense.com`.
 
 This is not an `egress.require()` destination, because electron-updater runs in the Electron main process where the backend's check cannot see it ([egress](egress.md)). Differential downloads are off, because GitHub's CDN rejects the multi-range requests they need. A development build shows the same controls and never checks.
 

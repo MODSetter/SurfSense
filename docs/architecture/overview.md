@@ -80,9 +80,10 @@ The rules that keep the processes out of each other's way:
 ~/.surfsense/                 ~/.surfsense-dev under `pnpm dev`
 ├── surfsense.db              every table and the search index
 ├── huey.db                   the ingest and studio queues
+├── usage-counts.json         hourly counts for usage statistics, pruned after 40 days, no content
 ├── models/                   GGUF weights and llama-server's models.ini
 ├── images/                   sd-server weights (hosts with sd-server staged)
-├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
+├── electron/                 Electron's userData: secret.bin, updates.json, privacy.json, window and theme prefs
 ├── agent/                    opencode.json, which the API writes, and opencode's own home (hosts with opencode staged)
 └── data/workspaces/<id>/
     ├── documents/<id>/       the upload, under its own name

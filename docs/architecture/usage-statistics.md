@@ -22,18 +22,20 @@ An opt-in report that tells SurfSense this install was used, and once a week how
 
 One JSON body, schema 1, at most once per UTC day ([contract 5](../contracts/05-desktop-telemetry.md), part B):
 
-- Always: the schema number, the app's version, its platform (`win32-x64` and the like), its OS (`windows-11`, `macos-15`, `linux`), the interface language (`en`, `ja`, `de` or `other`), the ISO week the app first ran, and three flags: the install's first report ever, its first this ISO week, its first this UTC month. A day's reports therefore count the installs active that day, and the flags count weekly and monthly actives and new installs, with nothing to join reports by.
+- Always: the schema number, the app's version, its platform (`win32-x64` and the like), its OS (`windows-11`, `macos-15`, `linux`), the interface language (`en`, `ja`, `de` or `other`), the ISO week the app first ran, and three flags: the install's first report ever, its first this ISO week, its first this UTC month. A day's reports therefore count the installs active that day, and the flags count weekly and monthly actives and new installs.
 - On the first report of an ISO week, the past seven days in ranges: Basic chat turns, Agentic turns, whether a local or a remote model answered, the documents in the library, Studio outputs, plugin tool calls, and the furthest onboarding step the library shows.
 - On the first report ever, the machine in ranges: memory, the GPU's vendor and its memory.
 
-Never documents, prompts, file names, model names, hosts, the license key or an ID. The website route at `usage.surfsense.com` validates every key and value, stores one personless event per report with the country its host derives from the IP address, and never reads or stores the address or the user agent.
+Never documents, prompts, file names, model names, hosts, the license key or an ID. The request carries the outbound session's `User-Agent: SurfSense`, which names no version. The website route at `usage.surfsense.com` validates every key and value, stores one personless event per report with the country its host derives from the IP address, and never reads or stores the address or the user agent; the hosting provider's request logs keep both for a short time, as the privacy page says.
+
+No identifier ties one install's reports together, but the values that never change for an install (its platform, OS, language and install week) together with the country can single out an install whose combination is uncommon, and the first report adds its hardware; so figures are read in aggregate, and no page may say reports cannot be told apart.
 
 ## Consent
 
 - A new install answers in the Privacy choices step, right after the welcome in onboarding: two rows, update checks and usage statistics, each with equal Yes and No buttons, neither chosen beforehand, and Continue only once both are answered. Continue calls `completeFirstRun`, which writes both answers and `firstRunAsked`. Each row opens exactly what it sends.
-- An install that finished onboarding never sees the step, and one that answered (`firstRunAsked`) skips it. Its usage statistics stay `null`, read as off, until the user turns them on.
+- An install that finished onboarding never sees the step, and one that answered (`firstRunAsked`) skips it. Its usage statistics stay `null`, read as off, until the user turns them on. A bridge that cannot read its state skips the step too, with both left off, rather than holding setup on an empty card.
 - Settings › About has the Usage statistics switch beside App updates, with "Show exactly what's sent": the next report as Electron main would build it now (`previewUsageReport`, not sent), the last report sent and when, and the host. Settings › Network lists the same switch as a row with its host and its last call.
-- Turning the switch off stops the next report; nothing already sent can be recalled, because nothing ties it to this install.
+- Turning the switch off stops the next report; nothing already sent can be recalled, because no identifier marks which reports were this install's.
 
 ## Policy
 
