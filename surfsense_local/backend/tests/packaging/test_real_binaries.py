@@ -7,8 +7,6 @@ imports its tasks and stays up instead of crashing on a dropped hidden import,
 and what the bundle leaves out stays out.
 """
 
-import ast
-import importlib.util
 import json
 import os
 import socket
@@ -173,6 +171,22 @@ def test_payload_no_code_path_opens_stays_out(binary: Path) -> None:
         assert {p.name for p in torch_bin.iterdir()} <= {"torch_shm_manager"}
     for package in ("faker", "polyfactory", "_pytest", "hf_xet"):
         assert not (internal / package).exists(), package
+    if sys.platform == "win32":
+        # pywin32's MFC GUI.
+        assert list(internal.rglob("win32ui*.pyd")) == []
+        assert list(internal.rglob("mfc140u.dll")) == []
+    if sys.platform == "linux":
+        # opencv-python-headless: no Qt.
+        assert not (internal / "cv2" / "qt").exists()
+        test_libraries = {
+            "libtorchbind_test.so",
+            "libjitbackend_test.so",
+            "libbackend_with_compiler.so",
+            "libaoti_custom_ops.so",
+        }
+        assert test_libraries.isdisjoint(
+            p.name for p in (internal / "torch" / "lib").iterdir()
+        )
     # Only the model families Docling's layout engine loads.
     families = {
         p.name for p in (internal / "transformers" / "models").iterdir() if p.is_dir()
@@ -183,20 +197,27 @@ def test_payload_no_code_path_opens_stays_out(binary: Path) -> None:
     assert (internal / "torch" / "_dynamo" / "config.py").exists()
 
 
-def test_docstrings_ship_where_something_reads_them(binary: Path) -> None:
-    """transformers builds model classes from docstrings; scipy's are dead weight."""
+def test_excluded_modules_stay_out_of_the_archive(binary: Path) -> None:
+    """Pure Python, so they would ship inside the archive, not as folders."""
     executable = binary.with_suffix(".exe") if sys.platform == "win32" else binary
-    pyz = CArchiveReader(str(executable)).open_embedded_archive("PYZ.pyz")
-
-    def ships_docstring(module: str) -> bool:
-        source = Path(importlib.util.find_spec(module).origin).read_text(
-            encoding="utf-8"
-        )
-        docstring = ast.get_docstring(ast.parse(source), clean=False)
-        assert docstring, f"{module} has no docstring to look for"
-        return docstring in pyz.extract(module).co_consts
-
-    assert ships_docstring("transformers.configuration_utils")
-    assert ships_docstring("modules.resource_usage.engines")
-    assert ships_docstring("docling.pipeline.standard_pdf_pipeline")
-    assert not ships_docstring("scipy.stats")
+    archive = CArchiveReader(str(executable)).open_embedded_archive("PYZ.pyz")
+    excluded = (
+        "pytest",
+        "_pytest",
+        "faker",
+        "polyfactory",
+        "hf_xet",
+        "win32ui",
+        "pywin",
+        "onnxruntime.transformers",
+        "onnxruntime.quantization",
+        "onnxruntime.tools",
+    )
+    shipped = [
+        name
+        for name in archive.toc
+        if any(name == gone or name.startswith(gone + ".") for gone in excluded)
+    ]
+    assert shipped == []
+    # The layout engine's families still ship, and the analyser found them.
+    assert "transformers.models.rt_detr_v2.modeling_rt_detr_v2" in archive.toc

@@ -14,7 +14,6 @@ sys.path.insert(0, SPECPATH)
 from api_absent_modules import write_api_absent_modules
 from api_inputs import API_ONLY_EXCLUDES, api_inputs
 from common import BACKEND
-from docstring_levels import with_kept_docstrings
 from excluded_modules import EXCLUDED, unused_transformers_models, without_excluded
 from torch_bytecode_only import collection_modes
 from unused_payload import without_unused_payload
@@ -48,7 +47,6 @@ a = Analysis(
     # Scripts run with MPLBACKEND=Agg; the default would also freeze Tk's GUI.
     hooksconfig={"matplotlib": {"backends": "Agg"}},
     module_collection_mode=collection_modes(),
-    optimize=2,
 )
 a.binaries = without_unused_payload(a.binaries)
 a.datas = without_unused_payload(a.datas)
@@ -60,7 +58,7 @@ a.datas.append(
     )
 )
 
-pyz = PYZ(with_kept_docstrings(a.pure))
+pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="surfsense-backend", console=True)
 # Symbols are stripped in build_binaries.py, not here: COLLECT's strip would
 # also strip libraries auditwheel rewrote, which then fail to load on Linux.

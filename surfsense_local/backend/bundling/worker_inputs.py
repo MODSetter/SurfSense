@@ -19,7 +19,7 @@ from PyInstaller.utils.hooks import (
 
 # Docling's layout engine loads RT-DETR v2 through these, by name (Auto*), so
 # the analyser cannot follow them; tokenization_auto imports encoder_decoder.
-# Every other transformers model is excluded (payload_trims.py).
+# Every other transformers model is excluded (excluded_modules.unused_transformers_models).
 TRANSFORMERS_MODELS_USED = ("auto", "rt_detr", "rt_detr_v2", "encoder_decoder")
 
 
@@ -102,7 +102,7 @@ def worker_inputs() -> tuple[list, list, list]:
 
     # torchvision loads native extensions dynamically, so a source install works
     # while the frozen worker fails only when its first PDF initializes the
-    # layout model. Its sources stay out: it ships as bytecode (payload_trims.py).
+    # layout model. Its sources stay out: it ships as bytecode (torch_bytecode_only.py).
     tv_datas, tv_binaries, tv_hidden = collect_all(
         "torchvision", include_py_files=False
     )

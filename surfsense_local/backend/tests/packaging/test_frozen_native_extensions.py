@@ -23,12 +23,26 @@ from pathlib import Path
 
 root = Path(sys._MEIPASS)
 suffix = re.compile(r"(\.(cp\d+|cpython)[^.]*|\.abi3)?\.(pyd|so)$")
-loader = re.compile(r"symbol|shared object|DLL load failed|image not found|Library not loaded", re.I)
+# What the loader says when a library itself is broken, as a strip step can
+# leave one: glibc, dyld and Windows' wording.
+loader = re.compile(
+    r"symbol|shared object|DLL load failed|image not found|Library not loaded"
+    r"|\bELF\b|page-aligned|file too short|code signature|mach-o",
+    re.I,
+)
+# An extension imports by its path from the deepest sys.path entry holding it:
+# lib-dynload and pywin32's folders are entries of their own.
+bases = sorted(
+    {Path(p) for p in sys.path if p and Path(p).is_dir()},
+    key=lambda base: len(base.parts),
+    reverse=True,
+)
 tried, broken = 0, {}
 for path in sorted(root.rglob("*")):
     if not path.is_file() or not suffix.search(path.name):
         continue
-    module = suffix.sub("", path.relative_to(root).as_posix()).replace("/", ".")
+    base = next((b for b in bases if path.is_relative_to(b)), root)
+    module = suffix.sub("", path.relative_to(base).as_posix()).replace("/", ".")
     tried += 1
     try:
         importlib.import_module(module)

@@ -10,6 +10,9 @@ import re
 from pathlib import Path
 
 _EXTENSION_SUFFIX = re.compile(r"(\.(cp\d+|cpython)[^.]*|\.abi3)?\.(pyd|so)$")
+# Folders PyInstaller puts on sys.path, so what is inside imports by its own
+# name: the stdlib's extensions on Linux and macOS, and pywin32's modules.
+_ON_SYS_PATH = re.compile(r"^(python\d+\.\d+/lib-dynload|win32/lib|win32|pythonwin)/")
 # main.py is the API-only analysis's script, so it is not among that
 # analysis's modules, while the bundle imports it as one.
 _API_ENTRY = {"main"}
@@ -21,14 +24,19 @@ def _module_names(analysis) -> set[str]:
     names = {name for name, _, _ in analysis.pure}
     for destination, _, typecode in analysis.binaries:
         if typecode == "EXTENSION":
-            module = _EXTENSION_SUFFIX.sub("", destination.replace("\\", "/"))
+            module = _EXTENSION_SUFFIX.sub("", _importable(destination))
             names.add(module.replace("/", "."))
     for destination, _, _ in analysis.datas:
-        path = destination.replace("\\", "/")
+        path = _importable(destination)
         if path.endswith(".py"):
             module = path.removesuffix(".py").removesuffix("/__init__")
             names.add(module.replace("/", "."))
     return names
+
+
+def _importable(destination: str) -> str:
+    """The destination relative to the sys.path entry it imports from."""
+    return _ON_SYS_PATH.sub("", destination.replace("\\", "/"))
 
 
 def _outermost(names: set[str]) -> list[str]:

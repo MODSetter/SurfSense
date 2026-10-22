@@ -31,6 +31,25 @@ def test_a_package_shipped_only_as_source_is_listed(tmp_path: Path) -> None:
     assert out.read_text().split() == ["cv2"]
 
 
+@pytest.mark.parametrize(
+    ("extension", "module"),
+    [
+        ("win32/win32process.pyd", "win32process"),
+        ("python3.12/lib-dynload/_testcapi.cpython-312-darwin.so", "_testcapi"),
+        ("python3.12/lib-dynload/_lzma.cpython-312-x86_64-linux-gnu.so", "_lzma"),
+    ],
+)
+def test_an_extension_on_a_sys_path_folder_is_listed_by_its_import_name(
+    tmp_path: Path, extension: str, module: str
+) -> None:
+    """pywin32's folders and lib-dynload are on sys.path: no package above them."""
+    bundle = _analysis([], [extension])
+
+    out = write_api_absent_modules(_analysis([]), bundle, tmp_path / "absent.txt")
+
+    assert out.read_text().split() == [module]
+
+
 def test_only_the_outermost_absent_package_is_listed(tmp_path: Path) -> None:
     """Hiding a package hides its submodules, so they are not listed again."""
     api_only = _analysis(["main_helper", "onnxruntime", "onnxruntime.capi"])

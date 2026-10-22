@@ -190,9 +190,9 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then BIN="${BIN}.exe"; fi
           SURFSENSE_TEST_FROZEN_BACKEND="$BIN" uv run pytest tests/packaging/test_real_binaries.py -m packaging
 
-      # The bundle ships torch as bytecode, only the transformers models the
-      # layout engine loads, and library bytecode without docstrings: Docling
-      # must read a table and a scan exactly as the source tree does.
+      # The bundle ships torch as bytecode and only the transformers models the
+      # layout engine loads: Docling must read a table and a scan exactly as the
+      # source tree does.
       - name: Compare the frozen Docling reading with source
         working-directory: surfsense_local/backend
         run: |
@@ -318,6 +318,16 @@ jobs:
           esac
           node scripts/opencode/check-stage.mjs "$DIR"
 
+      # electron-builder only warns when an extraResources folder is missing.
+      - name: Smoke the packaged backend (Windows)
+        if: runner.os == 'Windows'
+        working-directory: surfsense_local/electron
+        run: |
+          BIN=release/win-unpacked/resources/backend/surfsense-backend.exe
+          test -f "$BIN"
+          "$BIN" --check-retrieval-runtime
+          "$BIN" --check-vision-runtime
+
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-22.04'
         run: |
@@ -426,6 +436,12 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$MNT/SurfSense.app"
           COPY=$(mktemp -d)
           time ditto "$MNT/SurfSense.app" "$COPY/SurfSense.app"
+          # The backend a Mac user launches: stripped, then signed with the
+          # hardened runtime. Every frozen check above ran it before signing.
+          BIN="$COPY/SurfSense.app/Contents/Resources/backend/surfsense-backend"
+          test -x "$BIN"
+          "$BIN" --check-retrieval-runtime
+          "$BIN" --check-vision-runtime
           rm -rf "$COPY"
 
   # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves

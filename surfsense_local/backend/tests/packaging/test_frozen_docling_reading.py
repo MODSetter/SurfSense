@@ -1,8 +1,7 @@
 """The frozen worker's Docling reads a page exactly as the source tree does.
 
-The bundle ships torch as bytecode, only the transformers models the layout
-engine loads, and library bytecode without docstrings; none of that may change
-what Docling reads. Layout, TableFormer and OCR all run here, which no import
+The bundle ships torch as bytecode and only the transformers models the
+layout engine loads; neither may change what Docling reads. Layout, TableFormer and OCR all run here, which no import
 check reaches. Needs the parser pack: SURFSENSE_LOCAL_MODELS_DIR, else
 backend/models.
 """
