@@ -110,12 +110,12 @@ export default function PrivacyPolicy() {
 					<h2>2. The short version</h2>
 					<p>
 						The desktop app has no account and no sign-in, and sends no usage analytics unless you
-						opt in, and even then only counts in ranges with no identifier. Your documents, chats
-						and search index are files on your disk, we never receive them, and there is therefore
-						nothing for us to disclose, sell, leak or lose. This website counts page views using
-						analytics that is on by default and that you can block, and carries no advertising. We
-						do not sell personal data, we do not share it for advertising, and we do not build
-						profiles for anyone else.
+						opt in, and even then only counts in ranges and the app's version, platform and
+						language, with no identifier. Your documents, chats and search index are files on your
+						disk, we never receive them, and there is therefore nothing for us to disclose, sell,
+						leak or lose. This website counts page views using analytics that is on by default and
+						that you can block, and carries no advertising. We do not sell personal data, we do not
+						share it for advertising, and we do not build profiles for anyone else.
 					</p>
 
 					<h2>3. The desktop application</h2>
@@ -142,30 +142,32 @@ export default function PrivacyPolicy() {
 					<ul>
 						<li>
 							<strong>Update checks, to updates.surfsense.com, falling back to github.com.</strong>{" "}
-							Once a day, and whenever you click Check now, the app asks updates.surfsense.com
-							whether a newer release exists. That request sends your IP address, the app's version,
-							your platform (such as win32-x64) and your operating system (such as windows-11), and
-							no identifier and no cookies. If that service fails or answers wrongly, the app asks
-							github.com for the same release file directly, sending only your IP address, so an
+							From version 2.2.4, once a day and whenever you click Check now, the app asks
+							updates.surfsense.com whether a newer release exists. That request sends your IP
+							address, a user agent that says only SurfSense, the app's version, your platform (such
+							as win32-x64) and your operating system (such as windows-11), and no identifier and no
+							cookies. If that service fails or answers wrongly, the app asks github.com for the
+							same release file directly, sending only your IP address and that user agent, so an
 							update never depends on our service. A newer release downloads from GitHub, whose
 							download host, githubusercontent.com, also sees your IP address, and installs when you
-							restart from the prompt or the next time you quit the app. Versions up to 2.2.3 also
-							sent a random identifier that the update library, electron-updater, creates for staged
-							rollouts; later versions no longer send it. Off until you turn it on, and you can
-							check manually instead. An administrator can turn it off, or point it at their own
-							update server, for every user of a computer.
+							restart from the prompt or the next time you quit the app. Versions up to 2.2.3 ask
+							github.com alone: they read its list of releases, then the release file for your
+							platform, identifying themselves as electron-builder, and they also send a random
+							identifier that the update library, electron-updater, creates for staged rollouts. Off
+							until you turn it on, and you can check manually instead. An administrator can turn it
+							off, or point it at their own update server, for every user of a computer.
 						</li>
 						<li>
-							<strong>Usage statistics, to usage.surfsense.com.</strong> Only if you opt in, and at
-							most once a day. Each report sends the app's version, platform, operating system and
-							interface language, the week the app was installed, and whether this is its first
-							report ever, this week and this month. Once a week it adds counts in ranges, such as
-							10-49, for the past seven days: chat turns, agent turns, whether a local or a remote
-							model answered, the documents in your library, Studio outputs, plugin calls, and how
-							far setup got. The first report adds your computer's memory, graphics card maker and
-							graphics memory, also in ranges. It never sends documents, prompts, file names, model
-							names, model hosts, your licence key or an identifier. Settings shows the exact next
-							report and the last one sent.
+							<strong>Usage statistics, to usage.surfsense.com.</strong> From version 2.2.4, only if
+							you opt in, and at most once a day. Each report sends the app's version, platform,
+							operating system and interface language, the week the app was installed, and whether
+							this is its first report ever, this week and this month. Once a week it adds counts in
+							ranges, such as 10-49, for the past seven days: chat turns, agent turns, whether a
+							local or a remote model answered, the documents in your library, Studio outputs,
+							plugin calls, and how far setup got. The first report adds your computer's memory,
+							graphics card maker and graphics memory, also in ranges. It never sends documents,
+							prompts, file names, model names, model hosts, your licence key or an identifier.
+							Settings shows the exact next report and the last one sent.
 						</li>
 						<li>
 							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
@@ -212,19 +214,22 @@ export default function PrivacyPolicy() {
 					<h3>3.3 Usage statistics, and how your licence is checked</h3>
 					<p>
 						The desktop app contains no analytics library, no crash reporting and no advertising
-						identifiers, and sends no usage analytics unless you opt in. With update checks on,
-						SurfSense can count the installs that checked in each day, with their versions,
-						platforms and countries. With usage statistics on, it also receives the weekly counts in
-						ranges that section 3.2 lists. Neither carries documents, prompts, file names, model
-						hosts, your licence key or an identifier, so we cannot tell one install's reports from
-						another's or see what you did in the app. Each request's IP address is used by our
-						hosting provider to route it and to derive a country, and we do not store it. With both
-						off, we cannot tell whether you ever opened the app. You can turn either off in Settings
-						at any time, set <code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an
-						administrator turn either off for a whole computer. SurfSense's own plugins are
-						separate. That service sees the requests you send them, as section 4.4 describes, and,
-						once you have added a paid one, the licence checks described below, which show it
-						roughly when you open the plugin list or ask the agent something.
+						identifiers, and sends no usage analytics unless you opt in. From version 2.2.4, with
+						update checks on, SurfSense can count the installs that checked in each day, with their
+						versions, platforms and countries. With usage statistics on, it also receives the weekly
+						counts in ranges that section 3.2 lists. Neither carries documents, prompts, file names,
+						model hosts, your licence key or an identifier, so we cannot see what you did in the
+						app, and no identifier ties one install's reports together, although an uncommon
+						combination of version, platform, language, install week and country could single one
+						install out. Each request's IP address is used by our hosting providers to route it and
+						to derive a country. Their server and edge logs hold it for the short time sections 4.5
+						and 8 describe, and SurfSense keeps only the country. With both off, we cannot tell
+						whether you ever opened the app. You can turn either off in Settings at any time, set{" "}
+						<code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an administrator turn
+						either off for a whole computer. SurfSense's own plugins are separate. That service sees
+						the requests you send them, as section 4.4 describes, and, once you have added a paid
+						one, the licence checks described below, which show it roughly when you open the plugin
+						list or ask the agent something.
 					</p>
 					<p>
 						If you buy a licence, the licence file is verified on your own machine. The app checks
@@ -373,9 +378,11 @@ export default function PrivacyPolicy() {
 							<strong>Consent.</strong> The desktop app's usage statistics, which are off unless you
 							opt in. You can withdraw that consent at any time by turning them off in Settings or
 							by setting <code>DO_NOT_TRACK=1</code>, and an administrator's policy can withdraw it
-							for a whole computer. Reports already sent carry no identifier, so they cannot be
-							traced back to you. We also rely on consent where we ask for it elsewhere, such as if
-							you opt in to product emails, and you can withdraw it at any time.
+							for a whole computer. Reports already sent carry no identifier, so we cannot pick out
+							yours to delete, although an uncommon combination of version, platform, language,
+							install week and country could single one install out. We also rely on consent where
+							we ask for it elsewhere, such as if you opt in to product emails, and you can withdraw
+							it at any time.
 						</li>
 					</ul>
 
