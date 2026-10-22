@@ -1,8 +1,9 @@
 """A Claude Code transcript as opencode's messages, so the thread reads both engines' turns alike.
 
-A user entry with words opens a turn; each API message of the reply is an
-assistant message, as opencode's steps are, and a tool result completes the
-call it answers. Claude Code's own entries are left out.
+A user entry with words opens a turn, SurfSense's notes before it as synthetic
+messages; each API message of the reply is an assistant message, as opencode's
+steps are, and a tool result completes the call it answers. Claude Code's own
+entries are left out.
 """
 
 from datetime import datetime
@@ -30,40 +31,43 @@ def opencode_messages(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if isinstance(content, list) and _answers_calls(content):
                 _complete(content, calls)
                 continue
-            parts = _user_parts(content)
-            if not parts:
+            said = _user_texts(content)
+            if said is None:
                 continue
+            notes, words = said
             opener = entry["uuid"]
-            messages.append(
+            messages += [
                 {
-                    "info": {"id": opener, "role": "user", "time": {"created": at}},
-                    "parts": parts,
+                    "id": f"{opener}:note:{n}",
+                    "type": "synthetic",
+                    "text": note,
+                    "time": {"created": at},
                 }
+                for n, note in enumerate(notes)
+            ]
+            messages.append(
+                {"id": opener, "type": "user", "text": words, "time": {"created": at}}
             )
         elif entry.get("type") == "assistant" and opener is not None:
             message_id = entry["message"]["id"]
             message = by_id.get(message_id)
             if message is None:
                 message = {
-                    "info": {
-                        "id": message_id,
-                        "role": "assistant",
-                        "parentID": opener,
-                        "time": {"created": at},
-                    },
-                    "parts": [],
+                    "id": message_id,
+                    "type": "assistant",
+                    "content": [],
+                    "time": {"created": at},
                 }
                 by_id[message_id] = message
                 messages.append(message)
-            message["info"]["time"]["completed"] = at
+            message["time"]["completed"] = at
             for block in content or []:
-                part = _assistant_part(block, f"{message_id}:{len(message['parts'])}")
-                if part is None:
+                item = _assistant_item(block)
+                if item is None:
                     continue
-                part["messageID"] = message_id
-                message["parts"].append(part)
-                if part["type"] == "tool":
-                    calls[part["callID"]] = part
+                message["content"].append(item)
+                if item["type"] == "tool":
+                    calls[item["id"]] = item
     return messages
 
 
@@ -73,44 +77,42 @@ def _answers_calls(content: list[dict[str, Any]]) -> bool:
 
 def _complete(content: list[dict[str, Any]], calls: dict[str, dict[str, Any]]) -> None:
     for block in content:
-        part = calls.get(block.get("tool_use_id", ""))
-        if part is None:
+        item = calls.get(block.get("tool_use_id", ""))
+        if item is None:
             continue
         text = result_text(block.get("content"))
-        given = part["state"]["input"]
+        given = item["state"]["input"]
         if block.get("is_error"):
-            part["state"] = {"status": "error", "input": given, "error": text}
+            error = {"type": "tool.execution", "message": text}
+            item["state"] = {"status": "error", "input": given, "error": error}
         else:
-            part["state"] = {"status": "completed", "input": given, "output": text}
+            answered = [{"type": "text", "text": text}]
+            item["state"] = {"status": "completed", "input": given, "content": answered}
 
 
-def _user_parts(content: Any) -> list[dict[str, Any]]:
-    """The user's words last, after SurfSense's notes, which go as blocks of their own."""
+def _user_texts(content: Any) -> tuple[list[str], str] | None:
+    """SurfSense's notes, which go as blocks of their own, and the user's words last."""
     if isinstance(content, str):
         texts = [content]
     else:
         texts = [b["text"] for b in content or [] if b.get("type") == "text"]
     if not texts or texts[-1].startswith(_INTERRUPTED):
-        return []
+        return None
     *notes, words = texts
-    return [
-        *({"type": "text", "text": note, "synthetic": True} for note in notes),
-        {"type": "text", "text": words},
-    ]
+    return notes, words
 
 
-def _assistant_part(block: dict[str, Any], part_id: str) -> dict[str, Any] | None:
+def _assistant_item(block: dict[str, Any]) -> dict[str, Any] | None:
     kind = block.get("type")
     if kind == "text":
-        return {"id": part_id, "type": "text", "text": block["text"]}
+        return {"type": "text", "text": block["text"]}
     if kind == "thinking" and block.get("thinking"):
-        return {"id": part_id, "type": "reasoning", "text": block["thinking"]}
+        return {"type": "reasoning", "text": block["thinking"]}
     if kind == "tool_use":
         return {
-            "id": block["id"],
             "type": "tool",
-            "callID": block["id"],
-            "tool": step_tool(block["name"]),
+            "id": block["id"],
+            "name": step_tool(block["name"]),
             # Running until its result is read: an unanswered call was cut short.
             "state": {
                 "status": "running",

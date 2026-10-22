@@ -9,7 +9,7 @@ PLAN_KINDS = frozenset({"subscription_limit", "subscription_sign_in"})
 
 def error_kind(error: dict[str, Any]) -> str:
     """A plan refusal SurfSense's relay coded keeps its chat kind; anything else is `unknown`."""
-    body = (error.get("data") or {}).get("responseBody")
+    body = (error.get("response") or {}).get("body")
     try:
         code = json.loads(body)["error"]["code"] if isinstance(body, str) else None
     except (ValueError, KeyError, TypeError):

@@ -1,14 +1,12 @@
 """Offline resilience tests for the Reddit fetch seam and fan-out worker pool.
 
-No network. Fake sessions drive the browser-warm + rotate-on-block + backoff
-paths deterministically (in live runs the first IP warms and returns 200s, so
-these branches rarely fire). The warm is now a browser mint (``holder.warm()``),
-so the fake holder fakes minting a cookie jar instead of HTTP GETs to a warm URL.
+No network. Fake sessions drive the warm + rotate-on-block + backoff paths
+deterministically (in live runs the first IP warms and returns 200s, so these
+branches rarely fire). The fake holder fakes the warm's cookie jar.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import AsyncIterator
 
@@ -18,27 +16,20 @@ from proprietary.reddit import fetch, scraper
 from proprietary.reddit.fetch import (
     RedditAccessBlockedError,
     _current_session,
-    fetch_json,
+    fetch_page,
 )
 
-_LISTING = {"kind": "Listing", "data": {"children": [], "after": None}}
+_PAGE = "<shreddit-app></shreddit-app>"
 
 
 class _FakePage:
     def __init__(self, status: int, *, payload=None):
         self.status = status
-        self._payload = payload if payload is not None else _LISTING
-
-    def json(self):
-        return self._payload
-
-    @property
-    def body(self) -> str:
-        return json.dumps(self._payload)
+        self.body = payload if payload is not None else _PAGE
 
 
 class _FakeSession:
-    """One 'IP': ``can_warm`` gates the browser mint; ``.json`` GETs return ``status``."""
+    """One 'IP': ``can_warm`` gates the warm; page GETs return ``status``."""
 
     def __init__(
         self,
@@ -60,7 +51,7 @@ class _FakeSession:
 class _FakeHolder:
     """Holder whose ``rotate()`` advances to the next fake session (a new IP).
 
-    ``warm()`` fakes the browser mint: it succeeds (stashing a jar) only when the
+    ``warm()`` fakes the warm: it succeeds (stashing a jar) only when the
     current fake session's ``can_warm`` is set, mirroring a clean vs dirty exit.
     """
 
@@ -101,18 +92,18 @@ def _no_sleep(monkeypatch) -> None:
     monkeypatch.setattr(fetch.asyncio, "sleep", _noop)
 
 
-async def test_warms_then_returns_json():
+async def test_warms_then_returns_the_page():
     # The first IP warms (mints a jar) -> a single warm call, no rotation.
     holder = _FakeHolder([_FakeSession(200, can_warm=True)])
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("r/python/hot")
+        result = await fetch_page("r/python/hot")
     finally:
         _current_session.reset(token)
-    assert result == _LISTING
+    assert result == _PAGE
     assert holder.rotations == 0
     assert holder.warm_calls == 1  # warmed exactly once
-    assert holder.cookies == {"loid": "x"}  # jar stashed for the .json fetch
+    assert holder.cookies == {"loid": "x"}  # jar stashed for the page fetch
 
 
 async def test_rotates_when_warm_fails_then_succeeds():
@@ -125,10 +116,10 @@ async def test_rotates_when_warm_fails_then_succeeds():
     )
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("r/python/hot")
+        result = await fetch_page("r/python/hot")
     finally:
         _current_session.reset(token)
-    assert result == _LISTING
+    assert result == _PAGE
     assert holder.rotations == 1
 
 
@@ -140,7 +131,7 @@ async def test_raises_when_no_ip_can_warm():
     try:
         raised = False
         try:
-            await fetch_json("r/python/hot")
+            await fetch_page("r/python/hot")
         except RedditAccessBlockedError:
             raised = True
     finally:
@@ -153,19 +144,34 @@ async def test_rotates_and_rewarms_on_403():
     holder = _FakeHolder([_FakeSession(403), _FakeSession(200, can_warm=True)])
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("r/python/hot")
+        result = await fetch_page("r/python/hot")
     finally:
         _current_session.reset(token)
-    assert result == _LISTING
+    assert result == _PAGE
     assert holder.rotations == 1
     assert holder.warm_calls == 2  # re-warmed on the fresh IP after the 403
+
+
+async def test_a_challenge_page_rotates_to_a_fresh_exit_rather_than_being_solved():
+    """Reddit's JavaScript check on a full page; the next exit is served it plainly."""
+    check = '<script>e.elements.namedItem("solution").value=n</script>'
+    holder = _FakeHolder(
+        [_FakeSession(200, payload=check), _FakeSession(200, can_warm=True)]
+    )
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_page("comments/abc")
+    finally:
+        _current_session.reset(token)
+    assert result == _PAGE
+    assert holder.rotations == 1
 
 
 async def test_404_returns_none_without_rotating():
     holder = _FakeHolder([_FakeSession(404), _FakeSession(200)])
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("r/python/comments/missing")
+        result = await fetch_page("r/python/comments/missing")
     finally:
         _current_session.reset(token)
     assert result is None
@@ -185,10 +191,10 @@ async def test_429_backs_off_without_rotating(monkeypatch):
     holder = _FakeHolder([session])
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("r/python/hot")
+        result = await fetch_page("r/python/hot")
     finally:
         _current_session.reset(token)
-    assert result == _LISTING
+    assert result == _PAGE
     assert holder.rotations == 0
 
 
@@ -199,7 +205,7 @@ async def test_persistent_403_raises_blocked(monkeypatch):
     try:
         raised = False
         try:
-            await fetch_json("r/python/hot")
+            await fetch_page("r/python/hot")
         except RedditAccessBlockedError:
             raised = True
     finally:
@@ -270,7 +276,7 @@ async def test_a_refused_post_leaves_its_subreddit_and_id_out_of_the_log(
     monkeypatch.setattr(scraper, "open_proxy_holder", _open)
 
     async def _post() -> AsyncIterator[dict]:
-        yield await fetch_json("r/privatesub/comments/abc123")
+        yield await fetch_page("r/privatesub/comments/abc123")
 
     caplog.set_level(logging.DEBUG)
     with pytest.raises(RedditAccessBlockedError) as refused:

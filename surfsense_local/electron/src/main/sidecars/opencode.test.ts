@@ -83,22 +83,17 @@ test("keeps its home, settings and state inside the agent folder", () => {
 test("requires the launch password", () => {
   const spec = opencodeSpec(staged())
   assert.ok(spec)
-  assert.equal(spec.env.OPENCODE_SERVER_PASSWORD, "launch-password")
+  assert.equal(spec.env.OPENCODE_PASSWORD, "launch-password")
 })
 
 test("switches off every fetch and sends anything missed nowhere", () => {
   const spec = opencodeSpec(staged())
   assert.ok(spec)
+  // The rest of 1.x's switches are not read by 2.x; its configuration turns those off.
   for (const flag of [
     "OPENCODE_DISABLE_MODELS_FETCH",
-    "OPENCODE_DISABLE_SHARE",
-    "OPENCODE_DISABLE_LSP_DOWNLOAD",
-    "OPENCODE_DISABLE_AUTOUPDATE",
-    "OPENCODE_DISABLE_DEFAULT_PLUGINS",
-    "OPENCODE_PURE",
-    "OPENCODE_DISABLE_PROJECT_CONFIG",
-    "OPENCODE_DISABLE_EXTERNAL_SKILLS",
     "OPENCODE_DISABLE_CLAUDE_CODE",
+    "OPENCODE_CONFIG_PROJECT_DISABLE",
   ]) {
     assert.equal(spec.env[flag], "1", flag)
   }
@@ -117,6 +112,31 @@ test("reaches the network only through the API's proxy", () => {
   }
   assert.equal(spec.env.NO_PROXY, "127.0.0.1,localhost,::1")
 })
+
+test("keeps its scratch folder inside the agent folder", () => {
+  // opencode's is $TMPDIR/opencode, which the user's own opencode shares.
+  const ctx = staged()
+  const spec = opencodeSpec(ctx)
+  assert.ok(spec)
+  for (const name of ["TMPDIR", "TEMP", "TMP"]) {
+    assert.ok(spec.env[name].startsWith(join(ctx.agentDir!, "opencode")), name)
+  }
+})
+
+test(
+  "spells the agent folder one way on Windows",
+  { skip: process.platform !== "win32" && "Windows paths only" },
+  () => {
+    // 2.x keeps `c:\` and `C:\`, or a trailing `\`, as separate locations and sessions.
+    const ctx = staged()
+    const agentDir = ctx.agentDir!
+    const respelled = `${agentDir[0].toLowerCase()}${agentDir.slice(1)}\\`
+    const spec = opencodeSpec({ ...ctx, agentDir: respelled })
+    assert.ok(spec)
+    assert.equal(spec.cwd, join(agentDir, "opencode"))
+    assert.equal(spec.env.OPENCODE_CONFIG, join(agentDir, CONFIG_FILE))
+  }
+)
 
 test("finds the ripgrep shipped beside it before any other", () => {
   const ctx = staged()

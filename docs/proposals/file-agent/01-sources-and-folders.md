@@ -511,7 +511,7 @@ Nothing else branches.
 | A copied tree 12 levels deep | Levels past 8 join into the eighth folder |
 | A name that is not valid UTF-8 | Skipped and counted in `scan_notes` |
 | Symlink or junction leaving the root | Not followed. `linked_original_path` also re-checks containment after `resolve()` |
-| A root that is a git repository | `.git` is hidden, so it is ignored. The working folder lives under the data directory, never inside the root ([03-opencode](../agent/03-opencode.md#working-folders)) |
+| A root that is a git repository | `.git` is hidden, so it is ignored. The working folder lives under the data directory, never inside the root ([agent](../../architecture/agent.md#folders)) |
 | Same bytes in two Library folders, or linked and uploaded | Two documents, two parses, until phase 6 measures whether reuse is worth it |
 | Drive letter reused by another volume | `volume_identity` mismatch, so the root is `unavailable`, not deleted |
 | macOS refuses access | `unavailable` with `permission_denied`; nothing deleted |
@@ -747,7 +747,7 @@ These are integration tests under `tests/integration/` unless noted. Each lands 
 - **New [ADR 0046](README.md#adrs-to-write-or-amend):** "SurfSense never loses a user's sources by surprise": a Library delete goes to a Trash; linked folders are read-only; an unavailable folder never deletes; a mass vanish asks first; placeholders are never read; a database snapshot is written before every migration (Decisions 5, 9 to 11 and 19). These are promises to users, which belong in an ADR.
 - **[documents](../../architecture/documents.md#the-original-file):** the stale "since the main process never calls the backend" sentence goes; the opener asks the API by id. Upload, delete and the original file gain folders, the Trash and linked roots as each phase lands.
 - **[`../agent/05-sources-folder.md`](../agent/05-sources-folder.md):** its decisions stand, and its open questions are answered here, so it links here and closes.
-- **[`../agent/03-opencode.md`](../agent/03-opencode.md):** "Working folders" becomes per thread and mirrors the scoped tree.
+- **[`agent.md`](../../architecture/agent.md#folders):** "Working folders" becomes per thread and mirrors the scoped tree.
 - **[`../agent/README.md`](../agent/README.md):** "Sources on disk" gains "read-only mirror; never deletes on unavailability".
 - **[`../source-preview.md`](../source-preview.md):** the second rail moves into phase 2.
 - **Architecture docs, as each phase lands:** [data model](../../architecture/data-model.md), [chat](../../architecture/chat.md), [studio](../../architecture/studio.md), [agent](../../architecture/agent.md) (two Known gaps close), [import](../../architecture/import.md), and [overview](../../architecture/overview.md) (the watcher and the tick in the API).
@@ -786,3 +786,4 @@ These are integration tests under `tests/integration/` unless noted. Each lands 
 7. Does macOS attribute the API sidecar's file access to SurfSense's bundle, so its usage strings show? The packaged-app test in phase 4a answers it, on a notarized build, as v2.1.0's and v2.2.0's are. If not, the scan would have to start from a process macOS attributes correctly.
 8. What share of a real Documents folder under OneDrive Known Folder Move is online-only? Measured in phase 4a on at least one business laptop, it sets the 20% threshold for the root's online-only line and the link dialog.
 9. Are 30 days of Trash and the 10-minute grant window right? Both are estimates, and trashed bytes keep using disk until purged.
+10. Should SurfSense ever write into a linked folder that holds a shared answer library? Revised 22 Oct 2026: the B2B jobs are paid plugins ([ADR 0067](../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)), which settles the paid line. A library shared across installs is one of the team features that come later, once the jobs sell ([08](../../../plans/community-local/seo/08-b2b-artifact-jobs.md#what-the-agent-needs-one-engine-for-many-jobs), item 12). Only those features would need a writable shared-library location: an exception to decision 9. It is a proposal, not a decision. Decision 9 stands until the maintainer takes up team features ([08, open question 4](../../../plans/community-local/seo/08-b2b-artifact-jobs.md#open-questions-for-the-maintainer)).

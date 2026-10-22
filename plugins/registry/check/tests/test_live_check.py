@@ -197,11 +197,11 @@ def test_a_key_server_refusing_with_another_code_only_warns(tmp_path, capsys):
     assert "answered 404 without a key" in capsys.readouterr().err
 
 
-def test_an_entry_on_the_sse_transport_is_listed_over_it(tmp_path, capsys):
-    """Contacted over the transport its entry names."""
+def test_a_server_on_the_older_sse_transport_alone_fails(tmp_path, capsys):
+    """Neither of SurfSense's engines speaks SSE, so its users could never call it."""
     with serving(docs_sse_server()) as url:
-        assert live(tmp_path, [entry(f"{url}/sse", transport="sse")]) == 0
-    assert "live check: passed" in capsys.readouterr().err
+        assert live(tmp_path, [entry(f"{url}/sse")]) == 1
+    assert "does not answer MCP over Streamable HTTP" in capsys.readouterr().err
 
 
 def test_a_headers_entry_is_expected_to_refuse_without_its_key(tmp_path):

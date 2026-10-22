@@ -70,7 +70,6 @@ function listed(extra: Partial<RegistryEntry> = {}): RegistryEntry {
     auth_description: null,
     auth_headers: [],
     user_client: false,
-    transport: "streamable_http",
     hosts: ["wiki.example"],
     server_host: "wiki.example",
     sign_in_hosts: [],
@@ -618,6 +617,43 @@ describe("plugins settings", () => {
     ])
   })
 
+  it("says a plugin left on SSE is no longer supported, whatever its last check said", async () => {
+    api({
+      plugins: [
+        notes({
+          url: "https://notes.example/sse",
+          transport: "sse",
+          check_failure: "unreachable",
+        }),
+      ],
+      allowed: true,
+    })
+    render(<PluginsSettings />)
+
+    expect(
+      await screen.findByRole("row", { name: "Notes Custom SSE not supported" })
+    ).toBeTruthy()
+  })
+
+  it("tells how to replace a plugin left on SSE in its details", async () => {
+    api({
+      plugins: [notes({ url: "https://notes.example/sse", transport: "sse" })],
+      allowed: true,
+    })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const plugin = await details(user, "Notes")
+
+    expect(within(plugin).getByText("SSE not supported")).toBeTruthy()
+    // Why is one hover or focus away, on the status line's info button.
+    expect(
+      within(plugin).getByRole("button", {
+        name: /Remove Notes and add its Streamable HTTP address/,
+      })
+    ).toBeTruthy()
+  })
+
   it("shows each connected plugin's type and status, failures first", async () => {
     const base = notes()
     api({
@@ -850,6 +886,32 @@ describe("plugins settings", () => {
         body: { url: "https://notes.example/mcp", name: "Notes" },
       },
     ])
+  })
+
+  it("says at once that an SSE address can't be added, and never sends it", async () => {
+    const calls = api({ plugins: [], allowed: true })
+    const user = userEvent.setup()
+    render(<PluginsSettings />)
+
+    const dialog = await addDialog(user)
+    const address = within(dialog).getByLabelText("Server URL")
+    await user.clear(address)
+    await user.type(address, "https://notes.example/sse")
+
+    expect(
+      within(dialog).getByRole("alert").textContent
+    ).toContain("SSE")
+    const add = within(dialog).getByRole("button", { name: "Add" })
+    expect(add.hasAttribute("disabled")).toBe(true)
+
+    await user.type(address, "/")
+    expect(within(dialog).getByRole("alert")).toBeTruthy()
+
+    await user.clear(address)
+    await user.type(address, "https://notes.example/mcp")
+    expect(within(dialog).queryByRole("alert")).toBeNull()
+    expect(add.hasAttribute("disabled")).toBe(false)
+    expect(changes(calls)).toEqual([])
   })
 
   it("sends a key in the header the user names", async () => {

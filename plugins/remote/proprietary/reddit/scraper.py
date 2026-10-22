@@ -23,10 +23,10 @@ from proprietary.scraping.logged_host import logged_host
 from .fetch import (
     RedditAccessBlockedError,
     bind_proxy_holder,
-    fetch_json,
     now_iso,
     open_proxy_holder,
 )
+from .pages.read import read_listing
 from .parsers import (
     _before,
     after,
@@ -59,7 +59,7 @@ _MAX_PAGES = 10
 _EMPTY_STREAK_ABORT = 2
 
 # A subreddit's per-post comment fetches are independent (each is a separate
-# .json), so after paging the listing on one sticky IP we fan them across their
+# page), so after paging the listing on one sticky IP we fan them across their
 # own warm sessions instead of walking them sequentially — the dominant cost of
 # a subreddit+comments scrape (~3.6x on the comment phase; scripts/_bench_reddit2).
 # Kept below the top-level fan-out width: with N concurrent subreddit targets the
@@ -168,7 +168,7 @@ async def _paginate_listing(
         params = {**base_params, "limit": _LISTING_LIMIT}
         if cursor:
             params["after"] = cursor
-        listing = await fetch_json(path, params)
+        listing = await read_listing(path, params)
         kids = children(listing)
         if not kids:
             empty_streak += 1
@@ -204,7 +204,9 @@ async def _post_flow(
 ) -> AsyncIterator[dict[str, Any]]:
     """Emit a post (unless ``include_post`` is False) plus its comment tree."""
     path = f"r/{subreddit}/comments/{post_id}" if subreddit else f"comments/{post_id}"
-    data = await fetch_json(path)
+    # Its page holds the first batch of comments; the rest load in more batches.
+    limit = 0 if input_model.skipComments else input_model.maxComments
+    data = await read_listing(path, {"limit": limit})
     if not isinstance(data, list) or not data:
         return
     post_children = children(data[0])
@@ -233,7 +235,7 @@ async def _subreddit_flow(
 ) -> AsyncIterator[dict[str, Any]]:
     """Emit the community, then paged posts (descending into comments if asked)."""
     if not input_model.skipCommunity:
-        about = await fetch_json(f"r/{subreddit}/about")
+        about = await read_listing(f"r/{subreddit}/about")
         if isinstance(about, dict):
             item = _emit(parse_community(about), include_nsfw=input_model.includeNSFW)
             if item is not None:
@@ -260,7 +262,7 @@ async def _subreddit_flow(
         if item is not None:
             yield item
         # Collect ids now; fetch the comment trees in parallel below. Walking
-        # them here would serialize one .json per post on this single sticky IP.
+        # them here would serialize one page per post on this single sticky IP.
         parsed_id = data.get("id")
         if not input_model.skipComments and isinstance(parsed_id, str):
             post_ids.append(parsed_id)
@@ -324,7 +326,10 @@ async def _search_flow(
     used by :func:`iter_reddit` to fair-share the global budget across
     concurrent searches.
     """
-    params: dict[str, Any] = {"q": query, "sort": input_model.sort}
+    # Newest first answers a query with posts that only mention it; a date
+    # limit stops at the first older post, so it needs the newest first.
+    sort = input_model.sort or ("new" if input_model.postDateLimit else "relevance")
+    params: dict[str, Any] = {"q": query, "sort": sort}
     if input_model.time:
         params["t"] = input_model.time
     if subreddit:

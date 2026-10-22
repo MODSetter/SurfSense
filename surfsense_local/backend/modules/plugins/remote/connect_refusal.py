@@ -7,6 +7,7 @@ so each one is named the same way everywhere. A server's own text never reaches 
 from fastapi import HTTPException, status
 
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.mcp_client.transports import SSE_ONLY
 
 SIGN_IN_STATUSES = frozenset({401, 403})
 # The server retired the address, as DeepWiki did its `/sse` for `/mcp`.
@@ -14,6 +15,16 @@ GONE = 410
 
 
 def connect_refusal(error: ServerError) -> HTTPException:
+    if error.reason == SSE_ONLY:
+        return HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            {
+                "code": "plugin_sse_only",
+                "message": "This server speaks only the older SSE transport, which "
+                "SurfSense no longer supports. Use its Streamable HTTP address, "
+                "which often ends in /mcp.",
+            },
+        )
     if error.status in SIGN_IN_STATUSES:
         return HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

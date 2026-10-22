@@ -3,7 +3,8 @@
 import asyncio
 import json
 import sqlite3
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -23,6 +24,7 @@ from modules.llm.models import SelectedModel
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from tests.integration.agent.conftest import AGENT_MODEL, AgentAPI
+from tests.mcp_test_server import notes_server, serving
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
@@ -376,15 +378,27 @@ async def test_a_cited_passage_becomes_a_citation_and_an_invented_one_is_dropped
     assert [c["chunk_id"] for c in reply["content"]["citations"]] == [chunk_id]
 
 
-# A step that makes the same call three times is the one thing opencode still
-# asks about, now the shell is denied.
 GLOB = {"name": "glob", "arguments": {"pattern": "sources/*.md"}}
-REPEATED = ("calls", json.dumps([GLOB] * 3))
+# A plugin tool that changes something, which the user allows first; the shell
+# is denied and opencode 2.x asks about nothing of its own.
+COUNT = ("call", json.dumps({"name": "notes_count", "arguments": {"text": "a b"}}))
+
+
+@asynccontextmanager
+async def asking_plugin(api: AgentAPI) -> AsyncIterator[None]:
+    """The notes server connected: its word count asks before it runs."""
+    with serving(notes_server().streamable_http_app()) as base:
+        await api.http.put("/plugins/third-party", json={"allowed": True})
+        added = await api.http.post(
+            "/plugins/custom", json={"url": f"{base}/mcp", "name": "Notes"}
+        )
+        assert added.status_code == 201, added.text
+        yield
 
 
 async def test_an_approval_waits_for_the_users_yes(agent_api: AgentAPI) -> None:
     """The call goes on only after the user's answer reaches opencode through the API."""
-    agent_api.model.replies = [REPEATED, ("text", "Listed.")]
+    agent_api.model.replies = [COUNT, ("text", "Counted.")]
     thread = await open_thread(agent_api)
     asked: list[Frame] = []
 
@@ -397,17 +411,20 @@ async def test_an_approval_waits_for_the_users_yes(agent_api: AgentAPI) -> None:
             )
             assert reply.status_code == 204
 
-    frames = await send(agent_api, thread["id"], "List them", approve)
+    async with asking_plugin(agent_api):
+        frames = await send(agent_api, thread["id"], "Count them", approve)
 
-    assert [(f["permission"], f["command"]) for f in asked] == [("doom_loop", None)]
+    assert [(f["permission"], f["command"]) for f in asked] == [("notes_count", None)]
+    # Asked on the call it holds back.
+    assert asked[0]["call_id"] == of_type(frames, "agent-step")[-1]["call_id"]
     assert of_type(frames, "agent-step")[-1]["status"] == "completed"
-    assert of_type(frames, "completed")[0]["text"] == "Listed."
+    assert of_type(frames, "completed")[0]["text"] == "Counted."
 
 
 async def test_the_thread_list_says_a_turn_needs_approval(agent_api: AgentAPI) -> None:
     """A window that is elsewhere learns the agent waits on the user, not that it
     is still writing."""
-    agent_api.model.replies = [REPEATED, ("text", "Listed.")]
+    agent_api.model.replies = [COUNT, ("text", "Counted.")]
     thread = await open_thread(agent_api)
     states: list[dict | None] = []
 
@@ -427,7 +444,8 @@ async def test_the_thread_list_says_a_turn_needs_approval(agent_api: AgentAPI) -
         elif frame["type"] == "permission-replied":
             states.append(await state())
 
-    await send(agent_api, thread["id"], "List them", approve)
+    async with asking_plugin(agent_api):
+        await send(agent_api, thread["id"], "Count them", approve)
 
     assert states == [
         {"state": "needs-approval", "position": None},
@@ -437,7 +455,7 @@ async def test_the_thread_list_says_a_turn_needs_approval(agent_api: AgentAPI) -
 
 async def test_a_refused_approval_ends_the_turn(agent_api: AgentAPI) -> None:
     """Nothing it was asked about runs, and the stream still closes cleanly."""
-    agent_api.model.replies = [REPEATED]
+    agent_api.model.replies = [COUNT]
     thread = await open_thread(agent_api)
 
     async def refuse(frame: Frame) -> None:
@@ -447,7 +465,8 @@ async def test_a_refused_approval_ends_the_turn(agent_api: AgentAPI) -> None:
                 json={"reply": "reject"},
             )
 
-    frames = await send(agent_api, thread["id"], "List them", refuse)
+    async with asking_plugin(agent_api):
+        frames = await send(agent_api, thread["id"], "Count them", refuse)
 
     assert frames[-1] == {"type": "done"}
     assert not [f for f in of_type(frames, "agent-step") if f["status"] == "completed"]
@@ -578,13 +597,12 @@ async def test_stop_ends_the_turn_in_opencode(agent_api: AgentAPI) -> None:
     """Stop is a route now, not a hang-up: the session is idle when it returns."""
     agent_api.model.replies = [("stall", "Thinking about")]
     thread = await open_thread(agent_api)
-    folder = thread_folder(agent_api.workspace_id, thread["id"])
 
     await hang_up_mid_turn(agent_api, thread["id"])
     stopped = await agent_api.http.post(f"/chat/threads/{thread['id']}/run/stop")
     session_id = await _session_of(thread["id"])
     async with agent_api.opencode() as opencode:
-        status = await opencode.status(folder, session_id)
+        status = await opencode.status(session_id)
     followed = await agent_api.http.get(f"/chat/threads/{thread['id']}/run")
     agent_api.model.release.set()
 
@@ -674,9 +692,14 @@ async def test_deleting_the_thread_deletes_its_session_instance_and_folder(
 
     assert reply.status_code == 204
     async with agent_api.opencode() as opencode:
-        assert session_id not in await opencode.session_ids(folder)
-    # A fresh instance starts without the thread's tools: the old one was disposed.
-    assert "surfsense" not in await _tool_servers(agent_api, folder)
+        with pytest.raises(httpx.HTTPStatusError):
+            await opencode.session_directory(session_id)
+    # The instance was disposed with it: opencode no longer holds the folder.
+    async with httpx.AsyncClient(
+        base_url=agent_api.opencode_url, auth=("opencode", agent_api.password)
+    ) as http:
+        loaded = (await http.get("/api/debug/location")).text
+    assert folder.name not in [Path(p).name for p in _directories(loaded)]
     assert not folder.exists()
     listed = await agent_api.http.get(f"/workspaces/{agent_api.workspace_id}/artifacts")
     assert [a["id"] for a in listed.json()] == [artifact]
@@ -710,12 +733,14 @@ async def test_a_thread_started_in_the_shared_folder_reads_back_but_takes_no_tur
     shared = get_storage_settings().agent_working_dir(agent_api.workspace_id)
     agent_api.model.replies = [("text", "Revenue rose.")]
     async with agent_api.opencode() as opencode:
-        legacy = await opencode.create_session(shared, "Before folders")
+        legacy = await opencode.create_session(
+            shared, "Before folders", model=AGENT_MODEL
+        )
         async with asyncio.timeout(30):
-            await opencode.send_turn(shared, legacy, "Q3?", model=AGENT_MODEL)
+            await opencode.send_turn(legacy, "Q3?", model=AGENT_MODEL)
             while (
-                await opencode.status(shared, legacy) != "idle"
-                or len(await opencode.messages(shared, legacy)) < 2
+                await opencode.status(legacy) != "idle"
+                or len(await opencode.messages(legacy)) < 3
             ):
                 await asyncio.sleep(0.2)
     _store_session(thread["id"], legacy)
@@ -743,9 +768,8 @@ async def test_a_thread_whose_session_opencode_lost_offers_a_new_chat(
 ) -> None:
     """Such a thread can never take a turn again; the refusal the app knows shows its new-chat button."""
     thread = await open_thread(agent_api)
-    folder = thread_folder(agent_api.workspace_id, thread["id"])
     async with agent_api.opencode() as opencode:
-        await opencode.delete_session(folder, await _session_of(thread["id"]))
+        await opencode.delete_session(await _session_of(thread["id"]))
 
     refused = await agent_api.http.post(
         f"/chat/threads/{thread['id']}/messages", json={"text": "Hello"}
@@ -764,9 +788,8 @@ async def test_a_session_lost_after_a_turn_is_refused_like_one_lost_before(
     """A session this run already checked can still vanish, as when opencode's data is cleared."""
     thread = await open_thread(agent_api)
     await send(agent_api, thread["id"], "Hello")
-    folder = thread_folder(agent_api.workspace_id, thread["id"])
     async with agent_api.opencode() as opencode:
-        await opencode.delete_session(folder, await _session_of(thread["id"]))
+        await opencode.delete_session(await _session_of(thread["id"]))
 
     refused = await agent_api.http.post(
         f"/chat/threads/{thread['id']}/messages", json={"text": "Again"}
@@ -830,7 +853,7 @@ async def test_two_threads_at_once_keep_their_own_tools(agent_api: AgentAPI) -> 
     for thread in (first, second):
         folder = thread_folder(agent_api.workspace_id, thread["id"])
         servers = await _tool_servers(agent_api, folder)
-        assert servers["surfsense"]["status"] == "connected"
+        assert servers["surfsense"] == "connected"
 
 
 async def test_deleting_the_workspace_deletes_its_sessions(agent_api: AgentAPI) -> None:
@@ -846,14 +869,28 @@ async def test_deleting_the_workspace_deletes_its_sessions(agent_api: AgentAPI) 
         assert session_id not in await opencode.session_ids(folder)
 
 
-async def _tool_servers(api: AgentAPI, folder: Path) -> dict:
-    """The MCP servers the folder's opencode instance holds, by name."""
-    async with httpx.AsyncClient(
-        base_url=api.opencode_url, auth=("opencode", api.password)
-    ) as http:
-        reply = await http.get("/mcp", params={"directory": str(folder)})
-    reply.raise_for_status()
-    return reply.json()
+async def _tool_servers(api: AgentAPI, folder: Path) -> dict[str, str]:
+    """The MCP servers the folder's opencode instance holds, by name, with their status."""
+    async with api.opencode() as opencode:
+        return await opencode.tool_servers(folder)
+
+
+def _directories(listed: str) -> list[str]:
+    """Every folder named in opencode's list of the locations it holds."""
+    found: list[str] = []
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "directory" and isinstance(value, str):
+                    found.append(value)
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(json.loads(listed))
+    return found
 
 
 def _store_session(thread_id: int, session_id: str) -> None:

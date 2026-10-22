@@ -89,7 +89,7 @@ Enterprise settings that turn plugins off, keep third-party plugins off, or allo
 ## Elsewhere
 
 - **A public directory page** on surfsense.com, generated from both lists. Today `surfsense.com/plugins` is a hand-written list of the scraper platforms.
-- **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [bundles](bundles/README.md)).
+- **Paid bundles**: a SurfSense paid plugin that runs locally, delivered by the license server ([ADR 0047](../../adr/0047-premium-plugins-are-source-available.md), [bundles](bundles/README.md)). SurfSense's B2B jobs are the first planned ones, so paid bundles now come before the security questionnaire's beta ([ADR 0067](../../adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
 - **Deleting the backend's scraping code** once its scraper API is retired, never before the purge on 18 Oct 2026 ([plugin host](../../architecture/plugin-host.md#layout)).
 
 ## Local MCP servers

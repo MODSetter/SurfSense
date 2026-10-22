@@ -94,7 +94,15 @@ def server() -> MCPServer:
                 )
             ),
         ] = None,
-        sort: Annotated[Sort, Field(description="Result ordering.")] = "new",
+        sort: Annotated[
+            Sort | None,
+            Field(
+                description=(
+                    "Result ordering. Unset, a search orders by relevance and a "
+                    "subreddit's listing by newest."
+                )
+            ),
+        ] = None,
         time_filter: Annotated[
             Time | None, Field(description="Time window for top and search results.")
         ] = None,

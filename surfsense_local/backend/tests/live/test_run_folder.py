@@ -139,13 +139,13 @@ def test_the_transcript_says_a_script_it_shows_is_only_its_start(
     """A step's frame carries the script's start; a refused render has no version holding the rest."""
     script = "doc.add_paragraph('Revenue rose.')\n" * 400
     part = {
-        "id": "prt_1",
+        "id": "call_1",
         "type": "tool",
-        "tool": "surfsense_render_document",
+        "name": "surfsense_render_document",
         "state": {
             "status": "error",
             "input": {"title": "Proposal", "format": "docx", "script": script},
-            "error": "The script failed validation.",
+            "error": {"type": "tool", "message": "The script failed validation."},
         },
     }
     run = RunFolder("demo-flow", HAIKU, root=tmp_path)

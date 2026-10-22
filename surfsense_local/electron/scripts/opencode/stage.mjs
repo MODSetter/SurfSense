@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url"
 
 import { download, unpack } from "../pinned-download.mjs"
 import { renameWhenUnlocked } from "../windows-locks/rename-when-unlocked.mjs"
-import { checkStage, OPENCODE, RG, RIPGREP_LICENCES, versionOf } from "./check-stage.mjs"
+import { checkStage, OPENCODE, RG, RIPGREP_LICENCES } from "./check-stage.mjs"
 import { opencodeEnabled } from "./enabled.mjs"
 import { HOSTS, OPENCODE_LICENCE, RIPGREP_VERSION, VERSION } from "./pins.mjs"
 
@@ -34,6 +34,15 @@ async function fetchArchive(pin, work) {
   return into
 }
 
+function isStaged(folder) {
+  try {
+    checkStage(folder)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Copy one executable into the stage, runnable on macOS and Linux. */
 function copyExecutable(from, to) {
   copyFileSync(from, to)
@@ -55,7 +64,7 @@ async function main() {
 
   // A staged build of another release would leave the backend speaking to an
   // API it was not written for, so a version bump restages.
-  if (versionOf(join(OUT, OPENCODE)) === VERSION && existsSync(join(OUT, RG))) {
+  if (isStaged(OUT)) {
     console.log(`opencode ${VERSION} already staged in ${OUT}`)
     return
   }

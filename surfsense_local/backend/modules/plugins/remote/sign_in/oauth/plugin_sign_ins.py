@@ -9,7 +9,7 @@ import contextlib
 import logging
 import secrets
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
@@ -19,7 +19,6 @@ from mcp.shared.auth import AuthorizationCodeResult, OAuthClientInformationFull
 from sqlalchemy.orm import Session
 
 from modules.plugins.installed.models import PluginSource
-from modules.plugins.remote.either_transport import listed_on_either
 from modules.plugins.remote.mcp_client.server_error import ServerError
 from modules.plugins.remote.sign_in.oauth.consented_client import HostNotAllowedError
 from modules.plugins.remote.sign_in.oauth.oauth_credential import OAuthCredential
@@ -37,6 +36,7 @@ from modules.plugins.remote.sign_in.oauth.signed_in_plugin import (
     store_signed_in,
 )
 from modules.plugins.remote.sign_in.token_headers import token_headers
+from modules.plugins.remote.streamable_only import listed_streamable
 
 # Long enough to sign in and approve in a browser; an abandoned one is then forgotten.
 SIGN_IN_SECONDS = 600
@@ -226,15 +226,13 @@ class PluginSignIns:
                 code_returned,
                 draft.confidential,
             )
-            # As adding a server without a sign-in does: Streamable HTTP, then the older
-            # SSE, whose address may sign in first, as Asana's `/sse` does.
-            transport, tools = await listed_on_either(
+            # As adding a server without a sign-in does: Streamable HTTP alone, an
+            # address that answers only the older SSE refused as one.
+            tools = await listed_streamable(
                 draft.url, token_headers(credential.tokens.access_token)
             )
             # The draft as it is now: saved before the browser came back, it signs in again.
-            stored = replace(
-                pending.draft, entry={**pending.draft.entry, "transport": transport}
-            )
+            stored = pending.draft
             await asyncio.to_thread(_store, session_factory, stored, credential, tools)
             pending.status = "connected"
         except Exception as error:
