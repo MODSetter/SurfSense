@@ -151,7 +151,8 @@ export default function LicenseActivatePage() {
 					<h1 className={siteText.display}>Activate your license</h1>
 					<p className={cn(siteText.lede, "mx-auto mt-6 max-w-xl")}>
 						Your license is a file, not an account. SurfSense checks it on your own machine, so it
-						works offline and on every computer you install the app on.
+						works offline and on every computer you install the app on. Only the paid plugins send
+						its key, to our plugin service, which checks it.
 					</p>
 				</div>
 			</section>

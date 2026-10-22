@@ -118,14 +118,13 @@ async def search_serp(
 
     usable = [r for r in (payload.get("results") or []) if r.get("url")][:_MAX_RESULTS]
     if not usable:
-        logger.info("[google_search][searxng] no results for %r", term)
+        logger.info("[google_search][searxng] no results")
         return None
 
     suggestions = [s for s in (payload.get("suggestions") or []) if s][:_MAX_RESULTS]
     logger.info(
-        "[google_search][searxng] fallback served %d result(s) for %r page=%d",
+        "[google_search][searxng] fallback served %d result(s) page=%d",
         len(usable),
-        term,
         page,
     )
     return SerpItem(

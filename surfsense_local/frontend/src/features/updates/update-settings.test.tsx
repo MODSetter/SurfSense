@@ -68,9 +68,12 @@ describe("UpdateSettings", () => {
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
-    // The version the restart lands on, named where the decision is made.
+    // The version the restart lands on, named where the decision is made,
+    // and that quitting installs it too.
     expect(
-      await screen.findByText("SurfSense 1.0.1 is ready to install")
+      await screen.findByText(
+        "SurfSense 1.0.1 is ready. It installs when you restart or the next time you quit."
+      )
     ).toBeTruthy()
     await user.click(
       await screen.findByRole("button", { name: "Restart to update" })

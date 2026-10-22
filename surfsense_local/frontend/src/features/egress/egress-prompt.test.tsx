@@ -214,6 +214,81 @@ describe("egress prompt", () => {
     expect(dialog.textContent).not.toContain("excerpts of your documents")
   })
 
+  it("tells the truth about update checks: a platform's file, no version, no ID", async () => {
+    render(<EgressPrompt />)
+
+    void askEgress({
+      destination: "app_updates",
+      host: "github.com",
+      allow: async () => undefined,
+    })
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
+    expect(dialog.textContent).toContain("your IP address")
+    expect(dialog.textContent).toContain("with no version and no ID")
+    expect(dialog.textContent).toContain("the next time you quit")
+    expect(dialog.textContent).not.toContain("the version you are running")
+  })
+
+  it.each(["plugin_registry", "plugin"])(
+    "says SurfSense's plugin host gets the license key for paid plugins (%s)",
+    async (purpose) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "off",
+                destination: "host:plugins.surfsense.com",
+                host: "plugins.surfsense.com",
+                purpose,
+              },
+            },
+            { status: 403 }
+          )
+        )
+      )
+      render(<EgressPrompt />)
+
+      void requestVoid("/plugins/registry/1", { method: "POST" }).catch(
+        () => {}
+      )
+
+      const dialog = await screen.findByRole("alertdialog")
+      expect(dialog.textContent).toContain("your license key")
+    }
+  )
+
+  it("never mentions a license key to a third-party plugin's host", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:mcp.notes.example",
+              host: "mcp.notes.example",
+              purpose: "plugin",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/plugins/custom", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog")
+    expect(dialog.textContent).not.toContain("license key")
+  })
+
   it("cancelling leaves the call refused", async () => {
     const calls = stubApi()
     const user = userEvent.setup()

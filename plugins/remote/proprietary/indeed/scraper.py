@@ -21,6 +21,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from proprietary.scraping.concurrency import ordered_map
+from proprietary.scraping.logged_host import logged_host
 
 from .fetch import IndeedSession, now_iso, open_session
 from .parsers import (
@@ -130,7 +131,7 @@ async def _search_items(
         if details and job_key not in seen:
             model = models.get(job_key)
             if model is None:
-                logger.warning("[indeed] detail fetch failed for %s", job_key)
+                logger.warning("[indeed] a job's detail fetch failed")
             else:
                 _merge_detail(item, parse_job_detail_model(model, base_url=base_url))
         items.append(_emit(item))
@@ -149,7 +150,10 @@ def _targets(input_model: IndeedScrapeInput) -> list[tuple[str, str, str, str]]:
         for entry in input_model.startUrls:
             resolved = resolve_url(entry.url)
             if resolved is None:
-                logger.warning("[indeed] skipping unrecognized URL: %s", entry.url)
+                logger.warning(
+                    "[indeed] skipping an unrecognized URL on %s",
+                    logged_host(entry.url),
+                )
                 continue
             out.append((resolved.kind, resolved.url, resolved.domain, resolved.value))
         return out

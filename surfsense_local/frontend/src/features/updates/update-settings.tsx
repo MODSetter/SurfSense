@@ -43,7 +43,8 @@ function statusText(state: UpdateState) {
       return intl.formatMessage(
         {
           id: "updates_settings_ready_status",
-          defaultMessage: "SurfSense {version} is ready to install",
+          defaultMessage:
+            "SurfSense {version} is ready. It installs when you restart or the next time you quit.",
         },
         { version: state.version }
       )

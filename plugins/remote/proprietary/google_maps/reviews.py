@@ -19,6 +19,7 @@ from datetime import datetime
 from typing import Any
 
 from proprietary.scraping.concurrency import ordered_map
+from proprietary.scraping.logged_host import logged_host
 
 from .fetch import (
     GoogleRefusedError,
@@ -153,7 +154,7 @@ async def collect_place_reviews(
             raise
         # A later page refused on every exit costs its reviews, not the pages
         # already read.
-        logger.warning("[google_maps] reviews of %s cut short: %s", fid, error)
+        logger.warning("[google_maps] a place's reviews were cut short: %s", error)
         exhausted = False
 
     total = seen if exhausted and not filtered and cutoff is None else None
@@ -165,7 +166,7 @@ async def _header_darray(fid: str, *, language: str) -> list | None:
     try:
         return await fetch_place_darray(fid, language=language)
     except GoogleRefusedError as error:
-        logger.warning("[google_maps] header of %s: %s", fid, error)
+        logger.warning("[google_maps] a place's review header was refused: %s", error)
         return None
 
 
@@ -179,7 +180,9 @@ async def _reviews_for_place(
     """Page one place's reviews and yield a flat ReviewItem per review."""
     fid, darray = await resolve_place(resolved, language=input_model.language)
     if not fid:
-        logger.warning("[google_maps] reviews: no feature id for %s", resolved.url)
+        logger.warning(
+            "[google_maps] reviews: no feature id for a %s link", resolved.kind
+        )
         return
 
     scraped_at = now_iso()
@@ -228,7 +231,9 @@ async def iter_reviews(
     for entry in input_model.startUrls:
         resolved = resolve_url(entry.url)
         if not resolved:
-            logger.warning("Reviews: unrecognized Google Maps URL: %s", entry.url)
+            logger.warning(
+                "Reviews: unrecognized Google Maps URL on %s", logged_host(entry.url)
+            )
             continue
         jobs.append((resolved, None, entry.url))
     for place_id in input_model.placeIds:
@@ -249,7 +254,9 @@ async def iter_reviews(
                     )
                 ]
         except GoogleRefusedError as error:
-            logger.warning("[google_maps] reviews of %s: %s", resolved.url, error)
+            logger.warning(
+                "[google_maps] reviews of a %s link refused: %s", resolved.kind, error
+            )
             return [error_item(error, place_id or start_url or resolved.url)]
 
     async with aclosing(

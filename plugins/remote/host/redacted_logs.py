@@ -1,9 +1,13 @@
-"""Credentials never reach the host's logs.
+"""Credentials never reach the host's logs, and web addresses keep only their host.
 
 Scrapling logs a failed proxy as the URL it was given, user and password included,
 and a library's error can quote a URL or a request it sent. Each log record is
 redacted as it is made, its message, arguments, traceback and stack alike, so no
-logger or handler, the host's or a library's, can write a credential out.
+logger or handler, the host's or a library's, can write a credential out. An
+http(s) or ws(s) URL keeps only its scheme and host, up to the first space: its
+path and query name what a user asked for, and plugin records are kept only for
+rate limits, abuse and billing. An address without its scheme, or with escaped
+slashes, is not recognised.
 """
 
 import logging
@@ -32,6 +36,20 @@ _REDACTIONS = (
             re.IGNORECASE,
         ),
         rf"\1{REDACTED}",
+    ),
+    # Last, so a credential in a query is hidden first: a web address's path and
+    # query, its scheme in any case, leaving out at most one punctuation mark
+    # that ends a sentence after it. An apostrophe followed by a letter, a digit
+    # or one of & = + % - / # is inside the address (patient's, patients'+rights);
+    # any other one closes a quote around it.
+    (
+        re.compile(
+            r"""(\b(?:https?|wss?)://[^\s/?#'"<>]+)[/?#]"""
+            r"""(?:[^\s'"<>]|'(?=[\w&=+%/#-]))*"""
+            r"""(?:[^\s'"<>.,;:!?)\]]|[.,;:!?)\]](?=[.,;:!?)\]]))""",
+            re.IGNORECASE,
+        ),
+        rf"\1/{REDACTED}",
     ),
 )
 

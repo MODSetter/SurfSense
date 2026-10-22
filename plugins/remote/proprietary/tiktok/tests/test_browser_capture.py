@@ -522,7 +522,9 @@ async def test_the_retry_line_names_the_target_kind_and_reason(monkeypatch, capl
         )
 
     assert items == [{"id": "1"}]
-    assert "empty search for https://www.tiktok.com/search?q=pasta" in caplog.text
+    assert "empty search for www.tiktok.com" in caplog.text
+    # What the user searched for stays out of the log.
+    assert "pasta" not in caplog.text
     assert "reason=geo_block" in caplog.text
     assert "geo_block exit on country=" in caplog.text
     assert "/api/post/item_list" not in caplog.text

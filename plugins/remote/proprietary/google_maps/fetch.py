@@ -30,6 +30,7 @@ from urllib.parse import quote, urljoin, urlsplit
 
 from proprietary.scraping import http, sessions
 from proprietary.scraping.concurrency import hedged, ordered_map
+from proprietary.scraping.logged_host import logged_host
 from proprietary.scraping.proxy import get_proxy_url
 
 from .parsers import _reviews_tags, brace_match_json, dig
@@ -454,7 +455,7 @@ async def _get(
             await report(f"{stage} fetched")
             if r.status == 200:
                 return r
-            logger.warning("Maps GET %s returned %s", url, r.status)
+            logger.warning("Maps GET %s returned %s", logged_host(url), r.status)
             return None
         last, refusal = r, f"status {r.status}"
         await report(f"{stage} refused; trying a new exit")
@@ -494,16 +495,18 @@ async def _fetch_html_stealthy(url: str, cookies: dict[str, str]) -> str | None:
         )
         fetch_ms = (time.perf_counter() - started) * 1000
         logger.info(
-            "[google_maps][perf] source=html tier=stealthy url=%s status=%s fetch_ms=%.1f",
-            url,
+            "[google_maps][perf] source=html tier=stealthy host=%s status=%s fetch_ms=%.1f",
+            logged_host(url),
             page.status,
             fetch_ms,
         )
         if page.status == 200:
             return page.html_content
-        logger.warning("Maps HTML GET %s tier=stealthy returned %s", url, page.status)
+        logger.warning(
+            "Maps HTML GET %s tier=stealthy returned %s", logged_host(url), page.status
+        )
     except Exception as e:
-        logger.warning("Maps HTML GET %s tier=stealthy failed: %s", url, e)
+        logger.warning("Maps HTML GET %s tier=stealthy failed: %s", logged_host(url), e)
     return None
 
 
@@ -649,9 +652,8 @@ def _watch_field_loss(darray: list) -> None:
     if missing:
         _field_loss += 1
         logger.warning(
-            "[google_maps] detail field loss #%d: %s has %d reviews but no %s",
+            "[google_maps] detail field loss #%d: a place with %d reviews has no %s",
             _field_loss,
-            dig(darray, 10),
             int(count),
             " or ".join(missing),
         )

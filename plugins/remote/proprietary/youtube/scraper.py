@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import quote
 
 from proprietary.scraping.concurrency import ordered_map
+from proprietary.scraping.logged_host import logged_host
 
 from .innertube import (
     INNERTUBE_BROWSE_URL,
@@ -80,7 +81,8 @@ async def fan_out(
         try:
             return [item async for item in job]
         except Exception as e:  # one bad video/URL must not kill the run
-            logger.warning("[youtube] fan-out job failed: %s", e)
+            # The class only: an error's text can name the video.
+            logger.warning("[youtube] fan-out job failed: %s", type(e).__name__)
             return []
 
     async with aclosing(
@@ -575,7 +577,7 @@ async def iter_youtube(
     for entry in input_model.startUrls:
         resolved = resolve_url(entry.url)
         if not resolved:
-            logger.warning("Unrecognized YouTube URL: %s", entry.url)
+            logger.warning("Unrecognized YouTube URL on %s", logged_host(entry.url))
             continue
         jobs.append(_dispatch(resolved, input_model))
     jobs += [

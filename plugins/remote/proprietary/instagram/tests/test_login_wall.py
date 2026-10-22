@@ -7,6 +7,7 @@ in the 2026-10-13 smoke test.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -227,6 +228,28 @@ async def test_a_fully_refused_run_reports_the_login_wall(
     with pytest.raises(InstagramLoginRequiredError):
         async for _ in scraper.fan_out(jobs, concurrency=1):
             pass
+
+
+async def test_a_walled_post_leaves_its_shortcode_out_of_the_log(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def holder() -> _Holder:
+        return _Holder(_walled_exits())
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", holder)
+
+    async def _post() -> AsyncIterator[dict[str, Any]]:
+        yield {"html": await fetch_html("p/Csecret123/")}
+
+    caplog.set_level(logging.DEBUG)
+    with pytest.raises(InstagramLoginRequiredError) as refused:
+        async for _ in scraper.fan_out([_post()], concurrency=1):
+            pass
+
+    # The user still hears which post was walled; the log does not.
+    assert "p/Csecret123" in str(refused.value)
+    assert "target blocked: InstagramLoginRequiredError" in caplog.text
+    assert "Csecret123" not in caplog.text
 
 
 def test_media_items_carry_every_documented_field() -> None:

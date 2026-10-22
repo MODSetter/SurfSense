@@ -134,20 +134,45 @@ export default function PrivacyPolicy() {
 
 					<h3>3.2 What the app can send, and when</h3>
 					<p>
-						The app can reach three kinds of destination. Each one is listed in Settings under
-						Network, each one is switched off until you enable it, and switching one off blocks the
-						call rather than hiding it.
+						The app can reach the destinations below. Each one is switched off until you allow it
+						under Network in Settings, and switching one off there blocks the call rather than
+						hiding it.
 					</p>
 					<ul>
 						<li>
-							<strong>Update checks, to github.com.</strong> Sends your IP address and the version
-							you are running, so the app can tell whether a newer release exists. Disabled until
-							you enable it, and you can check manually instead.
+							<strong>Update checks, to github.com.</strong> Reads the list of releases on
+							github.com, then asks for the release file for your platform, Windows, macOS or Linux,
+							so the app can tell whether a newer release exists. Each request sends your IP
+							address, and no version number and no identifier. GitHub serves its release files from
+							its download host, githubusercontent.com, which also sees your IP address. Versions up
+							to 2.2.3 also sent a random identifier that the update library, electron-updater,
+							creates for staged rollouts; later versions no longer send it. A newer release then
+							downloads from GitHub and installs when you restart from the prompt or the next time
+							you quit the app. Disabled until you enable it, and you can check manually instead.
 						</li>
 						<li>
-							<strong>Model downloads, to huggingface.co.</strong> Sends the name of the model you
-							asked to download, along with your IP address as any download does. No document
-							content and no prompts are involved.
+							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
+							you type into the model search as you type it. Downloading sends the name of the model
+							you chose. Both send your IP address, as any request does. No document content and no
+							prompts are involved.
+						</li>
+						<li>
+							<strong>Plugins, to plugins.surfsense.com.</strong> Fetching the list of third-party
+							plugins sends your IP address and nothing else. SurfSense's own plugins run on the
+							same service, and using one sends it what each tool needs, such as the page or search
+							you asked the plugin to fetch. For paid plugins the app also sends your licence key so
+							the service can check it, as section 3.3 describes.
+						</li>
+						<li>
+							<strong>The Office pack, from downloadarchive.documentfoundation.org.</strong> Turning
+							on Office support downloads The Document Foundation's LibreOffice build, sending the
+							file's name and your IP address. That host redirects the download to one of its
+							mirrors, which also sees your IP address.
+						</li>
+						<li>
+							<strong>A plugin server you connect.</strong> A third-party plugin's server, and its
+							sign-in server if it has one, receives what each tool you allow is sent, along with
+							your IP address, never your whole conversation.
 						</li>
 						<li>
 							<strong>A model provider you configure.</strong> Sends your prompts, excerpts of the
@@ -156,27 +181,44 @@ export default function PrivacyPolicy() {
 						</li>
 					</ul>
 					<p>
-						The third one deserves emphasis. If you connect a model that you do not run yourself,
-						the content of your questions and parts of your documents leave your machine and are
-						handled by that provider under their privacy policy and their retention rules, not ours.
-						We are not a party to that request, we do not proxy it, and we never see it. Choose a
-						local model if you would prefer that nothing leaves at all: document parsing, retrieval,
-						chat, image generation and the podcast voice can all run on your own hardware with every
-						destination above disabled.
+						The last one deserves emphasis. If you connect a model that you do not run yourself, the
+						content of your questions and parts of your documents leave your machine and are handled
+						by that provider under their privacy policy and their retention rules, not ours. We are
+						not a party to that request, we do not proxy it, and we never see it. Choose a local
+						model if you would prefer that nothing leaves: document parsing, retrieval, chat, image
+						generation and the podcast voice can all run on your own hardware with every destination
+						above disabled. One thing these switches do not hold: the scripts a model writes to
+						build documents, for Studio's Office formats and for the agent, run on your computer and
+						can open connections of their own.
 					</p>
 
-					<h3>3.3 No telemetry, and an offline licence check</h3>
+					<h3>3.3 No telemetry, and how your licence is checked</h3>
 					<p>
 						The desktop app contains no analytics, no usage tracking, no crash reporting and no
 						advertising identifiers. This is why there is no telemetry setting to turn off: there is
 						nothing to turn off. We cannot tell how many documents you have, which features you use,
-						whether the app crashed, or whether you ever opened it.
+						whether the app crashed, or whether you ever opened it. The one exception is SurfSense's
+						own plugins. That service sees the requests you send them, as section 4.4 describes,
+						and, once you have added a paid one, the licence checks described below, which show it
+						roughly when you open the plugin list or ask the agent something.
 					</p>
 					<p>
-						If you buy a licence, it is verified on your own machine. The app checks the licence
-						file's cryptographic signature against a public key compiled into the build. It does not
-						contact a licence server, it does not phone home periodically, and it does not compute
-						or transmit a device fingerprint.
+						If you buy a licence, the licence file is verified on your own machine. The app checks
+						its cryptographic signature against a public key compiled into the build, without
+						contacting anyone. The exception is SurfSense's paid plugins. Once you add one and allow
+						plugins.surfsense.com, every request to those plugins carries your licence key. The app
+						also asks that service to check the key: at once when you import or replace a licence,
+						and, at most about every five minutes, when you open the plugin list or before the agent
+						answers, whether or not that answer uses a plugin. If you have not added a paid plugin,
+						your licence key never leaves your machine. The app does not compute or transmit a
+						device fingerprint.
+					</p>
+					<p>
+						The retired 0.0.x desktop app, which wrapped our former hosted service, still sends
+						events to our analytics when it starts, updates and quits: its version, operating
+						system, processor architecture, whether it started at login, and a machine identifier.
+						We use them only to count how many of those installs remain and to point them to the new
+						app. The current app sends none of this.
 					</p>
 
 					<h3>3.4 What is encrypted, and what is not</h3>

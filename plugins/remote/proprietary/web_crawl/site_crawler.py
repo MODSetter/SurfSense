@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from scrapling.spiders import LinkExtractor
 
 from proprietary.scraping.concurrency import ordered_map
+from proprietary.scraping.logged_host import logged_host
 from proprietary.web_crawl.classifier import BlockType
 from proprietary.web_crawl.connector import (
     CrawlOutcome,
@@ -184,7 +185,9 @@ async def crawl_site(
             try:
                 outcome = await engine.crawl_url(job.url, limits, moved)
             except Exception as exc:  # one bad page must not end the crawl
-                logger.warning("[webcrawler] %s failed: %s", job.url, exc)
+                logger.warning(
+                    "[webcrawler] a page on %s failed: %s", logged_host(job.url), exc
+                )
                 outcome = CrawlOutcome(status=CrawlOutcomeStatus.FAILED, error=str(exc))
         if _pushed_back(outcome) and gate.limit > 1:
             gate.halve()

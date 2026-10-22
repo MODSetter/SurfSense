@@ -22,6 +22,7 @@ from weakref import WeakKeyDictionary
 
 from proprietary.scraping import http, sessions
 from proprietary.scraping.concurrency import hedged
+from proprietary.scraping.logged_host import logged_host
 
 from ..extraction import comments_from_response, items_from_response
 from .errors import TikTokAccessBlockedError
@@ -139,7 +140,10 @@ async def _fetch_html(url: str) -> str | None:
     if html is not None and _BLOB_MARKER not in html and _warmed_at.get(h) is None:
         # A cold video page carried its blob on every live probe. Without one, ask
         # once more the old way, on a ttwid-warmed session.
-        logger.info("[tiktok] %s came back without its blob; warming and retrying", url)
+        logger.info(
+            "[tiktok] %s came back without its blob; warming and retrying",
+            logged_host(url),
+        )
         html = _page_text(await _get_ok(h, url, _HEADERS, stage="page", warm=True))
     return html
 
@@ -198,7 +202,7 @@ async def _get_ok(
             await pace(h)
             page = await _get_page(h, url, headers, stage=stage)
         except http.TransportError as e:
-            logger.warning("[tiktok] GET %s failed: %s", url, e.kind)
+            logger.warning("[tiktok] GET %s failed: %s", logged_host(url), e.kind)
             if attempt < _MAX_ROTATIONS:
                 attempt += 1
                 await _rotate(h, e.kind, seen=seen, stage=stage)
@@ -212,7 +216,9 @@ async def _get_ok(
         if status == _BACKOFF_STATUS and backoffs < _MAX_BACKOFFS:
             backoffs += 1
             delay = _BACKOFF_BASE_S * (2 ** (backoffs - 1))
-            logger.warning("[tiktok] 429 on %s; backing off %.1fs", url, delay)
+            logger.warning(
+                "[tiktok] 429 on %s; backing off %.1fs", logged_host(url), delay
+            )
             await asyncio.sleep(delay + random.uniform(0, 1))
             continue
         if status == _ROTATE_STATUS and attempt < _MAX_ROTATIONS:
@@ -223,7 +229,7 @@ async def _get_ok(
             raise TikTokAccessBlockedError(
                 f"TikTok refused {url} on {attempt} rotated IPs (403)"
             )
-        logger.warning("[tiktok] GET %s returned %s", url, status)
+        logger.warning("[tiktok] GET %s returned %s", logged_host(url), status)
         return None
 
 

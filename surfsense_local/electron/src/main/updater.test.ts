@@ -1,9 +1,18 @@
 import assert from "node:assert/strict"
+import { createRequire } from "node:module"
 import test from "node:test"
 
-import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.ts"
+import {
+  attachUpdater,
+  NO_INSTALL_ID,
+  parseUpdatePrefs,
+  type UpdateState,
+} from "./updater.ts"
 
 type Listener = (...args: unknown[]) => void
+
+// computeFinalHeaders is private in electron-updater's types.
+const loadCommonJs = createRequire(import.meta.url)
 
 function fakeAutoUpdater() {
   const listeners = new Map<string, Listener>()
@@ -13,7 +22,9 @@ function fakeAutoUpdater() {
     emit: (event: string, ...args: unknown[]) => listeners.get(event)?.(...args),
     updater: {
       autoDownload: true,
+      autoInstallOnAppQuit: false,
       allowPrerelease: false,
+      requestHeaders: null as Record<string, string> | null,
       on(event: string, listener: Listener) {
         listeners.set(event, listener)
       },
@@ -32,7 +43,7 @@ function fakeAutoUpdater() {
   }
 }
 
-test("a found update is downloaded and offered, never installed on its own", async () => {
+test("a found update is downloaded and offered, and waits for a restart or a quit", async () => {
   const fake = fakeAutoUpdater()
   const states: UpdateState[] = []
   const updates = attachUpdater(fake.updater, (state) => states.push(state))
@@ -54,6 +65,45 @@ test("a found update is downloaded and offered, never installed on its own", asy
 
   updates.install()
   assert.deepEqual(fake.calls, ["check", "download", "install"])
+})
+
+test("update requests carry a constant in place of the persistent install ID", () => {
+  const fake = fakeAutoUpdater()
+  fake.updater.requestHeaders = { accept: "*/*" }
+
+  attachUpdater(fake.updater, () => undefined)
+
+  // electron-updater sends its own x-user-staging-id, read from
+  // userData/.updaterId, on the feed and manifest requests.
+  assert.equal(NO_INSTALL_ID, "0")
+  assert.deepEqual(fake.updater.requestHeaders, {
+    accept: "*/*",
+    "x-user-staging-id": "0",
+  })
+})
+
+test("the installed electron-updater lets the constant win over the install ID", () => {
+  const fake = fakeAutoUpdater()
+  attachUpdater(fake.updater, () => undefined)
+
+  // The merge electron-updater runs before the feed and manifest requests, so
+  // a version that merged the other way fails here rather than in the field.
+  const { AppUpdater } = loadCommonJs("electron-updater/out/AppUpdater")
+  const sent = AppUpdater.prototype.computeFinalHeaders.call(
+    { requestHeaders: fake.updater.requestHeaders },
+    { "x-user-staging-id": "6f1c2c1e-7b8a-4f43-9a51-3c7e0f2d9b11" }
+  )
+
+  assert.equal(sent["x-user-staging-id"], NO_INSTALL_ID)
+})
+
+test("a downloaded update installs on restart or, failing that, on quit", () => {
+  const fake = fakeAutoUpdater()
+
+  attachUpdater(fake.updater, () => undefined)
+
+  // Set on purpose: the docs and the update prompt say quitting installs it.
+  assert.equal(fake.updater.autoInstallOnAppQuit, true)
 })
 
 test("no update and errors both settle back to a state the UI can show", async () => {

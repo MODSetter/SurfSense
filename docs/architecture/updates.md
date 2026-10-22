@@ -15,7 +15,13 @@ Updates are the one call the app is designed to make on its own, so they are off
 - The check at launch runs only when `automatic` is on.
 - Check now in Settings › About, the sidebar's update row and Check for Updates… in the macOS app menu share one check (`useCheckForUpdates`), which asks first while `automatic` is off. The menu shows only that prompt; the sidebar and Settings show the progress. Allow turns `automatic` on, which also enables the launch check.
 - `autoDownload` is false. The download starts from the `update-available` event, so it only ever follows a check the user enabled or clicked.
-- Installing waits for the user: the restart action in Settings, the sidebar or the title bar calls `quitAndInstall()`, and only once the download is ready.
+- A downloaded update installs when the user restarts from the prompt in Settings, the sidebar or the title bar, which calls `quitAndInstall()` once the download is ready, or else the next time they quit: `autoInstallOnAppQuit`, electron-updater's default, is set to true on purpose. The update prompt says both.
+
+## What a check sends
+
+Each request a check makes to github.com sends the IP address and the user agent `electron-builder`. It reads the releases feed, `MODSetter/SurfSense/releases.atom`, then asks the newest release for the platform's manifest, `stable.yml`, `stable-mac.yml` or `stable-linux.yml`, and asks again for `latest*.yml` when that fails (Two apps, one repo, below). GitHub redirects release files to its download host on `githubusercontent.com`, which also sees the IP address; the update's own download goes the same way. No request sends the app version or an ID.
+
+electron-updater keeps a random install ID in `userData/.updaterId` for staged rollouts and sends it as `x-user-staging-id` on the feed and manifest requests. `attachUpdater` sets `requestHeaders` to send `0` in that header instead, and electron-updater merges `requestHeaders` over its own, so the constant also goes on downloads. `stagingPercentage` still reads the local file. Versions up to 2.2.3 sent the ID.
 
 This is not an `egress.require()` destination, because electron-updater runs in the Electron main process where the backend's check cannot see it ([egress](egress.md)). Differential downloads are off, because GitHub's CDN rejects the multi-range requests they need. A development build shows the same controls and never checks.
 

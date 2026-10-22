@@ -308,8 +308,7 @@ async def _product_flow(
             price_source = "offers"
         fields["priceSource"] = price_source
         logger.info(
-            "[amazon][perf] product asin=%s page=%s cookies=%s price_source=%s",
-            asin,
+            "[amazon][perf] product page=%s cookies=%s price_source=%s",
             "fallback" if fallback else "full",
             len(response.cookies),
             price_source,
