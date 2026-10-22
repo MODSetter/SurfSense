@@ -20,8 +20,9 @@ import { refusalText } from "./refusal-text"
 import type { WebSources } from "./use-web-sources"
 import { WebLicenseOffer } from "./web-license-offer"
 import { webProblem, type WebProblem } from "./web-problem"
-import { WebResultGroup } from "./web-result-group"
-import type { RowState } from "./web-result-row"
+import type { RowActions, RowState } from "./row-actions"
+import { WebListPanel } from "./web-list-panel"
+import { WebResultRows } from "./web-result-rows"
 
 // Per request, as the API takes them.
 const MAX_LINKS = 20
@@ -38,6 +39,10 @@ export function AddFromWebDialog({
   const license = useLicense()
   const [text, setText] = useState("")
   const [groups, setGroups] = useState<WebGroup[] | null>(null)
+  // Lists opened from a row, by the row's link; shown beneath that row.
+  const [lists, setLists] = useState<ReadonlyMap<string, WebGroup>>(
+    () => new Map()
+  )
   const [busy, setBusy] = useState<"searching" | "opening" | null>(null)
   const [problem, setProblem] = useState<WebProblem | null>(null)
   const [states, setStates] = useState<ReadonlyMap<string, RowState>>(
@@ -53,7 +58,7 @@ export function AddFromWebDialog({
   const run = useRef<AbortController | null>(null)
 
   const pasted = pastedLinks(text)
-  const addable = (groups ?? [])
+  const addable = [...(groups ?? []), ...lists.values()]
     .flatMap((group) => group.results)
     .filter((result) => result.fit === "one" && !states.has(result.url))
     .map((result) => result.url)
@@ -92,13 +97,16 @@ export function AddFromWebDialog({
     setBusy(opening ? "opening" : "searching")
     setProblem(null)
     setNotLinks(opening ? pasted.notLinks : [])
+    // The last rows go at once: Add all must never count rows no longer shown.
+    setGroups(null)
+    setLists(new Map())
+    setPages(new Map())
     try {
       setGroups(
         opening
           ? await web.open(pasted.links.slice(0, MAX_LINKS), thisRun.signal)
           : [await web.search(asked, thisRun.signal)]
       )
-      setPages(new Map())
     } catch (cause) {
       if (!thisRun.signal.aborted) fail(cause)
     } finally {
@@ -135,13 +143,8 @@ export function AddFromWebDialog({
     setProblem(null)
     mark([url], "opening")
     try {
-      const opened = await web.open([url])
-      setGroups((current) => [
-        ...(current ?? []),
-        ...opened.filter(
-          (group) => !current?.some((shown) => shown.link === group.link)
-        ),
-      ])
+      const [opened] = await web.open([url])
+      if (opened) setLists((current) => new Map(current).set(url, opened))
       mark([url], "opened")
     } catch (cause) {
       mark([url], null)
@@ -154,18 +157,20 @@ export function AddFromWebDialog({
     setLoadingMore((current) => new Set(current).add(link))
     try {
       const next = await web.list(link, page)
-      setGroups((current) =>
-        (current ?? []).map((group) =>
-          group.link === link
-            ? {
-                ...group,
-                results: [...group.results, ...next.results],
-                more: next.more,
-                failed: next.failed,
-              }
-            : group
-        )
-      )
+      const grown = (group: WebGroup): WebGroup =>
+        group.link === link
+          ? {
+              ...group,
+              results: [...group.results, ...next.results],
+              more: next.more,
+              failed: next.failed,
+            }
+          : group
+      setGroups((current) => current?.map(grown) ?? null)
+      setLists((current) => {
+        const shown = current.get(link)
+        return shown ? new Map(current).set(link, grown(shown)) : current
+      })
       setPages((current) => new Map(current).set(link, page))
     } catch (cause) {
       fail(cause)
@@ -176,6 +181,15 @@ export function AddFromWebDialog({
         return next
       })
     }
+  }
+
+  const actions: RowActions = {
+    states,
+    lists,
+    loadingMore,
+    onAdd: (url) => void add([url]),
+    onOpen: (url) => void openList(url),
+    onMore: (link) => void showMore(link),
   }
 
   const submitOnEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -198,6 +212,7 @@ export function AddFromWebDialog({
         run.current?.abort()
         setText("")
         setGroups(null)
+        setLists(new Map())
         setBusy(null)
         setProblem(null)
         setStates(new Map())
@@ -218,7 +233,7 @@ export function AddFromWebDialog({
             {intl.formatMessage({
               id: "sources_web_dialog_body",
               defaultMessage:
-                "Search Google, or paste links to pages, videos, channels, places, products or jobs. Add the ones you want as sources.",
+                "Search the web or paste links, then add what you want as sources.",
             })}
           </DialogDescription>
         </DialogHeader>
@@ -291,20 +306,33 @@ export function AddFromWebDialog({
               </p>
             ) : null}
             {groups && !busy ? (
-              <div className="flex max-h-96 flex-col gap-2 overflow-y-auto rounded-lg border p-1">
-                {groups.map((group, index) => (
-                  <WebResultGroup
-                    key={group.link ?? `links-${index}`}
-                    group={group}
-                    states={states}
-                    loadingMore={
-                      group.link ? loadingMore.has(group.link) : false
-                    }
-                    onAdd={(url) => void add([url])}
-                    onOpen={(url) => void openList(url)}
-                    onMore={(link) => void showMore(link)}
-                  />
-                ))}
+              <div className="flex max-h-[60dvh] flex-col gap-2 overflow-y-auto rounded-lg border p-1">
+                {groups.map((group, index) =>
+                  group.link ? (
+                    <WebListPanel
+                      key={group.link}
+                      title={group.link}
+                      group={group}
+                      actions={actions}
+                    />
+                  ) : group.results.length === 0 ? (
+                    <p
+                      key={`rows-${index}`}
+                      className="px-3 py-6 text-center text-sm text-muted-foreground"
+                    >
+                      {intl.formatMessage({
+                        id: "sources_web_results_empty",
+                        defaultMessage: "No results. Try other words.",
+                      })}
+                    </p>
+                  ) : (
+                    <WebResultRows
+                      key={`rows-${index}`}
+                      results={group.results}
+                      actions={actions}
+                    />
+                  )
+                )}
               </div>
             ) : null}
           </div>

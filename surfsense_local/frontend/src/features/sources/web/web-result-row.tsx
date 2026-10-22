@@ -7,46 +7,61 @@ import { intl } from "@/i18n/intl"
 import type { WebResult } from "./api"
 import { pullerName } from "./puller-names"
 import { refusalText } from "./refusal-text"
+import type { RowActions, RowState } from "./row-actions"
+import { WebListPanel } from "./web-list-panel"
 
-// Where a row stands since the dialog opened.
-export type RowState = "adding" | "added" | "already" | "opening" | "opened"
-
-/** One link to add, a list to open, or a short link that says why it can't be added. */
+/**
+ * One link to add, a list to open, or a short link that says why it can't be
+ * added. An opened list shows its items beneath it, so they read as its own.
+ */
 export function WebResultRow({
   result,
-  state,
-  onAdd,
-  onOpen,
+  actions,
 }: {
   result: WebResult
-  state: RowState | undefined
-  onAdd: (url: string) => void
-  onOpen: (url: string) => void
+  actions: RowActions
 }) {
+  const state = actions.states.get(result.url)
+  const opened =
+    result.fit === "list" ? actions.lists.get(result.url) : undefined
+  return (
+    <li className="flex flex-col gap-2 px-3 py-2.5">
+      <div className="flex items-start gap-3">
+        <RowText result={result} />
+        <RowAction
+          result={result}
+          state={state}
+          onAdd={actions.onAdd}
+          onOpen={actions.onOpen}
+        />
+      </div>
+      {opened ? (
+        <WebListPanel title={result.title} group={opened} actions={actions} />
+      ) : null}
+    </li>
+  )
+}
+
+function RowText({ result }: { result: WebResult }) {
   const name = pullerName(result.puller)
   return (
-    <li className="flex items-start gap-3 rounded-md px-3 py-2.5">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="line-clamp-1 font-medium break-all">
-          {result.title}
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span className="line-clamp-1 font-medium break-all">{result.title}</span>
+      <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+        <span className="truncate">{result.site}</span>
+        {name ? <Badge variant="secondary">{name}</Badge> : null}
+      </span>
+      {result.description ? (
+        <span className="line-clamp-2 text-sm text-muted-foreground">
+          {result.description}
         </span>
-        <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate">{result.site}</span>
-          {name ? <Badge variant="secondary">{name}</Badge> : null}
+      ) : null}
+      {result.fit === "short_link" ? (
+        <span className="text-sm text-muted-foreground">
+          {refusalText("short_link")}
         </span>
-        {result.description ? (
-          <span className="line-clamp-2 text-sm text-muted-foreground">
-            {result.description}
-          </span>
-        ) : null}
-        {result.fit === "short_link" ? (
-          <span className="text-sm text-muted-foreground">
-            {refusalText("short_link")}
-          </span>
-        ) : null}
-      </div>
-      <RowAction result={result} state={state} onAdd={onAdd} onOpen={onOpen} />
-    </li>
+      ) : null}
+    </div>
   )
 }
 

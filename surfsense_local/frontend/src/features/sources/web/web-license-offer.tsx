@@ -52,7 +52,7 @@ function offerText(reason: string): string {
     return intl.formatMessage({
       id: "sources_web_license_missing_body",
       defaultMessage:
-        "Search Google or paste links to pages, videos, places, products and jobs, and SurfSense adds them as sources.",
+        "Search the web or paste links, and add what you find as sources.",
     })
   }
   if (reason === "expired") {

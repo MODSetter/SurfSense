@@ -94,7 +94,7 @@ function WebHarness() {
   )
 }
 
-type Answer = (body: unknown) => Response
+type Answer = (body: unknown) => Response | Promise<Response>
 
 let nextId = 20
 
@@ -261,6 +261,38 @@ describe("adding sources from the web", () => {
     })
   })
 
+  it("starts Add all over with each new search", async () => {
+    const user = userEvent.setup()
+    let answerSecond: (response: Response) => void = () => {}
+    let searches = 0
+    serving({
+      search: () => {
+        searches += 1
+        if (searches === 1) return Response.json({ results: SEARCHED })
+        return new Promise<Response>((resolve) => {
+          answerSecond = resolve
+        })
+      },
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, "tides")
+    expect(
+      await within(dialog).findByRole("button", { name: "Add all (2)" })
+    ).toBeTruthy()
+
+    await user.clear(box(dialog))
+    await ask(user, dialog, "moon")
+
+    expect(within(dialog).queryByRole("button", { name: /Add all/ })).toBeNull()
+    answerSecond(
+      Response.json({ results: [row("https://moon.example/", "The moon")] })
+    )
+    expect(
+      await within(dialog).findByRole("button", { name: "Add all (1)" })
+    ).toBeTruthy()
+  })
+
   it("opens a list result into its items, and shows more on request", async () => {
     const user = userEvent.setup()
     const sent = serving()
@@ -268,20 +300,23 @@ describe("adding sources from the web", () => {
     const dialog = await openDialog(user)
 
     await ask(user, dialog, "tides")
-    await user.click(
-      await within(dialog).findByRole("button", {
-        name: "Open The Sea School channel",
-      })
-    )
+    const open = await within(dialog).findByRole("button", {
+      name: "Open The Sea School channel",
+    })
+    await user.click(open)
+
+    // Its items sit together under the row that opened them, named after it.
+    const channel = await within(dialog).findByRole("group", {
+      name: "The Sea School channel",
+    })
+    expect(open.closest("li")?.contains(channel)).toBe(true)
     expect(
-      await within(dialog).findByRole("button", {
-        name: "Add Tides, page 1 video 1",
-      })
+      within(channel).getByRole("button", { name: "Add Tides, page 1 video 1" })
     ).toBeTruthy()
-    await user.click(within(dialog).getByRole("button", { name: "Show more" }))
+    await user.click(within(channel).getByRole("button", { name: "Show more" }))
 
     expect(
-      await within(dialog).findByRole("button", {
+      await within(channel).findByRole("button", {
         name: "Add Tides, page 2 video 2",
       })
     ).toBeTruthy()
@@ -312,14 +347,56 @@ describe("adding sources from the web", () => {
     expect(
       await within(dialog).findByRole("button", { name: `Add ${PAGE}` })
     ).toBeTruthy()
+    const channel = within(dialog).getByRole("group", { name: CHANNEL })
     expect(
-      within(dialog).getByRole("button", { name: "Add Tides, page 1 video 1" })
+      within(channel).getByRole("button", { name: "Add Tides, page 1 video 1" })
     ).toBeTruthy()
     expect(within(dialog).getByText("not a link")).toBeTruthy()
     expect(sent).toEqual([
       {
         path: "/workspaces/1/documents/web/open",
         body: { urls: [PAGE, CHANNEL] },
+      },
+    ])
+  })
+
+  it("opens a link pasted without https://, as browsers copy it", async () => {
+    const user = userEvent.setup()
+    const sent = serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await user.type(box(dialog), "www.youtube.com/@seaschool")
+    expect(
+      within(dialog).getByRole("button", { name: "Open links" })
+    ).toBeTruthy()
+    await user.keyboard("{Enter}")
+
+    expect(
+      await within(dialog).findByRole("group", { name: CHANNEL })
+    ).toBeTruthy()
+    expect(sent).toEqual([
+      { path: "/workspaces/1/documents/web/open", body: { urls: [CHANNEL] } },
+    ])
+  })
+
+  it("searches words that only look like an address", async () => {
+    const user = userEvent.setup()
+    const sent = serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "node.js tutorial")
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Add Tide tables explained",
+      })
+    ).toBeTruthy()
+    expect(sent).toEqual([
+      {
+        path: "/workspaces/1/documents/web/search",
+        body: { query: "node.js tutorial" },
       },
     ])
   })
