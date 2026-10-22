@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useId, useState, type SubmitEvent } from "react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,7 +12,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/icons"
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+} from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
@@ -42,6 +47,7 @@ import {
 import { ThirdPartySwitch } from "../browse/third-party-switch"
 import { usePluginChanges } from "../details/use-plugin-changes"
 import { refusalMessage } from "../refusal-message"
+import { isSseAddress } from "./sse-address"
 
 /**
  * Name, URL and Add. Add puts the server in Yours: an open server or one with its key works at
@@ -71,7 +77,9 @@ function AddPluginForm({
   const [advanced, setAdvanced] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const ready = name.trim() !== "" && url.trim() !== "" && headersComplete(rows)
+  const sse = isSseAddress(url)
+  const ready =
+    name.trim() !== "" && url.trim() !== "" && !sse && headersComplete(rows)
 
   const add = async (event: SubmitEvent) => {
     event.preventDefault()
@@ -156,6 +164,18 @@ function AddPluginForm({
               disabled={busy}
             />
           </Field>
+          {sse ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertDescription>
+                {intl.formatMessage({
+                  id: "plugins_add_sse_body",
+                  defaultMessage:
+                    "SurfSense doesn’t support SSE servers. Use the server’s Streamable HTTP address, which often ends in /mcp.",
+                })}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {error ? (
             <p role="alert" className="text-sm text-destructive">
               {error}

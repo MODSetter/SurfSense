@@ -164,17 +164,8 @@ def test_a_sign_in_taking_only_registered_apps_lists_it_for_users_own(tmp_path):
     assert any("own" in w for w in found.warnings)
 
 
-def test_a_server_on_the_older_sse_transport_is_listed_as_one(tmp_path):
-    async def older(url: str):
-        from registry_check.submission.server_report import ServerReport
-
-        return ServerReport(
-            {"type": "none"},
-            ["mcp.acme.example"],
-            ["read_page", "search_docs"],
-            transport="sse",
-        )
-
-    found = check(tmp_path, issue_body(), server=older)
+def test_a_submitted_entry_names_no_transport(tmp_path):
+    """Streamable HTTP is the only one SurfSense speaks, so there is none to name."""
+    found = check(tmp_path, issue_body())
     assert found.problems == []
-    assert found.entry["transport"] == "sse"
+    assert "transport" not in found.entry

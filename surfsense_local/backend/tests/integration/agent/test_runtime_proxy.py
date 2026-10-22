@@ -109,11 +109,14 @@ def connect_plugin(
     third_party_on: bool = True,
     transport: str = "streamable_http",
 ) -> None:
-    """A connected custom plugin at `url`, with the notes server's read-only search."""
+    """A connected custom plugin at `url`, with the notes server's read-only search.
+
+    `transport` `sse` records it as one connected over SSE before this release.
+    """
     with create_session_factory(engine)() as session:
-        store_custom_plugin(
-            session, "notes", "Notes", url, None, [SEARCH], transport=transport
-        )
+        plugin = store_custom_plugin(session, "notes", "Notes", url, None, [SEARCH])
+        if transport != "streamable_http":
+            plugin.entry = {**plugin.entry, "transport": transport}
         set_third_party_on(session, third_party_on)
         session.commit()
 

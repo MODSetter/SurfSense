@@ -12,11 +12,8 @@ from starlette.responses import JSONResponse, Response
 REFUSAL = "The user blocked this tool in SurfSense, so it was not run."
 
 
-def blocked_reply(
-    body: bytes, ready: frozenset[str], answered_on_post: bool
-) -> Response | None:
-    """None to send the request on. `answered_on_post` is False on the older SSE transport,
-    whose answers come on the stream: there the call is refused outright."""
+def blocked_reply(body: bytes, ready: frozenset[str]) -> Response | None:
+    """None to send the request on; a batch naming a blocked call is refused outright."""
     try:
         message = json.loads(body)
     except (ValueError, UnicodeDecodeError):
@@ -25,7 +22,7 @@ def blocked_reply(
     blocked = [m for m in messages if _blocked(m, ready)]
     if not blocked:
         return None
-    if not answered_on_post or isinstance(message, list):
+    if isinstance(message, list):
         return JSONResponse({"detail": REFUSAL}, status_code=403)
     return JSONResponse(
         {

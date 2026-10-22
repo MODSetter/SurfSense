@@ -1,7 +1,7 @@
-"""The only code that knows opencode 1.x's HTTP API: its routes, events and payloads.
+"""The only code that speaks opencode 2.x's HTTP API: its routes, events and payloads.
 
-What differs in opencode 2.x lives here, so moving the pin to 2.x changes this
-package and the configuration writer, and nothing that calls them.
+The messages and events it returns are opencode's own; the agent thread's
+readers take them as they are.
 """
 
 from modules.agent.opencode_client.client import (

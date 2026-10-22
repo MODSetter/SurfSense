@@ -108,6 +108,24 @@ function statusOf(plugin: Plugin, unused: boolean) {
       reason: null,
     }
   }
+  // As in the list: no engine reaches it until it is added again by its Streamable HTTP address.
+  if (plugin.transport === "sse") {
+    return {
+      label: intl.formatMessage({
+        id: "plugins_row_sse_status",
+        defaultMessage: "SSE not supported",
+      }),
+      tone: TONE_CLASS.failure,
+      reason: intl.formatMessage(
+        {
+          id: "plugins_row_sse_body",
+          defaultMessage:
+            "SurfSense no longer supports the older SSE transport. Remove {plugin} and add its Streamable HTTP address, which often ends in /mcp.",
+        },
+        { plugin: plugin.name }
+      ),
+    }
+  }
   if (plugin.removed_reason) {
     return {
       label: intl.formatMessage({

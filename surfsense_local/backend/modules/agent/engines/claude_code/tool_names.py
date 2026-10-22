@@ -9,7 +9,7 @@ _MCP = "mcp__"
 _BUILT_IN = {"Read", "Glob", "Grep", "Write", "Edit", "Skill"}
 # Claude Code's file tools name their inputs as opencode's do, but in snake case.
 _INPUT_KEYS = {
-    "file_path": "filePath",
+    "file_path": "path",
     "old_string": "oldString",
     "new_string": "newString",
     "replace_all": "replaceAll",

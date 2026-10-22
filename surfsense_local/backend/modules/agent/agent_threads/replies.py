@@ -1,15 +1,16 @@
 """A session's messages as the thread's turns: the user's, then one reply per turn.
 
-opencode starts a new assistant message for every step of a turn; the thread
-shows them as one reply, with its text and the steps taken to write it. A
-compaction's own messages fold into the turn it happened in.
+opencode stores each step of a turn as its own assistant message; the thread
+shows them as one reply, with its text and the steps taken to write it. A turn
+opens with a `user` message and closes with an `idle` one, which says how it
+ended. SurfSense's notes are `synthetic` messages beside the user's words, and
+a compaction is a message of its own, never the reply.
 """
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from modules.agent.agent_threads.compaction import is_summary, turn_openers
 from modules.agent.agent_threads.reply_ending import reply_ending
 from modules.agent.agent_threads.scope_note import noted_scope
 from modules.agent.agent_threads.steps import step_of
@@ -35,6 +36,56 @@ def iso_from_ms(milliseconds: int | None) -> str | None:
     )
 
 
+@dataclass
+class Turn:
+    """One user message, the notes sent with it, its steps and the message that closed it."""
+
+    user: dict[str, Any]
+    notes: list[dict[str, Any]] = field(default_factory=list)
+    steps: list[dict[str, Any]] = field(default_factory=list)
+    idle: dict[str, Any] | None = None
+
+
+def session_turns(messages: list[dict[str, Any]]) -> list[Turn]:
+    """The session's turns, oldest first.
+
+    A note goes with the user message it was sent beside: SurfSense sends it
+    first, and a turn read back from opencode 1.x has it right after. 1.x also
+    sent the user's message again after compacting an overflow; that copy
+    carries the turn on.
+    """
+    turns: list[Turn] = []
+    waiting: list[dict[str, Any]] = []
+    compacted = False
+    for message in messages:
+        kind = message.get("type")
+        current = turns[-1] if turns else None
+        repeated = (
+            compacted
+            and current is not None
+            and message.get("text") == current.user.get("text")
+        )
+        if kind != "synthetic":  # 1.x's "Continue…" came between
+            compacted = kind == "compaction"
+        if kind == "user" and repeated:
+            continue
+        if kind == "user":
+            turns.append(Turn(message, notes=waiting))
+            waiting = []
+        elif kind == "synthetic":
+            if current is not None and not current.steps and current.idle is None:
+                current.notes.append(message)
+            else:
+                waiting.append(message)
+        elif current is None:
+            continue
+        elif kind == "assistant":
+            current.steps.append(message)
+        elif kind == "idle":
+            current.idle = message
+    return turns
+
+
 def thread_turns(
     messages: list[dict[str, Any]],
     citations: list[Citation],
@@ -46,38 +97,25 @@ def thread_turns(
     `noted` holds the endings SurfSense kept, by reply id; `answering` says the
     latest reply is still being written.
     """
-    turns: list[dict[str, Any]] = []
-    openers = turn_openers(messages)
-    # Every turn's steps in one pass, not one pass per turn: a long thread is
-    # thousands of messages, read again at the end of every turn.
-    steps: dict[str, list[dict[str, Any]]] = {}
-    for message in messages:
-        if (opener := _opener_of(message, openers)) is not None:
-            steps.setdefault(opener, []).append(message)
-    opened = [
-        m["info"]["id"]
-        for m in messages
-        if m["info"]["role"] == "user" and openers[m["info"]["id"]] == m["info"]["id"]
-    ]
-    for message in messages:
-        info = message["info"]
-        if info["role"] != "user" or openers[info["id"]] != info["id"]:
-            continue
-        created = iso_from_ms(info.get("time", {}).get("created"))
-        turns.append(
+    turns = session_turns(messages)
+    shown: list[dict[str, Any]] = []
+    for index, turn in enumerate(turns):
+        user = turn.user
+        created = iso_from_ms(user.get("time", {}).get("created"))
+        shown.append(
             {
-                "id": info["id"],
+                "id": user["id"],
                 "role": "user",
-                "content": _user_content(message["parts"]),
+                "content": _user_content(turn),
                 "created_at": created,
                 "completed_at": created,
             }
         )
-        live = answering and info["id"] == opened[-1]
-        reply = _reply(steps.get(info["id"], []), info["id"], citations, noted, live)
+        live = answering and index == len(turns) - 1
+        reply = _reply(turn, citations, noted, live)
         if reply is not None:
-            turns.append(reply)
-    return turns
+            shown.append(reply)
+    return shown
 
 
 def turn_reply(
@@ -92,38 +130,29 @@ def turn_reply(
     Its labels become citations as a chat answer's do; one the session's searches
     never returned is dropped.
     """
-    openers = turn_openers(messages)
-    steps = [m for m in messages if _opener_of(m, openers) == user_message_id]
-    return _reply(steps, user_message_id, citations, noted, live)
-
-
-def _opener_of(message: dict[str, Any], openers: dict[str, str]) -> str | None:
-    """The user message that opened the turn an agent's step belongs to; None for
-    any other message, a compaction's summary included."""
-    info = message["info"]
-    if info["role"] != "assistant" or is_summary(info):
-        return None
-    return openers.get(info.get("parentID"))
+    for turn in session_turns(messages):
+        if turn.user["id"] == user_message_id:
+            return _reply(turn, citations, noted, live)
+    return None
 
 
 def _reply(
-    steps: list[dict[str, Any]],
-    user_message_id: str,
+    turn: Turn,
     citations: list[Citation],
     noted: dict[str, dict[str, Any]] | None,
     live: bool,
 ) -> dict[str, Any] | None:
     """The reply that a turn's steps, given oldest first, make up."""
+    steps = turn.steps
     if not steps:
         return None
-    texts = [text for step in steps if (text := _text(step["parts"]))]
+    texts = [text for step in steps if (text := _text(step.get("content") or []))]
     tools = [
-        step_of(part)
+        step_of(item)
         for step in steps
-        for part in step["parts"]
-        if part.get("type") == "tool"
+        for item in step.get("content") or []
+        if item.get("type") == "tool"
     ]
-    times = [step["info"].get("time", {}) for step in steps]
     text, cited = resolve_citations(PARAGRAPH.join(texts), citations)
     content: dict[str, Any] = {
         "text": text,
@@ -131,39 +160,36 @@ def _reply(
         "citations": [asdict(citation) for citation in cited],
     }
     ending = reply_ending(
-        steps[-1]["info"], (noted or {}).get(reply_id(user_message_id)), live
+        steps, turn.idle, (noted or {}).get(reply_id(turn.user["id"])), live
     )
     if ending is not None:
         content["ending"] = ending
     return {
-        "id": reply_id(user_message_id),
+        "id": reply_id(turn.user["id"]),
         "role": "assistant",
         "content": content,
-        "created_at": iso_from_ms(times[0].get("created")),
-        "completed_at": iso_from_ms(times[-1].get("completed")),
+        "created_at": iso_from_ms(steps[0].get("time", {}).get("created")),
+        "completed_at": iso_from_ms(steps[-1].get("time", {}).get("completed")),
     }
 
 
-def _user_content(parts: list[dict[str, Any]]) -> dict[str, Any]:
+def _user_content(turn: Turn) -> dict[str, Any]:
     """The user's own words, and the sources the turn was given, without the note naming them.
 
     `scope` holds the ticked ids, or past the note's cap their count; the
     thread's reader names them.
     """
-    content: dict[str, Any] = {
-        # SurfSense's notes beside the user's words, the scope and any mentions.
-        "text": _text([part for part in parts if part.get("synthetic") is not True])
-    }
-    scope = noted_scope(parts)
+    content: dict[str, Any] = {"text": (turn.user.get("text") or "").strip()}
+    scope = noted_scope(turn.notes)
     if scope is not None:
         content["scope"] = scope
     return content
 
 
-def _text(parts: list[dict[str, Any]]) -> str:
-    """A message's answer text, without its reasoning or its tool calls; each part a paragraph."""
+def _text(items: list[dict[str, Any]]) -> str:
+    """A step's answer text, without its reasoning or its tool calls; each item a paragraph."""
     return PARAGRAPH.join(
         text
-        for part in parts
-        if part.get("type") == "text" and (text := (part.get("text") or "").strip())
+        for item in items
+        if item.get("type") == "text" and (text := (item.get("text") or "").strip())
     )
