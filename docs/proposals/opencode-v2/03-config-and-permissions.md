@@ -43,7 +43,7 @@ An edit's resource is now relative to the session's folder when the path is insi
 - Measured on macOS and Windows: writes land only under `outputs/`; `sources/`, `sources/Lib/outputs/`, `AGENTS.md` in any case and `.opencode/` are refused; reads outside the folder are refused except the skills and tool-output folders.
 - With a git repository above the thread folder, 2.x takes the repository as the project and lets `read`, `glob` and `grep` reach sibling folders unchecked. [`repo_fence.py`](../../../surfsense_local/backend/modules/agent/thread_folder/repo_fence.py)'s `.git` file keeps the project at the thread folder on both systems.
 
-**Policies** repeat the denies for `shell`, `execute`, `webfetch`, `websearch` and `subagent` as `tool.use`. A policy cannot be lifted by a session rule or a saved approval; it does not hide a tool, which only a permission deny does, so both are written.
+**Policies** repeat the denies for `shell`, `webfetch`, `websearch` and `subagent` as `tool.use`. A policy cannot be lifted by a session rule or a saved approval; it does not hide a tool, which only a permission deny does, so both are written. A `tool.use` policy does not stop `execute` in 2.1.2 ([#56349](https://github.com/anomalyco/opencode/issues/56349)); its permission deny does, and holds because no project configuration is read to widen it.
 
 ## Verification
 

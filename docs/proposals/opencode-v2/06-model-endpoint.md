@@ -31,3 +31,4 @@ Checked against a real plan (`gpt-5.6-luna`) through a dev build's endpoint, wit
 - Built-in `read`, a second turn, an image read by a tool and an interrupt all work; `max_output_tokens` is still dropped by the relay.
 - A 403 ends the turn without a retry, so [`plan_refusal.py`](../../../surfsense_local/backend/modules/agent/model_endpoint/responses_relay/plan_refusal.py) holds.
 - The plan's error for an unsupported field reaches opencode as JSON inside `message`; the relay lifts out `detail` so the screen shows a sentence.
+- The plan refuses OpenAI's `tool_search`, hosted or run by the client, so the relay cannot give it native tool search ([tool calls](04-tool-calls.md#native-tool-search)). With tools grouped by plugin rather than in one `surfsense` namespace, the relay's restoring of a replayed call's namespace would have to map each tool to its own; the design keeps the one namespace.

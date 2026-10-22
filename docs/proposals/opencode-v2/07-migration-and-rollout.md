@@ -32,13 +32,14 @@ Each of these breaks if the move is made without it, and each was shown to hold 
 | the temp folder swept | 5.6 MB left on Windows per start | [launch](01-packaging-and-launch.md#windows) |
 | rules re-sent to migrated sessions | an old thread's next turn without its plugin rules | above |
 | plain `serve` | a declined turn resumed after a restart | [launch](01-packaging-and-launch.md#launch) |
+| the held tools kept under the provider's limit | a request refused for too many functions, and the turn with it | [tool calls](04-tool-calls.md#what-the-opencode-agent-is-offered) |
 
 What is lost regardless is in the [README](README.md#losses).
 
 ## Tests
 
-The backend's integration tests already start the staged opencode against a scripted model ([agent](../../architecture/agent.md#tests)); they move to the 2.x routes and shapes and gain a case for each row above. The live sweep reruns the capability list on 2.x before the release ships, since what a model does with every tool offered at once is measured per model.
+The backend's integration tests already start the staged opencode against a scripted model ([agent](../../architecture/agent.md#tests)); they move to the 2.x routes and shapes and gain a case for each row above. The live sweep reruns the capability list on 2.x before the release ships, and gains a suite with many plugins connected, which measures each model's window share. A retrieval suite of labelled requests over the registry's plugins runs whenever the registry or the embedder changes ([tool calls](04-tool-calls.md#when-a-guess-is-wrong)).
 
 ## Docs
 
-The pull request that ships this updates [`agent.md`](../../architecture/agent.md), [`plugins.md`](../../architecture/plugins.md), [`plugin-registry.md`](../../architecture/plugin-registry.md), [`packaging.md`](../../architecture/packaging.md), [`chat.md`](../../architecture/chat.md) and [`claude-plan.md`](../../architecture/claude-plan.md), and [`03-opencode.md`](../agent/03-opencode.md) moves with it. A new ADR records native tool calls and dropping SSE, and supersedes [ADR 0065](../../adr/0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) for opencode; [ADR 0050](../../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md)'s note on moving to 2.x is settled by [the plan's results](06-model-endpoint.md#the-chatgpt-plan).
+The pull request that ships this updates [`agent.md`](../../architecture/agent.md), [`plugins.md`](../../architecture/plugins.md), [`plugin-registry.md`](../../architecture/plugin-registry.md), [`packaging.md`](../../architecture/packaging.md), [`chat.md`](../../architecture/chat.md) and [`claude-plan.md`](../../architecture/claude-plan.md), and [`03-opencode.md`](../agent/03-opencode.md) moves with it. A new ADR records native tool calls, the opencode engine's tool policy and dropping SSE, and supersedes [ADR 0065](../../adr/0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) for opencode; [ADR 0050](../../adr/0050-a-model-answers-on-its-own-route-with-its-connections-credential.md)'s note on moving to 2.x is settled by [the plan's results](06-model-endpoint.md#the-chatgpt-plan).

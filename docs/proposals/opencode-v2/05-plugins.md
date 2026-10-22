@@ -45,6 +45,10 @@ A tool is `<server>_<tool>`, each part with characters outside `[A-Za-z0-9_-]` r
 
 2.x re-lists a server when it sends `tools/list_changed`, within a call's streamed answer or on its own `GET` stream. The gateway answers `GET` with 405, so a plugin's change outside a call reaches opencode at the next connect. [`changed_tools.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/changed_tools.py) keeps listing in the background as today.
 
+## Example requests
+
+A registry entry can list, per tool, a few requests a user might make that the tool answers. SurfSense indexes them beside the tool's name and description, so the opencode agent's retrieval finds the tool from the words users use ([tool calls](04-tool-calls.md#when-a-guess-is-wrong)). The field is optional, and the registry's static check only bounds its size; a custom plugin and an entry without it are indexed from their tools alone. SurfSense writes them for its own plugins.
+
 ## Asking the user
 
 2.x tells servers it accepts elicitation, and turns a server's request for input into a form it waits on. SurfSense shows no such form, so the call would hang until its timeout; elicitation is refused.
