@@ -62,9 +62,10 @@ def main() -> int:
                 f"stripped local symbols from {strip_local_symbols(internal)} Mach-O files"
             )
         elif sys.platform == "linux":
-            print(
-                f"stripped symbol tables from {strip_symbol_tables(internal)} ELF files"
-            )
+            stripped, kept = strip_symbol_tables(internal)
+            print(f"stripped symbol tables from {stripped} ELF files")
+            for path in kept:
+                print(f"kept unstripped, strip would misalign it: {path}")
     return 0
 
 
