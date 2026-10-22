@@ -32,5 +32,7 @@ def frozen_backend(build: Path) -> Path:
         check=True,
         capture_output=True,
         text=True,
+        # A freeze takes 10 to 20 minutes; past an hour it is stuck.
+        timeout=3600,
     )
     return build / "dist" / "backend" / "surfsense-backend"

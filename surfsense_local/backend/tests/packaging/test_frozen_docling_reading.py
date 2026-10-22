@@ -88,6 +88,8 @@ def _reading(command: list[str], source: Path, out: Path) -> str:
         check=True,
         capture_output=True,
         text=True,
+        # Loading the layout, table and OCR models and reading one page.
+        timeout=900,
     )
     return out.read_text(encoding="utf-8")
 
