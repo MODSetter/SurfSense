@@ -143,6 +143,50 @@ describe("agent steps", () => {
     expect(screen.getByText("Looked for images in 2 sources")).toBeTruthy()
   })
 
+  it("names loading a plugin's tools, asked for or not, and looking for tools", () => {
+    render(
+      <AgentSteps
+        steps={[
+          {
+            id: "call_1",
+            tool: "surfsense_loaded_tools",
+            status: "completed",
+            input: { plugin: "Linear" },
+          },
+          {
+            id: "call_2",
+            tool: "surfsense_open_plugin",
+            status: "completed",
+            input: { plugin: "Notion" },
+          },
+          {
+            id: "call_3",
+            tool: "surfsense_find_tools",
+            status: "completed",
+            input: { query: "file a bug" },
+            output: "No plugin tool you do not already hold fits that.",
+          },
+          {
+            id: "call_4",
+            tool: "surfsense_find_tools",
+            status: "completed",
+            input: { query: "check the weather" },
+            output: "Loaded Weather's tools; they are yours from your next step.",
+          },
+        ]}
+      />
+    )
+
+    for (const label of [
+      "Loaded Linear’s tools",
+      "Loaded Notion’s tools",
+      "Looked for tools to file a bug",
+      "Loaded Weather’s tools",
+    ]) {
+      expect(screen.getByText(label)).toBeTruthy()
+    }
+  })
+
   it("names a file the same in a thread made on opencode 1.x and on 2.x", () => {
     // 1.x's file tools took `filePath`; 2.x's, and Claude Code's steps, `path`.
     render(

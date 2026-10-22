@@ -23,6 +23,8 @@ from modules.agent.plugin_tools.given_servers import (
 
 # The tools reach the model as `<server>_<tool>`: surfsense_search_sources.
 SERVER = "surfsense"
+# opencode's address says so: the endpoint shows it the plugins it does not hold.
+OPENCODE = "opencode"
 # A tool call's hard limit: opencode's own is 12 hours, and progress no longer
 # extends it. A render waits up to 150 s for its job, then up to 30 s for a Word
 # preview, inside render_document.CALL_SECONDS.
@@ -49,15 +51,18 @@ async def register_thread_tools(
     thread_id: int,
     launch_key: str,
     held: str | None = None,
+    catalogue: str = "",
 ) -> bool:
     """Give the thread folder's opencode instance this thread's tools; whether they were given now.
 
-    `held` is the status opencode reports for them, if it holds them. A turn goes
-    on without the tools if they cannot be given.
+    `held` is the status opencode reports for them, if it holds them. The server's
+    instructions carry `catalogue`, which opencode reads when it connects, so a
+    changed catalogue gives the tools again. A turn goes on without the tools if
+    they cannot be given.
     """
-    url = thread_tools_url(workspace_id, thread_id)
+    url = f"{thread_tools_url(workspace_id, thread_id)}?engine={OPENCODE}"
     headers = {"Authorization": f"Bearer {launch_key}"}
-    as_given = server_digest(url, headers)
+    as_given = server_digest(url, {**headers, "catalogue": catalogue})
     if held == "connected" and given_as(folder, SERVER) == as_given:
         return False
     try:

@@ -121,6 +121,27 @@ def test_an_entry_lists_its_tools_for_its_page(tmp_path):
     assert problems(tmp_path, [entry]) == ['plugins[0] "acme": tools: required']
 
 
+def test_an_entry_may_give_example_requests_per_tool(tmp_path):
+    entry = valid_entry(examples={"search": ["Find papers on protein folding"]})
+    assert problems(tmp_path, [entry]) == []
+
+
+def test_example_requests_name_a_listed_tool(tmp_path):
+    entry = valid_entry(examples={"delete": ["Delete my notes"]})
+    assert problems(tmp_path, [entry]) == [
+        "plugins[0] \"acme\": examples: 'delete' is not in tools"
+    ]
+
+
+def test_example_requests_are_few_and_short(tmp_path):
+    for requests in (["x"] * 6, ["x" * 201], []):
+        entry = valid_entry(examples={"search": requests})
+        assert problems(tmp_path, [entry]) == [
+            'plugins[0] "acme": examples: search takes 1 to 5 requests of 1 to '
+            "200 characters"
+        ]
+
+
 def test_a_token_entry_may_leave_the_wording_to_the_app(tmp_path):
     assert problems(tmp_path, [valid_entry(auth={"type": "token"})]) == []
 

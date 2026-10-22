@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from modules.agent.plugin_gateway.given_server import given_server
 from modules.agent.plugin_gateway.ready_upstream import Upstream
 from modules.agent.plugin_gateway.upstream_headers import upstream_headers
-from modules.agent.plugin_tools.tool_budget import offered_tools
 from modules.plugins.gateway.approval import needs_approval
 from modules.plugins.gateway.listing import list_tools
 from modules.plugins.installed.models import InstalledPlugin
@@ -47,18 +46,12 @@ def opencode_tool_name(server: str, tool: str) -> str:
 
 
 def turn_plugins(
-    session: Session,
-    where: tuple[int, int],
-    launch_key: str,
-    mentioned: frozenset[str] = frozenset(),
-    budget: int | None = None,
-    text: str = "",
+    session: Session, where: tuple[int, int], launch_key: str
 ) -> list[TurnPlugin]:
-    """The ready tools that fit `budget` tokens of definitions, the ones `text` asks for
-    first, or every one with no budget."""
-    chosen = offered_tools(list_tools(session), mentioned, budget, text)
+    """Every ready plugin, with a rule for each of its ready tools; which of them a turn
+    holds is the engine's to choose."""
     plugins: dict[str, TurnPlugin] = {}
-    for tool in chosen:
+    for tool in list_tools(session):
         if tool.plugin_id not in plugins:
             row = session.get_one(InstalledPlugin, tool.plugin_id)
             url, headers = given_server(row.id, where, launch_key)

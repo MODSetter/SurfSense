@@ -1,4 +1,5 @@
-"""Before a turn: the folder's opencode holds exactly the ready plugins, and the session's rules say what each tool may do.
+"""Before a turn: the folder's opencode holds exactly the ready plugins; the session's
+rules, which tool_exposure/ writes, say which of their tools it may call.
 
 The servers are given all at once, each within CONNECT_SECONDS, so a turn waits for the
 slowest rather than the sum, and a server that hangs is named unavailable alone.
@@ -111,23 +112,6 @@ async def give_plugins(
         if status == "failed"
     }
     return Given(unavailable, sum(added for _, added in given), failed)
-
-
-async def set_plugin_rules(
-    client: OpencodeClient,
-    session_id: str,
-    held: dict[str, str],
-    plugins: list[TurnPlugin],
-) -> None:
-    """Set the session's rules, whichever servers could be given; they start by denying every
-    plugin tool, so no earlier turn's allow survives under them."""
-    # Each server opencode holds is denied first, so a tool SurfSense has not
-    # reviewed is refused and left out of what the model is offered.
-    ready = {plugin.name for plugin in plugins}
-    rules = [_rule(f"{name}_*", "deny") for name in held.keys() - {SERVER} | ready]
-    for plugin in plugins:
-        rules += [_rule(tool, action) for tool, action in plugin.rules.items()]
-    await client.set_session_rules(session_id, rules)
 
 
 def servers(plugins: list[TurnPlugin]) -> list[tuple[str, str]]:

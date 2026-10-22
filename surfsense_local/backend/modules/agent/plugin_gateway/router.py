@@ -8,6 +8,7 @@ from modules.agent.plugin_gateway.blocked_call import blocked_reply
 from modules.agent.plugin_gateway.expired_token import sent_with_fresh_token
 from modules.agent.plugin_gateway.forwarded import send_on, streamed_back, unreachable
 from modules.agent.plugin_gateway.gateway_key import require_gateway_key
+from modules.agent.plugin_gateway.grown_on_call import grow_on_call
 from modules.agent.plugin_gateway.host_calls import HOST_CALLS, Host
 from modules.agent.plugin_gateway.missing_scopes import note_missing_scopes
 from modules.agent.plugin_gateway.ready_upstream import Upstream, ready_upstream
@@ -73,6 +74,7 @@ async def _forwarded(
             answered()
         return unreachable()
     await note_missing_scopes(session, request, where, sent)
+    await grow_on_call(where[1], where[0], body)
     return streamed_back(sent, then=answered)
 
 

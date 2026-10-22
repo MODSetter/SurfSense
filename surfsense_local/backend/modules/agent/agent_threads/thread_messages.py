@@ -15,6 +15,7 @@ from modules.agent.agent_threads.scope_note import name_scopes
 from modules.agent.agent_threads.session_import import found_after_import
 from modules.agent.opencode_client import OpencodeVersionError
 from modules.agent.opencode_runtime import AgentUnavailableError, ready_opencode
+from modules.agent.tool_exposure.loaded_steps import name_loaded_steps
 from modules.chat.models import ChatThread
 from modules.llm.resolution import ModelResolutionError
 from shared.config import get_storage_settings
@@ -62,4 +63,5 @@ async def agent_thread_messages(
     )
     await transact(session, link_ready_renders, thread.workspace_id, turns)
     await transact(session, name_scopes, thread.workspace_id, turns)
+    await transact(session, name_loaded_steps, turns)
     return turns

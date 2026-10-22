@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from modules.agent.plugin_tools import give_plugins as giving
-from modules.agent.plugin_tools.give_plugins import give_plugins, set_plugin_rules
+from modules.agent.plugin_tools.give_plugins import give_plugins
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
 from modules.agent.plugin_tools.thread_calls import CALLS_HEADER
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
@@ -131,25 +131,6 @@ async def test_surfsense_s_plugins_get_the_longer_call_timeout(tmp_path: Path) -
         "ours": PLUGIN_CALL_SECONDS,
         "theirs": TOOL_CALL_SECONDS,
     }
-
-
-async def test_the_rules_deny_every_held_server_then_allow_the_ready_tools(
-    tmp_path: Path,
-) -> None:
-    """Set whichever servers could be given, so no earlier turn's allow survives."""
-    opencode = _Opencode({})
-    held = {"gone": "disabled", "surfsense": "connected"}
-
-    await set_plugin_rules(opencode, "s-1", held, [plugin("a")])
-
-    assert opencode.rules is not None
-    assert sorted(r["permission"] for r in opencode.rules if r["action"] == "deny") == [
-        "a_*",
-        "gone_*",
-    ]
-    assert [r for r in opencode.rules if r["action"] != "deny"] == [
-        {"permission": "a_search", "pattern": "*", "action": "allow"}
-    ]
 
 
 async def test_a_server_that_failed_this_turn_is_not_waited_on_again(
