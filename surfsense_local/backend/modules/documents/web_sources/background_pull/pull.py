@@ -86,6 +86,12 @@ def _pull(session: Session, document: Document) -> None:
         logger.info("source %s: %s", document.id, error)
         _fail(session, document, UNREADABLE)
         return
+    except Exception:
+        # A plugin answer a puller cannot read: never leave the row processing.
+        logger.exception("source %s: the pull failed", document.id)
+        session.rollback()
+        _fail(session, document, UNREADABLE)
+        return
     if pulled is None:
         _fail(session, document, UNREADABLE)
         return

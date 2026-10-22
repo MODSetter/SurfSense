@@ -258,3 +258,26 @@ async def test_a_video_whose_comments_cannot_be_read_is_kept_without_them(
         ("youtube", "scrape"),
         ("youtube", "comments"),
     }
+
+
+async def test_a_plugin_answer_the_puller_cannot_read_fails_the_source(
+    client: AsyncClient, workspace_id: int, scraper_host: ScraperHost
+) -> None:
+    """Never left processing: a price given as text, where an object was due."""
+    product = "https://www.amazon.com/dp/B0TIDE0001"
+    scraper_host.start(
+        {
+            ("amazon", "scrape"): lambda _: [
+                {"title": "Tide Clock", "url": product, "price": "29.99"}
+            ]
+        }
+    )
+    await import_license(client, "individual.lic")
+    document_id = await added(client, workspace_id, product)
+
+    await pulled(document_id)
+
+    note = await source(client, workspace_id, document_id)
+    assert note["status"] == "failed"
+    assert note["error_message"] == "This link couldn't be read."
+    assert ingest_queue.pending() == []
