@@ -63,7 +63,8 @@ export function attachUpdater(
   }
 
   // Downloading is still the user's call in spirit: it only starts after a
-  // check they enabled or clicked. Installing always waits for them.
+  // check they enabled or clicked. A ready download installs on the restart
+  // action, or when the app quits, as autoInstallOnAppQuit stays at its default.
   updater.autoDownload = false
   // Takes the newest entry of the releases feed rather than /releases/latest.
   // That pointer names a 2.x release again, so this is no longer required;

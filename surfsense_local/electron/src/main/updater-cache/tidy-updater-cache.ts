@@ -2,7 +2,11 @@ import { rm } from "node:fs/promises"
 
 import type { Updates } from "../updater.ts"
 import { readDownloadedVersion, recordDownloadedVersion } from "./downloaded-version.ts"
-import { dropStaleBlockmap } from "./stale-blockmap.ts"
+import {
+  dropEarlierDownloadsBlockmap,
+  dropStaleBlockmap,
+  recordBlockmapVersion,
+} from "./stale-blockmap.ts"
 
 type UpdaterEvents = {
   on(
@@ -19,8 +23,8 @@ export type UpdaterCache = {
 
 /**
  * Free electron-updater's downloaded update once it can no longer be installed:
- * it empties pending/ only when the next download starts, so a 1.2 GB installer
- * otherwise outlives every update. The differential base beside pending/
+ * it empties pending/ only when a later launch downloads another version, so a
+ * 1.2 GB installer otherwise outlives every update. The differential base beside pending/
  * (installer.exe, update.zip) is left alone.
  *
  * Returns `updates` with each check held until the cache is tidy, so a download
@@ -36,12 +40,16 @@ export function tidyUpdaterCache(
   const queue = (step: () => Promise<void>) => (tidying = tidying.then(step))
 
   let offered = false
-  updater.on("update-available", () => {
+  // Synchronous: electron-updater writes a new blockmap only after fetching it.
+  updater.on("update-available", (info) => {
     offered = true
+    dropEarlierDownloadsBlockmap(pendingFolder, info.version, platform)
   })
-  updater.on("update-downloaded", (info) =>
+  // Synchronous: electron-updater copies pending/'s blockmap out right after emitting.
+  updater.on("update-downloaded", (info) => {
     recordDownloadedVersion(pendingFolder, info.version)
-  )
+    recordBlockmapVersion(pendingFolder, info.version, platform)
+  })
   // Nothing newer to install, say the release was pulled. A download offered
   // this session stays: quitting the app still installs it.
   updater.on("update-not-available", () => {
@@ -51,7 +59,7 @@ export function tidyUpdaterCache(
   return {
     ...updates,
     check: () => {
-      queue(() => dropStaleBlockmap(pendingFolder, platform))
+      queue(() => dropStaleBlockmap(pendingFolder, installedVersion, platform))
       return tidying.then(() => updates.check())
     },
   }

@@ -1,7 +1,15 @@
 import assert from "node:assert/strict"
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs"
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import test from "node:test"
 
 import type { Updates } from "../updater.ts"
@@ -28,11 +36,22 @@ function updaterCache() {
   return { root, pending: join(root, "pending") }
 }
 
-function download(pending: string) {
+/** A differential attempt saves the new version's blockmap in pending/ first; a whole download saves none. */
+function download(pending: string, blockmap?: string) {
   mkdirSync(pending, { recursive: true })
   writeFileSync(join(pending, "SurfSense-Setup.exe"), "downloaded version")
   writeFileSync(join(pending, "update-info.json"), '{"fileName":"SurfSense-Setup.exe"}')
+  if (blockmap !== undefined) writeFileSync(join(pending, "current.blockmap"), blockmap)
 }
+
+/** electron-updater 6.8.9's order: update-downloaded, then pending/'s blockmap copied beside installer.exe. */
+function finish(updater: ReturnType<typeof fakeUpdater>, pending: string, version: string) {
+  updater.emit("update-downloaded", version)
+  const saved = join(pending, "current.blockmap")
+  if (existsSync(saved)) copyFileSync(saved, join(dirname(pending), "current.blockmap"))
+}
+
+const blockmapIn = (root: string) => readFileSync(join(root, "current.blockmap"), "utf8")
 
 /** The app's Updates, whose check notes whether pending/ still existed when it ran. */
 function launch(
@@ -60,12 +79,17 @@ function launch(
 }
 
 /** One launch at `installed` that downloads `downloaded`. */
-async function downloadOn(pending: string, installed: string, downloaded: string) {
-  const { updater, updates } = launch(pending, installed)
+async function downloadOn(
+  pending: string,
+  installed: string,
+  downloaded: string,
+  platform: NodeJS.Platform = "linux"
+) {
+  const { updater, updates } = launch(pending, installed, platform)
   await updates.check()
-  download(pending)
   updater.emit("update-available", downloaded)
-  updater.emit("update-downloaded", downloaded)
+  download(pending, `${downloaded}'s blockmap`)
+  finish(updater, pending, downloaded)
 }
 
 test("an update already installed is freed before the first check, and the differential base stays", async () => {
@@ -168,29 +192,96 @@ test("a download offered this session stays, whatever a later check says", async
   assert.ok(existsSync(join(pending, "SurfSense-Setup.exe")))
 })
 
-test("on Windows each check drops the blockmap, never installer.exe or a waiting download", async () => {
+test("on Windows a blockmap that is not the installed version's is dropped, never installer.exe or a waiting download", async () => {
   const { root, pending } = updaterCache()
-  await downloadOn(pending, "2.2.3", "2.2.4")
-  const { updates } = launch(pending, "2.2.3", "win32")
+  await downloadOn(pending, "2.2.3", "2.2.4", "win32")
+  const { updater, updates } = launch(pending, "2.2.3", "win32")
 
   await updates.check()
 
   assert.deepEqual(readdirSync(root).sort(), ["installer.exe", "pending"])
   assert.ok(existsSync(join(pending, "SurfSense-Setup.exe")))
 
-  // A download in this session leaves its own blockmap; the next check drops it too.
-  writeFileSync(join(root, "current.blockmap"), "2.2.4's blockmap")
+  // Offered again, the waiting download leaves its blockmap again; the next check drops it too.
+  updater.emit("update-available", "2.2.4")
+  finish(updater, pending, "2.2.4")
+  assert.equal(blockmapIn(root), "2.2.4's blockmap")
   await updates.check()
-  assert.equal(existsSync(join(root, "current.blockmap")), false)
+  assert.deepEqual(readdirSync(root).sort(), ["installer.exe", "pending"])
 })
 
-test("on macOS update.zip and its blockmap are one download, so both stay", async () => {
+test("on Windows an update installed through the updater keeps its own blockmap", async () => {
+  const { root, pending } = updaterCache()
+  await downloadOn(pending, "2.2.3", "2.2.4", "win32")
+  // Installing at quit: the installer copies itself over installer.exe.
+  writeFileSync(join(root, "installer.exe"), "2.2.4")
+
+  const { updates } = launch(pending, "2.2.4", "win32")
+  await updates.check()
+  await updates.check()
+
+  // So the next update never needs 2.2.4's release to still be published.
+  assert.equal(blockmapIn(root), "2.2.4's blockmap")
+  assert.equal(existsSync(pending), false)
+})
+
+test("on Windows a version installed by hand drops the downloaded version's blockmap", async () => {
+  const { root, pending } = updaterCache()
+  await downloadOn(pending, "2.2.3", "2.2.4", "win32")
+  writeFileSync(join(root, "installer.exe"), "2.2.5")
+
+  await launch(pending, "2.2.5", "win32").updates.check()
+
+  assert.deepEqual(readdirSync(root).sort(), ["installer.exe"])
+})
+
+test("on Windows a whole download leaves the old blockmap, which is then dropped", async () => {
+  const { root, pending } = updaterCache()
+  await downloadOn(pending, "2.2.2", "2.2.3", "win32")
+  writeFileSync(join(root, "installer.exe"), "2.2.3")
+  const { updater, updates } = launch(pending, "2.2.3", "win32")
+  await updates.check()
+  assert.equal(blockmapIn(root), "2.2.3's blockmap")
+
+  // 2.2.4's blockmap could not be fetched, so it downloaded whole and saved none.
+  updater.emit("update-available", "2.2.4")
+  download(pending)
+  finish(updater, pending, "2.2.4")
+  writeFileSync(join(root, "installer.exe"), "2.2.4")
+  await launch(pending, "2.2.4", "win32").updates.check()
+
+  assert.deepEqual(readdirSync(root).sort(), ["installer.exe"])
+})
+
+test("on Windows a second download in one launch never takes the first one's blockmap as its own", async () => {
+  const { root, pending } = updaterCache()
+  const { updater, updates } = launch(pending, "2.2.3", "win32")
+  await updates.check()
+  updater.emit("update-available", "2.2.4")
+  download(pending, "2.2.4's blockmap")
+  finish(updater, pending, "2.2.4")
+
+  // Installing failed to start, and Check now offers 2.2.5. electron-updater
+  // reuses pending/ as it is, and 2.2.5's blockmap cannot be fetched.
+  await updates.check()
+  updater.emit("update-available", "2.2.5")
+  writeFileSync(join(pending, "SurfSense-Setup.exe"), "2.2.5")
+  finish(updater, pending, "2.2.5")
+  writeFileSync(join(root, "installer.exe"), "2.2.5")
+  await launch(pending, "2.2.5", "win32").updates.check()
+
+  assert.deepEqual(readdirSync(root).sort(), ["installer.exe"])
+})
+
+test("on macOS update.zip and its blockmap are left as they are, and nothing joins them", async () => {
   const { root, pending } = updaterCache()
   writeFileSync(join(root, "update.zip"), "last downloaded version")
+  await downloadOn(pending, "2.2.3", "2.2.4", "darwin")
 
-  await launch(pending, "2.2.4", "darwin").updates.check()
+  await launch(pending, "2.2.5", "darwin").updates.check()
 
   assert.deepEqual(readdirSync(root).sort(), ["current.blockmap", "installer.exe", "update.zip"])
+  assert.equal(blockmapIn(root), "2.2.4's blockmap")
 })
 
 test("checks still run without a cache, or before the first download", async () => {
