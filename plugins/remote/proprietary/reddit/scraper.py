@@ -431,11 +431,24 @@ async def iter_reddit(
     # this the searches loop below builds zero jobs and yields nothing. Reuse the
     # same flow the URL path dispatches for /r/<sub>. (searches present => the
     # name stays a search scope, handled below.)
+    # On one held session, as fan_out holds one per target: unheld, each page
+    # opened its own exit and paid its own warm-up. Not through fan_out, which
+    # collects a job whole: the listing streams, and stops at the caller's limit.
     if not input_model.searches and input_model.searchCommunityName:
-        async for item in _subreddit_flow(
-            input_model.searchCommunityName, input_model=input_model
-        ):
-            yield item
+        flow = _subreddit_flow(input_model.searchCommunityName, input_model=input_model)
+        try:
+            holder = await open_proxy_holder()
+        except Exception as e:  # no session: one-shot fetches, as in fan_out
+            logger.warning("[reddit] proxy session open failed: %s", e)
+            async for item in flow:
+                yield item
+            return
+        try:
+            async with bind_proxy_holder(holder):
+                async for item in flow:
+                    yield item
+        finally:
+            await holder.close()
         return
 
     # Fair-share the item budget across queries: with a shared cap, the

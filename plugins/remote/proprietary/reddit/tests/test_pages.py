@@ -4,13 +4,15 @@ Reddit is faked at the page seam, `fetch.fetch_page`, with fixtures cut to the
 shape Reddit serves; the host, the tool, the page reading and the scraper are real.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from host.tests.mcp_calls import call
-from proprietary.reddit import fetch
+from proprietary.reddit import fetch, scraper
 from proprietary.reddit.tests.on_the_host import LICENSE, no_proxy_sessions
 
 _FIXTURES = Path(__file__).parent / "fixtures/pages"
@@ -536,3 +538,50 @@ async def test_a_result_shown_with_a_preview_of_its_text_is_read_too(
         "t3_1w68fip",
         "t3_1u9fa2w",
     ]
+
+
+async def test_a_subreddit_call_reads_every_page_on_one_held_session(
+    reddit: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unheld, each page opened its own exit and paid its own warm-up (2026-10-23)."""
+    opened: list[object] = []
+    held: list[object] = []
+    asked: list[object | None] = []
+
+    class Holder:
+        async def close(self) -> None:
+            pass
+
+    async def open_holder() -> Holder:
+        opened.append(Holder())
+        return opened[-1]
+
+    @asynccontextmanager
+    async def bind(holder: Holder) -> AsyncIterator[Holder]:
+        held.append(holder)
+        try:
+            yield holder
+        finally:
+            held.remove(holder)
+
+    async def fetch_page(path: str, params=None, *, form=None) -> str | None:
+        asked.append(held[-1] if held else None)
+        if path.startswith("svc/shreddit/community-more-posts/"):
+            return fixture("community_new.html")
+        return fixture("post_page.html") if path.startswith("comments/") else None
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", open_holder)
+    monkeypatch.setattr(scraper, "bind_proxy_holder", bind)
+    monkeypatch.setattr(fetch, "fetch_page", fetch_page)
+
+    result = await call(
+        reddit,
+        "scrape",
+        {"community": "python", "skip_comments": True, "max_items": 3},
+        LICENSE,
+    )
+
+    assert not result.is_error, result.content[0].text
+    assert len(opened) == 1
+    assert len(asked) >= 3
+    assert all(holder is opened[0] for holder in asked)
