@@ -101,6 +101,15 @@ export function AddFromWebDialog({
     setGroups(null)
     setLists(new Map())
     setPages(new Map())
+    // Added stays true across searches; an opened list belonged to the last rows.
+    setStates(
+      (current) =>
+        new Map(
+          [...current].filter(
+            ([, state]) => state === "added" || state === "already"
+          )
+        )
+    )
     try {
       setGroups(
         opening

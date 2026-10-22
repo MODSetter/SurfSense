@@ -280,6 +280,29 @@ describe("adding sources from the web", () => {
     ).toBeTruthy()
   })
 
+  it("lets a list be opened again after a new search", async () => {
+    const user = userEvent.setup()
+    serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, "tides")
+    await user.click(
+      await within(dialog).findByRole("button", {
+        name: "Open The Sea School channel",
+      })
+    )
+    await within(dialog).findByRole("group", { name: "The Sea School channel" })
+
+    await user.clear(box(dialog))
+    await ask(user, dialog, "tides")
+
+    const open = await within(dialog).findByRole("button", {
+      name: "Open The Sea School channel",
+    })
+    expect(open.hasAttribute("disabled")).toBe(false)
+    expect(open.getAttribute("aria-disabled")).not.toBe("true")
+  })
+
   it("starts Add all over with each new search", async () => {
     const user = userEvent.setup()
     let answerSecond: (response: Response) => void = () => {}
