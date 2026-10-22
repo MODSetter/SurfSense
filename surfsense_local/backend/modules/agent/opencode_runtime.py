@@ -53,7 +53,7 @@ async def ready_opencode(
     """Write opencode's configuration for the selected model, then wait until it serves it.
 
     The opencode already running may hold an earlier configuration, with
-    another model or a launch key from a previous run; it is reloaded, and
+    another model or a launch key from a previous run; it watches the file, and
     counts only once it reports this one. The caller closes the client.
 
     A turn or a new session earns an opencode Electron gave up on another
@@ -115,21 +115,17 @@ def _endpoint_url() -> str:
 async def _until_serving(
     client: OpencodeClient, setup: AgentSetup, agent_dir: Path, written: float
 ) -> None:
-    """Return once opencode reports `setup`, reloading it once if it holds an older one.
+    """Return once opencode reports `setup`; a rewrite is loaded in about 0.3 s.
 
     Fails at once when Electron gave up on opencode after `written`.
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + READY_SECONDS
-    reloaded = False
     while True:
         try:
             await client.require_pinned_version()
-            if _serves(await client.config(), setup):
+            if _serves(await client.config(agent_dir), setup):
                 return
-            if not reloaded:
-                await client.reload_config()
-                reloaded = True
         except httpx.HTTPError:
             pass  # not yet started by Electron, or still starting
         if (reason := opencode_failure(agent_dir, written)) is not None:
@@ -143,12 +139,13 @@ async def _until_serving(
 
 def _serves(config: dict[str, Any], setup: AgentSetup) -> bool:
     """Whether a loaded configuration is this one: the provider package, the launch
-    key, the model's window and image input."""
-    provider = config.get("provider", {}).get(PROVIDER, {})
+    key, the model's window and image input, in opencode's own shape."""
+    provider = config.get("providers", {}).get(PROVIDER, {})
     model = provider.get("models", {}).get(setup.model, {})
+    takes = model.get("capabilities", {}).get("input", [])
     return (
-        provider.get("npm") == PROVIDER_PACKAGES[setup.route]
-        and provider.get("options", {}).get("apiKey") == setup.launch_key
+        provider.get("package") == f"aisdk:{PROVIDER_PACKAGES[setup.route]}"
+        and provider.get("settings", {}).get("apiKey") == setup.launch_key
         and model.get("limit", {}).get("context") == setup.window
-        and model.get("attachment", False) == setup.reads_images
+        and ("image" in takes) == setup.reads_images
     )

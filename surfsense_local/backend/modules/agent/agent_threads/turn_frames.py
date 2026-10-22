@@ -7,15 +7,22 @@ the agent adds three: `agent-step` for a tool call's progress, and
 
 from typing import Any
 
-from modules.agent.agent_threads.compaction import is_summary
 from modules.agent.agent_threads.error_kind import error_kind
-from modules.agent.agent_threads.error_reason import OVERFLOW, error_reason
+from modules.agent.agent_threads.error_reason import error_reason
 from modules.agent.agent_threads.replies import PARAGRAPH, iso_from_ms, reply_id
 from modules.agent.agent_threads.steps import step_of
 from modules.agent.opencode_client import Event
 
 Frame = dict[str, Any]
 _STREAMED = {"text": "delta", "reasoning": "reasoning"}
+# How a turn ends; a declined approval ends it as interrupted, with no idle message.
+ENDED = frozenset(
+    {
+        "session.execution.succeeded",
+        "session.execution.failed",
+        "session.execution.interrupted",
+    }
+)
 
 
 class TurnFrames:
@@ -23,169 +30,189 @@ class TurnFrames:
 
     def __init__(self, session_id: str) -> None:
         self._session = session_id
-        self._roles: dict[str, str] = {}
+        # Text and reasoning by (step, ordinal), as opencode keys them.
         self._kinds: dict[str, str] = {}
         self._streamed: dict[str, int] = {}
         self._answered: set[str] = set()
         self._held: dict[str, str] = {}
-        self._step_status: dict[str, str] = {}
+        self._thinking: dict[str, int] = {}
         self._thought: set[str] = set()
+        # Each tool call as opencode stores it, built from its events.
+        self._tools: dict[str, dict[str, Any]] = {}
         self._failed = False
         self.user_message_id: str | None = None
         self.finished = False
 
     def frames(self, event: Event) -> list[Frame]:
         """What this event adds to the thread; nothing for another session's."""
-        if event.properties.get("sessionID") != self._session:
+        data = event.data
+        if data.get("sessionID") != self._session:
             return []
+        if event.type in ENDED:
+            return self._ended(event)
+        if self.user_message_id is None:
+            return self._opened(event)
         read = {
-            "message.updated": self._message,
-            "message.part.updated": self._part,
-            "message.part.delta": self._delta,
+            "session.text.started": self._started,
+            "session.text.delta": self._delta,
+            "session.text.ended": self._whole,
+            "session.reasoning.started": self._started,
+            "session.reasoning.delta": self._delta,
+            "session.reasoning.ended": self._whole,
+            "session.tool.input.started": self._tool_named,
+            "session.tool.called": self._tool_called,
+            "session.tool.success": self._tool_answered,
+            "session.tool.failed": self._tool_answered,
             "permission.asked": self._asked,
             "permission.replied": self._replied,
-            "session.error": self._error,
-            "session.idle": self._idle,
         }.get(event.type)
-        return read(event.properties) if read else []
+        return read(event) if read else []
 
-    def _message(self, properties: dict[str, Any]) -> list[Frame]:
-        """Learn whose message it is; the turn's own user message opens the reply."""
-        info = properties["info"]
-        # A compaction's summary is opencode's note to itself, never the reply.
-        if is_summary(info):
-            self._roles[info["id"]] = "summary"
-            # One that failed ends the turn; when it was too long, only the summary says so.
-            return self._failure(info["error"]) if info.get("error") else []
-        self._roles[info["id"]] = info["role"]
-        if info["role"] != "user" or self.user_message_id is not None:
+    def _opened(self, event: Event) -> list[Frame]:
+        """The turn's own user message, queued, opens the reply; SurfSense's notes come before it."""
+        item = event.data.get("item") or {}
+        if event.type != "session.inbox.enqueued" or item.get("type") != "user":
             return []
-        self.user_message_id = info["id"]
+        self.user_message_id = event.data["inboxID"]
         return [
             {
                 "type": "accepted",
-                "user_message_id": info["id"],
-                "assistant_message_id": reply_id(info["id"]),
-                "user_created_at": iso_from_ms(info.get("time", {}).get("created")),
+                "user_message_id": self.user_message_id,
+                "assistant_message_id": reply_id(self.user_message_id),
+                "user_created_at": iso_from_ms(event.created),
             }
         ]
 
-    def _part(self, properties: dict[str, Any]) -> list[Frame]:
-        """A step's progress, or text a delta has not carried yet."""
-        part = properties["part"]
-        if self._roles.get(part.get("messageID")) != "assistant":
+    def _started(self, event: Event) -> list[Frame]:
+        key = _key(event.data)
+        self._kinds[key] = event.type.split(".")[1]
+        if self._kinds[key] == "reasoning":
+            self._thinking[key] = event.created or 0
+        return []
+
+    def _delta(self, event: Event) -> list[Frame]:
+        """Streamed text, for an item already announced as answer or reasoning."""
+        key = _key(event.data)
+        if key not in self._kinds:
             return []
-        if part.get("type") == "tool":
-            return self._step(part)
-        if part.get("type") not in _STREAMED:
-            return []
-        self._kinds[part["id"]] = part["type"]
-        frames = self._catch_up(part["id"], part.get("text") or "")
-        if part["type"] == "reasoning":
-            frames += self._thinking_ended(part)
+        self._streamed[key] = self._streamed.get(key, 0) + len(event.data["delta"])
+        return self._shown(key, event.data["delta"])
+
+    def _whole(self, event: Event) -> list[Frame]:
+        """An item's whole text: the end of it no delta streamed, so nothing is lost."""
+        key = _key(event.data)
+        self._kinds.setdefault(key, event.type.split(".")[1])
+        text = event.data.get("text") or ""
+        frames: list[Frame] = []
+        streamed = self._streamed.get(key, 0)
+        if len(text) > streamed:
+            self._streamed[key] = len(text)
+            frames = self._shown(key, text[streamed:])
+        if self._kinds[key] == "reasoning" and key not in self._thought:
+            self._thought.add(key)
+            began = self._thinking.get(key)
+            ended = event.created
+            frames.append(
+                {
+                    "type": "reasoning-end",
+                    "duration_ms": (ended - began) if began and ended else 0,
+                }
+            )
         return frames
 
-    def _delta(self, properties: dict[str, Any]) -> list[Frame]:
-        """Streamed text, for a part already announced as answer or reasoning."""
-        kind = self._kinds.get(properties.get("partID", ""))
-        if properties.get("field") != "text" or kind not in _STREAMED:
-            return []
-        self._streamed[properties["partID"]] = self._streamed.get(
-            properties["partID"], 0
-        ) + len(properties["delta"])
-        return self._shown(properties["partID"], properties["delta"])
+    def _shown(self, key: str, text: str) -> list[Frame]:
+        """An item's next text; a later answer item opens a new paragraph.
 
-    def _catch_up(self, part_id: str, text: str) -> list[Frame]:
-        """The end of a part's text that no delta streamed, so nothing is lost."""
-        streamed = self._streamed.get(part_id, 0)
-        if len(text) <= streamed:
-            return []
-        self._streamed[part_id] = len(text)
-        return self._shown(part_id, text[streamed:])
-
-    def _shown(self, part_id: str, text: str) -> list[Frame]:
-        """A part's next text; a later answer part opens a new paragraph.
-
-        opencode starts a new part after each tool call, and models lead or end
-        parts with breaks, or send parts of breaks only. A part's breaks are
-        held until text follows them, and its leading ones dropped, so parts
+        opencode starts a new item after each tool call, and models lead or end
+        items with breaks, or send items of breaks only. An item's breaks are
+        held until text follows them, and its leading ones dropped, so items
         join with one blank line, as the stored reply's do.
         """
-        kind = self._kinds[part_id]
+        kind = self._kinds[key]
         if kind != "text":
             return [{"type": _STREAMED[kind], "text": text}]
-        text = self._held.pop(part_id, "") + text
+        text = self._held.pop(key, "") + text
         body = text.rstrip()
         if not body:
-            self._held[part_id] = text
+            self._held[key] = text
             return []
         if "\n" in text[len(body) :]:
-            self._held[part_id] = text[len(body) :]
+            self._held[key] = text[len(body) :]
             text = body
-        if part_id not in self._answered:
+        if key not in self._answered:
             text = text.lstrip()
             if self._answered:
                 text = PARAGRAPH + text
-            self._answered.add(part_id)
+            self._answered.add(key)
         return [{"type": "delta", "text": text}]
 
-    def _thinking_ended(self, part: dict[str, Any]) -> list[Frame]:
-        """How long a reasoning part took, once, when it ends."""
-        time = part.get("time") or {}
-        if part["id"] in self._thought or time.get("end") is None:
-            return []
-        self._thought.add(part["id"])
-        return [
-            {
-                "type": "reasoning-end",
-                "duration_ms": time["end"] - time.get("start", time["end"]),
-            }
-        ]
+    def _tool_named(self, event: Event) -> list[Frame]:
+        """A call the model began writing."""
+        item = self._tool(event.data["id"])
+        item["name"] = event.data["name"]
+        item["state"] = {"status": "streaming", "input": ""}
+        return self._step(item)
 
-    def _step(self, part: dict[str, Any]) -> list[Frame]:
-        """A tool call, each time its status moves."""
-        status = (part.get("state") or {}).get("status")
-        if self._step_status.get(part["id"]) == status:
-            return []
-        self._step_status[part["id"]] = status
-        return [{"type": "agent-step", **step_of(part)}]
+    def _tool_called(self, event: Event) -> list[Frame]:
+        """A call with its whole input, about to run or be asked about."""
+        item = self._tool(event.data["id"])
+        item["state"] = {"status": "running", "input": event.data.get("input") or {}}
+        return self._step(item)
 
-    def _asked(self, properties: dict[str, Any]) -> list[Frame]:
+    def _tool_answered(self, event: Event) -> list[Frame]:
+        item = self._tool(event.data["id"])
+        given = (item.get("state") or {}).get("input")
+        state: dict[str, Any] = {
+            "status": "completed" if event.type == "session.tool.success" else "error",
+            "input": given if isinstance(given, dict) else {},
+        }
+        for field in ("content", "metadata", "error"):
+            if event.data.get(field) is not None:
+                state[field] = event.data[field]
+        item["state"] = state
+        return self._step(item)
+
+    def _tool(self, call_id: str) -> dict[str, Any]:
+        return self._tools.setdefault(call_id, {"type": "tool", "id": call_id})
+
+    def _step(self, item: dict[str, Any]) -> list[Frame]:
+        return [{"type": "agent-step", **step_of(item)}]
+
+    def _asked(self, event: Event) -> list[Frame]:
         """The agent wants to run something the user must allow first."""
+        data = event.data
+        metadata = data.get("metadata") or {}
         return [
             {
                 "type": "permission-request",
-                "id": properties["id"],
-                "permission": properties["permission"],
-                "patterns": properties.get("patterns") or [],
-                "command": (properties.get("metadata") or {}).get("command"),
+                "id": data["id"],
+                "permission": data.get("action"),
+                "patterns": data.get("resources") or [],
+                "command": (metadata.get("input") or {}).get("command"),
                 # The tool call it holds back, so the thread asks on that step.
-                "call_id": (properties.get("tool") or {}).get("callID"),
+                "call_id": (data.get("source") or {}).get("id"),
             }
         ]
 
-    def _replied(self, properties: dict[str, Any]) -> list[Frame]:
+    def _replied(self, event: Event) -> list[Frame]:
         """An approval answered, from this window or another."""
         return [
             {
                 "type": "permission-replied",
-                "id": properties["requestID"],
-                "reply": properties["reply"],
+                "id": event.data["requestID"],
+                "reply": event.data["reply"],
             }
         ]
 
-    def _error(self, properties: dict[str, Any]) -> list[Frame]:
-        """The turn failed; opencode says why in the error's data."""
-        error = properties.get("error") or {}
-        if error.get("name") == OVERFLOW:
-            return []  # opencode compacts and carries on (compaction.auto is on)
-        return self._failure(error)
-
-    def _failure(self, error: dict[str, Any]) -> list[Frame]:
-        """The turn's one error frame: opencode can report a failure twice."""
-        if self._failed:
+    def _ended(self, event: Event) -> list[Frame]:
+        """The turn is done once it has begun; a failure says why."""
+        if self.user_message_id is None:
+            return []
+        self.finished = True
+        if event.type != "session.execution.failed" or self._failed:
             return []
         self._failed = True
+        error = event.data.get("error") or {}
         return [
             {
                 "type": "error",
@@ -195,8 +222,6 @@ class TurnFrames:
             }
         ]
 
-    def _idle(self, properties: dict[str, Any]) -> list[Frame]:
-        """The session is done, once the turn has begun."""
-        if self.user_message_id is not None:
-            self.finished = True
-        return []
+
+def _key(data: dict[str, Any]) -> str:
+    return f"{data['assistantMessageID']}:{data['ordinal']}"

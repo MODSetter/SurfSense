@@ -53,7 +53,7 @@ class _Opencode:
         self.dropped.append(name)
 
     async def set_session_rules(
-        self, directory: Path, session_id: str, rules: list[dict[str, str]]
+        self, session_id: str, rules: list[dict[str, str]]
     ) -> None:
         self.rules = rules
 
@@ -141,7 +141,7 @@ async def test_the_rules_deny_every_held_server_then_allow_the_ready_tools(
     opencode = _Opencode({})
     held = {"gone": "disabled", "surfsense": "connected"}
 
-    await set_plugin_rules(opencode, tmp_path, "s-1", held, [plugin("a")])
+    await set_plugin_rules(opencode, "s-1", held, [plugin("a")])
 
     assert opencode.rules is not None
     assert sorted(r["permission"] for r in opencode.rules if r["action"] == "deny") == [

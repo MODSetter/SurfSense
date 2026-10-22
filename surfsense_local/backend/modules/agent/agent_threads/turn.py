@@ -1,7 +1,7 @@
 """One turn of an agent thread, run in the background in the chat's own frames.
 
 opencode holds the turn; this sends the message, relays what the session does
-until it is idle, then states the reply as opencode stored it. The turn is a
+until the turn ends, then states the reply as opencode stored it. The turn is a
 run: a window that hangs up stops following it, not the turn; Stop and quit
 end it.
 """
@@ -282,13 +282,12 @@ async def _stream(
         failures = 0
         while not turn.finished:
             try:
-                async for event in client.events(folder):
+                async for event in client.events():
                     failures = 0
                     if event.type == "server.connected":
                         # Opened before sending, so not one of the turn's events is missed.
                         if not sent:
                             await client.send_turn(
-                                folder,
                                 session_id,
                                 sending.text,
                                 model=ready.model,
@@ -304,7 +303,7 @@ async def _stream(
                                 ],
                             )
                             sent = True
-                        elif await client.status(folder, session_id) == "idle":
+                        elif await client.status(session_id) == "idle":
                             turn.finished = True  # it ended while the stream was down
                             break
                         continue
@@ -332,7 +331,7 @@ async def _stream(
 
         reply = None
         if turn.user_message_id is not None:
-            messages = await client.messages(folder, session_id)
+            messages = await client.messages(session_id)
             citations = await transact(
                 session, load_citations, workspace_id, searched_chunks(messages)
             )
@@ -374,13 +373,13 @@ async def _stream(
         with anyio.CancelScope(shield=True):
             if run.stop_requested and not turn.finished:
                 # opencode stores a Stop as it stores a quit: only this note tells them apart.
-                await _note_stop(client, folder, session_id, turn.user_message_id)
+                await _note_stop(client, session_id, turn.user_message_id)
                 await stop_plugin_calls(plugins)
             else:
                 host_calls.end()
             if sent and not turn.finished:
                 try:
-                    await client.abort(folder, session_id)
+                    await client.abort(session_id)
                 except httpx.HTTPError:
                     logger.warning(
                         "could not stop agent turn in %s", session_id, exc_info=True
@@ -462,7 +461,7 @@ async def _prepare_tools(
             await _timed(
                 took,
                 "rules",
-                set_plugin_rules(client, folder, session_id, held, plugins),
+                set_plugin_rules(client, session_id, held, plugins),
             )
         except httpx.HTTPError:
             if plugins or held.keys() - {SERVER}:
@@ -530,7 +529,7 @@ def _drop(task: asyncio.Task | None) -> None:
 
 
 async def _note_stop(
-    client: OpencodeClient, folder: Path, session_id: str, user_message_id: str | None
+    client: OpencodeClient, session_id: str, user_message_id: str | None
 ) -> None:
     """Keep that the user stopped the reply; a failed write reads as interrupted,
     which offers Retry rather than hiding it."""
@@ -538,7 +537,7 @@ async def _note_stop(
         return
     try:
         await record_ending(
-            client, folder, session_id, reply_id(user_message_id), {"type": "stopped"}
+            client, session_id, reply_id(user_message_id), {"type": "stopped"}
         )
     except httpx.HTTPError:
         logger.warning("could not note the stop of %s's reply", session_id)

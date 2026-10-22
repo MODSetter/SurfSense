@@ -21,7 +21,7 @@ from starlette.concurrency import run_in_threadpool
 from api.dependencies import transact
 from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.ready_renders import link_ready_renders
-from modules.agent.agent_threads.replies import reply_id, thread_turns
+from modules.agent.agent_threads.replies import reply_id, session_turns, thread_turns
 from modules.agent.agent_threads.reply_ending import ABORTED
 from modules.agent.agent_threads.scope_note import name_scopes
 from modules.agent.agent_threads.turn import RunPlace
@@ -151,9 +151,9 @@ class ClaudeCodeEngine:
         self, session: Session, thread: ChatThread, part_id: str
     ) -> dict[str, Any]:
         for message in await self._messages(session, thread):
-            for part in message["parts"]:
-                if part.get("id") == part_id and part.get("type") == "tool":
-                    return part
+            for item in message.get("content") or []:
+                if item.get("id") == part_id and item.get("type") == "tool":
+                    return item
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such step in this thread")
 
     async def forget_thread(self, thread: ChatThread) -> Path:
@@ -246,12 +246,8 @@ def _mark_endings(
 
     The reply still being written is left alone: its ending is noted from its start.
     """
-    last_steps: dict[str, dict[str, Any]] = {}
-    for message in messages:
-        if message["info"]["role"] == "assistant":
-            last_steps[message["info"]["parentID"]] = message
-    openers = [m["info"]["id"] for m in messages if m["info"]["role"] == "user"]
-    live = openers[-1] if answering and openers else None
-    for opener, step in last_steps.items():
-        if opener != live and reply_id(opener) in endings:
-            step["info"]["error"] = {"name": ABORTED}
+    turns = session_turns(messages)
+    for index, turn in enumerate(turns):
+        live = answering and index == len(turns) - 1
+        if turn.steps and not live and reply_id(turn.user["id"]) in endings:
+            turn.steps[-1]["error"] = {"type": ABORTED, "message": "Stopped"}

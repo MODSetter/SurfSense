@@ -42,8 +42,8 @@ async def agent_thread_messages(
     folder = get_storage_settings().thread_working_dir(thread.workspace_id, thread.id)
     live_instances.instance_used(folder)
     try:
-        messages = await ready.client.messages(folder, session_id)
-        metadata = await ready.client.session_metadata(folder, session_id)
+        messages = await ready.client.messages(session_id)
+        metadata = await ready.client.session_metadata(session_id)
     except httpx.HTTPError as error:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"opencode did not answer: {error}"

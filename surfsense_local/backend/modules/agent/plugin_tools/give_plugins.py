@@ -111,7 +111,6 @@ async def give_plugins(
 
 async def set_plugin_rules(
     client: OpencodeClient,
-    folder: Path,
     session_id: str,
     held: dict[str, str],
     plugins: list[TurnPlugin],
@@ -124,7 +123,7 @@ async def set_plugin_rules(
     rules = [_rule(f"{name}_*", "deny") for name in held.keys() - {SERVER} | ready]
     for plugin in plugins:
         rules += [_rule(tool, action) for tool, action in plugin.rules.items()]
-    await client.set_session_rules(folder, session_id, rules)
+    await client.set_session_rules(session_id, rules)
 
 
 def servers(plugins: list[TurnPlugin]) -> list[tuple[str, str]]:
