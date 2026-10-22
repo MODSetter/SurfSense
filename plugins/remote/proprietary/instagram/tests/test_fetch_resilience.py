@@ -19,6 +19,7 @@ from proprietary.instagram.fetch import (
     _current_session,
     fetch_json,
 )
+from proprietary.instagram.tests.profile_pages import profile_pages
 
 _PAYLOAD = {"data": {"user": {"username": "natgeo"}}}
 
@@ -50,11 +51,13 @@ class _FakeSession:
         csrftoken: bool = True,
         payload=None,
         login_wall: bool = False,
+        rate_limited: bool = False,
     ) -> None:
         self.status = status
         self.csrftoken = csrftoken
         self.payload = payload
         self.login_wall = login_wall
+        self.rate_limited = rate_limited
         self.json_calls = 0
         self.warm_calls = 0
 
@@ -66,6 +69,12 @@ class _FakeSession:
         self.json_calls += 1
         # A soft login wall: 200, but the final URL is the login page.
         final = "https://www.instagram.com/accounts/login/" if self.login_wall else url
+        if self.rate_limited:
+            # The same redirect, flagged as a rate-limit exit (live, 2026-10-22).
+            final = (
+                "https://www.instagram.com/accounts/login/"
+                "?next=https%3A%2F%2Fwww.instagram.com%2Fnatgeo%2F&is_from_rle"
+            )
         return _FakePage(self.status, payload=self.payload, url=final)
 
 
@@ -332,22 +341,6 @@ async def test_fan_out_partial_results_survive_one_blocked_target(monkeypatch):
     assert [it["id"] for it in items] == ["good:0", "good:1", "good:2"]
 
 
-def _profile_payload(username: str, n: int) -> dict:
-    # IDs namespaced per target so cross-target de-dup doesn't collapse them.
-    return {
-        "data": {
-            "user": {
-                "id": f"u_{username}",
-                "username": username,
-                "edge_owner_to_timeline_media": {
-                    "count": n,
-                    "edges": [{"node": {"id": f"{username}:{i}"}} for i in range(n)],
-                },
-            }
-        }
-    }
-
-
 async def test_scrape_instagram_closes_sessions_when_limit_stops_inflight_workers(
     monkeypatch,
 ):
@@ -374,12 +367,12 @@ async def test_scrape_instagram_closes_sessions_when_limit_stops_inflight_worker
 
     async def _fetch(path, params=None):
         await asyncio.sleep(0)  # yield control: keep sibling workers in-flight
-        username = (params or {}).get("username", "acct")
-        return _profile_payload(username, 5)
+        username = path.split("/", 1)[0]
+        return profile_pages(username, list(range(5))).get(path)
 
     monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
     monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
-    monkeypatch.setattr(scraper, "fetch_json", _fetch)
+    monkeypatch.setattr(scraper, "fetch_html", _fetch)
 
     model = scraper.InstagramScrapeInput(
         resultsType="posts",
@@ -420,3 +413,15 @@ async def test_discover_nonhandle_routes_through_google(monkeypatch):
         "national geographic", search_type="profile", limit=10
     )
     assert [(t.kind, t.value) for t in targets] == [("profile", "natgeo")]
+
+
+async def test_a_rate_limit_redirect_to_the_login_page_moves_to_a_fresh_exit():
+    """``is_from_rle`` is an exit asking too often, not a page needing a login."""
+    holder = _FakeHolder([_FakeSession(429, rate_limited=True), _FakeSession(200)])
+    token = _current_session.set(holder)
+    try:
+        result = await fetch.fetch_html("natgeo/")
+    finally:
+        _current_session.reset(token)
+    assert result is not None
+    assert holder.rotations == 1

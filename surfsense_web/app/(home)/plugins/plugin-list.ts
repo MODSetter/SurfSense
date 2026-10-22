@@ -3,6 +3,8 @@ import { AmazonLogo } from "@/components/homepage/icons/amazon-logo";
 import { GoogleMapsLogo } from "@/components/homepage/icons/google-maps-logo";
 import { GoogleSearchLogo } from "@/components/homepage/icons/google-search-logo";
 import { IndeedLogo } from "@/components/homepage/icons/indeed-logo";
+import { InstagramLogo } from "@/components/homepage/icons/instagram-logo";
+import { RedditLogo } from "@/components/homepage/icons/reddit-logo";
 import { TiktokLogo } from "@/components/homepage/icons/tiktok-logo";
 import { WalmartLogo } from "@/components/homepage/icons/walmart-logo";
 import { WebCrawlLogo } from "@/components/homepage/icons/web-crawl-logo";
@@ -24,7 +26,9 @@ const LOGOS: Partial<Record<string, (props: React.SVGProps<SVGSVGElement>) => Re
 	{
 		"google-search": GoogleSearchLogo,
 		"web-crawl": WebCrawlLogo,
+		reddit: RedditLogo,
 		youtube: YoutubeLogo,
+		instagram: InstagramLogo,
 		tiktok: TiktokLogo,
 		"google-maps": GoogleMapsLogo,
 		amazon: AmazonLogo,

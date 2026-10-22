@@ -22,9 +22,9 @@ const registryUrl = `${REPO_URL}/tree/main/plugins/registry`;
 /** A form a bot checks and turns into the registry pull request; no git for the publisher. */
 const submitUrl = `${REPO_URL}/issues/new?template=plugin-submit.yml`;
 
-const metaTitle = "SurfSense Plugins: Google Search, YouTube, TikTok, Amazon and More";
+const metaTitle = "SurfSense Plugins: Google Search, Reddit, YouTube, Instagram and More";
 const metaDescription =
-	"Plugins give SurfSense's agent live data from Google Search, YouTube, TikTok, Google Maps, Amazon, Walmart, Indeed and any web page. Free for 30 days, plus any MCP server you add.";
+	"Plugins give SurfSense's agent live data from Google Search, Reddit, YouTube, Instagram, TikTok, Google Maps, Amazon, Walmart, Indeed and any web page. Free for 30 days, plus any MCP server you add.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
