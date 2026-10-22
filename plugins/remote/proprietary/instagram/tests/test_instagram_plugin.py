@@ -1,13 +1,11 @@
 """The Instagram plugin as the app reaches it: its MCP server on the host, behind the license.
 
-Instagram is faked at the scraper's network seam, `fetch_json` and `fetch_html`,
+Instagram is faked at the scraper's network seam, `fetch_html`,
 and its proxy sessions; the host, the license check, the tools and the parsing are real.
 """
 
 import importlib
 import json
-from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx2
@@ -15,79 +13,29 @@ import pytest
 from mcp.client.client import Client
 from mcp.client.streamable_http import streamable_http_client
 
-from host.app import host_app
 from host.tests.mcp_calls import call
-from host.tests.serving import serving
 from mcp_server import progress as progress_module
 from proprietary.instagram import scraper
 from proprietary.instagram.fetch import (
     InstagramAccessBlockedError,
     InstagramLoginRequiredError,
 )
-from proprietary.license_check.tests.stand_in_keygen import (
-    ACCOUNT,
-    StandInKeygen,
-    accounts_url,
-)
-
-LICENSE = {"Authorization": "License k-1"}
+from proprietary.instagram.tests.on_the_host import LICENSE, no_proxy_sessions
+from proprietary.instagram.tests.profile_pages import profile_pages
+from proprietary.license_check.tests.stand_in_keygen import ACCOUNT
 
 
 @pytest.fixture
-def instagram(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
-    """The real Instagram plugin on the host, its license checked by a stand-in Keygen."""
-    with serving(StandInKeygen({"k-1": "VALID"}).app) as keygen_url:
-        monkeypatch.setenv("KEYGEN_API_URL", accounts_url(keygen_url))
-        monkeypatch.setenv("KEYGEN_ACCOUNT_ID", ACCOUNT)
-        with serving(host_app(plugins={"instagram"})) as base:
-            yield f"{base}/instagram/mcp"
+def instagram_answers(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Instagram serving every profile's page and embed, three posts; keeps each path."""
+    asked: list[str] = []
 
-
-def media(number: int) -> dict[str, Any]:
-    """One post as a profile's `web_profile_info` lists it."""
-    return {
-        "node": {
-            "__typename": "GraphImage",
-            "id": f"m{number}",
-            "shortcode": f"C{number}",
-            "edge_media_to_caption": {
-                "edges": [{"node": {"text": f"Sunset {number}"}}]
-            },
-            "owner": {"id": "7", "username": "natgeo"},
-            "taken_at_timestamp": 1_790_000_000 + number,
-        }
-    }
-
-
-def profile(username: str) -> dict[str, Any]:
-    """`web_profile_info` for a profile with three posts."""
-    return {
-        "data": {
-            "user": {
-                "id": "7",
-                "username": username,
-                "full_name": "National Geographic",
-                "edge_followed_by": {"count": 280_000_000},
-                "edge_owner_to_timeline_media": {
-                    "count": 3,
-                    "edges": [media(n) for n in (1, 2, 3)],
-                },
-            }
-        }
-    }
-
-
-@pytest.fixture
-def instagram_answers(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict]]:
-    """Instagram answering every profile; keeps each path asked for."""
-    asked: list[tuple[str, dict]] = []
-
-    async def fetch_json(path: str, params: dict | None = None) -> Any:
-        asked.append((path, params or {}))
-        return profile((params or {})["username"])
+    async def fetch_html(path: str, params: dict | None = None) -> str | None:
+        asked.append(path)
+        return profile_pages(path.split("/", 1)[0], [1, 2, 3]).get(path)
 
     no_proxy_sessions(monkeypatch)
-    monkeypatch.setattr(scraper, "fetch_json", fetch_json)
+    monkeypatch.setattr(scraper, "fetch_html", fetch_html)
     return asked
 
 
@@ -99,24 +47,7 @@ def walled(monkeypatch: pytest.MonkeyPatch) -> None:
         raise InstagramAccessBlockedError("login wall on every address")
 
     no_proxy_sessions(monkeypatch)
-    monkeypatch.setattr(scraper, "fetch_json", refused)
     monkeypatch.setattr(scraper, "fetch_html", refused)
-
-
-def no_proxy_sessions(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Holder:
-        async def close(self) -> None:
-            pass
-
-    async def open_holder() -> Holder:
-        return Holder()
-
-    @asynccontextmanager
-    async def bind(holder: Holder) -> AsyncIterator[Holder]:
-        yield holder
-
-    monkeypatch.setattr(scraper, "open_proxy_holder", open_holder)
-    monkeypatch.setattr(scraper, "bind_proxy_holder", bind)
 
 
 async def test_it_offers_two_read_only_tools_that_reach_the_web(
@@ -138,7 +69,7 @@ async def test_it_offers_two_read_only_tools_that_reach_the_web(
 
 async def test_a_profile_s_posts_come_with_a_summary_and_progress(
     instagram: str,
-    instagram_answers: list[tuple[str, dict]],
+    instagram_answers: list[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Unthrottled, so every stage shows: the opening stage (0.5), then each item.
@@ -161,12 +92,12 @@ async def test_a_profile_s_posts_come_with_a_summary_and_progress(
     assert "Sunset 1" in summary
     assert "https://www.instagram.com/p/C1/" in summary
     assert progress == [0.5, 1, 2]
-    assert instagram_answers[0][1] == {"username": "natgeo"}
+    assert instagram_answers[0] == "natgeo/"
 
 
 async def test_a_profile_s_details_come_with_a_summary_and_progress(
     instagram: str,
-    instagram_answers: list[tuple[str, dict]],
+    instagram_answers: list[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(progress_module, "INTERVAL_SECONDS", 0.0)
@@ -188,7 +119,7 @@ async def test_a_profile_s_details_come_with_a_summary_and_progress(
 
 
 async def test_each_post_is_a_line_of_the_fields_an_agent_needs(
-    instagram: str, instagram_answers: list[tuple[str, dict]]
+    instagram: str, instagram_answers: list[str]
 ) -> None:
     """opencode reads only the text, so the posts go there, without ids or media URLs."""
     result = await call(
@@ -212,7 +143,7 @@ async def test_each_post_is_a_line_of_the_fields_an_agent_needs(
 
 
 async def test_a_profile_line_carries_its_counts_and_latest_posts(
-    instagram: str, instagram_answers: list[tuple[str, dict]]
+    instagram: str, instagram_answers: list[str]
 ) -> None:
     result = await call(
         instagram,
@@ -278,12 +209,10 @@ async def test_the_profile_login_wall_names_what_still_works(
     """Not 'provide a profile URL': the caller gave one, and it cannot work."""
 
     async def walled(path: str, params: dict | None = None) -> Any:
-        raise InstagramLoginRequiredError(
-            "Instagram requires a login for api/v1/users/web_profile_info"
-        )
+        raise InstagramLoginRequiredError("Instagram requires a login for natgeo")
 
     no_proxy_sessions(monkeypatch)
-    monkeypatch.setattr(scraper, "fetch_json", walled)
+    monkeypatch.setattr(scraper, "fetch_html", walled)
 
     scraped = await call(instagram, "scrape", {"urls": ["natgeo"]}, LICENSE)
     detailed = await call(instagram, "details", {"urls": ["natgeo"]}, LICENSE)
@@ -291,7 +220,7 @@ async def test_the_profile_login_wall_names_what_still_works(
     for result in (scraped, detailed):
         assert result.is_error
         text = result.content[0].text
-        assert "requires a login for api/v1/users/web_profile_info" in text
+        assert "requires a login for natgeo" in text
         assert "Single post and reel URLs" in text
         assert "instagram.com/p/<code>/" in text
         assert "Provide a profile URL" not in text
@@ -333,3 +262,16 @@ def test_without_a_license_the_plugin_answers_nothing(instagram: str) -> None:
     refused = httpx2.post(instagram, json={})
 
     assert (refused.status_code, refused.json()) == (401, {"reason": "missing_license"})
+
+
+async def test_scrape_says_where_a_video_s_url_comes_from(instagram: str) -> None:
+    """A feed's newest posts come without one; a post URL reads the post's own page."""
+    async with (
+        httpx2.AsyncClient(headers=LICENSE) as http,
+        Client(streamable_http_client(instagram, http_client=http)) as client,
+    ):
+        tools = {tool.name: tool for tool in (await client.list_tools()).tools}
+
+    description = tools["scrape"].description or ""
+    assert "video URL" in description
+    assert "instagram.com/p/<code>/" in description
