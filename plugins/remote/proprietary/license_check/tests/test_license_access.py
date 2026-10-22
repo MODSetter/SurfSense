@@ -8,11 +8,12 @@ from starlette.datastructures import Headers
 from host.app import host_app
 from host.tests.mcp_calls import tool_names
 from host.tests.serving import serving
-from mcp_server.access import Refusal
+from mcp_server.access import Refusal, checked_license
 from proprietary.license_check.keygen import (
     CLOUD_ACCOUNTS_URL,
     Keygen,
     KeygenUnreachableError,
+    Validation,
 )
 from proprietary.license_check.license_access import (
     GRACE_SECONDS,
@@ -23,6 +24,7 @@ from proprietary.license_check.tests.stand_in_keygen import (
     ACCOUNT,
     StandInKeygen,
     accounts_url,
+    license_id_of,
 )
 
 SAMPLES = Path(__file__).parent / "sample_plugins"
@@ -50,12 +52,12 @@ class GatedKeygen:
         self.gate = asyncio.Event()
         self.gate.set()
 
-    async def validation_code(self, key: str) -> str:
+    async def validation(self, key: str) -> Validation:
         self.asked.append(key)
         await self.gate.wait()
         if self.down:
             raise KeygenUnreachableError("down")
-        return self.codes.get(key, "NOT_FOUND")
+        return Validation(self.codes.get(key, "NOT_FOUND"))
 
 
 @pytest.mark.parametrize("authorization", [None, "Bearer k-1", "License ", "License"])
@@ -93,6 +95,29 @@ async def test_keygen_decides_whether_a_key_may_call(
     with serving(keygen.app) as url:
         access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT))
         assert await access.refusal(license_header("k-1")) == refusal
+
+
+async def test_the_check_names_the_license_keygen_found_without_asking_again() -> None:
+    """For the usage meter: Keygen's `data.id`, allowed or refused, never the key."""
+    keygen = StandInKeygen({"k-1": "VALID", "k-2": "EXPIRED"})
+    with serving(keygen.app) as url:
+        access = LicenseAccess(Keygen(accounts_url(url), ACCOUNT))
+        found = []
+        for authorization in ["k-1", "k-1", "k-2", "k-3"]:
+            await access.refusal(license_header(authorization))
+            found.append(checked_license.get())
+        await access.refusal(Headers({}))
+        found.append(checked_license.get())
+
+    # An unknown key and no key at all name no license.
+    assert found == [
+        license_id_of("k-1"),
+        license_id_of("k-1"),
+        license_id_of("k-2"),
+        None,
+        None,
+    ]
+    assert keygen.validated == ["k-1", "k-2", "k-3"]
 
 
 async def test_a_key_is_asked_about_once_in_five_minutes() -> None:
@@ -290,10 +315,9 @@ async def test_a_self_hosted_keygen_is_told_its_host_and_https() -> None:
     keygen = StandInKeygen({"k-1": "VALID"})
     with serving(keygen.app) as url:
         hosted = Keygen(accounts_url(url), ACCOUNT, "keygen.internal")
-        assert await hosted.validation_code("k-1") == "VALID"
-        assert await Keygen(accounts_url(url), ACCOUNT).validation_code("k-1") == (
-            "VALID"
-        )
+        assert (await hosted.validation("k-1")).code == "VALID"
+        plain = Keygen(accounts_url(url), ACCOUNT)
+        assert (await plain.validation("k-1")).code == "VALID"
 
     (hosted_host, hosted_proto), (plain_host, plain_proto) = keygen.seen_headers
     assert (hosted_host, hosted_proto) == ("keygen.internal", "https")

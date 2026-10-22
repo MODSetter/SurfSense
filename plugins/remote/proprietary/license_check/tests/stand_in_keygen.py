@@ -1,11 +1,18 @@
 """Keygen's validate-key action on loopback, answering each key with the code a test gives it."""
 
+import uuid
+
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
 ACCOUNT = "stand-in-account"
+
+
+def license_id_of(key: str) -> str:
+    """The id Keygen gives the license with `key`: a UUID that does not hold the key."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"stand-in-license:{key}"))
 
 
 def accounts_url(base: str) -> str:
@@ -42,4 +49,12 @@ class StandInKeygen:
         key = (await request.json())["meta"]["key"]
         self.validated.append(key)
         code = self.codes.get(key, "NOT_FOUND")
-        return JSONResponse({"meta": {"valid": code == "VALID", "code": code}})
+        # Keygen answers a key it does not know with `data: null`.
+        data = (
+            {"id": license_id_of(key), "type": "licenses"}
+            if key in self.codes
+            else None
+        )
+        return JSONResponse(
+            {"meta": {"valid": code == "VALID", "code": code}, "data": data}
+        )

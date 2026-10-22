@@ -25,7 +25,7 @@ class PostOnly:
         if (
             scope["type"] == "http"
             and scope["method"] in _REFUSED
-            and _route_path(scope).rstrip("/") == "/mcp"
+            and route_path(scope).rstrip("/") == "/mcp"
         ):
             body = json.dumps(
                 {
@@ -50,7 +50,7 @@ class PostOnly:
         await self.app(scope, receive, send)
 
 
-def _route_path(scope: Scope) -> str:
+def route_path(scope: Scope) -> str:
     """The path under the plugin's mount, as Starlette's own routing reads it."""
     path: str = scope["path"]
     root_path: str = scope.get("root_path", "")

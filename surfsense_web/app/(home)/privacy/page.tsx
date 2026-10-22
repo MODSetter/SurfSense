@@ -346,9 +346,13 @@ export default function PrivacyPolicy() {
 					<p>
 						The scraper plugins, which a licence unlocks, run against a service we operate. When you
 						ask a plugin to fetch something, that service receives the request and its target so it
-						can carry out the fetch, along with the licence identifying the request. We keep
-						operational records of that usage in order to enforce rate limits, detect abuse and bill
-						correctly.
+						can carry out the fetch, along with the licence identifying the request. For each
+						licence, the service counts which plugins and tools were called on which days, whether
+						each call worked and how long it took, and notes the day the licence first used a
+						plugin. We use these counts to detect abuse, to plan fair-use limits and to decide which
+						plugins to improve. They never include what you asked a plugin to fetch. Daily totals
+						with no licence in them, such as how many calls a tool received and how many licences
+						used it, are sent to PostHog.
 					</p>
 
 					<h3>4.5 Hosting and server logs</h3>
@@ -434,9 +438,11 @@ export default function PrivacyPolicy() {
 						as long as the licence is live and for a reasonable period afterwards, so we can resend
 						it and honour support. Payment and invoice records are kept by Stripe and by us for the
 						period tax law requires, commonly six to seven years. Server and edge logs are
-						short-lived, typically days to a few weeks. Plugin usage records are kept only as long
-						as needed for billing, rate limiting and abuse investigation. Aggregated figures that
-						can no longer identify anyone may be kept indefinitely.
+						short-lived, typically days to a few weeks. The plugin service's per-licence daily
+						counts are kept in our own database for 13 months and then deleted; the day a licence
+						first used a plugin is deleted once that licence has made no call for 13 months. Daily
+						totals with no licence in them may be kept longer. Aggregated figures that can no longer
+						identify anyone may be kept indefinitely.
 					</p>
 					<p>
 						Anything inside the desktop app is kept for exactly as long as you keep it, because we

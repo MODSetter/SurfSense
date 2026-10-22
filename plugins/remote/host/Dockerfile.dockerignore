@@ -10,3 +10,5 @@ bundles/
 **/.ruff_cache/
 **/.env
 **/.DS_Store
+# The usage meter's file from a local run.
+remote/usage/
