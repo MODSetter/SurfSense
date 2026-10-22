@@ -63,12 +63,12 @@ def test_the_bundle_ships_the_manifests_both_roles_read(binary: Path) -> None:
     reads as unknown, and Studio calls an installed model "not installed".
     """
     manifests = _internal(binary) / "modules" / "llm" / "catalog"
-    assert json.loads((manifests / "remote" / "manifest" / "models.json").read_text(encoding="utf-8"))[
-        "providers"
-    ]
-    assert json.loads((manifests / "local" / "manifest" / "models.json").read_text(encoding="utf-8"))[
-        "models"
-    ]
+    assert json.loads(
+        (manifests / "remote" / "manifest" / "models.json").read_text(encoding="utf-8")
+    )["providers"]
+    assert json.loads(
+        (manifests / "local" / "manifest" / "models.json").read_text(encoding="utf-8")
+    )["models"]
 
 
 def test_no_claude_code_ships(binary: Path) -> None:
@@ -116,8 +116,10 @@ def test_the_api_role_answers_health_and_stays_light(
                     f"http://127.0.0.1:{port}/health", timeout=1
                 ) as reply:
                     assert reply.status == 200
+                # The first catalog read probes the hardware in a child, which
+                # starts this binary again: a cold start on a CI runner.
                 with urllib.request.urlopen(
-                    f"http://127.0.0.1:{port}/llm/catalog/local", timeout=10
+                    f"http://127.0.0.1:{port}/llm/catalog/local", timeout=120
                 ) as reply:
                     catalog = json.load(reply)
                 # The frozen build found and read its packaged manifest.

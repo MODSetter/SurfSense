@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from linux_symbol_tables import strip_symbol_tables
 from macos_local_symbols import strip_local_symbols
 
 BACKEND = Path(__file__).resolve().parent.parent
@@ -55,10 +56,14 @@ def main() -> int:
     _require_sqlite_load_extension()
     for spec in SPECS:
         build(spec)
+        internal = BACKEND / "dist" / spec.removesuffix(".spec") / "_internal"
         if sys.platform == "darwin":
-            internal = BACKEND / "dist" / spec.removesuffix(".spec") / "_internal"
             print(
                 f"stripped local symbols from {strip_local_symbols(internal)} Mach-O files"
+            )
+        elif sys.platform == "linux":
+            print(
+                f"stripped symbol tables from {strip_symbol_tables(internal)} ELF files"
             )
     return 0
 

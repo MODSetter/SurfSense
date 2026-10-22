@@ -62,7 +62,6 @@ a.datas.append(
 
 pyz = PYZ(with_kept_docstrings(a.pure))
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="surfsense-backend", console=True)
-# On Linux the symbol tables are a fifth of the bundle; dlopen reads only the
-# dynamic ones. macOS strips in build_binaries.py, which keeps the archive the
-# bootloader carries intact.
-coll = COLLECT(exe, a.binaries, a.datas, strip=sys.platform == "linux", name="backend")
+# Symbols are stripped in build_binaries.py, not here: COLLECT's strip would
+# also strip libraries auditwheel rewrote, which then fail to load on Linux.
+coll = COLLECT(exe, a.binaries, a.datas, name="backend")
