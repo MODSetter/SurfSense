@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 from starlette.datastructures import Headers
 
-from mcp_server.access import Refusal
+from mcp_server.access import Refusal, checked_license
 from proprietary.license_check.keygen import Keygen, KeygenUnreachableError
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,8 @@ class LicenseAccess:
     After that a VALID key still passes at once while Keygen is asked again in the
     background, for up to GRACE_SECONDS since it was last valid; a refused key waits
     for Keygen's new answer. Keygen is asked about a key once at a time, however
-    many requests carry it.
+    many requests carry it. Each key's license id, from the same answer, is set as
+    `checked_license` for the request.
     """
 
     def __init__(
@@ -43,13 +44,17 @@ class LicenseAccess:
         self._clock = clock
         self._checked: dict[str, tuple[Refusal | None, float]] = {}
         self._valid_at: dict[str, float] = {}
+        self._license_ids: dict[str, str] = {}
         # The check of each key that is under way, shared by every request for it.
         self._asking: dict[str, asyncio.Task[str | None]] = {}
 
     async def refusal(self, headers: Headers) -> Refusal | None:
         key = _license_key(headers.get("authorization", ""))
-        if not key:
-            return MISSING
+        refusal = await self._refusal_of(key) if key else MISSING
+        checked_license.set(self._license_ids.get(key))
+        return refusal
+
+    async def _refusal_of(self, key: str) -> Refusal | None:
         now = self._clock()
         cached = self._checked.get(key)
         if cached is not None:
@@ -95,9 +100,14 @@ class LicenseAccess:
         """Keygen's code for `key`, kept as its answer, or None when Keygen is unreachable."""
         asked_at = self._clock()
         try:
-            code = await self._keygen.validation_code(key)
+            validation = await self._keygen.validation(key)
         except KeygenUnreachableError:
             return None
+        if validation.license_id:
+            self._license_ids[key] = validation.license_id
+        else:
+            self._license_ids.pop(key, None)
+        code = validation.code
         refusal = _refusal(code)
         if refusal is None:
             self._valid_at[key] = asked_at

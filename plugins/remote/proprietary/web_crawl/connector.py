@@ -34,6 +34,7 @@ from proprietary.scraping import browser_pool, http, sessions, settle
 from proprietary.scraping.browser_loop import in_browser_loop
 from proprietary.scraping.browser_pool import LaunchProfile
 from proprietary.scraping.captcha import captcha_enabled, get_captcha_config
+from proprietary.scraping.logged_host import logged_host
 from proprietary.scraping.proxy import get_active_provider, get_proxy_url
 from proprietary.web_crawl.captcha import build_captcha_page_action
 from proprietary.web_crawl.classifier import (
@@ -593,7 +594,7 @@ class WebCrawlerConnector:
             block_state.update(status=None, blocked=False)
             try:
                 await starting("static fetch")
-                logger.info(f"[webcrawler] Static fetch for: {url}")
+                logger.info("[webcrawler] Static fetch for: %s", logged_host(url))
                 result = await self._run_tier_with_proxy_retry(
                     "scrapling-static",
                     lambda: self._crawl_with_async_fetcher(url, block_state, limits),
@@ -656,7 +657,7 @@ class WebCrawlerConnector:
                     )
                 else:
                     await starting("browser render")
-                    logger.info(f"[webcrawler] Browser render for: {url}")
+                    logger.info("[webcrawler] Browser render for: %s", logged_host(url))
                     result = await self._run_tier_with_proxy_retry(
                         "scrapling-dynamic",
                         lambda: self._crawl_with_dynamic(url, block_state, limits),
@@ -704,7 +705,10 @@ class WebCrawlerConnector:
             block_state.update(status=None, blocked=False)
             try:
                 await starting("stealth browser")
-                logger.info(f"[webcrawler] Using Scrapling StealthyFetcher for: {url}")
+                logger.info(
+                    "[webcrawler] Using Scrapling StealthyFetcher for: %s",
+                    logged_host(url),
+                )
                 result = await self._run_tier_with_proxy_retry(
                     "scrapling-stealthy",
                     lambda: self._crawl_with_stealthy(
@@ -831,19 +835,19 @@ class WebCrawlerConnector:
         elapsed_ms = (time.perf_counter() - tier_start) * 1000
         if outcome == "error":
             logger.warning(
-                "%s tier=%s url=%s elapsed_ms=%.1f outcome=error error=%s",
+                "%s tier=%s host=%s elapsed_ms=%.1f outcome=error error=%s",
                 _PERF,
                 tier,
-                url,
+                logged_host(url),
                 elapsed_ms,
                 exc,
             )
         else:
             logger.info(
-                "%s tier=%s url=%s elapsed_ms=%.1f outcome=%s",
+                "%s tier=%s host=%s elapsed_ms=%.1f outcome=%s",
                 _PERF,
                 tier,
-                url,
+                logged_host(url),
                 elapsed_ms,
                 outcome,
             )
@@ -853,9 +857,9 @@ class WebCrawlerConnector:
         """Log the total time spent across all attempted tiers."""
         total_ms = (time.perf_counter() - total_start) * 1000
         logger.info(
-            "%s url=%s selected=%s total_ms=%.1f",
+            "%s host=%s selected=%s total_ms=%.1f",
             _PERF,
-            url,
+            logged_host(url),
             selected,
             total_ms,
         )
@@ -890,9 +894,9 @@ class WebCrawlerConnector:
                 block_state["block_type"] = block_type
                 block_state["status"] = status
             logger.info(
-                "%s tier=scrapling-static url=%s fetch_ms=%.1f status=%s outcome=http_error",
+                "%s tier=scrapling-static host=%s fetch_ms=%.1f status=%s outcome=http_error",
                 _PERF,
-                url,
+                logged_host(url),
                 fetch_ms,
                 status,
             )
@@ -1156,7 +1160,7 @@ class WebCrawlerConnector:
                 if whole and _CURRENCY_AMOUNT_RE.search(whole):
                     extracted_content = whole
             logger.info(
-                f"{_PERF} event=lossy_repair url={url} recovered="
+                f"{_PERF} event=lossy_repair host={logged_host(url)} recovered="
                 f"{bool(_CURRENCY_AMOUNT_RE.search(extracted_content))}"
             )
 
@@ -1290,11 +1294,11 @@ class WebCrawlerConnector:
         """Emit a detailed perf line splitting fetch vs Trafilatura extraction."""
         fetch_repr = f"{fetch_ms:.1f}" if fetch_ms is not None else "n/a"
         logger.info(
-            "%s tier=%s url=%s status=%s fetch_ms=%s extract_ms=%.1f "
+            "%s tier=%s host=%s status=%s fetch_ms=%s extract_ms=%.1f "
             "html_len=%d content_len=%d outcome=%s",
             _PERF,
             crawler_type,
-            url,
+            logged_host(url),
             status,
             fetch_repr,
             extract_ms,

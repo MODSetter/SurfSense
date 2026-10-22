@@ -1,0 +1,65 @@
+name: Release Stats
+
+# Saves GitHub's per-asset download counts and the repository's traffic, which
+# GitHub keeps for 14 days only. Reads, never writes: the snapshot goes to a
+# workflow artifact and, when the secret is set, to PostHog as personless
+# events. What each count measures: docs/architecture/release-stats.md.
+
+on:
+  schedule:
+    # Daily, 06:00 UTC, so yesterday's traffic is a whole day.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-stats
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the script
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/release_stats
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Take the snapshot
+        id: take
+        working-directory: scripts/release_stats
+        env:
+          # Traffic needs push access, which GITHUB_TOKEN never has: a
+          # fine-grained token with Administration read on this repository.
+          RELEASE_STATS_TOKEN: ${{ secrets.RELEASE_STATS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          file="release-stats-$(date -u +%F).json"
+          python -m release_stats snapshot --out "$RUNNER_TEMP/$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the snapshot
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.take.outputs.file }}
+          path: ${{ runner.temp }}/${{ steps.take.outputs.file }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Send to PostHog
+        working-directory: scripts/release_stats
+        env:
+          # Unset, the step sends nothing and passes.
+          POSTHOG_PROJECT_API_KEY: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+          SNAPSHOT_FILE: ${{ steps.take.outputs.file }}
+        run: python -m release_stats send "$RUNNER_TEMP/$SNAPSHOT_FILE"

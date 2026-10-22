@@ -54,7 +54,7 @@ async def test_a_plugin_that_fails_leaves_the_others_answering() -> None:
 
 
 @pytest.mark.parametrize(
-    "folder", ["host", "mcp_server", "license_check", "scraping", "license"]
+    "folder", ["host", "mcp_server", "license_check", "scraping", "license", "admin"]
 )
 def test_a_reserved_folder_is_never_a_plugin(tmp_path: Path, folder: str) -> None:
     """The host's own folders sit beside the plugins and must not be served."""

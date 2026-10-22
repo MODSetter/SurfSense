@@ -31,7 +31,11 @@ In order:
    the [file agent strategy](../file-agent-strategy.md#the-headline) asks. Then
    the link row, Trendshift and the language row.
 2. **The demo video** (below), one paragraph, the download table and the sunset
-   callout, which goes on 18 Oct 2026 here and in every translation.
+   callout, which goes on 18 Oct 2026 here and in every translation. Since
+   22 Oct 2026 the table links `https://www.surfsense.com/downloads/<platform>?src=readme`
+   rather than GitHub's `/releases/latest/download/`: the site counts the
+   download and redirects to the release it pins
+   ([updates](../../../docs/architecture/updates.md#download-links)).
 3. **Quick start** in three steps: install and onboard, drop files or folders in
    the sources, ask the agent. A five-step version with screenshots was cut
    before its images were recorded.

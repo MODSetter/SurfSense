@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from host.calls_in_flight import CALLS_HEADER, CallsInFlight, caller
+from host.replayed_body import read_body
 
 # JSON-RPC has no code for it; this is the one language servers use.
 REQUEST_CANCELLED = -32800
@@ -26,7 +27,7 @@ class CancellableCalls:
         if headers is None or not token:
             await self.app(scope, receive, send)
             return
-        body, replay = await _read_body(receive)
+        body, replay = await read_body(receive)
         response = _Response(send)
         who = caller(headers.get("authorization", ""))
         with self.calls.running(who, token) as cancel_scope:
@@ -81,26 +82,6 @@ class _Response:
                     "more_body": False,
                 }
             )
-
-
-async def _read_body(receive: Receive) -> tuple[bytes, Receive]:
-    """The request's body, and a receive that hands it to the server again."""
-    body = b""
-    while True:
-        message = await receive()
-        body += message.get("body", b"")
-        if not message.get("more_body", False):
-            break
-    replayed = False
-
-    async def replay() -> Message:
-        nonlocal replayed
-        if replayed:
-            return await receive()
-        replayed = True
-        return {"type": "http.request", "body": body, "more_body": False}
-
-    return body, replay
 
 
 def _request_id(body: bytes) -> Any:

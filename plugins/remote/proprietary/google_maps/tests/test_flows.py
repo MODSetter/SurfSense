@@ -779,7 +779,10 @@ async def test_a_detail_without_its_review_fields_is_logged(
     await scrape_places(GoogleMapsScrapeInput(placeIds=["ChIJplace7"]))
 
     assert fetch._field_loss == before + 1
-    assert "0x7:0x6b has 107 reviews but no distribution or tags" in caplog.text
+    assert "a place with 107 reviews has no distribution or tags" in caplog.text
+    # Which place the user looked up stays out of the log.
+    assert "0x7:0x6b" not in caplog.text
+    assert "ChIJplace7" not in caplog.text
 
 
 def test_a_full_detail_is_not_logged(caplog: pytest.LogCaptureFixture) -> None:

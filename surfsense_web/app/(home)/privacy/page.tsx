@@ -42,7 +42,7 @@ const canonicalUrl = "https://www.surfsense.com/privacy";
 
 const metaTitle = "Privacy Policy | SurfSense";
 const metaDescription =
-	"What SurfSense collects and what it does not. The desktop app has no account and no telemetry, and your documents never leave your machine.";
+	"What SurfSense collects and what it does not. The desktop app has no account, sends usage statistics only if you opt in and never with an identifier, and your documents never reach us.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "September 18, 2026";
+const LAST_UPDATED = "October 22, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -109,12 +109,13 @@ export default function PrivacyPolicy() {
 
 					<h2>2. The short version</h2>
 					<p>
-						The desktop app has no account, no sign-in and no telemetry of any kind. Your documents,
-						chats and search index are files on your disk, we never receive them, and there is
-						therefore nothing for us to disclose, sell, leak or lose. This website counts page views
-						using analytics that is on by default and that you can block, and carries no
-						advertising. We do not sell personal data, we do not share it for advertising, and we do
-						not build profiles for anyone else.
+						The desktop app has no account and no sign-in, and sends no usage analytics unless you
+						opt in, and even then only counts in ranges and the app's version, platform and
+						language, with no identifier. Your documents, chats and search index are files on your
+						disk, we never receive them, and there is therefore nothing for us to disclose, sell,
+						leak or lose. This website counts page views using analytics that is on by default and
+						that you can block, and carries no advertising. We do not sell personal data, we do not
+						share it for advertising, and we do not build profiles for anyone else.
 					</p>
 
 					<h2>3. The desktop application</h2>
@@ -134,20 +135,63 @@ export default function PrivacyPolicy() {
 
 					<h3>3.2 What the app can send, and when</h3>
 					<p>
-						The app can reach three kinds of destination. Each one is listed in Settings under
-						Network, each one is switched off until you enable it, and switching one off blocks the
-						call rather than hiding it.
+						The app can reach the destinations below. Each one is switched off until you allow it,
+						when the app first starts or under Network in Settings, and switching one off there
+						blocks the call rather than hiding it.
 					</p>
 					<ul>
 						<li>
-							<strong>Update checks, to github.com.</strong> Sends your IP address and the version
-							you are running, so the app can tell whether a newer release exists. Disabled until
-							you enable it, and you can check manually instead.
+							<strong>Update checks, to updates.surfsense.com, falling back to github.com.</strong>{" "}
+							From version 2.2.4, once a day and whenever you click Check now, the app asks
+							updates.surfsense.com whether a newer release exists. That request sends your IP
+							address, a user agent that says only SurfSense, the app's version, your platform (such
+							as win32-x64) and your operating system (such as windows-11), and no identifier and no
+							cookies. If that service fails or answers wrongly, the app asks github.com for the
+							same release file directly, sending only your IP address and that user agent, so an
+							update never depends on our service. A newer release downloads from GitHub, whose
+							download host, githubusercontent.com, also sees your IP address, and installs when you
+							restart from the prompt or the next time you quit the app. Versions up to 2.2.3 ask
+							github.com alone: they read its list of releases, then the release file for your
+							platform, identifying themselves as electron-builder, and they also send a random
+							identifier that the update library, electron-updater, creates for staged rollouts. Off
+							until you turn it on, and you can check manually instead. An administrator can turn it
+							off, or point it at their own update server, for every user of a computer.
 						</li>
 						<li>
-							<strong>Model downloads, to huggingface.co.</strong> Sends the name of the model you
-							asked to download, along with your IP address as any download does. No document
-							content and no prompts are involved.
+							<strong>Usage statistics, to usage.surfsense.com.</strong> From version 2.2.4, only if
+							you opt in, and at most once a day. Each report sends the app's version, platform,
+							operating system and interface language, the week the app was installed, and whether
+							this is its first report ever, this week and this month. Once a week it adds counts in
+							ranges, such as 10-49, for the past seven days: chat turns, agent turns, whether a
+							local or a remote model answered, the documents in your library, Studio outputs,
+							plugin calls, and how far setup got. The first report adds your computer's memory,
+							graphics card maker and graphics memory, also in ranges. It never sends documents,
+							prompts, file names, model names, model hosts, your licence key or an identifier.
+							Settings shows the exact next report and the last one sent.
+						</li>
+						<li>
+							<strong>Model search and downloads, to huggingface.co.</strong> Searching sends what
+							you type into the model search as you type it. Downloading sends the name of the model
+							you chose. Both send your IP address, as any request does. No document content and no
+							prompts are involved.
+						</li>
+						<li>
+							<strong>Plugins, to plugins.surfsense.com.</strong> Fetching the list of third-party
+							plugins sends your IP address and nothing else. SurfSense's own plugins run on the
+							same service, and using one sends it what each tool needs, such as the page or search
+							you asked the plugin to fetch. For paid plugins the app also sends your licence key so
+							the service can check it, as section 3.3 describes.
+						</li>
+						<li>
+							<strong>The Office pack, from downloadarchive.documentfoundation.org.</strong> Turning
+							on Office support downloads The Document Foundation's LibreOffice build, sending the
+							file's name and your IP address. That host redirects the download to one of its
+							mirrors, which also sees your IP address.
+						</li>
+						<li>
+							<strong>A plugin server you connect.</strong> A third-party plugin's server, and its
+							sign-in server if it has one, receives what each tool you allow is sent, along with
+							your IP address, never your whole conversation.
 						</li>
 						<li>
 							<strong>A model provider you configure.</strong> Sends your prompts, excerpts of the
@@ -156,27 +200,55 @@ export default function PrivacyPolicy() {
 						</li>
 					</ul>
 					<p>
-						The third one deserves emphasis. If you connect a model that you do not run yourself,
-						the content of your questions and parts of your documents leave your machine and are
-						handled by that provider under their privacy policy and their retention rules, not ours.
-						We are not a party to that request, we do not proxy it, and we never see it. Choose a
-						local model if you would prefer that nothing leaves at all: document parsing, retrieval,
-						chat, image generation and the podcast voice can all run on your own hardware with every
-						destination above disabled.
+						The last one deserves emphasis. If you connect a model that you do not run yourself, the
+						content of your questions and parts of your documents leave your machine and are handled
+						by that provider under their privacy policy and their retention rules, not ours. We are
+						not a party to that request, we do not proxy it, and we never see it. Choose a local
+						model if you would prefer that nothing leaves: document parsing, retrieval, chat, image
+						generation and the podcast voice can all run on your own hardware with every destination
+						above disabled. One thing these switches do not hold: the scripts a model writes to
+						build documents, for Studio's Office formats and for the agent, run on your computer and
+						can open connections of their own.
 					</p>
 
-					<h3>3.3 No telemetry, and an offline licence check</h3>
+					<h3>3.3 Usage statistics, and how your licence is checked</h3>
 					<p>
-						The desktop app contains no analytics, no usage tracking, no crash reporting and no
-						advertising identifiers. This is why there is no telemetry setting to turn off: there is
-						nothing to turn off. We cannot tell how many documents you have, which features you use,
-						whether the app crashed, or whether you ever opened it.
+						The desktop app contains no analytics library, no crash reporting and no advertising
+						identifiers, and sends no usage analytics unless you opt in. From version 2.2.4, with
+						update checks on, SurfSense can count the installs that checked in each day, with their
+						versions, platforms and countries. With usage statistics on, it also receives the weekly
+						counts in ranges that section 3.2 lists. Neither carries documents, prompts, file names,
+						model hosts, your licence key or an identifier, so we cannot see what you did in the
+						app, and no identifier ties one install's reports together, although an uncommon
+						combination of version, platform, language, install week and country could single one
+						install out. Each request's IP address is used by our hosting providers to route it and
+						to derive a country. Their server and edge logs hold it for the short time sections 4.5
+						and 8 describe, and SurfSense keeps only the country. With both off, we cannot tell
+						whether you ever opened the app. You can turn either off in Settings at any time, set{" "}
+						<code>DO_NOT_TRACK=1</code> to keep usage statistics off, or have an administrator turn
+						either off for a whole computer. SurfSense's own plugins are separate. That service sees
+						the requests you send them, as section 4.4 describes, and, once you have added a paid
+						one, the licence checks described below, which show it roughly when you open the plugin
+						list or ask the agent something.
 					</p>
 					<p>
-						If you buy a licence, it is verified on your own machine. The app checks the licence
-						file's cryptographic signature against a public key compiled into the build. It does not
-						contact a licence server, it does not phone home periodically, and it does not compute
-						or transmit a device fingerprint.
+						If you buy a licence, the licence file is verified on your own machine. The app checks
+						its cryptographic signature against a public key compiled into the build, without
+						contacting anyone. The exception is SurfSense's paid plugins. Once you add one and allow
+						plugins.surfsense.com, every request to those plugins carries your licence key. The app
+						also asks that service to check the key: at once when you import or replace a licence,
+						and, at most about every five minutes, when you open the plugin list or before the agent
+						answers, whether or not that answer uses a plugin. If you have not added a paid plugin,
+						your licence key never leaves your machine. The app does not compute or transmit a
+						device fingerprint.
+					</p>
+					<p>
+						The retired 0.0.x desktop app, which wrapped our former hosted service, still sends
+						events to our analytics when it starts, updates and quits: its version, operating
+						system, processor architecture, whether it started at login, and a machine identifier.
+						We use them only to count how many of those installs remain and to point them to the new
+						app. The current app sends no machine identifier, and nothing beyond what section 3.2
+						lists.
 					</p>
 
 					<h3>3.4 What is encrypted, and what is not</h3>
@@ -204,20 +276,51 @@ export default function PrivacyPolicy() {
 
 					<h3>4.1 Analytics</h3>
 					<p>
-						We use PostHog to understand how the site is used. It records the pages you open, when
-						you leave them, the address that referred you, whether you arrived with a referral code
-						in the link, and the technical details every browser sends: your IP address, from which
-						an approximate location is derived, along with your browser, operating system and device
-						type. Requests are sent through <code>assets.surfsense.com</code>, a proxy we operate,
-						rather than directly to PostHog. PostHog assigns your browser a pseudonymous identifier
-						so that repeat visits are counted as one visitor rather than several.
+						We use PostHog to understand how the site is used. In your browser it records the pages
+						you open and when you leave them, the address that referred you, and any referral code
+						or campaign (UTM) tags in the link. It also records which links, buttons and form fields
+						you click, change or submit (the element and its visible text, never what you type into
+						a field), where on a page you click, move the pointer and scroll, for heatmaps, how
+						quickly pages load, and JavaScript errors your browser hits on our pages, with the error
+						message and where in our code it happened. Every request carries the technical details
+						any browser sends: your IP address, from which an approximate location is derived, and
+						your browser, operating system and device type. We do not record sessions: session
+						replay is switched off.
 					</p>
 					<p>
-						Analytics is enabled by default and we do not display a consent banner. If you would
-						rather not be counted, you can stop it: a content blocker, a tracker-blocking browser,
-						or a browser setting that refuses third-party storage will all prevent it, and every
-						page continues to work normally when you do. We do not currently detect the Global
-						Privacy Control signal or Do Not Track headers, so please do not rely on either with us.
+						These requests go to <code>assets.surfsense.com</code>, a subdomain of ours that PostHog
+						runs as a reverse proxy for us, rather than to PostHog's own domain. PostHog assigns
+						your browser a pseudonymous identifier so that repeat visits are counted as one visitor
+						rather than several.
+					</p>
+					<p>
+						A few steps are counted on our own servers instead, without that identifier: downloading
+						an installer (the platform, whether the link was on this site, in our README, in an
+						email, in the app or on the pricing page, the version, and the country our host derives
+						from your request), a trial licence being issued, and a completed purchase (the plan,
+						the amount and the currency). The trial and purchase counts also carry the channel you
+						arrived from: a referral code, a campaign source, the domain of the site that linked to
+						us, or &ldquo;direct&rdquo;. No email address, licence, IP address or browser identifier
+						is sent with any of them, so they are not tied to your browser's analytics identifier or
+						to a person profile. To count purchases by channel, the checkout link passes that same
+						channel tag to Stripe.
+					</p>
+					<p>
+						Two steps are recorded in your browser with the rest of the analytics, and so with its
+						pseudonymous identifier: requesting a trial licence, with whether it was sent, already
+						claimed, refused or failed, and pressing Continue to checkout. Both carry the channel
+						tag, and neither includes the email address you type.
+					</p>
+					<p>
+						Analytics is enabled by default and we do not display a consent banner. Because the
+						browser requests go to our own subdomain, a content blocker that works from lists of
+						tracking domains may not stop them. Blocking <code>assets.surfsense.com</code>, or
+						turning off JavaScript for this site, does stop them, and every page keeps working when
+						you do. Blocking cookies and site storage for surfsense.com stops PostHog from
+						recognising a repeat visit, but not from counting the visit. Nothing in your browser
+						stops the server-side counts above, which is why they carry no identifier. We do not
+						currently detect the Global Privacy Control signal or Do Not Track headers, so please do
+						not rely on either with us.
 					</p>
 
 					<h3>4.2 Cookies and browser storage</h3>
@@ -233,8 +336,14 @@ export default function PrivacyPolicy() {
 							same when you return.
 						</li>
 						<li>
-							<strong>PostHog cookies</strong>, holding the pseudonymous visitor identifier
-							described in section 4.1.
+							<strong>A PostHog cookie and local storage entry</strong>, holding the pseudonymous
+							visitor identifier described in section 4.1, and the first page you landed on with the
+							address that referred you there. The channel tag in section 4.1 is worked out from
+							that first page and referrer when you request a trial or start checkout.
+						</li>
+						<li>
+							<strong>Session storage</strong> holding the referral code from the link you arrived
+							with, kept until you close the tab, for the same channel tag.
 						</li>
 						<li>
 							<strong>Cloudflare Turnstile</strong>, set by Cloudflare on the free chat pages to
@@ -267,9 +376,13 @@ export default function PrivacyPolicy() {
 					<p>
 						The scraper plugins, which a licence unlocks, run against a service we operate. When you
 						ask a plugin to fetch something, that service receives the request and its target so it
-						can carry out the fetch, along with the licence identifying the request. We keep
-						operational records of that usage in order to enforce rate limits, detect abuse and bill
-						correctly.
+						can carry out the fetch, along with the licence identifying the request. For each
+						licence, the service counts which plugins and tools were called on which days, whether
+						each call worked and how long it took, and notes the day the licence first used a
+						plugin. We use these counts to detect abuse, to plan fair-use limits and to decide which
+						plugins to improve. They never include what you asked a plugin to fetch. Daily totals
+						with no licence in them, such as how many calls a tool received and how many licences
+						used it, are sent to PostHog.
 					</p>
 
 					<h3>4.5 Hosting and server logs</h3>
@@ -289,7 +402,8 @@ export default function PrivacyPolicy() {
 					<ul>
 						<li>
 							<strong>Contract.</strong> Sending you a licence you asked for, taking payment,
-							providing the plugin service and supporting it.
+							providing the plugin service and supporting it, and answering the desktop app's update
+							checks, which is the update service you enabled when you turned them on.
 						</li>
 						<li>
 							<strong>Legitimate interests.</strong> Keeping the site available and secure,
@@ -302,8 +416,14 @@ export default function PrivacyPolicy() {
 							responding to lawful requests.
 						</li>
 						<li>
-							<strong>Consent.</strong> Where we ask for it, such as if you opt in to product
-							emails. You can withdraw it at any time.
+							<strong>Consent.</strong> The desktop app's usage statistics, which are off unless you
+							opt in. You can withdraw that consent at any time by turning them off in Settings or
+							by setting <code>DO_NOT_TRACK=1</code>, and an administrator's policy can withdraw it
+							for a whole computer. Reports already sent carry no identifier, so we cannot pick out
+							yours to delete, although an uncommon combination of version, platform, language,
+							install week and country could single one install out. We also rely on consent where
+							we ask for it elsewhere, such as if you opt in to product emails, and you can withdraw
+							it at any time.
 						</li>
 					</ul>
 
@@ -355,9 +475,11 @@ export default function PrivacyPolicy() {
 						as long as the licence is live and for a reasonable period afterwards, so we can resend
 						it and honour support. Payment and invoice records are kept by Stripe and by us for the
 						period tax law requires, commonly six to seven years. Server and edge logs are
-						short-lived, typically days to a few weeks. Plugin usage records are kept only as long
-						as needed for billing, rate limiting and abuse investigation. Aggregated figures that
-						can no longer identify anyone may be kept indefinitely.
+						short-lived, typically days to a few weeks. The plugin service's per-licence daily
+						counts are kept in our own database for 13 months and then deleted; the day a licence
+						first used a plugin is deleted once that licence has made no call for 13 months. Daily
+						totals with no licence in them may be kept longer. Aggregated figures that can no longer
+						identify anyone may be kept indefinitely.
 					</p>
 					<p>
 						Anything inside the desktop app is kept for exactly as long as you keep it, because we

@@ -64,6 +64,7 @@ function launch(
   const inner: Updates = {
     check: async () => {
       seen.pendingAtCheck = pending !== null && existsSync(pending)
+      return true
     },
     install: () => {
       seen.installs++

@@ -32,6 +32,14 @@ class KeygenUnreachableError(Exception):
 
 
 @dataclass(frozen=True)
+class Validation:
+    """Keygen's `meta.code`, and the license's id from `data.id` when Keygen found one."""
+
+    code: str
+    license_id: str | None = None
+
+
+@dataclass(frozen=True)
 class Keygen:
     # Read when made, not when defined, so a test or a deployment's environment sets them.
     api_url: str = field(
@@ -50,8 +58,8 @@ class Keygen:
                 "KEYGEN_ACCOUNT_ID is not set: SurfSense's Keygen account, as the backend's"
             )
 
-    async def validation_code(self, key: str) -> str:
-        """Keygen's `meta.code`, such as VALID, EXPIRED or NOT_FOUND.
+    async def validation(self, key: str) -> Validation:
+        """Keygen's `meta.code`, such as VALID, EXPIRED or NOT_FOUND, and the license's id.
 
         Any other answer that is not Keygen's own failure, a 4xx or a redirect, is
         `HTTP_<status>`, which refuses the key as invalid rather than failing the request.
@@ -88,10 +96,19 @@ class Keygen:
                 "Keygen answered %s to validate-key; the key is refused as invalid",
                 response.status_code,
             )
-            return f"HTTP_{response.status_code}"
+            return Validation(f"HTTP_{response.status_code}")
         try:
-            return response.json()["meta"]["code"]
+            reply = response.json()
+            code = reply["meta"]["code"]
         except (ValueError, KeyError, TypeError) as error:
             raise KeygenUnreachableError(
                 f"Keygen answered {response.status_code} without a code"
             ) from error
+        return Validation(code, _license_id(reply))
+
+
+def _license_id(reply: object) -> str | None:
+    """`data` is null for a key Keygen does not know."""
+    data = reply.get("data") if isinstance(reply, dict) else None
+    license_id = data.get("id") if isinstance(data, dict) else None
+    return license_id if isinstance(license_id, str) and license_id else None

@@ -16,6 +16,7 @@ from typing import Any
 from urllib.parse import quote
 
 from proprietary.scraping.concurrency import ordered_map
+from proprietary.scraping.logged_host import logged_host
 
 from .fetch import (
     GoogleRefusedError,
@@ -166,7 +167,7 @@ async def _enrich_from_detail(
         darray = await fetch_place_darray(fid, language=input_model.language)
     except GoogleRefusedError as error:
         # One refused place keeps its search fields; the search keeps the rest.
-        logger.warning("[google_maps] detail of %s: %s", fid, error)
+        logger.warning("[google_maps] a place's detail was refused: %s", error)
         return fields
     if not darray:
         return fields
@@ -382,7 +383,9 @@ async def _place_flow(
     """
     fid = await resolve_fid(resolved, language=input_model.language)
     if not fid:
-        logger.warning("[google_maps] could not resolve feature id: %s", resolved.url)
+        logger.warning(
+            "[google_maps] could not resolve the feature id of a %s link", resolved.kind
+        )
         return
     fetched = None
     if input_model.maxReviews:
@@ -395,7 +398,8 @@ async def _place_flow(
         darray = await fetch_place_darray(fid, language=input_model.language)
     if not darray:
         logger.warning(
-            "[google_maps] no place data (structure may have shifted): %s", resolved.url
+            "[google_maps] no place data for a %s link (structure may have shifted)",
+            resolved.kind,
         )
         return
     fields = parse_place(darray)
@@ -430,7 +434,7 @@ async def _place_reviews(
             start_date=input_model.reviewsStartDate,
         )
     except GoogleRefusedError as error:
-        logger.warning("[google_maps] reviews of %s: %s", fid, error)
+        logger.warning("[google_maps] a place's reviews were refused: %s", error)
         return [], None
 
 
@@ -485,7 +489,7 @@ async def iter_places(
     for entry in input_model.startUrls:
         resolved = resolve_url(entry.url)
         if not resolved:
-            logger.warning("Unrecognized Google Maps URL: %s", entry.url)
+            logger.warning("Unrecognized Google Maps URL on %s", logged_host(entry.url))
             continue
         jobs.append((entry.url, _dispatch(resolved, input_model)))
     for pid in input_model.placeIds:
@@ -502,7 +506,7 @@ async def iter_places(
             async with job_session(), aclosing(flow):
                 return [item async for item in flow]
         except GoogleRefusedError as error:
-            logger.warning("[google_maps] %s: %s", source, error)
+            logger.warning("[google_maps] a source failed: %s", error)
             return [error_item(error, source)]
 
     async with aclosing(

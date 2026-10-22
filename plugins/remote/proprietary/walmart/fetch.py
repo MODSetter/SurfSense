@@ -37,6 +37,7 @@ from urllib.parse import urljoin, urlsplit
 
 from proprietary.scraping import http, sessions
 from proprietary.scraping.concurrency import hedged
+from proprietary.scraping.logged_host import logged_host
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +169,10 @@ async def _try(
                 target = None if response.blocked else _redirect(response)
     except http.TransportError as exc:
         logger.warning(
-            "Walmart request failed for %s: %s %s", url, exc.kind, exc.detail
+            "Walmart request failed for %s: %s %s",
+            logged_host(url),
+            exc.kind,
+            exc.detail,
         )
         return _Refused(exc.kind)
     else:
@@ -176,7 +180,11 @@ async def _try(
             return _Refused(f"blocked (status {response.status})")
         if target is not None:
             # Still redirecting after the last hop: its empty body is no page.
-            logger.info("Walmart redirects for %s went past %s hops", url, _MAX_FOLLOWS)
+            logger.info(
+                "Walmart redirects for %s went past %s hops",
+                logged_host(url),
+                _MAX_FOLLOWS,
+            )
             return _Refused(f"too many redirects (status {response.status})")
         if response.status >= 500:
             # A transient edge error (seen: 520 mid-way through review pages)
@@ -236,17 +244,23 @@ async def fetch_page(
                         outcome.reason,
                         attempt + 1,
                         _MAX_IP_ATTEMPTS,
-                        url,
+                        logged_host(url),
                     )
                 elif outcome.reason.startswith("blocked"):
                     logger.info(
                         "Walmart blocked proxy attempt %s/%s for %s",
                         attempt + 1,
                         _MAX_IP_ATTEMPTS,
-                        url,
+                        logged_host(url),
                     )
     except TimeoutError:
-        logger.warning("Walmart gave up on %s after %.0f s", url, _PAGE_BUDGET_S)
+        logger.warning(
+            "Walmart gave up on %s after %.0f s", logged_host(url), _PAGE_BUDGET_S
+        )
         return None
-    logger.warning("Walmart exhausted %s proxy attempts for %s", _MAX_IP_ATTEMPTS, url)
+    logger.warning(
+        "Walmart exhausted %s proxy attempts for %s",
+        _MAX_IP_ATTEMPTS,
+        logged_host(url),
+    )
     return None

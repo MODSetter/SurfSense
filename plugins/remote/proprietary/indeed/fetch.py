@@ -37,6 +37,7 @@ from urllib.parse import urljoin, urlsplit
 
 from proprietary.scraping import browser_pool, sessions, settle
 from proprietary.scraping.browser_pool import LaunchProfile
+from proprietary.scraping.logged_host import logged_host
 
 from .parsers import extract_initial_data, spa_model
 from .url_resolver import domain_country
@@ -261,7 +262,9 @@ async def _land(p: Any, url: str) -> str:
         await _warm(p, url)
     html, status = await _goto(p, url)
     if _bounced(p.page.url):
-        logger.info("[indeed] bounced to the sign-in wall on %s; warming", url)
+        logger.info(
+            "[indeed] bounced to the sign-in wall on %s; warming", logged_host(url)
+        )
         await _warm(p, url)
         html, status = await _goto(p, url)
     if _looks_blocked(html, p.page.url, status):
@@ -296,7 +299,7 @@ async def _spa_models(
                 continue
             failed.append(job_key)
             unauthorized += status == 401
-            logger.info("[indeed] spa detail %s answered %s", job_key, status)
+            logger.info("[indeed] spa detail answered %s", status)
         if unauthorized >= _SPA_UNAUTHORIZED_BURN:
             # Indeed flagged this exit: send nothing more on it, and the next
             # call moves to a new one.
@@ -426,11 +429,11 @@ class IndeedSession:
             try:
                 result = await self._run(on_loop)
             except _WalledError as e:
-                logger.info("[indeed] blocked on %s: %s", url, e)
+                logger.info("[indeed] blocked on %s: %s", logged_host(url), e)
             except TimeoutError:
-                logger.warning("[indeed] fetch timed out on %s", url)
+                logger.warning("[indeed] fetch timed out on %s", logged_host(url))
             except Exception as e:
-                logger.warning("[indeed] fetch failed on %s: %r", url, e)
+                logger.warning("[indeed] fetch failed on %s: %r", logged_host(url), e)
             else:
                 await _stage(f"fetched {url}")
                 return result

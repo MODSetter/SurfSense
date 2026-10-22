@@ -7,7 +7,7 @@ every lookup here is a filter over license ``metadata``. See
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Literal
@@ -232,11 +232,7 @@ async def list_licenses(
     with a different word returns an empty list rather than an error, which
     reads as "no license exists" and would issue a duplicate.
     """
-    params: dict[str, str] = {"limit": str(limit)}
-    for key, value in (metadata or {}).items():
-        params[f"metadata[{key}]"] = value
-    if policy:
-        params["policy"] = policy
+    params = {"limit": str(limit), **_list_filters(metadata, policy)}
 
     async with _http(client) as http:
         response = await http.get(
@@ -247,6 +243,54 @@ async def list_licenses(
         response.raise_for_status()
         data = response.json().get("data") or []
         return [item for item in data if isinstance(item, dict)]
+
+
+async def iter_licenses(
+    *,
+    metadata: Mapping[str, str] | None = None,
+    policy: str | None = None,
+    page_size: int = 100,
+    client: httpx.AsyncClient | None = None,
+) -> AsyncIterator[dict[str, Any]]:
+    """Every license matching the filters, page by page.
+
+    ``list_licenses`` sends one request, so it never sees past Keygen's cap of
+    100 records; anything that must see them all reads through this.
+    """
+    filters = _list_filters(metadata, policy)
+    async with _http(client) as http:
+        page = 1
+        while True:
+            response = await http.get(
+                _account_url("licenses"),
+                headers=_headers(),
+                params={
+                    **filters,
+                    "page[size]": str(page_size),
+                    "page[number]": str(page),
+                },
+            )
+            response.raise_for_status()
+            body = response.json()
+            data = [item for item in body.get("data") or [] if isinstance(item, dict)]
+            for item in data:
+                yield item
+            # A short page is the last; so is a full one whose next link is null.
+            links = body.get("links")
+            if len(data) < page_size or (
+                isinstance(links, dict) and not links.get("next")
+            ):
+                return
+            page += 1
+
+
+def _list_filters(
+    metadata: Mapping[str, str] | None, policy: str | None
+) -> dict[str, str]:
+    params = {f"metadata[{key}]": value for key, value in (metadata or {}).items()}
+    if policy:
+        params["policy"] = policy
+    return params
 
 
 async def update_license_metadata(

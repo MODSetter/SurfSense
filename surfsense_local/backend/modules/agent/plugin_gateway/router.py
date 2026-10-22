@@ -17,6 +17,7 @@ from modules.agent.plugin_gateway.refused_elicitation import without_elicitation
 from modules.agent.plugin_tools.stop_plugin_calls import origin
 from modules.agent.plugin_tools.thread_calls import CALLS_HEADER
 from modules.agent.tool_endpoint.allowed_callers import refuse_web_pages
+from modules.usage_statistics.activity_counts import count_plugin_calls
 
 router = APIRouter(
     prefix="/agent/plugins",
@@ -66,6 +67,8 @@ async def _forwarded(
     await record_call(session, upstream.url)
     try:
         sent = await send_on(request, body, upstream.url, upstream.headers)
+        # Counted once it reached the plugin, before a token refresh may resend it.
+        await count_plugin_calls(body)
         sent = await sent_with_fresh_token(
             session, where, request, body, upstream, sent
         )

@@ -451,7 +451,7 @@ async def _fetch(
             if status == _BACKOFF_STATUS and backoffs < _MAX_BACKOFFS:
                 backoffs += 1
                 delay = _BACKOFF_BASE_S * (2 ** (backoffs - 1))
-                logger.warning("[instagram] 429 on %s; backing off %.1fs", path, delay)
+                logger.warning("[instagram] 429; backing off %.1fs", delay)
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
             if status in _ROTATE_STATUSES:
@@ -467,12 +467,12 @@ async def _fetch(
                 raise InstagramAccessBlockedError(
                     f"Instagram refused {path} on {attempt} rotated IPs ({status})"
                 )
-            logger.warning("[instagram] GET %s returned %s", path, status)
+            logger.warning("[instagram] GET returned %s", status)
             return None
         except InstagramAccessBlockedError:
             raise
         except Exception as e:
-            logger.warning("[instagram] GET %s failed: %s", path, e)
+            logger.warning("[instagram] GET failed: %s", e)
             if attempt < _MAX_ROTATIONS:
                 attempt += 1
                 await holder.rotate()

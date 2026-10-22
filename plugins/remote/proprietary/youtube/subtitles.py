@@ -167,7 +167,7 @@ async def _native_subtitles(
             break
         # A 200 that is a block: this exit is refused. When a sibling item has
         # rotated since, the retry already goes out on a fresh exit.
-        logger.warning("[youtube] player BOT_DETECTED for %s", video_id)
+        logger.warning("[youtube] player BOT_DETECTED")
         if h is not None:
             await h.rotate("bot_detected", seen=seen)
     else:
@@ -204,9 +204,8 @@ def _fetch_subtitles_sync(
             if attempt == attempts - 1:
                 raise
             logger.info(
-                "Transcript request blocked for %s; retrying on a fresh proxy "
+                "Transcript request blocked; retrying on a fresh proxy "
                 "connection (attempt %d/%d)",
-                video_id,
                 attempt + 2,
                 attempts,
             )
@@ -235,12 +234,12 @@ async def fetch_subtitles(
             track = await _native_subtitles(video_id, language, fmt, prefer_generated)
             return [track] if track is not None else None
         except Exception as e:  # any surprise in the native path: the library
-            logger.info("Native subtitles for %s fell back: %s", video_id, e)
+            logger.info("Native subtitles fell back: %s", e)
     try:
         track = await asyncio.to_thread(
             _fetch_subtitles_sync, video_id, language, fmt, prefer_generated
         )
         return [track]
     except Exception as e:
-        logger.info("No subtitles for video %s (%s): %s", video_id, language, e)
+        logger.info("No subtitles for a video (%s): %s", language, e)
         return None
