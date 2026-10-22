@@ -8,7 +8,10 @@ from lxml import html
 
 
 def next_cursor(page: html.HtmlElement, route: str, param: str) -> str | None:
-    """The ``param`` value of the partial that loads ``route``'s next page."""
+    """The ``param`` value of the partial that loads ``route``'s next page.
+
+    A user's posts feed links none; its last post's ``more-posts-cursor`` is it.
+    """
     for src in page.xpath("//faceplate-partial/@src"):
         parts = urlsplit(src)
         if parts.path.strip("/") != route.strip("/"):
@@ -16,4 +19,5 @@ def next_cursor(page: html.HtmlElement, route: str, param: str) -> str | None:
         values = parse_qs(parts.query).get(param)
         if values:
             return values[0]
-    return None
+    cursors = page.xpath("//shreddit-post/@more-posts-cursor")
+    return cursors[-1] if cursors else None

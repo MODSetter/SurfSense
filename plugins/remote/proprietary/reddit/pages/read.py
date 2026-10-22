@@ -14,13 +14,17 @@ from .document import parse
 from .listing import listing, posts_listing
 from .more_comments import more_comments
 from .posts import post_data
+from .profile import profile_listing
 from .search import search_posts
 
 _POST = re.compile(r"(?:r/[^/]+/)?comments/(?P<id>[^/]+)")
 _ABOUT = re.compile(r"r/(?P<name>[^/]+)/about")
 _SEARCH = re.compile(r"(?:r/(?P<name>[^/]+)/)?search")
+_USER = re.compile(r"user/(?P<name>[^/]+)(?:/(?P<tab>submitted|comments))?")
 # Past the first, a post's comment batches each cost a request.
 _MAX_COMMENT_BATCHES = 10
+# A user's tab as the profile route that serves its feed.
+_USER_FEEDS = {None: "overview", "submitted": "posts", "comments": "comments"}
 _COMMUNITY = re.compile(r"r/(?P<name>[^/]+)/(?P<sort>[a-z]+)")
 
 
@@ -31,6 +35,17 @@ async def read_listing(path: str, params: dict[str, Any] | None = None) -> Any |
         return await _post(match["id"], params.get("limit") or 0)
     if match := _ABOUT.fullmatch(path):
         return await _about(match["name"])
+    if match := _USER.fullmatch(path):
+        route = (
+            f"svc/shreddit/profiles/profile_{_USER_FEEDS[match['tab']]}-more-posts/new/"
+        )
+        text = await fetch.fetch_page(
+            route, _present({"name": match["name"], "after": params.get("after")})
+        )
+        if text is None:
+            return None
+        page = parse(text)
+        return profile_listing(page, next_cursor(page, route, "after"))
     if match := _SEARCH.fullmatch(path):
         return await _search(match["name"], params)
     if match := _COMMUNITY.fullmatch(path):

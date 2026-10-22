@@ -325,6 +325,99 @@ async def test_a_search_in_one_subreddit_reads_that_subreddit_s_search_page_onwa
     assert second[1]["cursor"] == "eyJjYW5kaWRhdGVzIjoiMiJ9"
 
 
+async def test_a_user_s_overview_mixes_their_posts_and_comments(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    pages["served"]["svc/shreddit/profiles/profile_overview-more-posts/new/"] = fixture(
+        "user_overview.html"
+    )
+
+    result = await call(
+        reddit,
+        "scrape",
+        {"urls": ["https://www.reddit.com/user/spez/"], "max_items": 4},
+        LICENSE,
+    )
+
+    assert not result.is_error, result.content[0].text
+    post, comment, on_own_post, _ = result.structured_content["items"]
+    assert (post["dataType"], post["title"], post["upVotes"]) == (
+        "post",
+        "Modernizing infrastructure",
+        357,
+    )
+    assert {
+        key: comment[key]
+        for key in (
+            "dataType",
+            "id",
+            "username",
+            "body",
+            "upVotes",
+            "url",
+            "postId",
+            "communityName",
+            "createdAt",
+        )
+    } == {
+        "dataType": "comment",
+        "id": "t1_p1wosm9",
+        "username": "spez",
+        "body": "That was the thinking.",
+        "upVotes": 16,
+        "url": "https://www.reddit.com/r/Python/comments/1xbnrhi/comment/p1wosm9/",
+        "postId": "1xbnrhi",
+        "communityName": "r/Python",
+        "createdAt": "2026-08-05T18:31:50.140Z",
+    }
+    # A comment on their own profile's post is in their profile's subreddit.
+    assert (on_own_post["communityName"], on_own_post["postId"]) == (
+        "u/spez",
+        "1vgbkge",
+    )
+    route = "svc/shreddit/profiles/profile_overview-more-posts/new/"
+    assert pages["asked"][:2] == [
+        (route, {"name": "spez"}),
+        (route, {"name": "spez", "after": "dDFfb3BtYjc2dQ=="}),
+    ]
+
+
+async def test_a_user_s_comments_tab_reads_their_comments_page(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    route = "svc/shreddit/profiles/profile_comments-more-posts/new/"
+    pages["served"][route] = fixture("user_overview.html")
+
+    result = await call(
+        reddit,
+        "scrape",
+        {"urls": ["https://www.reddit.com/user/spez/comments/"], "max_items": 1},
+        LICENSE,
+    )
+
+    assert not result.is_error, result.content[0].text
+    assert [item["id"] for item in result.structured_content["items"]] == ["t1_p1wosm9"]
+    assert pages["asked"][0] == (route, {"name": "spez"})
+
+
+async def test_a_user_s_posts_page_on_from_its_last_post_s_cursor(
+    reddit: str, pages: dict[str, Any]
+) -> None:
+    """That feed links no next page; its posts carry the cursor instead."""
+    route = "svc/shreddit/profiles/profile_posts-more-posts/new/"
+    page = fixture("user_overview.html")
+    pages["served"][route] = page[: page.index("<faceplate-partial")]
+
+    await call(
+        reddit,
+        "scrape",
+        {"urls": ["https://www.reddit.com/user/spez/submitted/"], "max_items": 5},
+        LICENSE,
+    )
+
+    assert pages["asked"][1] == (route, {"name": "spez", "after": "dDNfMXZnYmtnZQ"})
+
+
 async def test_a_post_s_later_comments_load_until_enough_are_read(
     reddit: str, pages: dict[str, Any]
 ) -> None:
