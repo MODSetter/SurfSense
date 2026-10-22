@@ -47,7 +47,7 @@ Every source opens with its title, then its facts as a list, then a section for 
 
 ## The pull
 
-`pull_web_source` runs on the plugins queue, whose four workers wait on the network, so the single ingest worker stays free for indexing ([`pull.py`](../../surfsense_local/backend/modules/documents/web_sources/background_pull/pull.py)):
+`pull_web_source` runs on the plugins queue, drained by its own sidecar, `worker-plugins`, with four threads that wait on the network. The single ingest thread stays free for indexing, so a slow pull never holds back the user's own files ([`pull.py`](../../surfsense_local/backend/modules/documents/web_sources/background_pull/pull.py)):
 
 1. **Start.** It marks the note `processing`, unless it was cancelled.
 2. **Check again.** It checks the license key and the plugin host's consent a second time, and records the call for Settings › Network. A queued pull never asks: with the host turned off since the click, the pull fails and says so.

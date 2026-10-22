@@ -18,7 +18,8 @@ A file is uploaded, parsed to markdown, cut into passages and embedded. A chat t
 ```text
 Electron main ─┬─ api            FastAPI on 127.0.0.1, free port    ─┐
                ├─ worker-ingest  Huey consumer, "ingest", 1 thread   ├─ surfsense.db, huey.db
-               ├─ worker-studio  Huey consumer, "studio", 4 threads ─┘
+               ├─ worker-studio  Huey consumer, "studio", 4 threads  │
+               ├─ worker-plugins Huey consumer, "plugins", 4 threads ─┘
                ├─ llamacpp       llama-server in router mode
                ├─ sdcpp          sd-server, started once an image model is chosen
                ├─ audiocpp       audiocpp_server, started once the API names an audio model
@@ -29,10 +30,11 @@ BrowserWindow (Vite SPA) ── HTTP ──> api
 api ── admission ── HTTP ──> llama-server, remote OpenAI-compatible endpoints
 worker-studio, opencode ── POST /internal/models/text/generate, /agent/model/v1 ──> api
 worker-studio ── HTTP ──> sd-server, audiocpp, remote image and speech endpoints
-worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE /workspaces/{id}/events
+worker-plugins ── HTTP ──> plugins.surfsense.com, the links added from the web
+worker-ingest, worker-studio, worker-plugins ── POST /internal/events ──> api ── SSE /workspaces/{id}/events
 ```
 
-- Electron's main process starts four sidecars at boot and supervises them ([`sidecars/boot.ts`](../../surfsense_local/electron/src/main/sidecars/boot.ts), [`sidecars/`](../../surfsense_local/electron/src/main/sidecars/)): the API, one Huey worker per queue, and llama-server. Packaged builds run frozen binaries from the app's resources; `pnpm dev` runs `main.py` and `worker.py <queue>` on the backend's `.venv` interpreter, synced by `predev`'s own `uv run` scripts. Not through `uv run`: Windows kills Electron's children with it but not theirs, so after a Ctrl-C the last session's Studio worker, still reading the queue, took the next jobs.
+- Electron's main process starts five sidecars at boot and supervises them ([`sidecars/boot.ts`](../../surfsense_local/electron/src/main/sidecars/boot.ts), [`sidecars/`](../../surfsense_local/electron/src/main/sidecars/)): the API, one Huey worker per queue, and llama-server. Packaged builds run frozen binaries from the app's resources; `pnpm dev` runs `main.py` and `worker.py <queue>` on the backend's `.venv` interpreter, synced by `predev`'s own `uv run` scripts. Not through `uv run`: Windows kills Electron's children with it but not theirs, so after a Ctrl-C the last session's Studio worker, still reading the queue, took the next jobs.
 - llama-server starts whenever its pinned build is staged, in dev too (`pnpm build:llamacpp`, which `predev` runs). It reads per-model arguments from a preset file once at startup, so Electron restarts it when the API rewrites that file ([`local-models/runtime.md`](local-models/runtime.md)).
 - sd-server takes its model as startup arguments, so it cannot start at boot. Whenever its pinned build is staged, in dev too (`pnpm build:sdcpp`, which `predev` runs), `watchImageModel` asks the API every 5 seconds which files to run, and starts, restarts or stops it on a change. The API names a model only while a Studio job needs one and for up to 5 minutes after, so its weights are not held beside the chat model all session ([`studio.md`](studio.md#the-image-path)).
 - audiocpp_server refuses an empty model list, so it starts only once the API has written `audio/server.json` under the data directory, in dev too (`pnpm build:audiocpp`, which `predev` runs). On Windows and Linux that script compiles audio.cpp, and without a C++ toolchain the app runs without local audio ([packaging](packaging.md)). Electron checks that file every 5 seconds and restarts the server when it changes. Electron sets the machine-wide flags: the CPU backend, half the logical cores up to 8, one loaded model, and an unload after 5 idle minutes. The API writes that file whenever an audio model is installed or deleted, and at startup ([`local-models/catalog.md`](local-models/catalog.md)). The Studio worker voices podcasts there, at `SURFSENSE_LOCAL_AUDIO_BASE_URL`, and unloads the model when a podcast ends ([`studio.md`](studio.md)).
@@ -56,6 +58,7 @@ worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE
 | Model catalog, downloads and the hardware probe | `api` |
 | Parse, chunk, embed and index a document | `worker-ingest` |
 | Generate and render an artifact, index its body | `worker-studio` |
+| Pull a link added from the web through SurfSense's plugin | `worker-plugins` ([sources from the web](web-sources.md)) |
 | Sidecar lifecycle, the keychain secret, updates, opening files natively | Electron main |
 
 The rules that keep the processes out of each other's way:
@@ -79,7 +82,7 @@ The rules that keep the processes out of each other's way:
 ```text
 ~/.surfsense/                 ~/.surfsense-dev under `pnpm dev`
 ├── surfsense.db              every table and the search index
-├── huey.db                   the ingest and studio queues
+├── huey.db                   the ingest, studio and plugins queues
 ├── models/                   GGUF weights and llama-server's models.ini
 ├── images/                   sd-server weights (hosts with sd-server staged)
 ├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
@@ -113,7 +116,7 @@ The rules that keep the processes out of each other's way:
 - [`backend/api/`](../../surfsense_local/backend/api/): `create_app()` and its lifespan (migrations, the default workspace, a background catalog warm-up), the per-request session and `transact()`.
 - [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `plugins`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
-- [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
+- [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the three Huey queues, `retrieve()`, and the secret that encrypts stored keys.
 - [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0032`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
 - [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `plugins`, `license`, `migration`, `updates` and `feedback`.
 - [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (the window, IPC and the paths it hands to boot), `sidecars/` (boot, the supervisor, one spec per sidecar, and the image-model, preset, audio and agent watchers), `session-log/` (this run's output, for issue reports), `permissions/` (who may use the microphone), `microphone/` (the operating system's switch), `secret.ts`, `updater.ts` and `document-files.ts`.

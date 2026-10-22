@@ -25,7 +25,7 @@ import { recordOpencodeFailure } from "./opencode-failure.ts"
 import { prepareOpencodeHome } from "./opencode-home.ts"
 import { recordOpencode, stopLeftoverOpencode } from "./opencode-leftovers.ts"
 import { OpencodeRestarts } from "./opencode-restarts.ts"
-import { apiSpec, workerSpec } from "./python.ts"
+import { apiSpec, WORKER_QUEUES, workerSpec } from "./python.ts"
 import { binaryPath as sdcppBinaryPath } from "./sdcpp.ts"
 import {
   sidecarControl,
@@ -153,8 +153,7 @@ export async function bootSidecars(
   // model was chosen.
   const specs = [
     apiSpec(ctx),
-    workerSpec(ctx, "ingest"),
-    workerSpec(ctx, "studio"),
+    ...WORKER_QUEUES.map((queue) => workerSpec(ctx, queue)),
     llamacppSpec(ctx),
     // Null until the API's config names an audio model.
     audiocppSpec(ctx),
