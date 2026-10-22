@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 code:
   - surfsense_local/electron/scripts/opencode/
   - surfsense_local/electron/src/main/sidecars/
