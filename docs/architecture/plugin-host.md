@@ -58,7 +58,7 @@ Every plugin joins the same way, with no change to the host, the image's layout 
 
 Before it loads a plugin, `python -m host` redacts every log record as it is made, its message, arguments and traceback, so no logger or handler writes a credential: a URL's `user:password@`, a proxy in the captcha solvers' `user:password@host:port` form, and a `password` or a solver's `key` as a field ([`redacted_logs.py`](../../plugins/remote/host/redacted_logs.py)). Scrapling would otherwise log a failed proxy with its user and password.
 
-The same pass cuts every `http`, `https`, `ws` or `wss` address in a log record to its scheme and host, so the page or search a user asked a plugin for never reaches a log, even quoted inside a library's error. The plugins' own lines name a host or a count, never a URL, query, search term or an id such as an ASIN, a video or a place ([`logged_host.py`](../../plugins/remote/proprietary/scraping/logged_host.py)).
+The same pass cuts every `http://`, `https://`, `ws://` or `wss://` address in a log record to its scheme and host, up to the first space, so a library's error that quotes the page or search a user asked a plugin for keeps only its host. It does not catch an address written without its scheme, with escaped slashes (`https:\/\/`) or with an unencoded space, whose rest stays in the record. The plugins' own lines name a host or a count, never a URL, query, search term or an id such as an ASIN, a video or a place ([`logged_host.py`](../../plugins/remote/proprietary/scraping/logged_host.py)).
 
 ## The image
 

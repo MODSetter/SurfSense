@@ -1,11 +1,13 @@
-"""Credentials, and the pages users asked plugins for, never reach the host's logs.
+"""Credentials never reach the host's logs, and web addresses keep only their host.
 
 Scrapling logs a failed proxy as the URL it was given, user and password included,
 and a library's error can quote a URL or a request it sent. Each log record is
 redacted as it is made, its message, arguments, traceback and stack alike, so no
-logger or handler, the host's or a library's, can write a credential out. A URL
-keeps only its scheme and host: its path and query name what a user asked for,
-and plugin records are kept only for rate limits, abuse and billing.
+logger or handler, the host's or a library's, can write a credential out. An
+http(s) or ws(s) URL keeps only its scheme and host, up to the first space: its
+path and query name what a user asked for, and plugin records are kept only for
+rate limits, abuse and billing. An address without its scheme, or with escaped
+slashes, is not recognised.
 """
 
 import logging
