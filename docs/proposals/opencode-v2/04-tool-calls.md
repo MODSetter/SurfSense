@@ -34,13 +34,13 @@ Fixing the first two would take a SurfSense plugin inside opencode recording eac
 **When they do not fit.** Real MCP tools run to hundreds of tokens each: GitHub's 35 to about 26,000, Slack's 11 to about 21,000 ([Anthropic](https://www.anthropic.com/engineering/advanced-tool-use)). 400 tools from 20 plugins fit no window, and choosing among them degrades even frontier models: one benchmark saw Claude Sonnet fall from 62% to 44% success between 220 and 550 tools ([MCPVerse](https://arxiv.org/abs/2508.16260)). The agent then holds:
 
 1. **The catalogue, always.** Every ready plugin with one line, and its tool names where they fit, in the `surfsense` server's MCP instructions, which 2.x renders into the system prompt ([`core/src/mcp/instructions.ts`](https://github.com/anomalyco/opencode/blob/v2.1.2/packages/core/src/mcp/instructions.ts)). A plugin that cannot be reached is one line saying so. Nothing ready is ever unknown to the agent.
-2. **What is always loaded.** SurfSense's built-in tools; plugins the user @-mentioned or pinned; and tools the thread has used, which stay until compaction or until their plugin stops being ready.
-3. **What is retrieved.** The rest is chosen by search over the ready tools: keyword and embedding search with the embedder SurfSense already runs ([embedding](../../architecture/embedding.md), [search](../../architecture/search.md)). The query is the user's message and recent turns. Plugins are chosen first, then their tools, and a small plugin is loaded whole. Retrieval runs again after each plugin call, inside the gateway before the result goes back, so a tool the task turns to is there at the next step. Within a turn tools are only added, never removed.
+2. **What is always loaded.** SurfSense's built-in tools; plugins the user @-mentioned or pinned; each plugin the user's message names by its catalogue name, with its best-matching tools; and tools the thread has used, which stay until compaction or until their plugin stops being ready. A named plugin is held because the second app of a two-app request is what retrieval misses most ([measured](#retrieval-measured)).
+3. **What is retrieved.** The rest is chosen by search over the ready tools: keyword and embedding search with the embedder SurfSense already runs ([embedding](../../architecture/embedding.md), [search](../../architecture/search.md)), merged by reciprocal rank fusion rather than the semantic weighting source search uses, which ranked tools worse. Each tool is indexed with its name, description, parameters, its plugin's line and its example requests. The query is the user's message and the previous turn. Tools are ranked one by one and taken in rank order until the share is spent. Retrieval runs again after each plugin call, inside the gateway before the result goes back, so a tool the task turns to is there at the next step. Within a turn tools are only added, never removed.
 4. **A way to ask.** `surfsense_open_plugin(name)`, choosing from the catalogue's plugins, and `surfsense_find_tools(query)`. Either allows the matched tools before it answers. They serve models that use them; nothing depends on a model using them.
 
 Everything else is hidden by a session rule, as [`give_plugins.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/give_plugins.py) hides tools today. Every call is still one native tool item with its own output and approval.
 
-**How much the agent holds** is a share of the model's window: a fixed, cautious share by default, so a larger window holds more with nothing kept per model, and a model's own share once a capability suite with many plugins connected has measured it ([capability levels](../../architecture/model-capabilities.md)). There is no hand-kept table of model tiers: what a model of a given size handles shifts with each release and quantization. The held set never exceeds the provider's own limit on tools per request where it has one: 128 on OpenAI's chat completions and on Vertex, 512 on the Gemini API, 350 on xAI; Anthropic, OpenAI's Responses API and llama.cpp document none. The count includes opencode's and SurfSense's own tools.
+**How much the agent holds** is a share of the model's window: by default at least 8,000 tokens of plugin tools where the window allows, which held every needed tool for 90% of realistic tasks, and about a quarter of a small window, so a larger window holds more with nothing kept per model; and a model's own share once a capability suite with many plugins connected has measured it ([capability levels](../../architecture/model-capabilities.md)). There is no hand-kept table of model tiers: what a model of a given size handles shifts with each release and quantization. The held set never exceeds the provider's own limit on tools per request where it has one: 128 on OpenAI's chat completions and on Vertex, 512 on the Gemini API, 350 on xAI; Anthropic, OpenAI's Responses API and llama.cpp document none. The count includes opencode's and SurfSense's own tools.
 
 This replaces [ADR 0065](../../adr/0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md)'s budget for opencode: nothing ready is left out of the agent's view, and a plugin is no longer reachable only by an @-mention.
 
@@ -63,7 +63,7 @@ No number in this design has to be right for it to work: each has a cautious def
 
 **Retrieval misses a tool.** Retrieval is not the only way in.
 
-- Choosing among plugins is easier than among tools: 5 of 20 rather than 15 of 400.
+- A plugin the message names is held whatever retrieval ranks.
 - Tools are indexed with example requests besides their name, description and parameters. SurfSense writes them for its own plugins; a registry entry can carry them in an optional field ([plugins](05-plugins.md#example-requests)); a custom plugin is indexed without.
 - Tools a user calls often rank higher, and tools a thread used stay held, as Microsoft's Foundry pins each user's most-called tools ([Foundry](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/tool-search)).
 - The catalogue names every ready plugin, @-mentions and pins still load one, and a hidden tool the model calls is caught (below).
@@ -86,6 +86,28 @@ The rule is the same on every machine; only the seconds differ by hardware. Upst
 
 **The share is wrong for a model.** It is a cautious default until the model is measured, and never more than the provider's limit.
 
-## Open questions
+## Retrieval, measured
 
-1. How often retrieval holds the needed tools at each share of the window, on real plugins' tools, with and without example requests. This sets the default share and decides how much the safety nets above carry.
+Offline on 22 Oct 2026, with no language model: SurfSense's own encoder (bge-small) and the keyword search of [`shared/search.py`](../../../surfsense_local/backend/shared/search.py), over two sets of real tools.
+
+- **SurfSense-like:** 16 plugins, 522 tools, about 123,000 tokens, from the `tools/list` of GitHub's MCP server, Notion, Sentry, Stripe, HubSpot, Google Calendar, Gmail and others, with community servers for Linear (198 tools), Atlassian and Asana. 87 requests, 35 of them needing 2 to 4 tools.
+- **[LiveMCPBench](https://github.com/icip-cas/LiveMCPBench):** 69 servers, 525 tools, 94 labelled tasks whose requests rarely name the app.
+
+Tasks with every needed tool held, best configuration (fusion, example requests, previous turn in the query):
+
+| Plugin-tool share | Tools held | All tasks | One-tool tasks | Multi-tool tasks |
+|---|---|---|---|---|
+| 2,000 tokens | about 9 | 75% | 94% | 46% |
+| 4,000 | about 16 | 82% | 100% | 54% |
+| 8,000 | about 30 | 90% | 100% | 74% |
+| 16,000 | about 58 | 98% | 100% | 94% |
+
+On LiveMCPBench, leaving out tools opencode already has (writing files, fetching pages), 50 to 60% at 4,000 tokens and 73 to 78% at 8,000.
+
+- Example requests were the largest gain, 10 to 17 points at every share. Fusion beat the 0.65 weighting by 0 to 8 points. The previous turn added 2 to 3, and fixed follow-ups such as "now the other one".
+- Choosing plugins before tools, capping tools per plugin and loading a small plugin whole gained nothing or lost.
+- Re-running mid-turn added 0 to 4 points on the SurfSense-like set, where the message dominates the query, and 20 to 25 points once the agent was in the right plugin, where the next tool is a sibling of the last.
+- Misses were mostly the second app of a two-app request (10 of 11 at 8,000 tokens), then generic tools nobody names, vocabulary such as "deal" against HubSpot's `search-objects`, and a large plugin's generic verbs crowding others.
+- About 20 ms per query on an M2 for 522 tools; indexing about 0.07 s per text.
+
+What the numbers cannot say: the requests were written and labelled by one person and name their app more than users may; the example requests were written by a capable model, not one running on the user's machine; and whether a held tool is then called well depends on the model, which the capability suites measure.

@@ -38,7 +38,7 @@ What is lost regardless is in the [README](README.md#losses).
 
 ## Tests
 
-The backend's integration tests already start the staged opencode against a scripted model ([agent](../../architecture/agent.md#tests)); they move to the 2.x routes and shapes and gain a case for each row above. The live sweep reruns the capability list on 2.x before the release ships, and gains a suite with many plugins connected, which measures each model's window share. A retrieval suite of labelled requests over the registry's plugins runs whenever the registry or the embedder changes ([tool calls](04-tool-calls.md#when-a-guess-is-wrong)).
+The backend's integration tests already start the staged opencode against a scripted model ([agent](../../architecture/agent.md#tests)); they move to the 2.x routes and shapes and gain a case for each row above. The live sweep reruns the capability list on 2.x before the release ships, and gains a suite with many plugins connected, which measures each model's window share. A retrieval suite of labelled requests over the registry's plugins runs whenever the registry or the embedder changes, starting from the measured set and holding its 90% of tasks fully covered at 8,000 tokens as the floor ([tool calls](04-tool-calls.md#retrieval-measured)).
 
 ## Docs
 

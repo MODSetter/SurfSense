@@ -47,7 +47,7 @@ A tool is `<server>_<tool>`, each part with characters outside `[A-Za-z0-9_-]` r
 
 ## Example requests
 
-A registry entry can list, per tool, a few requests a user might make that the tool answers. SurfSense indexes them beside the tool's name and description, so the opencode agent's retrieval finds the tool from the words users use ([tool calls](04-tool-calls.md#when-a-guess-is-wrong)). The field is optional, and the registry's static check only bounds its size; a custom plugin and an entry without it are indexed from their tools alone. SurfSense writes them for its own plugins.
+A registry entry can list, per tool, a few requests a user might make that the tool answers. SurfSense indexes them beside the tool's name and description, so the opencode agent's retrieval finds the tool from the words users use. They were the largest single gain measured, 10 to 17 points of tasks fully covered ([tool calls](04-tool-calls.md#retrieval-measured)). The field is optional, and the registry's static check only bounds its size; a custom plugin and an entry without it are indexed from their tools alone. SurfSense writes them for its own plugins.
 
 ## Asking the user
 
