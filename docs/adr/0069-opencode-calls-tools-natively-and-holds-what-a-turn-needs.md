@@ -1,4 +1,4 @@
-# ADR 0068: On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE
+# ADR 0069: On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE
 
 - **Status:** Accepted
 - **Date:** 2026-10-22
