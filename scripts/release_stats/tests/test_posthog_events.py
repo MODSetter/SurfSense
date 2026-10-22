@@ -67,15 +67,15 @@ def test_no_traffic_event_is_sent_when_traffic_was_skipped():
     assert names == ["github_release_asset_snapshot"]
 
 
-def test_the_traffic_event_carries_the_last_whole_day_beside_the_14_day_totals():
-    traffic_event = snapshot_events(snapshot(TRAFFIC))[-1]
+def test_the_traffic_snapshot_carries_the_14_day_totals_and_top_lists():
+    [traffic_event] = [
+        event
+        for event in snapshot_events(snapshot(TRAFFIC))
+        if event["event"] == "github_traffic_snapshot"
+    ]
     properties = traffic_event["properties"]
 
-    assert traffic_event["event"] == "github_traffic_snapshot"
-    assert properties["day"] == "2026-10-21"
-    assert (properties["day_views"], properties["day_view_uniques"]) == (12, 7)
-    # A day GitHub left out had no traffic.
-    assert (properties["day_clones"], properties["day_clone_uniques"]) == (0, 0)
+    assert traffic_event["timestamp"] == "2026-10-22T06:00:00Z"
     assert (properties["views_14d"], properties["clone_uniques_14d"]) == (120, 3)
     assert properties["referrers"] == [
         {"referrer": "news.ycombinator.com", "count": 8, "uniques": 5}
@@ -84,6 +84,48 @@ def test_the_traffic_event_carries_the_last_whole_day_beside_the_14_day_totals()
         {"path": "/acme/app/releases", "count": 3, "uniques": 2}
     ]
     assert properties["$process_person_profile"] is False
+
+
+def day_events(taken_at="2026-10-22T06:00:00Z", repo="acme/app"):
+    taken = {**snapshot(TRAFFIC), "taken_at": taken_at, "repo": repo}
+    return {
+        event["properties"]["day"]: event
+        for event in snapshot_events(taken)
+        if event["event"] == "github_traffic_day"
+    }
+
+
+def test_every_whole_day_still_held_is_sent_at_its_own_midnight():
+    days = day_events()
+
+    assert list(days) == [f"2026-10-{n:02d}" for n in range(9, 22)]
+    yesterday = days["2026-10-21"]
+    assert yesterday["timestamp"] == "2026-10-21T00:00:00Z"
+    assert yesterday["distinct_id"] == DISTINCT_ID
+    assert yesterday["properties"] == {
+        "day": "2026-10-21",
+        "views": 12,
+        "view_uniques": 7,
+        # A day GitHub left out had no traffic.
+        "clones": 0,
+        "clone_uniques": 0,
+        "$process_person_profile": False,
+        "$geoip_disable": True,
+    }
+
+
+def test_a_rerun_or_a_later_run_sends_each_day_under_the_same_identity():
+    first = day_events("2026-10-22T06:00:00Z")
+    rerun = day_events("2026-10-22T09:41:07Z")
+    next_day = day_events("2026-10-23T06:00:00Z")
+
+    for day in ("2026-10-20", "2026-10-21"):
+        identity = (first[day]["uuid"], first[day]["timestamp"])
+        assert (rerun[day]["uuid"], rerun[day]["timestamp"]) == identity
+        assert (next_day[day]["uuid"], next_day[day]["timestamp"]) == identity
+    assert first["2026-10-20"]["uuid"] != first["2026-10-21"]["uuid"]
+    other_repo = day_events(repo="acme/other")
+    assert other_repo["2026-10-21"]["uuid"] != first["2026-10-21"]["uuid"]
 
 
 def test_events_are_posted_in_batches_with_the_project_key():
