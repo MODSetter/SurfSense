@@ -143,6 +143,26 @@ async def test_a_profile_s_reels_come_from_its_reels_tab(
     ]
 
 
+async def test_a_post_from_the_embed_takes_what_the_embed_lacks_from_the_grid(
+    instagram: str, pages: list[str]
+) -> None:
+    """The embed has no product type, alt text or owner's name; the pages read do."""
+    result = await call(
+        instagram,
+        "scrape",
+        {"urls": ["natgeo"], "skip_pinned_posts": True, "max_per_target": 1},
+        LICENSE,
+    )
+
+    (newest,) = result.structured_content["items"]
+    assert (newest["shortCode"], newest["productType"], newest["alt"]) == (
+        "NEWEST0001",
+        "clips",
+        "Wolves running through snow",
+    )
+    assert newest["ownerFullName"] == "National Geographic"
+
+
 async def test_a_reels_feed_does_not_ask_for_the_embed(
     instagram: str, pages: list[str]
 ) -> None:

@@ -250,12 +250,25 @@ def _pinned_posts(grid: list[GridPost], newest: list[str]) -> list[GridPost]:
     return [post._replace(pinned=i < first) for i, post in enumerate(grid)]
 
 
-async def _grid_item(code: str, full: dict[str, Any] | None) -> dict[str, Any] | None:
-    """One grid post in full: from the embed when it has it, else from its own page."""
-    if full is not None:
-        return parse_media(full)
-    url = f"https://www.instagram.com/p/{code}/"
-    return parse_post(await fetch_html(f"p/{code}/"), url=url, shortcode=code)
+async def _grid_item(
+    post: GridPost, full: dict[str, Any] | None, user: dict[str, Any]
+) -> dict[str, Any] | None:
+    """One grid post in full: from the embed when it has it, else from its own page.
+
+    The embed lacks a post's product type, alt text, owner's name and video URL;
+    the first two come from the grid and the name from the profile. The video
+    URL stays missing rather than cost the post's own page.
+    """
+    if full is None:
+        url = f"https://www.instagram.com/p/{post.code}/"
+        html = await fetch_html(f"p/{post.code}/")
+        return parse_post(html, url=url, shortcode=post.code)
+    item = parse_media(full)
+    item["productType"] = item.get("productType") or post.product_type
+    item["alt"] = item.get("alt") or post.alt
+    if item.get("ownerUsername") == user.get("username"):
+        item["ownerFullName"] = item.get("ownerFullName") or user.get("full_name")
+    return item
 
 
 def _media_matches(item: dict[str, Any], result_type: str) -> bool:
@@ -286,7 +299,7 @@ async def _media_flow(
         for post in grid:
             if input_model.skipPinnedPosts and post.pinned:
                 continue
-            item = await _grid_item(post.code, full.get(post.code))
+            item = await _grid_item(post, full.get(post.code), user)
             if item is None:
                 continue
             if post.pinned is not None:

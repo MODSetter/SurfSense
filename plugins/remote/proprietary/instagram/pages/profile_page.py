@@ -12,6 +12,9 @@ class GridPost(NamedTuple):
     pinned: bool | None  # ``None``: the page does not say
     # Only the reels grid counts plays; a logged-out post page does not.
     views: int | None = None
+    # The posts grid's, for a post taken from the embed, which lacks both.
+    product_type: str | None = None
+    alt: str | None = None
 
 
 def profile_user(html: str) -> dict[str, Any]:
@@ -25,7 +28,12 @@ def profile_user(html: str) -> dict[str, Any]:
 def timeline(user: dict[str, Any]) -> list[GridPost]:
     """The posts grid; its nodes do not say which are pinned."""
     return [
-        GridPost(code, None)
+        GridPost(
+            code,
+            None,
+            product_type=node.get("product_type"),
+            alt=node.get("accessibility_caption"),
+        )
         for node in _nodes(user.get("polaris_ordered_timeline_connection"))
         if isinstance(code := node.get("code"), str)
     ]
