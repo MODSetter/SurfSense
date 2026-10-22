@@ -1,4 +1,4 @@
-"""A render without artifact_id titled like a document its thread already rendered, in the same format, is refused.
+"""A render or saved page without artifact_id titled like one its thread already made, in the same format, is refused.
 
 Weaker models left artifact_id out of edits, so a change became a second
 document (Gemma 4 31B in 5 of 18 ladder runs, 08-model-ladder-results). Another
@@ -21,7 +21,7 @@ def refuse_same_title(
     session: Session, thread_id: int, title: str, format: object
 ) -> None:
     """Refuse a new document whose title and format match one the thread rendered."""
-    if format not in DOCUMENT_FORMATS:
+    if format not in (*DOCUMENT_FORMATS, "html"):
         return  # the service refuses it, naming the formats
     wanted = _key(title)
     rendered = session.execute(

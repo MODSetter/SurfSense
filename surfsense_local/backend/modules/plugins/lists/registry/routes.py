@@ -11,6 +11,7 @@ from modules.plugins.installed.plugin_hosts import refused_hosts
 from modules.plugins.installed.plugin_read import PluginRead, read_plugin
 from modules.plugins.installed.registry_plugin import store_registry_plugin
 from modules.plugins.installed.third_party import third_party_on
+from modules.plugins.installed.third_party_off import third_party_refusal
 from modules.plugins.lists.icon_response import icon_response
 from modules.plugins.lists.registry import registry_origin
 from modules.plugins.lists.registry.current_registry import (
@@ -18,12 +19,24 @@ from modules.plugins.lists.registry.current_registry import (
     local_registry,
     refreshed_registry,
 )
+from modules.plugins.lists.registry.entry_headers import filled_headers
 from modules.plugins.lists.registry.registry_consent import registry_refusal
 from modules.plugins.lists.registry.registry_entry import RegistryEntry
 from modules.plugins.lists.registry.registry_icons import icon_file
 from modules.plugins.lists.registry.registry_read import RegistryRead, read_registry
 from modules.plugins.remote.connect_refusal import connect_refusal
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.mcp_client.transports import entry_transport
+from modules.plugins.remote.sign_in.headers.given_headers import as_sent
+from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
+from modules.plugins.remote.sign_in.oauth.own_app import (
+    OwnApp,
+    own_app_auth,
+)
+from modules.plugins.remote.sign_in.oauth.own_app_needed import (
+    OwnAppNeededError,
+    keep_needing_own_app,
+)
 from modules.plugins.remote.sign_in.oauth.plugin_draft import PluginDraft
 from modules.plugins.remote.sign_in.oauth.sign_in_read import SignInStarted
 from modules.plugins.remote.sign_in.oauth.start_sign_in import start_sign_in
@@ -36,6 +49,10 @@ router = APIRouter(prefix="/plugins/registry", tags=["plugins"])
 class RegistryConnect(BaseModel):
     # The key a `token` entry asks for; nothing for `none`.
     token: str | None = None
+    # A value for each header a `headers` entry names.
+    headers: list[SignInHeader] | None = None
+    # The user's own app, for an `oauth` entry marked `user_client`.
+    oauth_client: OwnApp | None = None
 
 
 @router.get("", response_model=RegistryRead, summary="List third-party plugins")
@@ -65,14 +82,9 @@ async def connect_registry_plugin(
     An `oauth` entry answers `202` with the sign-in's page; it is stored once signed in.
     """
     token = payload.token if payload else None
-    if not await transact(session, third_party_on):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            {
-                "code": "third_party_off",
-                "message": "Allow third-party plugins to connect this one.",
-            },
-        )
+    refusal = await transact(session, third_party_refusal, PluginSource.REGISTRY)
+    if refusal is not None:
+        raise refusal
     entry = (await _registry(session)).document.entry(plugin_id)
     if entry is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{plugin_id} is not listed")
@@ -97,7 +109,22 @@ async def connect_registry_plugin(
         raise refusal
 
     if entry.auth.type == "oauth":
-        sign_in = await start_sign_in(session, request, _draft(entry))
+        app = payload.oauth_client if payload else None
+        if entry.auth.user_client and app is None:
+            # Kept before any request, set up from its row like any other needing one.
+            await transact(session, keep_needing_own_app, _draft(entry), "needs_client")
+            return await transact(
+                session,
+                lambda s: read_plugin(s, s.get_one(InstalledPlugin, plugin_id)),
+            )
+        try:
+            sign_in = await start_sign_in(session, request, _draft(entry, app))
+        except OwnAppNeededError:
+            # Kept, needing the user's own app, and set up from its row.
+            return await transact(
+                session,
+                lambda s: read_plugin(s, s.get_one(InstalledPlugin, plugin_id)),
+            )
         if sign_in is None:
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY,
@@ -110,7 +137,14 @@ async def connect_registry_plugin(
         return sign_in
 
     key = token if entry.auth.type == "token" else None
-    source = RemoteMcpSource(entry.url, token_headers(key))
+    headers = (
+        filled_headers(entry.auth.headers or [], payload.headers if payload else None)
+        if entry.auth.type == "headers"
+        else None
+    )
+    sent = as_sent(headers) if headers else token_headers(key)
+    transport = entry_transport(entry.model_dump(exclude_none=True))
+    source = RemoteMcpSource(entry.url, sent, transport)
     try:
         tools = await source.list_tools()
     except ServerError as error:
@@ -119,20 +153,25 @@ async def connect_registry_plugin(
         await source.close()
 
     def store(s):
-        return read_plugin(s, store_registry_plugin(s, entry, key, tools))
+        stored = store_registry_plugin(s, entry, key, tools, headers)
+        return read_plugin(s, stored)
 
     return await transact(session, store)
 
 
-def _draft(entry: RegistryEntry) -> PluginDraft:
+def _draft(entry: RegistryEntry, app: OwnApp | None = None) -> PluginDraft:
+    listed = entry.model_dump(exclude_none=True)
+    if app is not None:
+        listed = {**listed, "auth": {**listed["auth"], **own_app_auth(app)}}
     return PluginDraft(
         plugin_id=entry.id,
         name=entry.name,
         url=entry.url,
         source=PluginSource.REGISTRY,
-        entry=entry.model_dump(exclude_none=True),
-        scopes=entry.auth.scopes,
-        client_id=entry.auth.client_id,
+        entry=listed,
+        scopes=(app.scopes if app and app.scopes else None) or entry.auth.scopes,
+        client_id=app.client_id.strip() if app else entry.auth.client_id,
+        client_secret=app.client_secret if app else None,
     )
 
 

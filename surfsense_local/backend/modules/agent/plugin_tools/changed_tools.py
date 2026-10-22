@@ -21,11 +21,13 @@ from modules.plugins.gateway.source_tool import SourceTool
 from modules.plugins.installed.models import InstalledPlugin
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.remote.mcp_client.server_error import ServerError
+from modules.plugins.remote.mcp_client.transports import Transport, entry_transport
 from modules.plugins.remote.sign_in.oauth.listed_after_refresh import (
     listed_after_refresh,
 )
 from modules.plugins.remote.sign_in.plugin_headers import sign_in_headers
 from modules.plugins.remote.source import RemoteMcpSource
+from modules.plugins.remote.transport_moved import listed_where_it_moved
 
 CHECK_SECONDS = 300
 AFTER_TURN_SECONDS = 200
@@ -53,8 +55,8 @@ async def check_changed_tools(
     with sessions() as session:
         due = await transact(session, _due, older_than)
     checks = [
-        _checking.get(plugin_id) or _start(sessions, plugin_id, url, headers)
-        for plugin_id, url, headers in due
+        _checking.get(plugin_id) or _start(sessions, plugin_id, url, headers, transport)
+        for plugin_id, url, headers, transport in due
     ]
     if not checks:
         return 0
@@ -90,8 +92,9 @@ def _start(
     plugin_id: str,
     url: str,
     headers: dict[str, str],
+    transport: Transport,
 ) -> asyncio.Task[None]:
-    task = asyncio.create_task(_check(sessions, plugin_id, url, headers))
+    task = asyncio.create_task(_check(sessions, plugin_id, url, headers, transport))
     _checking[plugin_id] = task
     task.add_done_callback(lambda _: _checking.pop(plugin_id, None))
     return task
@@ -102,19 +105,25 @@ async def _check(
     plugin_id: str,
     url: str,
     headers: dict[str, str],
+    transport: Transport,
 ) -> None:
     """List and record one plugin, in a session of its own: it may outlive the turn."""
     try:
-        listed = await _listed(url, headers)
+        listed = await _listed(url, headers, transport)
         with sessions() as session:
             # An OAuth plugin's 401: one refresh, and the listing again.
             listed = await listed_after_refresh(session, plugin_id, headers, listed)
-            await transact(session, _record, plugin_id, listed)
+            transport, listed = await listed_where_it_moved(
+                url, headers, transport, listed
+            )
+            await transact(session, _record, plugin_id, listed, transport)
     except Exception:
         logger.warning("%s's check was not recorded", plugin_id, exc_info=True)
 
 
-def _due(session: Session, older_than: float) -> list[tuple[str, str, dict[str, str]]]:
+def _due(
+    session: Session, older_than: float
+) -> list[tuple[str, str, dict[str, str], Transport]]:
     # SQLite hands datetimes back without their zone; they are stored in UTC.
     stale = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=older_than)
     due = []
@@ -123,12 +132,21 @@ def _due(session: Session, older_than: float) -> list[tuple[str, str, dict[str, 
         checked = plugin.checked_at
         if checked is not None and checked.replace(tzinfo=None) > stale:
             continue
-        due.append((plugin_id, plugin.url, sign_in_headers(session, plugin)))
+        due.append(
+            (
+                plugin_id,
+                plugin.url,
+                sign_in_headers(session, plugin),
+                entry_transport(plugin.entry),
+            )
+        )
     return due
 
 
-async def _listed(url: str, headers: dict[str, str]) -> list[SourceTool] | ServerError:
-    source = RemoteMcpSource(url, headers)
+async def _listed(
+    url: str, headers: dict[str, str], transport: Transport
+) -> list[SourceTool] | ServerError:
+    source = RemoteMcpSource(url, headers, transport)
     try:
         return await source.list_tools()
     except ServerError as error:
@@ -139,8 +157,13 @@ async def _listed(url: str, headers: dict[str, str]) -> list[SourceTool] | Serve
 
 
 def _record(
-    session: Session, plugin_id: str, listed: list[SourceTool] | ServerError
+    session: Session,
+    plugin_id: str,
+    listed: list[SourceTool] | ServerError,
+    transport: Transport,
 ) -> None:
     plugin = session.get(InstalledPlugin, plugin_id)
     if plugin is not None:
         record_check(session, plugin, listed)
+        if not isinstance(listed, ServerError):
+            plugin.entry = {**plugin.entry, "transport": transport}

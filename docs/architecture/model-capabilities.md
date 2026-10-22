@@ -41,7 +41,7 @@ The result carries the level, a `Reason(code, values)` (`measured_pass`, `measur
 ## What follows from it
 
 - **A new chat's default mode** ([modes](#the-modes)): Agentic for `agent` and `agent_limited`, Basic (Q&A) for `studio_only` and `not_measured`.
-- **Studio** ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)): `writes_script()` is true for `agent` and `agent_limited`, false for `studio_only`, and the local or remote rule for `not_measured`.
+- **Studio** ([`strength.py`](../../surfsense_local/backend/worker/studio/office/document/strength.py)): `writes_script()` is true for `agent` and `agent_limited`, false for `studio_only`, and the local or remote rule for `not_measured`. It decides Word and PDF's path, and whether the model writes a Web page itself or fills the template ([studio](studio.md#formats)).
 
 ## The modes
 

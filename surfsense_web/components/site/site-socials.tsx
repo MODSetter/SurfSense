@@ -1,3 +1,4 @@
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { DiscordLogo } from "@/components/homepage/icons/discord-logo";
 import { GithubLogo } from "@/components/homepage/icons/github-logo";
 import { LinkedinLogo } from "@/components/homepage/icons/linkedin-logo";
@@ -31,15 +32,16 @@ export function SiteSocials() {
 		<ul className="flex list-none flex-wrap gap-3 p-0">
 			{SOCIALS.map(({ title, href, Logo }) => (
 				<li key={title}>
-					<a
-						href={href}
-						target="_blank"
-						rel="noreferrer noopener"
-						className="grid size-11 place-items-center rounded-lg border border-foreground/15 bg-background/60 text-foreground transition-colors duration-100 hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+					<HomeButton
+						asChild
+						variant="bare"
+						className={`grid size-11 place-items-center rounded-lg border border-foreground/15 bg-background/60 text-foreground hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
 					>
-						<Logo className="size-[1.125rem]" />
-						<span className="sr-only">{title}</span>
-					</a>
+						<a href={href} target="_blank" rel="noreferrer noopener">
+							<Logo className="size-[1.125rem]" />
+							<span className="sr-only">{title}</span>
+						</a>
+					</HomeButton>
 				</li>
 			))}
 		</ul>

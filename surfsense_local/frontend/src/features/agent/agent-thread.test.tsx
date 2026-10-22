@@ -602,6 +602,49 @@ describe("an agent thread", () => {
     expect(screen.getByText("Amazon needs a SurfSense license")).toBeTruthy()
   })
 
+  it("says when a plugin's tools did not all fit the turn, and how to use them", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-plugins-unavailable",
+          plugins: [{ title: "Notion", reason: "left_out" }],
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(
+      await screen.findByText(
+        "Not all of Notion’s tools fit this turn. Mention it with @ to use them all."
+      )
+    ).toBeTruthy()
+  })
+
+  it("adds a plugin refused mid-turn for more access to the ones named before", async () => {
+    backend({
+      first: [
+        ACCEPTED,
+        {
+          type: "agent-plugins-unavailable",
+          plugins: [{ title: "Notion", reason: "unreachable" }],
+        },
+        {
+          type: "agent-plugins-unavailable",
+          plugins: [{ title: "Linear", reason: "needs_scopes" }],
+        },
+      ],
+      waitFor: ["never"],
+    })
+    renderAgentThread()
+    await ask("When do we ship?")
+
+    expect(await screen.findByText("Linear needs more access")).toBeTruthy()
+    expect(screen.getByText("Couldn’t reach Notion")).toBeTruthy()
+  })
+
   it("shows the sources a stored turn worked from", async () => {
     backend({
       stored: [

@@ -1,0 +1,183 @@
+"""The proxy a runtime's outbound connections go through: a tunnel to a host it allows, and nothing else.
+
+opencode's allows none, so anything it might fetch is refused; Claude Code's allows
+Anthropic's hosts. Only `CONNECT` passes, so a runtime's TLS reaches its host untouched
+and SurfSense sees the host, never the content.
+"""
+
+import asyncio
+import contextlib
+import logging
+import time
+from collections.abc import AsyncIterator
+
+from sqlalchemy.orm import Session, sessionmaker
+from starlette.concurrency import run_in_threadpool
+
+from modules.agent.runtime_proxy.allowed_hosts import AllowedHosts
+
+# A request line and its headers; a client that sends more, or takes longer, is not opencode.
+_HEAD_BYTES = 8192
+_HEAD_SECONDS = 10
+# A host that takes longer to accept is answered 502, so opencode fails the call at once.
+CONNECT_SECONDS = 10
+# The host's next address is tried this long after the last, not once it fails: an IPv6
+# address that cannot be reached cost each tunnel to `localhost` 2 s on Windows.
+_NEXT_ADDRESS_SECONDS = 0.25
+_CHUNK = 65536
+
+logger = logging.getLogger(__name__)
+
+
+@contextlib.asynccontextmanager
+async def serving_runtime_proxy(
+    sessions: sessionmaker[Session],
+    host: str,
+    port: int,
+    allowed: AllowedHosts | None = None,
+    client: str = "opencode",
+) -> AsyncIterator[int]:
+    """The proxy on `host`, yielding the port it listens on.
+
+    `allowed` decides which hosts pass: none by default, as for opencode. `client`
+    names the program it serves in the log, so a refusal says whose it was.
+    """
+    allowed = allowed if allowed is not None else AllowedHosts(sessions)
+    # Last-call records in flight, held so none is collected before it ran.
+    recording: set[asyncio.Task[None]] = set()
+
+    async def handle(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            await _tunnel(allowed, recording, reader, writer, client)
+        except (
+            OSError,
+            asyncio.IncompleteReadError,
+            asyncio.LimitOverrunError,
+            TimeoutError,
+        ):
+            logger.debug("a proxied connection ended", exc_info=True)
+        except Exception:
+            logger.warning("a proxied connection failed", exc_info=True)
+        finally:
+            writer.close()
+
+    server = await asyncio.start_server(handle, host, port, limit=_HEAD_BYTES)
+    async with server:
+        yield server.sockets[0].getsockname()[1]
+
+
+async def _connect(
+    host: str, port: int
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    """asyncio's own loop takes the next address after a delay; uvloop, which the
+    API runs on macOS and Linux, has no such option and refuses the call."""
+    if isinstance(asyncio.get_running_loop(), asyncio.BaseEventLoop):
+        return await asyncio.open_connection(
+            host, port, happy_eyeballs_delay=_NEXT_ADDRESS_SECONDS
+        )
+    return await asyncio.open_connection(host, port)
+
+
+async def _tunnel(
+    allowed: AllowedHosts,
+    recording: set[asyncio.Task[None]],
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    client: str,
+) -> None:
+    head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), _HEAD_SECONDS)
+    method, target, *_ = head.split(b"\r\n", 1)[0].decode("latin-1").split(" ")
+    host, _, port = target.rpartition(":")
+    host = host.strip("[]").lower()
+    started = time.perf_counter()
+    # Any failure before the answer gets one: a socket closed unanswered fails the
+    # call only after opencode's own wait, and reads as a silent drop.
+    try:
+        ready = method == "CONNECT" and port.isdigit()
+        if ready:
+            hosts = allowed.current()
+            if hosts is None:
+                hosts = await run_in_threadpool(allowed.read)
+            ready = (host, int(port)) in hosts
+    except Exception:
+        logger.warning(
+            "could not check %s's %s %s", client, method, target, exc_info=True
+        )
+        await _answer(writer, b"502 Bad Gateway")
+        return
+    checked = time.perf_counter()
+    if not ready:
+        logger.info("refused %s's %s %s", client, method, target)
+        await _answer(writer, b"403 Forbidden")
+        return
+    try:
+        upstream_reader, upstream_writer = await asyncio.wait_for(
+            _connect(host, int(port)), CONNECT_SECONDS
+        )
+    # Any failure, not only the network's: a socket closed unanswered reads as a
+    # blip: opencode marks the plugin failed without saying why, and Claude Code
+    # retries it ten times.
+    except Exception:
+        logger.warning("could not reach %s for %s", target, client, exc_info=True)
+        await _answer(writer, b"502 Bad Gateway")
+        return
+    connected = time.perf_counter()
+    logger.info(
+        "tunnel to %s:%s: checked in %.0f ms, connected in %.0f ms",
+        host,
+        port,
+        (checked - started) * 1000,
+        (connected - checked) * 1000,
+    )
+    # Closed here as well as by its pipe: opencode gone before its 200, or a cancel,
+    # would otherwise leave the host's connection open until it is collected.
+    try:
+        if (destination := allowed.call_to_record(host)) is not None:
+            task = asyncio.create_task(_record_call(allowed, destination))
+            recording.add(task)
+            task.add_done_callback(recording.discard)
+        writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        await writer.drain()
+        sent, received = await asyncio.gather(
+            _pipe(reader, upstream_writer), _pipe(upstream_reader, writer)
+        )
+    finally:
+        upstream_writer.close()
+    logger.info(
+        "tunnel to %s:%s closed: %d bytes out, %d in, %.1f s",
+        host,
+        port,
+        sent,
+        received,
+        time.perf_counter() - connected,
+    )
+
+
+async def _answer(writer: asyncio.StreamWriter, status: bytes) -> None:
+    writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Length: 0\r\n\r\n")
+    await writer.drain()
+
+
+async def _record_call(allowed: AllowedHosts, destination: str) -> None:
+    """Off the tunnel's path: a busy database delays the record, never the call."""
+    try:
+        await run_in_threadpool(allowed.record_call, destination)
+    except Exception:
+        logger.warning("could not record a call to %s", destination, exc_info=True)
+
+
+async def _pipe(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> int:
+    """Copy until either side closes; the bytes copied."""
+    copied = 0
+    try:
+        while data := await reader.read(_CHUNK):
+            writer.write(data)
+            await writer.drain()
+            copied += len(data)
+    except OSError:
+        pass
+    finally:
+        writer.close()
+    return copied

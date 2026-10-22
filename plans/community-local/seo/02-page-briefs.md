@@ -852,10 +852,12 @@ No search value, and some carry real risk:
 `/free` is no longer on this list — it is kept and rewritten in place, briefed
 above, with the reasoning in `01-keyword-research.md`, "Our baseline".
 
-**Seven public routes still have no disposition**, recorded in
+**Six public routes still have no disposition**, recorded in
 [`../portal/02-pages.md`](../portal/02-pages.md): `/external-mcp-connectors`,
-`/announcements`, `/changelog`, `/contact`, `/privacy`, `/terms` and the
-`[slug]` catch-all. None of them ranks for anything in our top 200, so there is
+`/announcements`, `/changelog`, `/contact`, `/privacy` and `/terms`. The
+`[slug]` catch-all was removed on 21 Oct 2026: each listed scraper's page
+redirects to its plugin page, `/plugins/<id>`, and `/reddit` and `/instagram`
+to `/plugins`. None of them ranks for anything in our top 200, so there is
 no SEO argument either way and this document does not make one. `/privacy` and
 `/terms` are the two that need a decision on content rather than indexing,
 since they are hosted-service legal text the EULA work does not cover.

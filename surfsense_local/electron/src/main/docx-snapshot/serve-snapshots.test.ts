@@ -150,6 +150,31 @@ test("each request is printed as the format and pages it names", async () => {
   )
 })
 
+test("a web page is captured and its PNG posted back, not a PDF", async () => {
+  const api = await fakeApi([
+    { id: "page", file_url: `${ROUTES}/page/file`, format: "html", pages: "1-4" },
+  ])
+  const drawn: { fileUrl: string; format: string }[] = []
+  const stop = serveDocxSnapshots({
+    apiUrl: api.url,
+    key: KEY,
+    print: async ({ fileUrl, format }) => {
+      drawn.push({ fileUrl, format })
+      return new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+    },
+    pollMs: 5,
+  })
+
+  await until(() => api.answers().length === 1)
+  stop()
+  await api.close()
+
+  assert.deepEqual(drawn, [{ fileUrl: `${api.url}${ROUTES}/page/file`, format: "html" }])
+  const [answer] = api.answers()
+  assert.equal(answer.path, `${ROUTES}/page/png`)
+  assert.equal(answer.type, "image/png")
+})
+
 test("a format the app cannot print is reported as the request's failure", async () => {
   const api = await fakeApi([
     { id: "book", file_url: "/artifacts/4/files/primary", format: "xlsx" },

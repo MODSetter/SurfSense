@@ -41,7 +41,9 @@ def offered(api: AgentAPI, request: int = 0) -> set[str]:
 
 
 async def connect_custom(api: AgentAPI, url: str, name: str) -> None:
-    """Connect a server by URL under `name`, its id the name in lower case."""
+    """Connect a server by URL under `name`, its id the name in lower case, with
+    third-party plugins allowed, as adding one requires."""
+    await api.http.put("/plugins/third-party", json={"allowed": True})
     added = await api.http.post("/plugins/custom", json={"url": url, "name": name})
     assert added.status_code == 201, added.text
 
@@ -64,7 +66,6 @@ async def test_plugins_are_given_at_once_and_one_that_hangs_is_named_alone(
             base = servers.enter_context(serving(app))
             await connect_custom(agent_api, f"{base}/mcp", name)
             app.on = True
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         agent_api.model.replies = [("text", "Hi.")]
         thread = await open_thread(agent_api)
 
@@ -183,7 +184,6 @@ async def test_a_plugin_its_check_makes_not_ready_is_taken_back_before_the_model
     server = one_tool_server()
     with serving(server.streamable_http_app()) as base:
         await connect_custom(agent_api, f"{base}/mcp", "Solo")
-        await agent_api.http.put("/plugins/third-party", json={"allowed": True})
         server.remove_tool("search")
         server.add_tool(
             lambda query: query,

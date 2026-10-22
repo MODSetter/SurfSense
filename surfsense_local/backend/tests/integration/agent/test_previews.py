@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from api.main import create_app
 from modules.agent.previews import Previews, docx_snapshots, previews_for, snapshot_key
 from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
+from modules.artifacts.web_pages.no_network import NO_NETWORK_POLICY
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
 from shared.config import get_agent_settings, get_storage_settings
@@ -661,3 +662,94 @@ async def test_no_file_is_served_for_a_request_no_one_made(http: httpx.Client) -
     reply = http.get(f"{PREVIEWS}/no-such-request/file")
 
     assert reply.status_code == 404
+
+
+PAGE = b"<!doctype html><title>Q3</title><h1>Q3 revenue</h1>"
+
+
+def _png(width: int, height: int) -> bytes:
+    out = BytesIO()
+    Image.new("RGB", (width, height), "white").save(out, format="PNG")
+    return out.getvalue()
+
+
+async def test_a_web_page_is_captured_by_electron_and_cut_into_screens(
+    base_url: str, ready_artifact: Callable[..., Artifact]
+) -> None:
+    """Electron loads the page as served, under its policy, and its capture becomes screens top to bottom."""
+    artifact = ready_artifact("html", PAGE, "text/html", number=3)
+    fetched: list[httpx.Response] = []
+
+    def capture(http: httpx.Client, request: dict) -> None:
+        with httpx.Client(base_url=base_url, timeout=10) as window:
+            fetched.append(window.get(request["file_url"], headers={"origin": "null"}))
+        http.post(
+            f"{PREVIEWS}/{request['id']}/png",
+            content=_png(1280, 2500),
+            headers={"content-type": "image/png"},
+        ).raise_for_status()
+
+    with StandInForElectron(base_url, capture) as electron:
+        previews = await asyncio.to_thread(
+            previews_for, artifact, _thread_folder(artifact)
+        )
+
+    (request,) = electron.served
+    assert request["format"] == "html"
+    (page,) = fetched
+    assert page.status_code == 200
+    assert page.headers["content-type"].startswith("text/html")
+    # An opaque origin too: the page is served from the API's own.
+    assert page.headers["content-security-policy"] == (
+        f"{NO_NETWORK_POLICY}; sandbox allow-scripts"
+    )
+    assert page.content == PAGE
+    folder = _preview_folder(artifact, 3)
+    assert previews.pages == [folder / f"page-{n}.png" for n in (1, 2, 3)]
+    with Image.open(previews.pages[0]) as first, Image.open(previews.pages[2]) as last:
+        assert first.size == (1280, 1000)
+        assert last.size == (1280, 500)
+
+
+async def test_a_long_page_is_cut_into_four_screens_at_most(
+    base_url: str, ready_artifact: Callable[..., Artifact]
+) -> None:
+    """Like a document's pages: enough to check the layout without filling the context."""
+    artifact = ready_artifact("html", PAGE, "text/html")
+
+    def capture(http: httpx.Client, request: dict) -> None:
+        http.post(
+            f"{PREVIEWS}/{request['id']}/png",
+            content=_png(1280, 9000),
+            headers={"content-type": "image/png"},
+        ).raise_for_status()
+
+    with StandInForElectron(base_url, capture):
+        previews = await asyncio.to_thread(
+            previews_for, artifact, _thread_folder(artifact)
+        )
+
+    assert len(previews.pages) == 4
+
+
+async def test_without_electron_a_web_page_gets_no_screenshots_and_a_reason(
+    ready_artifact: Callable[..., Artifact],
+) -> None:
+    """Without the desktop app (Docker, tests) a page gets no screens at once, and says why."""
+    artifact = ready_artifact("html", PAGE, "text/html")
+
+    previews = await asyncio.to_thread(previews_for, artifact, _thread_folder(artifact))
+
+    assert previews.pages == []
+    assert "desktop app" in (previews.reason or "")
+
+
+async def test_a_body_that_is_not_a_png_is_refused(http: httpx.Client) -> None:
+    """Only a PNG is cut into screens."""
+    reply = http.post(
+        f"{PREVIEWS}/no-such-request/png",
+        content=b"%PDF-1.7 not a png",
+        headers={"content-type": "image/png"},
+    )
+
+    assert reply.status_code == 422

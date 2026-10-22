@@ -5,7 +5,6 @@ import { GlobalAnnouncement } from "@/components/homepage/global-announcement";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteNav } from "@/components/site/site-nav";
 import { SiteSmoothScroll } from "@/components/site/site-smooth-scroll";
-import { getAllConnectorSlugs } from "@/lib/connectors-marketing";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,11 +23,6 @@ import { cn } from "@/lib/utils";
  * are styled with Tailwind plus the shared `siteText` styles. Every other route
  * under `(home)` still renders against `globals.css`; moving one over is a
  * matter of adding its path here and rebuilding its page on that design.
- *
- * The connector slugs (`/reddit`, `/amazon`, ...) are read from the registry
- * rather than listed by hand, so a page added to `lib/connectors-marketing`
- * lands on the site design automatically instead of falling back to the older
- * palette until someone remembers to list it here.
  */
 const SITE_DESIGN_ROUTES = new Set([
 	"/",
@@ -50,7 +44,6 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/mcp-server",
 	"/privacy",
 	"/terms",
-	...getAllConnectorSlugs().map((slug) => `/${slug}`),
 ]);
 
 /**
@@ -62,8 +55,10 @@ const SITE_DESIGN_ROUTES = new Set([
  * the anonymous chat could own the viewport; the hosted chat is closed and the
  * route is an ordinary marketing page now, so it takes the same chrome and
  * ruled column as the `/free` index above it.
+ *
+ * `/plugins/` covers every plugin's page, the registry's included.
  */
-const SITE_DESIGN_PREFIXES = ["/blog/", "/announcements/", "/free/"];
+const SITE_DESIGN_PREFIXES = ["/blog/", "/announcements/", "/free/", "/plugins/"];
 
 export function SiteShell({
 	children,

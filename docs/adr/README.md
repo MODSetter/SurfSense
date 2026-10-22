@@ -75,7 +75,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted, its request body superseded by 0050, its Claude consequence by 0057 |
 | 0039 | [Model-written document scripts run without approval in SurfSense's script runner, and the agent's general shell is off](0039-document-scripts-run-without-approval.md) | Accepted |
 | 0044 | [Basic and Agentic are chosen per chat, and a measured score sets the default mode, never whether a model may be Agentic](0044-a-score-sets-the-default-mode-never-whether-agentic-is-allowed.md) | Accepted |
-| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part superseded by 0054 |
+| 0047 | [SurfSense's paid plugins are source-available under the Business Source License and unlocked by the SurfSense license](0047-premium-plugins-are-source-available.md) | Accepted, in part superseded by 0054 and 0067 |
 | 0048 | [The API is the only path to a text model, so one gate can count everything that generates](0048-the-api-is-the-only-path-to-a-text-model.md) | Accepted |
 | 0049 | [A prompt changes only at its end, so the cached start of it is never read again](0049-prompts-grow-at-the-end.md) | Accepted |
 | 0050 | [A remote text model answers on the route its manifest entry records, with its connection's credential, and SurfSense owns a ChatGPT plan's sign-in for both engines](0050-a-model-answers-on-its-own-route-with-its-connections-credential.md) | Accepted, in part narrowed by 0057 |
@@ -91,3 +91,8 @@ The Date is the day the decision was first written down. Source links are permal
 | 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted |
 | 0061 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |
 | 0062 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0062-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |
+| 0063 | [A plugin's connection is a transport and one sign-in, detected from the server](0063-a-plugins-connection-is-a-transport-and-one-sign-in.md) | Accepted |
+| 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
+| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |
+| 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Accepted |
+| 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Accepted |

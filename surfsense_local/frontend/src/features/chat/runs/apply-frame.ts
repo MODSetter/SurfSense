@@ -60,9 +60,16 @@ export function applyFrame(
       ]
     }
     case "agent-plugins-unavailable":
+      // One at the start, and one more for each plugin refused mid-turn: a plugin named
+      // again keeps its latest reason.
       return content((current) => ({
         ...current,
-        unavailable_plugins: event.plugins,
+        unavailable_plugins: [
+          ...(current.unavailable_plugins ?? []).filter(
+            (named) => !event.plugins.some((p) => p.title === named.title)
+          ),
+          ...event.plugins,
+        ],
       }))
     case "run-state":
       return content((current) =>

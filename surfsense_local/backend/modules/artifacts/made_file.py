@@ -28,6 +28,7 @@ MIME = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "html": "text/html",
 }
 
 
@@ -53,10 +54,44 @@ def keep_made_file(
     artifact_ids: list[int],
     chat_thread_id: int | None,
 ) -> Artifact:
-    """Store the file as a new pending artifact and queue the job that indexes it.
+    """Store the file as a new pending artifact and queue the job that indexes it."""
+    artifact = add_made_file(
+        session,
+        workspace_id,
+        title=title,
+        format=format,
+        data=data,
+        made_by=made_by,
+        document_ids=document_ids,
+        artifact_ids=artifact_ids,
+        chat_thread_id=chat_thread_id,
+    )
+    queue_made_file(session, artifact)
+    return artifact
 
-    Commits before enqueueing: the worker is another process and must find the row.
-    """
+
+def queue_made_file(session: Session, artifact: Artifact) -> None:
+    """Commit, then queue the job: the worker is another process and must find the row."""
+    session.commit()
+    studio_job(artifact.id)
+    logger.info(
+        "studio: kept made %s file as artifact %s", artifact.format, artifact.id
+    )
+
+
+def add_made_file(
+    session: Session,
+    workspace_id: int,
+    *,
+    title: str,
+    format: str,
+    data: bytes,
+    made_by: dict[str, Any],
+    document_ids: list[int],
+    artifact_ids: list[int],
+    chat_thread_id: int | None,
+) -> Artifact:
+    """The pending artifact and its stored file, flushed but not committed, for a caller adding more."""
     title = " ".join(title.split())
     if not 1 <= len(title) <= TITLE_CHARS:
         raise MadeFileRefusedError(f"Give a title of 1 to {TITLE_CHARS} characters.")
@@ -93,9 +128,6 @@ def keep_made_file(
     session.add(artifact)
     session.flush()
     artifact.files.append(_stored(artifact, title, format, data))
-    session.commit()
-    studio_job(artifact.id)
-    logger.info("studio: kept made %s file as artifact %s", format, artifact.id)
     return artifact
 
 

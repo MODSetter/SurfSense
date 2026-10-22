@@ -48,7 +48,7 @@ def refinable_spec(session: Session, artifact_id: int) -> DocumentSpec:
     if spec is None:
         raise refused(
             status.HTTP_409_CONFLICT,
-            "Only a Word document or PDF made in Studio can be refined.",
+            "Only a Word document, PDF or web page a model wrote in Studio can be refined.",
             "not_refinable",
         )
     # 07, decision 8: the agent keeps editing its own documents in its chat.

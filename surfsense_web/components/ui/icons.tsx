@@ -12,6 +12,7 @@ import {
 	Cards01Icon as Cards01IconData,
 	ChartHistogramIcon as ChartHistogramIconData,
 	CheckIcon as CheckIconData,
+	CheckmarkBadge02Icon as CheckmarkBadge02IconData,
 	ChevronDownIcon as ChevronDownIconData,
 	ChevronRightIcon as ChevronRightIconData,
 	ChipIcon as ChipIconData,
@@ -38,6 +39,7 @@ import {
 	PodcastIcon as PodcastIconData,
 	Presentation02Icon as Presentation02IconData,
 	Quiz02Icon as Quiz02IconData,
+	Search01Icon as Search01IconData,
 	SecurityCheckIcon as SecurityCheckIconData,
 	ServerStack01Icon as ServerStack01IconData,
 	SourceCodeIcon as SourceCodeIconData,
@@ -98,6 +100,7 @@ export const Cancel01Icon = createIcon(Cancel01IconData);
 export const Cards01Icon = createIcon(Cards01IconData);
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData);
 export const CheckIcon = createIcon(CheckIconData);
+export const CheckmarkBadgeIcon = createIcon(CheckmarkBadge02IconData);
 export const ChevronDownIcon = createIcon(ChevronDownIconData);
 export const ChevronRightIcon = createIcon(ChevronRightIconData);
 export const ChipIcon = createIcon(ChipIconData);
@@ -124,6 +127,7 @@ export const PlusIcon = createIcon(PlusIconData);
 export const PodcastIcon = createIcon(PodcastIconData);
 export const Presentation02Icon = createIcon(Presentation02IconData);
 export const Quiz02Icon = createIcon(Quiz02IconData);
+export const Search01Icon = createIcon(Search01IconData);
 export const SecurityCheckIcon = createIcon(SecurityCheckIconData);
 export const ServerStack01Icon = createIcon(ServerStack01IconData);
 export const SourceCodeIcon = createIcon(SourceCodeIconData);
