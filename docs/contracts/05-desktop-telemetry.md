@@ -1,6 +1,6 @@
 # Contract 5: desktop telemetry
 
-What the desktop app may send about itself, and only with the user's yes: one update check a day, and an opt-in usage report. Version 1. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0068](../adr/0068-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
+What the desktop app may send about itself, and only with the user's yes: one update check a day, and an opt-in usage report. Version 1. It binds four parts that ship apart: the Electron main process, the app's UI, the app's local API, and the website routes at `updates.surfsense.com` and `usage.surfsense.com`. Why the app sends anything at all is [ADR 0069](../adr/0069-opt-in-id-less-update-checks-and-usage-statistics.md); how the app does it is [usage statistics](../architecture/usage-statistics.md) and [updates](../architecture/updates.md).
 
 No part of this contract carries an identifier. Not `x-user-staging-id`, not a licence key, not an install ID, not a cookie, anywhere.
 

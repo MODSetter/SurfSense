@@ -48,6 +48,7 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { useWebSources } from "@/features/sources/web/use-web-sources"
 import { getFileViewer } from "@/features/file-viewers/registry"
 import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
@@ -135,6 +136,11 @@ function WorkspaceDashboard({
     readSourcePreview(workspace.id)
   )
   const sources = useSources(workspace.id)
+  const webSources = useWebSources(
+    workspace.id,
+    sources.addCreated,
+    onOpenLicense
+  )
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
   // here directly; the image model is chosen inside the settings dialog and
@@ -264,6 +270,7 @@ function WorkspaceDashboard({
           onRename={sources.rename}
           folderActions={sources.folderActions}
           notes={sourceNotes}
+          web={webSources}
           transcriptionPaces={sources.transcriptionPaces}
           onOpenSpeechSettings={openSpeechSettings}
         />
@@ -293,6 +300,7 @@ function WorkspaceDashboard({
       sources.rename,
       sources.folderActions,
       sourceNotes,
+      webSources,
       sources.transcriptionPaces,
       openSpeechSettings,
     ]

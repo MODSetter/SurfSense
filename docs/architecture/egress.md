@@ -3,7 +3,7 @@
 Nothing is meant to leave the machine until the user allows where it goes. Before a call reaches the network, the backend names its destination and calls `egress.require()`, which refuses with `403 egress_disabled` unless the user has allowed that destination, so a refused call never opens a connection. A destination is a host, off by default, and loopback is not egress; the calls that escape the check are listed under Known gaps. The renderer turns a refusal of something the user just did into a consent dialog, and never asks on a background read.
 
 **Code:** [`surfsense_local/backend/modules/egress/`](../../surfsense_local/backend/modules/egress/), [`surfsense_local/frontend/src/features/egress/`](../../surfsense_local/frontend/src/features/egress/), [`surfsense_local/frontend/src/lib/api.ts`](../../surfsense_local/frontend/src/lib/api.ts)
-**Decisions:** [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0068](../adr/0068-opt-in-id-less-update-checks-and-usage-statistics.md)
+**Decisions:** [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0069](../adr/0069-opt-in-id-less-update-checks-and-usage-statistics.md)
 
 ## Destinations
 
@@ -43,6 +43,7 @@ Fetching the registry is refused with `purpose: "plugin_registry"`, and its prom
 | Refreshing an OAuth plugin's token | `refresh_sign_in()` in `modules/plugins/remote/sign_in/oauth/token_refresh.py`, through `require()`; a host turned off leaves the sign-in as it was | `host:` |
 | Offering a plugin's tools | `list_tools()` in `modules/plugins/gateway/listing.py` offers nothing from a plugin whose hosts are not all allowed | `host:` |
 | The agent's calls to a plugin, which a runtime makes through the gateway | each request through the plugin gateway, `ready_upstream()` in `modules/agent/plugin_gateway/ready_upstream.py`: only a ready plugin, whose hosts are all allowed, recorded as called at most once a minute ([agent](agent.md#the-gateway)); the runtime's own proxy passes no plugin host | `host:` |
+| Searching Google, opening list links and pulling links into Sources | `POST /workspaces/{id}/documents/web/search`, `/web/open` for a list link, `/web/list` and `POST /workspaces/{id}/documents/web`, through `require_plugin_access()` in `modules/documents/web_sources/plugin_calls/plugin_access.py`, after the license; the queued pull checks again and fails rather than asking ([sources from the web](web-sources.md)) | `host:plugins.surfsense.com` |
 | Downloading a GGUF | `POST /llm/installs` in `modules/llm/catalog/local/install_jobs/router.py`, checked before the job starts | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Downloading sd-server weights | `POST /llm/installs`, the same job as chat models | `host:huggingface.co` |

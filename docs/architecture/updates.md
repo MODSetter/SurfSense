@@ -3,7 +3,7 @@
 The desktop app updates itself with electron-updater from the GitHub Releases of `MODSetter/SurfSense`, on its own `stable` channel, and only once the user has allowed it. It reads the release's manifest through `updates.surfsense.com`, which counts the check, and straight from GitHub whenever that host fails; installers always come from GitHub. Updates are free for everyone and carry no license logic. The legacy 0.0.x desktop app reads the same releases, so the two apps are kept apart by the names of the manifests each one reads.
 
 **Code:** [`surfsense_local/electron/src/main/updater.ts`](../../surfsense_local/electron/src/main/updater.ts) and, in Electron main, `update-feed/`, `update-schedule/` and `admin-policy/`; [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/frontend/src/features/updates/`](../../surfsense_local/frontend/src/features/updates/), [`surfsense_local/frontend/src/features/privacy-choices/`](../../surfsense_local/frontend/src/features/privacy-choices/)
-**Decisions:** [ADR 0020](../adr/0020-two-update-channels.md), [ADR 0068](../adr/0068-opt-in-id-less-update-checks-and-usage-statistics.md)
+**Decisions:** [ADR 0020](../adr/0020-two-update-channels.md), [ADR 0069](../adr/0069-opt-in-id-less-update-checks-and-usage-statistics.md)
 **Contract:** [contract 5](../contracts/05-desktop-telemetry.md), part A
 
 How to cut a release is in [`surfsense_local/RELEASE.md`](../../surfsense_local/RELEASE.md).
