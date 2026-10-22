@@ -1,6 +1,7 @@
 """An opencode running SurfSense's current configuration, ready for a turn."""
 
 import asyncio
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,8 +19,6 @@ from modules.agent.model_window import selected_model_window
 from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import (
     CONFIG_FILE,
-    PROVIDER,
-    PROVIDER_PACKAGES,
     AgentSetup,
     write_opencode_config,
 )
@@ -84,10 +83,11 @@ async def ready_opencode(
         # Electron starts opencode again only for a newer file, and an unchanged one is not rewritten.
         os.utime(config)
     written = config.stat().st_mtime
+    expected = json.loads(await run_in_threadpool(config.read_text, encoding="utf-8"))
 
     client = OpencodeClient(settings.opencode_url, settings.opencode_password)
     try:
-        await _until_serving(client, setup, agent_dir, written)
+        await _until_serving(client, expected, agent_dir, written)
     except BaseException:
         await client.close()
         raise
@@ -113,18 +113,23 @@ def _endpoint_url() -> str:
 
 
 async def _until_serving(
-    client: OpencodeClient, setup: AgentSetup, agent_dir: Path, written: float
+    client: OpencodeClient, expected: dict[str, Any], agent_dir: Path, written: float
 ) -> None:
-    """Return once opencode reports `setup`; a rewrite is loaded in about 0.3 s.
+    """Return once opencode has loaded the file as written; a rewrite takes about 0.3 s.
 
+    opencode drops a key it does not know, and an object holding a value it
+    refuses, with only a line in its own log: a missing agent fails every
+    prompt. So a turn waits for the file as written, and is refused without it.
     Fails at once when Electron gave up on opencode after `written`.
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + READY_SECONDS
+    loaded = None
     while True:
         try:
             await client.require_pinned_version()
-            if _serves(await client.config(agent_dir), setup):
+            loaded = await client.config(agent_dir)
+            if loaded == expected:
                 return
         except httpx.HTTPError:
             pass  # not yet started by Electron, or still starting
@@ -133,19 +138,7 @@ async def _until_serving(
         if loop.time() > deadline:
             raise AgentUnavailableError(
                 "opencode did not start with SurfSense's configuration"
+                if loaded is None
+                else "opencode did not load SurfSense's configuration as written"
             )
         await asyncio.sleep(_POLL_SECONDS)
-
-
-def _serves(config: dict[str, Any], setup: AgentSetup) -> bool:
-    """Whether a loaded configuration is this one: the provider package, the launch
-    key, the model's window and image input, in opencode's own shape."""
-    provider = config.get("providers", {}).get(PROVIDER, {})
-    model = provider.get("models", {}).get(setup.model, {})
-    takes = model.get("capabilities", {}).get("input", [])
-    return (
-        provider.get("package") == f"aisdk:{PROVIDER_PACKAGES[setup.route]}"
-        and provider.get("settings", {}).get("apiKey") == setup.launch_key
-        and model.get("limit", {}).get("context") == setup.window
-        and ("image" in takes) == setup.reads_images
-    )
