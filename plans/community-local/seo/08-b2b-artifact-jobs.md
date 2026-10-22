@@ -14,6 +14,18 @@ transcription), and tests every candidate three ways: demand and reach, who
 pays and what they would pay SurfSense, and whether the product can be best at
 it.
 
+**Revised 22 Oct 2026: the B2B jobs are paid plugins.** The maintainer decided
+that each B2B job ships as a plugin that runs on the user's machine and unlocks
+with a SurfSense licence, the 30-day trial included, while the app, the general
+agent, the engines and the shared job infrastructure stay free and open source
+([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)). That
+replaces this document's earlier rule that every job and its content stay free.
+The sections it changes are the headline, the note under the bets table, the
+RFP and registers sections, the capability items 11 and 12 with "One paid-path
+build at a time" and "Where each piece lives", "How SurfSense earns", "Pages
+and reach", "The next 90 days", the kill criteria, the swap rules and the open
+questions.
+
 **Sources.** DataForSEO, pulled **21 Oct 2026**, Google US (`location_code:
 2840`, `language_code: en`), data through September 2026: Google Ads volume and
 CPC for 1,988 terms, clickstream exact-phrase volume for 1,492 of them, 83 SERPs
@@ -46,14 +58,16 @@ forums and Upwork, and is cited inline. The product facts were checked against
    and Anthropic's Apache-2.0 [Claude for Legal](https://github.com/anthropics/claude-for-legal)
    does the same in Claude for Word. The redline also still needs the
    `docxkit`/`crlib` clean-room fix and a lawyer's review.
-3. **Revenue comes from what a team needs and an individual does not.** Under
-   the free promise no job can be charged for, and every revenue test came back
-   weak for that reason. What buyers in these jobs already pay for is a
-   *shared, governed* library (Loopio averages $24K a year for small teams).
-   So the paid hook is a team and multi-client library plugin, delivered as a
-   local bundle so no customer file passes through a SurfSense server, plus
-   Enterprise assurance. Both are hypotheses until design partners commit in
-   writing.
+3. **Revenue comes from the jobs themselves, as paid plugins** (decided
+   22 Oct 2026, [ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
+   While every job was free, every revenue test came back weak, and the only
+   paid hooks were wrappers around the jobs. Businesses already pay for the
+   jobs: self-serve questionnaire tools at $50 to $249 a month, Loopio about
+   $24K a year for small teams. So each B2B job ships as a plugin that runs on
+   the user's machine and unlocks with a SurfSense licence, the 30-day trial
+   included. The app, the general agent, the engines and the shared job
+   infrastructure stay free and open source. Team features and Enterprise
+   assurance sit on top, later.
 4. **One engine, then many jobs.** Every second-wave job needs the same
    builds: page citations, a per-row or per-file runner, extraction into a
    schema with totals that tie out, per-row review beside the source, and a
@@ -69,7 +83,10 @@ forums and Upwork, and is cited inline. The product facts were checked against
    OCR, renaming and organizing pull about 1.3M exact-phrase searches a month,
    at $3.67 a click, against free tools, Acrobat and the operating system.
    Organizing a folder is $18.5K of job value in all. Build these because the
-   paid jobs need them, and use them as a funnel.
+   paid jobs need them, and use them as the funnel: with decks and reports
+   from the user's files and a local alternative to Claude Cowork, they are the
+   free layer that organic search, user posts and creators carry, while the
+   paid jobs run on confidential files nobody posts.
 7. **Insurance is dropped.** Both large agency systems put submission and
    policy-check agents inside their own products within eleven days (Applied
    Epic Conductor, 29 Sep; Vertafore, GA 16 Oct), and 89% of the submissions
@@ -328,9 +345,13 @@ completeness.
 | Insurance: ACORD, loss runs, SOVs, policy checking | capability | skip | capability | **skip** |
 
 Every lens scored the revenue case weak for every bet, and for the same reason:
-the job and its content are free by decision, so SurfSense captures no part of
-what buyers pay vendors for the job itself. The revenue has to come from
-the [paid hooks](#how-surfsense-earns) below.
+the job and its content were free by decision, so SurfSense captured no part of
+what buyers pay vendors for the job itself. That reason went on 22 Oct 2026,
+when the B2B jobs became paid plugins
+([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), so the
+revenue scores above understate the jobs; the tiers stand, because they rest on
+demand and fit as much as revenue. How the jobs earn is
+[below](#how-surfsense-earns).
 
 ### Lead: the security and due-diligence questionnaire
 
@@ -399,8 +420,9 @@ turned into a compliance matrix with Section L and M references.
 All three lenses scored it second wave: the responder core is $18.6K a month and
 fell 17% raw, the CUI angle has no measurable search demand, and hosted
 CUI-capable options exist (Copilot in GCC High; Ask Sage, FedRAMP High). It is
-first in line because it adds buyers who already pay for exactly a shared
-library to the same paid hook, for an S to M marginal build. It starts only
+first in line because it is a second paid job plugin on the same library and
+engine, sold to buyers who already pay for exactly that kind of library, for an
+S to M marginal build. It starts only
 after the questionnaire passes its gate and a proposal manager joins as a
 design partner. Loopio's prices prove buyers pay for a library; they are not a
 price anchor for SurfSense.
@@ -437,8 +459,9 @@ and go in this order:
    key clauses and renewal and notice dates computed by formula, a page cite per
    field, amendments taking precedence, and an exceptions sheet. This is where a
    folder agent can be best in legal; `lease abstraction` (480 at $54.55) sits
-   on a SERP led by an old forum thread. The single-document playbook redline
-   stays a free capability on the shipped revise tool.
+   on a SERP led by an old forum thread. A user-directed redline of one
+   contract stays a free edit on the shipped revise tool; the playbook redline
+   is a paid job plugin, after this stack.
 
 ### Capabilities, not plays
 
@@ -477,67 +500,93 @@ velocity.
 | 8 | Row-by-row runner: the app retrieves per row, the model answers under a schema, the engine writes; resumable, with progress, a cost cap and an exceptions list | L | the local path for the questionnaire; becomes the per-file batch runner | after the beta, or earlier if item 2 fails on context, cost or missed rows |
 | 9 | Local model rows: Qwen3.8-27B as GGUF, Nemotron 3.5 Bolt 74B-A9B and E4B, one 8–14B model through the runner | S–M + hardware | every "local" claim | when a 24–32 GB machine exists ([README](../../../docs/proposals/file-agent/README.md) chases one on 1 Dec, unconfirmed) or on a rented GPU |
 | 10 | Word Q&A tables filled by cell address, in SurfSense's own Word engine | M | Word questionnaires (9.6%), RFP templates | with the RFP job |
-| 11 | Local premium bundles: BSL code delivered by the licence server, checked by sha256 and run on the machine. They are designed in the deferred [bundles proposal](../../../docs/proposals/plugins/bundles/README.md), and its runner, SDK and author CLI are partly built. The team library also needs in-app extension points (a panel, a background job, library data hooks) and a writable shared-library location, which would be an exception to [01's decision 9](../../../docs/proposals/file-agent/01-sources-and-folders.md) | M–L + L | every paid feature that touches files | a spike in February, built only after the pay gate |
-| 12 | Team and multi-client library plugin | M–L | both library jobs | after item 11 and the pay gate |
+| 11 | Local paid bundles and the job-pack loader: paid plugin code delivered by the licence server only to a valid licence, checked by sha256 and run on the machine, designed in the deferred [bundles proposal](../../../docs/proposals/plugins/bundles/README.md), whose runner, SDK and author CLI are partly built; plus the loader that adds a plugin's skills and job agents ([02 phase 8](../../../docs/proposals/file-agent/02-skills-and-engines.md), `provides.skills`) | M–L + M | every paid job, since 22 Oct 2026 ([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)) | before the questionnaire's beta, in parallel with items 1–5 |
+| 12 | Team features: a library shared across installs, roles, approval by a second person, a signed change log, sealed per-client libraries. They need in-app extension points and a writable shared-library location, which would be an exception to [01's decision 9](../../../docs/proposals/file-agent/01-sources-and-folders.md) | M–L + L | both library jobs | later, once the jobs sell |
 | 13 | Page-number citations end to end: a page map at ingest across the text layer, OCR and Docling, page markers in the mirror, page cites in output cells (chunks store lines only today) | M | RFP matrices, every extraction job, litigation | after the paid build |
 | 14 | Extraction stack: table-preserving PDF reading (M); `analyze_data` reading extracted PDF tables so code moves values (S–M); a tie-out validator with an exceptions sheet (M); batch on item 8 | L in all | statements, then medical records, then registers | about March 2027 |
 | 15 | Solicitation shredding into a compliance matrix | L | RFP | on items 13–14 |
 | 16 | Later, only when a job needs them: `.eml`/`.msg` ingest (M); legacy `.doc`/`.xls`/`.ppt` via LibreOffice (M); Bates sets (S); burned-in redaction (L); diarization and m4a/mp4 (M+M); compare after the clean-room fix; linked folders (M8, L); a script sandbox before marketing to legal or government buyers | — | second-wave and capability jobs | — |
 
 **One paid-path build at a time.** February to June 2027 would otherwise stack
-roughly 25 to 45 weeks of work into 20: local bundles, the team plugin, page
-cites, the RFP job, the extraction stack and linked folders. Run the bundles
-and team plugin first if the pay gate passes, then the RFP job, then
-extraction. Linked folders (M8) slip accordingly.
+roughly 25 to 45 weeks of work into 20: page cites, the RFP job, the extraction
+stack, team features and linked folders. Since the jobs became paid plugins,
+local bundles and the job-pack loader (item 11) come before the questionnaire's
+beta rather than after it. After the beta, run the RFP job, then extraction;
+team features wait until the jobs sell. Linked folders (M8) slip accordingly.
+
+**Where each piece lives.** The shared builds are the app's: the engines, the
+eval harness, the runner, provenance and its checks, per-row review, the answer
+library with its import and export, the `library` and `playbook` folder roles,
+page citations, the tie-out validator, the assurance basics and the bundle
+runtime. They stay free and Apache-2.0, and they improve the free agent too.
+Each job's own content is the job plugin's: its skill, agent, workflow steps,
+mappings, playbooks, templates, eval cases and gold corpus (item 1's corpus
+included), written outside the Apache-2.0 tree from the first commit
+([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)).
 
 ## How SurfSense earns
 
-The decided model stays: the app, the agent, every job and all job content
-(mappings, starter libraries, the single-user library and its export and
-import, skills, synthetic corpora and eval cases) stay free under Apache-2.0.
+Decided 22 Oct 2026
+([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)): the free
+layer distributes and the paid jobs earn.
 
-**What can be sold, in order of evidence:**
+| free, in the app (Apache-2.0) | paid job plugins (licence required, 30-day trial included) |
+|---|---|
+| Q&A with citations, Studio, the general agent and its format skills | the security questionnaire |
+| every engine: Word revisions as tracked changes, Excel and PowerPoint revisions, PDF tools, OCR, speech-to-text, data analysis | RFP, RFI and DDQ responses |
+| the study pack, and the capability jobs: conversion, comparison, transcription, redaction and organizing as they are built | the contract redline (review against a playbook, the issues list, starter playbooks) |
+| the shared job infrastructure: catalogue and entry points, eval harness, runner, provenance, per-row review, page citations, tie-out validator, bundle runtime | bank statements into a ledger; medical chronologies; contract and lease registers |
+| the user's own files: libraries, playbooks they wrote, outputs and revised copies open and export without a licence | each job's skill, agent, workflow, mappings, playbooks, templates and eval cases |
 
-1. **Now: the Individual licence** ($60 the first year, then $120), which
-   already carries the scraper plugins, priority support and, since
-   21 Oct 2026, one feature build request a year. Public-data plugins can join
-   it on the existing plugin host, because only queries and public records
-   pass through. One experiment, capped at two weeks and built only if the
-   questionnaire is on time: SAM.gov opportunities plus USAspending awards
-   (anchor: HigherGov at $500 a year for one user,
-   [pricing](https://www.highergov.com/pricing/)). Before building, confirm
-   SAM.gov's API terms for proxying (it needs a key and limits calls by role),
-   prefer the user's own key or start with USAspending, which needs none, and
-   publish what the plugin host logs about queries.
-2. **From the questionnaire beta: a team and multi-client library plugin.** It
-   sells what only a team needs, and the line is drawn so the free job is
-   whole:
+**The line between an edit and a job.** A user who asks the general agent to
+change their own file, a contract included, still gets a free revised copy with
+tracked changes; that is what the free agent does today
+([`surfsense-revisions`](../../../surfsense_local/backend/modules/agent/skills/surfsense-revisions/SKILL.md),
+live case 9). What is paid is the job: the playbook and the review against it;
+the questionnaire's mappings and answer matching. The free skill's
+examples name contracts and redlining, so a follow-up rewords them.
 
-   | free (single user) | paid (team, BSL plugin) |
-   |---|---|
-   | the library, its format, export and import | merging and resolving conflicts between installs |
-   | owners, review dates, stale flags | roles and permissions |
-   | per-row review with a review record | approval that needs a second person |
-   | | a signed, exportable change log for audits |
-   | | sealed per-client libraries for MSPs and vCISOs |
+**What can be sold, in order:**
 
-   Sync runs through the customer's own SharePoint, OneDrive, share or Git, so
-   no SurfSense server is involved. Test prices, both hypotheses: about $1,200
-   a year for a team of up to ten and about $2,400 a year per MSP or vCISO firm,
-   inside the self-serve band ($600 to $3,000 a year) and below Vanta's module.
-   Shown to design partners and on a pre-order page, not on `/pricing`, until
-   the build gate passes. The MSP segment is unproven: no source yet shows MSPs
-   answering client questionnaires in volume, so ask in partner calls and leave
-   it out of revenue plans until they answer.
-3. **Enterprise, quoted.** The assurance basics (item 7) are published free as
+1. **The job plugins, under the SurfSense licence.** Today that is the
+   Individual licence ($60 the first year, then $120), which already carries
+   the scraper plugins, priority support and, since 21 Oct 2026, one feature
+   build request a year. Whether business jobs ship inside it at that price or
+   in a business licence at a higher one is open question 2. The trial gives
+   every user the jobs for 30 days, so the job catalogue in the app is where a
+   business user meets the paid layer.
+2. **Public-data plugins** inside the same licence, on the existing plugin host,
+   because only queries and public records pass through. One experiment, capped
+   at two weeks and built only if the questionnaire is on time: SAM.gov
+   opportunities plus USAspending awards (anchor: HigherGov at $500 a year for
+   one user, [pricing](https://www.highergov.com/pricing/)). Before building,
+   confirm SAM.gov's API terms for proxying (it needs a key and limits calls by
+   role), prefer the user's own key or start with USAspending, which needs none,
+   and publish what the plugin host logs about queries.
+3. **Team features, once the jobs sell:** a library shared across installs,
+   roles, approval by a second person, a signed change log, and sealed
+   per-client libraries for MSPs and vCISOs, synced through the customer's own
+   SharePoint, OneDrive, share or Git, so no SurfSense server is involved. Test
+   prices from before the decision, about $1,200 a year per team and $2,400 per
+   MSP, stay hypotheses. The MSP segment is unproven: no source yet shows MSPs
+   answering client questionnaires in volume.
+4. **Enterprise, quoted.** The assurance basics (item 7) are published free as
    proof. Enterprise adds a third-party code audit on the
    [Obsidian/Cure53 model](https://obsidian.md/security) (a first SOC 2 Type II
    costs $30K to $110K), an org-wide local-only policy that users cannot
    override (the per-workspace lock is free), a local audit-log export, named
    support and invoicing. No validated price exists yet.
-4. **Paid setup through partners only.** MSPs, vCISOs and proposal
+5. **Paid setup through partners only.** MSPs, vCISOs and proposal
    consultancies bill their own clients for building a library or migrating
    from Loopio or Responsive; SurfSense supplies licences.
+
+**Enforcement.** A licence check on the user's machine can be stripped by any
+fork ([ADR 0019](../../../docs/adr/0019-offline-licenses.md)). What holds is
+delivery, since the licence server serves a job plugin and its updates only to
+a valid licence, and the plugin's licence terms. The Business Source License
+used for the remote plugins grants production use to anyone who does not
+resell the work, which would let a business run a local job plugin without
+paying, so the local plugins' terms are open question 1.
 
 **Not now.** Bundled model access (a relay in the data path, thin margins, and
 Claude and ChatGPT plans already work through the app); connectors to document
@@ -547,12 +596,12 @@ only as remote MCP servers
 offers HTTP and SSE transports only; bundles, the kind that runs on the user's
 machine, are [deferred](../../../docs/proposals/plugins/bundles/README.md)), so
 a connector would route client files through SurfSense; and a standalone
-assurance-pack product, for which no buyer evidence was found.
+assurance-pack product, for which no buyer evidence was found. Once item 11
+exists, connectors can ship as local paid plugins like the jobs.
 
-**What $100K a year would take.** About 60 teams at $1,200 plus one Enterprise
-deal of about $10K, with Individual licences on top; Individual licences alone
-would need about 830 renewals. It is a target for the checks below, not a
-forecast.
+**What $100K a year would take.** At today's $120 renewal, about 830 licences;
+a business price for the job plugins (open question 2) changes that figure. It
+is a target for the checks below, not a forecast.
 
 ## Pages and reach
 
@@ -579,6 +628,10 @@ assumption under a ceiling of about 5,000 US searches.
 
 **Channels**, all opt-in:
 
+- The free layer through organic search, user posts and creators: the Cowork
+  alternative, decks and reports from the user's files, converters, OCR and
+  transcription. Its outputs are not confidential, so people can show them. In
+  the app, the job catalogue offers each paid job with its 30-day trial.
 - Ten design partners (five MSP, MSSP or vCISO firms; five security or IT
   leads at 20 to 500-person software vendors) and two proposal managers or
   consultancies, recruited through a call in the README and GitHub
@@ -587,9 +640,10 @@ assumption under a ceiling of about 5,000 US searches.
   [acceptable use policies](https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies)
   and is not used.
 - MSP and vCISO referrals; proposal consultancies as setup partners.
-- The open-source repo (16,562 stars), with mappings and the synthetic corpus as
-  visible Apache-2.0 folders.
-- The Show HN and a recorded walkthrough of a HECVAT fill.
+- The open-source repo (16,562 stars): the app, the engines and the shared job
+  infrastructure. The job plugins' source sits outside the Apache-2.0 tree.
+- The Show HN, which the maintainer posts the week of 22 Oct 2026, and later a
+  recorded walkthrough of a HECVAT fill.
 - Store listings: Windows was 68% of 2.0.x downloads and the app was in no store
   on 29 Sep; re-check before submitting to winget and the Microsoft Store.
 
@@ -610,12 +664,17 @@ checkout, so channels can be credited without an install ID.
 
 ## The next 90 days
 
-Two scopes fit; the maintainer chooses one (open question 2):
+Two scopes fit; the maintainer chooses one (open question 3):
 
 - **Minimum beta, about mid-January 2027:** items 1 to 5 (harness and corpus,
   baseline, inspection and validation, provenance, library with import).
   Per-row review, assurance basics and the data plugin follow.
 - **Full beta, about mid-February 2027:** items 1 to 7.
+
+Both dates were set while the job was to ship inside the app. As a paid plugin
+it also needs item 11, local paid bundles and the job-pack loader (about M–L
+and M, estimates). The dates hold only if item 11 runs beside items 1 to 5;
+re-date both once the harness lands.
 
 Either way:
 
@@ -624,16 +683,21 @@ Either way:
   names Conveyor at $9,600, says file editing is "offered by nobody credible"
   or uses CMMC timing; ask CSA and EDUCAUSE in writing about question text; ask
   the lawyer whether the provenance review still gates selling a job that ships
-  no `docxkit` or `crlib` code.
+  no `docxkit` or `crlib` code, and which licence terms a local job plugin
+  needs (open question 1).
+- **From November.** Item 11 beside items 1 to 5: the licence server's route
+  for paid bundles, install and update, and the job-pack loader. The
+  questionnaire's job content goes into its plugin folder from its first
+  commit.
 - **By 15 Nov.** Publish the Cowork alternative page. Open the design-partner
   call. Ship the harness and corpus and commit the baseline rows, failures
   included.
 - **Through December.** Items 3 to 5 in point releases; local rows once a 24–32
   GB machine or rented GPU is confirmed.
-- **At the beta.** The job ships free on frontier models with an n=3 row;
-  design partners run it on their own questionnaires. Write the ADR for local
-  premium bundles and run the extension-point spike; open refundable founding
-  pre-orders at the test prices.
+- **At the beta.** The job ships as a paid plugin on frontier models with an
+  n=3 row, and the 30-day trial covers design partners, who run it on their own
+  questionnaires. Settle the price (open question 2) before the first trials
+  end.
 - **About six weeks after the beta.** Run the quality and pay checks below;
   if they pass, publish the questionnaire pages and the model page, and
   decide whether the RFP job starts.
@@ -643,8 +707,8 @@ Either way:
 | check | when | if it fails |
 |---|---|---|
 | **Quality:** the Sonnet 5.5 row on the gold set is at least 90% correct, with no unsupported "Yes" and no broken dropdown or macro, after two fix cycles | about six weeks after the beta | no job pages; the beta stays with design partners; fix or demote the lead |
-| **Pay intent:** at least 3 design partners commit in writing, or pre-pay refundably, at the test price | about six weeks after the beta | the team plugin is not built; the job stays free as reach; paid effort moves to Enterprise and data plugins |
-| **Conversion:** at least 10 paid team or MSP pre-orders, or $15K of new annual revenue from all sources | 30 Jun 2027 | stop team-plugin work beyond maintenance and re-rank the bets |
+| **Pay intent:** at least 3 design partners commit in writing to buy a licence for the job at its price (open question 2) when their trial ends | about six weeks after the beta | re-check the price and the job before building the next paid job; the job stays a plugin |
+| **Conversion:** at least 15% of business users who start the job's trial buy a licence, and $15K of new annual revenue from all sources | 30 Jun 2027 | stop adding paid jobs beyond the questionnaire and re-rank the bets |
 | **Local claim:** a locally served model of 24 GB class or less reaches 80% correct with no unsupported "Yes" in row-by-row mode | 31 Mar 2027 | no "fully local" questionnaire claim; state the frontier-model requirement; drop CUI and PHI positioning |
 | **Search:** core questionnaire clickstream averages at least 4,700 for October to December; the HECVAT and CAIQ pages reach Google's top 10 within 90 days and 100 clicks a month by day 120 | January re-pull; 90 and 120 days after publishing | keep only the HECVAT and CAIQ pages; move reach to partners. Above 6,000, add SIG Lite and PCI SAQ pages |
 | **Absorption:** Microsoft, Anthropic or Google ship a questionnaire skill with a persistent library that keeps dropdowns and macros intact, or Vanta gives questionnaire automation away in its base plans | watch | demote the lead to second wave; lead with model choice, the owned library and local processing |
@@ -658,22 +722,32 @@ shows at least 99% row recall with every statement tying out on a local model of
 24 GB or less, and a test statements page reaches Google's top 5 within eight
 weeks. Medical records replace it if a 24 GB-class local model passes a 500 to
 1,000-page synthetic chronology at 95% row recall with every page cite valid,
-and at least three PI or legal-nurse firms commit at the test price.
+and at least three PI or legal-nurse firms commit in writing to buy a licence
+at its price (open question 2).
 
 ## Open questions for the maintainer
 
-1. **Where is the paid line on the library, and is its architecture
-   accepted?** The proposal above keeps owners, review dates, stale flags and
-   per-row review free and sells only what a team needs. Shipping it needs
-   local BSL bundles with in-app extension points and a writable shared-library
-   location, an exception to linked folders being read-only. Without it the
-   lead job has no revenue hook, and revenue falls to Enterprise and data
-   plugins.
-2. **Scope or date for the beta?** A minimum beta about mid-January, or the
-   full list about mid-February with the checks moved accordingly.
-3. **When does the one Show HN go out?** Now, on the local-agent and Cowork
-   angle, as the 13 Oct launch order planned, or after the questionnaire beta
-   passes its gate.
+Settled on 22 Oct 2026: the B2B jobs are paid plugins
+([ADR 0067](../../../docs/adr/0067-b2b-jobs-ship-as-paid-plugins.md)), which
+answers where the paid line falls; and the maintainer posts the Show HN that
+week. Still open:
+
+1. **Which licence terms does a local job plugin carry?** The Business Source
+   License in `plugins/remote/proprietary/` grants production use to anyone
+   who does not resell the work. That suits code on SurfSense's server, but on
+   the user's machine it would let a business run a job plugin without paying.
+   The choice is a Business Source License with a narrower Additional Use
+   Grant, or a closed licence; decide with the lawyer before the first job
+   plugin ships.
+2. **What does a business pay for the jobs?** Either the Individual licence
+   ($60 the first year, then $120) unlocks them as it unlocks the scraper
+   plugins today, or business jobs need a business licence at a higher price.
+   Self-serve questionnaire tools charge $50 to $249 a month.
+3. **Scope or date for the beta?** A minimum beta about mid-January, or the
+   full list about mid-February, both now also waiting on item 11.
+4. **Team features, later.** When the jobs sell, the shared library needs a
+   writable shared-library location, an exception to linked folders being
+   read-only ([01, open question 10](../../../docs/proposals/file-agent/01-sources-and-folders.md#open-questions)).
 
 ## What would change the answer
 
