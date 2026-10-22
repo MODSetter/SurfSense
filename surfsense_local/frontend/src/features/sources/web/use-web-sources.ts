@@ -39,7 +39,8 @@ export function useWebSources(
   )
   const add = useStableCallback(async (urls: string[]) => {
     const outcome = await addWebLinks(workspaceId, urls)
-    addCreated(outcome.created)
+    // Created in the order asked; the list is newest first, as uploads keep it.
+    addCreated([...outcome.created].reverse())
     announce(outcome)
     return outcome
   })

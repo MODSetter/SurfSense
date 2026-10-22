@@ -261,6 +261,25 @@ describe("adding sources from the web", () => {
     })
   })
 
+  it("lists sources added together newest first, as the server does", async () => {
+    const user = userEvent.setup()
+    serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await ask(user, dialog, "tides")
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Add all (2)" })
+    )
+
+    // Created in the order asked, so the video got the higher id.
+    const video = await screen.findByText(VIDEO, { ignore: "[role=dialog] *" })
+    const page = screen.getByText(PAGE, { ignore: "[role=dialog] *" })
+    expect(
+      video.compareDocumentPosition(page) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
   it("starts Add all over with each new search", async () => {
     const user = userEvent.setup()
     let answerSecond: (response: Response) => void = () => {}
