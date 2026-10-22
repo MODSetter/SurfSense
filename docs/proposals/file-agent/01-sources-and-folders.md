@@ -511,7 +511,7 @@ Nothing else branches.
 | A copied tree 12 levels deep | Levels past 8 join into the eighth folder |
 | A name that is not valid UTF-8 | Skipped and counted in `scan_notes` |
 | Symlink or junction leaving the root | Not followed. `linked_original_path` also re-checks containment after `resolve()` |
-| A root that is a git repository | `.git` is hidden, so it is ignored. The working folder lives under the data directory, never inside the root ([03-opencode](../agent/03-opencode.md#working-folders)) |
+| A root that is a git repository | `.git` is hidden, so it is ignored. The working folder lives under the data directory, never inside the root ([agent](../../architecture/agent.md#folders)) |
 | Same bytes in two Library folders, or linked and uploaded | Two documents, two parses, until phase 6 measures whether reuse is worth it |
 | Drive letter reused by another volume | `volume_identity` mismatch, so the root is `unavailable`, not deleted |
 | macOS refuses access | `unavailable` with `permission_denied`; nothing deleted |
@@ -747,7 +747,7 @@ These are integration tests under `tests/integration/` unless noted. Each lands 
 - **New [ADR 0046](README.md#adrs-to-write-or-amend):** "SurfSense never loses a user's sources by surprise": a Library delete goes to a Trash; linked folders are read-only; an unavailable folder never deletes; a mass vanish asks first; placeholders are never read; a database snapshot is written before every migration (Decisions 5, 9 to 11 and 19). These are promises to users, which belong in an ADR.
 - **[documents](../../architecture/documents.md#the-original-file):** the stale "since the main process never calls the backend" sentence goes; the opener asks the API by id. Upload, delete and the original file gain folders, the Trash and linked roots as each phase lands.
 - **[`../agent/05-sources-folder.md`](../agent/05-sources-folder.md):** its decisions stand, and its open questions are answered here, so it links here and closes.
-- **[`../agent/03-opencode.md`](../agent/03-opencode.md):** "Working folders" becomes per thread and mirrors the scoped tree.
+- **[`agent.md`](../../architecture/agent.md#folders):** "Working folders" becomes per thread and mirrors the scoped tree.
 - **[`../agent/README.md`](../agent/README.md):** "Sources on disk" gains "read-only mirror; never deletes on unavailability".
 - **[`../source-preview.md`](../source-preview.md):** the second rail moves into phase 2.
 - **Architecture docs, as each phase lands:** [data model](../../architecture/data-model.md), [chat](../../architecture/chat.md), [studio](../../architecture/studio.md), [agent](../../architecture/agent.md) (two Known gaps close), [import](../../architecture/import.md), and [overview](../../architecture/overview.md) (the watcher and the tick in the API).

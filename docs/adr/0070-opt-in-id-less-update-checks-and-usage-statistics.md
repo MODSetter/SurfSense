@@ -1,4 +1,4 @@
-# ADR 0069: The app may send opt-in, ID-less update checks and usage statistics
+# ADR 0070: The app may send opt-in, ID-less update checks and usage statistics
 
 - **Status:** Accepted
 - **Date:** 2026-10-21

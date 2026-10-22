@@ -1,6 +1,6 @@
 # ADR 0016: The app sends no telemetry or crash reports
 
-- **Status:** Superseded by [ADR 0069](0069-opt-in-id-less-update-checks-and-usage-statistics.md)
+- **Status:** Superseded by [ADR 0070](0070-opt-in-id-less-update-checks-and-usage-statistics.md)
 - **Date:** 2026-09-08
 - **Source:** [Pivot plan L29](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L29), [Pivot plan L32](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L32), [Pivot plan L52](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L52)
 

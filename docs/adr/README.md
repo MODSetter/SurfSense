@@ -50,11 +50,11 @@ The Date is the day the decision was first written down. Source links are permal
 | 0013 | [Model fit comes from the allocator's view of one device, and only physics refuses an install](0013-fit-from-the-allocator.md) | Accepted |
 | 0014 | [The model catalog is a curated offline manifest plus Hugging Face search, and SurfSense downloads the files itself](0014-two-tier-model-catalog.md) | Accepted, in part superseded by 0026, 0027 and the model catalog proposal |
 | 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal, in part superseded by 0038 |
-| 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Superseded by 0069 |
-| 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027, amended by 0069 |
+| 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Superseded by 0070 |
+| 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027, amended by 0070 |
 | 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted |
 | 0019 | [Licenses are signed files verified offline, and they gate only plugins and priority support](0019-offline-licenses.md) | Accepted |
-| 0020 | [The new app and the legacy app share one release feed and are kept apart by update channel](0020-two-update-channels.md) | Accepted, amended by 0069 |
+| 0020 | [The new app and the legacy app share one release feed and are kept apart by update channel](0020-two-update-channels.md) | Accepted, amended by 0070 |
 | 0021 | [There is no Intel Mac build](0021-no-intel-mac-build.md) | Accepted |
 | 0022 | [Hosted accounts move to the app as a markdown-only export that is re-embedded locally](0022-markdown-only-cloud-import.md) | Accepted |
 | 0023 | [Every hosted sunset behaviour sits behind a runtime flag, and nothing is deleted or redirected unconditionally](0023-sunset-behind-flags.md) | Accepted |
@@ -87,13 +87,14 @@ The Date is the day the decision was first written down. Source links are permal
 | 0057 | [A Claude plan is reached through the user's own Claude Code, and SurfSense holds no Claude credential](0057-a-claude-plan-runs-through-the-users-own-claude-code.md) | Accepted, its network decision superseded by 0061 |
 | 0058 | [The bundled embedder runs at FP32 on x86-64, upcast in memory, and its vector space is still the pinned FP16 file](0058-the-bundled-embedder-runs-at-fp32-on-x86-64.md) | Accepted |
 | 0059 | [A born-digital PDF is read from its own text layer, and Docling reads only a PDF with a page that needs it](0059-a-born-digital-pdf-is-read-from-its-text-layer.md) | Accepted |
-| 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted, amended by 0069 |
+| 0060 | [One consent question asks for every host a user action needs, including hosts its background work will reach](0060-one-consent-question-per-user-action.md) | Accepted, amended by 0070 |
 | 0061 | [Claude Code reaches Anthropic's two hosts, and in the agent also the hosts of the turn's ready plugins](0061-claude-code-reaches-anthropic-and-in-the-agent-the-turns-plugins.md) | Accepted |
 | 0062 | [A scan or a photo is read by OCR alone, RapidOCR or Apple's Vision, and Docling reads only a page OCR could not](0062-a-scan-is-read-by-ocr-alone-before-docling.md) | Accepted |
 | 0063 | [A plugin's connection is a transport and one sign-in, detected from the server](0063-a-plugins-connection-is-a-transport-and-one-sign-in.md) | Accepted |
 | 0064 | [Agent runtimes reach plugins only through SurfSense's gateway, and never hold a plugin's credential](0064-agent-runtimes-reach-plugins-through-surfsenses-gateway.md) | Accepted |
-| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted |
+| 0065 | [A turn's plugin tools are sized by the model's window, not counted, and Claude Code searches its own](0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md) | Accepted, superseded for opencode by 0069 |
 | 0066 | [Web pages are HTML the model writes, run in a frame that has no network](0066-web-pages-are-html-the-model-writes-without-network.md) | Accepted |
 | 0067 | [SurfSense's B2B jobs ship as paid plugins that run on the user's machine and unlock with a SurfSense license](0067-b2b-jobs-ship-as-paid-plugins.md) | Accepted |
 | 0068 | [SurfSense calls its own plugins to pull a link into Sources, with no agent](0068-surfsense-calls-its-own-plugins-to-pull-a-link-into-sources.md) | Accepted |
-| 0069 | [The app may send opt-in, ID-less update checks and usage statistics](0069-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted |
+| 0069 | [On opencode 2.x the agent calls tools natively, holds the plugin tools its task needs from a catalogue of every ready plugin, and no plugin speaks SSE](0069-opencode-calls-tools-natively-and-holds-what-a-turn-needs.md) | Accepted |
+| 0070 | [The app may send opt-in, ID-less update checks and usage statistics](0070-opt-in-id-less-update-checks-and-usage-statistics.md) | Accepted |

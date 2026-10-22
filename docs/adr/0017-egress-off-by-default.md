@@ -1,6 +1,6 @@
 # ADR 0017: Every outbound destination is off until the user allows it
 
-- **Status:** Accepted; the list of destinations is superseded by [ADR 0027](0027-egress-consent-per-host.md); amended by [ADR 0069](0069-opt-in-id-less-update-checks-and-usage-statistics.md): update checks and usage statistics are preferences Electron main holds, asked about in the first-run privacy step
+- **Status:** Accepted; the list of destinations is superseded by [ADR 0027](0027-egress-consent-per-host.md); amended by [ADR 0070](0070-opt-in-id-less-update-checks-and-usage-statistics.md): update checks and usage statistics are preferences Electron main holds, asked about in the first-run privacy step
 - **Date:** 2026-09-08
 - **Source:** [Pivot plan L84](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L84), [Pivot plan L235](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L235)
 

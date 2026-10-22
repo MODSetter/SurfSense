@@ -55,6 +55,8 @@ def test_a_valid_entry_has_no_problems(tmp_path):
         ({"added": "October 2026"}, "added"),
         ({"added": "2026-10-12"}, "added"),
         ({"transport": "websocket"}, "transport"),
+        # MCP deprecated it, and neither of SurfSense's engines speaks it.
+        ({"transport": "sse"}, "transport"),
         ({"auth": {"type": "headers"}}, "auth"),
         ({"auth": {"type": "headers", "headers": []}}, "auth"),
         ({"auth": {"type": "headers", "headers": [{"name": "bad name"}]}}, "auth"),
@@ -93,7 +95,6 @@ def test_optional_and_unknown_fields_are_allowed(tmp_path):
 def test_a_headers_entry_names_and_words_each_header(tmp_path):
     """The entry names where the user's key goes; it never holds a value."""
     entry = valid_entry(
-        transport="sse",
         auth={
             "type": "headers",
             "headers": [

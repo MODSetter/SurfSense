@@ -27,7 +27,6 @@ TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 ABOUT_LENGTH = 600
 # The month the plugin joined the list.
 ADDED_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
-TRANSPORTS = {"streamable_http", "sse"}
 # An HTTP token (RFC 9110), as the app checks the headers a user gives.
 HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$")
 # The transport sets these; an entry naming one would replace them.
@@ -56,9 +55,12 @@ def entry_problems(entry: dict[str, Any]) -> list[str]:
     problems += _access_problems(entry)
     problems += _page_problems(entry)
     problems += _listing_problems(entry)
-    transport = entry.get("transport")
-    if transport is not None and transport not in TRANSPORTS:
-        problems.append("transport: must be streamable_http or sse")
+    if entry.get("transport", "streamable_http") != "streamable_http":
+        # MCP deprecated SSE, and neither of SurfSense's engines speaks it.
+        problems.append(
+            "transport: SurfSense speaks Streamable HTTP only; give the server's "
+            "Streamable HTTP address and remove this field"
+        )
     version = entry.get("min_app_version")
     if version is not None and not (
         isinstance(version, str) and SEMVER_PATTERN.match(version)

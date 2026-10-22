@@ -40,6 +40,17 @@ export function pluginStatus(
       tone: "idle",
     }
   }
+  // Nothing else about it matters: no engine can reach it until it is added again by
+  // its Streamable HTTP address.
+  if (plugin.transport === "sse") {
+    return {
+      label: intl.formatMessage({
+        id: "plugins_list_sse_status",
+        defaultMessage: "SSE not supported",
+      }),
+      tone: "failure",
+    }
+  }
   if (plugin.removed_reason) {
     // Nothing broke: whether to keep it is the user's call.
     return {

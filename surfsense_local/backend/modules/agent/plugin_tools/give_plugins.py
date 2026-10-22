@@ -1,4 +1,5 @@
-"""Before a turn: the folder's opencode holds exactly the ready plugins, and the session's rules say what each tool may do.
+"""Before a turn: the folder's opencode holds exactly the ready plugins; the session's
+rules, which tool_exposure/ writes, say which of their tools it may call.
 
 The servers are given all at once, each within CONNECT_SECONDS, so a turn waits for the
 slowest rather than the sum, and a server that hangs is named unavailable alone.
@@ -12,7 +13,10 @@ from pathlib import Path
 import httpx
 
 from modules.agent.opencode_client import OpencodeClient
-from modules.agent.plugin_tools.connect_limit import CONNECT_SECONDS
+from modules.agent.plugin_tools.connect_limit import (
+    CONNECT_SECONDS,
+    OPENCODE_CONNECT_SECONDS,
+)
 from modules.agent.plugin_tools.given_servers import digest, given_as, remember_given
 from modules.agent.plugin_tools.turn_plugins import TurnPlugin
 from modules.agent.plugin_tools.unavailable_plugin import UnavailablePlugin
@@ -78,6 +82,7 @@ async def give_plugins(
                         if plugin.on_plugin_host
                         else TOOL_CALL_SECONDS
                     ),
+                    connect_seconds=OPENCODE_CONNECT_SECONDS,
                 ),
                 CONNECT_SECONDS,
             )
@@ -109,28 +114,6 @@ async def give_plugins(
     return Given(unavailable, sum(added for _, added in given), failed)
 
 
-async def set_plugin_rules(
-    client: OpencodeClient,
-    folder: Path,
-    session_id: str,
-    held: dict[str, str],
-    plugins: list[TurnPlugin],
-) -> None:
-    """Set the session's rules, whichever servers could be given; they start by denying every
-    plugin tool, so no earlier turn's allow survives under them."""
-    # Each server opencode holds is denied first, so a tool SurfSense has not
-    # reviewed is refused and left out of what the model is offered.
-    ready = {plugin.name for plugin in plugins}
-    rules = [_rule(f"{name}_*", "deny") for name in held.keys() - {SERVER} | ready]
-    for plugin in plugins:
-        rules += [_rule(tool, action) for tool, action in plugin.rules.items()]
-    await client.set_session_rules(folder, session_id, rules)
-
-
 def servers(plugins: list[TurnPlugin]) -> list[tuple[str, str]]:
     """What giving `plugins` sends opencode: two lists alike need no second giving."""
     return [(plugin.name, digest(plugin)) for plugin in plugins]
-
-
-def _rule(permission: str, action: str) -> dict[str, str]:
-    return {"permission": permission, "pattern": "*", "action": action}

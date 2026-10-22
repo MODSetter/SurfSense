@@ -1,6 +1,6 @@
 # ADR 0060: One consent question asks for every host a user action needs, including hosts its background work will reach
 
-- **Status:** Accepted; amended by [ADR 0069](0069-opt-in-id-less-update-checks-and-usage-statistics.md): on a new install, the first-run privacy step is the user action the update and usage questions belong to
+- **Status:** Accepted; amended by [ADR 0070](0070-opt-in-id-less-update-checks-and-usage-statistics.md): on a new install, the first-run privacy step is the user action the update and usage questions belong to
 - **Date:** 2026-10-16
 
 ## Context

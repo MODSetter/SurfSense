@@ -3,7 +3,7 @@
 Settings › Resources shows the machine's CPU, RAM, graphics memory and GPU load, with the app's share of each in the brand color. When the machine is full, a user can tell whether SurfSense is the cause or something else is, and see which runtime holds what. It reads the process table and the operating system's own counters. Nothing leaves the machine.
 
 **Code:** [`surfsense_local/backend/modules/resource_usage/`](../../surfsense_local/backend/modules/resource_usage/), [`surfsense_local/frontend/src/features/resources/`](../../surfsense_local/frontend/src/features/resources/), [`surfsense_local/electron/src/main/sidecars/python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts)
-**Decisions:** [ADR 0069](../adr/0069-opt-in-id-less-update-checks-and-usage-statistics.md), which leaves this panel's readings on the machine; the opt-in usage report buckets memory and the GPU separately ([usage statistics](usage-statistics.md))
+**Decisions:** [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md), which leaves this panel's readings on the machine; the opt-in usage report buckets memory and the GPU separately ([usage statistics](usage-statistics.md))
 
 ```text
   panel ────── GET /system/usage every 2 s, only while Settings › Resources is open

@@ -3,7 +3,7 @@
 An opt-in report that tells SurfSense this install was used, and once a week how much, in ranges. It is off until the user says yes, carries no identifier, and every value in it is an enum, a boolean or a fixed format. The user can read the exact next report, and the last one sent, before and after saying yes. The update check, which counts installs that check in each day, is in [updates](updates.md).
 
 **Code:** [`surfsense_local/backend/modules/usage_statistics/`](../../surfsense_local/backend/modules/usage_statistics/), [`surfsense_local/frontend/src/features/privacy-choices/`](../../surfsense_local/frontend/src/features/privacy-choices/), [`surfsense_local/frontend/src/features/onboarding/privacy-step/`](../../surfsense_local/frontend/src/features/onboarding/privacy-step/), and in Electron main `electron/src/main/usage-statistics/`, `privacy-choices/` and `admin-policy/`
-**Decisions:** [ADR 0069](../adr/0069-opt-in-id-less-update-checks-and-usage-statistics.md)
+**Decisions:** [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)
 **Contract:** [contract 5](../contracts/05-desktop-telemetry.md)
 
 ```text

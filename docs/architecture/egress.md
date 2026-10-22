@@ -3,7 +3,7 @@
 Nothing is meant to leave the machine until the user allows where it goes. Before a call reaches the network, the backend names its destination and calls `egress.require()`, which refuses with `403 egress_disabled` unless the user has allowed that destination, so a refused call never opens a connection. A destination is a host, off by default, and loopback is not egress; the calls that escape the check are listed under Known gaps. The renderer turns a refusal of something the user just did into a consent dialog, and never asks on a background read.
 
 **Code:** [`surfsense_local/backend/modules/egress/`](../../surfsense_local/backend/modules/egress/), [`surfsense_local/frontend/src/features/egress/`](../../surfsense_local/frontend/src/features/egress/), [`surfsense_local/frontend/src/lib/api.ts`](../../surfsense_local/frontend/src/lib/api.ts)
-**Decisions:** [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0069](../adr/0069-opt-in-id-less-update-checks-and-usage-statistics.md)
+**Decisions:** [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0070](../adr/0070-opt-in-id-less-update-checks-and-usage-statistics.md)
 
 ## Destinations
 

@@ -28,6 +28,12 @@ export function refusalMessage(error: unknown) {
           defaultMessage:
             "This address is no longer served; its server may have moved it. Check its documentation for a new one.",
         })
+      case "plugin_sse_only":
+        return intl.formatMessage({
+          id: "plugins_error_plugin_sse_only",
+          defaultMessage:
+            "This server speaks only the older SSE transport, which SurfSense no longer supports. Use its Streamable HTTP address, which often ends in /mcp.",
+        })
       case "plugin_not_mcp":
         return intl.formatMessage({
           id: "plugins_error_plugin_not_mcp",

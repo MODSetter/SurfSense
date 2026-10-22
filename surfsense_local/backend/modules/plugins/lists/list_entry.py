@@ -50,8 +50,6 @@ class ListEntry(BaseModel):
     description: str = Field(min_length=1, max_length=200)
     author: str = Field(min_length=1, max_length=80)
     url: str
-    # `sse` for a server on the older HTTP+SSE transport; Streamable HTTP otherwise.
-    transport: Literal["streamable_http", "sse"] | None = None
     auth: EntryAuth
     hosts: list[str] = Field(min_length=1)
     access: Literal["free", "external", "license"]

@@ -15,7 +15,6 @@ from modules.plugins.installed.models import (
 from modules.plugins.installed.plugin_check import record_check
 from modules.plugins.lists.first_party.first_party_list import first_party_entries
 from modules.plugins.lists.registry.listed_ids import registry_ids
-from modules.plugins.remote.mcp_client.transports import STREAMABLE_HTTP, Transport
 from modules.plugins.remote.sign_in.headers.header_rules import SignInHeader
 from modules.plugins.remote.sign_in.headers.headers_credential import (
     headers_auth,
@@ -55,8 +54,6 @@ def store_custom_plugin(
     url: str,
     headers: list[SignInHeader] | None,
     tools: list[SourceTool],
-    *,
-    transport: Transport = STREAMABLE_HTTP,
 ) -> InstalledPlugin:
     plugin = InstalledPlugin(
         id=plugin_id,
@@ -67,7 +64,6 @@ def store_custom_plugin(
             "name": name,
             "hosts": [url_host(url)],
             "auth": headers_auth(headers) if headers else {"type": "none"},
-            "transport": transport,
         },
     )
     if headers:
