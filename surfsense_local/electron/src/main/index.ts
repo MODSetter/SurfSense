@@ -495,7 +495,8 @@ function main(): void {
       })
       installMenu()
       createWindow(boot.apiUrl)
-      // Updates are off until the user turns them on; Check now works either way.
+      // Automatic checks are off until the user turns them on. Check now works
+      // either way, unless an admin policy turns updates off.
       stopPrivacyChoices = startPrivacyChoices({
         apiUrl: boot.apiUrl,
         mainWindow: () => mainWindow,
