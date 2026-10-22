@@ -40,6 +40,8 @@ Fixing the first two would take a SurfSense plugin inside opencode recording eac
 
 Everything else is hidden by a session rule, as [`give_plugins.py`](../../../surfsense_local/backend/modules/agent/plugin_tools/give_plugins.py) hides tools today. Every call is still one native tool item with its own output and approval.
 
+**Searching and pre-loading share one index.** `surfsense_find_tools` is SurfSense's counterpart of Claude Code's tool search, and like it needs an index of the tools to search; retrieval runs the same search on the user's message before the model asks. Claude Code can rely on the model searching because Claude is trained to; the opencode engine serves models that do not, so the likely tools are loaded first and searching stays for what that missed. A model a capability suite shows to search reliably can later be given only the always-loaded set and the search, as Claude Code is.
+
 **How much the agent holds** is a share of the model's window: by default at least 8,000 tokens of plugin tools where the window allows, which held every needed tool for 90% of realistic tasks, and about a quarter of a small window, so a larger window holds more with nothing kept per model; and a model's own share once a capability suite with many plugins connected has measured it ([capability levels](../../architecture/model-capabilities.md)). There is no hand-kept table of model tiers: what a model of a given size handles shifts with each release and quantization. The held set never exceeds the provider's own limit on tools per request where it has one: 128 on OpenAI's chat completions and on Vertex, 512 on the Gemini API, 350 on xAI; Anthropic, OpenAI's Responses API and llama.cpp document none. The count includes opencode's and SurfSense's own tools.
 
 This replaces [ADR 0065](../../adr/0065-a-turns-plugin-tools-are-sized-by-the-window-not-counted.md)'s budget for opencode: nothing ready is left out of the agent's view, and a plugin is no longer reachable only by an @-mention.
@@ -74,6 +76,14 @@ No number in this design has to be right for it to work: each has a cautious def
 - Retrieval at the turn's start and after each plugin call holds the right tool most of the time.
 - The catalogue names every tool, and a model calls tools it sees named. When it calls a hidden one, opencode refuses the call as `No tool named "…" is currently available`. SurfSense reads that failure from the event stream and allows the tool if its plugin is ready; the model has it from the step after next, since opencode starts the next step before the rule can land. This needs no skill of the model.
 - `surfsense_open_plugin` and `surfsense_find_tools` add to that for models that use them.
+
+**What the user sees.** Loading tools is never shown as an error, and appears only among the agent's steps in the thread ([`agent-steps.tsx`](../../../surfsense_local/frontend/src/features/agent/agent-steps.tsx)), nowhere else:
+
+- A hidden tool the model called and SurfSense then allowed is not a failed step. Its refused call becomes one step, "Loaded Linear's tools", and the real call follows as its own step.
+- `surfsense_open_plugin` and `surfsense_find_tools` show the same way, "Loaded Linear's tools", or "Looked for tools to …" when nothing new was loaded.
+- Loading at the turn's start and the re-run after a plugin call show nothing.
+- "Not all of {plugin}'s tools fit this turn. Mention it with @ to use them all." goes ([`plugins-unavailable.tsx`](../../../surfsense_local/frontend/src/features/agent/plugins-unavailable.tsx)): nothing ready is out of the agent's reach. "Couldn't reach {plugin}" stays, since it says something the user can act on.
+- An @-mention still holds a plugin's tools, as an override; the agent no longer needs one to know a plugin is there.
 
 **Each change costs a local model a re-read.** The held set changes rarely and in batches.
 
