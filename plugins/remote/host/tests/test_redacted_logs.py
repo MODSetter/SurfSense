@@ -62,6 +62,22 @@ def test_credentials_are_hidden(text: str, shown: str) -> None:
             "warmed https://www.indeed.com/ first",
             "warmed https://www.indeed.com/ first",
         ),
+        (
+            "GET https://example.com/search?q=patient's-record failed",
+            "GET https://example.com/*** failed",
+        ),
+        (
+            "tried 'https://one.test/a' and 'https://two.test/b'",
+            "tried 'https://one.test/***' and 'https://two.test/***'",
+        ),
+        (
+            "queued ['https://one.test/a','https://two.test/b']",
+            "queued ['https://one.test/***','https://two.test/***']",
+        ),
+        (
+            'navigating to "https://example.com/a\'s-record"',
+            'navigating to "https://example.com/***"',
+        ),
     ],
 )
 def test_a_url_keeps_only_its_host(text: str, shown: str) -> None:
