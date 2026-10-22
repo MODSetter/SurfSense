@@ -32,14 +32,15 @@ class Activity(StrEnum):
     REMOTE_ANSWER = "remote_answers"
 
 
-_ANSWERS = (Activity.AGENT_TURN, Activity.LOCAL_ANSWER, Activity.REMOTE_ANSWER)
+# Counted only once a reply has text, so these alone mark a model as having answered.
+_ANSWERS = (Activity.LOCAL_ANSWER, Activity.REMOTE_ANSWER)
 
 
 @dataclass(frozen=True)
 class ActivityCounts:
     # None when counting began before this library had any chat: nothing was missed.
     counted_since: datetime | None
-    # Whether a model was ever asked to answer; outlives the pruned hours.
+    # Whether a model ever answered with text; outlives the pruned hours.
     answered: bool
     hours: Mapping[str, Mapping[str, int]]
 

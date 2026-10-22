@@ -77,6 +77,7 @@ from modules.chat.schemas import MessageCreate
 from modules.events.broker import EventBroker
 from modules.llm.resolution import ModelResolutionError
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
+from modules.usage_statistics.activity_counts import count_agent_answer
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -337,6 +338,8 @@ async def _stream(
                 session, load_citations, workspace_id, searched_chunks(messages)
             )
             reply = turn_reply(messages, turn.user_message_id, citations)
+        if reply and reply["content"]["text"]:
+            await count_agent_answer(session)
         if reply and reply["content"]["citations"]:
             yield _frame({"type": "citations", "items": reply["content"]["citations"]})
         yield _frame(

@@ -92,6 +92,7 @@ from modules.llm.subscriptions.plan_usage_frame import plan_usage_frame
 from modules.plugins.installed.models import PluginTool
 from modules.plugins.license_verdict.license_refresh import refresh_license_verdict
 from modules.plugins.remote.mcp_client.transports import SSE
+from modules.usage_statistics.activity_counts import count_agent_answer
 from shared.config import get_storage_settings
 
 logger = logging.getLogger(__name__)
@@ -355,6 +356,8 @@ async def _stream(
         )
         stated = turn_reply(messages, user_id, citations)
         await transact(session, finished, thread_id, reply)
+        if stated and stated["content"]["text"]:
+            await count_agent_answer(session)
         if stated and stated["content"]["citations"]:
             yield _frame({"type": "citations", "items": stated["content"]["citations"]})
         yield _frame(

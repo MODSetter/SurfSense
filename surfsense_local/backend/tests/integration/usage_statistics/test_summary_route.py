@@ -245,7 +245,7 @@ async def test_onboarding_is_the_furthest_step_the_library_shows(
     assert (await summary(client))["week"]["onboarding"] == step
 
 
-async def test_an_agent_turn_counts_as_an_answer_for_onboarding(
+async def test_an_agent_answer_counts_as_an_answer_for_onboarding(
     client: AsyncClient, engine: Engine
 ) -> None:
     """An agent thread's turns live in its engine, so the counts vouch for them."""
@@ -256,6 +256,20 @@ async def test_an_agent_turn_counts_as_an_answer_for_onboarding(
     week = (await summary(client))["week"]
 
     assert (week["onboarding"], week["model_source"]) == ("first_answer", "remote")
+
+
+async def test_an_agent_turn_that_never_answered_is_not_a_first_answer(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A turn whose model failed counts as a turn, never as setup's last step."""
+    start_counting(had_chats=False)
+    seed(engine, model="Qwen3-4B-Q4_K_M")
+    add({Activity.AGENT_TURN: 1})
+
+    week = (await summary(client))["week"]
+
+    assert (week["agent_turns"], week["model_source"]) == ("1-9", "none")
+    assert week["onboarding"] == "model_ready"
 
 
 @pytest.mark.parametrize("since", ["", "yesterday", "2026-13-40T00:00:00Z"])

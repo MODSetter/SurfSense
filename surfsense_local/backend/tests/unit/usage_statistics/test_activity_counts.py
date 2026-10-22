@@ -6,6 +6,7 @@ import pytest
 
 from modules.usage_statistics.activity_counts import (
     Activity,
+    count_agent_turn,
     count_chat_answer,
     count_plugin_calls,
     read_counts,
@@ -71,14 +72,27 @@ def test_a_window_counts_only_the_hours_inside_it() -> None:
 
 
 def test_hours_older_than_forty_days_are_dropped() -> None:
-    """Nothing the weekly report could ask for is kept longer than it needs."""
-    add({Activity.AGENT_TURN: 1}, now=NOW - timedelta(days=41))
+    """Nothing the weekly report could ask for is kept longer than it needs,
+    but that a model once answered outlives the hour it answered in."""
+    add({Activity.LOCAL_ANSWER: 1}, now=NOW - timedelta(days=41))
     add({Activity.AGENT_TURN: 1}, now=NOW)
 
     counts = read_counts()
     assert counts is not None
     assert len(counts.hours) == 1
     assert counts.answered
+
+
+async def test_an_agent_turn_alone_is_not_an_answer() -> None:
+    """A turn sent may still fail; only a reply with text marks an answer."""
+    await count_agent_turn()
+
+    counts = read_counts()
+    assert counts is not None
+    assert (
+        counts.total(Activity.AGENT_TURN, datetime.now(UTC) - timedelta(hours=1)) == 1
+    )
+    assert not counts.answered
 
 
 def test_a_missing_file_starts_from_the_first_count() -> None:

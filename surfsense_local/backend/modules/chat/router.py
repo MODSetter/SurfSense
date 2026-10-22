@@ -272,10 +272,12 @@ async def send_message(
         # new session of the same, hands over.
         taking = await transact(session, selected_engine)
         handover = await take_over(session, thread, taking, launch_key)
-        await count_agent_turn(session)
-        return await taking.run_turn(
+        started = await taking.run_turn(
             session, thread, payload, launch_key, place, handover
         )
+        # Counted once the engine took the turn; a refused one raised above.
+        await count_agent_turn()
+        return started
     resolved, history, hits, retried, scope_record, indexing = await transact(
         session, _ground, thread, payload
     )
@@ -336,7 +338,6 @@ async def send_message(
     except Exception:
         await model_activity.release_use(activity_key)
         raise
-    await count_chat_answer(selected.provider)
 
     # The run outlives this request, so it keeps its own session.
     session_factory = request.app.state.session_factory
@@ -536,6 +537,9 @@ async def send_message(
                         ending,
                     )
                     assistant_completed_at = _iso(assistant_message.completed_at)
+                    # Only a reply with text counts as the model having answered.
+                    if parts:
+                        await count_chat_answer(selected.provider)
 
         if not parts:
             if not failed:

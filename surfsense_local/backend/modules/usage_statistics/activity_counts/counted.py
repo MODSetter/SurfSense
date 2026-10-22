@@ -30,17 +30,20 @@ def answer_kind(provider: str) -> Activity:
 
 
 async def count_chat_answer(provider: str) -> None:
-    """A Basic chat turn sent to a model; the turn itself is already a chat_messages row."""
+    """A Basic chat reply the model wrote text for; the turn itself is already a chat_messages row."""
     await run_in_threadpool(add, {answer_kind(provider): 1})
 
 
-async def count_agent_turn(session: Session) -> None:
-    """An Agentic turn sent, and the kind of model the selected text model is."""
+async def count_agent_turn() -> None:
+    """An Agentic turn its engine started; whether it was answered is counted when it ends."""
+    await run_in_threadpool(add, {Activity.AGENT_TURN: 1})
+
+
+async def count_agent_answer(session: Session) -> None:
+    """An Agentic reply that ended with text, by the kind the selected text model is."""
     provider = await transact(session, _selected_text_provider)
-    counts = {Activity.AGENT_TURN: 1}
     if provider is not None:
-        counts[answer_kind(provider)] = 1
-    await run_in_threadpool(add, counts)
+        await run_in_threadpool(add, {answer_kind(provider): 1})
 
 
 async def count_plugin_calls(body: bytes) -> None:
