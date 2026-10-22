@@ -4,6 +4,9 @@ import { useId, useState } from "react";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { siteText } from "@/components/site/site-text";
 import { Spinner } from "@/components/ui/spinner";
+import { currentChannel } from "@/features/funnel-attribution/current-channel";
+import { trackTrialRequested } from "@/features/funnel-attribution/funnel-events";
+import { trialOutcome } from "@/features/funnel-attribution/trial-outcome";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
@@ -41,11 +44,11 @@ const SERVICE_DOWN = "Something on our side is unavailable. Please try again in 
 
 const RATE_LIMITED = "Too many requests from here. Please try again later.";
 
-async function postEmail(path: string, email: string): Promise<Response> {
+async function postJson(path: string, body: Record<string, string>): Promise<Response> {
 	return fetch(buildBackendUrl(path), {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email }),
+		body: JSON.stringify(body),
 	});
 }
 
@@ -138,7 +141,7 @@ export function ResendForm() {
 		setBusy(true);
 		setOutcome(null);
 		try {
-			const response = await postEmail("/api/v1/license/resend", email.trim());
+			const response = await postJson("/api/v1/license/resend", { email: email.trim() });
 			if (response.ok) {
 				setOutcome({ kind: "ok", message: RESEND_SENT });
 			} else if (response.status === 429) {
@@ -199,8 +202,12 @@ export function TrialForm({
 
 		setBusy(true);
 		setOutcome(null);
+		// A channel tag, never an id: the licence server counts issued trials by it.
+		const channel = currentChannel();
+		let status: number | null = null;
 		try {
-			const response = await postEmail("/api/v1/license/trial", email.trim());
+			const response = await postJson("/api/v1/license/trial", { email: email.trim(), channel });
+			status = response.status;
 			if (response.ok) {
 				setOutcome({ kind: "ok", message: TRIAL_SENT });
 			} else if (response.status === 409) {
@@ -230,6 +237,7 @@ export function TrialForm({
 			setOutcome({ kind: "error", message: "Could not reach SurfSense. Check your connection." });
 		} finally {
 			setBusy(false);
+			trackTrialRequested(trialOutcome(status), channel);
 		}
 	}
 

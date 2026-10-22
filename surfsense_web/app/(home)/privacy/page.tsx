@@ -63,7 +63,7 @@ export const metadata: Metadata = {
  * `new Date()`: a render-time date causes a hydration mismatch and tells every
  * reader the document changed the moment they opened it.
  */
-const LAST_UPDATED = "September 18, 2026";
+const LAST_UPDATED = "October 22, 2026";
 
 /** Matches the `prose` treatment used for blog posts. */
 const PROSE =
@@ -204,20 +204,51 @@ export default function PrivacyPolicy() {
 
 					<h3>4.1 Analytics</h3>
 					<p>
-						We use PostHog to understand how the site is used. It records the pages you open, when
-						you leave them, the address that referred you, whether you arrived with a referral code
-						in the link, and the technical details every browser sends: your IP address, from which
-						an approximate location is derived, along with your browser, operating system and device
-						type. Requests are sent through <code>assets.surfsense.com</code>, a proxy we operate,
-						rather than directly to PostHog. PostHog assigns your browser a pseudonymous identifier
-						so that repeat visits are counted as one visitor rather than several.
+						We use PostHog to understand how the site is used. In your browser it records the pages
+						you open and when you leave them, the address that referred you, and any referral code
+						or campaign (UTM) tags in the link. It also records which links, buttons and form fields
+						you click, change or submit (the element and its visible text, never what you type into
+						a field), where on a page you click, move the pointer and scroll, for heatmaps, how
+						quickly pages load, and JavaScript errors your browser hits on our pages, with the error
+						message and where in our code it happened. Every request carries the technical details
+						any browser sends: your IP address, from which an approximate location is derived, and
+						your browser, operating system and device type. We do not record sessions: session
+						replay is switched off.
 					</p>
 					<p>
-						Analytics is enabled by default and we do not display a consent banner. If you would
-						rather not be counted, you can stop it: a content blocker, a tracker-blocking browser,
-						or a browser setting that refuses third-party storage will all prevent it, and every
-						page continues to work normally when you do. We do not currently detect the Global
-						Privacy Control signal or Do Not Track headers, so please do not rely on either with us.
+						These requests go to <code>assets.surfsense.com</code>, a subdomain of ours that PostHog
+						runs as a reverse proxy for us, rather than to PostHog's own domain. PostHog assigns
+						your browser a pseudonymous identifier so that repeat visits are counted as one visitor
+						rather than several.
+					</p>
+					<p>
+						A few steps are counted on our own servers instead, without that identifier: downloading
+						an installer (the platform, whether the link was on this site, in our README, in an
+						email, in the app or on the pricing page, the version, and the country our host derives
+						from your request), a trial licence being issued, and a completed purchase (the plan,
+						the amount and the currency). The trial and purchase counts also carry the channel you
+						arrived from: a referral code, a campaign source, the domain of the site that linked to
+						us, or &ldquo;direct&rdquo;. No email address, licence, IP address or browser identifier
+						is sent with any of them, so they are not tied to your browser's analytics identifier or
+						to a person profile. To count purchases by channel, the checkout link passes that same
+						channel tag to Stripe.
+					</p>
+					<p>
+						Two steps are recorded in your browser with the rest of the analytics, and so with its
+						pseudonymous identifier: requesting a trial licence, with whether it was sent, already
+						claimed, refused or failed, and pressing Continue to checkout. Both carry the channel
+						tag, and neither includes the email address you type.
+					</p>
+					<p>
+						Analytics is enabled by default and we do not display a consent banner. Because the
+						browser requests go to our own subdomain, a content blocker that works from lists of
+						tracking domains may not stop them. Blocking <code>assets.surfsense.com</code>, or
+						turning off JavaScript for this site, does stop them, and every page keeps working when
+						you do. Blocking cookies and site storage for surfsense.com stops PostHog from
+						recognising a repeat visit, but not from counting the visit. Nothing in your browser
+						stops the server-side counts above, which is why they carry no identifier. We do not
+						currently detect the Global Privacy Control signal or Do Not Track headers, so please do
+						not rely on either with us.
 					</p>
 
 					<h3>4.2 Cookies and browser storage</h3>
@@ -233,8 +264,14 @@ export default function PrivacyPolicy() {
 							same when you return.
 						</li>
 						<li>
-							<strong>PostHog cookies</strong>, holding the pseudonymous visitor identifier
-							described in section 4.1.
+							<strong>A PostHog cookie and local storage entry</strong>, holding the pseudonymous
+							visitor identifier described in section 4.1, and the first page you landed on with the
+							address that referred you there. The channel tag in section 4.1 is worked out from
+							that first page and referrer when you request a trial or start checkout.
+						</li>
+						<li>
+							<strong>Session storage</strong> holding the referral code from the link you arrived
+							with, kept until you close the tab, for the same channel tag.
 						</li>
 						<li>
 							<strong>Cloudflare Turnstile</strong>, set by Cloudflare on the free chat pages to

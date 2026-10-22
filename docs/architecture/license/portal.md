@@ -15,10 +15,10 @@ All under `/api/v1`, unauthenticated, mounted from `app/routes/__init__.py`:
 |---|---|
 | `GET /license/file?session_id=` | the `.lic` for that checkout session, or 404 |
 | `POST /license/resend` `{email}` | 200 with the same body whatever it found |
-| `POST /license/trial` `{email}` | 200 once the trial is mailed |
+| `POST /license/trial` `{email, channel?}` | 200 once the trial is mailed |
 | `POST /stripe/webhook` | fulfilment and refunds, beside the credit handlers |
 
-Both POSTs validate `email` as an email address and answer 422 for anything else.
+Both POSTs validate `email` as an email address and answer 422 for anything else. The trial's optional `channel` is the site's acquisition tag ([funnel events](#funnel-events)); it is kept only when it matches `^[a-z0-9_-]{1,40}$` and is dropped otherwise, never refused, so a bad tag cannot cost anyone a trial.
 
 ### `GET /license/file`
 
@@ -38,7 +38,7 @@ After the success page this is the only way to get a license back, so an answer 
 1. `404` when `LICENSE_TRIAL_ENABLED` is off; `503` when mail is off or misconfigured.
 2. The rate limits, then `400` for a disposable domain, looked up as [Email addresses](#email-addresses) describes.
 3. `409` when a license on the trial policy already carries this address's folded form in `metadata[trialKey]`.
-4. Create the trial under a derived id with an explicit expiry, check it out and mail it: `200`.
+4. Create the trial under a derived id with an explicit expiry, check it out and mail it: `200`. `license_trial_issued` is emitted once the trial exists, before the mail, since the address is spent either way.
 
 The file is never in the response. Delivery to a real inbox is what makes one trial per email mean anything; handing the file back over HTTP would make unlimited trials a loop over throwaway strings. Unlike resend, trial has to say "already claimed", so it reports each outcome, including the ones after the create: a Keygen failure answers 503 and points at resend, which finds a trial that was created but not mailed; a transient mail failure answers 503 saying the trial exists; a refused recipient answers 400.
 
@@ -52,6 +52,17 @@ The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 30 da
 - `charge.refunded`: acts only on a full refund, `refunded` or `amount_refunded >= amount`; a partial refund suspends nothing. It resolves the charge's `payment_intent` to its checkout session through Stripe, that session to its one license by `checkoutSessionId`, and suspends that license alone, so a customer's other purchases keep working. A refund that traces to no single license suspends nothing and logs a warning for support, because a wrong suspension is silent to the customer. Failures are logged and the webhook still answers 200, since a retry would re-run the suspension. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`.
 
 Fulfilment also writes the license's Keygen id onto the Stripe customer as `keygen_license_id`, best effort, so a Stripe error cannot fail the webhook. Nothing reads it back; refunds find licenses through Keygen metadata.
+
+### Funnel events
+
+The licence server counts two funnel steps in PostHog through the backend's opt-in client (`app/observability/analytics/posthog.py`; nothing is sent without `POSTHOG_API_KEY`). `app/license/funnel/events.py` sends both personless: a fresh random distinct id per event and `$process_person_profile` false, with GeoIP off. The properties are the whole payload; no email, licence id or key, Stripe customer or session ever goes with them.
+
+| Event | Emitted | Properties |
+|---|---|---|
+| `license_trial_issued` | by the trial route once Keygen holds the new trial | `channel` |
+| `license_purchased` | by `fulfill_license_session()` when it mints the licence | `plan`, `amount_total` (Stripe minor units), `currency`, `channel` |
+
+The purchase event comes from fulfilment rather than the webhook because the webhook and the success page both fulfil a payment; only the caller whose create succeeded emits it, so each purchase counts once. Its `channel` is the session's `client_reference_id`, which the site's Payment Link carries ([pages](#pages)); anyone can edit that link, so it is reduced to the tag alphabet (lowercased, other characters folded to `-`, 40 characters) rather than trusted. A request with no usable channel is counted as `unknown`, apart from the site's own `direct`.
 
 ### Plan resolution
 
@@ -105,7 +116,7 @@ The client IP comes from `get_real_client_ip()`, which prefers `CF-Connecting-IP
 - Every send failure maps to one of two errors; a configuration error is neither: a bad setting raises `ValueError` when the mailer is built, which the routes turn into the 503 above. `MailerUnavailableError` covers connect failures, timeouts, 4xx replies, authentication failures and a refused sender, all ours to fix. `MailerRejectedError` is a permanent 5xx refusal during the conversation, of the recipient or of the message. A hard bounce arrives after a 250 accept, so trial promises "sent", never "delivered".
 - `OutboundEmail.idempotency_key` is carried and ignored by SMTP, so a future API transport can dedupe retries without changing any caller.
 
-`app/license/email/message.py` builds the three license messages, `purchase`, `resend` and `trial`, sent from `SMTP_LICENSE_FROM` or else `SMTP_FROM`, with `SMTP_LICENSE_REPLY_TO`. The file travels as `surfsense.lic`, numbered when one resend carries several, typed `application/octet-stream` so no mail client renders it inline and mangles its line endings. The install steps link the installers of the release pinned in `app/license/release.py`, looked up through the GitHub API and cached for an hour, or the release page when that lookup fails; pinning by tag keeps a mail already sent naming the build it was sent for ([updates](../updates.md)).
+`app/license/email/message.py` builds the three license messages, `purchase`, `resend` and `trial`, sent from `SMTP_LICENSE_FROM` or else `SMTP_FROM`, with `SMTP_LICENSE_REPLY_TO`. The file travels as `surfsense.lic`, numbered when one resend carries several, typed `application/octet-stream` so no mail client renders it inline and mangles its line endings. The install steps link each platform's installer through the site's download redirect, `https://www.surfsense.com/downloads/<platform>?src=email&v=<tag>`, with the tag pinned in `app/license/release.py`. The `v` keeps a mail already sent naming the build it was sent for, and the redirect counts the downloads mail produces ([updates](../updates.md#download-links)).
 
 ## Keygen
 
@@ -135,7 +146,9 @@ Under `surfsense_backend/app/license/`:
 | `models.py` | metadata key spellings, errors and value types |
 | `schemas.py` | the request and acknowledgement bodies |
 | `rate_limit.py` | the two buckets |
-| `release.py` | the desktop release the mail links to |
+| `release.py` | the desktop release the mail links to, through the site's download redirect |
+| `funnel/channel.py` | the acquisition channel tag: validating it, reducing `client_reference_id` to it |
+| `funnel/events.py` | the personless `license_trial_issued` and `license_purchased` events |
 | `email/address.py` | normalizing, folding, the disposable-domain check |
 | `email/deliver.py` | handing a built message to the mailer |
 | `email/message.py` | subjects, bodies, attachments and sender |
@@ -148,7 +161,8 @@ In `surfsense_web`, all public routes:
 
 - `/license/success` is where Stripe returns the buyer. It downloads the file once on mount, since that first request may be what creates the license, then leaves retries to a button rather than looping. A 404 reads as "payment is still settling, press again", never "you have no license".
 - `/license` has only the resend form. Resend can never say "no license found", so its success copy tells the user to check spam and use the exact address they paid with.
-- The trial form is on `/downloads`, beside the installers a license file is useless without.
+- The trial form is on `/downloads`, beside the installers a license file is useless without. It sends the visitor's channel tag with the email and captures `license_trial_requested` with the outcome (`sent`, `already_claimed`, `refused` or `error`) and the channel, never the address.
+- `/pricing/individual` sits between the pricing card and the Stripe Payment Link (`NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`): what the licence unlocks, the renewal, what happens after paying, the refund. Its Continue to checkout button appends `client_reference_id=<channel>` and captures `checkout_started` by beacon. The channel is the first-touch `?ref` code or `utm_source` the site already records, else the referring site's domain, else `direct` (`surfsense_web/features/funnel-attribution/`), and never a person or browser id. The Payment Link's after-payment redirect must be `https://www.surfsense.com/license/success?session_id={CHECKOUT_SESSION_ID}`, and its price one-time rather than recurring: the page says the confirmation page downloads the file and that nothing charges again, and fulfilment handles only the first checkout session.
 - `/license/activate` is the activation guide the mail links to.
 
 The pages state two dead ends plainly. An enterprise license is one file sent only to the buying address, so a colleague asks the buyer to forward it. A lost or mistyped inbox has no self-serve path, because a form that mailed a license to a newly typed address would be a way to steal one.
@@ -167,8 +181,9 @@ A trial has no payment to prove, so the anchor is the address itself: support as
 
 ## Tests
 
-`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. `test_license_routes.py` drives the three routes over HTTP with Keygen faked at its transport, so the code under them runs as written, and the mailer faked at the router: resend's one answer for every outcome, asserted from the mailer side, including a license that is only suspended, and its 503 when mail is off before any lookup; each trial outcome, never with the file in the body, and a tagged address refused once the folded one holds a trial; the success page's file and its 404; both rate-limit buckets biting, and a limit of zero turning one off. `tests/integration/license/test_keygen_contract.py` runs the client against a real Keygen when `KEYGEN_INTEGRATION=1`, proving the metadata keys the app writes are the ones it filters on, and that a key with another word answers an empty list.
+`test_funnel_events.py` covers the channel tag rules and the purchase event: its exact properties, nothing personal in it, and one event when the webhook and the success page both fulfil. `tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and its pinned redirect links; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. `test_license_routes.py` drives the three routes over HTTP with Keygen faked at its transport, so the code under them runs as written, and the mailer faked at the router: resend's one answer for every outcome, asserted from the mailer side, including a license that is only suspended, and its 503 when mail is off before any lookup; each trial outcome, never with the file in the body, and a tagged address refused once the folded one holds a trial; `license_trial_issued` with only the channel, a bad channel dropped, and no event for a trial not issued; the success page's file and its 404; both rate-limit buckets biting, and a limit of zero turning one off. `tests/integration/license/test_keygen_contract.py` runs the client against a real Keygen when `KEYGEN_INTEGRATION=1`, proving the metadata keys the app writes are the ones it filters on, and that a key with another word answers an empty list.
 
 ## Known gaps
 
 - The Keygen contract test has not yet run against a live Keygen; it skips without `KEYGEN_INTEGRATION=1` and credentials.
+- Nothing checks the Payment Link's settings. Its after-payment redirect and one-time price ([pages](#pages)) are set by hand in Stripe, and PostHog's 15 checkout clicks against 1 success page view in the 30 days to 21 Oct 2026 suggest the redirect is not set.

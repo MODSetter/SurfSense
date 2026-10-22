@@ -11,6 +11,7 @@ from app.config import config
 from app.license import keygen
 from app.license.checkout import customer_email, customer_id, resolve_license_plan
 from app.license.email.address import fold_email, normalize_email
+from app.license.funnel.events import record_license_purchased
 from app.license.keygen import LicensePlan
 from app.license.models import (
     META_CUSTOMER,
@@ -177,6 +178,9 @@ async def fulfill_license_session(
         )
         return existing
 
+    # Only the caller that minted the licence counts it; the webhook and the
+    # success page race to fulfil, and the loser returned above.
+    record_license_purchased(checkout_session, plan=plan)
     if stripe_customer and stripe_client is not None:
         _record_license_on_customer(stripe_client, stripe_customer, issued)
     return issued

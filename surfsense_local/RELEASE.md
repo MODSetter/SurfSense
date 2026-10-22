@@ -138,7 +138,7 @@ A `v*` tag starts `.github/workflows/release-local.yml`. electron-builder upload
 |----------|-------------------------|
 | Already installed | In-app update on the `stable` channel. Shipped 2.0.x clients set `allowPrerelease`, so they walk the releases **feed** and take its newest entry; that entry is this release. |
 | Legacy 0.0.x desktop | Not this build. `/releases/latest` names this release, but its `latest*.yml` answers v0.0.40 — see `legacy-update-bridge`. |
-| Website / license email | The **tag pin** in `APP_RELEASE_VERSION`. Needs this bump deployed with web/backend. |
+| Website, READMEs, license email | The **tag pin** in `APP_RELEASE_VERSION`, through the site's `/downloads/<platform>` redirect ([updates](../docs/architecture/updates.md#download-links)). Needs this bump deployed with web/backend. Until you publish, the redirect sends them to Latest, the previous release. A license email already sent stays on its own tag. |
 
 ## Dry run (no GitHub Release)
 
@@ -157,4 +157,5 @@ Not a tag, not an update: the installers stay on the run as artifacts, and `lega
 - Push a `v0.*` tag for this app (that line is the legacy desktop).
 - Publish the draft before Mac, Windows and Linux have uploaded, and before `legacy-update-bridge` is green.
 - Delete `legacy-update-bridge` while 0.0.x clients are still checking in. Watch `SurfSense-Setup-0.0.40.exe.blockmap` on the v0.0.40 release: while it climbs, legacy installs are still migrating.
-- Rely on `/releases/latest` for download links. It names the right release now, but the site and the license email reference exact asset filenames, so they stay in lockstep with `APP_RELEASE_VERSION` instead.
+- Rely on `/releases/latest` for download links. It names the right release now, but the site, the READMEs and the license email go through `/downloads/<platform>`, which names exact asset filenames, so they stay in lockstep with `APP_RELEASE_VERSION` instead, and fall back to Latest only while that tag is unpublished.
+- Rename an installer. `/downloads/<platform>` builds every URL from the tag and the fixed names in `surfsense_web/lib/app-release.ts`, so a renamed file breaks every link already sent, mails included.
