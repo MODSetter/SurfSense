@@ -125,3 +125,17 @@ def test_a_search_is_listed_as_its_products() -> None:
     assert PULLER.listing.items([product()]) == [
         Listed(PRODUCT, "Tide Clock", "27.5 USD · 4.2 out of 5")
     ]
+
+
+def test_a_search_runs_on_walmart_itself() -> None:
+    """Cards only, as a search page's are."""
+    assert PULLER.search is not None
+    assert PULLER.search("tide clock", 20) == ToolCall(
+        "scrape",
+        {
+            "search_terms": ["tide clock"],
+            "max_items": 20,
+            "include_details": False,
+            "include_reviews_sample": False,
+        },
+    )

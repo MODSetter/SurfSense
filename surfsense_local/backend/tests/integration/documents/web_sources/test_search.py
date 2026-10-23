@@ -44,6 +44,9 @@ async def test_a_search_lists_google_s_pages_each_once_with_who_would_pull_it(
 
     assert found.status_code == 200, found.text
     assert found.json() == {
+        "link": None,
+        "more": True,
+        "failed": False,
         "results": [
             {
                 "url": TIDES,
@@ -69,7 +72,7 @@ async def test_a_search_lists_google_s_pages_each_once_with_who_would_pull_it(
                 "puller": "youtube",
                 "fit": "list",
             },
-        ]
+        ],
     }
     assert scraper_host.calls == [
         ("google-search", "scrape", {"queries": ["tides"], "max_pages_per_query": 1})

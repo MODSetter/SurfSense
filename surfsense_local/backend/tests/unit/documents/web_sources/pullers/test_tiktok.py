@@ -130,3 +130,16 @@ def test_a_profile_is_listed_as_its_videos_without_its_account() -> None:
             "@seaschool",
         )
     ]
+
+
+def test_a_search_runs_on_tiktok_s_own_search_page() -> None:
+    """TikTok's search is a link the plugin reads, the words in its query."""
+    assert PULLER.search is not None
+    assert PULLER.search("tides & moon", 20) == ToolCall(
+        "scrape",
+        {
+            "urls": ["https://www.tiktok.com/search?q=tides+%26+moon"],
+            "results_per_page": 20,
+            "max_items": 20,
+        },
+    )

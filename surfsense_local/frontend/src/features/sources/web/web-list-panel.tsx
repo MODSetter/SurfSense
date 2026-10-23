@@ -1,11 +1,10 @@
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
 import type { WebGroup } from "./api"
 import { pullerName } from "./puller-names"
 import type { RowActions } from "./row-actions"
+import { ShowMoreBar } from "./show-more-bar"
 import { WebResultRows } from "./web-result-rows"
 
 /** A list's items in one panel, named after the list, so they read as one group. */
@@ -54,25 +53,11 @@ export function WebListPanel({
         <WebResultRows results={group.results} actions={actions} />
       )}
       {group.more ? (
-        // Pinned to the bottom of the results while this list is in view: a
-        // long list would otherwise hide it below its last item.
-        <div className="sticky bottom-0 rounded-b-lg border-t bg-popover">
-          <div className="rounded-b-lg bg-muted/40 p-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={actions.loadingMore.has(link)}
-              onClick={() => actions.onMore(link)}
-            >
-              {actions.loadingMore.has(link) ? <Spinner /> : null}
-              {intl.formatMessage({
-                id: "sources_web_show_more_button",
-                defaultMessage: "Show more",
-              })}
-            </Button>
-          </div>
-        </div>
+        <ShowMoreBar
+          tinted
+          loading={actions.loadingMore.has(link)}
+          onClick={() => actions.onMore(link)}
+        />
       ) : null}
     </section>
   )

@@ -60,3 +60,6 @@ class Puller:
     written: Callable[[str, Results], Pulled | None]
     # None for a site with no list links.
     listing: Listing | None = None
+    # The site's own search for a query, read as its listing reads a list;
+    # None for a site with none.
+    search: Callable[[str, int], ToolCall] | None = None
