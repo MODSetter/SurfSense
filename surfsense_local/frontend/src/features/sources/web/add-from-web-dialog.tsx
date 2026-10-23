@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Select } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { useLicense } from "@/features/license/use-license"
@@ -17,6 +18,8 @@ import { intl } from "@/i18n/intl"
 import type { WebGroup } from "./api"
 import { pastedLinks } from "./pasted-links"
 import { refusalText } from "./refusal-text"
+import { SEARCH_SITES, searchSiteName, type SearchSite } from "./search-sites"
+import { ShowMoreBar } from "./show-more-bar"
 import type { WebSources } from "./use-web-sources"
 import { WebLicenseOffer } from "./web-license-offer"
 import { webProblem, type WebProblem } from "./web-problem"
@@ -26,6 +29,24 @@ import { WebResultRows } from "./web-result-rows"
 
 // Per request, as the API takes them.
 const MAX_LINKS = 20
+// The last search's key in `pages` and `loadingMore`, beside the lists' links.
+const SEARCH = "search"
+
+/** A list page added under the rows already shown, without repeating one. */
+function appended(group: WebGroup, next: WebGroup): WebGroup {
+  return {
+    ...group,
+    // A list that moved between pages repeats an item already shown.
+    results: [
+      ...group.results,
+      ...next.results.filter(
+        (result) => !group.results.some((shown) => shown.url === result.url)
+      ),
+    ],
+    more: next.more,
+    failed: next.failed,
+  }
+}
 
 export function AddFromWebDialog({
   open,
@@ -38,6 +59,12 @@ export function AddFromWebDialog({
 }) {
   const license = useLicense()
   const [text, setText] = useState("")
+  const [site, setSite] = useState<SearchSite>("web")
+  // The search the shown rows came from, for its Show more.
+  const [searched, setSearched] = useState<{
+    query: string
+    site: SearchSite
+  } | null>(null)
   const [groups, setGroups] = useState<WebGroup[] | null>(null)
   // Lists opened from a row, by the row's link; shown beneath that row.
   const [lists, setLists] = useState<ReadonlyMap<string, WebGroup>>(
@@ -85,7 +112,8 @@ export function AddFromWebDialog({
 
   const fail = (cause: unknown) => setProblem(webProblem(cause))
 
-  // Text with links opens them; anything else is a Google search.
+  // Text with links opens them, by their own site; anything else is a search
+  // on the site chosen beside the box.
   const submit = async (event?: SubmitEvent) => {
     event?.preventDefault()
     const asked = text.trim()
@@ -102,6 +130,7 @@ export function AddFromWebDialog({
     setLists(new Map())
     setPages(new Map())
     setLoadingMore(new Set())
+    setSearched(opening ? null : { query: asked, site })
     // Added stays true across searches; an opened list belonged to the last rows.
     setStates(
       (current) =>
@@ -115,7 +144,7 @@ export function AddFromWebDialog({
       setGroups(
         opening
           ? await web.open(pasted.links.slice(0, MAX_LINKS), thisRun.signal)
-          : [await web.search(asked, thisRun.signal)]
+          : [await web.search(asked, site, 0, thisRun.signal)]
       )
     } catch (cause) {
       if (!thisRun.signal.aborted) fail(cause)
@@ -177,21 +206,7 @@ export function AddFromWebDialog({
       const next = await web.list(link, page)
       if (run.current !== shownRun) return
       const grown = (group: WebGroup): WebGroup =>
-        group.link === link
-          ? {
-              ...group,
-              // A list that moved between pages repeats an item already shown.
-              results: [
-                ...group.results,
-                ...next.results.filter(
-                  (result) =>
-                    !group.results.some((shown) => shown.url === result.url)
-                ),
-              ],
-              more: next.more,
-              failed: next.failed,
-            }
-          : group
+        group.link === link ? appended(group, next) : group
       setGroups((current) => current?.map(grown) ?? null)
       setLists((current) => {
         const shown = current.get(link)
@@ -206,6 +221,35 @@ export function AddFromWebDialog({
         setLoadingMore((current) => {
           const next = new Set(current)
           next.delete(link)
+          return next
+        })
+      }
+    }
+  }
+
+  // The search's next page, under its rows: Show more as on a list.
+  const showMoreSearch = async () => {
+    if (!searched) return
+    const shownRun = run.current
+    const page = (pages.get(SEARCH) ?? 0) + 1
+    setLoadingMore((current) => new Set(current).add(SEARCH))
+    try {
+      const next = await web.search(searched.query, searched.site, page)
+      if (run.current !== shownRun) return
+      setGroups(
+        (current) =>
+          current?.map((group, index) =>
+            index === 0 ? appended(group, next) : group
+          ) ?? null
+      )
+      setPages((current) => new Map(current).set(SEARCH, page))
+    } catch (cause) {
+      if (run.current === shownRun) fail(cause)
+    } finally {
+      if (run.current === shownRun) {
+        setLoadingMore((current) => {
+          const next = new Set(current)
+          next.delete(SEARCH)
           return next
         })
       }
@@ -242,6 +286,8 @@ export function AddFromWebDialog({
         setText("")
         setGroups(null)
         setLists(new Map())
+        setSearched(null)
+        setSite("web")
         setBusy(null)
         setProblem(null)
         setStates(new Map())
@@ -277,18 +323,43 @@ export function AddFromWebDialog({
               className="flex items-start gap-2"
               onSubmit={(event) => void submit(event)}
             >
+              <Select
+                className="h-9 w-36"
+                value={site}
+                aria-label={intl.formatMessage({
+                  id: "sources_web_site_aria",
+                  defaultMessage: "Search on",
+                })}
+                onChange={(event) => setSite(event.target.value as SearchSite)}
+              >
+                {SEARCH_SITES.map((choice) => (
+                  <option key={choice} value={choice}>
+                    {searchSiteName(choice)}
+                  </option>
+                ))}
+              </Select>
               <Textarea
                 value={text}
                 rows={1}
                 className="max-h-40 min-h-9 resize-none"
                 aria-label={intl.formatMessage({
                   id: "sources_web_box_aria",
-                  defaultMessage: "Search Google or paste links",
+                  defaultMessage: "Search or paste links",
                 })}
-                placeholder={intl.formatMessage({
-                  id: "sources_web_box_placeholder",
-                  defaultMessage: "Search Google or paste links",
-                })}
+                placeholder={
+                  site === "web"
+                    ? intl.formatMessage({
+                        id: "sources_web_box_placeholder",
+                        defaultMessage: "Search the web or paste links",
+                      })
+                    : intl.formatMessage(
+                        {
+                          id: "sources_web_box_site_placeholder",
+                          defaultMessage: "Search {site} or paste links",
+                        },
+                        { site: searchSiteName(site) }
+                      )
+                }
                 onChange={(event) => setText(event.target.value)}
                 onKeyDown={submitOnEnter}
               />
@@ -310,8 +381,7 @@ export function AddFromWebDialog({
                 {busy === "searching"
                   ? intl.formatMessage({
                       id: "sources_web_searching_status",
-                      defaultMessage:
-                        "Searching Google. This can take a minute.",
+                      defaultMessage: "Searching. This can take a minute.",
                     })
                   : intl.formatMessage({
                       id: "sources_web_opening_status",
@@ -355,11 +425,19 @@ export function AddFromWebDialog({
                       })}
                     </p>
                   ) : (
-                    <WebResultRows
-                      key={`rows-${index}`}
-                      results={group.results}
-                      actions={actions}
-                    />
+                    <div key={`rows-${index}`} className="flex flex-col">
+                      <WebResultRows
+                        results={group.results}
+                        actions={actions}
+                      />
+                      {searched && index === 0 && group.more ? (
+                        <ShowMoreBar
+                          tinted={false}
+                          loading={loadingMore.has(SEARCH)}
+                          onClick={() => void showMoreSearch()}
+                        />
+                      ) : null}
+                    </div>
                   )
                 )}
               </div>
@@ -405,7 +483,7 @@ function problemText(problem: WebProblem): string {
   if (problem.kind === "search_failed") {
     return intl.formatMessage({
       id: "sources_web_search_failed_error",
-      defaultMessage: "Google didn’t answer this time. Try again.",
+      defaultMessage: "The search didn’t answer this time. Try again.",
     })
   }
   if (problem.kind === "network_off") {

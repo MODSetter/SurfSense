@@ -36,6 +36,11 @@ const SEARCHED = [
   row(CHANNEL, "The Sea School channel", "list", "youtube"),
 ]
 
+/** A search's answer, as the API gives it: one group of rows. */
+function found(results: object[], more = false) {
+  return Response.json({ link: null, more, failed: false, results })
+}
+
 function channelPage(page: number, more: boolean) {
   return {
     link: CHANNEL,
@@ -101,7 +106,7 @@ let nextId = 20
 /** The app's API: a license in `license`, and how each web route answers. */
 function serving({
   license = "active",
-  search = () => Response.json({ results: SEARCHED }),
+  search = () => found(SEARCHED),
   open = (body) => {
     const urls = (body as { urls: string[] }).urls
     return Response.json({
@@ -184,7 +189,7 @@ async function openDialog(user: ReturnType<typeof userEvent.setup>) {
 
 function box(dialog: HTMLElement) {
   return within(dialog).getByRole("textbox", {
-    name: "Search Google or paste links",
+    name: "Search or paste links",
   })
 }
 
@@ -234,11 +239,84 @@ describe("adding sources from the web", () => {
 
     expect(await within(dialog).findByText("Added")).toBeTruthy()
     expect(sent).toEqual([
-      { path: "/workspaces/1/documents/web/search", body: { query: "tides" } },
+      {
+        path: "/workspaces/1/documents/web/search",
+        body: { query: "tides", source: "web", page: 0 },
+      },
       { path: "/workspaces/1/documents/web", body: { urls: [PAGE] } },
     ])
     expect(screen.getByRole("dialog")).toBeTruthy()
     expect(await screen.findByText(PAGE)).toBeTruthy()
+  })
+
+  it("searches the web unless another site is chosen beside the box", async () => {
+    const user = userEvent.setup()
+    const sent = serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    const site = within(dialog).getByRole("combobox", { name: "Search on" })
+    expect((site as HTMLSelectElement).value).toBe("web")
+    await user.selectOptions(site, "youtube")
+    await ask(user, dialog, "how tides work")
+
+    await within(dialog).findByRole("button", {
+      name: "Add Tide tables explained",
+    })
+    expect(sent).toEqual([
+      {
+        path: "/workspaces/1/documents/web/search",
+        body: { query: "how tides work", source: "youtube", page: 0 },
+      },
+    ])
+  })
+
+  it("shows more of a search on request", async () => {
+    const user = userEvent.setup()
+    const sent = serving({
+      search: (body) =>
+        (body as { page: number }).page === 0
+          ? found(SEARCHED, true)
+          : found([row("https://tides.example/more", "More about tides")]),
+    })
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+    await ask(user, dialog, "tides")
+
+    await user.click(
+      await within(dialog).findByRole("button", { name: "Show more" })
+    )
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: "Add More about tides",
+      })
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole("button", { name: "Add Tide tables explained" })
+    ).toBeTruthy()
+    expect(sent.at(-1)).toEqual({
+      path: "/workspaces/1/documents/web/search",
+      body: { query: "tides", source: "web", page: 1 },
+    })
+  })
+
+  it("opens pasted links by their own site, whatever is chosen", async () => {
+    const user = userEvent.setup()
+    const sent = serving()
+    render(<WebHarness />)
+    const dialog = await openDialog(user)
+
+    await user.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Search on" }),
+      "amazon"
+    )
+    await ask(user, dialog, PAGE)
+
+    await within(dialog).findByRole("button", { name: `Add ${PAGE}` })
+    expect(sent).toEqual([
+      { path: "/workspaces/1/documents/web/open", body: { urls: [PAGE] } },
+    ])
   })
 
   it("adds every result left with Add all, but never a list", async () => {
@@ -309,12 +387,11 @@ describe("adding sources from the web", () => {
     let searches = 0
     serving({
       search: () =>
-        Response.json({
-          results:
-            ++searches === 1
-              ? SEARCHED
-              : [row("https://moon.example/", "The moon")],
-        }),
+        found(
+          ++searches === 1
+            ? SEARCHED
+            : [row("https://moon.example/", "The moon")]
+        ),
       open: () =>
         new Promise<Response>((resolve) => {
           answerChannel = resolve
@@ -425,7 +502,7 @@ describe("adding sources from the web", () => {
     serving({
       search: () => {
         searches += 1
-        if (searches === 1) return Response.json({ results: SEARCHED })
+        if (searches === 1) return found(SEARCHED)
         return new Promise<Response>((resolve) => {
           answerSecond = resolve
         })
@@ -442,9 +519,7 @@ describe("adding sources from the web", () => {
     await ask(user, dialog, "moon")
 
     expect(within(dialog).queryByRole("button", { name: /Add all/ })).toBeNull()
-    answerSecond(
-      Response.json({ results: [row("https://moon.example/", "The moon")] })
-    )
+    answerSecond(found([row("https://moon.example/", "The moon")]))
     expect(
       await within(dialog).findByRole("button", { name: "Add all (1)" })
     ).toBeTruthy()
@@ -586,7 +661,7 @@ describe("adding sources from the web", () => {
     expect(sent).toEqual([
       {
         path: "/workspaces/1/documents/web/search",
-        body: { query: "node.js tutorial" },
+        body: { query: "node.js tutorial", source: "web", page: 0 },
       },
     ])
   })
@@ -628,7 +703,7 @@ describe("adding sources from the web", () => {
     ).toBeTruthy()
     expect(
       within(dialog).queryByRole("textbox", {
-        name: "Search Google or paste links",
+        name: "Search or paste links",
       })
     ).toBeNull()
     await user.click(

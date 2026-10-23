@@ -16,7 +16,12 @@ import {
 
 /** What the Add from the web dialog needs from its owner; each throws what it shows instead. */
 export type WebSources = {
-  search: (query: string, signal?: AbortSignal) => Promise<WebGroup>
+  search: (
+    query: string,
+    source: string,
+    page: number,
+    signal?: AbortSignal
+  ) => Promise<WebGroup>
   open: (urls: string[], signal?: AbortSignal) => Promise<WebGroup[]>
   list: (url: string, page: number) => Promise<WebGroup>
   add: (urls: string[]) => Promise<WebLinksOutcome>
@@ -28,8 +33,9 @@ export function useWebSources(
   addCreated: (created: WorkspaceDocument[]) => void,
   onOpenLicense: () => void
 ): WebSources {
-  const search = useStableCallback((query: string, signal?: AbortSignal) =>
-    searchWeb(workspaceId, query, signal)
+  const search = useStableCallback(
+    (query: string, source: string, page: number, signal?: AbortSignal) =>
+      searchWeb(workspaceId, query, source, page, signal)
   )
   const open = useStableCallback((urls: string[], signal?: AbortSignal) =>
     openWebLinks(workspaceId, urls, signal)
