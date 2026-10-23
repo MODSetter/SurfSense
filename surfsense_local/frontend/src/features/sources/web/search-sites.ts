@@ -1,5 +1,3 @@
-import { intl } from "@/i18n/intl"
-
 import { pullerName } from "./puller-names"
 
 // Where a search can run: Google, or a site's own search through its plugin.
@@ -15,11 +13,7 @@ export const SEARCH_SITES = [
 
 export type SearchSite = (typeof SEARCH_SITES)[number]
 
+/** Product names, not translated, as the pullers' are. */
 export function searchSiteName(site: SearchSite): string {
-  return site === "web"
-    ? intl.formatMessage({
-        id: "sources_web_site_web_label",
-        defaultMessage: "The web",
-      })
-    : (pullerName(site) ?? site)
+  return site === "web" ? "Google Search" : (pullerName(site) ?? site)
 }

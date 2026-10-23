@@ -350,7 +350,7 @@ export function AddFromWebDialog({
                   site === "web"
                     ? intl.formatMessage({
                         id: "sources_web_box_placeholder",
-                        defaultMessage: "Search the web or paste links",
+                        defaultMessage: "Search Google or paste links",
                       })
                     : intl.formatMessage(
                         {
