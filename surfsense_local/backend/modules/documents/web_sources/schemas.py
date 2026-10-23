@@ -9,12 +9,20 @@ from modules.documents.web_sources.pullers.puller import Fit
 MAX_LINKS = 20
 
 
+# Google's results, the box's default; any other source is a puller's own search.
+WEB = "web"
+
+
 class WebSearch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     query: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)
     ]
+    # `web`, or the id of a puller with a search of its own, such as `youtube`.
+    source: str = WEB
+    # 0 for the first results; Show more asks for the next, up to 4.
+    page: int = Field(default=0, ge=0, le=4)
 
 
 class WebResult(BaseModel):
@@ -27,10 +35,6 @@ class WebResult(BaseModel):
     puller: str
     # One to add, a list to open, or a short link that cannot be added.
     fit: Fit
-
-
-class WebSearchRead(BaseModel):
-    results: list[WebResult]
 
 
 class WebGroup(BaseModel):

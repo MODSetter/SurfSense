@@ -10,7 +10,7 @@ from modules.documents.web_sources.background_pull.pending_sources import (
     sources_of_links,
 )
 from modules.documents.web_sources.background_pull.pull_task import pull_web_source
-from modules.documents.web_sources.links import Route, routed
+from modules.documents.web_sources.links import PULLERS, Route, routed
 from modules.documents.web_sources.plugin_calls.http_refusals import as_http
 from modules.documents.web_sources.plugin_calls.plugin_access import (
     LicenseRefusedError,
@@ -23,15 +23,17 @@ from modules.documents.web_sources.plugin_calls.plugin_call import (
     call_plugin,
 )
 from modules.documents.web_sources.pullers.puller import Fit, Puller
-from modules.documents.web_sources.rows.list_pages import list_page
+from modules.documents.web_sources.rows.list_pages import list_page, read_page
 from modules.documents.web_sources.rows.result_rows import result_row
 from modules.documents.web_sources.rows.search_results import (
     GOOGLE_SEARCH,
+    MAX_PAGES,
     SCRAPE,
     listed_results,
     search_arguments,
 )
 from modules.documents.web_sources.schemas import (
+    WEB,
     WebGroup,
     WebLinkDuplicate,
     WebLinkRejected,
@@ -41,7 +43,6 @@ from modules.documents.web_sources.schemas import (
     WebListPage,
     WebOpenRead,
     WebSearch,
-    WebSearchRead,
 )
 from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
@@ -57,21 +58,53 @@ SEARCH_SECONDS = 200
 
 @router.post(
     "/search",
-    response_model=WebSearchRead,
-    summary="Search Google for links to add to Sources",
+    response_model=WebGroup,
+    summary="Search Google, or a site's own search, for links to add to Sources",
 )
 async def search_web(
     payload: WebSearch, workspace: WorkspaceDep, session: SessionDep
-) -> WebSearchRead:
+) -> WebGroup:
     """POST, so the app asks the network question: a search is the user's own action."""
+    puller = None
+    if payload.source != WEB:
+        puller = next(
+            (p for p in PULLERS if p.id == payload.source and p.search and p.listing),
+            None,
+        )
+        if puller is None:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"{payload.source} has no search of its own",
+            )
     try:
-        access = await transact(session, plugin_access, GOOGLE_SEARCH)
-        items = await call_plugin(
-            access, SCRAPE, search_arguments(payload.query), SEARCH_SECONDS
+        if puller is None:
+            return await _google_page(session, payload.query, payload.page)
+        search, listing = puller.search, puller.listing
+        access = await transact(session, plugin_access, puller.plugin_id)
+        return await read_page(
+            access,
+            lambda count: search(payload.query, count),
+            listing,
+            payload.page,
+            None,
         )
     except (LicenseRefusedError, PluginUnavailableError, ToolRefusedError) as error:
         raise as_http(error) from error
-    return WebSearchRead(results=listed_results(items))
+
+
+async def _google_page(session: SessionDep, query: str, page: int) -> WebGroup:
+    """Google answers one item per results page; Show more shows the newest page."""
+    access = await transact(session, plugin_access, GOOGLE_SEARCH)
+    items = await call_plugin(
+        access, SCRAPE, search_arguments(query, page), SEARCH_SECONDS
+    )
+    results = listed_results(items[page:])
+    return WebGroup(
+        link=None,
+        results=results,
+        more=bool(results) and page + 1 < MAX_PAGES,
+        failed=False,
+    )
 
 
 @router.post(
