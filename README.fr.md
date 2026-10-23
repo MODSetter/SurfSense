@@ -94,7 +94,7 @@ Connectez-les dans **Paramètres › Plugins**.
 | **Walmart** | Lire les produits, les résultats de recherche et les avis de Walmart |
 | **Indeed** | Lire les offres d'emploi sur Indeed |
 
-**Tiers.** Des serveurs MCP issus du [registre de plugins](plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Aucune licence n'est nécessaire ; ils restent désactivés tant que vous ne les autorisez pas.
+**Tiers.** Des serveurs MCP issus du [registre de plugins](backend/plugins/registry), comme DeepWiki et Notion, ou tout serveur que vous ajoutez par URL. Aucune licence n'est nécessaire ; ils restent désactivés tant que vous ne les autorisez pas.
 
 ## Comparaison
 

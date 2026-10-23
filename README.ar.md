@@ -94,7 +94,7 @@ https://github.com/user-attachments/assets/88326b9d-e763-46db-9635-75f9df9e8682
 | **Walmart** | قراءة منتجات Walmart ونتائج البحث فيه والمراجعات |
 | **Indeed** | قراءة إعلانات الوظائف على Indeed |
 
-**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
+**من جهات خارجية** (Third-party). خوادم MCP من [سجل الإضافات](backend/plugins/registry)، مثل DeepWiki وNotion، أو أي خادم يُضاف عبر عنوان URL. لا تتطلب رخصة، وتبقى معطّلة إلى أن يُسمح بها.
 
 ## كيف يقارن بغيره
 

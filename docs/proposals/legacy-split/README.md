@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - homepage/
   - docker/scripts/
@@ -175,9 +175,10 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 | What | Change |
 |---|---|
 | Coolify's two builds | The backend from `backend/` with `server/Dockerfile`, the registry from `backend/plugins/registry/`; set when the move reaches the branch Coolify deploys from |
-| [`proprietary/LICENSE`](../../../plugins/remote/proprietary/LICENSE) | Its Licensed Work, `plugins/remote/proprietary/**`, becomes `backend/plugins/proprietary/**`, approved by that folder's code owners |
+| [`proprietary/LICENSE`](../../../backend/plugins/proprietary/LICENSE) | Its Licensed Work, `plugins/remote/proprietary/**`, becomes `backend/plugins/proprietary/**`, approved by that folder's code owners |
 | The site's `/terms` and `/plugins` | `/terms` names the same folder, and `/plugins` links to `tree/main/plugins/registry`; both take the new paths |
 | Five workflows, `CODEOWNERS`, `AGENTS.md`, `plugins/README.md`, and every doc and comment naming the old paths | The new paths; `check_docs.py` fails on a dead link left behind |
+| The desktop backend, which installs the bundles' manifest rules from `../../plugins/bundles/core/manifest`, and in development reads the bundle SDK and the registry from the checkout | `backend/plugins/bundles/core/manifest` in its `pyproject.toml` and `uv.lock`, and the two development paths; an image that installs the desktop backend copies that folder in |
 
 ## The homepage
 

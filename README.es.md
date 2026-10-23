@@ -95,7 +95,7 @@ Conéctalos en **Ajustes › Plugins**.
 | **Walmart** | Leer productos, resultados de búsqueda y reseñas de Walmart |
 | **Indeed** | Leer ofertas de empleo en Indeed |
 
-**De terceros.** Servidores MCP del [registro de plugins](plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
+**De terceros.** Servidores MCP del [registro de plugins](backend/plugins/registry), como DeepWiki y Notion, o cualquiera que añadas por URL. No necesitan licencia; siguen desactivados hasta que los permitas.
 
 ## Cómo se compara
 

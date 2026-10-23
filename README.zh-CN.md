@@ -94,7 +94,7 @@ SurfSense 是一款免费开源的桌面应用，专为那些不能上传的文�
 | **Walmart** | 读取 Walmart 商品、搜索结果和评价 |
 | **Indeed** | 读取 Indeed 上的职位信息 |
 
-**第三方：** 来自[插件注册表](plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
+**第三方：** 来自[插件注册表](backend/plugins/registry)的 MCP 服务器，例如 DeepWiki 和 Notion，或者你通过网址添加的任意服务器。不需要许可证；在你允许之前，它们一直保持关闭。
 
 ## SurfSense 与同类工具对比
 

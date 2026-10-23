@@ -3,8 +3,8 @@ status: proposed
 code:
   - surfsense_local/backend/modules/plugins/
   - surfsense_local/backend/modules/chat/plugin_router/
-  - plugins/remote/
-  - plugins/bundles/
+  - backend/plugins/
+  - backend/plugins/bundles/
 ---
 
 # Plugins: what is not built

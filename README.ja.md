@@ -94,7 +94,7 @@ SurfSense は、アップロードできない文書のための、無料のオ�
 | **Walmart** | Walmart の商品、検索結果、レビューを読み取る |
 | **Indeed** | Indeed の求人情報を読み取る |
 
-**サードパーティ。** [プラグインレジストリ](plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
+**サードパーティ。** [プラグインレジストリ](backend/plugins/registry)にある DeepWiki や Notion などの MCP サーバーや、URL を指定して自分で追加したサーバーです。ライセンスは不要で、許可するまではオフのままです。
 
 ## SurfSenseの比較
 

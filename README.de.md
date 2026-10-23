@@ -94,7 +94,7 @@ Verbinde sie unter **Einstellungen › Plugins**.
 | **Walmart** | Walmart-Produkte, Suchergebnisse und Bewertungen lesen |
 | **Indeed** | Stellenanzeigen auf Indeed lesen |
 
-**Drittanbieter.** MCP-Server aus der [Plugin-Registry](plugins/registry), etwa DeepWiki und Notion, oder jeder, den du per URL hinzufügst. Keine Lizenz nötig; sie bleiben aus, bis du sie erlaubst.
+**Drittanbieter.** MCP-Server aus der [Plugin-Registry](backend/plugins/registry), etwa DeepWiki und Notion, oder jeder, den du per URL hinzufügst. Keine Lizenz nötig; sie bleiben aus, bis du sie erlaubst.
 
 ## SurfSense im Vergleich
 

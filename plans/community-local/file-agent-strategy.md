@@ -264,7 +264,7 @@ infrastructure stay Apache-2.0 in `surfsense_local/`. A job plugin touches
 customer files, so it runs on the user's machine as a local paid bundle, not on
 the plugin host (As built, below). Its license terms are open: the Business
 Source License in
-[`plugins/remote/proprietary/LICENSE`](../../plugins/remote/proprietary/LICENSE)
+[`backend/plugins/proprietary/LICENSE`](../../backend/plugins/proprietary/LICENSE)
 grants production use to anyone who does not resell the work, which would let a
 business run a local job plugin without a license. The choice, a narrower
 Additional Use Grant or a closed license, is made with the lawyer

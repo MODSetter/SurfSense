@@ -28,7 +28,7 @@ import { siteText } from "@/components/site/site-text";
  *   assignment and force majeure.
  *
  * The licence description is deliberately precise: the repository is Apache-2.0
- * *except* `surfsense_backend/app/proprietary/` and `plugins/remote/proprietary/`,
+ * *except* `surfsense_backend/app/proprietary/` and `backend/plugins/proprietary/`,
  * which are BUSL-1.1. The root LICENSE is the plain Apache text, so GitHub
  * recognises it; each of those folders carries its own LICENSE naming its scope.
  * Calling the whole thing Apache-2.0 would be wrong.
@@ -119,7 +119,7 @@ export default function TermsOfService() {
 					<p>
 						Most of SurfSense is open source under the Apache License 2.0, which lets you run,
 						modify, redistribute and build on it commercially, subject to that licence's terms. Two
-						directories are not: <code>plugins/remote/proprietary/</code> and{" "}
+						directories are not: <code>backend/plugins/proprietary/</code> and{" "}
 						<code>surfsense_backend/app/proprietary/</code> are licensed under the Business Source
 						License 1.1. The LICENSE files in the repository are the authority on which terms apply
 						to which files: the{" "}
