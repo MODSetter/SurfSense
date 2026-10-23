@@ -21,4 +21,8 @@ select = [
 ]
 
 [lint.isort]
-known-first-party = ["server", "host", "mcp_server", "proprietary"]
+known-first-party = ["server", "license", "mailer", "host", "mcp_server", "proprietary"]
+
+[lint.per-file-ignores]
+# Command-line tools: printing is their output, and the operator's prompt has the loop to itself.
+"license/scripts/*" = ["T201", "ASYNC250"]

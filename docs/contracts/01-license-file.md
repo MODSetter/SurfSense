@@ -32,7 +32,7 @@ The payload (`enc` decoded) is a Keygen JSON:API document. The app reads these f
 | `data.attributes.metadata.plan` | `trial` \| `individual` \| `team` | Which plan. |
 | `data.attributes.metadata.email` | string | Licensee email, shown in Settings. |
 
-## Producer rules (`surfsense_backend` license routes)
+## Producer rules (`backend/license/` routes)
 
 1. Create the license under the matching policy with `metadata: {"plan": ..., "email": ...}`. For team keys set the `maxUsers` override to the Stripe quantity. Stripe purchases also carry `stripeCustomerId` and `checkoutSessionId` in metadata; the app ignores both, and they exist because Keygen metadata is the only lookup index we have (there is no license table). Trial licenses additionally get an explicit `expiry` rather than the policy default, so a trial issued before the plugin ships is not eaten by the gap week.
 2. Check out with `POST /licenses/{id}/actions/check-out` and body `{"meta": {"ttl": null}}`. **The default TTL is 30 days.** The app never refreshes, so a default-TTL file dies a month after purchase. `ttl: null` produces `meta.expiry: null`.

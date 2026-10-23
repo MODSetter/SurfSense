@@ -132,7 +132,7 @@ The rules that keep the processes out of each other's way:
 - [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
 - [Sources from the web](web-sources.md): links searched or pasted, pulled into sources by SurfSense's own plugins under the license.
 - [Plugins](plugins.md): MCP servers whose tools the agent calls; the [plugin host](plugin-host.md) runs SurfSense's own, and the [plugin registry](plugin-registry.md) lists third-party ones.
-- [Backend](backend.md): the one process on SurfSense's servers; today it runs the plugin host.
+- [Backend](backend.md): the one process on SurfSense's servers: the plugin host and the [license portal](license/portal.md).
 - [Model capabilities](model-capabilities.md): the measured level each chat model gets, and what follows from it.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.

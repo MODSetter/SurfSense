@@ -27,6 +27,8 @@
 
 /surfsense_backend/app/license/                 @CREDO23
 /surfsense_backend/app/mailer/                  @CREDO23
+/backend/license/                               @CREDO23
+/backend/mailer/                                @CREDO23
 /surfsense_backend/app/payments/                @CREDO23
 /surfsense_backend/app/sunset.py                @CREDO23
 /surfsense_backend/app/capabilities/            @AnishSarkar22 @MODSetter

@@ -28,6 +28,8 @@ RESERVED = frozenset(
         "cancel",
         "license",
         "admin",
+        # The license portal's /api/v1.
+        "api",
     }
 )
 

@@ -241,7 +241,7 @@ to `surfsense_local/`. A check in the app can be stripped by a fork, so what
 holds is delivery to a valid license plus the plugin's license terms.
 
 **Where premium plugins live.** `surfsense_backend` shrinks to two things:
-the license server ([`app/license/`](../../surfsense_backend/app/license/),
+the license server ([`backend/license/`](../../backend/license/),
 which already issues Keygen licenses) and the premium plugins, such as the
 scraper client, kept in
 [`app/proprietary/`](../../surfsense_backend/app/proprietary/LICENSE) under

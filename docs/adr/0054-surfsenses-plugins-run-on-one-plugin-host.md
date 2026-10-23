@@ -26,6 +26,7 @@ SurfSense publishes its plugins as remote MCP servers and hosts them itself ([AD
 
 - One image, one container and one deploy ship every plugin and their jobs. A spike in one plugin scales them all, which costs little, since a plugin uses almost nothing until it is called. A crash or a heavy load in one plugin can affect the others, so each plugin turns its own errors into MCP errors and runs every call under a deadline.
 - Every plugin's secrets are in the one container. Each reads only its own settings section; that is acceptable only because every plugin on the host is SurfSense's own.
+- The license portal runs in the same container, as part of the [one backend](../architecture/backend.md), so the Keygen admin token, the Stripe secret key and the SMTP password sit beside the headless browsers. One deploy and one service were judged worth that.
 - `plugins.surfsense.com` is the one host for the registry, for SurfSense's plugins and for the license key, so one consent covers all three; a path rule in the proxy in front sends the registry's paths to its container and every other path to the plugin host.
 - Two containers to deploy, one of them static. The registry's stays up while the plugin host restarts or is overloaded.
 - Without `backend/plugins/proprietary/`, the host builds and serves only the Apache-2.0 plugins.

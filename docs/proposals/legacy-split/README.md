@@ -127,7 +127,7 @@ backend/
 
 ### The license portal
 
-The license code ([portal](../../architecture/license/portal.md)) has no tables, migrations, auth or Celery; Keygen and Stripe are its record ([ADR 0024](../../adr/0024-portal-without-accounts.md)). It ports file for file into `backend/license/`, and `app/mailer/` into `backend/mailer/`, from FastAPI to Starlette and from `app.config` to `os.environ` under the same setting names.
+The license code ([portal](../../architecture/license/portal.md)) has no tables, migrations, auth or Celery; Keygen and Stripe are its record ([ADR 0024](../../adr/0024-portal-without-accounts.md)). It ports file for file into `backend/license/`, and `app/mailer/` into `backend/mailer/`, on FastAPI, which becomes the backend's app, and from `app.config` to `os.environ` under the same setting names.
 
 | Moves | From |
 |---|---|
@@ -161,7 +161,7 @@ The Coolify service answers `https://plugins.surfsense.com,https://api.surfsense
 
 What the routes need from `server/`:
 
-- **CORS** for `https://www.surfsense.com`, exposing `Content-Disposition`, which the license download reads, on `/api/v1` only. The plugin host has none today.
+- **CORS** for `https://www.surfsense.com`, exposing `Content-Disposition`, which the license download reads, on the whole app; plugins are called by the desktop app, never a page. The plugin host has none today.
 - **The client IP.** The rate limits trust `CF-Connecting-IP`, then `X-Real-IP`; the Coolify proxy passes one of them.
 
 ### `/health` answers the legacy desktop

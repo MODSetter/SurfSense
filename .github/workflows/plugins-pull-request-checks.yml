@@ -1,6 +1,6 @@
 name: Plugins Pull Request Checks
 
-# backend/: the one backend, its plugin host and every plugin it runs. backend/plugins/bundles/:
+# backend/: the one backend, its license portal, its plugin host and every plugin it runs. backend/plugins/bundles/:
 # the bundle SDK, its tooling and the example, deferred with
 # docs/proposals/plugins/bundles/, whose manifest rules, SDK and CLI it checks.
 
@@ -59,6 +59,8 @@ jobs:
               - '.github/workflows/plugins-pull-request-checks.yml'
             plugin_host_changed:
               - 'backend/server/**'
+              - 'backend/license/**'
+              - 'backend/mailer/**'
               - 'backend/plugins/host/**'
               - 'backend/plugins/mcp_server/**'
               - 'backend/plugins/proprietary/**'
@@ -69,6 +71,8 @@ jobs:
             # What either image copies in: a wrong path fails here, not at Coolify's build.
             images_changed:
               - 'backend/server/**'
+              - 'backend/license/**'
+              - 'backend/mailer/**'
               - 'backend/plugins/host/**'
               - 'backend/plugins/mcp_server/**'
               - 'backend/plugins/proprietary/**'
@@ -245,11 +249,11 @@ jobs:
       # The backend's own code; bundles/ and registry/check/ are checked by their own jobs.
       - name: Lint
         working-directory: backend
-        run: uv run ruff check server plugins/host plugins/mcp_server plugins/proprietary
+        run: uv run ruff check server license mailer plugins/host plugins/mcp_server plugins/proprietary
 
       - name: Check formatting
         working-directory: backend
-        run: uv run ruff format --check server plugins/host plugins/mcp_server plugins/proprietary
+        run: uv run ruff format --check server license mailer plugins/host plugins/mcp_server plugins/proprietary
 
       - name: Run tests
         working-directory: backend

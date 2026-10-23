@@ -28,6 +28,13 @@ dependencies = [
     "trafilatura>=2.0.0",
     "markdownify>=0.14.1",
     "validators>=0.34.0",
+    # The license portal's: the versions surfsense_backend ran it on, so the move changes no behaviour.
+    # The backend's app; the license routes were written for it.
+    "fastapi>=0.161.1",
+    "stripe>=15.0.0,<16",
+    "email-validator>=2.3.0",
+    "disposable-email-domains>=0.0.271",
+    "posthog>=7.28.0,<8",
 ]
 
 [dependency-groups]
@@ -40,6 +47,10 @@ package = false
 # Two import roots: backend/ for server, and backend/plugins/ for host, mcp_server
 # and proprietary, so no plugin's imports changed when plugins/ moved here.
 pythonpath = [".", "plugins"]
-testpaths = ["server", "plugins/host/tests", "plugins/proprietary"]
+testpaths = ["server", "license", "mailer", "plugins/host/tests", "plugins/proprietary"]
 addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
+markers = [
+    "unit: pure logic, no external service",
+    "integration: a real Keygen or SMTP server, opted into by its own variable",
+]

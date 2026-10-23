@@ -7,6 +7,15 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "annotated-doc"
+version = "0.0.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/8e/38aa427ed5402449e226975b649c5dc73ccadfefeb95e6aecb8f8ea4b6b6/annotated_doc-0.0.5.tar.gz", hash = "sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb", size = 10758, upload-time = "2026-07-28T13:50:58.129Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3e/30/e900b21425a860e195f32e37657aa1f7c7f2b1bfb26f03ca209b90933c06/annotated_doc-0.0.5-py3-none-any.whl", hash = "sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101", size = 5302, upload-time = "2026-07-28T13:50:57.239Z" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -53,6 +62,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7d/b2/51899539b6ceeeb420d40ed3cd4b7a40519404f9baf3d4ac99dc413a834b/babel-2.18.0.tar.gz", hash = "sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d", size = 9959554, upload-time = "2026-02-01T12:30:56.078Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/77/f5/21d2de20e8b8b0408f0681956ca2c69f1320a3848ac50e6e7f39c6159675/babel-2.18.0-py3-none-any.whl", hash = "sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35", size = 10196845, upload-time = "2026-02-01T12:30:53.445Z" },
+]
+
+[[package]]
+name = "backoff"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/d7/5bbeb12c44d7c4f2fb5b56abce497eb5ed9f34d85701de869acedd602619/backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba", size = 17001, upload-time = "2022-10-05T19:19:32.061Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/73/b6e24bd22e6720ca8ee9a85a0c4a2971af8497d8f3193fa05390cbd46e09/backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8", size = 15148, upload-time = "2022-10-05T19:19:30.546Z" },
 ]
 
 [[package]]
@@ -468,12 +486,69 @@ wheels = [
 ]
 
 [[package]]
+name = "disposable-email-domains"
+version = "0.0.285"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/32/07c4ae98150d18d03757cfbdb80dc48ea00323ccf757d089238af6f9acc9/disposable_email_domains-0.0.285.tar.gz", hash = "sha256:530d8094bcc8c1cac45646660c21f3b27bf5c7b7d6d1a681081c28057c94357e", size = 119950, upload-time = "2026-10-23T10:20:38.322Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d4/aa/5b24b957daf32b54d426923b36169366be5990a82db775c913afac94cd2b/disposable_email_domains-0.0.285-py3-none-any.whl", hash = "sha256:00495949296c5803c5ddc3672d602dbffd675c2d894b26fa7fe67e85b836b589", size = 61620, upload-time = "2026-10-23T10:20:36.946Z" },
+]
+
+[[package]]
+name = "distro"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527f8a2e8885fc8015d3e6f5775df186e443e0964a11c3/distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed", size = 60722, upload-time = "2023-12-24T09:54:32.31Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277, upload-time = "2023-12-24T09:54:30.421Z" },
+]
+
+[[package]]
+name = "dnspython"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/4a/50822184bd67cc6493f0fb6a880749158fcd31ab3fa07409acfd91f9fc85/dnspython-2.9.0.tar.gz", hash = "sha256:b44dc6b18f07a8b1c56676a19fbfdb5209415b046a9cece286baafa87ff3f7f1", size = 423560, upload-time = "2026-10-09T00:07:24.352Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/02/cdcc9b7c051786a103c3b09e1003a82fa0c66bcb91ffbdabcfbf7b4163b9/dnspython-2.9.0-py3-none-any.whl", hash = "sha256:9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9", size = 354822, upload-time = "2026-10-09T00:07:22.622Z" },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
+]
+
+[[package]]
 name = "fake-useragent"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/41/43/948d10bf42735709edb5ae51e23297d034086f17fc7279fef385a7acb473/fake_useragent-2.2.0.tar.gz", hash = "sha256:4e6ab6571e40cc086d788523cf9e018f618d07f9050f822ff409a4dfe17c16b2", size = 158898, upload-time = "2025-04-14T15:32:19.238Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/37/b3ea9cd5558ff4cb51957caca2193981c6b0ff30bd0d2630ac62505d99d0/fake_useragent-2.2.0-py3-none-any.whl", hash = "sha256:67f35ca4d847b0d298187443aaf020413746e56acd985a611908c73dba2daa24", size = 161695, upload-time = "2025-04-14T15:32:17.732Z" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.161.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "opentelemetry-api" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ed/3d/2cc1a0dbc2dac6e157b4ef12bac063e1016cb7c6d7395f76665e439cf1aa/fastapi-0.161.1.tar.gz", hash = "sha256:4076b88434452e20289379068e976c4a04c65ffc8e6be31510106e150a422f0f", size = 527406, upload-time = "2026-10-22T22:22:07.757Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/2a/101012d82931d9de3855384e1667e49c0e07a0048e3868f9fec1697293a9/fastapi-0.161.1-py3-none-any.whl", hash = "sha256:a1363080cf9aeedecd99f4e1a23669d7e77542227f6536f4d7bbd59f07ecaa94", size = 149049, upload-time = "2026-10-22T22:22:06.139Z" },
 ]
 
 [[package]]
@@ -1111,6 +1186,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "posthog"
+version = "7.75.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "backoff" },
+    { name = "distro" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/c9/27f1542f8efb2c91c02c3a0b2f0c7e715e122821827750b364d21d00b126/posthog-7.75.10.tar.gz", hash = "sha256:3c2271508e082125ea0e723122b16141753bb624b3ba7ff0b48e00a758b8272b", size = 807931, upload-time = "2026-10-23T12:44:53.335Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f8/c1/9d025db501fbc4e06ef294075d47b67ae8c1ea0460d25298fe83c9f39ced/posthog-7.75.10-py3-none-any.whl", hash = "sha256:131813b5413e36338a24fc3dc9a55aa11f416e77e3ba3f70152f9d041d90790e", size = 944598, upload-time = "2026-10-23T12:44:51.164Z" },
 ]
 
 [[package]]
@@ -1770,19 +1860,37 @@ wheels = [
 ]
 
 [[package]]
+name = "stripe"
+version = "15.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1e/a6/02ea2b4e1b57913ae2e68801bf2168120bec97206782a781599339abfd64/stripe-15.6.1.tar.gz", hash = "sha256:9f3986aa960419041aba9c76191746bdf2c342c95892acfbf6edb500ab006d31", size = 1569005, upload-time = "2026-09-01T18:44:41.751Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/4b/cd2d7ad83a3f49300cb3cc69ae102de68de792035bf31b0383e1c6563ec3/stripe-15.6.1-py3-none-any.whl", hash = "sha256:b33e1ea76462d7289e5fe755a1132b82099151bfb31e961021655471e6d216bf", size = 2218765, upload-time = "2026-09-01T18:44:39.706Z" },
+]
+
+[[package]]
 name = "surfsense-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "curl-cffi" },
+    { name = "disposable-email-domains" },
+    { name = "email-validator" },
     { name = "fake-useragent" },
+    { name = "fastapi" },
     { name = "httpx2" },
     { name = "markdownify" },
     { name = "mcp" },
     { name = "orjson" },
+    { name = "posthog" },
     { name = "redis" },
     { name = "requests" },
     { name = "scrapling", extra = ["fetchers"] },
+    { name = "stripe" },
     { name = "trafilatura" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "validators" },
@@ -1799,14 +1907,19 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "curl-cffi", specifier = ">=0.16.3" },
+    { name = "disposable-email-domains", specifier = ">=0.0.271" },
+    { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fake-useragent", specifier = ">=2.2.0" },
+    { name = "fastapi", specifier = ">=0.161.1" },
     { name = "httpx2", specifier = ">=2.10.0" },
     { name = "markdownify", specifier = ">=0.14.1" },
     { name = "mcp", specifier = ">=2.3,<2.4" },
     { name = "orjson", specifier = ">=3.13.0" },
+    { name = "posthog", specifier = ">=7.28.0,<8" },
     { name = "redis", specifier = ">=5.2" },
     { name = "requests", specifier = ">=2.33" },
     { name = "scrapling", extras = ["fetchers"], specifier = "==0.4.15" },
+    { name = "stripe", specifier = ">=15.0.0,<16" },
     { name = "trafilatura", specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
     { name = "validators", specifier = ">=0.34.0" },
