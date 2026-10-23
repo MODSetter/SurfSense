@@ -4,8 +4,7 @@ code:
   - homepage/
   - docker/scripts/
   - docker/local/
-  - plugins/remote/license/
-  - plugins/remote/host/
+  - backend/
   - surfsense_local/scripts/bump-version.sh
   - .github/workflows/
   - .pre-commit-config.yaml
@@ -14,13 +13,14 @@ code:
 
 # Splitting the legacy stack from what still ships
 
-> The hosted user data was purged on 18 Oct 2026, so `surfsense_backend` and `surfsense_web` now carry three things that outlive them: the license portal, the marketing site, and the legacy self-host images. This moves the license routes into the plugin host and the marketing site into `homepage/`, then moves the legacy stack to a `legacy` branch, frozen at 0.0.40, and deletes it from `dev` and `main`. The Docker image of the desktop stack ([Docker proposal](../docker/README.md)) shares nothing with it.
+> The hosted user data was purged on 18 Oct 2026, so `surfsense_backend` and `surfsense_web` now carry three things that outlive them: the license portal, the marketing site, and the legacy self-host images. This makes `backend/` the one SurfSense backend, holding today's plugins and the license portal, moves the marketing site into `homepage/`, then moves the legacy stack to a `legacy` branch, frozen at 0.0.40, and deletes it from `dev` and `main`. The Docker image of the desktop stack ([Docker proposal](../docker/README.md)) shares nothing with it.
 
 ## What changes
 
 | Today | After |
 |---|---|
-| `surfsense_backend/app/license/` behind `api.surfsense.com` | `plugins/remote/license/`, served by the plugin host on `api.surfsense.com` and `plugins.surfsense.com` |
+| `surfsense_backend/app/license/` behind `api.surfsense.com` | `backend/license/`, served by the one backend on `api.surfsense.com` and `plugins.surfsense.com` |
+| `plugins/` | `backend/plugins/` |
 | marketing routes inside `surfsense_web` | `homepage/`, its own Next.js app on Vercel |
 | `surfsense_backend`, `surfsense_web`, `surfsense_mcp`, `docker/*` | the `legacy` branch only |
 | `docker/scripts/install.*`, `migrate-database.*` | stubs that fetch from the `legacy` branch |
@@ -33,9 +33,9 @@ Legacy is being phased out. A branch keeps `dev` and `main` free of it from the 
 
 ### Cutting it
 
-1. The license and homepage moves land first, so the branch is cut from a tree whose legacy code no longer serves anything live.
+1. The backend and homepage moves land first, so the branch is cut from a tree whose legacy code no longer serves anything live.
 2. `legacy` is cut at that commit ([Order](#order)).
-3. On `legacy`, everything that still ships is deleted: `surfsense_local/`, `plugins/`, `homepage/`, `docker/local/`, and their workflows (`release-local.yml`, `desktop-tests.yml`, `build-audiocpp.yml`, `build-sdcpp.yml`, `notarization-credentials.yml`, the `plugins-*` workflows, `release-stats.yml`).
+3. On `legacy`, everything that still ships is deleted: `surfsense_local/`, `backend/`, `homepage/`, `docker/local/`, and their workflows (`release-local.yml`, `desktop-tests.yml`, `build-audiocpp.yml`, `build-sdcpp.yml`, `notarization-credentials.yml`, the `plugins-*` workflows, `release-stats.yml`).
 4. On `dev`, the legacy code is deleted: `surfsense_backend/`, `surfsense_web/`, `surfsense_mcp/`, `docker/*` except `local/` and the install stubs, the root `VERSION`, `scripts/bump-version.{sh,ps1}`, `docker-build.yml` and `docker-tests.yml`. It leaves `main` with the next release merge.
 
 ### What stays on `legacy`
@@ -90,19 +90,44 @@ Its `/` was the homepage. On `legacy`, `/` redirects to `/login`.
 
 - **`docker-local.yml` keeps the gate pattern.** One `changes` job filters on what the Dockerfile copies in (`docker/local/**`, `surfsense_local/backend/**`, `surfsense_local/frontend/**`, `surfsense_local/electron/src/{main/sidecars,headless,session-log}/**`, `surfsense_local/electron/scripts/**`) and the other jobs skip. The gate reports either way, so it can be a required check. This narrows the [Docker proposal's](../docker/README.md#ci) `surfsense_local/**`.
 - **`homepage.yml`** filters at the workflow level with `paths:`, so it is not a required check.
+- **The `plugins-*` workflows keep their names and their jobs' names**, so the required checks still match; only their paths change to `backend/`. `plugins-pull-request-checks.yml` gains a job that builds the backend and registry images on pull requests touching `backend/**`, without pushing, so a wrong path in a Dockerfile fails the pull request rather than Coolify's build.
 - **`.pre-commit-config.yaml`** drops the ruff, bandit and biome hooks for `surfsense_backend` and `surfsense_web`, and adds biome for `^homepage/`. `.github/CODEOWNERS` drops their entries.
 
 ### Docs that link into the legacy trees
 
 19 files under `docs/` and `plans/` link into `surfsense_backend/` or `surfsense_web/`, and `check_docs.py` fails on a dead link. In the same change:
 
-- Links to code that moved point at `homepage/` or `plugins/remote/license/`.
+- Links to code that moved point at `homepage/` or `backend/license/`.
 - Links to code that stays legacy-only become GitHub URLs on the `legacy` branch.
 - `architecture/sunset.md` points at the `legacy` branch for its code.
 
-## License routes into the plugin host
+## One backend
 
-The license code ([portal](../../architecture/license/portal.md)) has no tables, migrations, auth or Celery; Keygen and Stripe are its record ([ADR 0024](../../adr/0024-portal-without-accounts.md)). It ports from FastAPI to the host's Starlette and `os.environ`.
+`surfsense_backend` stops, and what runs on SurfSense's servers becomes one backend: the plugins it runs today and the license portal. One folder per module, one process, one container.
+
+```
+backend/
+  pyproject.toml   one project: every module's dependencies and tests
+  server/          the process: its Dockerfile, its start, /health, and each module's routes mounted
+  license/         the license portal: trial, resend, download, Stripe purchase and refund, the license emails
+  mailer/          mail over SMTP; the license emails are its first user
+  plugins/         today's plugins/, moved whole
+    host/          serves each plugin at /<id>/mcp, with Stop, the usage meter and the /license check
+    mcp_server/    what each plugin's server builds on: who may call it, progress, results
+    proprietary/   Business Source License: the paid plugins, scraping, license_check
+    registry/      the third-party list, still its own static container
+    bundles/       deferred
+```
+
+- **The license is the product's, not the plugins'.** It sells and delivers the desktop app's license file, and the plugins' key check is one reader of it, so it sits beside `plugins/`.
+- **Python imports from `backend/` and `backend/plugins/`.** `server`, `license` and `mailer` come from the first; `host`, `mcp_server` and `proprietary` keep their names from the second. No plugin file changes, so the move is a rename git follows.
+- **`server/` assembles the process.** `host/app.py` assembles it today. Its plugin routes, and their startup and shutdown, stay in `plugins/host/`, and `server/app.py` mounts them beside `/health` and the license routes.
+- **`remote/` goes.** It named SurfSense's remote plugins against `bundles/`; under `backend/plugins/` its three folders stand on their own.
+- **Apache, not BSL.** `license/` and `mailer/` sit outside `plugins/proprietary/`, and the backend still runs without `proprietary/`, as a test asserts today.
+
+### The license portal
+
+The license code ([portal](../../architecture/license/portal.md)) has no tables, migrations, auth or Celery; Keygen and Stripe are its record ([ADR 0024](../../adr/0024-portal-without-accounts.md)). It ports file for file into `backend/license/`, and `app/mailer/` into `backend/mailer/`, from FastAPI to Starlette and from `app.config` to `os.environ` under the same setting names.
 
 | Moves | From |
 |---|---|
@@ -110,7 +135,7 @@ The license code ([portal](../../architecture/license/portal.md)) has no tables,
 | `POST /api/v1/stripe/webhook`, license events only | `app/payments/webhook.py`, `app/license/purchase.py` |
 | Keygen admin client, issuance, refunds | `keygen.py`, `issue.py`, `purchase.py`, `checkout.py`, `records.py`, `admin.py` |
 | Mail | `app/mailer/`, `app/license/email/` |
-| Rate limits | `rate_limit.py`, on the host's `REDIS_URL` |
+| Rate limits | `rate_limit.py`, on the backend's `REDIS_URL` |
 | Funnel events, cohorts | `funnel/`, `cohorts/` |
 | `release.py` | written by [`bump-version.sh`](../../../surfsense_local/scripts/bump-version.sh) |
 | Scripts | `issue_enterprise_license.py`, `correct_license_email.py`, `license_cohorts.py` |
@@ -118,30 +143,41 @@ The license code ([portal](../../architecture/license/portal.md)) has no tables,
 
 ### Where it runs
 
-In the plugin host's container, the one Coolify builds from `plugins/` with `remote/host/Dockerfile`.
+One container, which Coolify builds from `backend/` with `server/Dockerfile`, as it builds the plugin host today from `plugins/` with `remote/host/Dockerfile`. The registry's container builds from `backend/plugins/registry/`.
 
-- **`plugins/remote/license/`.** The build context is `plugins/`, so a root `license/` would not reach the image. The Dockerfile's `COPY remote/ .` already ships the folder. It has no `server.py`, and `license` is on the host's reserved list ([`mounted_plugins.py`](../../../plugins/remote/host/mounted_plugins.py)), so it is never mounted as a plugin.
-- **Apache, not BSL.** It sits outside `proprietary/`; a test asserts the host builds without it.
-- **`app.py`** mounts its routes beside `/license`, `/cancel` and `/admin`. `api` joins the reserved list, so no plugin id can take `/api`.
-- **Dependencies.** `stripe`, `email-validator`, `disposable-email-domains` and `posthog` join [`host/pyproject.toml`](../../../plugins/remote/host/pyproject.toml).
-- **Secrets.** The Keygen admin token, the Stripe secret key and the SMTP password join the host's environment, in the container that runs headless Chromium. [ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), which accepts one container for every plugin's secrets, and [plugin-host.md](../../architecture/plugin-host.md), which says the host holds no Keygen secret, are amended to say so.
+- **Served only with `KEYGEN_API_TOKEN`.** The license routes exist only when it is set, as `/admin/usage` does only with its token, so a self-hosted backend without it is unchanged.
+- **`/api` is reserved**, so no plugin id can take it; `license` already is.
+- **Stripe and SMTP calls run in a thread.** The same event loop streams every plugin call.
+- **Dependencies.** `stripe`, `email-validator`, `disposable-email-domains` and `posthog` join `backend/pyproject.toml`.
+- **Secrets.** The Keygen admin token, the Stripe secret key and the SMTP password join the backend's environment, in the container that runs headless Chromium. [ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md), which accepts one container for every plugin's secrets, and [plugin-host.md](../../architecture/plugin-host.md), which says the host holds no Keygen secret, are amended to say so.
 
 ### Two domains, one container
 
 The Coolify service answers `https://plugins.surfsense.com,https://api.surfsense.com`. The routes keep their `/api/v1/…` paths, so the cutover is moving `api.surfsense.com` to this container:
 
 - The homepage keeps `NEXT_PUBLIC_FASTAPI_BACKEND_URL=https://api.surfsense.com`.
-- Stripe keeps its webhook URL. Until the DNS moves, the hosted backend fulfils; after, only the host receives the events, so a purchase is never fulfilled twice.
+- Stripe keeps its webhook URL. Until the DNS moves, `surfsense_backend` fulfils; after, only `backend/` receives the events, so a purchase is never fulfilled twice.
 - The registry's paths stay on `plugins.surfsense.com` only, through the proxy rule in front ([ADR 0054](../../adr/0054-surfsenses-plugins-run-on-one-plugin-host.md)).
 
-What the routes need from the host:
+What the routes need from `server/`:
 
-- **CORS** for `https://www.surfsense.com`, exposing `Content-Disposition`, which the license download reads. The host has none today.
+- **CORS** for `https://www.surfsense.com`, exposing `Content-Disposition`, which the license download reads, on `/api/v1` only. The plugin host has none today.
 - **The client IP.** The rate limits trust `CF-Connecting-IP`, then `X-Real-IP`; the Coolify proxy passes one of them.
 
 ### `/health` answers the legacy desktop
 
-The v0.0.40 desktop asks `api.surfsense.com/health` once at startup and reads anything but `"sunset": true` as "not sunset", which loads its broken bundled frontend ([contract 4](../../contracts/04-sunset-flag.md)). The host's `/health` answers plain `ok`. It answers `{"status": "ok", "sunset": true, "sunset_url": "https://surfsense.com/sunset"}` instead; Coolify's health check and the Dockerfile's `HEALTHCHECK` read only the status code, and the current desktop never asks the plugin host for `/health`.
+The v0.0.40 desktop asks `api.surfsense.com/health` once at startup and reads anything but `"sunset": true` as "not sunset", which loads its broken bundled frontend ([contract 4](../../contracts/04-sunset-flag.md)). The plugin host's `/health` answers plain `ok`. The backend's answers `{"status": "ok", "sunset": true, "sunset_url": "https://surfsense.com/sunset"}` instead; Coolify's health check and the Dockerfile's `HEALTHCHECK` read only the status code, and the current desktop never asks `plugins.surfsense.com` for `/health`.
+
+### What the move changes with it
+
+Each of these breaks unless it changes in the same pull request or at its merge:
+
+| What | Change |
+|---|---|
+| Coolify's two builds | The backend from `backend/` with `server/Dockerfile`, the registry from `backend/plugins/registry/`; set when the move reaches the branch Coolify deploys from |
+| [`proprietary/LICENSE`](../../../plugins/remote/proprietary/LICENSE) | Its Licensed Work, `plugins/remote/proprietary/**`, becomes `backend/plugins/proprietary/**`, approved by that folder's code owners |
+| The site's `/terms` and `/plugins` | `/terms` names the same folder, and `/plugins` links to `tree/main/plugins/registry`; both take the new paths |
+| Five workflows, `CODEOWNERS`, `AGENTS.md`, `plugins/README.md`, and every doc and comment naming the old paths | The new paths; `check_docs.py` fails on a dead link left behind |
 
 ## The homepage
 
@@ -167,20 +203,26 @@ Built as the [Docker proposal](../docker/README.md#steps) sets out, steps 4 to 1
 
 ## Order
 
-One pull request into `dev`, in commits that each leave CI green:
+The backend lands first, in its own pull request into `dev`:
 
-1. License routes into the plugin host, with the Stripe webhook and the sunset `/health`.
-2. The homepage split.
-3. The legacy code deleted, the install stubs, the narrowed `release-local.yml`, the CI and hook changes, and the repointed doc links.
-4. The Docker steps 4 to 14.
+1. `plugins/` moves to `backend/plugins/`, `server/` assembles the process, and everything in [What the move changes with it](#what-the-move-changes-with-it) changes with it, with the job that builds the images.
+2. The license portal and the mailer into `backend/license/` and `backend/mailer/`.
 
-The `legacy` branch is cut from this pull request's branch at commit 2, before commit 3 deletes anything, and trimmed in its own commit on `legacy`.
+Then one pull request into `dev`, in commits that each leave CI green:
 
-Then `architecture/` gains `homepage.md` and `docker.md`; `portal.md`, `plugin-host.md`, `sunset.md`, ADR 0024, ADR 0054, the purge runbook, the root README and both `AGENTS.md` files are updated; this proposal and the Docker proposal are deleted.
+3. The sunset `/health`.
+4. The homepage split.
+5. The legacy code deleted, the install stubs, the narrowed `release-local.yml`, the CI and hook changes, and the repointed doc links.
+6. The Docker steps 4 to 14.
+
+The `legacy` branch is cut from the second pull request's branch at commit 4, before commit 5 deletes anything, and trimmed in its own commit on `legacy`.
+
+The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. After the second, `architecture/` gains `homepage.md` and `docker.md`; `sunset.md`, the purge runbook, the root README and both `AGENTS.md` files are updated; this proposal and the Docker proposal are deleted.
 
 ## Cutover
 
-1. Deploy the host with the license routes; `api.surfsense.com` still points at the backend.
-2. Add `api.surfsense.com` to the host's Coolify domains and move its DNS.
-3. Check `GET /health`, a trial request and a Stripe test-mode purchase against `api.surfsense.com`.
-4. Switch off the hosted backend and the hosted MCP server at `mcp.surfsense.com`.
+1. When the move reaches the branch Coolify deploys from, point its two services at the new paths ([Where it runs](#where-it-runs)).
+2. Deploy the backend with the license settings; `api.surfsense.com` still points at `surfsense_backend`.
+3. Once the sunset `/health` is deployed, add `api.surfsense.com` to the backend's Coolify domains and move its DNS.
+4. Check `GET /health`, a trial request and a Stripe test-mode purchase against `api.surfsense.com`.
+5. Switch off the hosted backend and the hosted MCP server at `mcp.surfsense.com`.
