@@ -162,3 +162,11 @@ def test_a_channel_is_listed_as_its_videos() -> None:
     assert PULLER.listing.items([video()]) == [
         Listed(VIDEO, "Why tides happen", "Sea School · 00:03:12")
     ]
+
+
+def test_a_search_runs_on_youtube_itself() -> None:
+    """Only the query is sent: the plugin's defaults do the rest."""
+    assert PULLER.search is not None
+    assert PULLER.search("how tides work", 20) == ToolCall(
+        "scrape", {"search_queries": ["how tides work"], "max_results": 20}
+    )

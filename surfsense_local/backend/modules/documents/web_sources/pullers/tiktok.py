@@ -1,5 +1,5 @@
 import re
-from urllib.parse import SplitResult
+from urllib.parse import SplitResult, quote_plus
 
 from modules.documents.web_sources.pullers.puller import (
     MAX_REPLIES,
@@ -123,6 +123,12 @@ def _list_items(items: list[dict]) -> list[Listed]:
     return listed
 
 
+def _search_call(query: str, count: int) -> ToolCall:
+    """TikTok's own search page, which the plugin reads like any list link."""
+    url = f"https://www.tiktok.com/search?q={quote_plus(query)}"
+    return _list_call(url, count)
+
+
 PULLER = Puller(
     id="tiktok",
     plugin_id="tiktok",
@@ -130,4 +136,5 @@ PULLER = Puller(
     calls=_calls,
     written=_written,
     listing=Listing(_list_call, _list_items),
+    search=_search_call,
 )
