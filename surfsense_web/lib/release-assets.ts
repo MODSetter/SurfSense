@@ -1,8 +1,6 @@
 import "server-only";
 
-import { APP_RELEASE_TAG, type ReleaseAsset } from "@/lib/app-release";
-
-const INSTALLER = /\.(exe|dmg|AppImage|deb)$/;
+import { APP_RELEASE_TAG, isOfferedInstaller, type ReleaseAsset } from "@/lib/app-release";
 
 export function releaseApiUrl(tag: string): string {
 	return `https://api.github.com/repos/MODSetter/SurfSense/releases/tags/${tag}`;
@@ -12,7 +10,7 @@ export function parseAssets(data: unknown): ReleaseAsset[] {
 	const assets = (data as { assets?: unknown })?.assets;
 	if (!Array.isArray(assets)) return [];
 	return assets
-		.filter((a): a is { name: string; browser_download_url: string } => INSTALLER.test(a?.name))
+		.filter((a): a is { name: string; browser_download_url: string } => isOfferedInstaller(a?.name))
 		.map((a) => ({ name: a.name, url: a.browser_download_url }));
 }
 

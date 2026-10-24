@@ -1,7 +1,9 @@
 import { APP_VERSION } from "../desktop-dimensions";
 
 const RELEASE_DOWNLOAD = "https://github.com/MODSetter/SurfSense/releases/download";
-const RELEASE_FILE = /^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb)$/;
+// electron-builder lists the rpm in stable-linux.yml beside the deb; the snap,
+// which updates from the Snap Store, is in no manifest.
+const RELEASE_FILE = /^SurfSense[-A-Za-z0-9._]*\.(exe|zip|dmg|AppImage|deb|rpm)$/;
 
 const SHA512 = /^[A-Za-z0-9+/]{86}==$/;
 const BYTE_COUNT = /^[0-9]{1,13}$/;

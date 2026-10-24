@@ -15,7 +15,13 @@ import {
 	type InstallerDownload,
 	installerDownloadMessage,
 } from "@/app/(home)/downloads/[platform]/record-installer-download";
-import { APP_RELEASE_VERSION, INSTALLER_FILES, platformOfAsset } from "@/lib/app-release";
+import {
+	APP_RELEASE_VERSION,
+	getAssetLabel,
+	INSTALLER_FILES,
+	isOfferedInstaller,
+	platformOfAsset,
+} from "@/lib/app-release";
 
 const RELEASES = "https://github.com/MODSetter/SurfSense/releases/download";
 const LATEST = "https://github.com/MODSetter/SurfSense/releases/latest/download";
@@ -290,8 +296,46 @@ test("the grid's assets map back to their platforms", () => {
 	assert.equal(platformOfAsset("SurfSense-arm64.dmg"), "mac");
 	assert.equal(platformOfAsset("SurfSense.AppImage"), "linux-appimage");
 	assert.equal(platformOfAsset("SurfSense.deb"), "linux-deb");
+	assert.equal(platformOfAsset("SurfSense.rpm"), "linux-rpm");
 	assert.equal(platformOfAsset("SurfSense-arm64.zip"), null);
 	assert.equal(platformOfAsset("latest.yml"), null);
+	assert.equal(platformOfAsset("SurfSense.snap"), null);
+	assert.equal(platformOfAsset("install.sh"), null);
+	assert.equal(platformOfAsset("SHA256SUMS"), null);
+});
+
+test("the site offers each installer a person downloads, rpm included", () => {
+	for (const name of [
+		"SurfSense-Setup.exe",
+		"SurfSense-arm64.dmg",
+		"SurfSense.AppImage",
+		"SurfSense.deb",
+		"SurfSense.rpm",
+	]) {
+		assert.equal(isOfferedInstaller(name), true, name);
+	}
+	assert.equal(getAssetLabel("SurfSense.rpm"), "Linux (rpm)");
+});
+
+test("update files, checksums, install scripts, the apt index and the snap stay off the site", () => {
+	// The snap installs from the Snap Store, and the rest are read by tools, not people.
+	for (const name of [
+		"SurfSense-arm64.zip",
+		"SurfSense-Setup.exe.blockmap",
+		"stable-linux.yml",
+		"SurfSense.snap",
+		"SHA256SUMS",
+		"install.sh",
+		"install.ps1",
+		"Packages",
+		"Packages.gz",
+		"Release",
+		"Release.gpg",
+		"InRelease",
+		"surfsense-archive-keyring.gpg",
+	]) {
+		assert.equal(isOfferedInstaller(name), false, name);
+	}
 });
 
 test("the download event is personless and carries only platform, source, version and country", () => {

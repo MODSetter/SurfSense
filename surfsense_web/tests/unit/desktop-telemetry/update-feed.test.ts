@@ -85,6 +85,25 @@ for (const file of ["stable.yml", "stable-mac.yml", "stable-linux.yml"]) {
 	});
 }
 
+// electron-builder's rpm target writes itself into stable-linux.yml beside the
+// deb, with a sha512 and size but no blockMapSize.
+const LINUX_WITH_RPM = fixture("stable-linux.yml").replace(
+	"path: SurfSense.AppImage",
+	[
+		"  - url: SurfSense.rpm",
+		"    sha512: 8DeRyFZuqd1BnqF98baazD7Yp9DHjBBVW9TRfd+a3NH7SrxXIgAHEZyIneBSanCYgX0hAMxfyw5lyHVmq2k75w==",
+		"    size: 1301442310",
+		"path: SurfSense.AppImage",
+	].join("\n")
+);
+
+test("stable-linux.yml listing the rpm is served with the rpm pinned to its release too", async () => {
+	assert.ok(LINUX_WITH_RPM.includes("url: SurfSense.rpm"));
+	const { response, body } = await check("stable-linux.yml", LINUX_WITH_RPM);
+	assert.equal(response.status, 200);
+	assert.ok(body.split("\n").includes(`  - url: ${PINNED}SurfSense.rpm`), body);
+});
+
 test("stable-linux-arm64.yml is a channel file too", async () => {
 	const { response } = await check("stable-linux-arm64.yml", fixture("stable-linux.yml"));
 	assert.equal(response.status, 200);
@@ -165,6 +184,8 @@ const HOSTILE: Record<string, string> = {
 		"url: SurfSense-Setup.exe",
 		"url: SurfSense-Setup.sh"
 	),
+	// The snap updates from the Snap Store, so no manifest of ours names it.
+	"a snap": stable.replace("url: SurfSense-Setup.exe", "url: SurfSense.snap"),
 	"a file not named SurfSense": stable.replace("path: SurfSense-Setup.exe", "path: Setup.exe"),
 	"a quoted url": stable.replace(
 		"url: SurfSense-Setup.exe",

@@ -28,7 +28,19 @@ export const ASSET_LABELS: Record<string, string> = {
 	"-x64.zip": "macOS Intel (zip)",
 	".AppImage": "Linux (AppImage)",
 	".deb": "Linux (deb)",
+	".rpm": "Linux (rpm)",
 };
+
+/**
+ * What the site lists from a release: the installers a person downloads. The
+ * macOS update zip, the manifests, SHA256SUMS, the install scripts and the apt
+ * index are read by tools, and the snap installs from the Snap Store.
+ */
+const OFFERED_INSTALLER = /\.(exe|dmg|AppImage|deb|rpm)$/;
+
+export function isOfferedInstaller(name: string): boolean {
+	return OFFERED_INSTALLER.test(name);
+}
 
 export function getAssetLabel(name: string): string {
 	for (const [suffix, label] of Object.entries(ASSET_LABELS)) {
@@ -39,14 +51,17 @@ export function getAssetLabel(name: string): string {
 
 /**
  * The installer behind each `/downloads/<platform>` redirect. Every release from
- * 2.0.2 on publishes exactly these names; 2.0.0 and 2.0.1 put the version in
- * them. Renaming one breaks the redirect for every tag already linked.
+ * 2.0.2 on publishes these names, the rpm only from the release that added its
+ * target; a release without the file sends that platform to Latest. 2.0.0 and
+ * 2.0.1 put the version in them. Renaming one breaks the redirect for every tag
+ * already linked.
  */
 export const INSTALLER_FILES = {
 	windows: "SurfSense-Setup.exe",
 	mac: "SurfSense-arm64.dmg",
 	"linux-appimage": "SurfSense.AppImage",
 	"linux-deb": "SurfSense.deb",
+	"linux-rpm": "SurfSense.rpm",
 } as const;
 
 export type InstallerPlatform = keyof typeof INSTALLER_FILES;
