@@ -2,7 +2,7 @@
 
 The one [backend](../backend.md) sells, delivers and re-delivers the desktop app's license file with no accounts and no license table. Stripe and Keygen are the system of record: every search is a filter over Keygen license metadata, and the one direct read is by a derived id, and the license routes take no session, read no user table and touch no Postgres. Control of an inbox replaces the login, because a license is only ever mailed to the address it is registered to. Where having no table would cost a guarantee, the code moves the guarantee into Keygen instead of adding a table.
 
-**Code:** [`backend/license/`](../../../backend/license/), [`backend/mailer/`](../../../backend/mailer/), [`website/app/(home)/license/`](../../../website/app/\(home\)/license/)
+**Code:** [`backend/license/`](../../../backend/license/), [`backend/mailer/`](../../../backend/mailer/), [`www/app/(home)/license/`](../../../www/app/\(home\)/license/)
 **Decisions:** [ADR 0024](../../adr/0024-portal-without-accounts.md), [ADR 0019](../../adr/0019-offline-licenses.md)
 
 What the routes produce is [contract 1](../../contracts/01-license-file.md); the [desktop app](app.md) consumes it.
@@ -172,12 +172,12 @@ Three scripts sit in `backend/license/scripts/`, run as `python -m license.scrip
 
 ## Pages
 
-In `website`, all public routes:
+In `www`, all public routes:
 
 - `/license/success` is where Stripe returns the buyer. It downloads the file once on mount, since that first request may be what creates the license, then leaves retries to a button rather than looping. A 404 reads as "payment is still settling, press again", never "you have no license".
 - `/license` has only the resend form. Resend can never say "no license found", so its success copy tells the user to check spam and use the exact address they paid with.
 - The trial form is on `/downloads`, beside the installers a license file is useless without. It sends the visitor's channel tag with the email and captures `license_trial_requested` with the outcome (`sent`, `already_claimed`, `refused` or `error`) and the channel, never the address.
-- `/pricing/individual` sits between the pricing card and the Stripe Payment Link (`NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`): what the licence unlocks, the renewal, what happens after paying, the refund. Its Continue to checkout button appends `client_reference_id=<channel>` and captures `checkout_started` by beacon. The channel is the first-touch `?ref` code or `utm_source` the site already records, else the referring site's domain, else `direct` (`website/features/funnel-attribution/`), and never a person or browser id. The Payment Link's after-payment redirect must be `https://www.surfsense.com/license/success?session_id={CHECKOUT_SESSION_ID}`, and its price one-time rather than recurring: the page says the confirmation page downloads the file and that nothing charges again, and fulfilment handles only the first checkout session.
+- `/pricing/individual` sits between the pricing card and the Stripe Payment Link (`NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`): what the licence unlocks, the renewal, what happens after paying, the refund. Its Continue to checkout button appends `client_reference_id=<channel>` and captures `checkout_started` by beacon. The channel is the first-touch `?ref` code or `utm_source` the site already records, else the referring site's domain, else `direct` (`www/features/funnel-attribution/`), and never a person or browser id. The Payment Link's after-payment redirect must be `https://www.surfsense.com/license/success?session_id={CHECKOUT_SESSION_ID}`, and its price one-time rather than recurring: the page says the confirmation page downloads the file and that nothing charges again, and fulfilment handles only the first checkout session.
 - `/license/activate` is the activation guide the mail links to.
 
 The pages state two dead ends plainly. An enterprise license is one file sent only to the buying address, so a colleague asks the buyer to forward it. A lost or mistyped inbox has no self-serve path, because a form that mailed a license to a newly typed address would be a way to steal one.

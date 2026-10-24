@@ -22,7 +22,7 @@ Clone the repo once, then open the README for the part you want to change. You d
 | If you want to work on | Open |
 |------------------------|------|
 | Desktop app | [`surfsense_local/README.md`](surfsense_local/README.md) |
-| Website | [`website/README.md`](website/README.md) |
+| Website | [`www/README.md`](www/README.md) |
 | A plugin, your MCP server listed in the app | [`backend/plugins/registry/README.md`](backend/plugins/registry/README.md) |
 
 The self-hosted stack is on the [`legacy` branch](https://github.com/MODSetter/SurfSense/tree/legacy). A fix to it is a PR into `legacy`.

@@ -2,7 +2,7 @@
  * The desktop release this site links to, and how its assets are named.
  *
  * `APP_RELEASE_VERSION` is written by `surfsense_local/scripts/bump-version.sh`.
- * It lives here because Vercel builds from `website/` as the root directory,
+ * It lives here because Vercel builds from `www/` as the root directory,
  * so nothing outside it is a dependency the build can rely on.
  *
  * No React and no directives, so server and client code can both import it.

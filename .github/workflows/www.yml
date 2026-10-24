@@ -1,6 +1,6 @@
 name: Website
 
-# website, the site at www.surfsense.com. Filtered by paths at the workflow
+# www, the site at www.surfsense.com. Filtered by paths at the workflow
 # level, so it is not a required check.
 
 on:
@@ -8,8 +8,8 @@ on:
     branches: [main, dev]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - 'website/**'
-      - '.github/workflows/website.yml'
+      - 'www/**'
+      - '.github/workflows/www.yml'
   workflow_dispatch:
 
 concurrency:
@@ -27,7 +27,7 @@ jobs:
     if: github.event.pull_request.draft != true
     defaults:
       run:
-        working-directory: website
+        working-directory: www
 
     steps:
       - name: Checkout code
@@ -36,14 +36,14 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          package_json_file: website/package.json
+          package_json_file: www/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: website/pnpm-lock.yaml
+          cache-dependency-path: www/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

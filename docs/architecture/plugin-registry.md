@@ -88,7 +88,7 @@ The registry is served by a container of its own beside the [plugin host](plugin
 | `/oauth/callback` | `callback.html`, never framed | none |
 | `/health` | `ok` | none |
 
-Any other path is `404`, and any method but `GET` or `HEAD` is `405`. The website's `/plugins` page, and each plugin's page at `/plugins/<id>`, read `/plugins.json` and `/icons/` too, at most hourly, so a listing reaches them with the release that reaches the app, and a new one gets its page on first visit ([`registry-plugins.ts`](../../website/app/(home)/plugins/registry-plugins.ts)). `docker build -t surfsense-registry backend/plugins/registry` builds it.
+Any other path is `404`, and any method but `GET` or `HEAD` is `405`. The website's `/plugins` page, and each plugin's page at `/plugins/<id>`, read `/plugins.json` and `/icons/` too, at most hourly, so a listing reaches them with the release that reaches the app, and a new one gets its page on first visit ([`registry-plugins.ts`](../../www/app/(home)/plugins/registry-plugins.ts)). `docker build -t surfsense-registry backend/plugins/registry` builds it.
 
 ## OAuth files
 

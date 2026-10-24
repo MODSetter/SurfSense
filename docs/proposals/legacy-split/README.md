@@ -1,7 +1,7 @@
 ---
 status: in-progress
 code:
-  - website/
+  - www/
   - docker/scripts/
   - docker/local/
   - backend/
@@ -13,7 +13,7 @@ code:
 
 # Splitting the legacy stack from what still ships
 
-> The hosted user data was purged on 18 Oct 2026, so `surfsense_backend` and `surfsense_web` now carry three things that outlive them: the license portal, the marketing site, and the legacy self-host images. This makes `backend/` the one SurfSense backend, holding today's plugins and the license portal, moves the marketing site into `website/`, then moves the legacy stack to a `legacy` branch, whose final release is 0.0.41, and deletes it from `dev` and `main`. The Docker image of the desktop stack ([Docker proposal](../docker/README.md)) shares nothing with it.
+> The hosted user data was purged on 18 Oct 2026, so `surfsense_backend` and `surfsense_web` now carry three things that outlive them: the license portal, the marketing site, and the legacy self-host images. This makes `backend/` the one SurfSense backend, holding today's plugins and the license portal, moves the marketing site into `www/`, then moves the legacy stack to a `legacy` branch, whose final release is 0.0.41, and deletes it from `dev` and `main`. The Docker image of the desktop stack ([Docker proposal](../docker/README.md)) shares nothing with it.
 
 ## What changes
 
@@ -21,7 +21,7 @@ code:
 |---|---|
 | `surfsense_backend/app/license/` behind `api.surfsense.com` | `backend/license/`, served by the one backend on `api.surfsense.com` and `plugins.surfsense.com` |
 | `plugins/` | `backend/plugins/` |
-| marketing routes inside `surfsense_web` | `website/`, its own Next.js app on Vercel |
+| marketing routes inside `surfsense_web` | `www/`, its own Next.js app on Vercel |
 | sunset mode, `/sunset` and the sunset `/health` | removed |
 | `surfsense_backend`, `surfsense_web`, `surfsense_mcp`, `docker/*` | the `legacy` branch only |
 | `docker/local/` (not yet built) | `docker/local/`, unchanged |
@@ -85,14 +85,14 @@ Its `/` was the homepage. On `legacy`, `/` redirects to `/login`.
 | Workflow | Starts on |
 |---|---|
 | `docker-local.yml` | `v[1-9]*` tags; `dev` pushes and pull requests, with a `changes` job and a gate |
-| `website.yml` | `website/**` |
+| `www.yml` | `www/**` |
 | `release-local.yml` | `v[1-9]*` tags |
 | `desktop-tests.yml`, `plugins-*`, `code-quality.yml`, `release-stats.yml` | as today |
 
 - **`docker-local.yml` keeps the gate pattern.** One `changes` job filters on what the Dockerfile copies in (`docker/local/**`, `surfsense_local/backend/**`, `surfsense_local/frontend/**`, `surfsense_local/electron/src/{main/sidecars,headless,session-log}/**`, `surfsense_local/electron/scripts/**`) and the other jobs skip. The gate reports either way, so it can be a required check. This narrows the [Docker proposal's](../docker/README.md#ci) `surfsense_local/**`.
-- **`website.yml`** filters at the workflow level with `paths:`, so it is not a required check.
+- **`www.yml`** filters at the workflow level with `paths:`, so it is not a required check.
 - **The `plugins-*` workflows keep their names and their jobs' names**, so the required checks still match; only their paths change to `backend/`. `plugins-pull-request-checks.yml` gains a job that builds the backend and registry images on pull requests touching `backend/**`, without pushing, so a wrong path in a Dockerfile fails the pull request rather than Coolify's build.
-- **`.pre-commit-config.yaml`** drops the ruff, bandit and biome hooks for `surfsense_backend` and `surfsense_web`, and adds biome for `^website/`. `.github/CODEOWNERS` drops their entries.
+- **`.pre-commit-config.yaml`** drops the ruff, bandit and biome hooks for `surfsense_backend` and `surfsense_web`, and adds biome for `^www/`. `.github/CODEOWNERS` drops their entries.
 
 ### Docs that link into the legacy trees
 
@@ -188,7 +188,7 @@ Each of these breaks unless it changes in the same pull request or at its merge:
 
 ## The website
 
-`website/` is a Next.js app deployed on Vercel at `www.surfsense.com`. It is named for everything it serves, not only the home page, and does not nest a `homepage/` inside a `homepage/`.
+`www/` is a Next.js app deployed on Vercel at `www.surfsense.com`, named after that host as Supabase's `apps/www` and tRPC's `www/` are. It was `website/` until the rename that followed #2341.
 
 `surfsense_web/` was renamed to `website/` and pruned to what the site serves, rather than copied into a new app, so every kept file keeps its history. What it keeps:
 
@@ -226,7 +226,7 @@ Steps 1 and 2 landed in #2337. Then, into `dev`:
 6. The website restructured into feature folders, its own pull request.
 7. The Docker steps 4 to 14.
 
-The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. The deletion drops the root `AGENTS.md`'s boundaries on carving out hosted code and on the legacy compose. #2341 updates the root `AGENTS.md` and repoints the README banners at `website/`. Still to come: `architecture/` gains `website.md` and `docker.md`, and this proposal and the Docker proposal are deleted once the Docker steps are done.
+The backend's pull request adds `architecture/backend.md` and updates `portal.md`, `plugin-host.md`, `plugin-registry.md`, ADR 0024, ADR 0054 and the root `AGENTS.md`. The deletion drops the root `AGENTS.md`'s boundaries on carving out hosted code and on the legacy compose. #2341 updates the root `AGENTS.md` and repoints the README banners at `website/`. Still to come: `architecture/` gains `www.md` and `docker.md`, and this proposal and the Docker proposal are deleted once the Docker steps are done.
 
 ## Cutover
 

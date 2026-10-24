@@ -1,7 +1,7 @@
 /**
  * Regenerates the desktop-app screenshots `/license/activate` carries.
  *
- * Run it against a desktop app already running in dev, from `website`:
+ * Run it against a desktop app already running in dev, from `www`:
  *
  *   node scripts/capture-guide-shots.mjs
  *   SIDECAR=http://127.0.0.1:52316 node scripts/capture-guide-shots.mjs

@@ -1,4 +1,4 @@
-# website
+# www
 
 The site at `www.surfsense.com`, built by Vercel from this folder. Next.js App Router, `pnpm`, Biome. Root `AGENTS.md` owns organization and TDD.
 

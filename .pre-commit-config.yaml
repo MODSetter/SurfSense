@@ -56,16 +56,16 @@ repos:
   # Biome hooks for TypeScript/JavaScript projects
   - repo: local
     hooks:
-      # Biome check for website. Runs only when a commit touches website,
+      # Biome check for www. Runs only when a commit touches www,
       # then checks the whole app. The app's own Biome, so its version lives
-      # only in website/package.json, as Biome's docs recommend; `pnpm exec`
+      # only in www/package.json, as Biome's docs recommend; `pnpm exec`
       # fails rather than fetch another version when the app's dependencies
       # are not installed.
-      - id: biome-check-website
-        name: biome-check-website
-        entry: bash -c 'cd website && pnpm exec biome check --diagnostic-level=error .'
+      - id: biome-check-www
+        name: biome-check-www
+        entry: bash -c 'cd www && pnpm exec biome check --diagnostic-level=error .'
         language: system
-        files: ^website/
+        files: ^www/
         pass_filenames: false
         stages: [pre-commit]
 

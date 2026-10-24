@@ -11,7 +11,7 @@ With every job and its content free, the October research found nothing a busine
 
 SurfSense reaches people through organic search, user posts and creators. Those channels carry general, shareable work: decks and reports from files, converters, OCR, transcription, a local alternative to Claude Cowork. The B2B jobs run on confidential files nobody posts. So the free product distributes and the B2B jobs earn.
 
-The public promise fits a plugin. The pricing FAQ says everything "the app itself" does stays free and that the license "does not lock any of the app's own features" ([`pricing-content.ts`](../../website/app/(home)/pricing/pricing-content.ts)), and the license gates plugins and priority support only ([ADR 0019](0019-offline-licenses.md)).
+The public promise fits a plugin. The pricing FAQ says everything "the app itself" does stays free and that the license "does not lock any of the app's own features" ([`pricing-content.ts`](../../www/app/(home)/pricing/pricing-content.ts)), and the license gates plugins and priority support only ([ADR 0019](0019-offline-licenses.md)).
 
 ## Decision
 
