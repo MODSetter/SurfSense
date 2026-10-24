@@ -78,6 +78,7 @@ test("the budgets cover every installer the release builds, on its own OS", () =
       ["SurfSense-arm64.zip", "darwin"],
       ["SurfSense.AppImage", "linux"],
       ["SurfSense.deb", "linux"],
+      ["SurfSense.rpm", "linux"],
     ].sort()
   )
   for (const { maxMiB } of Object.values(budgets)) assert.ok(maxMiB > 0)
@@ -87,9 +88,12 @@ test("the budgeted names are the ones electron-builder.yml gives the installers"
   const yml = readFileSync(new URL("../electron-builder.yml", import.meta.url), "utf8").replace(/\r\n/g, "\n")
   const productName = yml.match(/^productName: (\S+)$/m)[1]
   const named = []
-  for (const [os, exts] of [["win", ["exe"]], ["mac", ["dmg", "zip"]], ["linux", ["AppImage", "deb"]]]) {
+  for (const os of ["win", "mac", "linux"]) {
     const section = yml.match(new RegExp(`^${os}:\\n((?:[ \\t]+.*\\n|\\n)*)`, "m"))[1]
     const pattern = section.match(/^  artifactName: "(.+)"$/m)[1]
+    // Read from each target list, so a target added there without a budget fails here.
+    // Each file's extension is its target's name, NSIS's .exe aside.
+    const exts = section.match(/^  target: \[(.+)\]$/m)[1].split(/,\s*/).map((target) => (target === "nsis" ? "exe" : target))
     // The release builds macOS for Apple Silicon only (ADR 0021).
     for (const ext of exts) named.push(pattern.replace("${productName}", productName).replace("${arch}", "arm64").replace("${ext}", ext))
   }

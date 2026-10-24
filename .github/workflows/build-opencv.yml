@@ -92,8 +92,10 @@ jobs:
       - name: Gate on the app's Linux floor
         if: runner.os == 'Linux'
         working-directory: ${{ runner.temp }}
-        # The floor is glibc 2.34, RHEL 9, whose libgcc_s and libstdc++ are
-        # GCC 11's: nothing after GCC_7.0.0, GLIBCXX_3.4.29 or CXXABI_1.3.13.
+        # glibc 2.34 and RHEL 9's GCC 11 libgcc_s and libstdc++, nothing after
+        # GCC_7.0.0, GLIBCXX_3.4.29 or CXXABI_1.3.13: stricter than the app's
+        # Linux floor, glibc 2.35 and GCC 12's libstdc++, which the backend and
+        # llama.cpp set (docs/architecture/packaging.md).
         # The module links only the C and C++ runtimes and, as upstream's does,
         # the system's zlib.
         run: |
