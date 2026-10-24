@@ -1,7 +1,7 @@
 # Base UI in the desktop frontend
 
 `surfsense_local/frontend` builds its `components/ui/` on Base UI (shadcn
-`base-nova`). `website` is still on Radix (`new-york`): none of this
+`base-nova`). `www` is still on Radix (`new-york`): none of this
 applies there.
 
 These are the rules that compile fine and still break. Check
