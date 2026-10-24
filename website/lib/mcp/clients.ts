@@ -41,7 +41,7 @@ export interface McpClient {
 
 export const REMOTE_URL = "https://mcp.surfsense.com/mcp";
 export const DEFAULT_SERVER_DIR = "/path/to/SurfSense/surfsense_mcp";
-export const API_KEY_PLACEHOLDER = "ss_pat_your_key_here";
+export const API_KEY_PLACEHOLDER = "ss_pat_your_key_here"; // pragma: allowlist secret
 
 function json(value: unknown): string {
 	return JSON.stringify(value, null, 2);
