@@ -1,6 +1,7 @@
 """The Word builder: python-docx's default template and its built-in styles (decision 12)."""
 
 from collections.abc import Mapping
+from copy import deepcopy
 from io import BytesIO
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from docx.document import Document
 from docx.opc.constants import RELATIONSHIP_TYPE
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.oxml.numbering import CT_Numbering
 from docx.shared import Emu, RGBColor
 from docx.text.paragraph import Paragraph as WordParagraph
 from PIL import Image
@@ -87,7 +89,11 @@ class _Writer:
         kind = "List Number" if block.ordered else "List Bullet"
         first = kind if level == 1 else f"{kind} {level}"
         rest = "List Continue" if level == 1 else f"List Continue {level}"
-        num_id = self._restarted_numbering(first) if block.ordered else None
+        num_id = (
+            self._restarted_numbering(first, own_counter=depth > _LIST_DEPTH)
+            if block.ordered
+            else None
+        )
         for item in block.items:
             styled = False
             for child in item:
@@ -102,11 +108,18 @@ class _Writer:
                 else:
                     self.block(child, depth)
 
-    def _restarted_numbering(self, style: str) -> int:
-        """A numbering of its own from 1: the style's shared one counts on across lists."""
+    def _restarted_numbering(self, style: str, own_counter: bool) -> int:
+        """A numbering of its own from 1: the style's shared one counts on across lists.
+
+        `own_counter` is for a list deeper than the styles go: it shares its style
+        with an enclosing list, and every w:num on one abstract list shares a counter.
+        """
         numbering = self._document.part.numbering_part.element
         style_num = self._document.styles[style].element.pPr.numPr.numId.val
-        num = numbering.add_num(numbering.num_having_numId(style_num).abstractNumId.val)
+        abstract_id = numbering.num_having_numId(style_num).abstractNumId.val
+        if own_counter:
+            abstract_id = _copied_abstract_list(numbering, abstract_id)
+        num = numbering.add_num(abstract_id)
         num.add_lvlOverride(ilvl=0).add_startOverride(1)
         return num.numId
 
@@ -175,6 +188,26 @@ def _link(paragraph: WordParagraph, run: object, href: str) -> None:
     run.font.underline = True  # type: ignore[attr-defined]
     hyperlink.append(run._r)  # type: ignore[attr-defined]
     paragraph._p.append(hyperlink)
+
+
+def _copied_abstract_list(numbering: CT_Numbering, abstract_id: int) -> int:
+    """A copy of an abstract list, with counters of its own; returns its id."""
+    abstracts = numbering.findall(qn("w:abstractNum"))
+    source = next(
+        abstract
+        for abstract in abstracts
+        if abstract.get(qn("w:abstractNumId")) == str(abstract_id)
+    )
+    copy = deepcopy(source)
+    new_id = max(int(abstract.get(qn("w:abstractNumId"))) for abstract in abstracts) + 1
+    copy.set(qn("w:abstractNumId"), str(new_id))
+    # Both belong to the source alone: nsid identifies it, pStyle ties a style to it.
+    for tied in copy.findall(qn("w:nsid")) + copy.findall(
+        f"{qn('w:lvl')}/{qn('w:pStyle')}"
+    ):
+        tied.getparent().remove(tied)
+    abstracts[-1].addnext(copy)
+    return new_id
 
 
 def _number(paragraph: WordParagraph, num_id: int) -> None:
