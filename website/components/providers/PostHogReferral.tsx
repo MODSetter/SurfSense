@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { trackReferralLanding } from "@/lib/posthog/events";
+import { trackReferralLanding } from "@/lib/posthog/referral-landing";
 
 export const REF_STORAGE_KEY = "surfsense_ref_code";
 
