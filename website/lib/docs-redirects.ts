@@ -12,7 +12,7 @@
 
 /**
  * Path segment for the docs written before the pivot. The sidebar label lives
- * in `content/docs/legacy/meta.json` and reads "SurfSense 0.0.40"; the segment
+ * in `content/docs/legacy/meta.json` and reads "SurfSense Legacy"; the segment
  * stays version-free so patch releases do not each strand a URL.
  */
 export const LEGACY_DOCS_PATH = "legacy";

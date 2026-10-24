@@ -50,7 +50,7 @@ If you previously ran the legacy all-in-one image (`ghcr.io/modsetter/surfsense:
 Just run the normal install command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.sh | bash
 ```
 
 It detects the legacy `surfsense-data` volume, stops the old container, dumps your database with a temporary PostgreSQL 14 container, recovers your `SECRET_KEY`, restores everything into PostgreSQL 17, and starts the new stack. Your original volume is **never deleted** — the dump is also saved to `./surfsense_migration_backup.sql` as a checkpoint, so if anything fails mid-way you can simply re-run the script.
@@ -65,8 +65,8 @@ After it completes:
 If your old container used custom database credentials (`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`), run the migration script manually first with your credentials, then run the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/migrate-database.sh -o migrate-database.sh
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/migrate-database.sh -o migrate-database.sh
 bash migrate-database.sh --db-user myuser --db-password mypass --db-name mydb
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.sh | bash
 ```
 </Callout>

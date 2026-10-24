@@ -12,13 +12,13 @@ Docker is the recommended way to run SurfSense. Everything — database, backend
 **Linux/macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/legacy/docker/scripts/install.ps1 | iex
 ```
 
 The script creates a `./surfsense/` directory with the compose files and a `.env`, generates a secret key, starts all services, and waits until they're healthy. It also:
